@@ -1240,6 +1240,36 @@ export type Database = {
           },
         ]
       }
+      document_counters: {
+        Row: {
+          created_at: string
+          document_type: string
+          id: string
+          last_number: number
+          month: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          id?: string
+          last_number?: number
+          month: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          id?: string
+          last_number?: number
+          month?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       document_types: {
         Row: {
           code: string
@@ -3850,6 +3880,10 @@ export type Database = {
       generate_savings_payment_code: { Args: never; Returns: string }
       generate_ticket_code: { Args: never; Returns: string }
       get_failed_attempts: { Args: { _email: string }; Returns: number }
+      get_next_document_number: {
+        Args: { p_document_type: string; p_prefix: string }
+        Returns: string
+      }
       get_user_branch_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
