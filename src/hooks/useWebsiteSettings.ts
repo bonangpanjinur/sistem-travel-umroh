@@ -39,6 +39,10 @@ export interface WebsiteSettings {
   social_tiktok: string | null;
   meta_title: string | null;
   meta_description: string | null;
+  nav_links: Array<{href: string; label: string}> | null;
+  footer_links: Record<string, Array<{href: string; label: string}>> | null;
+  footer_description: string | null;
+  footer_bottom_text: string | null;
   created_at: string | null;
   updated_at: string | null;
 }

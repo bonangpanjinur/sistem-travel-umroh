@@ -12,10 +12,11 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-const navLinks = [
+const defaultNavLinks = [
   { href: '/', label: 'Beranda' },
   { href: '/packages', label: 'Paket Umroh' },
-  { href: '/savings', label: 'Tabungan Umroh' },
+  { href: '/departures', label: 'Jadwal' },
+  { href: '/savings', label: 'Tabungan' },
   { href: '/about', label: 'Tentang Kami' },
   { href: '/contact', label: 'Hubungi Kami' },
 ];
@@ -39,6 +40,7 @@ export function DynamicNavbar() {
   const companyName = settings?.company_name || 'UmrohTravel';
   const tagline = settings?.tagline || 'Perjalanan Suci Anda';
   const logoUrl = settings?.logo_url;
+  const navLinks = (settings?.nav_links as Array<{href: string; label: string}>) || defaultNavLinks;
 
   return (
     <nav className="sticky top-0 z-50 glass border-b">
