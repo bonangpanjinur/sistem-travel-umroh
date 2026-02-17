@@ -3236,6 +3236,45 @@ export type Database = {
         }
         Relationships: []
       }
+      static_pages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_published: boolean
+          meta_description: string | null
+          meta_title: string | null
+          slug: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          slug: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          slug?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           assigned_to: string | null
@@ -3298,6 +3337,51 @@ export type Database = {
             referencedColumns: ["departure_id"]
           },
         ]
+      }
+      testimonials: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_featured: boolean
+          is_published: boolean
+          location: string | null
+          name: string
+          package_name: string | null
+          photo_url: string | null
+          rating: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_featured?: boolean
+          is_published?: boolean
+          location?: string | null
+          name: string
+          package_name?: string | null
+          photo_url?: string | null
+          rating?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_featured?: boolean
+          is_published?: boolean
+          location?: string | null
+          name?: string
+          package_name?: string | null
+          photo_url?: string | null
+          rating?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       theme_presets: {
         Row: {
@@ -3599,7 +3683,10 @@ export type Database = {
           created_at: string | null
           favicon_url: string | null
           footer_address: string | null
+          footer_bottom_text: string | null
+          footer_description: string | null
           footer_email: string | null
+          footer_links: Json | null
           footer_phone: string | null
           footer_whatsapp: string | null
           foreground_color: string | null
@@ -3614,6 +3701,7 @@ export type Database = {
           logo_url: string | null
           meta_description: string | null
           meta_title: string | null
+          nav_links: Json | null
           primary_color: string | null
           secondary_color: string | null
           social_facebook: string | null
@@ -3632,7 +3720,10 @@ export type Database = {
           created_at?: string | null
           favicon_url?: string | null
           footer_address?: string | null
+          footer_bottom_text?: string | null
+          footer_description?: string | null
           footer_email?: string | null
+          footer_links?: Json | null
           footer_phone?: string | null
           footer_whatsapp?: string | null
           foreground_color?: string | null
@@ -3647,6 +3738,7 @@ export type Database = {
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
+          nav_links?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
           social_facebook?: string | null
@@ -3665,7 +3757,10 @@ export type Database = {
           created_at?: string | null
           favicon_url?: string | null
           footer_address?: string | null
+          footer_bottom_text?: string | null
+          footer_description?: string | null
           footer_email?: string | null
+          footer_links?: Json | null
           footer_phone?: string | null
           footer_whatsapp?: string | null
           foreground_color?: string | null
@@ -3680,6 +3775,7 @@ export type Database = {
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
+          nav_links?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
           social_facebook?: string | null

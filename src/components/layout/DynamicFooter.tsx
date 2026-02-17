@@ -2,12 +2,11 @@ import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube } from 'lucide-react';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-const footerLinks = {
+const defaultFooterLinks = {
   layanan: [
     { href: '/packages', label: 'Paket Umroh' },
-    { href: '/packages?type=haji', label: 'Paket Haji' },
     { href: '/departures', label: 'Jadwal Keberangkatan' },
-    { href: '/visa', label: 'Layanan Visa' },
+    { href: '/savings', label: 'Tabungan Umroh' },
   ],
   informasi: [
     { href: '/about', label: 'Tentang Kami' },
@@ -16,10 +15,7 @@ const footerLinks = {
     { href: '/privacy', label: 'Kebijakan Privasi' },
   ],
   panduan: [
-    { href: '/manasik', label: 'Panduan Manasik' },
-    { href: '/checklist', label: 'Checklist Perlengkapan' },
-    { href: '/tips', label: 'Tips Perjalanan' },
-    { href: '/blog', label: 'Blog & Artikel' },
+    { href: '/contact', label: 'Hubungi Kami' },
   ],
 };
 
@@ -46,6 +42,9 @@ export function DynamicFooter() {
   const facebook = settings?.social_facebook;
   const youtube = settings?.social_youtube;
   const tiktok = settings?.social_tiktok;
+  const footerDescription = settings?.footer_description || 'Melayani perjalanan ibadah Umroh dan Haji dengan pengalaman bertahun-tahun. Kami berkomitmen memberikan pengalaman ibadah yang nyaman, aman, dan penuh keberkahan.';
+  const footerBottomText = settings?.footer_bottom_text || 'Izin Resmi Kemenag RI';
+  const footerLinks = settings?.footer_links || defaultFooterLinks;
 
   const currentYear = new Date().getFullYear();
 
@@ -74,8 +73,7 @@ export function DynamicFooter() {
               </div>
             </Link>
             <p className="mt-4 max-w-md text-sm text-sidebar-foreground/70">
-              Melayani perjalanan ibadah Umroh dan Haji dengan pengalaman bertahun-tahun. 
-              Kami berkomitmen memberikan pengalaman ibadah yang nyaman, aman, dan penuh keberkahan.
+              {footerDescription}
             </p>
             
             {/* Contact Info */}
@@ -227,7 +225,7 @@ export function DynamicFooter() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col items-center justify-between gap-4 text-center text-sm text-sidebar-foreground/70 md:flex-row md:text-left">
             <p>© {currentYear} {companyName}. Semua hak dilindungi.</p>
-            <p>Izin Resmi Kemenag RI</p>
+            <p>{footerBottomText}</p>
           </div>
         </div>
       </div>

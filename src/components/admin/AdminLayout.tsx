@@ -11,7 +11,8 @@ import {
   FileBarChart, BarChart3, Target, KeyRound, BedDouble, Plane,
   Wallet, FileCheck, Building2, DollarSign, Truck, Gift,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
-  UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search
+  UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
+  FileType, Star
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -109,6 +110,8 @@ const NAV_GROUPS = [
       { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security' },
       { label: '2FA Settings', icon: Key, path: '/admin/2fa' },
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance' },
+      { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages' },
+      { label: 'Testimoni', icon: Star, path: '/admin/testimonials' },
       { label: 'Pengaturan', icon: Settings, path: '/admin/settings' },
     ]
   },
