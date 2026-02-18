@@ -566,6 +566,50 @@ export type Database = {
           },
         ]
       }
+      booking_status_history: {
+        Row: {
+          booking_id: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_payment_status: string | null
+          new_status: string
+          notes: string | null
+          old_payment_status: string | null
+          old_status: string | null
+        }
+        Insert: {
+          booking_id: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_payment_status?: string | null
+          new_status: string
+          notes?: string | null
+          old_payment_status?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          booking_id?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_payment_status?: string | null
+          new_status?: string
+          notes?: string | null
+          old_payment_status?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_status_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           addons_price: number | null
@@ -585,6 +629,7 @@ export type Database = {
           infant_count: number | null
           notes: string | null
           paid_amount: number | null
+          payment_deadline: string | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
           remaining_amount: number | null
           room_type: Database["public"]["Enums"]["room_type"]
@@ -611,6 +656,7 @@ export type Database = {
           infant_count?: number | null
           notes?: string | null
           paid_amount?: number | null
+          payment_deadline?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           remaining_amount?: number | null
           room_type?: Database["public"]["Enums"]["room_type"]
@@ -637,6 +683,7 @@ export type Database = {
           infant_count?: number | null
           notes?: string | null
           paid_amount?: number | null
+          payment_deadline?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           remaining_amount?: number | null
           room_type?: Database["public"]["Enums"]["room_type"]

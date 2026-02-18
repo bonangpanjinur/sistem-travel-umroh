@@ -12,7 +12,8 @@ import { toast } from "sonner";
 import { 
   User, CreditCard, Plane, MapPin, Phone,
   Calendar, Clock, Hotel, Users, FileText, QrCode,
-  Download, Share2, Wifi, WifiOff, Home, ChevronRight, Navigation
+  Download, Share2, Wifi, WifiOff, Home, ChevronRight, Navigation,
+  Bell
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
@@ -20,9 +21,19 @@ import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/format";
 import { SOSButton } from "@/components/jamaah/SOSButton";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
+import { useNotifications } from "@/hooks/useNotifications";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function JamaahPortal() {
   const { user } = useAuth();
+  const { notifications, unreadCount, markAsRead } = useNotifications();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
@@ -166,11 +177,46 @@ export default function JamaahPortal() {
               </p>
             </div>
           </div>
-          <SOSButton 
-            customerName={customer?.full_name || "Jamaah"}
-            muthawifPhone={muthawifPhone}
-            bookingCode={booking?.booking_code}
-          />
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-primary-foreground relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-primary" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {notifications && notifications.length > 0 ? (
+                  notifications.map((n) => (
+                    <DropdownMenuItem 
+                      key={n.id} 
+                      className={`flex flex-col items-start gap-1 p-3 ${!n.is_read ? 'bg-primary/5' : ''}`}
+                      onClick={() => markAsRead.mutate(n.id)}
+                    >
+                      <p className="font-semibold text-xs">{n.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {format(new Date(n.created_at), "d MMM, HH:mm", { locale: id })}
+                      </p>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    Tidak ada notifikasi baru
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <SOSButton 
+              customerName={customer?.full_name || "Jamaah"}
+              muthawifPhone={muthawifPhone}
+              bookingCode={booking?.booking_code}
+            />
+          </div>
         </div>
       </div>
 

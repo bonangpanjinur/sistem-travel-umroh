@@ -13,8 +13,16 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { 
   ArrowLeft, Calendar, CreditCard, Users, User,
-  Plane, Hotel, Clock, CheckCircle, Upload
+  Plane, Hotel, Clock, CheckCircle, Upload,
+  AlertCircle, FileText, CheckCircle2, Circle
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Alert, 
+  AlertDescription, 
+  AlertTitle 
+} from "@/components/ui/alert";
+import { differenceInHours, parseISO } from "date-fns";
 
 export default function BookingDetail() {
   const { bookingId } = useParams();
@@ -110,6 +118,61 @@ export default function BookingDetail() {
             Kembali ke Booking Saya
           </Link>
         </Button>
+
+        {/* Status Progress */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex justify-between mb-2">
+              <div className="flex flex-col items-center gap-1">
+                <div className={`p-2 rounded-full ${booking.booking_status === 'pending' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-medium">Booked</span>
+              </div>
+              <div className="flex-1 flex items-center px-2">
+                <div className={`h-1 w-full rounded ${booking.payment_status === 'paid' ? 'bg-primary' : 'bg-muted'}`} />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className={`p-2 rounded-full ${booking.payment_status === 'paid' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-medium">Dibayar</span>
+              </div>
+              <div className="flex-1 flex items-center px-2">
+                <div className={`h-1 w-full rounded ${booking.booking_status === 'confirmed' ? 'bg-primary' : 'bg-muted'}`} />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className={`p-2 rounded-full ${booking.booking_status === 'confirmed' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  <FileText className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-medium">Diverifikasi</span>
+              </div>
+              <div className="flex-1 flex items-center px-2">
+                <div className={`h-1 w-full rounded ${booking.booking_status === 'completed' ? 'bg-primary' : 'bg-muted'}`} />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className={`p-2 rounded-full ${booking.booking_status === 'completed' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  <Plane className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-medium">Berangkat</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Deadline Alert */}
+        {booking.payment_status !== 'paid' && booking.payment_deadline && (
+          <Alert variant="destructive" className="mb-6 bg-red-50 border-red-200 text-red-900">
+            <Clock className="h-4 w-4" />
+            <AlertTitle>Batas Waktu Pembayaran</AlertTitle>
+            <AlertDescription>
+              Segera lakukan pembayaran sebelum {format(new Date(booking.payment_deadline), "d MMMM yyyy, HH:mm", { locale: id })}. 
+              {differenceInHours(new Date(booking.payment_deadline), new Date()) < 24 && (
+                <span className="font-bold ml-1">Sisa waktu kurang dari 24 jam!</span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
@@ -261,6 +324,49 @@ export default function BookingDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Document Upload Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Dokumen Perjalanan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Lengkapi dokumen perjalanan Anda untuk mempercepat proses verifikasi.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="p-4 border border-dashed rounded-lg flex flex-col items-center justify-center text-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Kartu Tanda Penduduk (KTP)</p>
+                      <p className="text-xs text-muted-foreground">PDF, JPG (Maks 5MB)</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full mt-2">
+                      <Upload className="h-3 w-3 mr-2" />
+                      Upload KTP
+                    </Button>
+                  </div>
+                  <div className="p-4 border border-dashed rounded-lg flex flex-col items-center justify-center text-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Paspor</p>
+                      <p className="text-xs text-muted-foreground">PDF, JPG (Maks 5MB)</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full mt-2">
+                      <Upload className="h-3 w-3 mr-2" />
+                      Upload Paspor
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Payment Summary */}
             <Card className="bg-primary/5 border-primary/20">
               <CardHeader className="pb-3">
