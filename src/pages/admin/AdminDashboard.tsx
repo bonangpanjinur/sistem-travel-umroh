@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { 
   DollarSign, Users, Calendar, CreditCard, 
-  TrendingUp, ArrowRight, Package
+  TrendingUp, ArrowRight, Package, ShoppingCart, FileText
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -43,6 +43,34 @@ export default function AdminDashboard() {
           <Link to="/admin/analytics">
             Lihat Analytics Lengkap
             <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
+
+      {/* Quick Actions Section */}
+      <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-4">
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/admin/packages">
+            <Package className="h-5 w-5 text-primary" />
+            <span className="text-xs font-semibold">Tambah Paket</span>
+          </Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/admin/bookings">
+            <ShoppingCart className="h-5 w-5 text-blue-600" />
+            <span className="text-xs font-semibold">Verifikasi Bayar</span>
+          </Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/admin/customers">
+            <Users className="h-5 w-5 text-green-600" />
+            <span className="text-xs font-semibold">Tambah Jamaah</span>
+          </Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/admin/document-generator">
+            <FileText className="h-5 w-5 text-amber-600" />
+            <span className="text-xs font-semibold">Generate Dokumen</span>
           </Link>
         </Button>
       </div>
