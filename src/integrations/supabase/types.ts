@@ -190,6 +190,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           npwp: string | null
+          parent_agent_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -205,6 +206,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           npwp?: string | null
+          parent_agent_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -220,6 +222,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           npwp?: string | null
+          parent_agent_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -229,6 +232,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agents_parent_agent_id_fkey"
+            columns: ["parent_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
         ]
