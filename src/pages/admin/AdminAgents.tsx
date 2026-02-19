@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +25,10 @@ import { id } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
 import {
   Search, Users, CheckCircle, Clock, XCircle,
-  DollarSign, Eye, Check, X, Edit2, Percent
+  DollarSign, Eye, Check, X, Edit2, Percent,
+  Plus, ChevronRight, UserPlus, Network
 } from "lucide-react";
+import AddAgentDialog from "@/components/admin/AddAgentDialog";
 
 interface Agent {
   id: string;
@@ -41,10 +43,12 @@ interface Agent {
   npwp: string | null;
   created_at: string;
   branch_id: string | null;
+  parent_agent_id: string | null;
   profile?: {
     full_name: string | null;
     phone: string | null;
   };
+  sub_agents?: Agent[];
 }
 
 interface Commission {
@@ -76,9 +80,12 @@ export default function AdminAgents() {
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null);
   const [agentToToggle, setAgentToToggle] = useState<Agent | null>(null);
   const [editingRate, setEditingRate] = useState<{ agentId: string; rate: string } | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addSubAgentParent, setAddSubAgentParent] = useState<string | null>(null);
+  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
 
   // Fetch agents
-  const { data: agents, isLoading: agentsLoading } = useQuery({
+  const { data: allAgents, isLoading: agentsLoading } = useQuery({
     queryKey: ['admin-agents'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -88,7 +95,6 @@ export default function AdminAgents() {
 
       if (error) throw error;
 
-      // Fetch profiles for each agent
       const userIds = (data || []).map(a => a.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
@@ -101,6 +107,24 @@ export default function AdminAgents() {
       })) as Agent[];
     },
   });
+
+  // Build hierarchy: top-level agents with nested sub_agents
+  const agents = allAgents ? (() => {
+    const topLevel = allAgents.filter(a => !a.parent_agent_id);
+    return topLevel.map(agent => ({
+      ...agent,
+      sub_agents: allAgents.filter(sa => sa.parent_agent_id === agent.id),
+    }));
+  })() : undefined;
+
+  const toggleExpand = (agentId: string) => {
+    setExpandedAgents(prev => {
+      const next = new Set(prev);
+      if (next.has(agentId)) next.delete(agentId);
+      else next.add(agentId);
+      return next;
+    });
+  };
 
   // Fetch commissions
   const { data: commissions, isLoading: commissionsLoading } = useQuery({
@@ -206,12 +230,12 @@ export default function AdminAgents() {
   const filteredAgents = agents?.filter(agent => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
-    return (
-      agent.agent_code?.toLowerCase().includes(search) ||
-      agent.company_name?.toLowerCase().includes(search) ||
-      agent.profile?.full_name?.toLowerCase().includes(search) ||
-      agent.profile?.phone?.includes(search)
-    );
+    const matchAgent = (a: Agent) =>
+      a.agent_code?.toLowerCase().includes(search) ||
+      a.company_name?.toLowerCase().includes(search) ||
+      a.profile?.full_name?.toLowerCase().includes(search) ||
+      a.profile?.phone?.includes(search);
+    return matchAgent(agent) || agent.sub_agents?.some(matchAgent);
   });
 
   const filteredCommissions = commissions?.filter(commission => {
@@ -225,8 +249,9 @@ export default function AdminAgents() {
   });
 
   const stats = {
-    totalAgents: agents?.length || 0,
-    activeAgents: agents?.filter(a => a.is_active).length || 0,
+    totalAgents: allAgents?.length || 0,
+    activeAgents: allAgents?.filter(a => a.is_active).length || 0,
+    subAgentCount: allAgents?.filter(a => a.parent_agent_id).length || 0,
     pendingCommissions: commissions?.filter(c => c.status === 'pending').length || 0,
     totalPendingAmount: commissions?.filter(c => c.status === 'pending')
       .reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
@@ -237,16 +262,22 @@ export default function AdminAgents() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Manajemen Agent</h1>
-          <p className="text-muted-foreground">Kelola agent dan komisi</p>
+          <p className="text-muted-foreground">Kelola agent, sub-agent, dan komisi</p>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari agent, kode..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10 w-full sm:w-64"
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari agent, kode..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 w-full sm:w-64"
+            />
+          </div>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah Agent
+          </Button>
         </div>
       </div>
 
@@ -343,93 +374,96 @@ export default function AdminAgents() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredAgents.map((agent) => (
-                        <TableRow key={agent.id}>
-                          <TableCell className="font-mono font-semibold">
-                            {agent.agent_code}
-                          </TableCell>
-                          <TableCell>{agent.profile?.full_name || '-'}</TableCell>
-                          <TableCell>{agent.company_name || '-'}</TableCell>
-                          <TableCell>
-                            {editingRate?.agentId === agent.id ? (
+                      {filteredAgents.map((agent) => {
+                        const hasSubAgents = agent.sub_agents && agent.sub_agents.length > 0;
+                        const isExpanded = expandedAgents.has(agent.id);
+
+                        const renderAgentRow = (a: Agent, isSub = false) => (
+                          <TableRow key={a.id} className={isSub ? "bg-muted/30" : ""}>
+                            <TableCell className="font-mono font-semibold">
                               <div className="flex items-center gap-2">
-                                <Input
-                                  type="number"
-                                  value={editingRate.rate}
-                                  onChange={(e) => setEditingRate({ ...editingRate, rate: e.target.value })}
-                                  className="w-20 h-8"
-                                  min="0"
-                                  max="100"
-                                />
-                                <span>%</span>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => updateRateMutation.mutate({
-                                    agentId: agent.id,
-                                    rate: parseFloat(editingRate.rate) || 0
-                                  })}
-                                >
-                                  <Check className="h-4 w-4" />
+                                {!isSub && hasSubAgents && (
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleExpand(agent.id)}>
+                                    <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                  </Button>
+                                )}
+                                {isSub && <span className="ml-8 text-muted-foreground">└</span>}
+                                {a.agent_code}
+                                {isSub && <Badge variant="secondary" className="text-xs">Sub</Badge>}
+                                {!isSub && hasSubAgents && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Network className="h-3 w-3 mr-1" />
+                                    {agent.sub_agents!.length}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{a.profile?.full_name || '-'}</TableCell>
+                            <TableCell>{a.company_name || '-'}</TableCell>
+                            <TableCell>
+                              {editingRate?.agentId === a.id ? (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    value={editingRate.rate}
+                                    onChange={(e) => setEditingRate({ ...editingRate, rate: e.target.value })}
+                                    className="w-20 h-8"
+                                    min="0"
+                                    max="100"
+                                  />
+                                  <span>%</span>
+                                  <Button size="sm" variant="ghost" onClick={() => updateRateMutation.mutate({ agentId: a.id, rate: parseFloat(editingRate.rate) || 0 })}>
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingRate(null)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline">
+                                    <Percent className="h-3 w-3 mr-1" />
+                                    {a.commission_rate || 0}%
+                                  </Badge>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingRate({ agentId: a.id, rate: String(a.commission_rate || 0) })}>
+                                    <Edit2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={a.is_active ? "default" : "secondary"}>
+                                {a.is_active ? "Aktif" : "Nonaktif"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(a.created_at), 'd MMM yyyy', { locale: id })}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {!isSub && (
+                                  <Button variant="outline" size="sm" title="Tambah Sub-Agent" onClick={() => { setAddSubAgentParent(a.id); setShowAddDialog(true); }}>
+                                    <UserPlus className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <Button variant="outline" size="sm" onClick={() => { setSelectedAgent(a); setShowDetailDialog(true); }}>
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setEditingRate(null)}
-                                >
-                                  <X className="h-4 w-4" />
+                                <Button variant={a.is_active ? "destructive" : "default"} size="sm" onClick={() => setAgentToToggle(a)}>
+                                  {a.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
                                 </Button>
                               </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline">
-                                  <Percent className="h-3 w-3 mr-1" />
-                                  {agent.commission_rate || 0}%
-                                </Badge>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setEditingRate({
-                                    agentId: agent.id,
-                                    rate: String(agent.commission_rate || 0)
-                                  })}
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={agent.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                              {agent.is_active ? "Aktif" : "Nonaktif"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(agent.created_at), 'd MMM yyyy', { locale: id })}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedAgent(agent);
-                                  setShowDetailDialog(true);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant={agent.is_active ? "destructive" : "default"}
-                                size="sm"
-                                onClick={() => setAgentToToggle(agent)}
-                              >
-                                {agent.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                          </TableRow>
+                        );
+
+                        return (
+                          <React.Fragment key={agent.id}>
+                            {renderAgentRow(agent)}
+                            {isExpanded && agent.sub_agents?.map(sub => renderAgentRow(sub, true))}
+                          </React.Fragment>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -636,6 +670,16 @@ export default function AdminAgents() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Agent Dialog */}
+      <AddAgentDialog
+        open={showAddDialog}
+        onOpenChange={(open) => {
+          setShowAddDialog(open);
+          if (!open) setAddSubAgentParent(null);
+        }}
+        parentAgentId={addSubAgentParent}
+      />
     </div>
   );
 }
