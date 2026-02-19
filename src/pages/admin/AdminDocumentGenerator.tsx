@@ -12,11 +12,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, getYear, getMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { 
   FileText, Download, Send, Calendar as CalendarIcon, Plane, Receipt, Mail,
-  User, Users, Briefcase, Ticket, Award, Package, Filter
+  User, Users, Briefcase, Ticket, Award, Package, Filter, Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -35,33 +35,67 @@ interface Employee {
   status: string;
 }
 
-// ── Cascading filter component ──────────────────────────────────────────
+// ── Cascading filter component with Year & Month ──────────────────────────
 function PackageDepartureFilter({
   selectedPackageId,
   selectedDepartureId,
+  filterYear,
+  filterMonth,
   onPackageChange,
   onDepartureChange,
+  onYearChange,
+  onMonthChange,
   packages,
   departures,
 }: {
   selectedPackageId: string;
   selectedDepartureId: string;
+  filterYear: string;
+  filterMonth: string;
   onPackageChange: (v: string) => void;
   onDepartureChange: (v: string) => void;
+  onYearChange: (v: string) => void;
+  onMonthChange: (v: string) => void;
   packages: any[] | undefined;
   departures: any[] | undefined;
 }) {
   const filteredDepartures = useMemo(() => {
-    if (!selectedPackageId || !departures) return [];
-    return departures.filter((d: any) => d.package_id === selectedPackageId);
-  }, [selectedPackageId, departures]);
+    if (!departures) return [];
+    let filtered = departures;
+    if (selectedPackageId) {
+      filtered = filtered.filter((d: any) => d.package_id === selectedPackageId);
+    }
+    if (filterYear && filterYear !== 'all') {
+      filtered = filtered.filter((d: any) => getYear(new Date(d.departure_date)) === parseInt(filterYear));
+    }
+    if (filterMonth && filterMonth !== 'all') {
+      filtered = filtered.filter((d: any) => getMonth(new Date(d.departure_date)) === parseInt(filterMonth));
+    }
+    return filtered;
+  }, [selectedPackageId, departures, filterYear, filterMonth]);
+
+  // Get available years from departures
+  const availableYears = useMemo(() => {
+    if (!departures) return [];
+    const years = [...new Set(departures.map((d: any) => getYear(new Date(d.departure_date))))];
+    return years.sort((a, b) => b - a);
+  }, [departures]);
+
+  const months = [
+    { value: '0', label: 'Januari' }, { value: '1', label: 'Februari' },
+    { value: '2', label: 'Maret' }, { value: '3', label: 'April' },
+    { value: '4', label: 'Mei' }, { value: '5', label: 'Juni' },
+    { value: '6', label: 'Juli' }, { value: '7', label: 'Agustus' },
+    { value: '8', label: 'September' }, { value: '9', label: 'Oktober' },
+    { value: '10', label: 'November' }, { value: '11', label: 'Desember' },
+  ];
 
   return (
     <>
       <div className="space-y-2">
         <Label className="flex items-center gap-1"><Package className="h-3.5 w-3.5" /> Pilih Paket</Label>
         <Select value={selectedPackageId} onValueChange={(v) => { onPackageChange(v); onDepartureChange(''); }}>
-          <SelectTrigger><SelectValue placeholder="Pilih paket..." /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Semua paket..." /></SelectTrigger>
           <SelectContent>
             {packages?.map((p: any) => (
               <SelectItem key={p.id} value={p.id}>{p.name} ({p.package_type})</SelectItem>
@@ -70,16 +104,40 @@ function PackageDepartureFilter({
         </Select>
       </div>
       <div className="space-y-2">
+        <Label className="flex items-center gap-1"><CalendarIcon className="h-3.5 w-3.5" /> Tahun</Label>
+        <Select value={filterYear} onValueChange={(v) => { onYearChange(v); onDepartureChange(''); }}>
+          <SelectTrigger><SelectValue placeholder="Semua tahun" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Tahun</SelectItem>
+            {availableYears.map((y) => (
+              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1"><CalendarIcon className="h-3.5 w-3.5" /> Bulan</Label>
+        <Select value={filterMonth} onValueChange={(v) => { onMonthChange(v); onDepartureChange(''); }}>
+          <SelectTrigger><SelectValue placeholder="Semua bulan" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Bulan</SelectItem>
+            {months.map((m) => (
+              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
         <Label className="flex items-center gap-1"><Filter className="h-3.5 w-3.5" /> Pilih Keberangkatan</Label>
-        <Select value={selectedDepartureId} onValueChange={onDepartureChange} disabled={!selectedPackageId}>
-          <SelectTrigger><SelectValue placeholder={selectedPackageId ? "Pilih keberangkatan..." : "Pilih paket dulu"} /></SelectTrigger>
+        <Select value={selectedDepartureId} onValueChange={onDepartureChange}>
+          <SelectTrigger><SelectValue placeholder="Pilih keberangkatan..." /></SelectTrigger>
           <SelectContent>
             {filteredDepartures.map((d: any) => (
               <SelectItem key={d.id} value={d.id}>
-                {format(new Date(d.departure_date), 'd MMM yyyy', { locale: id })} - {format(new Date(d.return_date), 'd MMM yyyy', { locale: id })} (Kuota: {d.quota - (d.booked_count || 0)} sisa)
+                {format(new Date(d.departure_date), 'd MMM yyyy', { locale: id })} - {format(new Date(d.return_date), 'd MMM yyyy', { locale: id })} (Sisa: {d.quota - (d.booked_count || 0)})
               </SelectItem>
             ))}
-            {filteredDepartures.length === 0 && selectedPackageId && (
+            {filteredDepartures.length === 0 && (
               <SelectItem value="_empty" disabled>Tidak ada keberangkatan</SelectItem>
             )}
           </SelectContent>
@@ -96,6 +154,10 @@ const AdminDocumentGenerator = () => {
   const [currentPdfBlob, setCurrentPdfBlob] = useState<Blob | null>(null);
   const [currentFileName, setCurrentFileName] = useState('');
 
+  // ── Global year/month filter states ──
+  const [globalYear, setGlobalYear] = useState('all');
+  const [globalMonth, setGlobalMonth] = useState('all');
+
   // ── Cascading filter states ──
   const [jamaahFilterPkg, setJamaahFilterPkg] = useState('');
   const [jamaahFilterDep, setJamaahFilterDep] = useState('');
@@ -107,6 +169,22 @@ const AdminDocumentGenerator = () => {
   const [eticketFilterDep, setEticketFilterDep] = useState('');
   const [certFilterPkg, setCertFilterPkg] = useState('');
   const [certFilterDep, setCertFilterDep] = useState('');
+
+  // ── Per-tab year/month ──
+  const [jamaahYear, setJamaahYear] = useState('all');
+  const [jamaahMonth, setJamaahMonth] = useState('all');
+  const [passportYear, setPassportYear] = useState('all');
+  const [passportMonth, setPassportMonth] = useState('all');
+  const [invoiceYear, setInvoiceYear] = useState('all');
+  const [invoiceMonth, setInvoiceMonth] = useState('all');
+  const [eticketYear, setEticketYear] = useState('all');
+  const [eticketMonth, setEticketMonth] = useState('all');
+  const [certYear, setCertYear] = useState('all');
+  const [certMonth, setCertMonth] = useState('all');
+
+  // Search for jamaah
+  const [jamaahSearch, setJamaahSearch] = useState('');
+  const [passportSearch, setPassportSearch] = useState('');
 
   // Employee Leave letter form state
   const [employeeLeaveForm, setEmployeeLeaveForm] = useState({
@@ -223,19 +301,36 @@ const AdminDocumentGenerator = () => {
 
   const jamaahCustomers = useMemo(() => {
     if (!jamaahFilterDep || !jamaahByDeparture) return [];
-    return jamaahByDeparture
+    let customers = jamaahByDeparture
       .filter((bp: any) => bp.booking?.departure_id === jamaahFilterDep)
       .map((bp: any) => bp.customer)
       .filter(Boolean);
-  }, [jamaahFilterDep, jamaahByDeparture]);
+    if (jamaahSearch) {
+      const search = jamaahSearch.toLowerCase();
+      customers = customers.filter((c: any) => 
+        c.full_name?.toLowerCase().includes(search) || 
+        c.nik?.includes(search) ||
+        c.phone?.includes(search)
+      );
+    }
+    return customers;
+  }, [jamaahFilterDep, jamaahByDeparture, jamaahSearch]);
 
   const passportCustomers = useMemo(() => {
     if (!passportFilterDep || !jamaahByDeparture) return [];
-    return jamaahByDeparture
+    let customers = jamaahByDeparture
       .filter((bp: any) => bp.booking?.departure_id === passportFilterDep)
       .map((bp: any) => bp.customer)
       .filter(Boolean);
-  }, [passportFilterDep, jamaahByDeparture]);
+    if (passportSearch) {
+      const search = passportSearch.toLowerCase();
+      customers = customers.filter((c: any) => 
+        c.full_name?.toLowerCase().includes(search) || 
+        c.nik?.includes(search)
+      );
+    }
+    return customers;
+  }, [passportFilterDep, jamaahByDeparture, passportSearch]);
 
   const invoiceBookings = useMemo(() => {
     if (!invoiceFilterDep || !bookingsByDeparture) return [];
@@ -266,7 +361,6 @@ const AdminDocumentGenerator = () => {
       if (error) throw error;
       return data as string;
     } catch {
-      // Fallback
       const date = new Date();
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       return `${random}/${prefix}/UHT/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
@@ -462,7 +556,7 @@ const AdminDocumentGenerator = () => {
     const dep = getSelectedDeparture(depId);
     if (!dep) return null;
     return (
-      <div className="col-span-2 p-3 bg-muted rounded-lg text-sm">
+      <div className="col-span-full p-3 bg-muted rounded-lg text-sm">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <div><span className="text-muted-foreground">Berangkat:</span> {format(new Date(dep.departure_date), 'd MMM yyyy', { locale: id })}</div>
           <div><span className="text-muted-foreground">Kembali:</span> {format(new Date(dep.return_date), 'd MMM yyyy', { locale: id })}</div>
@@ -479,7 +573,7 @@ const AdminDocumentGenerator = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Generate Dokumen</h1>
-        <p className="text-muted-foreground">Buat surat-surat resmi dan invoice dalam format PDF. Pilih Paket → Keberangkatan untuk memfilter data.</p>
+        <p className="text-muted-foreground">Buat surat-surat resmi dan invoice dalam format PDF. Gunakan filter Tahun, Bulan, Paket, dan Keberangkatan untuk mempersempit pilihan.</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -512,22 +606,39 @@ const AdminDocumentGenerator = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Surat Keterangan Cuti Jamaah</CardTitle>
-              <CardDescription>Pilih Paket → Keberangkatan → Jamaah. Tanggal otomatis terisi dari data keberangkatan.</CardDescription>
+              <CardDescription>Filter Tahun/Bulan → Paket → Keberangkatan → Jamaah. Tanggal otomatis dari data keberangkatan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="col-span-2"><h3 className="font-semibold text-sm text-muted-foreground mb-3">FILTER KEBERANGKATAN</h3></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="col-span-full"><h3 className="font-semibold text-sm text-muted-foreground mb-1">FILTER KEBERANGKATAN</h3></div>
                 <PackageDepartureFilter
                   selectedPackageId={jamaahFilterPkg} selectedDepartureId={jamaahFilterDep}
+                  filterYear={jamaahYear} filterMonth={jamaahMonth}
                   onPackageChange={(v) => { setJamaahFilterPkg(v); setJamaahLeaveForm({ ...jamaahLeaveForm, customerId: '' }); }}
                   onDepartureChange={(v) => { setJamaahFilterDep(v); setJamaahLeaveForm({ ...jamaahLeaveForm, customerId: '' }); }}
+                  onYearChange={setJamaahYear} onMonthChange={setJamaahMonth}
                   packages={packages} departures={allDepartures}
                 />
                 {jamaahFilterDep && <DepartureInfo depId={jamaahFilterDep} />}
 
-                <div className="col-span-2"><h3 className="font-semibold text-sm text-muted-foreground mb-3">DATA JAMAAH</h3></div>
+                <div className="col-span-full"><h3 className="font-semibold text-sm text-muted-foreground mb-1">DATA JAMAAH</h3></div>
+                
+                {/* Search jamaah */}
+                <div className="col-span-full md:col-span-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cari jamaah (nama, NIK, telepon)..."
+                      value={jamaahSearch}
+                      onChange={(e) => setJamaahSearch(e.target.value)}
+                      className="pl-10"
+                      disabled={!jamaahFilterDep}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label>Jamaah</Label>
+                  <Label>Jamaah ({jamaahCustomers.length} ditemukan)</Label>
                   <Select value={jamaahLeaveForm.customerId} onValueChange={(v) => setJamaahLeaveForm({ ...jamaahLeaveForm, customerId: v })} disabled={!jamaahFilterDep}>
                     <SelectTrigger><SelectValue placeholder={jamaahFilterDep ? "Pilih jamaah..." : "Pilih keberangkatan dulu"} /></SelectTrigger>
                     <SelectContent>
@@ -535,7 +646,7 @@ const AdminDocumentGenerator = () => {
                         <SelectItem key={c.id} value={c.id}>{c.full_name} - {c.nik || 'NIK belum diisi'}</SelectItem>
                       ))}
                       {jamaahCustomers.length === 0 && jamaahFilterDep && (
-                        <SelectItem value="_empty" disabled>Tidak ada jamaah terdaftar</SelectItem>
+                        <SelectItem value="_empty" disabled>Tidak ada jamaah ditemukan</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
@@ -552,7 +663,7 @@ const AdminDocumentGenerator = () => {
                   </Select>
                 </div>
 
-                <div className="col-span-2 pt-4"><h3 className="font-semibold text-sm text-muted-foreground mb-3">DATA PENERIMA SURAT (PEMBERI KERJA)</h3></div>
+                <div className="col-span-full pt-4"><h3 className="font-semibold text-sm text-muted-foreground mb-1">DATA PENERIMA SURAT (PEMBERI KERJA)</h3></div>
                 <div className="space-y-2">
                   <Label>Nama Pimpinan/HRD</Label>
                   <Input value={jamaahLeaveForm.employerName} onChange={(e) => setJamaahLeaveForm({ ...jamaahLeaveForm, employerName: e.target.value })} placeholder="Nama penerima surat" />
@@ -650,19 +761,36 @@ const AdminDocumentGenerator = () => {
           <Card>
             <CardHeader>
               <CardTitle>Surat Permohonan Paspor</CardTitle>
-              <CardDescription>Pilih Paket → Keberangkatan → Jamaah. Tanggal keberangkatan otomatis terisi.</CardDescription>
+              <CardDescription>Filter Tahun/Bulan → Paket → Keberangkatan → Jamaah.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <PackageDepartureFilter
                   selectedPackageId={passportFilterPkg} selectedDepartureId={passportFilterDep}
+                  filterYear={passportYear} filterMonth={passportMonth}
                   onPackageChange={(v) => { setPassportFilterPkg(v); setPassportForm({ ...passportForm, customerId: '' }); }}
                   onDepartureChange={(v) => { setPassportFilterDep(v); setPassportForm({ ...passportForm, customerId: '' }); }}
+                  onYearChange={setPassportYear} onMonthChange={setPassportMonth}
                   packages={packages} departures={allDepartures}
                 />
                 {passportFilterDep && <DepartureInfo depId={passportFilterDep} />}
+                
+                {/* Search */}
+                <div className="col-span-full md:col-span-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cari jamaah..."
+                      value={passportSearch}
+                      onChange={(e) => setPassportSearch(e.target.value)}
+                      className="pl-10"
+                      disabled={!passportFilterDep}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label>Jamaah</Label>
+                  <Label>Jamaah ({passportCustomers.length} ditemukan)</Label>
                   <Select value={passportForm.customerId} onValueChange={(v) => setPassportForm({ ...passportForm, customerId: v })} disabled={!passportFilterDep}>
                     <SelectTrigger><SelectValue placeholder={passportFilterDep ? "Pilih jamaah..." : "Pilih keberangkatan dulu"} /></SelectTrigger>
                     <SelectContent>
@@ -701,59 +829,56 @@ const AdminDocumentGenerator = () => {
           <Card>
             <CardHeader>
               <CardTitle>Invoice Pembayaran</CardTitle>
-              <CardDescription>Pilih Paket → Keberangkatan → Booking untuk generate invoice.</CardDescription>
+              <CardDescription>Filter Tahun/Bulan → Paket → Keberangkatan → Booking.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <PackageDepartureFilter
                   selectedPackageId={invoiceFilterPkg} selectedDepartureId={invoiceFilterDep}
+                  filterYear={invoiceYear} filterMonth={invoiceMonth}
                   onPackageChange={(v) => { setInvoiceFilterPkg(v); setInvoiceForm({ ...invoiceForm, bookingId: '' }); }}
                   onDepartureChange={(v) => { setInvoiceFilterDep(v); setInvoiceForm({ ...invoiceForm, bookingId: '' }); }}
+                  onYearChange={setInvoiceYear} onMonthChange={setInvoiceMonth}
                   packages={packages} departures={allDepartures}
                 />
                 {invoiceFilterDep && <DepartureInfo depId={invoiceFilterDep} />}
                 <div className="space-y-2">
-                  <Label>Booking</Label>
+                  <Label>Booking ({invoiceBookings.length})</Label>
                   <Select value={invoiceForm.bookingId} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, bookingId: v })} disabled={!invoiceFilterDep}>
                     <SelectTrigger><SelectValue placeholder={invoiceFilterDep ? "Pilih booking..." : "Pilih keberangkatan dulu"} /></SelectTrigger>
                     <SelectContent>
-                      {invoiceBookings.map((b: any) => {
-                        const c = b.customer as any;
-                        return (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.booking_code} - {c?.full_name || 'N/A'} | {b.room_type} | {paymentStatusLabels[b.payment_status] || b.payment_status}
-                          </SelectItem>
-                        );
-                      })}
+                      {invoiceBookings.map((b: any) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.booking_code} - {b.customer?.full_name} ({paymentStatusLabels[b.payment_status] || b.payment_status})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Jatuh Tempo</Label>
+                  <Label>Jatuh Tempo (Opsional)</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !invoiceForm.dueDate && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {invoiceForm.dueDate ? format(invoiceForm.dueDate, "PPP", { locale: id }) : "Pilih tanggal"}
+                        {invoiceForm.dueDate ? format(invoiceForm.dueDate, "PPP", { locale: id }) : "Default: 7 hari"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={invoiceForm.dueDate} onSelect={(d) => setInvoiceForm({ ...invoiceForm, dueDate: d })} /></PopoverContent>
                   </Popover>
                 </div>
-                <div className="col-span-2 space-y-2">
-                  <Label>Catatan (Opsional)</Label>
-                  <Textarea value={invoiceForm.notes} onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })} placeholder="Catatan tambahan untuk invoice..." rows={3} />
+                <div className="col-span-full space-y-2">
+                  <Label>Catatan Invoice (Opsional)</Label>
+                  <Textarea value={invoiceForm.notes} onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })} placeholder="Catatan tambahan untuk invoice..." rows={2} />
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button onClick={() => {
-                  const b = invoiceBookings.find((b: any) => b.id === invoiceForm.bookingId);
-                  doGenerate(handleGenerateInvoice, `invoice-${b?.booking_code || 'new'}`, 'download');
-                }}><Download className="h-4 w-4 mr-2" />Download PDF</Button>
-                <Button variant="outline" onClick={() => {
-                  const b = invoiceBookings.find((b: any) => b.id === invoiceForm.bookingId);
-                  doGenerate(handleGenerateInvoice, `invoice-${b?.booking_code || 'new'}`, 'send');
-                }}><Send className="h-4 w-4 mr-2" />Kirim via Email</Button>
+                <Button onClick={() => doGenerate(handleGenerateInvoice, `invoice-${invoiceForm.bookingId}`, 'download')}>
+                  <Download className="h-4 w-4 mr-2" />Download PDF
+                </Button>
+                <Button variant="outline" onClick={() => doGenerate(handleGenerateInvoice, `invoice-${invoiceForm.bookingId}`, 'send')}>
+                  <Send className="h-4 w-4 mr-2" />Kirim via Email
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -763,68 +888,41 @@ const AdminDocumentGenerator = () => {
         <TabsContent value="eticket">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Ticket className="h-5 w-5" />Generate E-Ticket</CardTitle>
-              <CardDescription>Pilih Paket → Keberangkatan → Booking untuk generate e-ticket.</CardDescription>
+              <CardTitle>E-Ticket Keberangkatan</CardTitle>
+              <CardDescription>Filter Tahun/Bulan → Paket → Keberangkatan → Booking.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <PackageDepartureFilter
                   selectedPackageId={eticketFilterPkg} selectedDepartureId={eticketFilterDep}
+                  filterYear={eticketYear} filterMonth={eticketMonth}
                   onPackageChange={(v) => { setEticketFilterPkg(v); setEticketForm({ bookingId: '' }); }}
                   onDepartureChange={(v) => { setEticketFilterDep(v); setEticketForm({ bookingId: '' }); }}
+                  onYearChange={setEticketYear} onMonthChange={setEticketMonth}
                   packages={packages} departures={allDepartures}
                 />
                 {eticketFilterDep && <DepartureInfo depId={eticketFilterDep} />}
-                <div className="col-span-2 space-y-2">
-                  <Label>Pilih Booking</Label>
+                <div className="space-y-2">
+                  <Label>Booking ({eticketBookings.length})</Label>
                   <Select value={eticketForm.bookingId} onValueChange={(v) => setEticketForm({ bookingId: v })} disabled={!eticketFilterDep}>
-                    <SelectTrigger><SelectValue placeholder={eticketFilterDep ? "Pilih booking jamaah..." : "Pilih keberangkatan dulu"} /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={eticketFilterDep ? "Pilih booking..." : "Pilih keberangkatan dulu"} /></SelectTrigger>
                     <SelectContent>
-                      {eticketBookings.map((b: any) => {
-                        const c = b.customer as any;
-                        return (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.booking_code} - {c?.full_name || 'N/A'} | {b.room_type}
-                          </SelectItem>
-                        );
-                      })}
+                      {eticketBookings.map((b: any) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.booking_code} - {b.customer?.full_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-
-                {eticketForm.bookingId && (() => {
-                  const booking = eticketBookings.find((b: any) => b.id === eticketForm.bookingId);
-                  const customer = booking?.customer as any;
-                  const departure = booking?.departure as any;
-                  const pkg = departure?.package as any;
-                  const airline = departure?.airline as any;
-                  if (!booking) return null;
-                  return (
-                    <div className="col-span-2 p-4 bg-muted rounded-lg">
-                      <h4 className="font-semibold mb-2">Preview Data E-Ticket:</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><span className="text-muted-foreground">Nama:</span> {customer?.full_name}</div>
-                        <div><span className="text-muted-foreground">Paspor:</span> {customer?.passport_number || '-'}</div>
-                        <div><span className="text-muted-foreground">Paket:</span> {pkg?.name || '-'}</div>
-                        <div><span className="text-muted-foreground">Tipe Kamar:</span> {booking?.room_type}</div>
-                        <div><span className="text-muted-foreground">Berangkat:</span> {departure?.departure_date ? format(new Date(departure.departure_date), 'd MMM yyyy', { locale: id }) : '-'}</div>
-                        <div><span className="text-muted-foreground">Kembali:</span> {departure?.return_date ? format(new Date(departure.return_date), 'd MMM yyyy', { locale: id }) : '-'}</div>
-                        <div><span className="text-muted-foreground">Maskapai:</span> {airline?.name || '-'}</div>
-                        <div><span className="text-muted-foreground">No. Penerbangan:</span> {departure?.flight_number || '-'}</div>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
               <div className="flex gap-2 pt-4">
-                <Button onClick={() => {
-                  const b = eticketBookings.find((b: any) => b.id === eticketForm.bookingId);
-                  doGenerate(handleGenerateETicket, `eticket-${b?.booking_code || 'new'}`, 'download');
-                }}><Download className="h-4 w-4 mr-2" />Download E-Ticket</Button>
-                <Button variant="outline" onClick={() => {
-                  const b = eticketBookings.find((b: any) => b.id === eticketForm.bookingId);
-                  doGenerate(handleGenerateETicket, `eticket-${b?.booking_code || 'new'}`, 'send');
-                }}><Send className="h-4 w-4 mr-2" />Kirim via Email</Button>
+                <Button onClick={() => doGenerate(handleGenerateETicket, `eticket-${eticketForm.bookingId}`, 'download')}>
+                  <Download className="h-4 w-4 mr-2" />Download PDF
+                </Button>
+                <Button variant="outline" onClick={() => doGenerate(handleGenerateETicket, `eticket-${eticketForm.bookingId}`, 'send')}>
+                  <Send className="h-4 w-4 mr-2" />Kirim via Email
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -834,70 +932,44 @@ const AdminDocumentGenerator = () => {
         <TabsContent value="certificate">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5" />Sertifikat Umrah</CardTitle>
-              <CardDescription>Pilih Paket → Keberangkatan → Booking (hanya jamaah yang sudah kembali).</CardDescription>
+              <CardTitle>Sertifikat Umrah</CardTitle>
+              <CardDescription>Hanya menampilkan booking yang sudah kembali (return_date ≤ hari ini).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <PackageDepartureFilter
                   selectedPackageId={certFilterPkg} selectedDepartureId={certFilterDep}
+                  filterYear={certYear} filterMonth={certMonth}
                   onPackageChange={(v) => { setCertFilterPkg(v); setCertificateForm({ bookingId: '' }); }}
                   onDepartureChange={(v) => { setCertFilterDep(v); setCertificateForm({ bookingId: '' }); }}
+                  onYearChange={setCertYear} onMonthChange={setCertMonth}
                   packages={packages} departures={allDepartures}
                 />
                 {certFilterDep && <DepartureInfo depId={certFilterDep} />}
-                <div className="col-span-2 space-y-2">
-                  <Label>Pilih Booking (Jamaah yang sudah kembali)</Label>
+                <div className="space-y-2">
+                  <Label>Booking Selesai ({certBookings.length})</Label>
                   <Select value={certificateForm.bookingId} onValueChange={(v) => setCertificateForm({ bookingId: v })} disabled={!certFilterDep}>
-                    <SelectTrigger><SelectValue placeholder={certFilterDep ? "Pilih jamaah..." : "Pilih keberangkatan dulu"} /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={certFilterDep ? "Pilih booking..." : "Pilih keberangkatan dulu"} /></SelectTrigger>
                     <SelectContent>
-                      {certBookings.map((b: any) => {
-                        const c = b.customer as any;
-                        const dep = b.departure as any;
-                        return (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.booking_code} - {c?.full_name || 'N/A'} (Kembali: {dep?.return_date ? format(new Date(dep.return_date), 'd MMM yyyy', { locale: id }) : '-'})
-                          </SelectItem>
-                        );
-                      })}
+                      {certBookings.map((b: any) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.booking_code} - {b.customer?.full_name}
+                        </SelectItem>
+                      ))}
                       {certBookings.length === 0 && certFilterDep && (
-                        <SelectItem value="_empty" disabled>Tidak ada jamaah yang sudah kembali</SelectItem>
+                        <SelectItem value="_empty" disabled>Belum ada yang selesai</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Hanya menampilkan jamaah yang sudah kembali dari umrah</p>
                 </div>
-
-                {certificateForm.bookingId && (() => {
-                  const booking = certBookings.find((b: any) => b.id === certificateForm.bookingId);
-                  const customer = booking?.customer as any;
-                  const departure = booking?.departure as any;
-                  const pkg = departure?.package as any;
-                  if (!booking) return null;
-                  return (
-                    <div className="col-span-2 p-4 bg-muted rounded-lg">
-                      <h4 className="font-semibold mb-2">Preview Data Sertifikat:</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><span className="text-muted-foreground">Nama:</span> {customer?.full_name}</div>
-                        <div><span className="text-muted-foreground">Paspor:</span> {customer?.passport_number || '-'}</div>
-                        <div><span className="text-muted-foreground">TTL:</span> {customer?.birth_place}, {customer?.birth_date ? format(new Date(customer.birth_date), 'd MMM yyyy', { locale: id }) : '-'}</div>
-                        <div><span className="text-muted-foreground">Paket:</span> {pkg?.name || '-'}</div>
-                        <div><span className="text-muted-foreground">Periode:</span> {departure?.departure_date ? format(new Date(departure.departure_date), 'd MMM', { locale: id }) : ''} - {departure?.return_date ? format(new Date(departure.return_date), 'd MMM yyyy', { locale: id }) : '-'}</div>
-                        <div><span className="text-muted-foreground">No. Sertifikat:</span> CERT-{booking?.booking_code}</div>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
               <div className="flex gap-2 pt-4">
-                <Button onClick={() => {
-                  const b = certBookings.find((b: any) => b.id === certificateForm.bookingId);
-                  doGenerate(handleGenerateCertificate, `sertifikat-umrah-${b?.booking_code || 'new'}`, 'download');
-                }}><Download className="h-4 w-4 mr-2" />Download Sertifikat</Button>
-                <Button variant="outline" onClick={() => {
-                  const b = certBookings.find((b: any) => b.id === certificateForm.bookingId);
-                  doGenerate(handleGenerateCertificate, `sertifikat-umrah-${b?.booking_code || 'new'}`, 'send');
-                }}><Send className="h-4 w-4 mr-2" />Kirim via Email</Button>
+                <Button onClick={() => doGenerate(handleGenerateCertificate, `sertifikat-${certificateForm.bookingId}`, 'download')}>
+                  <Download className="h-4 w-4 mr-2" />Download PDF
+                </Button>
+                <Button variant="outline" onClick={() => doGenerate(handleGenerateCertificate, `sertifikat-${certificateForm.bookingId}`, 'send')}>
+                  <Send className="h-4 w-4 mr-2" />Kirim via Email
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -908,17 +980,18 @@ const AdminDocumentGenerator = () => {
           <Card>
             <CardHeader>
               <CardTitle>Surat Umum</CardTitle>
-              <CardDescription>Generate surat resmi untuk berbagai keperluan</CardDescription>
+              <CardDescription>Generate surat dengan format resmi perusahaan</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2"><h3 className="font-semibold text-sm text-muted-foreground mb-1">PENERIMA SURAT</h3></div>
                 <div className="space-y-2">
                   <Label>Nama Penerima</Label>
                   <Input value={generalForm.recipientName} onChange={(e) => setGeneralForm({ ...generalForm, recipientName: e.target.value })} placeholder="Nama penerima surat" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Jabatan Penerima (Opsional)</Label>
-                  <Input value={generalForm.recipientPosition} onChange={(e) => setGeneralForm({ ...generalForm, recipientPosition: e.target.value })} placeholder="Jabatan penerima" />
+                  <Label>Jabatan (Opsional)</Label>
+                  <Input value={generalForm.recipientPosition} onChange={(e) => setGeneralForm({ ...generalForm, recipientPosition: e.target.value })} placeholder="Jabatan" />
                 </div>
                 <div className="space-y-2">
                   <Label>Instansi (Opsional)</Label>
@@ -928,28 +1001,32 @@ const AdminDocumentGenerator = () => {
                   <Label>Alamat (Opsional)</Label>
                   <Input value={generalForm.recipientAddress} onChange={(e) => setGeneralForm({ ...generalForm, recipientAddress: e.target.value })} placeholder="Alamat penerima" />
                 </div>
+
+                <div className="col-span-2 pt-4"><h3 className="font-semibold text-sm text-muted-foreground mb-1">ISI SURAT</h3></div>
                 <div className="col-span-2 space-y-2">
                   <Label>Perihal</Label>
                   <Input value={generalForm.subject} onChange={(e) => setGeneralForm({ ...generalForm, subject: e.target.value })} placeholder="Perihal surat" />
                 </div>
                 <div className="col-span-2 space-y-2">
                   <Label>Isi Surat</Label>
-                  <Textarea value={generalForm.content} onChange={(e) => setGeneralForm({ ...generalForm, content: e.target.value })} placeholder="Tulis isi surat di sini..." rows={6} />
+                  <Textarea value={generalForm.content} onChange={(e) => setGeneralForm({ ...generalForm, content: e.target.value })} placeholder="Isi surat..." rows={6} />
                 </div>
+
+                <div className="col-span-2 pt-4"><h3 className="font-semibold text-sm text-muted-foreground mb-1">PENANDATANGAN</h3></div>
                 <div className="space-y-2">
                   <Label>Nama Penandatangan</Label>
-                  <Input value={generalForm.signatoryName} onChange={(e) => setGeneralForm({ ...generalForm, signatoryName: e.target.value })} placeholder="Nama penandatangan" />
+                  <Input value={generalForm.signatoryName} onChange={(e) => setGeneralForm({ ...generalForm, signatoryName: e.target.value })} placeholder="Default: Direktur Utama" />
                 </div>
                 <div className="space-y-2">
                   <Label>Jabatan Penandatangan</Label>
-                  <Input value={generalForm.signatoryPosition} onChange={(e) => setGeneralForm({ ...generalForm, signatoryPosition: e.target.value })} placeholder="Jabatan penandatangan" />
+                  <Input value={generalForm.signatoryPosition} onChange={(e) => setGeneralForm({ ...generalForm, signatoryPosition: e.target.value })} placeholder="Default: PT. Umrah Haji Travel" />
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button onClick={() => doGenerate(handleGenerateGeneralLetter, `surat-${generalForm.subject.replace(/\s+/g, '-').toLowerCase()}`, 'download')}>
+                <Button onClick={() => doGenerate(handleGenerateGeneralLetter, `surat-umum`, 'download')}>
                   <Download className="h-4 w-4 mr-2" />Download PDF
                 </Button>
-                <Button variant="outline" onClick={() => doGenerate(handleGenerateGeneralLetter, `surat-${generalForm.subject.replace(/\s+/g, '-').toLowerCase()}`, 'send')}>
+                <Button variant="outline" onClick={() => doGenerate(handleGenerateGeneralLetter, `surat-umum`, 'send')}>
                   <Send className="h-4 w-4 mr-2" />Kirim via Email
                 </Button>
               </div>
@@ -964,16 +1041,16 @@ const AdminDocumentGenerator = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Kirim Dokumen via Email</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label>Email Tujuan</Label>
-              <Input type="email" value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="contoh@email.com" />
+              <Input type="email" value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="email@contoh.com" />
             </div>
-            <p className="text-sm text-muted-foreground">Dokumen {currentFileName}.pdf akan dikirim ke alamat email di atas.</p>
+            <p className="text-sm text-muted-foreground">File: {currentFileName}.pdf</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Batal</Button>
-            <Button onClick={handleSendEmail}><Send className="h-4 w-4 mr-2" />Kirim</Button>
+            <Button onClick={handleSendEmail}><Send className="h-4 w-4 mr-2" />Kirim & Download</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -56,7 +56,6 @@ const NAV_GROUPS = [
     label: 'Jamaah & Agent',
     items: [
       { label: 'Jamaah', icon: Users, path: '/admin/customers' },
-      { label: 'Dokumen', icon: FileCheck, path: '/admin/documents' },
       { label: 'Agent', icon: UserCheck, path: '/admin/agents' },
       { label: 'Loyalty', icon: Gift, path: '/admin/loyalty' },
       { label: 'Referral', icon: Share2, path: '/admin/referrals' },
