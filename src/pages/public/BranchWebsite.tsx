@@ -1,26 +1,29 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
+import { ModernHeroSection } from '@/components/home/ModernHeroSection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
+import { ModernCTASection } from '@/components/home/ModernCTASection';
 import { useTenantWebsiteSettings, HomepageSection } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
 
-const sectionComponents: Record<string, React.ComponentType> = {
-  hero: DynamicHeroSection,
-  featured_packages: FeaturedPackages,
-  why_choose_us: WhyChooseUs,
-  testimonials: Testimonials,
-  cta: DynamicCTASection,
-};
-
 export default function BranchWebsite() {
   const { branchSlug } = useParams<{ branchSlug: string }>();
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('branch', branchSlug);
+  const template = settings?.template || 'classic';
+
+  const sectionComponents: Record<string, React.ComponentType> = useMemo(() => ({
+    hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,
+    featured_packages: FeaturedPackages,
+    why_choose_us: WhyChooseUs,
+    testimonials: Testimonials,
+    cta: template === 'modern' ? ModernCTASection : DynamicCTASection,
+  }), [template]);
 
   const enabledSections = useMemo(() => {
     if (!settings?.homepage_sections) {
@@ -42,14 +45,6 @@ export default function BranchWebsite() {
       <TenantPublicLayout settings={settings}>
         <div className="min-h-screen">
           <Skeleton className="h-[600px] w-full" />
-          <div className="container mx-auto py-12 space-y-4">
-            <Skeleton className="h-8 w-64" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Skeleton className="h-64" />
-              <Skeleton className="h-64" />
-              <Skeleton className="h-64" />
-            </div>
-          </div>
         </div>
       </TenantPublicLayout>
     );

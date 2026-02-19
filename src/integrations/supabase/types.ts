@@ -191,6 +191,7 @@ export type Database = {
           is_active: boolean | null
           npwp: string | null
           parent_agent_id: string | null
+          slug: string | null
           updated_at: string | null
           user_id: string
         }
@@ -207,6 +208,7 @@ export type Database = {
           is_active?: boolean | null
           npwp?: string | null
           parent_agent_id?: string | null
+          slug?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -223,6 +225,7 @@ export type Database = {
           is_active?: boolean | null
           npwp?: string | null
           parent_agent_id?: string | null
+          slug?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -745,6 +748,7 @@ export type Database = {
           name: string
           phone: string | null
           province: string | null
+          slug: string | null
           updated_at: string | null
         }
         Insert: {
@@ -758,6 +762,7 @@ export type Database = {
           name: string
           phone?: string | null
           province?: string | null
+          slug?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -771,6 +776,7 @@ export type Database = {
           name?: string
           phone?: string | null
           province?: string | null
+          slug?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -3944,8 +3950,10 @@ export type Database = {
         Row: {
           accent_color: string | null
           active_theme: string
+          agent_id: string | null
           background_color: string | null
           body_font: string | null
+          branch_id: string | null
           company_name: string | null
           created_at: string | null
           favicon_url: string | null
@@ -3976,13 +3984,16 @@ export type Database = {
           social_tiktok: string | null
           social_youtube: string | null
           tagline: string | null
+          template: string
           updated_at: string | null
         }
         Insert: {
           accent_color?: string | null
           active_theme?: string
+          agent_id?: string | null
           background_color?: string | null
           body_font?: string | null
+          branch_id?: string | null
           company_name?: string | null
           created_at?: string | null
           favicon_url?: string | null
@@ -4013,13 +4024,16 @@ export type Database = {
           social_tiktok?: string | null
           social_youtube?: string | null
           tagline?: string | null
+          template?: string
           updated_at?: string | null
         }
         Update: {
           accent_color?: string | null
           active_theme?: string
+          agent_id?: string | null
           background_color?: string | null
           body_font?: string | null
+          branch_id?: string | null
           company_name?: string | null
           created_at?: string | null
           favicon_url?: string | null
@@ -4050,9 +4064,25 @@ export type Database = {
           social_tiktok?: string | null
           social_youtube?: string | null
           tagline?: string | null
+          template?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "website_settings_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_config: {
         Row: {

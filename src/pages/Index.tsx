@@ -1,29 +1,29 @@
 import { useMemo } from 'react';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
+import { ModernHeroSection } from '@/components/home/ModernHeroSection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
+import { ModernCTASection } from '@/components/home/ModernCTASection';
 import { useWebsiteSettings, HomepageSection } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Map section IDs to their components
-const sectionComponents: Record<string, React.ComponentType> = {
-  hero: DynamicHeroSection,
-  featured_packages: FeaturedPackages,
-  why_choose_us: WhyChooseUs,
-  testimonials: Testimonials,
-  cta: DynamicCTASection,
-};
-
 const Index = () => {
   const { data: settings, isLoading } = useWebsiteSettings();
+  const template = settings?.template || 'classic';
 
-  // Get enabled sections sorted by order
+  const sectionComponents: Record<string, React.ComponentType> = useMemo(() => ({
+    hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,
+    featured_packages: FeaturedPackages,
+    why_choose_us: WhyChooseUs,
+    testimonials: Testimonials,
+    cta: template === 'modern' ? ModernCTASection : DynamicCTASection,
+  }), [template]);
+
   const enabledSections = useMemo(() => {
     if (!settings?.homepage_sections) {
-      // Default sections if no settings
       return [
         { id: 'hero', order: 1, enabled: true, title: 'Hero' },
         { id: 'featured_packages', order: 2, enabled: true, title: 'Featured Packages' },
@@ -32,7 +32,6 @@ const Index = () => {
         { id: 'cta', order: 5, enabled: true, title: 'CTA' },
       ];
     }
-
     return settings.homepage_sections
       .filter((section: HomepageSection) => section.enabled)
       .sort((a: HomepageSection, b: HomepageSection) => a.order - b.order);

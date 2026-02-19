@@ -21,6 +21,11 @@ import { Loader2 } from "lucide-react";
 const branchSchema = z.object({
   code: z.string().min(1, "Kode cabang harus diisi"),
   name: z.string().min(1, "Nama cabang harus diisi"),
+  slug: z.string()
+    .optional()
+    .refine((val) => !val || /^[a-z0-9-]+$/.test(val), {
+      message: "Hanya huruf kecil, angka, dan strip (-) yang diperbolehkan",
+    }),
   address: z.string().optional(),
   city: z.string().optional(),
   province: z.string().optional(),
@@ -46,6 +51,7 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
     defaultValues: {
       code: branchData?.code || "",
       name: branchData?.name || "",
+      slug: branchData?.slug || "",
       address: branchData?.address || "",
       city: branchData?.city || "",
       province: branchData?.province || "",
@@ -59,6 +65,7 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
     mutationFn: async (values: BranchFormValues) => {
       const payload = {
         ...values,
+        slug: values.slug || null,
         email: values.email || null,
         phone: values.phone || null,
         address: values.address || null,
@@ -120,6 +127,25 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="slug"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Subdomain Website</FormLabel>
+              <FormControl>
+                <Input placeholder="jakarta-pusat" {...field} />
+              </FormControl>
+              {field.value && (
+                <p className="text-xs text-muted-foreground">
+                  URL: <span className="font-mono text-primary">{window.location.origin}/b/{field.value}</span>
+                </p>
+              )}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

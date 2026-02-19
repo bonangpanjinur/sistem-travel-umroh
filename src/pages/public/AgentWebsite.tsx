@@ -1,26 +1,29 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
+import { ModernHeroSection } from '@/components/home/ModernHeroSection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
+import { ModernCTASection } from '@/components/home/ModernCTASection';
 import { useTenantWebsiteSettings, HomepageSection } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
 
-const sectionComponents: Record<string, React.ComponentType> = {
-  hero: DynamicHeroSection,
-  featured_packages: FeaturedPackages,
-  why_choose_us: WhyChooseUs,
-  testimonials: Testimonials,
-  cta: DynamicCTASection,
-};
-
 export default function AgentWebsite() {
   const { agentSlug } = useParams<{ agentSlug: string }>();
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('agent', agentSlug);
+  const template = settings?.template || 'classic';
+
+  const sectionComponents: Record<string, React.ComponentType> = useMemo(() => ({
+    hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,
+    featured_packages: FeaturedPackages,
+    why_choose_us: WhyChooseUs,
+    testimonials: Testimonials,
+    cta: template === 'modern' ? ModernCTASection : DynamicCTASection,
+  }), [template]);
 
   const enabledSections = useMemo(() => {
     if (!settings?.homepage_sections) {

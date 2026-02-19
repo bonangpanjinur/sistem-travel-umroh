@@ -12,6 +12,9 @@ export interface HomepageSection {
 export interface WebsiteSettings {
   id: string;
   active_theme: string;
+  template: string;
+  branch_id: string | null;
+  agent_id: string | null;
   company_name: string | null;
   tagline: string | null;
   logo_url: string | null;
@@ -81,7 +84,9 @@ export function useWebsiteSettings() {
       return {
         ...data,
         homepage_sections: data.homepage_sections as unknown as HomepageSection[] | null,
-      } as WebsiteSettings;
+        nav_links: data.nav_links as unknown as WebsiteSettings['nav_links'],
+        footer_links: data.footer_links as unknown as WebsiteSettings['footer_links'],
+      } as unknown as WebsiteSettings;
     },
   });
 }
@@ -120,17 +125,21 @@ export function useTenantWebsiteSettings(type: 'branch' | 'agent', slug?: string
           return {
             ...tenantSettings,
             homepage_sections: tenantSettings.homepage_sections as unknown as HomepageSection[] | null,
+            nav_links: tenantSettings.nav_links as unknown as WebsiteSettings['nav_links'],
+            footer_links: tenantSettings.footer_links as unknown as WebsiteSettings['footer_links'],
             company_name: tenantSettings.company_name || branch.name,
-          } as WebsiteSettings;
+          } as unknown as WebsiteSettings;
         }
 
         const mainSettings = await fetchMainSettings();
         return {
           ...mainSettings,
           homepage_sections: mainSettings.homepage_sections as unknown as HomepageSection[] | null,
+          nav_links: mainSettings.nav_links as unknown as WebsiteSettings['nav_links'],
+          footer_links: mainSettings.footer_links as unknown as WebsiteSettings['footer_links'],
           company_name: branch.name,
           tagline: `Cabang ${branch.name}`,
-        } as WebsiteSettings;
+        } as unknown as WebsiteSettings;
       } else {
         const { data: agent, error: agentError } = await (supabase
           .from("agents").select("id, company_name, agent_code") as any)
@@ -143,17 +152,21 @@ export function useTenantWebsiteSettings(type: 'branch' | 'agent', slug?: string
           return {
             ...tenantSettings,
             homepage_sections: tenantSettings.homepage_sections as unknown as HomepageSection[] | null,
+            nav_links: tenantSettings.nav_links as unknown as WebsiteSettings['nav_links'],
+            footer_links: tenantSettings.footer_links as unknown as WebsiteSettings['footer_links'],
             company_name: tenantSettings.company_name || agent.company_name || agent.agent_code,
-          } as WebsiteSettings;
+          } as unknown as WebsiteSettings;
         }
 
         const mainSettings = await fetchMainSettings();
         return {
           ...mainSettings,
           homepage_sections: mainSettings.homepage_sections as unknown as HomepageSection[] | null,
+          nav_links: mainSettings.nav_links as unknown as WebsiteSettings['nav_links'],
+          footer_links: mainSettings.footer_links as unknown as WebsiteSettings['footer_links'],
           company_name: agent.company_name || agent.agent_code,
           tagline: `Agen Resmi`,
-        } as WebsiteSettings;
+        } as unknown as WebsiteSettings;
       }
     },
   });
