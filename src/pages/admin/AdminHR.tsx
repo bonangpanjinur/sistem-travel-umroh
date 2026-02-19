@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy } from "lucide-react";
+import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
@@ -82,6 +82,20 @@ interface HRSettings {
   work_start_time: string;
   work_end_time: string;
   late_threshold_minutes: number;
+  require_device_registration: boolean;
+}
+
+interface EmployeeDevice {
+  id: string;
+  employee_id: string;
+  device_fingerprint: string;
+  device_name: string;
+  user_agent: string | null;
+  screen_info: string | null;
+  registered_at: string;
+  is_active: boolean;
+  last_used_at: string | null;
+  employee?: { full_name: string; employee_code: string };
 }
 
 interface WorkSchedule {
@@ -171,6 +185,19 @@ export default function AdminHR() {
         .order("day_of_week");
       if (error) throw error;
       return data as WorkSchedule[];
+    },
+  });
+
+  // Devices query
+  const { data: employeeDevices = [] } = useQuery({
+    queryKey: ["employee-devices"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employee_devices")
+        .select("*, employee:employees(full_name, employee_code)")
+        .order("registered_at", { ascending: false });
+      if (error) throw error;
+      return data as unknown as EmployeeDevice[];
     },
   });
 
@@ -280,6 +307,28 @@ export default function AdminHR() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr-settings"] });
       toast.success("Pengaturan HR disimpan");
+    },
+  });
+
+  const toggleDeviceMutation = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase.from("employee_devices").update({ is_active }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-devices"] });
+      toast.success("Status perangkat diperbarui");
+    },
+  });
+
+  const deleteDeviceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("employee_devices").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-devices"] });
+      toast.success("Perangkat dihapus");
     },
   });
 
@@ -423,6 +472,7 @@ export default function AdminHR() {
         <TabsList>
           <TabsTrigger value="employees">Karyawan</TabsTrigger>
           <TabsTrigger value="attendance">Kehadiran</TabsTrigger>
+          <TabsTrigger value="devices">Perangkat</TabsTrigger>
           <TabsTrigger value="schedules">Jadwal Kerja</TabsTrigger>
           <TabsTrigger value="settings">Pengaturan HR</TabsTrigger>
         </TabsList>
@@ -572,6 +622,122 @@ export default function AdminHR() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* === DEVICES TAB === */}
+        <TabsContent value="devices" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="h-5 w-5" />
+                    Perangkat Terdaftar
+                  </CardTitle>
+                  <CardDescription>
+                    Kelola perangkat HP/komputer yang diizinkan untuk absensi karyawan
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="require_device" className="text-sm">Wajibkan Perangkat Terdaftar</Label>
+                  <Switch
+                    id="require_device"
+                    checked={hrSettings?.require_device_registration ?? false}
+                    onCheckedChange={(checked) => {
+                      if (hrSettings?.id) {
+                        saveHRSettingsMutation.mutate({ require_device_registration: checked } as any);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!(hrSettings?.require_device_registration) && (
+                <div className="p-4 rounded-lg bg-muted text-center mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    ℹ️ Pembatasan perangkat saat ini <strong>nonaktif</strong>. Karyawan bisa absen dari perangkat mana saja. 
+                    Aktifkan toggle di atas untuk membatasi absensi hanya dari perangkat terdaftar.
+                  </p>
+                </div>
+              )}
+
+              {employeeDevices.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Smartphone className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Belum ada perangkat terdaftar</p>
+                  <p className="text-xs mt-1">Perangkat akan terdaftar saat karyawan mengakses halaman absensi</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Karyawan</TableHead>
+                      <TableHead>Perangkat</TableHead>
+                      <TableHead>ID Perangkat</TableHead>
+                      <TableHead>Terdaftar</TableHead>
+                      <TableHead>Terakhir Digunakan</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employeeDevices.map((device) => (
+                      <TableRow key={device.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{device.employee?.full_name || "-"}</p>
+                            <p className="text-xs text-muted-foreground">{device.employee?.employee_code}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{device.device_name}</TableCell>
+                        <TableCell>
+                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{device.device_fingerprint}</code>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(device.registered_at), "dd MMM yyyy HH:mm", { locale: idLocale })}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {device.last_used_at 
+                            ? format(new Date(device.last_used_at), "dd MMM yyyy HH:mm", { locale: idLocale })
+                            : "-"
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={device.is_active ? "default" : "secondary"}>
+                            {device.is_active ? "Aktif" : "Nonaktif"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => toggleDeviceMutation.mutate({ id: device.id, is_active: !device.is_active })}
+                              title={device.is_active ? "Nonaktifkan" : "Aktifkan"}
+                            >
+                              {device.is_active ? (
+                                <ShieldX className="h-4 w-4 text-destructive" />
+                              ) : (
+                                <ShieldCheck className="h-4 w-4 text-green-600" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteDeviceMutation.mutate(device.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

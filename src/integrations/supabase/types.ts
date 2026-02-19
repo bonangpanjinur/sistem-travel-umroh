@@ -1485,6 +1485,53 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_devices: {
+        Row: {
+          device_fingerprint: string
+          device_name: string
+          employee_id: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          registered_at: string
+          registered_by: string | null
+          screen_info: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          device_fingerprint: string
+          device_name?: string
+          employee_id: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          registered_at?: string
+          registered_by?: string | null
+          screen_info?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          device_fingerprint?: string
+          device_name?: string
+          employee_id?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          registered_at?: string
+          registered_by?: string | null
+          screen_info?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_devices_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           address: string | null
@@ -1838,6 +1885,7 @@ export type Database = {
           late_deduction_type: string
           late_threshold_minutes: number | null
           overtime_rate_per_hour: number | null
+          require_device_registration: boolean
           updated_at: string | null
           work_end_time: string | null
           work_start_time: string | null
@@ -1853,6 +1901,7 @@ export type Database = {
           late_deduction_type?: string
           late_threshold_minutes?: number | null
           overtime_rate_per_hour?: number | null
+          require_device_registration?: boolean
           updated_at?: string | null
           work_end_time?: string | null
           work_start_time?: string | null
@@ -1868,6 +1917,7 @@ export type Database = {
           late_deduction_type?: string
           late_threshold_minutes?: number | null
           overtime_rate_per_hour?: number | null
+          require_device_registration?: boolean
           updated_at?: string | null
           work_end_time?: string | null
           work_start_time?: string | null
