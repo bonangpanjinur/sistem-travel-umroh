@@ -25,7 +25,7 @@ import { Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const departureSchema = z.object({
-  package_id: z.string().optional().nullable(),
+  package_id: z.string().min(1, "Paket harus dipilih"),
   departure_date: z.string().min(1, "Tanggal berangkat harus diisi"),
   return_date: z.string().min(1, "Tanggal pulang harus diisi"),
   quota: z.coerce.number().min(1, "Kuota minimal 1"),
@@ -190,7 +190,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
             name="package_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Paket (Opsional)</FormLabel>
+                <FormLabel>Paket <span className="text-destructive">*</span></FormLabel>
                 <Select 
                   onValueChange={field.onChange} 
                   defaultValue={field.value || undefined}
@@ -198,7 +198,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Pilih paket atau kosongkan" />
+                      <SelectValue placeholder="Pilih paket" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>

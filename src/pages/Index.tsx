@@ -7,18 +7,18 @@ import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
 import { ModernCTASection } from '@/components/home/ModernCTASection';
-import { useWebsiteSettings, HomepageSection } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
   const { data: settings, isLoading } = useWebsiteSettings();
   const template = settings?.template || 'classic';
 
-  const sectionComponents: Record<string, React.ComponentType> = useMemo(() => ({
+  const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
     hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,
-    featured_packages: FeaturedPackages,
-    why_choose_us: WhyChooseUs,
-    testimonials: Testimonials,
+    featured_packages: FeaturedPackages as any,
+    why_choose_us: WhyChooseUs as any,
+    testimonials: Testimonials as any,
     cta: template === 'modern' ? ModernCTASection : DynamicCTASection,
   }), [template]);
 
@@ -60,7 +60,7 @@ const Index = () => {
       {enabledSections.map((section: HomepageSection) => {
         const Component = sectionComponents[section.id];
         if (!Component) return null;
-        return <Component key={section.id} />;
+        return <Component key={section.id} settings={settings ?? undefined} />;
       })}
     </DynamicPublicLayout>
   );

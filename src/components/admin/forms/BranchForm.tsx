@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const branchSchema = z.object({
   code: z.string().min(1, "Kode cabang harus diisi"),
@@ -45,6 +46,7 @@ interface BranchFormProps {
 export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps) {
   const queryClient = useQueryClient();
   const isEditing = !!branchData;
+  const [debouncedSlug, setDebouncedSlug] = useState("");
 
   const form = useForm<BranchFormValues>({
     resolver: zodResolver(branchSchema),
@@ -58,6 +60,38 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
       phone: branchData?.phone || "",
       email: branchData?.email || "",
       is_active: branchData?.is_active ?? true,
+    },
+  });
+
+  const watchedSlug = form.watch("slug");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (watchedSlug && /^[a-z0-9-]+$/.test(watchedSlug)) {
+        setDebouncedSlug(watchedSlug);
+      } else {
+        setDebouncedSlug("");
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [watchedSlug]);
+
+  const { data: slugAvailable, isFetching: checkingSlug } = useQuery({
+    queryKey: ["check-branch-slug", debouncedSlug],
+    enabled: !!debouncedSlug && debouncedSlug !== (branchData?.slug || ""),
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("slug", debouncedSlug)
+        .maybeSingle();
+      // Also check agents table
+      const { data: agentData } = await supabase
+        .from("agents")
+        .select("id")
+        .eq("slug", debouncedSlug)
+        .maybeSingle();
+      return !data && !agentData;
     },
   });
 
@@ -87,13 +121,19 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
       onSuccess();
     },
     onError: (error: any) => {
-      toast.error(error.message || "Terjadi kesalahan");
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        toast.error("Subdomain sudah digunakan, pilih yang lain");
+      } else {
+        toast.error(error.message || "Terjadi kesalahan");
+      }
     },
   });
 
   const onSubmit = (values: BranchFormValues) => {
     mutation.mutate(values);
   };
+
+  const showSlugStatus = debouncedSlug && debouncedSlug !== (branchData?.slug || "");
 
   return (
     <Form {...form}>
@@ -135,12 +175,28 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
             <FormItem>
               <FormLabel>Subdomain Website</FormLabel>
               <FormControl>
-                <Input placeholder="jakarta-pusat" {...field} />
+                <div className="relative">
+                  <Input placeholder="jakarta-pusat" {...field} />
+                  {showSlugStatus && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {checkingSlug ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      ) : slugAvailable ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                  )}
+                </div>
               </FormControl>
               {field.value && (
                 <p className="text-xs text-muted-foreground">
                   URL: <span className="font-mono text-primary">{window.location.origin}/b/{field.value}</span>
                 </p>
+              )}
+              {showSlugStatus && !checkingSlug && slugAvailable === false && (
+                <p className="text-xs text-destructive">Subdomain sudah digunakan</p>
               )}
               <FormMessage />
             </FormItem>
@@ -238,7 +294,7 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
           <Button type="button" variant="outline" onClick={onCancel}>
             Batal
           </Button>
-          <Button type="submit" disabled={mutation.isPending}>
+          <Button type="submit" disabled={mutation.isPending || (showSlugStatus && !checkingSlug && slugAvailable === false)}>
             {mutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {isEditing ? "Simpan Perubahan" : "Tambah Cabang"}
           </Button>

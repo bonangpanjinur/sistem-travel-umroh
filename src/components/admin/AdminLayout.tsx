@@ -28,6 +28,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Sales & CRM',
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'marketing'],
     items: [
       { label: 'CRM Leads', icon: Target, path: '/admin/leads' },
       { label: 'Booking', icon: Calendar, path: '/admin/bookings' },
@@ -36,6 +37,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Produk & Operasional',
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
       { label: 'Paket', icon: Package, path: '/admin/packages' },
       { label: 'Keberangkatan', icon: Plane, path: '/admin/departures' },
@@ -55,6 +57,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Jamaah & Agent',
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales'],
     items: [
       { label: 'Jamaah', icon: Users, path: '/admin/customers' },
       { label: 'Agent', icon: UserCheck, path: '/admin/agents' },
@@ -72,6 +75,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Support & Komunikasi',
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales'],
     items: [
       { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support' },
       { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp' },
@@ -87,6 +91,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Dokumen & Surat',
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
       { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator' },
       { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content' },
@@ -94,7 +99,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Laporan',
-    allowedRoles: ['super_admin', 'owner', 'finance'],
+    allowedRoles: ['super_admin', 'owner', 'finance', 'marketing'],
     items: [
       { label: 'Laporan', icon: FileBarChart, path: '/admin/reports' },
       { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports' },

@@ -3956,6 +3956,7 @@ export type Database = {
           branch_id: string | null
           company_name: string | null
           created_at: string | null
+          custom_sections: Json | null
           favicon_url: string | null
           footer_address: string | null
           footer_bottom_text: string | null
@@ -3996,6 +3997,7 @@ export type Database = {
           branch_id?: string | null
           company_name?: string | null
           created_at?: string | null
+          custom_sections?: Json | null
           favicon_url?: string | null
           footer_address?: string | null
           footer_bottom_text?: string | null
@@ -4036,6 +4038,7 @@ export type Database = {
           branch_id?: string | null
           company_name?: string | null
           created_at?: string | null
+          custom_sections?: Json | null
           favicon_url?: string | null
           footer_address?: string | null
           footer_bottom_text?: string | null
