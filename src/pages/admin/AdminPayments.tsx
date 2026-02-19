@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,15 +31,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { 
   CheckCircle, XCircle, Eye, Clock, 
-  CreditCard, User, Calendar, ExternalLink,
+  CreditCard, User, Calendar,
   Search, Filter, Download, AlertCircle, X, ImageIcon,
-  Bell, Send, Loader2
+  Bell, Loader2
 } from "lucide-react";
+
+const PAGE_SIZE = 20;
 
 export default function AdminPayments() {
   const { user } = useAuth();
@@ -50,6 +61,11 @@ export default function AdminPayments() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [methodFilter, setMethodFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isSendingReminders, setIsSendingReminders] = useState(false);
 
   const { data: payments, isLoading } = useQuery({
@@ -149,27 +165,74 @@ export default function AdminPayments() {
     setShowProofDialog(true);
   };
 
-  const filteredPayments = payments?.filter(payment => {
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      const booking = payment.booking as any;
-      const match = 
-        payment.payment_code.toLowerCase().includes(search) ||
-        booking?.booking_code?.toLowerCase().includes(search) ||
-        booking?.customer?.full_name?.toLowerCase().includes(search);
-      if (!match) return false;
-    }
-    
-    if (statusFilter !== "all" && payment.status !== statusFilter) {
-      return false;
-    }
-    
-    return true;
-  });
+  // Unique methods for filter
+  const paymentMethods = useMemo(() => {
+    if (!payments) return [];
+    const methods = new Set<string>();
+    payments.forEach(p => { if (p.payment_method) methods.add(p.payment_method); });
+    return Array.from(methods);
+  }, [payments]);
+
+  const filteredPayments = useMemo(() => {
+    return payments?.filter(payment => {
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const booking = payment.booking as any;
+        const match = 
+          payment.payment_code.toLowerCase().includes(search) ||
+          booking?.booking_code?.toLowerCase().includes(search) ||
+          booking?.customer?.full_name?.toLowerCase().includes(search);
+        if (!match) return false;
+      }
+      if (statusFilter !== "all" && payment.status !== statusFilter) return false;
+      if (methodFilter !== "all" && payment.payment_method !== methodFilter) return false;
+      if (dateFrom && payment.created_at && payment.created_at < dateFrom) return false;
+      if (dateTo && payment.created_at && payment.created_at > dateTo + 'T23:59:59') return false;
+      return true;
+    });
+  }, [payments, searchTerm, statusFilter, methodFilter, dateFrom, dateTo]);
+
+  const activeFilterCount = [
+    statusFilter !== "all",
+    methodFilter !== "all",
+    !!dateFrom,
+    !!dateTo,
+  ].filter(Boolean).length;
+
+  const hasActiveFilters = !!searchTerm || activeFilterCount > 0;
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setMethodFilter("all");
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  // Pagination for "all" tab
+  const totalPages = Math.ceil((filteredPayments?.length || 0) / PAGE_SIZE);
+  const paginatedPayments = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredPayments?.slice(start, start + PAGE_SIZE);
+  }, [filteredPayments, currentPage]);
+
+  useMemo(() => { setCurrentPage(1); }, [searchTerm, statusFilter, methodFilter, dateFrom, dateTo]);
 
   const pendingPayments = payments?.filter(p => p.status === 'pending') || [];
   const paidPayments = payments?.filter(p => p.status === 'paid') || [];
   const failedPayments = payments?.filter(p => p.status === 'failed') || [];
+
+  // Stats by method
+  const methodStats = useMemo(() => {
+    if (!payments) return [];
+    const map = new Map<string, { count: number; amount: number }>();
+    payments.filter(p => p.status === 'paid').forEach(p => {
+      const m = p.payment_method || 'Lainnya';
+      const prev = map.get(m) || { count: 0, amount: 0 };
+      map.set(m, { count: prev.count + 1, amount: prev.amount + p.amount });
+    });
+    return Array.from(map, ([method, data]) => ({ method, ...data })).sort((a, b) => b.amount - a.amount);
+  }, [payments]);
 
   const stats = {
     pending: pendingPayments.length,
@@ -275,6 +338,21 @@ export default function AdminPayments() {
         </Card>
       </div>
 
+      {/* Method breakdown */}
+      {methodStats.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {methodStats.slice(0, 4).map(ms => (
+            <Card key={ms.method}>
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground font-medium">{ms.method}</p>
+                <p className="text-lg font-bold">{formatCurrency(ms.amount)}</p>
+                <p className="text-xs text-muted-foreground">{ms.count} transaksi</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
@@ -330,18 +408,95 @@ export default function AdminPayments() {
                 className="pl-10"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="pending">Menunggu</SelectItem>
-                <SelectItem value="paid">Disetujui</SelectItem>
-                <SelectItem value="failed">Ditolak</SelectItem>
-              </SelectContent>
-            </Select>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFilters(!showFilters)}
+              className={showFilters ? "bg-muted" : ""}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
+              )}
+            </Button>
           </div>
+
+          {showFilters && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Status</SelectItem>
+                        <SelectItem value="pending">Menunggu</SelectItem>
+                        <SelectItem value="paid">Disetujui</SelectItem>
+                        <SelectItem value="failed">Ditolak</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Metode Pembayaran</label>
+                    <Select value={methodFilter} onValueChange={setMethodFilter}>
+                      <SelectTrigger><SelectValue placeholder="Semua Metode" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Metode</SelectItem>
+                        {paymentMethods.map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Tanggal Dari</label>
+                    <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Tanggal Sampai</label>
+                    <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                  </div>
+                </div>
+
+                {hasActiveFilters && (
+                  <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+                    {statusFilter !== "all" && (
+                      <Badge variant="secondary" className="gap-1">
+                        Status: {statusFilter === 'paid' ? 'Disetujui' : statusFilter === 'pending' ? 'Menunggu' : 'Ditolak'}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => setStatusFilter("all")} />
+                      </Badge>
+                    )}
+                    {methodFilter !== "all" && (
+                      <Badge variant="secondary" className="gap-1">
+                        Metode: {methodFilter}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => setMethodFilter("all")} />
+                      </Badge>
+                    )}
+                    {dateFrom && (
+                      <Badge variant="secondary" className="gap-1">
+                        Dari: {dateFrom}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => setDateFrom("")} />
+                      </Badge>
+                    )}
+                    {dateTo && (
+                      <Badge variant="secondary" className="gap-1">
+                        Sampai: {dateTo}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => setDateTo("")} />
+                      </Badge>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={clearFilters}>
+                      <X className="h-4 w-4 mr-1" />
+                      Reset
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Payment Table */}
           <Card>
@@ -350,7 +505,7 @@ export default function AdminPayments() {
                 <div className="p-4 space-y-3">
                   {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12" />)}
                 </div>
-              ) : !filteredPayments || filteredPayments.length === 0 ? (
+              ) : !paginatedPayments || paginatedPayments.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                   Tidak ada pembayaran yang ditemukan
                 </div>
@@ -364,16 +519,18 @@ export default function AdminPayments() {
                         <TableHead>Customer</TableHead>
                         <TableHead>Metode</TableHead>
                         <TableHead className="text-right">Jumlah</TableHead>
+                        <TableHead>Bukti</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Tanggal</TableHead>
                         <TableHead className="text-right">Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPayments.map((payment) => {
+                      {paginatedPayments.map((payment) => {
                         const booking = payment.booking as any;
+                        const isPending = payment.status === 'pending';
                         return (
-                          <TableRow key={payment.id}>
+                          <TableRow key={payment.id} className={isPending ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : ''}>
                             <TableCell className="font-mono text-sm">
                               {payment.payment_code}
                             </TableCell>
@@ -395,6 +552,26 @@ export default function AdminPayments() {
                             <TableCell className="text-right font-semibold">
                               {formatCurrency(payment.amount)}
                             </TableCell>
+                            <TableCell>
+                              {payment.proof_url ? (
+                                <button 
+                                  onClick={() => openProofDialog(payment)}
+                                  className="block w-10 h-10 rounded border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
+                                >
+                                  <img 
+                                    src={payment.proof_url} 
+                                    alt="Bukti" 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                      (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>';
+                                    }}
+                                  />
+                                </button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
                             <TableCell>{getStatusBadge(payment.status || 'pending')}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {formatDate(payment.created_at || '')}
@@ -410,7 +587,7 @@ export default function AdminPayments() {
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 )}
-                                {payment.status === 'pending' && (
+                                {isPending && (
                                   <>
                                     <Button 
                                       variant="ghost" 
@@ -446,6 +623,58 @@ export default function AdminPayments() {
               )}
             </CardContent>
           </Card>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let page: number;
+                  if (totalPages <= 5) {
+                    page = i + 1;
+                  } else if (currentPage <= 3) {
+                    page = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    page = totalPages - 4 + i;
+                  } else {
+                    page = currentPage - 2 + i;
+                  }
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        isActive={page === currentPage}
+                        onClick={() => setCurrentPage(page)}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                {totalPages > 5 && currentPage < totalPages - 2 && (
+                  <PaginationItem><PaginationEllipsis /></PaginationItem>
+                )}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+
+          {filteredPayments && filteredPayments.length > 0 && (
+            <p className="text-sm text-muted-foreground text-center">
+              Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, filteredPayments.length)} dari {filteredPayments.length} pembayaran
+            </p>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -584,25 +813,37 @@ function PendingPaymentCard({ payment, onViewProof, onApprove, onReject, isPendi
     <Card className="border-2 border-yellow-300 bg-yellow-50/50 dark:bg-yellow-950/20">
       <CardContent className="p-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <span className="font-mono font-semibold">{payment.payment_code}</span>
-              <Badge className="bg-yellow-100 text-yellow-800">Menunggu Verifikasi</Badge>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {booking?.customer?.full_name}
-              </span>
-              <span>Booking: {booking?.booking_code}</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {formatDate(payment.created_at || '')}
-              </span>
-              <span>{payment.payment_method} • {payment.bank_name}</span>
+          <div className="flex items-start gap-3">
+            {/* Inline proof thumbnail */}
+            {payment.proof_url ? (
+              <button onClick={onViewProof} className="shrink-0 w-16 h-16 rounded-lg border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer">
+                <img src={payment.proof_url} alt="Bukti" className="w-full h-full object-cover" />
+              </button>
+            ) : (
+              <div className="shrink-0 w-16 h-16 rounded-lg border bg-muted flex items-center justify-center">
+                <ImageIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <span className="font-mono font-semibold">{payment.payment_code}</span>
+                <Badge className="bg-yellow-100 text-yellow-800">Menunggu Verifikasi</Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  {booking?.customer?.full_name}
+                </span>
+                <span>Booking: {booking?.booking_code}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {formatDate(payment.created_at || '')}
+                </span>
+                <span>{payment.payment_method} • {payment.bank_name}</span>
+              </div>
             </div>
           </div>
 
