@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { exportToExcel } from "@/lib/export-utils";
 import { toast } from "sonner";
 import { 
   CheckCircle, XCircle, Eye, Clock, 
@@ -289,7 +290,25 @@ export default function AdminPayments() {
             )}
             Kirim Reminder
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            if (!payments || payments.length === 0) return;
+            exportToExcel(
+              filteredPayments || payments,
+              [
+                { header: 'Kode Pembayaran', accessor: 'payment_code', width: 20 },
+                { header: 'Kode Booking', accessor: (r: any) => (r.booking as any)?.booking_code || '-', width: 20 },
+                { header: 'Nama', accessor: (r: any) => (r.booking as any)?.customer?.full_name || '-', width: 25 },
+                { header: 'Metode', accessor: 'payment_method', width: 18 },
+                { header: 'Bank', accessor: 'bank_name', width: 15 },
+                { header: 'Jumlah', accessor: 'amount', width: 18 },
+                { header: 'Status', accessor: (r: any) => r.status === 'paid' ? 'Disetujui' : r.status === 'pending' ? 'Menunggu' : 'Ditolak', width: 14 },
+                { header: 'Tanggal', accessor: (r: any) => r.created_at ? formatDate(r.created_at) : '-', width: 15 },
+              ],
+              `pembayaran-${new Date().toISOString().slice(0, 10)}`,
+              'Pembayaran'
+            );
+            toast.success('File Excel telah diunduh');
+          }}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
