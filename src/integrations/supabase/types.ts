@@ -904,6 +904,59 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_transactions: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_date?: string
+          transaction_type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_transactions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           created_at: string
@@ -3055,6 +3108,68 @@ export type Database = {
             columns: ["room_assignment_id"]
             isOneToOne: false
             referencedRelation: "room_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salary_payments: {
+        Row: {
+          allowances: number
+          base_salary: number
+          created_at: string
+          deductions: number
+          employee_id: string
+          id: string
+          notes: string | null
+          overtime_pay: number
+          paid_at: string | null
+          paid_by: string | null
+          period_month: number
+          period_year: number
+          status: string
+          total_pay: number
+          updated_at: string
+        }
+        Insert: {
+          allowances?: number
+          base_salary?: number
+          created_at?: string
+          deductions?: number
+          employee_id: string
+          id?: string
+          notes?: string | null
+          overtime_pay?: number
+          paid_at?: string | null
+          paid_by?: string | null
+          period_month: number
+          period_year: number
+          status?: string
+          total_pay?: number
+          updated_at?: string
+        }
+        Update: {
+          allowances?: number
+          base_salary?: number
+          created_at?: string
+          deductions?: number
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          overtime_pay?: number
+          paid_at?: string | null
+          paid_by?: string | null
+          period_month?: number
+          period_year?: number
+          status?: string
+          total_pay?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_payments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]

@@ -29,6 +29,7 @@ const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocument
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
+const AdminFinanceCash = lazy(() => import("@/pages/admin/AdminFinanceCash"));
 const AdminVendors = lazy(() => import("@/pages/admin/AdminVendors"));
 const AdminLoyalty = lazy(() => import("@/pages/admin/AdminLoyalty"));
 const AdminReferrals = lazy(() => import("@/pages/admin/AdminReferrals"));
@@ -75,6 +76,7 @@ export default function AdminRoutes() {
       <Route path="bookings/:id" element={<LazyPage><AdminBookingDetail /></LazyPage>} />
       <Route path="payments" element={<LazyPage><AdminPayments /></LazyPage>} />
       <Route path="finance" element={<LazyPage><AdminFinancePL /></LazyPage>} />
+      <Route path="finance-cash" element={<LazyPage><AdminFinanceCash /></LazyPage>} />
       <Route path="vendors" element={<LazyPage><AdminVendors /></LazyPage>} />
       <Route path="customers" element={<LazyPage><AdminCustomers /></LazyPage>} />
       <Route path="customers/:id" element={<LazyPage><AdminCustomerDetail /></LazyPage>} />

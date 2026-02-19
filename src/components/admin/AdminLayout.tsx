@@ -49,6 +49,7 @@ const NAV_GROUPS = [
     allowedRoles: ['super_admin', 'owner', 'finance'],
     items: [
       { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance' },
+      { label: 'Kas & Gaji', icon: Wallet, path: '/admin/finance-cash' },
       { label: 'Vendor', icon: Truck, path: '/admin/vendors' },
     ]
   },
