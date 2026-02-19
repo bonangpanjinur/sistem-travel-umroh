@@ -22,6 +22,8 @@ const defaultNavLinks = [
   { href: '/contact', label: 'Hubungi Kami' },
 ];
 
+export type HeaderDisplayMode = 'logo_only' | 'logo_name_tagline' | 'name_tagline_only';
+
 interface DynamicNavbarProps {
   tenantSettings?: WebsiteSettings | null;
 }
@@ -48,18 +50,39 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const logoUrl = settings?.logo_url;
   const navLinks = (settings?.nav_links as Array<{href: string; label: string}>) || defaultNavLinks;
 
-  return (
-    <nav className="sticky top-0 z-50 glass border-b">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
+  // Get header display mode from custom_sections
+  const customSections = (settings as any)?.custom_sections;
+  const headerMode: HeaderDisplayMode = customSections?.headerDisplayMode || 'logo_name_tagline';
+
+  const renderLogo = () => {
+    switch (headerMode) {
+      case 'logo_only':
+        return (
           <Link to="/" className="flex items-center gap-2">
             {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt={companyName} 
-                className="h-10 w-auto object-contain"
-              />
+              <img src={logoUrl} alt={companyName} className="h-10 w-auto object-contain" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <span className="font-display text-xl font-bold">ع</span>
+              </div>
+            )}
+          </Link>
+        );
+      case 'name_tagline_only':
+        return (
+          <Link to="/" className="flex items-center gap-2">
+            <div>
+              <h1 className="text-lg font-bold text-foreground">{companyName}</h1>
+              <p className="text-xs text-muted-foreground">{tagline}</p>
+            </div>
+          </Link>
+        );
+      case 'logo_name_tagline':
+      default:
+        return (
+          <Link to="/" className="flex items-center gap-2">
+            {logoUrl ? (
+              <img src={logoUrl} alt={companyName} className="h-10 w-auto object-contain" />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <span className="font-display text-xl font-bold">ع</span>
@@ -70,6 +93,16 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
               <p className="text-xs text-muted-foreground">{tagline}</p>
             </div>
           </Link>
+        );
+    }
+  };
+
+  return (
+    <nav className="sticky top-0 z-50 glass border-b">
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo / Brand */}
+          {renderLogo()}
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex lg:items-center lg:gap-6">
@@ -84,8 +117,8 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
             ))}
           </div>
 
-          {/* Auth Buttons */}
-          <div className="flex items-center gap-4">
+          {/* Desktop Auth (hidden on mobile) */}
+          <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -93,9 +126,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                       <User className="h-4 w-4" />
                     </div>
-                    <span className="hidden sm:inline-block">
-                      {profile?.full_name || 'User'}
-                    </span>
+                    <span>{profile?.full_name || 'User'}</span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -130,7 +161,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
               </DropdownMenu>
             ) : (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" asChild className="hidden sm:inline-flex">
+                <Button variant="ghost" asChild>
                   <Link to="/login">Masuk</Link>
                 </Button>
                 <Button asChild>
@@ -138,23 +169,23 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                 </Button>
               </div>
             )}
-
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
           </div>
+
+          {/* Mobile Menu Button only */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - includes user menu items */}
         {isOpen && (
           <div className="border-t py-4 lg:hidden">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -165,15 +196,65 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                   {link.label}
                 </Link>
               ))}
-              {!user && (
+
+              <hr className="my-2" />
+
+              {user ? (
                 <>
-                  <hr className="my-2" />
+                  {/* User info */}
+                  <div className="px-4 py-2 flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-medium">{profile?.full_name || 'User'}</span>
+                  </div>
+                  <Link
+                    to={getDashboardLink()}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground flex items-center gap-2"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/my-bookings"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground flex items-center gap-2"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Booking Saya
+                  </Link>
+                  <Link
+                    to="/customer/my-savings"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground flex items-center gap-2"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Wallet className="h-4 w-4" />
+                    Tabungan Saya
+                  </Link>
+                  <button
+                    onClick={() => { handleSignOut(); setIsOpen(false); }}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 flex items-center gap-2 text-left w-full"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Keluar
+                  </button>
+                </>
+              ) : (
+                <>
                   <Link
                     to="/login"
                     className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     onClick={() => setIsOpen(false)}
                   >
                     Masuk
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-primary font-semibold transition-colors hover:bg-primary/10"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Daftar
                   </Link>
                 </>
               )}

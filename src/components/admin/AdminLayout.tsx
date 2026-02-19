@@ -12,7 +12,7 @@ import {
   Wallet, FileCheck, Building2, DollarSign, Truck, Gift,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
-  FileType, Star
+  FileType, Star, ExternalLink
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -257,9 +257,15 @@ export function AdminLayout() {
             ))}
           </nav>
 
-          {/* User Info */}
-          <div className="p-4 border-t">
-            <div className="flex items-center gap-3 mb-3">
+          {/* Back to Website + User Info */}
+          <div className="p-4 border-t space-y-3">
+            <Button variant="outline" size="sm" className="w-full" asChild>
+              <a href="/" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Kembali ke Website
+              </a>
+            </Button>
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-primary font-semibold">
                   {profile?.full_name?.charAt(0) || 'A'}
