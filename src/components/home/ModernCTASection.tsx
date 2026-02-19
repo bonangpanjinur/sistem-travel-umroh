@@ -2,10 +2,15 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Phone, MessageCircle, ArrowRight, MapPin } from 'lucide-react';
-import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-export function ModernCTASection() {
-  const { data: settings } = useWebsiteSettings();
+interface ModernCTASectionProps {
+  settings?: WebsiteSettings;
+}
+
+export function ModernCTASection({ settings: propSettings }: ModernCTASectionProps) {
+  const { data: fetchedSettings } = useWebsiteSettings();
+  const settings = propSettings || fetchedSettings;
 
   const whatsapp = settings?.footer_whatsapp || '6281234567890';
   const phone = settings?.footer_phone || '+6281234567890';
@@ -16,7 +21,6 @@ export function ModernCTASection() {
 
   return (
     <section className="py-24 bg-gradient-to-br from-primary via-primary to-primary/80 relative overflow-hidden">
-      {/* Decorative */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 

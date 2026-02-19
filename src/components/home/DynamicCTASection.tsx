@@ -1,10 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Phone, MessageCircle, ArrowRight } from 'lucide-react';
-import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-export function DynamicCTASection() {
-  const { data: settings } = useWebsiteSettings();
+interface DynamicCTASectionProps {
+  settings?: WebsiteSettings;
+}
+
+export function DynamicCTASection({ settings: propSettings }: DynamicCTASectionProps) {
+  const { data: fetchedSettings } = useWebsiteSettings();
+  const settings = propSettings || fetchedSettings;
   
   const whatsapp = settings?.footer_whatsapp || '6281234567890';
   const phone = settings?.footer_phone || '+6281234567890';
@@ -15,7 +20,6 @@ export function DynamicCTASection() {
 
   return (
     <section className="py-20 bg-primary relative overflow-hidden">
-      {/* Decorative elements */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2" />

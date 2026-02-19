@@ -1,10 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Star } from 'lucide-react';
-import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-export function ModernHeroSection() {
-  const { data: settings } = useWebsiteSettings();
+interface ModernHeroSectionProps {
+  settings?: WebsiteSettings;
+}
+
+export function ModernHeroSection({ settings: propSettings }: ModernHeroSectionProps) {
+  const { data: fetchedSettings } = useWebsiteSettings();
+  const settings = propSettings || fetchedSettings;
 
   const heroTitle = settings?.hero_title || 'Wujudkan Ibadah Suci Anda';
   const heroSubtitle = settings?.hero_subtitle || 'Layanan perjalanan Umroh & Haji terpercaya dengan pengalaman lebih dari 15 tahun.';
@@ -16,7 +21,6 @@ export function ModernHeroSection() {
     <section className="min-h-[90vh] flex items-center bg-background">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left Content */}
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
               <Star className="h-4 w-4 fill-primary" />
@@ -43,7 +47,6 @@ export function ModernHeroSection() {
               </Button>
             </div>
 
-            {/* Compact Stats */}
             <div className="flex gap-8 pt-4 border-t border-border">
               {[
                 { value: '15+', label: 'Tahun' },
@@ -58,7 +61,6 @@ export function ModernHeroSection() {
             </div>
           </div>
 
-          {/* Right Image */}
           <div className="relative hidden lg:block">
             <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/5]">
               <img
@@ -69,7 +71,6 @@ export function ModernHeroSection() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-primary/30 to-transparent" />
             </div>
-            {/* Floating card */}
             <div className="absolute -bottom-6 -left-6 bg-card rounded-2xl shadow-xl p-4 border">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-primary/10">

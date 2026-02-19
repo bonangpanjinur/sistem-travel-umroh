@@ -4,11 +4,16 @@ import { Search, Calendar, Users, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-export function DynamicHeroSection() {
+interface DynamicHeroSectionProps {
+  settings?: WebsiteSettings;
+}
+
+export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectionProps) {
   const navigate = useNavigate();
-  const { data: settings } = useWebsiteSettings();
+  const { data: fetchedSettings } = useWebsiteSettings();
+  const settings = propSettings || fetchedSettings;
   const [packageType, setPackageType] = useState('umroh');
   const [month, setMonth] = useState('');
 
@@ -27,20 +32,15 @@ export function DynamicHeroSection() {
 
   return (
     <section className="relative min-h-[600px] flex items-center justify-center overflow-hidden">
-      {/* Background with overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('${heroImageUrl}')`,
-        }}
+        style={{ backgroundImage: `url('${heroImageUrl}')` }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-primary/80 via-primary/70 to-primary/90" />
       </div>
 
-      {/* Content */}
       <div className="relative z-10 container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
-          {/* Bismillah */}
           <p className="text-accent font-arabic text-2xl mb-4 animate-fade-in">
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </p>
@@ -57,7 +57,6 @@ export function DynamicHeroSection() {
             {heroSubtitle}
           </p>
 
-          {/* CTA Buttons */}
           {heroCTAText && (
             <div className="mb-10">
               <Button asChild size="lg" variant="secondary" className="text-lg px-8 py-6">
@@ -69,7 +68,6 @@ export function DynamicHeroSection() {
           {/* Search Widget */}
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-3xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Package Type */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary" />
@@ -88,7 +86,6 @@ export function DynamicHeroSection() {
                 </Select>
               </div>
 
-              {/* Month */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-primary" />
@@ -99,23 +96,13 @@ export function DynamicHeroSection() {
                     <SelectValue placeholder="Pilih bulan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="01">Januari 2026</SelectItem>
-                    <SelectItem value="02">Februari 2026</SelectItem>
-                    <SelectItem value="03">Maret 2026</SelectItem>
-                    <SelectItem value="04">April 2026</SelectItem>
-                    <SelectItem value="05">Mei 2026</SelectItem>
-                    <SelectItem value="06">Juni 2026</SelectItem>
-                    <SelectItem value="07">Juli 2026</SelectItem>
-                    <SelectItem value="08">Agustus 2026</SelectItem>
-                    <SelectItem value="09">September 2026</SelectItem>
-                    <SelectItem value="10">Oktober 2026</SelectItem>
-                    <SelectItem value="11">November 2026</SelectItem>
-                    <SelectItem value="12">Desember 2026</SelectItem>
+                    {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => (
+                      <SelectItem key={i} value={String(i+1).padStart(2,'0')}>{m} 2026</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Pax */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
@@ -124,7 +111,6 @@ export function DynamicHeroSection() {
                 <Input type="number" min="1" placeholder="1" defaultValue="1" />
               </div>
 
-              {/* Search Button */}
               <div className="flex items-end">
                 <Button onClick={handleSearch} size="lg" className="w-full gap-2">
                   <Search className="h-5 w-5" />

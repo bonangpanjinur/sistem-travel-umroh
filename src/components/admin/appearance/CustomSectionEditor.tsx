@@ -3,17 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { WebsiteSettings, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
-import { LayoutGrid, Save, Plus, Trash2, GripVertical } from "lucide-react";
+import { LayoutGrid, Save, GripVertical } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface CustomSectionEditorProps {
   settings: WebsiteSettings;
@@ -24,6 +16,13 @@ interface StatItem {
   label: string;
 }
 
+interface CustomSections {
+  showBismillah: boolean;
+  showSearchWidget: boolean;
+  showStats: boolean;
+  stats: StatItem[];
+}
+
 const DEFAULT_STATS: StatItem[] = [
   { value: '15+', label: 'Tahun Pengalaman' },
   { value: '50K+', label: 'Jamaah Terlayani' },
@@ -31,17 +30,44 @@ const DEFAULT_STATS: StatItem[] = [
   { value: '4.9', label: 'Rating Kepuasan' },
 ];
 
+function parseCustomSections(settings: WebsiteSettings): CustomSections {
+  const raw = (settings as any).custom_sections;
+  if (raw && typeof raw === 'object') {
+    return {
+      showBismillah: raw.showBismillah ?? true,
+      showSearchWidget: raw.showSearchWidget ?? true,
+      showStats: raw.showStats ?? true,
+      stats: Array.isArray(raw.stats) ? raw.stats : DEFAULT_STATS,
+    };
+  }
+  return {
+    showBismillah: true,
+    showSearchWidget: true,
+    showStats: true,
+    stats: DEFAULT_STATS,
+  };
+}
+
 export function CustomSectionEditor({ settings }: CustomSectionEditorProps) {
   const updateSettings = useUpdateWebsiteSettings();
-  
-  const [stats, setStats] = useState<StatItem[]>(DEFAULT_STATS);
-  const [showBismillah, setShowBismillah] = useState(true);
-  const [showSearchWidget, setShowSearchWidget] = useState(true);
-  const [showStats, setShowStats] = useState(true);
+
+  const parsed = parseCustomSections(settings);
+  const [stats, setStats] = useState<StatItem[]>(parsed.stats);
+  const [showBismillah, setShowBismillah] = useState(parsed.showBismillah);
+  const [showSearchWidget, setShowSearchWidget] = useState(parsed.showSearchWidget);
+  const [showStats, setShowStats] = useState(parsed.showStats);
+
+  useEffect(() => {
+    const p = parseCustomSections(settings);
+    setStats(p.stats);
+    setShowBismillah(p.showBismillah);
+    setShowSearchWidget(p.showSearchWidget);
+    setShowStats(p.showStats);
+  }, [settings]);
 
   const handleSave = () => {
-    // In future, these can be stored in website_settings JSON field
-    console.log('Custom sections saved:', { stats, showBismillah, showSearchWidget, showStats });
+    const customSections = { showBismillah, showSearchWidget, showStats, stats };
+    updateSettings.mutate({ custom_sections: customSections } as any);
   };
 
   const updateStat = (index: number, field: keyof StatItem, value: string) => {
@@ -137,38 +163,6 @@ export function CustomSectionEditor({ settings }: CustomSectionEditorProps) {
                 />
               </div>
             ))}
-          </CardContent>
-        </Card>
-
-        {/* Why Choose Us Editor */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">⭐ Mengapa Memilih Kami</CardTitle>
-            <CardDescription>
-              Edit fitur-fitur unggulan yang ditampilkan
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {['Pengalaman 15+ Tahun', 'Bimbingan Ustadz', 'Hotel Bintang 5', 'Harga Terjangkau'].map((feature, i) => (
-                <Card key={i} className="p-4">
-                  <div className="space-y-2">
-                    <Select defaultValue="star">
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="star">⭐ Star</SelectItem>
-                        <SelectItem value="check">✓ Check</SelectItem>
-                        <SelectItem value="heart">❤️ Heart</SelectItem>
-                        <SelectItem value="shield">🛡️ Shield</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input defaultValue={feature} className="h-8 text-sm" />
-                  </div>
-                </Card>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>

@@ -7,7 +7,7 @@ import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
 import { ModernCTASection } from '@/components/home/ModernCTASection';
-import { useTenantWebsiteSettings, HomepageSection } from '@/hooks/useWebsiteSettings';
+import { useTenantWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
@@ -17,11 +17,11 @@ export default function AgentWebsite() {
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('agent', agentSlug);
   const template = settings?.template || 'classic';
 
-  const sectionComponents: Record<string, React.ComponentType> = useMemo(() => ({
+  const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
     hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,
-    featured_packages: FeaturedPackages,
-    why_choose_us: WhyChooseUs,
-    testimonials: Testimonials,
+    featured_packages: FeaturedPackages as any,
+    why_choose_us: WhyChooseUs as any,
+    testimonials: Testimonials as any,
     cta: template === 'modern' ? ModernCTASection : DynamicCTASection,
   }), [template]);
 
@@ -57,7 +57,7 @@ export default function AgentWebsite() {
       {enabledSections.map((section: HomepageSection) => {
         const Component = sectionComponents[section.id];
         if (!Component) return null;
-        return <Component key={section.id} />;
+        return <Component key={section.id} settings={settings} />;
       })}
     </TenantPublicLayout>
   );

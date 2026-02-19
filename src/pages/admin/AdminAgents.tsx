@@ -205,23 +205,28 @@ export default function AdminAgents() {
     },
   });
 
-  // Update agent slug
+  // Update agent slug with uniqueness check
   const updateSlugMutation = useMutation({
     mutationFn: async ({ agentId, slug }: { agentId: string; slug: string }) => {
       const slugValue = slug.trim() || null;
       if (slugValue && !/^[a-z0-9-]+$/.test(slugValue)) {
         throw new Error("Slug hanya boleh huruf kecil, angka, dan strip (-)");
       }
+      // Check uniqueness across both agents and branches
+      if (slugValue) {
+        const [{ data: existingAgent }, { data: existingBranch }] = await Promise.all([
+          supabase.from('agents').select('id').eq('slug', slugValue).neq('id', agentId).maybeSingle(),
+          supabase.from('branches').select('id').eq('slug', slugValue).maybeSingle(),
+        ]);
+        if (existingAgent || existingBranch) {
+          throw new Error("Subdomain sudah digunakan, pilih yang lain");
+        }
+      }
       const { error } = await supabase
         .from('agents')
         .update({ slug: slugValue } as any)
         .eq('id', agentId);
-      if (error) {
-        if (error.message.includes('duplicate') || error.message.includes('unique')) {
-          throw new Error("Subdomain sudah digunakan, pilih yang lain");
-        }
-        throw error;
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-agents'] });
