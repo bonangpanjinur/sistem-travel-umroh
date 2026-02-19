@@ -23,10 +23,11 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { exportToExcel } from "@/lib/export-utils";
 import { useState, useMemo } from "react";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
-  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock
+  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -70,7 +72,9 @@ export default function AdminBookings() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ['admin-bookings'],
@@ -213,17 +217,45 @@ export default function AdminBookings() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => {
-                    toast({ title: "Fitur segera hadir", description: "Bulk status update sedang dalam pengembangan" });
-                  }}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
+                  <DropdownMenuItem onClick={async () => {
+                    setIsBulkProcessing(true);
+                    try {
+                      const { error } = await supabase
+                        .from('bookings')
+                        .update({ booking_status: 'confirmed' })
+                        .in('id', selectedBookings);
+                      if (error) throw error;
+                      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
+                      toast({ title: "Berhasil", description: `${selectedBookings.length} booking dikonfirmasi` });
+                      setSelectedBookings([]);
+                    } catch (err: any) {
+                      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+                    } finally {
+                      setIsBulkProcessing(false);
+                    }
+                  }} disabled={isBulkProcessing}>
+                    {isBulkProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
                     Konfirmasi Semua
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive" onClick={() => {
-                    toast({ title: "Fitur segera hadir", description: "Bulk delete sedang dalam pengembangan" });
-                  }}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Hapus Semua
+                  <DropdownMenuItem className="text-destructive" onClick={async () => {
+                    setIsBulkProcessing(true);
+                    try {
+                      const { error } = await supabase
+                        .from('bookings')
+                        .update({ booking_status: 'cancelled' })
+                        .in('id', selectedBookings);
+                      if (error) throw error;
+                      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
+                      toast({ title: "Berhasil", description: `${selectedBookings.length} booking dibatalkan` });
+                      setSelectedBookings([]);
+                    } catch (err: any) {
+                      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+                    } finally {
+                      setIsBulkProcessing(false);
+                    }
+                  }} disabled={isBulkProcessing}>
+                    {isBulkProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                    Batalkan Semua
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -232,7 +264,27 @@ export default function AdminBookings() {
               </Button>
             </div>
           )}
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            if (!filteredBookings || filteredBookings.length === 0) return;
+            exportToExcel(
+              filteredBookings,
+              [
+                { header: 'Kode Booking', accessor: 'booking_code', width: 18 },
+                { header: 'Nama', accessor: (r: any) => (r.customer as any)?.full_name || '-', width: 25 },
+                { header: 'Telepon', accessor: (r: any) => (r.customer as any)?.phone || '-', width: 18 },
+                { header: 'Paket', accessor: (r: any) => (r.departure as any)?.package?.name || '-', width: 25 },
+                { header: 'Tgl Berangkat', accessor: (r: any) => (r.departure as any)?.departure_date || '-', width: 15 },
+                { header: 'Status', accessor: (r: any) => STATUS_LABELS[r.booking_status] || r.booking_status, width: 14 },
+                { header: 'Pembayaran', accessor: (r: any) => PAYMENT_LABELS[r.payment_status] || r.payment_status, width: 14 },
+                { header: 'Total', accessor: (r: any) => r.total_price, width: 18 },
+                { header: 'Dibayar', accessor: (r: any) => r.paid_amount || 0, width: 18 },
+                { header: 'Sisa', accessor: (r: any) => r.remaining_amount || 0, width: 18 },
+              ],
+              `booking-${new Date().toISOString().slice(0, 10)}`,
+              'Bookings'
+            );
+            toast({ title: "Export berhasil", description: "File Excel telah diunduh" });
+          }}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
