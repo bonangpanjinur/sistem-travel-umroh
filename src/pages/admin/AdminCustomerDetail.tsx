@@ -14,20 +14,30 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
 import {
   ArrowLeft, User, Phone, Mail, MapPin, Calendar,
   FileText, CreditCard, Eye, ExternalLink, CheckCircle,
-  Clock, XCircle, AlertCircle, ShieldCheck, ShieldX, Loader2, Star, Pencil
+  Clock, XCircle, AlertCircle, ShieldCheck, ShieldX, Loader2, Star, Pencil,
+  Download, FileDown
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
+import {
+  generateJamaahLeaveLetter, generatePassportLetter,
+  type JamaahLeaveLetterData, type PassportLetterData
+} from "@/lib/document-generator";
 
 const STATUS_CONFIG = {
   pending: { label: "Menunggu", color: "bg-amber-100 text-amber-800", icon: Clock },
@@ -55,6 +65,35 @@ export default function AdminCustomerDetail() {
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+
+  // Quick generate letter handlers
+  const handleQuickGenerateLeaveLetter = async () => {
+    if (!customer) return;
+    // Need employer info - show toast with instructions
+    toast.info('Untuk surat cuti jamaah, gunakan menu Generate Surat Lengkap yang memerlukan data pemberi kerja.');
+    window.open(`/admin/documents-generator`, '_blank');
+  };
+
+  const handleQuickGeneratePassportLetter = async () => {
+    if (!customer) return;
+    try {
+      const data: PassportLetterData = {
+        customerName: customer.full_name,
+        nik: customer.nik || '-',
+        birthPlace: customer.birth_place || '-',
+        birthDate: customer.birth_date ? new Date(customer.birth_date) : new Date(),
+        address: customer.address || '-',
+        phone: customer.phone || '-',
+        purpose: 'Ibadah Umrah',
+      };
+      const doc = generatePassportLetter(data, `PASPOR/${new Date().getFullYear()}`);
+      doc.save(`surat-paspor-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
+      toast.success('Surat permohonan paspor berhasil diunduh');
+    } catch (err) {
+      toast.error('Gagal generate surat');
+      console.error(err);
+    }
+  };
 
   // Mutation for toggling tour leader status
   const toggleTourLeaderMutation = useMutation({
@@ -321,17 +360,45 @@ export default function AdminCustomerDetail() {
           </div>
         </div>
         
-        {/* Tour Leader Toggle */}
-        <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-          <div className="flex items-center gap-2">
-            <Star className={`h-4 w-4 ${customer.is_tour_leader ? 'text-amber-500' : 'text-muted-foreground'}`} />
-            <span className="text-sm font-medium">Tour Leader</span>
+        <div className="flex items-center gap-2">
+          {/* Generate Surat Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <FileDown className="h-4 w-4 mr-2" />
+                Generate Surat
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleQuickGenerateLeaveLetter()}>
+                <FileText className="h-4 w-4 mr-2" />
+                Surat Cuti Jamaah
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleQuickGeneratePassportLetter()}>
+                <FileText className="h-4 w-4 mr-2" />
+                Surat Permohonan Paspor
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/admin/documents-generator">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Buka Generator Lengkap
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Tour Leader Toggle */}
+          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+            <div className="flex items-center gap-2">
+              <Star className={`h-4 w-4 ${customer.is_tour_leader ? 'text-amber-500' : 'text-muted-foreground'}`} />
+              <span className="text-sm font-medium">Tour Leader</span>
+            </div>
+            <Switch
+              checked={customer.is_tour_leader || false}
+              onCheckedChange={(checked) => toggleTourLeaderMutation.mutate(checked)}
+              disabled={toggleTourLeaderMutation.isPending}
+            />
           </div>
-          <Switch
-            checked={customer.is_tour_leader || false}
-            onCheckedChange={(checked) => toggleTourLeaderMutation.mutate(checked)}
-            disabled={toggleTourLeaderMutation.isPending}
-          />
         </div>
       </div>
 
