@@ -1495,6 +1495,10 @@ export type Database = {
           branch_id: string | null
           city: string | null
           created_at: string | null
+          custom_absent_deduction: number | null
+          custom_absent_deduction_type: string | null
+          custom_late_deduction: number | null
+          custom_late_deduction_type: string | null
           department: string | null
           email: string | null
           emergency_contact_name: string | null
@@ -1512,6 +1516,7 @@ export type Database = {
           province: string | null
           salary: number | null
           updated_at: string | null
+          use_custom_deduction: boolean
           user_id: string | null
         }
         Insert: {
@@ -1523,6 +1528,10 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          custom_absent_deduction?: number | null
+          custom_absent_deduction_type?: string | null
+          custom_late_deduction?: number | null
+          custom_late_deduction_type?: string | null
           department?: string | null
           email?: string | null
           emergency_contact_name?: string | null
@@ -1540,6 +1549,7 @@ export type Database = {
           province?: string | null
           salary?: number | null
           updated_at?: string | null
+          use_custom_deduction?: boolean
           user_id?: string | null
         }
         Update: {
@@ -1551,6 +1561,10 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          custom_absent_deduction?: number | null
+          custom_absent_deduction_type?: string | null
+          custom_late_deduction?: number | null
+          custom_late_deduction_type?: string | null
           department?: string | null
           email?: string | null
           emergency_contact_name?: string | null
@@ -1568,6 +1582,7 @@ export type Database = {
           province?: string | null
           salary?: number | null
           updated_at?: string | null
+          use_custom_deduction?: boolean
           user_id?: string | null
         }
         Relationships: [
@@ -1814,9 +1829,13 @@ export type Database = {
       hr_settings: {
         Row: {
           absent_deduction_per_day: number | null
+          absent_deduction_percentage: number | null
+          absent_deduction_type: string
           holiday_overtime_multiplier: number | null
           id: string
           late_deduction_per_incident: number | null
+          late_deduction_percentage: number | null
+          late_deduction_type: string
           late_threshold_minutes: number | null
           overtime_rate_per_hour: number | null
           updated_at: string | null
@@ -1825,9 +1844,13 @@ export type Database = {
         }
         Insert: {
           absent_deduction_per_day?: number | null
+          absent_deduction_percentage?: number | null
+          absent_deduction_type?: string
           holiday_overtime_multiplier?: number | null
           id?: string
           late_deduction_per_incident?: number | null
+          late_deduction_percentage?: number | null
+          late_deduction_type?: string
           late_threshold_minutes?: number | null
           overtime_rate_per_hour?: number | null
           updated_at?: string | null
@@ -1836,9 +1859,13 @@ export type Database = {
         }
         Update: {
           absent_deduction_per_day?: number | null
+          absent_deduction_percentage?: number | null
+          absent_deduction_type?: string
           holiday_overtime_multiplier?: number | null
           id?: string
           late_deduction_per_incident?: number | null
+          late_deduction_percentage?: number | null
+          late_deduction_type?: string
           late_threshold_minutes?: number | null
           overtime_rate_per_hour?: number | null
           updated_at?: string | null
