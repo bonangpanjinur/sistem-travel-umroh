@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Type, Layout, Image, Settings2, Eye, Sliders } from "lucide-react";
+import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate } from "lucide-react";
 import { ThemeSelector } from "@/components/admin/appearance/ThemeSelector";
 import { ColorSettings } from "@/components/admin/appearance/ColorSettings";
 import { TypographySettings } from "@/components/admin/appearance/TypographySettings";
@@ -8,6 +8,7 @@ import { BrandingSettings } from "@/components/admin/appearance/BrandingSettings
 import { PageBuilder } from "@/components/admin/appearance/PageBuilder";
 import { LivePreview } from "@/components/admin/appearance/LivePreview";
 import { CustomSectionEditor } from "@/components/admin/appearance/CustomSectionEditor";
+import { TemplateSelector } from "@/components/admin/appearance/TemplateSelector";
 import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import { ExternalLink } from "lucide-react";
 export default function AdminAppearance() {
   const { data: settings, isLoading: loadingSettings } = useWebsiteSettings();
   const { data: presets, isLoading: loadingPresets } = useThemePresets();
-  const [activeTab, setActiveTab] = useState("themes");
+  const [activeTab, setActiveTab] = useState("template");
   const [showPreview, setShowPreview] = useState(false);
 
   if (loadingSettings || loadingPresets) {
@@ -57,7 +58,11 @@ export default function AdminAppearance() {
       {showPreview && <LivePreview className="mb-6" />}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="template" className="gap-2">
+            <LayoutTemplate className="h-4 w-4" />
+            <span className="hidden sm:inline">Template</span>
+          </TabsTrigger>
           <TabsTrigger value="themes" className="gap-2">
             <Palette className="h-4 w-4" />
             <span className="hidden sm:inline">Tema</span>
@@ -83,6 +88,10 @@ export default function AdminAppearance() {
             <span className="hidden sm:inline">Sections</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="template">
+          {settings && <TemplateSelector settings={settings} />}
+        </TabsContent>
 
         <TabsContent value="themes">
           {settings && presets && (

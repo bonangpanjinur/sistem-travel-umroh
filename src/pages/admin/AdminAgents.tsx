@@ -41,6 +41,7 @@ interface Agent {
   bank_account_number: string | null;
   bank_account_name: string | null;
   npwp: string | null;
+  slug: string | null;
   created_at: string;
   branch_id: string | null;
   parent_agent_id: string | null;
@@ -80,6 +81,7 @@ export default function AdminAgents() {
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null);
   const [agentToToggle, setAgentToToggle] = useState<Agent | null>(null);
   const [editingRate, setEditingRate] = useState<{ agentId: string; rate: string } | null>(null);
+  const [editingSlug, setEditingSlug] = useState<{ agentId: string; slug: string } | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addSubAgentParent, setAddSubAgentParent] = useState<string | null>(null);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
@@ -200,6 +202,34 @@ export default function AdminAgents() {
     },
     onError: (error) => {
       toast.error("Gagal update rate: " + error.message);
+    },
+  });
+
+  // Update agent slug
+  const updateSlugMutation = useMutation({
+    mutationFn: async ({ agentId, slug }: { agentId: string; slug: string }) => {
+      const slugValue = slug.trim() || null;
+      if (slugValue && !/^[a-z0-9-]+$/.test(slugValue)) {
+        throw new Error("Slug hanya boleh huruf kecil, angka, dan strip (-)");
+      }
+      const { error } = await supabase
+        .from('agents')
+        .update({ slug: slugValue } as any)
+        .eq('id', agentId);
+      if (error) {
+        if (error.message.includes('duplicate') || error.message.includes('unique')) {
+          throw new Error("Subdomain sudah digunakan, pilih yang lain");
+        }
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-agents'] });
+      toast.success("Subdomain berhasil diupdate");
+      setEditingSlug(null);
+    },
+    onError: (error) => {
+      toast.error(error.message);
     },
   });
 
@@ -592,6 +622,44 @@ export default function AdminAgents() {
               <div>
                 <p className="text-sm text-muted-foreground">NPWP</p>
                 <p className="font-semibold">{selectedAgent.npwp || '-'}</p>
+              </div>
+              <div className="border-t pt-4">
+                <p className="text-sm text-muted-foreground mb-2">Subdomain Website</p>
+                {editingSlug?.agentId === selectedAgent.id ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editingSlug.slug}
+                        onChange={(e) => setEditingSlug({ ...editingSlug, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                        placeholder="nama-agen"
+                        className="h-8"
+                      />
+                      <Button size="sm" variant="ghost" onClick={() => updateSlugMutation.mutate({ agentId: selectedAgent.id, slug: editingSlug.slug })} disabled={updateSlugMutation.isPending}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingSlug(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {editingSlug.slug && (
+                      <p className="text-xs text-muted-foreground">
+                        URL: <span className="font-mono text-primary">{window.location.origin}/a/{editingSlug.slug}</span>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">{selectedAgent.slug || <span className="text-muted-foreground">Belum diatur</span>}</p>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingSlug({ agentId: selectedAgent.id, slug: selectedAgent.slug || '' })}>
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                {selectedAgent.slug && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span className="font-mono">{window.location.origin}/a/{selectedAgent.slug}</span>
+                  </p>
+                )}
               </div>
               <div className="border-t pt-4">
                 <p className="text-sm text-muted-foreground mb-2">Info Rekening</p>
