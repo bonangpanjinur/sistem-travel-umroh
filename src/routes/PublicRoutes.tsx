@@ -15,6 +15,8 @@ const DeparturesPage = lazy(() => import("@/pages/public/DeparturesPage"));
 const StaticPage = lazy(() => import("@/pages/public/StaticPage"));
 const SavingsPackages = lazy(() => import("@/pages/savings/SavingsPackages"));
 const SavingsRegister = lazy(() => import("@/pages/savings/SavingsRegister"));
+const BranchWebsite = lazy(() => import("@/pages/public/BranchWebsite"));
+const AgentWebsite = lazy(() => import("@/pages/public/AgentWebsite"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -41,6 +43,9 @@ export default function PublicRoutes() {
       <Route path="/faq" element={<LazyPage><StaticPage /></LazyPage>} />
       <Route path="/terms" element={<LazyPage><StaticPage /></LazyPage>} />
       <Route path="/privacy" element={<LazyPage><StaticPage /></LazyPage>} />
+      {/* Multi-tenant: Branch & Agent websites */}
+      <Route path="/b/:branchSlug" element={<LazyPage><BranchWebsite /></LazyPage>} />
+      <Route path="/a/:agentSlug" element={<LazyPage><AgentWebsite /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>
   );

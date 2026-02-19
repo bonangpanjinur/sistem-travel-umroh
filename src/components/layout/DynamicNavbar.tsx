@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Menu, X, User, ChevronDown, LogOut, LayoutDashboard, Wallet, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,10 +22,15 @@ const defaultNavLinks = [
   { href: '/contact', label: 'Hubungi Kami' },
 ];
 
-export function DynamicNavbar() {
+interface DynamicNavbarProps {
+  tenantSettings?: WebsiteSettings | null;
+}
+
+export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const { user, profile, isAdmin, signOut } = useAuth();
-  const { data: settings } = useWebsiteSettings();
+  const { data: mainSettings } = useWebsiteSettings();
+  const settings = tenantSettings || mainSettings;
   const navigate = useNavigate();
 
   const handleSignOut = async () => {

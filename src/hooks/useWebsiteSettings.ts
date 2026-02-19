@@ -78,11 +78,83 @@ export function useWebsiteSettings() {
 
       if (error) throw error;
       
-      // Parse homepage_sections from JSON
       return {
         ...data,
         homepage_sections: data.homepage_sections as unknown as HomepageSection[] | null,
       } as WebsiteSettings;
+    },
+  });
+}
+
+export function useTenantWebsiteSettings(type: 'branch' | 'agent', slug?: string) {
+  return useQuery<WebsiteSettings>({
+    queryKey: ["website-settings", type, slug],
+    enabled: !!slug,
+    queryFn: async (): Promise<WebsiteSettings> => {
+      const fetchSettingsBy = async (key: string, value: string): Promise<any> => {
+        const { data } = await (supabase.from("website_settings").select("*") as any)
+          .eq(key, value)
+          .single();
+        return data;
+      };
+
+      const fetchMainSettings = async () => {
+        const { data, error } = await supabase
+          .from("website_settings")
+          .select("*")
+          .eq("id", SETTINGS_ID)
+          .single();
+        if (error) throw error;
+        return data;
+      };
+
+      if (type === 'branch') {
+        const { data: branch, error: branchError } = await (supabase
+          .from("branches").select("id, name") as any)
+          .eq("slug", slug!)
+          .single();
+        if (branchError || !branch) throw new Error("Branch not found");
+
+        const tenantSettings = await fetchSettingsBy("branch_id", branch.id);
+        if (tenantSettings) {
+          return {
+            ...tenantSettings,
+            homepage_sections: tenantSettings.homepage_sections as unknown as HomepageSection[] | null,
+            company_name: tenantSettings.company_name || branch.name,
+          } as WebsiteSettings;
+        }
+
+        const mainSettings = await fetchMainSettings();
+        return {
+          ...mainSettings,
+          homepage_sections: mainSettings.homepage_sections as unknown as HomepageSection[] | null,
+          company_name: branch.name,
+          tagline: `Cabang ${branch.name}`,
+        } as WebsiteSettings;
+      } else {
+        const { data: agent, error: agentError } = await (supabase
+          .from("agents").select("id, company_name, agent_code") as any)
+          .eq("slug", slug!)
+          .single();
+        if (agentError || !agent) throw new Error("Agent not found");
+
+        const tenantSettings = await fetchSettingsBy("agent_id", agent.id);
+        if (tenantSettings) {
+          return {
+            ...tenantSettings,
+            homepage_sections: tenantSettings.homepage_sections as unknown as HomepageSection[] | null,
+            company_name: tenantSettings.company_name || agent.company_name || agent.agent_code,
+          } as WebsiteSettings;
+        }
+
+        const mainSettings = await fetchMainSettings();
+        return {
+          ...mainSettings,
+          homepage_sections: mainSettings.homepage_sections as unknown as HomepageSection[] | null,
+          company_name: agent.company_name || agent.agent_code,
+          tagline: `Agen Resmi`,
+        } as WebsiteSettings;
+      }
     },
   });
 }

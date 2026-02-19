@@ -28,8 +28,13 @@ function TikTokIcon({ className }: { className?: string }) {
   );
 }
 
-export function DynamicFooter() {
-  const { data: settings } = useWebsiteSettings();
+interface DynamicFooterProps {
+  tenantSettings?: import('@/hooks/useWebsiteSettings').WebsiteSettings | null;
+}
+
+export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
+  const { data: mainSettings } = useWebsiteSettings();
+  const settings = tenantSettings || mainSettings;
   
   const companyName = settings?.company_name || 'UmrohTravel';
   const tagline = settings?.tagline || 'Perjalanan Suci Anda';
