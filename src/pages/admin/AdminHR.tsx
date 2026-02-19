@@ -18,6 +18,7 @@ import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera,
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
+import { HRSettingsForm } from "@/components/admin/HRSettingsForm";
 
 interface Employee {
   id: string;
@@ -927,111 +928,8 @@ export default function AdminHR() {
               <CardDescription>Atur parameter perhitungan gaji otomatis. Potongan bisa berupa nominal tetap atau persentase dari gaji pokok.</CardDescription>
             </CardHeader>
             <CardContent>
-              {hrSettings && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    const absentType = fd.get("absent_deduction_type") as string || "fixed";
-                    const lateType = fd.get("late_deduction_type") as string || "fixed";
-                    saveHRSettingsMutation.mutate({
-                      work_start_time: fd.get("work_start_time") as string,
-                      work_end_time: fd.get("work_end_time") as string,
-                      late_threshold_minutes: parseInt(fd.get("late_threshold_minutes") as string) || 15,
-                      absent_deduction_type: absentType,
-                      absent_deduction_per_day: parseFloat(fd.get("absent_deduction_per_day") as string) || 0,
-                      absent_deduction_percentage: parseFloat(fd.get("absent_deduction_percentage") as string) || 0,
-                      late_deduction_type: lateType,
-                      late_deduction_per_incident: parseFloat(fd.get("late_deduction_per_incident") as string) || 0,
-                      late_deduction_percentage: parseFloat(fd.get("late_deduction_percentage") as string) || 0,
-                      overtime_rate_per_hour: parseFloat(fd.get("overtime_rate_per_hour") as string) || 0,
-                      holiday_overtime_multiplier: parseFloat(fd.get("holiday_overtime_multiplier") as string) || 2,
-                    });
-                  }}
-                  className="space-y-6"
-                >
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Jam Masuk Default</Label>
-                      <Input type="time" name="work_start_time" defaultValue={hrSettings.work_start_time?.slice(0, 5)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Jam Pulang Default</Label>
-                      <Input type="time" name="work_end_time" defaultValue={hrSettings.work_end_time?.slice(0, 5)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Toleransi Terlambat (menit)</Label>
-                      <Input type="number" name="late_threshold_minutes" defaultValue={hrSettings.late_threshold_minutes} />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <h4 className="font-semibold text-sm">Potongan Tidak Hadir (Global Default)</h4>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tipe Potongan Absen</Label>
-                      <Select name="absent_deduction_type" defaultValue={hrSettings.absent_deduction_type || "fixed"}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed">Nominal Tetap (Rp)</SelectItem>
-                          <SelectItem value="percentage">Persentase Gaji (%)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Nominal Tetap / Hari</Label>
-                      <Input type="number" name="absent_deduction_per_day" defaultValue={hrSettings.absent_deduction_per_day} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Persentase Gaji / Hari (%)</Label>
-                      <Input type="number" step="0.1" name="absent_deduction_percentage" defaultValue={hrSettings.absent_deduction_percentage || 0} />
-                    </div>
-                  </div>
-
-                  <h4 className="font-semibold text-sm">Potongan Terlambat (Global Default)</h4>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tipe Potongan Terlambat</Label>
-                      <Select name="late_deduction_type" defaultValue={hrSettings.late_deduction_type || "fixed"}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed">Nominal Tetap (Rp)</SelectItem>
-                          <SelectItem value="percentage">Persentase Gaji (%)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Nominal Tetap / Kejadian</Label>
-                      <Input type="number" name="late_deduction_per_incident" defaultValue={hrSettings.late_deduction_per_incident} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Persentase Gaji / Kejadian (%)</Label>
-                      <Input type="number" step="0.1" name="late_deduction_percentage" defaultValue={hrSettings.late_deduction_percentage || 0} />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <h4 className="font-semibold text-sm">Lembur</h4>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Rate Lembur / Jam</Label>
-                      <Input type="number" name="overtime_rate_per_hour" defaultValue={hrSettings.overtime_rate_per_hour} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Multiplier Lembur Hari Libur</Label>
-                      <Input type="number" step="0.1" name="holiday_overtime_multiplier" defaultValue={hrSettings.holiday_overtime_multiplier} />
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">💡 Aturan ini berlaku global. Untuk override per karyawan, aktifkan "Aturan Potongan Khusus" di form edit karyawan.</p>
-
-                  <Button type="submit" disabled={saveHRSettingsMutation.isPending}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {saveHRSettingsMutation.isPending ? "Menyimpan..." : "Simpan Pengaturan"}
-                  </Button>
-                </form>
+          {hrSettings && (
+                <HRSettingsForm hrSettings={hrSettings} onSave={(settings) => saveHRSettingsMutation.mutate(settings)} isPending={saveHRSettingsMutation.isPending} />
               )}
             </CardContent>
           </Card>

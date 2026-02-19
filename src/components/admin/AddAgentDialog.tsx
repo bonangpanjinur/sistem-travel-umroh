@@ -32,7 +32,6 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
     parentAgentId: parentAgentId || "",
   });
 
-  // Fetch branches
   const { data: branches } = useQuery({
     queryKey: ['branches-active'],
     queryFn: async () => {
@@ -41,7 +40,6 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
     },
   });
 
-  // Fetch agents for parent selection
   const { data: parentAgents } = useQuery({
     queryKey: ['agents-for-parent'],
     queryFn: async () => {
@@ -56,66 +54,36 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
     enabled: !parentAgentId,
   });
 
-  const generateAgentCode = () => {
-    const prefix = parentAgentId || form.parentAgentId ? 'SUB' : 'AGT';
-    const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const now = new Date();
-    return `${prefix}${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}-${rand}`;
-  };
-
   const createAgentMutation = useMutation({
     mutationFn: async () => {
       if (!form.fullName || !form.email) {
         throw new Error("Nama dan email wajib diisi");
       }
 
-      // 1. Create auth user via admin-like approach: sign up with random password
-      const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: tempPassword,
-        options: {
-          data: { full_name: form.fullName },
+      const { data, error } = await supabase.functions.invoke('create-agent', {
+        body: {
+          fullName: form.fullName,
+          email: form.email,
+          phone: form.phone,
+          companyName: form.companyName,
+          commissionRate: form.commissionRate,
+          bankName: form.bankName,
+          bankAccountNumber: form.bankAccountNumber,
+          bankAccountName: form.bankAccountName,
+          npwp: form.npwp,
+          branchId: form.branchId || null,
+          parentAgentId: parentAgentId || form.parentAgentId || null,
         },
       });
 
-      if (authError) throw new Error("Gagal membuat akun: " + authError.message);
-      if (!authData.user) throw new Error("User tidak terbuat");
+      if (error) throw new Error(error.message || "Gagal membuat agent");
+      if (data?.error) throw new Error(data.error);
 
-      const userId = authData.user.id;
-
-      // 2. Add agent role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role: 'agent' as any });
-
-      if (roleError) throw new Error("Gagal set role agent: " + roleError.message);
-
-      // 3. Create agent record
-      const agentCode = generateAgentCode();
-      const { error: agentError } = await supabase
-        .from('agents')
-        .insert({
-          user_id: userId,
-          agent_code: agentCode,
-          company_name: form.companyName || null,
-          commission_rate: parseFloat(form.commissionRate) || 5,
-          bank_name: form.bankName || null,
-          bank_account_number: form.bankAccountNumber || null,
-          bank_account_name: form.bankAccountName || null,
-          npwp: form.npwp || null,
-          branch_id: form.branchId || null,
-          parent_agent_id: parentAgentId || form.parentAgentId || null,
-          is_active: true,
-        });
-
-      if (agentError) throw new Error("Gagal membuat agent: " + agentError.message);
-
-      return { agentCode, email: form.email };
+      return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-agents'] });
-      toast.success(`Agent ${data.agentCode} berhasil dibuat. Email verifikasi dikirim ke ${data.email}`);
+      toast.success(`Agent ${data.agentCode} berhasil dibuat (${data.email})`);
       onOpenChange(false);
       resetForm();
     },
@@ -142,7 +110,6 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label>Nama Lengkap *</Label>
@@ -158,7 +125,6 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
             </div>
           </div>
 
-          {/* Company */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Nama Perusahaan</Label>
@@ -170,7 +136,6 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
             </div>
           </div>
 
-          {/* Branch & Parent */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Cabang</Label>
@@ -201,7 +166,6 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
             )}
           </div>
 
-          {/* Bank Info */}
           <div className="border-t pt-4">
             <p className="text-sm font-medium mb-3">Info Rekening</p>
             <div className="grid grid-cols-2 gap-4">
