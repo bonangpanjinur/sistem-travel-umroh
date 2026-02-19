@@ -1218,6 +1218,30 @@ export type Database = {
           },
         ]
       }
+      departments: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
       departures: {
         Row: {
           airline_id: string | null
@@ -1778,6 +1802,42 @@ export type Database = {
           name?: string
           star_rating?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      hr_settings: {
+        Row: {
+          absent_deduction_per_day: number | null
+          holiday_overtime_multiplier: number | null
+          id: string
+          late_deduction_per_incident: number | null
+          late_threshold_minutes: number | null
+          overtime_rate_per_hour: number | null
+          updated_at: string | null
+          work_end_time: string | null
+          work_start_time: string | null
+        }
+        Insert: {
+          absent_deduction_per_day?: number | null
+          holiday_overtime_multiplier?: number | null
+          id?: string
+          late_deduction_per_incident?: number | null
+          late_threshold_minutes?: number | null
+          overtime_rate_per_hour?: number | null
+          updated_at?: string | null
+          work_end_time?: string | null
+          work_start_time?: string | null
+        }
+        Update: {
+          absent_deduction_per_day?: number | null
+          holiday_overtime_multiplier?: number | null
+          id?: string
+          late_deduction_per_incident?: number | null
+          late_threshold_minutes?: number | null
+          overtime_rate_per_hour?: number | null
+          updated_at?: string | null
+          work_end_time?: string | null
+          work_start_time?: string | null
         }
         Relationships: []
       }
@@ -2751,6 +2811,41 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      positions: {
+        Row: {
+          created_at: string | null
+          department_id: string | null
+          id: string
+          is_active: boolean | null
+          level: number | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          level?: number | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          level?: number | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
         ]
@@ -4106,6 +4201,44 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_schedules: {
+        Row: {
+          created_at: string | null
+          day_of_week: number
+          employee_id: string | null
+          end_time: string | null
+          id: string
+          is_day_off: boolean | null
+          start_time: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_week: number
+          employee_id?: string | null
+          end_time?: string | null
+          id?: string
+          is_day_off?: boolean | null
+          start_time?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          day_of_week?: number
+          employee_id?: string | null
+          end_time?: string | null
+          id?: string
+          is_day_off?: boolean | null
+          start_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_schedules_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
