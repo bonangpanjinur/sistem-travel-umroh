@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save } from "lucide-react";
+import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
@@ -377,6 +377,47 @@ export default function AdminHR() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Shareable Attendance Link */}
+      <Card className="border-dashed">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Link2 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Link Absensi Karyawan</p>
+                <p className="text-xs text-muted-foreground">Bagikan link ini ke karyawan untuk absen mandiri</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="text-xs bg-muted px-2 py-1 rounded hidden sm:block">
+                {window.location.origin}/absensi
+              </code>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/absensi`);
+                  toast.success("Link absensi berhasil disalin!");
+                }}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                Salin Link
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open("/absensi", "_blank")}
+              >
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Buka
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

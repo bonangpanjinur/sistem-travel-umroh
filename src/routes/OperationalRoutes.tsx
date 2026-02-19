@@ -49,6 +49,16 @@ export default function OperationalRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Public attendance page - any logged-in employee can access */}
+      <Route
+        path="/absensi"
+        element={
+          <ProtectedRoute>
+            <LazyPage><EmployeeAttendance /></LazyPage>
+          </ProtectedRoute>
+        }
+      />
     </>
   );
 }
