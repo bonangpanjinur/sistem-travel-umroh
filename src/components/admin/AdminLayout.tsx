@@ -123,7 +123,7 @@ const NAV_GROUPS = [
 ];
 
 export function AdminLayout() {
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const { user, profile, signOut, isAdmin, roles } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -220,7 +220,12 @@ export function AdminLayout() {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-            {NAV_GROUPS.map((group) => (
+  {NAV_GROUPS.filter((group) => {
+                // If no allowedRoles defined, show to all admin users
+                if (!group.allowedRoles) return true;
+                // Check if user has any of the allowed roles
+                return group.allowedRoles.some(role => roles.includes(role as any));
+              }).map((group) => (
               <div key={group.label}>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
                   {group.label}
