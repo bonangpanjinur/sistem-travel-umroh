@@ -23,7 +23,7 @@ const branchSchema = z.object({
   code: z.string().min(1, "Kode cabang harus diisi"),
   name: z.string().min(1, "Nama cabang harus diisi"),
   slug: z.string()
-    .optional()
+    .min(1, "Subdomain wajib diisi agar cabang punya website")
     .refine((val) => !val || /^[a-z0-9-]+$/.test(val), {
       message: "Hanya huruf kecil, angka, dan strip (-) yang diperbolehkan",
     }),

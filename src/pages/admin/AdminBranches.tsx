@@ -5,15 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BranchForm } from "@/components/admin/forms/BranchForm";
-import { Search, Plus, Edit, Trash2, Building2, MapPin, Phone, Mail } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Building2, MapPin, Phone, Mail, Globe, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminBranches() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<any>(null);
+  const [websiteBranch, setWebsiteBranch] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: branches, isLoading } = useQuery({
@@ -95,11 +97,20 @@ export default function AdminBranches() {
                       <span className="truncate">{branch.email}</span>
                     </div>
                   )}
+                  {branch.slug && (
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-3 w-3" />
+                      <span className="font-mono text-xs text-primary">/b/{branch.slug}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 mt-4">
                   <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditingBranch(branch); setIsFormOpen(true); }}>
                     <Edit className="h-4 w-4 mr-1" />Edit
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setWebsiteBranch(branch)} disabled={!branch.slug}>
+                    <Globe className="h-4 w-4" />
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(branch.id)}>
                     <Trash2 className="h-4 w-4" />
@@ -119,6 +130,155 @@ export default function AdminBranches() {
           <BranchForm branchData={editingBranch} onSuccess={() => setIsFormOpen(false)} onCancel={() => setIsFormOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      {websiteBranch && (
+        <BranchWebsiteDialog
+          branch={websiteBranch}
+          open={!!websiteBranch}
+          onOpenChange={(open) => !open && setWebsiteBranch(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// === Branch Website Settings Dialog ===
+function BranchWebsiteDialog({ branch, open, onOpenChange }: { branch: any; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const queryClient = useQueryClient();
+  
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["branch-website-settings", branch.id],
+    enabled: open,
+    queryFn: async () => {
+      // Try to find existing settings
+      const { data, error } = await supabase
+        .from("website_settings")
+        .select("*")
+        .eq("branch_id", branch.id)
+        .maybeSingle();
+      if (error) throw error;
+      
+      if (data) return data;
+
+      // Auto-create if not exists
+      const { data: newData, error: insertError } = await supabase
+        .from("website_settings")
+        .insert({
+          branch_id: branch.id,
+          company_name: branch.name,
+          tagline: `Website Cabang ${branch.name}`,
+        })
+        .select()
+        .single();
+      if (insertError) throw insertError;
+      return newData;
+    },
+  });
+
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+
+  // Sync form when settings load
+  const currentSettings = {
+    company_name: formValues.company_name ?? settings?.company_name ?? "",
+    tagline: formValues.tagline ?? settings?.tagline ?? "",
+    logo_url: formValues.logo_url ?? settings?.logo_url ?? "",
+    hero_title: formValues.hero_title ?? settings?.hero_title ?? "",
+    hero_subtitle: formValues.hero_subtitle ?? settings?.hero_subtitle ?? "",
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!settings?.id) return;
+      const { error } = await supabase
+        .from("website_settings")
+        .update({
+          company_name: currentSettings.company_name,
+          tagline: currentSettings.tagline,
+          logo_url: currentSettings.logo_url || null,
+          hero_title: currentSettings.hero_title || null,
+          hero_subtitle: currentSettings.hero_subtitle || null,
+        })
+        .eq("id", settings.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branch-website-settings", branch.id] });
+      toast.success("Pengaturan website cabang disimpan");
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateField = (key: string, value: string) => {
+    setFormValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Website Cabang: {branch.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              URL: <span className="font-mono text-primary">{window.location.origin}/b/{branch.slug}</span>
+            </p>
+
+            <div className="space-y-2">
+              <Label>Nama Perusahaan / Cabang</Label>
+              <Input
+                value={currentSettings.company_name}
+                onChange={e => updateField("company_name", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tagline</Label>
+              <Input
+                value={currentSettings.tagline}
+                onChange={e => updateField("tagline", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>URL Logo</Label>
+              <Input
+                value={currentSettings.logo_url}
+                onChange={e => updateField("logo_url", e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Judul Hero</Label>
+              <Input
+                value={currentSettings.hero_title}
+                onChange={e => updateField("hero_title", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Subtitle Hero</Label>
+              <Input
+                value={currentSettings.hero_subtitle}
+                onChange={e => updateField("hero_subtitle", e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
