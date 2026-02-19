@@ -1,99 +1,76 @@
-# Website Templates & Subdomain Management
 
-## Overview
+# Analisis Keseluruhan Sistem & Perbaikan
 
-Menambahkan 2 template website yang bisa dipilih user, serta fitur pengaturan subdomain (slug) untuk cabang dan agen langsung dari halaman profil masing-masing , bisa di atur admin atau mereka sendiri, jika nama domain terdetek sudah ada berarti tidak bisa digunakan. 
+## Temuan Bug dan Error
 
----
+### 1. [BUG] CustomSectionEditor - Ref Warning pada Select
+Console menunjukkan error: "Function components cannot be given refs" dari `CustomSectionEditor.tsx`. Komponen `Select` dari Radix UI digunakan langsung di dalam loop tanpa wrapper `forwardRef`. Selain itu, tombol "Simpan" hanya `console.log` -- tidak menyimpan data ke database.
 
-## Bagian 1: 2 Template Website
+**Perbaikan**: Ganti penggunaan `Select` langsung menjadi wrapped component yang benar, dan implementasi penyimpanan ke `website_settings` (custom_sections JSON).
 
-### Template yang Dibuat
+### 2. [BUG] Departures tanpa Package
+2 dari 3 keberangkatan memiliki `package_id = NULL`, menyebabkan data paket tidak tampil di dashboard dan halaman publik. Ini menunjukkan validasi saat membuat departure tidak mewajibkan paket.
 
-**Template 1 - "Classic"** (Default)
+**Perbaikan**: Tambahkan validasi di `DepartureForm.tsx` untuk mewajibkan `package_id`.
 
-- Layout yang sudah ada saat ini: Hero besar dengan search widget, statistik angka, dan section-section standar
-- Cocok untuk tampilan profesional dan korporat
+### 3. [BUG] Tenant Hero/CTA Tidak Menggunakan Tenant Settings
+`ModernHeroSection` dan `ModernCTASection` memanggil `useWebsiteSettings()` (settings utama), bukan settings tenant. Jika digunakan di `/b/slug` atau `/a/slug`, data yang ditampilkan selalu dari settings utama, bukan tenant.
 
-**Template 2 - "Modern Minimalist"**
+**Perbaikan**: Buat context provider atau tambahkan prop opsional `settings` ke komponen-komponen hero/CTA agar bisa menerima data tenant.
 
-- Hero split-screen (teks di kiri, gambar di kanan) tanpa search widget
-- Section paket dalam layout carousel/horizontal scroll
-- CTA section dengan background gradient dan desain card
-- Tampilan lebih clean dan modern
-
-### Cara Kerja
-
-- Kolom `template` ditambahkan ke tabel `website_settings` (default: `'classic'`)
-- Di halaman Admin Appearance, tab baru "Template" ditampilkan di urutan pertama dengan preview visual dari kedua template
-- Saat user memilih template, komponen yang dirender di halaman publik berubah sesuai template yang dipilih
-- Komponen baru: `ModernHeroSection`, `ModernCTASection` sebagai alternatif dari `DynamicHeroSection` dan `DynamicCTASection`
+### 4. [BUG] DynamicHeroSection Juga Hardcode ke Main Settings
+Sama seperti poin 3, `DynamicHeroSection` memanggil `useWebsiteSettings()` langsung. Semua section components pada halaman tenant menampilkan data utama, bukan data khusus tenant.
 
 ---
 
-## Bagian 2: Pengaturan Subdomain (Slug)
+## Peningkatan yang Diperlukan
 
-### Database
+### 5. [IMPROVE] Role-Based Sidebar Filtering Tidak Lengkap
+`AdminLayout.tsx` menampilkan grup berdasarkan `allowedRoles`, tetapi hanya beberapa grup yang punya filter ini (Keuangan, SDM, Master Data, Laporan, Pengaturan). Grup seperti "Sales & CRM", "Jamaah & Agent", dan "Support" terlihat oleh semua role admin termasuk marketing yang seharusnya tidak bisa akses booking.
 
-- Tambah kolom `slug` (VARCHAR, UNIQUE, nullable) ke tabel `branches` dan `agents`
-- Tambah kolom `branch_id`, `agent_id`, dan `template` ke tabel `website_settings`
+**Perbaikan**: Tambahkan `allowedRoles` ke setiap grup/item nav yang sesuai dengan Role Access Matrix.
 
-### UI Pengaturan Slug
+### 6. [IMPROVE] Slug Uniqueness Hanya Client-Side
+BranchForm memvalidasi format slug dengan regex, tetapi tidak cek apakah slug sudah digunakan sebelum submit. Error duplikat hanya muncul dari database constraint.
 
-**Di halaman Admin Branches (`AdminBranches.tsx`)**
+**Perbaikan**: Tambahkan pengecekan real-time ke database saat user mengetik slug (`debounced query`).
 
-- Tambahkan field "Subdomain" di `BranchForm.tsx` dengan format: `sistemumroh.lovable.app/b/[slug]`
-- Validasi: huruf kecil, angka, strip saja (regex)
-- Preview URL langsung ditampilkan di bawah input
+### 7. [IMPROVE] Leaked Password Protection Disabled
+Linter mendeteksi bahwa proteksi password bocor belum diaktifkan. Ini berarti user bisa menggunakan password yang sudah bocor di data breach publik.
 
-**Di halaman Admin Agents (`AdminAgents.tsx`)**
+**Perbaikan**: Aktifkan leaked password protection melalui konfigurasi auth.
 
-- Tambahkan field "Subdomain" di dialog detail/edit agent
-- Format: `sistemumroh.lovable.app/a/[slug]`
-- Validasi sama dengan cabang
+### 8. [IMPROVE] CustomSectionEditor Tidak Persisten
+Pengaturan hero options (Bismillah, Search Widget, Statistik) dan statistik custom hanya disimpan di state lokal. Refresh halaman = hilang.
 
-### Routing
-
-- Route `/b/:branchSlug` dan `/a/:agentSlug` sudah ada di `PublicRoutes.tsx`
-- Update `BranchWebsite.tsx` dan `AgentWebsite.tsx` untuk menggunakan template yang dipilih
+**Perbaikan**: Simpan data ke kolom `custom_sections` (JSONB) di `website_settings`.
 
 ---
 
-## Detail Teknis
+## Detail Teknis Perbaikan
 
-### 1. Migrasi Database
+### File yang Dimodifikasi
 
-```sql
--- Tambah slug ke branches dan agents
-ALTER TABLE branches ADD COLUMN slug VARCHAR(100) UNIQUE;
-ALTER TABLE agents ADD COLUMN slug VARCHAR(100) UNIQUE;
+| File | Perubahan |
+|------|-----------|
+| `CustomSectionEditor.tsx` | Fix ref warning, implementasi save ke DB |
+| `ModernHeroSection.tsx` | Tambah props `settings` opsional |
+| `ModernCTASection.tsx` | Tambah props `settings` opsional |
+| `DynamicHeroSection.tsx` | Tambah props `settings` opsional |
+| `DynamicCTASection.tsx` | Tambah props `settings` opsional |
+| `Index.tsx` | Pass settings ke section components |
+| `BranchWebsite.tsx` | Pass tenant settings ke section components |
+| `AgentWebsite.tsx` | Pass tenant settings ke section components |
+| `AdminLayout.tsx` | Tambah `allowedRoles` ke semua nav groups |
+| `BranchForm.tsx` | Tambah debounced slug uniqueness check |
+| `AdminAgents.tsx` | Tambah debounced slug uniqueness check |
+| `DepartureForm.tsx` | Wajibkan package_id |
 
--- Tambah kolom tenant dan template ke website_settings
-ALTER TABLE website_settings ADD COLUMN branch_id UUID REFERENCES branches(id);
-ALTER TABLE website_settings ADD COLUMN agent_id UUID REFERENCES agents(id);
-ALTER TABLE website_settings ADD COLUMN template TEXT NOT NULL DEFAULT 'classic';
-```
+### Urutan Implementasi
 
-### 2. File yang Dibuat
-
-- `src/components/home/ModernHeroSection.tsx` - Hero split-screen untuk template Modern
-- `src/components/home/ModernCTASection.tsx` - CTA card-style untuk template Modern
-- `src/components/admin/appearance/TemplateSelector.tsx` - UI pilih template di Admin Appearance
-
-### 3. File yang Dimodifikasi
-
-- `src/pages/admin/AdminAppearance.tsx` - Tambah tab "Template"
-- `src/components/admin/forms/BranchForm.tsx` - Tambah field slug
-- `src/pages/admin/AdminAgents.tsx` - Tambah field slug di dialog edit
-- `src/hooks/useWebsiteSettings.ts` - Update interface dan query untuk template
-- `src/pages/public/BranchWebsite.tsx` - Render berdasarkan template
-- `src/pages/public/AgentWebsite.tsx` - Render berdasarkan template
-- `src/pages/Index.tsx` - Render berdasarkan template
-
-### 4. Alur Template Selection
-
-1. Admin buka Pengaturan Tampilan > Tab "Template"
-2. Melihat 2 card preview: Classic dan Modern Minimalist
-3. Klik "Terapkan" pada template yang diinginkan
-4. Website publik langsung berubah layout-nya
-5. Template berlaku untuk website utama dan bisa di-override per cabang/agen
+1. Fix CustomSectionEditor ref warning dan persistence
+2. Fix tenant settings propagation ke semua section components
+3. Fix role-based sidebar filtering di AdminLayout
+4. Tambah slug uniqueness validation
+5. Fix departure package_id validation
+6. Aktifkan leaked password protection
