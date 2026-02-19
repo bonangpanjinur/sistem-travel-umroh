@@ -1,142 +1,245 @@
 
-# Roadmap Penyempurnaan Sistem ERP Umroh/Haji
+# Roadmap Penyempurnaan Menyeluruh - Fase 2
 
 ## Ringkasan
 
-Roadmap ini mencakup perbaikan dan penyempurnaan seluruh fitur yang sudah ada, penambahan fitur baru yang dibutuhkan, serta penyempurnaan White Label. Dibagi menjadi 5 blok prioritas yang bisa dikerjakan bertahap.
+14 poin perbaikan yang mencakup website builder, multi-tenant branch/agent websites, penyempurnaan UX di berbagai modul, penambahan fitur keuangan, HR lengkap, dan konsolidasi fitur jamaah. Dibagi menjadi 8 blok kerja berurutan.
 
 ---
 
-## BLOK 1: Penyempurnaan Document Generator (Prioritas Tinggi)
+## BLOK A: Penyempurnaan Document Generator & Jamaah (Poin 4, 11)
 
-### Masalah Saat Ini
-- Surat Cuti Jamaah: pilih jamaah langsung dari daftar semua customer (ratusan/ribuan), tanpa konteks paket atau keberangkatan
-- Tanggal berangkat/kembali harus diisi manual, padahal data sudah ada di departure
-- Invoice, E-Ticket, Sertifikat: pilih dari daftar booking yang flat, sulit dicari
+### Masalah
+- Document Generator sudah punya filter bertingkat (Paket -> Keberangkatan) tapi belum ada filter tambahan tahun/bulan
+- Menu Dokumen (verifikasi) terpisah dari menu Jamaah, padahal lebih logis digabung
+- Di halaman detail jamaah belum bisa langsung generate surat
 
-### Perbaikan
-1. **Filter Bertingkat untuk Surat Cuti Jamaah**: Pilih Paket --> Pilih Keberangkatan --> Otomatis tampilkan jamaah yang terdaftar di keberangkatan tersebut. Tanggal berangkat/kembali otomatis terisi dari data departure
-2. **Filter Bertingkat untuk Invoice/E-Ticket/Sertifikat**: Pilih Paket --> Pilih Keberangkatan --> Pilih Booking. Tampilkan info ringkas (nama jamaah, tipe kamar, status bayar)
-3. **Batch Generate**: Tombol "Generate Semua" untuk E-Ticket dan Sertifikat per keberangkatan (semua jamaah sekaligus dalam 1 PDF multi-halaman)
-4. **Preview PDF di Dialog**: Tampilkan preview dokumen sebelum download, bukan langsung download
-5. **Nomor Surat Otomatis & Berurutan**: Simpan counter nomor surat di database agar tidak acak
+### Rencana
+1. **Tambah filter tahun & bulan** di Document Generator agar keberangkatan bisa disaring lebih spesifik
+2. **Hapus menu "Dokumen" terpisah** dari sidebar admin, integrasikan verifikasi dokumen langsung ke halaman detail jamaah (sudah ada sebagian di `AdminCustomerDetail.tsx`)
+3. **Tambah tombol "Generate Surat"** di halaman detail setiap jamaah -- dropdown pilih jenis surat (Cuti, Paspor, dll), lalu auto-fill data jamaah dan keberangkatan terkait
+4. **Perbaikan UX**: Tambah search/filter di daftar jamaah per keberangkatan di document generator
 
 ### Detail Teknis
-- Tambah state `selectedPackageId` dan `selectedDepartureId` di form Cuti Jamaah
-- Query `booking_passengers` JOIN `bookings` JOIN `departures` untuk mendapat daftar jamaah per keberangkatan
-- Auto-fill `startDate` dan `endDate` dari `departure.departure_date` dan `departure.return_date`
-- Buat tabel `document_counters` untuk tracking nomor surat
+- Tambah state `filterYear` dan `filterMonth` untuk memfilter `allDepartures`
+- Hapus route `/admin/documents` dan entry sidebar "Dokumen", pindahkan tab verifikasi ke `AdminCustomerDetail`
+- Buat komponen `CustomerDocumentActions` dengan dropdown generate surat yang memanggil fungsi dari `document-generator.ts`
+- Query `bookings` jamaah untuk mendapatkan `departure_id` terkait secara otomatis
 
 ---
 
-## BLOK 2: Penyempurnaan White Label & Website Publik
+## BLOK B: Penyempurnaan Booking & Pembayaran UX (Poin 6, 7)
 
-### Masalah Saat Ini
-- Footer memiliki link ke halaman yang belum ada (FAQ, Terms, Privacy, Blog, Manasik, Checklist, Tips)
-- Navbar link statis, tidak bisa dikustomisasi dari admin
-- Halaman About dan Contact menggunakan data hardcoded
-- Tidak ada halaman Jadwal Keberangkatan publik
-- SEO metadata belum dinamis
+### Masalah Booking
+- Filter hanya status booking dan status pembayaran, belum ada filter paket, keberangkatan, tanggal, cabang
+- Tampilan list kurang informatif
 
-### Perbaikan
-1. **Halaman Publik yang Belum Ada**: Buat halaman FAQ, Syarat & Ketentuan, Kebijakan Privasi dengan konten yang bisa diedit dari admin (simpan di `website_settings` atau tabel baru `pages`)
-2. **Navbar & Footer Link Dinamis**: Admin bisa mengelola menu navigasi dan link footer dari pengaturan tampilan
-3. **Halaman Jadwal Keberangkatan Publik**: Tampilkan upcoming departures dengan info paket, kuota tersedia, dan tombol booking
-4. **About & Contact Dinamis**: Tarik data dari `company_settings` -- nama, alamat, telepon, email, deskripsi
-5. **SEO & Meta Tags Dinamis**: Title, description, OG image per halaman dari `website_settings`
-6. **Testimonial Dinamis**: Admin bisa kelola testimonial dari dashboard (saat ini hardcoded)
+### Masalah Pembayaran
+- Filter hanya status dan search text, belum ada filter metode pembayaran, rentang tanggal, rentang jumlah
+
+### Rencana Booking
+1. Tambah filter: **Paket**, **Keberangkatan**, **Rentang Tanggal Booking**, **Cabang**
+2. Tampilkan filter panel yang lebih rapi dengan chip aktif
+3. Perbaiki card booking agar lebih visual: progress bar pembayaran, highlight deadline
+4. Tambah pagination (tampilkan 20 per halaman)
+
+### Rencana Pembayaran
+1. Tambah filter: **Metode Pembayaran**, **Rentang Tanggal**, **Rentang Jumlah**
+2. Perbaiki tabel dengan row highlight untuk pending items
+3. Tambah summary card untuk total per metode
+4. Tampilkan bukti pembayaran inline (thumbnail)
 
 ### Detail Teknis
-- Buat tabel `static_pages` (slug, title, content_html, is_published)
-- Tambah kolom `nav_links` (JSONB) dan `footer_links` (JSONB) di `website_settings`
-- Buat tabel `testimonials` (name, content, rating, photo_url, is_featured)
-- Buat halaman `/departures` publik
+- Tambah state filter di `AdminBookings.tsx`: `packageFilter`, `departureFilter`, `dateRange`, `branchFilter`
+- Query tetap client-side filtering (data < 1000 biasanya)
+- Di `AdminPayments.tsx`: Tambah `methodFilter`, `dateRange`, `amountRange`
+- Tambah komponen `FilterChips` untuk menampilkan filter aktif dengan tombol clear
 
 ---
 
-## BLOK 3: Penyempurnaan Fitur Operasional & Admin
+## BLOK C: Penyempurnaan Paket (Poin 8, 9)
 
-### 3A. Booking & Payment Flow
-1. **Email Notifikasi Booking**: Kirim email otomatis saat booking dibuat, dikonfirmasi, dan saat pembayaran diverifikasi
-2. **Deadline Pembayaran**: Tampilkan countdown/batas waktu pembayaran di halaman customer
-3. **Pembatalan Otomatis**: Auto-cancel booking yang tidak dibayar dalam X hari (configurable)
-4. **Riwayat Status Booking**: Log setiap perubahan status booking (timeline/history)
+### Masalah
+- Upload gambar paket hanya input URL, belum ada file upload + preview
+- Form paket biasa dan tabungan menggunakan form yang sama, tipe "tabungan" tidak muncul di pilihan tipe paket
 
-### 3B. Customer Experience
-1. **Dashboard Customer yang Lebih Informatif**: Progress bar perjalanan (Booking --> Bayar --> Dokumen --> Manasik --> Berangkat), countdown hari menuju keberangkatan
-2. **Notifikasi Customer**: Bell notification untuk status booking, payment reminder, info keberangkatan
-3. **Upload Dokumen Langsung**: Customer bisa upload KTP/Paspor dari portal mereka sendiri (bukan hanya admin)
-
-### 3C. Admin UX
-1. **Bulk Actions di Tabel**: Select multiple bookings/customers untuk aksi massal (export, ubah status, kirim notif)
-2. **Dashboard Widget Customizable**: Admin bisa pilih widget mana yang tampil di dashboard
-3. **Quick Actions**: Tombol cepat di dashboard untuk aksi yang sering dilakukan (tambah booking, verifikasi pembayaran, dll)
+### Rencana
+1. **Upload Gambar**: Ganti input URL dengan file upload ke bucket `website-assets`, tampilkan preview gambar
+2. **Preview di Card**: Gambar yang diupload langsung tampil di card paket
+3. **Pisahkan UX Tabungan**: Tampilkan field khusus tabungan (target tabungan, cicilan bulanan) saat tipe = tabungan
+4. **Tambah opsi "tabungan"** di dropdown tipe paket
+5. **Wizard/stepper**: Bagi form menjadi 2 langkah -- Info Dasar lalu Pricing & Detail
 
 ### Detail Teknis
-- Buat tabel `booking_status_history` (booking_id, old_status, new_status, changed_by, changed_at, notes)
-- Trigger otomatis saat status booking berubah
-- Edge function untuk email transaksional
-- Tambah kolom `payment_deadline` di bookings
+- Buat fungsi upload ke bucket `website-assets` di `PackageForm.tsx`
+- Tambah state `previewImage` untuk menampilkan preview sebelum submit
+- Tambah conditional rendering field tabungan (target_amount, monthly_installment) saat `package_type === 'tabungan'`
+- Pastikan `<SelectItem value="tabungan">Tabungan</SelectItem>` ada di pilihan tipe
 
 ---
 
-## BLOK 4: Penyempurnaan Agent & Jamaah Portal
+## BLOK D: CRM Leads Penyempurnaan (Poin 5)
 
-### 4A. Agent Portal
-1. **Form Booking oleh Agent**: Agent bisa membuat booking untuk jamaah mereka langsung dari portal agent (bukan harus lewat admin)
-2. **Tracking Komisi Real-time**: Dashboard komisi dengan grafik dan detail per booking
-3. **Marketing Material**: Agent bisa download brosur/flyer digital per paket
-4. **Referral Link**: Setiap agent punya link unik yang bisa dishare
+### Analisis Kekurangan CRM Saat Ini
+1. **Kanban tidak bisa drag-and-drop** -- hanya bisa ubah status dari detail page atau tombol next
+2. **Tidak ada reminder follow-up** -- follow_up_date ada tapi tidak ada notifikasi/highlight
+3. **Riwayat interaksi** disimpan di field `notes` sebagai text biasa, sulit di-track
+4. **Tidak ada assigned_to tracking** yang visible -- lead sudah bisa auto-assign tapi tidak terlihat siapa yang handle
+5. **Filter di Kanban** terbatas -- belum ada filter sumber, tanggal, paket diminati
+6. **Tidak ada estimasi nilai** -- belum bisa melihat total potensi revenue di pipeline
+7. **Konversi** langsung dari detail page tapi belum smooth
 
-### 4B. Jamaah Portal
-1. **Checklist Perlengkapan**: Checklist interaktif (bisa dicentang) untuk persiapan umroh
-2. **Panduan Doa Offline**: Konten doa dan panduan ibadah yang bisa diakses offline (PWA)
-3. **Galeri Foto Perjalanan**: Upload dan lihat foto perjalanan per keberangkatan
-4. **Rating & Review**: Jamaah bisa memberikan rating setelah perjalanan selesai
+### Rencana
+1. **Highlight overdue follow-ups** -- warnai card merah jika follow_up_date sudah lewat
+2. **Tampilkan assigned_to** di card lead (nama sales yang handle)
+3. **Tambah filter** di Kanban: sumber, paket, assigned_to, tanggal
+4. **Pipeline value** -- tampilkan total estimasi nilai per kolom kanban
+5. **Quick action** di card lead: tombol telepon (tel:), WhatsApp (wa.me), email
+6. **Activity timeline** terpisah dari notes -- buat tab timeline di detail
+7. **Bulk action** -- select multiple leads untuk assign/ubah status massal
 
 ### Detail Teknis
-- Extend agent routes untuk booking flow
-- Buat tabel `travel_checklists` dan `travel_reviews`
-- Optimasi PWA service worker untuk cache konten panduan
+- Tambah query JOIN profiles untuk `assigned_to` di lead list
+- Hitung pipeline value dari `packages.price_quad` per `package_interest`
+- Highlight logic: `follow_up_date < today && status not in ['won', 'lost']`
+- Tambah filter state: `sourceFilter`, `packageFilter`, `assignedFilter`
 
 ---
 
-## BLOK 5: Keamanan, Performa & Infrastruktur
+## BLOK E: Keuangan - Input Kas & Gaji (Poin 10)
 
-### 5A. Keamanan
-1. **Audit Trail Lengkap**: Pastikan semua aksi CRUD penting tercatat di audit_logs
-2. **Rate Limiting**: Batasi percobaan login dan API calls
-3. **Session Management**: Tampilkan sesi aktif, bisa logout dari perangkat lain
-4. **Data Encryption**: Encrypt data sensitif (NIK, paspor) di database
+### Masalah
+- Menu keuangan hanya ada P&L per keberangkatan dan Vendor
+- Belum ada pencatatan kas umum, pengeluaran operasional, pendapatan lain, dan pembayaran gaji
 
-### 5B. Performa
-1. **Pagination Server-side**: Semua tabel admin gunakan server-side pagination (saat ini limit 100)
-2. **Image Optimization**: Compress dan resize gambar upload sebelum simpan
-3. **Lazy Loading**: Optimasi loading komponen dan gambar
-4. **Cache Strategy**: Stale-while-revalidate untuk data yang jarang berubah
-
-### 5C. Infrastruktur
-1. **Backup & Restore**: Dokumentasi prosedur backup database
-2. **Monitoring**: Alert otomatis jika ada error rate tinggi
-3. **Multi-language**: Persiapan i18n untuk bahasa Inggris dan Arab
+### Rencana
+1. **Buat tabel `cash_transactions`** -- untuk mencatat semua transaksi kas (pemasukan, pengeluaran, gaji)
+2. **Halaman Kas & Keuangan** dengan tab:
+   - **Kas Masuk/Keluar**: Form input transaksi, daftar transaksi, saldo kas
+   - **Pembayaran Gaji**: Generate slip gaji per karyawan, bayar manual/batch
+   - **Ringkasan**: Total pemasukan, pengeluaran, saldo per bulan
+3. **Kategori Transaksi**: Operasional, Marketing, Gaji, Lain-lain (configurable)
+4. **Export** laporan keuangan ke Excel
 
 ### Detail Teknis
-- Implement cursor-based pagination untuk query besar
-- Gunakan Supabase image transformation untuk resize
-- Review semua RLS policies untuk konsistensi
+- Tabel `cash_transactions`: id, transaction_date, type (income/expense), category, description, amount, reference_id, created_by, branch_id
+- Tabel `salary_payments`: id, employee_id, period_month, period_year, base_salary, deductions, overtime_pay, total_pay, status, paid_at
+- Halaman baru: `AdminFinanceCash.tsx`
+- Tambah menu sidebar di grup Keuangan
 
 ---
 
-## Urutan Pengerjaan yang Disarankan
+## BLOK F: Agent & Sub-Agent Management (Poin 12)
 
-| Prioritas | Blok | Estimasi Pesan |
-|-----------|------|---------------|
-| 1 | Blok 1 - Document Generator | 3-5 pesan |
-| 2 | Blok 2 - White Label | 5-8 pesan |
-| 3 | Blok 3A - Booking Flow | 3-5 pesan |
-| 4 | Blok 3B - Customer UX | 3-4 pesan |
-| 5 | Blok 3C - Admin UX | 2-3 pesan |
-| 6 | Blok 4 - Agent & Jamaah | 5-7 pesan |
-| 7 | Blok 5 - Keamanan & Performa | 4-6 pesan |
+### Masalah
+- Admin hanya bisa melihat/toggle agent, tidak bisa tambah agent baru
+- Belum ada konsep sub-agent
+- Dashboard cabang belum bisa kelola agent
 
-Rekomendasi: mulai dari Blok 1 (Document Generator) karena ini langsung memperbaiki masalah yang sudah Anda rasakan, lalu lanjut ke Blok 2 (White Label) untuk menyempurnakan website publik.
+### Rencana
+1. **Tambah tombol "Tambah Agent"** di halaman Admin Agents -- form registrasi agent oleh admin/staff
+2. **Buat field `parent_agent_id`** di tabel agents untuk relasi sub-agent
+3. **Admin bisa tambah agent + sub-agent** dengan pilih parent
+4. **Dashboard cabang** bisa tambah agent yang otomatis terelasi dengan `branch_id` cabang
+5. **Dashboard agent** hanya bisa tambah sub-agent (di bawah dirinya)
+6. **Tampilkan hierarki** agent -> sub-agent di tabel admin
+
+### Detail Teknis
+- ALTER TABLE agents ADD COLUMN parent_agent_id UUID REFERENCES agents(id)
+- Form "Tambah Agent": buat user baru + profile + user_role(agent) + agents record
+- Filter agent by branch_id untuk dashboard cabang
+- Di AgentDashboard: query sub-agents WHERE parent_agent_id = current_agent_id
+
+---
+
+## BLOK G: HR Lengkap (Poin 13)
+
+### Masalah
+- Departemen dan posisi hardcoded di frontend
+- Jadwal kerja placeholder (belum implementasi)
+- Tidak ada perhitungan gaji otomatis, potongan kehadiran, lembur
+- Absensi foto wajah sudah ada tapi flow belum lengkap
+
+### Rencana
+1. **Tabel `departments`** dan **`positions`** -- dinamis, bisa dikelola admin
+2. **Tabel `work_schedules`** -- hari kerja, jam masuk/keluar per karyawan/departemen
+3. **Pengaturan kehadiran**: potongan per hari tidak masuk tanpa alasan (configurable)
+4. **Pengaturan lembur**: rate lembur per jam, rate hari libur (1.5x, 2x)
+5. **Tab Pengaturan HR** di halaman HR:
+   - Kelola departemen & posisi
+   - Atur jam kerja default
+   - Atur potongan & lembur
+6. **Auto-hitung gaji** berdasarkan kehadiran: gaji pokok - potongan + lembur
+7. **Generate slip gaji** per bulan
+8. **Tab Jadwal Kerja** -- tampilkan kalender kehadiran per karyawan
+
+### Detail Teknis
+- Tabel `departments` (id, name, code)
+- Tabel `positions` (id, department_id, name, level)  
+- Tabel `work_schedules` (id, employee_id, day_of_week, start_time, end_time, is_day_off)
+- Tabel `hr_settings` (id, absent_deduction_per_day, overtime_rate_per_hour, holiday_overtime_multiplier, work_start_time, work_end_time)
+- Tabel `salary_slips` (id, employee_id, period, base_salary, total_present, total_absent, total_late, total_overtime_hours, deductions, overtime_pay, net_salary)
+- Implementasi perhitungan di frontend atau database function
+
+---
+
+## BLOK H: Website Builder & Multi-Tenant Website (Poin 1, 2, 3)
+
+### Catatan
+Ini adalah fitur terbesar dan paling kompleks. Drag-and-drop website builder dan multi-tenant website (setiap cabang/agent punya website sendiri) memerlukan arsitektur yang signifikan.
+
+### Rencana Fase 1 (Realistis)
+1. **Admin Appearance sudah ada** -- perkuat dengan:
+   - Drag-and-drop reorder sections homepage (sudah ada sebagian di PageBuilder)
+   - Tambah section types baru: Custom HTML, Galeri, Video, Counter
+2. **Per-Branch/Agent Settings**: Duplikasi `website_settings` per branch_id/agent_id
+3. **Subdomain routing**: `/branch/:slug` dan `/agent/:slug` menampilkan website versi branch/agent
+4. **Default tampilan** dari settings utama, branch/agent bisa override
+
+### Rencana Dashboard Cabang & Agent (Poin 3)
+- Cabang: login, lihat data jamaah, input data, cek komisi agent, atur profil kantor
+- Agent: login, lihat jamaah sendiri, cek komisi, tambah sub-agent, atur profil
+
+### Detail Teknis
+- Tambah kolom `branch_id` dan `agent_id` (nullable) di `website_settings` -- NULL = settings utama
+- Route `/b/:branchSlug` dan `/a/:agentSlug` untuk website per entity
+- `DynamicPublicLayout` query settings berdasarkan slug
+- Dashboard cabang sudah ada route di `AdminRoutes`, perlu diperkaya kontennya
+
+---
+
+## Blok I: Analisis & Penyempurnaan Lainnya (Poin 14)
+
+### Temuan dari Analisis Kode
+1. **Bulk Actions di Booking** -- tombol sudah ada tapi fungsi masih placeholder ("Fitur segera hadir")
+2. **Export button** di Booking dan Payment -- belum terimplementasi
+3. **Jadwal Kerja** di HR -- tab ada tapi isinya placeholder
+4. **Tipe paket "tabungan"** tidak muncul di pilihan form
+5. **Lead Analytics** ada halaman tapi perlu dipastikan data akurat
+6. **Sidebar nav** terlalu panjang, beberapa menu bisa dikelompokkan lebih baik
+
+### Rencana
+1. Implementasikan bulk actions yang sudah placeholder
+2. Implementasikan export Excel/PDF yang sudah ada tombolnya
+3. Pastikan semua halaman placeholder diisi konten yang berfungsi
+4. Review dan fix minor bugs yang ditemukan
+
+---
+
+## Urutan Pengerjaan
+
+| Prioritas | Blok | Fokus | Estimasi |
+|-----------|------|-------|----------|
+| 1 | Blok A | Document Generator + Jamaah consolidation | 2-3 pesan |
+| 2 | Blok B | Booking & Payment UX | 2-3 pesan |
+| 3 | Blok C | Paket (upload + tabungan) | 1-2 pesan |
+| 4 | Blok D | CRM Leads penyempurnaan | 2-3 pesan |
+| 5 | Blok E | Keuangan - Kas & Gaji | 2-3 pesan |
+| 6 | Blok F | Agent & Sub-Agent | 1-2 pesan |
+| 7 | Blok G | HR Lengkap | 3-4 pesan |
+| 8 | Blok H | Website Builder & Multi-tenant | 3-5 pesan |
+| 9 | Blok I | Fix placeholder & bugs | 1-2 pesan |
+
+**Total estimasi: 17-27 pesan**
+
+Rekomendasi: Mulai dari Blok A karena langsung memperbaiki pain point document generator dan konsolidasi menu jamaah. Kemudian lanjut Blok B-D untuk UX improvement yang berdampak langsung ke operasional harian.
