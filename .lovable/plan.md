@@ -1,76 +1,72 @@
 
-# Analisis Keseluruhan Sistem & Perbaikan
 
-## Temuan Bug dan Error
+# Perbaikan: HR Settings, Branch Website, dan Agent Management
 
-### 1. [BUG] CustomSectionEditor - Ref Warning pada Select
-Console menunjukkan error: "Function components cannot be given refs" dari `CustomSectionEditor.tsx`. Komponen `Select` dari Radix UI digunakan langsung di dalam loop tanpa wrapper `forwardRef`. Selain itu, tombol "Simpan" hanya `console.log` -- tidak menyimpan data ke database.
+## Temuan Bug
 
-**Perbaikan**: Ganti penggunaan `Select` langsung menjadi wrapped component yang benar, dan implementasi penyimpanan ke `website_settings` (custom_sections JSON).
+### 1. HR Settings "Hilang" Setelah Simpan
+**Penyebab**: Komponen `Select` dari Radix UI tidak membuat elemen `<select>` native HTML. Ketika form di-submit dan data diambil via `new FormData()`, field `absent_deduction_type` dan `late_deduction_type` **tidak terkirim** karena Radix Select tidak berpartisipasi dalam FormData. Nilai yang tersimpan selalu fallback ke `"fixed"` dan angka 0.
 
-### 2. [BUG] Departures tanpa Package
-2 dari 3 keberangkatan memiliki `package_id = NULL`, menyebabkan data paket tidak tampil di dashboard dan halaman publik. Ini menunjukkan validasi saat membuat departure tidak mewajibkan paket.
+**Perbaikan**: Gunakan React state (`useState`) untuk mengelola semua field settings, bukan `defaultValue` + `FormData`. Saat submit, kirim objek state langsung ke mutation.
 
-**Perbaikan**: Tambahkan validasi di `DepartureForm.tsx` untuk mewajibkan `package_id`.
+### 2. Cabang Belum Bisa Punya Website
+**Penyebab Ganda**:
+- Cabang "Bandung" memiliki `slug = NULL`. Tanpa slug, rute `/b/:slug` tidak bisa diakses.
+- Tidak ada row `website_settings` untuk branch/agent manapun. Sistem hanya fallback ke settings utama.
+- Di halaman Admin Branches, tidak ada UI untuk mengelola pengaturan website per cabang (branding, hero, warna, dll).
 
-### 3. [BUG] Tenant Hero/CTA Tidak Menggunakan Tenant Settings
-`ModernHeroSection` dan `ModernCTASection` memanggil `useWebsiteSettings()` (settings utama), bukan settings tenant. Jika digunakan di `/b/slug` atau `/a/slug`, data yang ditampilkan selalu dari settings utama, bukan tenant.
+**Perbaikan**:
+- Wajibkan slug saat membuat/edit cabang (jika belum ada).
+- Tambahkan tombol "Pengaturan Website" di daftar cabang yang membuka dialog editor branding khusus cabang.
+- Saat tombol diklik, auto-create row `website_settings` dengan `branch_id` jika belum ada, lalu tampilkan form editor (logo, warna, hero, tagline).
 
-**Perbaikan**: Buat context provider atau tambahkan prop opsional `settings` ke komponen-komponen hero/CTA agar bisa menerima data tenant.
+### 3. Agent Tidak Bisa Ditambah dari Admin
+**Penyebab**: `AddAgentDialog` menggunakan `supabase.auth.signUp()` dari sisi klien. Ini menyebabkan:
+- Admin yang sedang login **ter-logout** karena session diganti ke user baru.
+- Jika email confirmation aktif, user baru belum terverifikasi sehingga tidak bisa login.
+- RLS policy gagal karena session berubah di tengah proses insert.
 
-### 4. [BUG] DynamicHeroSection Juga Hardcode ke Main Settings
-Sama seperti poin 3, `DynamicHeroSection` memanggil `useWebsiteSettings()` langsung. Semua section components pada halaman tenant menampilkan data utama, bukan data khusus tenant.
-
----
-
-## Peningkatan yang Diperlukan
-
-### 5. [IMPROVE] Role-Based Sidebar Filtering Tidak Lengkap
-`AdminLayout.tsx` menampilkan grup berdasarkan `allowedRoles`, tetapi hanya beberapa grup yang punya filter ini (Keuangan, SDM, Master Data, Laporan, Pengaturan). Grup seperti "Sales & CRM", "Jamaah & Agent", dan "Support" terlihat oleh semua role admin termasuk marketing yang seharusnya tidak bisa akses booking.
-
-**Perbaikan**: Tambahkan `allowedRoles` ke setiap grup/item nav yang sesuai dengan Role Access Matrix.
-
-### 6. [IMPROVE] Slug Uniqueness Hanya Client-Side
-BranchForm memvalidasi format slug dengan regex, tetapi tidak cek apakah slug sudah digunakan sebelum submit. Error duplikat hanya muncul dari database constraint.
-
-**Perbaikan**: Tambahkan pengecekan real-time ke database saat user mengetik slug (`debounced query`).
-
-### 7. [IMPROVE] Leaked Password Protection Disabled
-Linter mendeteksi bahwa proteksi password bocor belum diaktifkan. Ini berarti user bisa menggunakan password yang sudah bocor di data breach publik.
-
-**Perbaikan**: Aktifkan leaked password protection melalui konfigurasi auth.
-
-### 8. [IMPROVE] CustomSectionEditor Tidak Persisten
-Pengaturan hero options (Bismillah, Search Widget, Statistik) dan statistik custom hanya disimpan di state lokal. Refresh halaman = hilang.
-
-**Perbaikan**: Simpan data ke kolom `custom_sections` (JSONB) di `website_settings`.
+**Perbaikan**: Buat edge function `create-agent` yang menggunakan Supabase Admin API (`service_role`) untuk membuat user tanpa menggangu session admin. Edge function ini akan:
+1. Membuat user via `supabase.auth.admin.createUser()`
+2. Menambahkan role `agent` ke `user_roles`
+3. Membuat record di tabel `agents`
+4. Mengembalikan data agent ke frontend
 
 ---
 
-## Detail Teknis Perbaikan
+## Detail Teknis
 
-### File yang Dimodifikasi
+### File yang Dimodifikasi/Dibuat
 
 | File | Perubahan |
 |------|-----------|
-| `CustomSectionEditor.tsx` | Fix ref warning, implementasi save ke DB |
-| `ModernHeroSection.tsx` | Tambah props `settings` opsional |
-| `ModernCTASection.tsx` | Tambah props `settings` opsional |
-| `DynamicHeroSection.tsx` | Tambah props `settings` opsional |
-| `DynamicCTASection.tsx` | Tambah props `settings` opsional |
-| `Index.tsx` | Pass settings ke section components |
-| `BranchWebsite.tsx` | Pass tenant settings ke section components |
-| `AgentWebsite.tsx` | Pass tenant settings ke section components |
-| `AdminLayout.tsx` | Tambah `allowedRoles` ke semua nav groups |
-| `BranchForm.tsx` | Tambah debounced slug uniqueness check |
-| `AdminAgents.tsx` | Tambah debounced slug uniqueness check |
-| `DepartureForm.tsx` | Wajibkan package_id |
+| `AdminHR.tsx` | Refactor settings form: ganti FormData dengan useState untuk semua field termasuk Select |
+| `AdminBranches.tsx` | Tambah tombol "Website" per cabang, dialog editor branding cabang |
+| `AdminAgents.tsx` | Panggil edge function, bukan signUp langsung |
+| `AddAgentDialog.tsx` | Ganti `supabase.auth.signUp` dengan call ke edge function |
+| `BranchForm.tsx` | Wajibkan slug, auto-generate dari nama jika kosong |
+| `supabase/functions/create-agent/index.ts` | **BARU** - Edge function untuk create agent secara aman |
 
 ### Urutan Implementasi
 
-1. Fix CustomSectionEditor ref warning dan persistence
-2. Fix tenant settings propagation ke semua section components
-3. Fix role-based sidebar filtering di AdminLayout
-4. Tambah slug uniqueness validation
-5. Fix departure package_id validation
-6. Aktifkan leaked password protection
+1. **Fix HR Settings** - Refactor form ke controlled state
+2. **Fix Agent Creation** - Buat edge function `create-agent` dan update dialog
+3. **Fix Branch Website** - Wajibkan slug, tambah UI pengaturan website per cabang, auto-create `website_settings` row
+
+### Edge Function: create-agent
+
+```text
+POST /create-agent
+Body: { fullName, email, phone, companyName, commissionRate, bankName, bankAccountNumber, bankAccountName, npwp, branchId, parentAgentId }
+
+Flow:
+1. Validasi request (auth header wajib, caller harus admin)
+2. supabase.auth.admin.createUser({ email, password: random, email_confirm: true })
+3. INSERT INTO user_roles (user_id, role) VALUES (newUserId, 'agent')
+4. INSERT INTO agents (...) VALUES (...)
+5. Return { success: true, agentCode, email }
+```
+
+### Migrasi Database
+- Update cabang Bandung: SET slug = 'bandung' WHERE slug IS NULL (via data update)
+
