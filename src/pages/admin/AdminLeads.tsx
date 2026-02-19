@@ -26,12 +26,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Plus, Search, Phone, Mail, Calendar, User, 
-  ArrowRight, Filter, Users, TrendingUp, Target, XCircle
+  ArrowRight, Filter, Users, TrendingUp, Target, XCircle,
+  MessageCircle, AlertTriangle, DollarSign, X
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, isPast, isToday } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 import { useLeads, useCreateLead, useUpdateLead } from "@/hooks/useLeads";
 
@@ -49,9 +51,20 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bgColor:
 
 const KANBAN_COLUMNS: LeadStatus[] = ['new', 'contacted', 'follow_up', 'negotiation', 'closing'];
 
+const SOURCES = [
+  { value: 'website', label: 'Website' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'referral', label: 'Referral' },
+  { value: 'walk-in', label: 'Walk-in' },
+  { value: 'phone', label: 'Telepon' },
+];
+
 export default function AdminLeads() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const { toast } = useToast();
 
@@ -62,7 +75,7 @@ export default function AdminLeads() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('packages')
-        .select('id, name, code')
+        .select('id, name, code, price_quad')
         .eq('is_active', true);
       if (error) throw error;
       return data;
@@ -70,7 +83,6 @@ export default function AdminLeads() {
   });
 
   const createMutation = useCreateLead();
-
   const updateStatusMutation = useUpdateLead();
 
   const handleStatusChange = (id: string, status: LeadStatus) => {
@@ -80,11 +92,13 @@ export default function AdminLeads() {
   };
 
   const filteredLeads = leads?.filter(lead => {
-    const matchesSearch = lead.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    const matchesSearch = !search || 
+      lead.full_name.toLowerCase().includes(search.toLowerCase()) ||
       lead.phone?.toLowerCase().includes(search.toLowerCase()) ||
       lead.email?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
+    return matchesSearch && matchesStatus && matchesSource;
   });
 
   // Stats
@@ -95,6 +109,29 @@ export default function AdminLeads() {
     won: leads?.filter(l => l.status === 'won').length || 0,
     lost: leads?.filter(l => l.status === 'lost').length || 0,
     conversionRate: leads?.length ? ((leads.filter(l => l.status === 'won').length / leads.length) * 100).toFixed(1) : '0',
+    overdueFollowUps: leads?.filter(l => {
+      if (!l.follow_up_date || l.status === 'won' || l.status === 'lost') return false;
+      return isPast(new Date(l.follow_up_date)) && !isToday(new Date(l.follow_up_date));
+    }).length || 0,
+  };
+
+  // Pipeline value per column
+  const getPipelineValue = (statusLeads: any[]) => {
+    return statusLeads.reduce((sum, lead) => {
+      const price = (lead.package as any)?.price_quad || 0;
+      return sum + price;
+    }, 0);
+  };
+
+  const totalPipelineValue = leads?.filter(l => !['won', 'lost'].includes(l.status || '')).reduce((sum, lead) => {
+    return sum + ((lead.package as any)?.price_quad || 0);
+  }, 0) || 0;
+
+  const hasActiveFilters = sourceFilter !== 'all' || statusFilter !== 'all' || search;
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setSourceFilter("all");
   };
 
   const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -139,83 +176,98 @@ export default function AdminLeads() {
                 Tambah Lead
               </Button>
             </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Tambah Lead Baru</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Nama Lengkap *</Label>
-                <Input id="full_name" name="full_name" required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Tambah Lead Baru</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Telepon</Label>
-                  <Input id="phone" name="phone" type="tel" />
+                  <Label htmlFor="full_name">Nama Lengkap *</Label>
+                  <Input id="full_name" name="full_name" required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telepon</Label>
+                    <Input id="phone" name="phone" type="tel" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="source">Sumber</Label>
+                    <Select name="source">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih sumber" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SOURCES.map(s => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="package_interest">Paket Diminati</Label>
+                    <Select name="package_interest">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih paket" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {packages?.map(pkg => (
+                          <SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" />
+                  <Label htmlFor="notes">Catatan</Label>
+                  <Textarea id="notes" name="notes" rows={3} />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="source">Sumber</Label>
-                  <Select name="source">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih sumber" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="website">Website</SelectItem>
-                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                      <SelectItem value="instagram">Instagram</SelectItem>
-                      <SelectItem value="facebook">Facebook</SelectItem>
-                      <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="walk-in">Walk-in</SelectItem>
-                      <SelectItem value="phone">Telepon</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+                    Batal
+                  </Button>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? 'Menyimpan...' : 'Simpan'}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="package_interest">Paket Diminati</Label>
-                  <Select name="package_interest">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih paket" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {packages?.map(pkg => (
-                        <SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Catatan</Label>
-                <Textarea id="notes" name="notes" rows={3} />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-                  Batal
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Menyimpan...' : 'Simpan'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
+              </form>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <StatCard title="Total Leads" value={stats.total} icon={Users} />
         <StatCard title="Leads Baru" value={stats.new} icon={Plus} color="blue" />
         <StatCard title="Dalam Proses" value={stats.inProgress} icon={TrendingUp} color="amber" />
         <StatCard title="Won" value={stats.won} icon={Target} color="green" />
-        <StatCard title="Conversion Rate" value={`${stats.conversionRate}%`} icon={ArrowRight} color="emerald" />
+        <StatCard title="Conversion" value={`${stats.conversionRate}%`} icon={ArrowRight} color="emerald" />
+        <StatCard 
+          title="Overdue F/U" 
+          value={stats.overdueFollowUps} 
+          icon={AlertTriangle} 
+          color={stats.overdueFollowUps > 0 ? "red" : undefined}
+        />
       </div>
+
+      {/* Pipeline Value */}
+      {totalPipelineValue > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Total Nilai Pipeline (Aktif)</span>
+            </div>
+            <span className="text-lg font-bold text-primary">{formatCurrency(totalPipelineValue)}</span>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="kanban" className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -223,8 +275,8 @@ export default function AdminLeads() {
             <TabsTrigger value="kanban">Kanban</TabsTrigger>
             <TabsTrigger value="list">List</TabsTrigger>
           </TabsList>
-          <div className="flex gap-2">
-            <div className="relative flex-1 sm:w-64">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 sm:w-64 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Cari lead..."
@@ -233,6 +285,17 @@ export default function AdminLeads() {
                 className="pl-9"
               />
             </div>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Sumber" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Sumber</SelectItem>
+                {SOURCES.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px]">
                 <Filter className="h-4 w-4 mr-2" />
@@ -245,6 +308,12 @@ export default function AdminLeads() {
                 ))}
               </SelectContent>
             </Select>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-1" />
+                Reset
+              </Button>
+            )}
           </div>
         </div>
 
@@ -256,12 +325,20 @@ export default function AdminLeads() {
               {KANBAN_COLUMNS.map(status => {
                 const statusLeads = filteredLeads?.filter(l => l.status === status) || [];
                 const config = STATUS_CONFIG[status];
+                const pipelineValue = getPipelineValue(statusLeads);
                 
                 return (
                   <div key={status} className="min-w-[250px]">
-                    <div className={cn("rounded-t-lg px-3 py-2 font-medium flex items-center justify-between", config.bgColor)}>
-                      <span className={config.color}>{config.label}</span>
-                      <Badge variant="secondary" className="text-xs">{statusLeads.length}</Badge>
+                    <div className={cn("rounded-t-lg px-3 py-2 font-medium", config.bgColor)}>
+                      <div className="flex items-center justify-between">
+                        <span className={config.color}>{config.label}</span>
+                        <Badge variant="secondary" className="text-xs">{statusLeads.length}</Badge>
+                      </div>
+                      {pipelineValue > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatCurrency(pipelineValue)}
+                        </p>
+                      )}
                     </div>
                     <div className="bg-muted/30 rounded-b-lg p-2 space-y-2 min-h-[350px]">
                       {statusLeads.map(lead => (
@@ -294,60 +371,83 @@ export default function AdminLeads() {
                       <th className="text-left py-3 px-4 font-medium">Nama</th>
                       <th className="text-left py-3 px-4 font-medium">Kontak</th>
                       <th className="text-left py-3 px-4 font-medium">Paket</th>
+                      <th className="text-left py-3 px-4 font-medium">Assigned</th>
                       <th className="text-left py-3 px-4 font-medium">Status</th>
                       <th className="text-left py-3 px-4 font-medium">Follow Up</th>
                       <th className="text-left py-3 px-4 font-medium">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLeads?.map(lead => (
-                      <tr key={lead.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="py-3 px-4">
-                          <div>
-                            <p className="font-medium">{lead.full_name}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{lead.source}</p>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="space-y-1 text-sm">
-                            {lead.phone && (
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                {lead.phone}
-                              </div>
-                            )}
-                            {lead.email && (
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <Mail className="h-3 w-3" />
-                                {lead.email}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          {(lead.package as any)?.name || '-'}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className={cn("font-normal", STATUS_CONFIG[lead.status as LeadStatus]?.bgColor, STATUS_CONFIG[lead.status as LeadStatus]?.color)}>
-                            {STATUS_CONFIG[lead.status as LeadStatus]?.label}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          {lead.follow_up_date 
-                            ? format(new Date(lead.follow_up_date), 'dd MMM yyyy', { locale: idLocale })
-                            : '-'
-                          }
-                        </td>
-                        <td className="py-3 px-4">
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link to={`/admin/leads/${lead.id}`}>
-                              Detail
-                              <ArrowRight className="h-4 w-4 ml-1" />
-                            </Link>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredLeads?.map(lead => {
+                      const isOverdue = lead.follow_up_date && 
+                        isPast(new Date(lead.follow_up_date)) && 
+                        !isToday(new Date(lead.follow_up_date)) &&
+                        lead.status !== 'won' && lead.status !== 'lost';
+
+                      return (
+                        <tr key={lead.id} className={cn(
+                          "border-b last:border-0 hover:bg-muted/30",
+                          isOverdue && "bg-red-50 dark:bg-red-950/10"
+                        )}>
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="font-medium">{lead.full_name}</p>
+                              <p className="text-xs text-muted-foreground capitalize">{lead.source}</p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              {lead.phone && (
+                                <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                                  className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600" title="WhatsApp">
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                              {lead.phone && (
+                                <a href={`tel:${lead.phone}`} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600" title="Telepon">
+                                  <Phone className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                              {lead.email && (
+                                <a href={`mailto:${lead.email}`} className="p-1 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-600" title="Email">
+                                  <Mail className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            {(lead.package as any)?.name || '-'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">
+                            {(lead as any).assigned_profile?.full_name || '-'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge className={cn("font-normal", STATUS_CONFIG[lead.status as LeadStatus]?.bgColor, STATUS_CONFIG[lead.status as LeadStatus]?.color)}>
+                              {STATUS_CONFIG[lead.status as LeadStatus]?.label}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            {lead.follow_up_date ? (
+                              <span className={cn(
+                                "flex items-center gap-1",
+                                isOverdue && "text-red-600 font-medium"
+                              )}>
+                                {isOverdue && <AlertTriangle className="h-3 w-3" />}
+                                {format(new Date(lead.follow_up_date), 'dd MMM yyyy', { locale: idLocale })}
+                              </span>
+                            ) : '-'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/admin/leads/${lead.id}`}>
+                                Detail
+                                <ArrowRight className="h-4 w-4 ml-1" />
+                              </Link>
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -402,37 +502,78 @@ function LeadCard({ lead, onStatusChange }: LeadCardProps) {
   const canMoveForward = currentIndex < KANBAN_COLUMNS.length - 1;
   const nextStatus = canMoveForward ? KANBAN_COLUMNS[currentIndex + 1] : null;
 
+  const isOverdue = lead.follow_up_date && 
+    isPast(new Date(lead.follow_up_date)) && 
+    !isToday(new Date(lead.follow_up_date)) &&
+    lead.status !== 'won' && lead.status !== 'lost';
+
+  const assignedName = (lead as any).assigned_profile?.full_name;
+
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+    <Card className={cn(
+      "cursor-pointer hover:shadow-md transition-shadow",
+      isOverdue && "border-red-400 bg-red-50/50 dark:bg-red-950/20"
+    )}>
       <CardContent className="p-3">
         <Link to={`/admin/leads/${lead.id}`} className="block">
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <p className="font-medium text-sm">{lead.full_name}</p>
-              {lead.source && (
-                <Badge variant="outline" className="text-xs mt-1">{lead.source}</Badge>
-              )}
-            </div>
+          <div className="flex items-start justify-between mb-1">
+            <p className="font-medium text-sm leading-tight">{lead.full_name}</p>
           </div>
           
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+            {lead.source && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{lead.source}</Badge>
+            )}
+            {assignedName && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                <User className="h-2.5 w-2.5 mr-0.5" />
+                {assignedName}
+              </Badge>
+            )}
+          </div>
+
           {(lead.package as any)?.name && (
-            <p className="text-xs text-muted-foreground mb-2">
+            <p className="text-xs text-muted-foreground mb-1">
               📦 {(lead.package as any).name}
             </p>
           )}
+
+          {(lead.package as any)?.price_quad > 0 && (
+            <p className="text-xs font-medium text-primary mb-2">
+              {formatCurrency((lead.package as any).price_quad)}
+            </p>
+          )}
           
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {/* Quick contact actions */}
+          <div className="flex items-center gap-1 mb-2">
             {lead.phone && (
-              <span className="flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                {lead.phone}
-              </span>
+              <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600" title="WhatsApp">
+                <MessageCircle className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {lead.phone && (
+              <a href={`tel:${lead.phone}`} onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600" title="Telepon">
+                <Phone className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {lead.email && (
+              <a href={`mailto:${lead.email}`} onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-600" title="Email">
+                <Mail className="h-3.5 w-3.5" />
+              </a>
             )}
           </div>
           
           {lead.follow_up_date && (
-            <div className="flex items-center gap-1 text-xs mt-2 text-amber-600">
-              <Calendar className="h-3 w-3" />
+            <div className={cn(
+              "flex items-center gap-1 text-xs mt-1",
+              isOverdue ? "text-red-600 font-medium" : "text-amber-600"
+            )}>
+              {isOverdue ? <AlertTriangle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
+              {isOverdue ? "Overdue: " : ""}
               {format(new Date(lead.follow_up_date), 'dd MMM', { locale: idLocale })}
             </div>
           )}

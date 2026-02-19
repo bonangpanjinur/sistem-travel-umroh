@@ -11,11 +11,28 @@ export function useLeads(filters?: { status?: LeadStatus; assignedTo?: string })
   return useQuery({
     queryKey: ['leads', filters],
     queryFn: async () => {
-      let query = supabase.from('leads').select('*, package:packages!leads_package_interest_fkey(name, code), branch:branches!leads_branch_id_fkey(name)').order('created_at', { ascending: false });
+      let query = supabase.from('leads').select(`
+        *, 
+        package:packages!leads_package_interest_fkey(name, code, price_quad), 
+        branch:branches!leads_branch_id_fkey(name),
+        assigned_profile:profiles!leads_assigned_to_fkey(full_name)
+      `).order('created_at', { ascending: false });
       if (filters?.status) query = query.eq('status', filters.status);
       if (filters?.assignedTo) query = query.eq('assigned_to', filters.assignedTo);
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        // Fallback without profile join if FK doesn't exist
+        let fallbackQuery = supabase.from('leads').select(`
+          *, 
+          package:packages!leads_package_interest_fkey(name, code, price_quad), 
+          branch:branches!leads_branch_id_fkey(name)
+        `).order('created_at', { ascending: false });
+        if (filters?.status) fallbackQuery = fallbackQuery.eq('status', filters.status);
+        if (filters?.assignedTo) fallbackQuery = fallbackQuery.eq('assigned_to', filters.assignedTo);
+        const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+        if (fallbackError) throw fallbackError;
+        return fallbackData;
+      }
       return data;
     },
   });
