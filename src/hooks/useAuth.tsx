@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = (): boolean => {
-    return roles.some(role => ['super_admin', 'owner', 'branch_manager'].includes(role));
+    return roles.some(role => ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment'].includes(role));
   };
 
   return (
