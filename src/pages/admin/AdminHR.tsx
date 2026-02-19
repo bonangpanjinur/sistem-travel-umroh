@@ -32,6 +32,11 @@ interface Employee {
   hire_date: string | null;
   gender: string | null;
   salary: number | null;
+  use_custom_deduction: boolean;
+  custom_absent_deduction: number | null;
+  custom_absent_deduction_type: string | null;
+  custom_late_deduction: number | null;
+  custom_late_deduction_type: string | null;
 }
 
 interface AttendanceRecord {
@@ -67,7 +72,11 @@ interface Position {
 interface HRSettings {
   id: string;
   absent_deduction_per_day: number;
+  absent_deduction_type: string;
+  absent_deduction_percentage: number;
   late_deduction_per_incident: number;
+  late_deduction_type: string;
+  late_deduction_percentage: number;
   overtime_rate_per_hour: number;
   holiday_overtime_multiplier: number;
   work_start_time: string;
@@ -171,7 +180,8 @@ export default function AdminHR() {
     mutationFn: async (formData: FormData) => {
       const genderValue = formData.get("gender") as string;
       const salaryValue = formData.get("salary") as string;
-      const employeeData = {
+      const useCustom = formData.get("use_custom_deduction") === "on";
+      const employeeData: any = {
         full_name: formData.get("full_name") as string,
         email: (formData.get("email") as string) || null,
         phone: (formData.get("phone") as string) || null,
@@ -181,6 +191,11 @@ export default function AdminHR() {
         salary: salaryValue ? parseFloat(salaryValue) : null,
         hire_date: (formData.get("hire_date") as string) || null,
         is_active: true,
+        use_custom_deduction: useCustom,
+        custom_absent_deduction: useCustom ? (parseFloat(formData.get("custom_absent_deduction") as string) || null) : null,
+        custom_absent_deduction_type: useCustom ? (formData.get("custom_absent_deduction_type") as string || null) : null,
+        custom_late_deduction: useCustom ? (parseFloat(formData.get("custom_late_deduction") as string) || null) : null,
+        custom_late_deduction_type: useCustom ? (formData.get("custom_late_deduction_type") as string || null) : null,
       };
 
       if (editingEmployee?.id) {
@@ -702,7 +717,7 @@ export default function AdminHR() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /> Pengaturan Kehadiran & Gaji</CardTitle>
-              <CardDescription>Atur parameter perhitungan gaji otomatis</CardDescription>
+              <CardDescription>Atur parameter perhitungan gaji otomatis. Potongan bisa berupa nominal tetap atau persentase dari gaji pokok.</CardDescription>
             </CardHeader>
             <CardContent>
               {hrSettings && (
@@ -710,12 +725,18 @@ export default function AdminHR() {
                   onSubmit={(e) => {
                     e.preventDefault();
                     const fd = new FormData(e.currentTarget);
+                    const absentType = fd.get("absent_deduction_type") as string || "fixed";
+                    const lateType = fd.get("late_deduction_type") as string || "fixed";
                     saveHRSettingsMutation.mutate({
                       work_start_time: fd.get("work_start_time") as string,
                       work_end_time: fd.get("work_end_time") as string,
                       late_threshold_minutes: parseInt(fd.get("late_threshold_minutes") as string) || 15,
+                      absent_deduction_type: absentType,
                       absent_deduction_per_day: parseFloat(fd.get("absent_deduction_per_day") as string) || 0,
+                      absent_deduction_percentage: parseFloat(fd.get("absent_deduction_percentage") as string) || 0,
+                      late_deduction_type: lateType,
                       late_deduction_per_incident: parseFloat(fd.get("late_deduction_per_incident") as string) || 0,
+                      late_deduction_percentage: parseFloat(fd.get("late_deduction_percentage") as string) || 0,
                       overtime_rate_per_hour: parseFloat(fd.get("overtime_rate_per_hour") as string) || 0,
                       holiday_overtime_multiplier: parseFloat(fd.get("holiday_overtime_multiplier") as string) || 2,
                     });
@@ -739,15 +760,54 @@ export default function AdminHR() {
 
                   <Separator />
 
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <h4 className="font-semibold text-sm">Potongan Tidak Hadir (Global Default)</h4>
+                  <div className="grid md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>Potongan Tidak Hadir / Hari</Label>
+                      <Label>Tipe Potongan Absen</Label>
+                      <Select name="absent_deduction_type" defaultValue={hrSettings.absent_deduction_type || "fixed"}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fixed">Nominal Tetap (Rp)</SelectItem>
+                          <SelectItem value="percentage">Persentase Gaji (%)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Nominal Tetap / Hari</Label>
                       <Input type="number" name="absent_deduction_per_day" defaultValue={hrSettings.absent_deduction_per_day} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Potongan Terlambat / Kejadian</Label>
+                      <Label>Persentase Gaji / Hari (%)</Label>
+                      <Input type="number" step="0.1" name="absent_deduction_percentage" defaultValue={hrSettings.absent_deduction_percentage || 0} />
+                    </div>
+                  </div>
+
+                  <h4 className="font-semibold text-sm">Potongan Terlambat (Global Default)</h4>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Tipe Potongan Terlambat</Label>
+                      <Select name="late_deduction_type" defaultValue={hrSettings.late_deduction_type || "fixed"}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fixed">Nominal Tetap (Rp)</SelectItem>
+                          <SelectItem value="percentage">Persentase Gaji (%)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Nominal Tetap / Kejadian</Label>
                       <Input type="number" name="late_deduction_per_incident" defaultValue={hrSettings.late_deduction_per_incident} />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Persentase Gaji / Kejadian (%)</Label>
+                      <Input type="number" step="0.1" name="late_deduction_percentage" defaultValue={hrSettings.late_deduction_percentage || 0} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <h4 className="font-semibold text-sm">Lembur</h4>
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Rate Lembur / Jam</Label>
                       <Input type="number" name="overtime_rate_per_hour" defaultValue={hrSettings.overtime_rate_per_hour} />
@@ -757,6 +817,8 @@ export default function AdminHR() {
                       <Input type="number" step="0.1" name="holiday_overtime_multiplier" defaultValue={hrSettings.holiday_overtime_multiplier} />
                     </div>
                   </div>
+
+                  <p className="text-xs text-muted-foreground">💡 Aturan ini berlaku global. Untuk override per karyawan, aktifkan "Aturan Potongan Khusus" di form edit karyawan.</p>
 
                   <Button type="submit" disabled={saveHRSettingsMutation.isPending}>
                     <Save className="h-4 w-4 mr-2" />
@@ -771,7 +833,7 @@ export default function AdminHR() {
 
       {/* Employee Dialog */}
       <Dialog open={isEmployeeDialogOpen} onOpenChange={(open) => { setIsEmployeeDialogOpen(open); if (!open) setEditingEmployee(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingEmployee ? "Edit Karyawan" : "Tambah Karyawan"}</DialogTitle>
             <DialogDescription>Isi data karyawan</DialogDescription>
@@ -835,6 +897,62 @@ export default function AdminHR() {
                 <Input type="date" name="hire_date" defaultValue={editingEmployee?.hire_date || ""} />
               </div>
             </div>
+
+            <Separator />
+
+            {/* Custom Deduction Override */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-semibold">Aturan Potongan Khusus</Label>
+                  <p className="text-xs text-muted-foreground">Override aturan potongan global untuk karyawan ini</p>
+                </div>
+                <Switch
+                  name="use_custom_deduction"
+                  defaultChecked={editingEmployee?.use_custom_deduction || false}
+                  id="use_custom_deduction"
+                />
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                <p className="text-xs font-medium text-muted-foreground">Potongan Absen</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipe</Label>
+                    <Select name="custom_absent_deduction_type" defaultValue={editingEmployee?.custom_absent_deduction_type || "fixed"}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">Nominal (Rp)</SelectItem>
+                        <SelectItem value="percentage">% Gaji</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nilai</Label>
+                    <Input type="number" step="0.1" name="custom_absent_deduction" className="h-8 text-xs" defaultValue={editingEmployee?.custom_absent_deduction || ""} placeholder="Kosongkan = ikut global" />
+                  </div>
+                </div>
+
+                <p className="text-xs font-medium text-muted-foreground">Potongan Terlambat</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipe</Label>
+                    <Select name="custom_late_deduction_type" defaultValue={editingEmployee?.custom_late_deduction_type || "fixed"}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">Nominal (Rp)</SelectItem>
+                        <SelectItem value="percentage">% Gaji</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nilai</Label>
+                    <Input type="number" step="0.1" name="custom_late_deduction" className="h-8 text-xs" defaultValue={editingEmployee?.custom_late_deduction || ""} placeholder="Kosongkan = ikut global" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEmployeeDialogOpen(false)}>Batal</Button>
               <Button type="submit" disabled={saveEmployeeMutation.isPending}>
