@@ -11,6 +11,7 @@ import {
   Calendar, CreditCard, Star, PiggyBank, Headphones,
   ArrowRight, BookOpen, IdCard, MapPin
 } from "lucide-react";
+import { PublicLayout } from "@/components/layout/PublicLayout";
 
 export default function CustomerDashboard() {
   const { user } = useAuth();
@@ -83,7 +84,8 @@ export default function CustomerDashboard() {
   const activeBooking = bookings?.find(b => b.booking_status === 'confirmed' || b.booking_status === 'processing');
 
   return (
-    <div className="container max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <PublicLayout>
+      <div className="container max-w-5xl mx-auto px-4 py-8 space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Assalamu'alaikum, {customer?.full_name || 'Jamaah'} 👋</h1>
         <p className="text-muted-foreground">Selamat datang di portal jamaah Anda</p>
@@ -272,7 +274,8 @@ export default function CustomerDashboard() {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
-    </div>
+    </PublicLayout>
   );
 }

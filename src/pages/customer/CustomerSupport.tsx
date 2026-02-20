@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
 import { Headphones, Plus, MessageCircle, Clock } from "lucide-react";
+import { PublicLayout } from "@/components/layout/PublicLayout";
 
 const CATEGORIES = [
   { value: 'booking', label: 'Booking & Pembayaran' },
@@ -101,6 +102,7 @@ export default function CustomerSupport() {
   };
 
   return (
+    <PublicLayout>
     <div className="container max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -202,5 +204,6 @@ export default function CustomerSupport() {
         </DialogContent>
       </Dialog>
     </div>
+    </PublicLayout>
   );
 }

@@ -140,30 +140,21 @@ export function useBookingWizardDynamic(
         customer = newCustomer;
       }
 
-      // 2. Get departure & package info for pricing
+      // 2. Get departure info for pricing (use departure-specific prices which override package prices)
       const { data: departure, error: departureError } = await supabase
         .from('departures')
-        .select(`
-          id,
-          package:packages(
-            price_quad,
-            price_triple,
-            price_double,
-            price_single
-          )
-        `)
+        .select('id, price_quad, price_triple, price_double, price_single')
         .eq('id', formData.departureId)
         .single();
 
-      if (departureError || !departure?.package) throw new Error('Departure tidak ditemukan');
+      if (departureError || !departure) throw new Error('Departure tidak ditemukan');
 
-      // 3. Calculate pricing based on each passenger's room type
-      const pkg = departure.package as any;
+      // 3. Calculate pricing based on each passenger's room type (using departure prices)
       const priceMap: Record<RoomType, number> = {
-        quad: pkg.price_quad,
-        triple: pkg.price_triple,
-        double: pkg.price_double,
-        single: pkg.price_single,
+        quad: departure.price_quad || 0,
+        triple: departure.price_triple || 0,
+        double: departure.price_double || 0,
+        single: departure.price_single || 0,
       };
       
       // Calculate total price based on individual room types

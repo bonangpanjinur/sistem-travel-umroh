@@ -28,6 +28,22 @@ export default function PaymentUpload() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch bank accounts dynamically
+  const { data: bankAccount } = useQuery({
+    queryKey: ['primary-bank-account'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_primary', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking-payment', bookingId],
     queryFn: async () => {
@@ -321,18 +337,20 @@ export default function PaymentUpload() {
               </CardContent>
             </Card>
 
-            <Card className="border-amber-200 bg-amber-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-amber-800">Rekening Tujuan</CardTitle>
-              </CardHeader>
-              <CardContent className="text-amber-800">
-                <div className="bg-white rounded p-3 text-center">
-                  <p className="font-medium">Bank BCA</p>
-                  <p className="text-lg font-bold">123-456-7890</p>
-                  <p className="text-sm">a.n. PT Umroh Haji Berkah</p>
-                </div>
-              </CardContent>
-            </Card>
+            {bankAccount && (
+              <Card className="border-amber-200 bg-amber-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-amber-800">Rekening Tujuan</CardTitle>
+                </CardHeader>
+                <CardContent className="text-amber-800">
+                  <div className="bg-white rounded p-3 text-center">
+                    <p className="font-medium">{bankAccount.bank_name}</p>
+                    <p className="text-lg font-bold">{bankAccount.account_number}</p>
+                    <p className="text-sm">a.n. {bankAccount.account_name}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
