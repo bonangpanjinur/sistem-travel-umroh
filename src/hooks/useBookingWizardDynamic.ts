@@ -181,7 +181,7 @@ export function useBookingWizardDynamic(
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
-          booking_code: `UMR${Date.now().toString(36).toUpperCase()}`,
+          booking_code: (await supabase.rpc('generate_booking_code')).data || `UMR${Date.now().toString(36).toUpperCase()}`,
           departure_id: formData.departureId,
           customer_id: customer.id,
           room_type: mainRoomType,
