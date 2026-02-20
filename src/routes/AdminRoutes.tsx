@@ -47,6 +47,7 @@ const AdminScheduledReports = lazy(() => import("@/pages/admin/AdminScheduledRep
 const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
 const AdminStaticPages = lazy(() => import("@/pages/admin/AdminStaticPages"));
 const AdminTestimonials = lazy(() => import("@/pages/admin/AdminTestimonials"));
+const AdminBookingCreate = lazy(() => import("@/pages/admin/AdminBookingCreate"));
 
 const ADMIN_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing'] as const;
 
@@ -73,6 +74,7 @@ export default function AdminRoutes() {
       <Route path="master-data" element={<LazyPage><AdminMasterData /></LazyPage>} />
       <Route path="branches" element={<LazyPage><AdminBranches /></LazyPage>} />
       <Route path="bookings" element={<LazyPage><AdminBookings /></LazyPage>} />
+      <Route path="bookings/create" element={<LazyPage><AdminBookingCreate /></LazyPage>} />
       <Route path="bookings/:id" element={<LazyPage><AdminBookingDetail /></LazyPage>} />
       <Route path="payments" element={<LazyPage><AdminPayments /></LazyPage>} />
       <Route path="finance" element={<LazyPage><AdminFinancePL /></LazyPage>} />
