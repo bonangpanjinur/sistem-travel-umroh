@@ -656,7 +656,7 @@ export type Database = {
           adult_count?: number | null
           agent_id?: string | null
           base_price: number
-          booking_code: string
+          booking_code?: string
           booking_status?: Database["public"]["Enums"]["booking_status"] | null
           branch_id?: string | null
           child_count?: number | null
