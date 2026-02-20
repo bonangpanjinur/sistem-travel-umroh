@@ -32,11 +32,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatCurrency, formatDate, getRoomTypeLabel, getBookingStatusLabel, getPaymentStatusLabel } from "@/lib/format";
-import { ArrowLeft, User, Calendar, Plane, CreditCard, FileText, Users, Phone, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, User, Calendar, Plane, CreditCard, FileText, Users, Phone, Mail, MapPin, Printer, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
+import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 type PaymentStatus = Database["public"]["Enums"]["payment_status"];
@@ -113,6 +114,21 @@ export default function AdminBookingDetail() {
     enabled: !!id,
   });
 
+  // Fetch bank accounts for invoice
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank-accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_primary', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: async (status: BookingStatus) => {
       const { error } = await supabase
@@ -132,6 +148,70 @@ export default function AdminBookingDetail() {
       toast.error(error.message || "Gagal memperbarui status");
     },
   });
+
+  // Send WhatsApp notification
+  const sendNotificationMutation = useMutation({
+    mutationFn: async (type: string) => {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp-notification', {
+        body: { type, booking_id: id }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(`Notifikasi berhasil dikirim: ${data.sent || 0} terkirim`);
+    },
+    onError: (error: Error) => {
+      toast.error("Gagal mengirim notifikasi: " + error.message);
+    },
+  });
+
+  const handlePrintInvoice = () => {
+    if (!booking || !customer) return;
+    
+    const departure = booking.departure as any;
+    const pkg = departure?.package;
+    const bank = bankAccounts?.[0];
+    
+    const invoiceData: InvoiceData = {
+      invoiceNumber: `INV-${booking.booking_code}`,
+      invoiceDate: new Date(booking.created_at || new Date()),
+      dueDate: booking.payment_deadline ? new Date(booking.payment_deadline) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      customer: {
+        name: customer.full_name || '-',
+        address: [customer.address, customer.city, customer.province].filter(Boolean).join(', ') || '-',
+        phone: customer.phone || '-',
+        email: customer.email || undefined,
+      },
+      items: [
+        {
+          description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${booking.total_pax || 1} Pax)\nBerangkat: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
+          quantity: booking.total_pax || 1,
+          unitPrice: booking.base_price / (booking.total_pax || 1),
+          total: booking.base_price,
+        },
+        ...(booking.addons_price && booking.addons_price > 0 ? [{
+          description: 'Biaya Tambahan',
+          quantity: 1,
+          unitPrice: booking.addons_price,
+          total: booking.addons_price,
+        }] : []),
+      ],
+      subtotal: booking.base_price + (booking.addons_price || 0),
+      discount: booking.discount_amount || undefined,
+      total: booking.total_price,
+      notes: `Pembayaran sudah diterima: ${formatCurrency(booking.paid_amount || 0)}\nSisa pembayaran: ${formatCurrency(booking.remaining_amount || 0)}`,
+      bankInfo: bank ? {
+        bankName: bank.bank_name,
+        accountNumber: bank.account_number,
+        accountName: bank.account_name,
+      } : undefined,
+    };
+
+    const doc = generateInvoice(invoiceData);
+    doc.save(`Invoice-${booking.booking_code}.pdf`);
+    toast.success('Invoice berhasil di-download');
+  };
 
   const handleStatusChange = (status: BookingStatus) => {
     setNewStatus(status);
@@ -507,17 +587,33 @@ export default function AdminBookingDetail() {
               <CardTitle>Aksi</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button className="w-full" variant="outline" asChild>
-                <Link to={`/admin/bookings/${id}/print`}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Cetak Invoice
-                </Link>
+              <Button className="w-full" variant="outline" onClick={handlePrintInvoice}>
+                <Printer className="h-4 w-4 mr-2" />
+                Cetak Invoice PDF
               </Button>
               <Button className="w-full" variant="outline" asChild>
                 <Link to={`/admin/payments?booking=${id}`}>
                   <CreditCard className="h-4 w-4 mr-2" />
                   Kelola Pembayaran
                 </Link>
+              </Button>
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={() => sendNotificationMutation.mutate('booking_confirmed')}
+                disabled={sendNotificationMutation.isPending}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Kirim Notifikasi WA
+              </Button>
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={() => sendNotificationMutation.mutate('payment_received')}
+                disabled={sendNotificationMutation.isPending}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Kirim Reminder Bayar
               </Button>
             </CardContent>
           </Card>

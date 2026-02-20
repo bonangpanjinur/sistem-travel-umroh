@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { FileDown, RefreshCw, Eye, Plane } from "lucide-react";
+import { FileDown, RefreshCw, Eye, Plane, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -19,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function ManifestPage() {
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
@@ -101,6 +103,40 @@ export default function ManifestPage() {
   });
 
   const selectedDepartureData = departures?.find(d => d.id === selectedDeparture);
+
+  const exportManifestPDF = () => {
+    if (!passengers || !selectedDepartureData) return;
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pkgName = (selectedDepartureData.package as any)?.name || 'Manifest';
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Manifest Jamaah - ${pkgName}`, 14, 20);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Tanggal Berangkat: ${format(new Date(selectedDepartureData.departure_date), "dd MMMM yyyy", { locale: id })}`, 14, 28);
+    doc.text(`Flight: ${selectedDepartureData.flight_number || '-'} | Jumlah: ${passengers.length} jamaah`, 14, 34);
+
+    autoTable(doc, {
+      startY: 42,
+      head: [['No', 'Nama Lengkap', 'L/P', 'No. Paspor', 'Exp. Paspor', 'Tipe Kamar', 'Telepon']],
+      body: passengers.map((p, idx) => [
+        (idx + 1).toString(),
+        (p.customer as any)?.full_name || '-',
+        (p.customer as any)?.gender === 'male' ? 'L' : 'P',
+        (p.customer as any)?.passport_number || '-',
+        (p.customer as any)?.passport_expiry ? format(new Date((p.customer as any).passport_expiry), "dd/MM/yyyy") : '-',
+        ((p.booking as any)?.room_type || '-').toUpperCase(),
+        (p.customer as any)?.phone || '-',
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+    });
+
+    doc.save(`Manifest-${pkgName}-${selectedDepartureData.departure_date}.pdf`);
+    toast.success('Manifest PDF berhasil di-download');
+  };
 
   return (
     <div className="space-y-6">
@@ -185,6 +221,13 @@ export default function ManifestPage() {
               Manifest - {selectedDepartureData && (selectedDepartureData.package as any)?.name}
             </DialogTitle>
           </DialogHeader>
+
+          <div className="flex justify-end mb-4">
+            <Button size="sm" onClick={exportManifestPDF} disabled={!passengers || passengers.length === 0}>
+              <Printer className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
 
           {loadingPassengers ? (
             <div className="space-y-2">
