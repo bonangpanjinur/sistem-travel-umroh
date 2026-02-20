@@ -14,8 +14,10 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { 
   BedDouble, Users, Plus, Trash2, UserPlus, 
-  Download, Hotel, Filter, GripVertical
+  Download, Hotel, Filter, GripVertical, Printer
 } from "lucide-react";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface RoomAssignment {
   id: string;
@@ -229,6 +231,52 @@ export default function RoomingListPage() {
     return labels[type] || type;
   };
 
+  const exportRoomingPDF = () => {
+    if (!rooms || rooms.length === 0) return;
+    const doc = new jsPDF();
+    const hotelName = (rooms[0]?.hotel as any)?.name || 'Hotel';
+    const depData = selectedDeparture;
+    const pkgName = (depData?.package as any)?.name || '';
+    const depDate = depData ? format(new Date(depData.departure_date), "dd MMMM yyyy", { locale: localeId }) : '';
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Rooming List - ${hotelName}`, 14, 20);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Paket: ${pkgName} | Berangkat: ${depDate}`, 14, 28);
+    doc.text(`Total Kamar: ${totalRooms} | Terisi: ${totalOccupied}/${totalCapacity}`, 14, 34);
+
+    const tableRows: string[][] = [];
+    rooms.forEach(room => {
+      if (room.occupants && room.occupants.length > 0) {
+        room.occupants.forEach((occ, idx) => {
+          tableRows.push([
+            idx === 0 ? room.room_number : '',
+            idx === 0 ? getRoomTypeLabel(room.room_type) : '',
+            idx === 0 ? (room.floor || '-') : '',
+            (occ.customer as any)?.full_name || '-',
+            (occ.customer as any)?.gender === 'male' ? 'L' : 'P',
+          ]);
+        });
+      } else {
+        tableRows.push([room.room_number, getRoomTypeLabel(room.room_type), room.floor || '-', '(Kosong)', '-']);
+      }
+    });
+
+    autoTable(doc, {
+      startY: 42,
+      head: [['No. Kamar', 'Tipe', 'Lantai', 'Nama Jamaah', 'L/P']],
+      body: tableRows,
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+    });
+
+    doc.save(`RoomingList-${hotelName}-${depData?.departure_date || 'export'}.pdf`);
+    toast.success('Rooming List PDF berhasil di-download');
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -314,10 +362,14 @@ export default function RoomingListPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="flex items-center justify-center">
+            <Card className="flex items-center justify-center gap-2 p-4">
               <Button onClick={() => setAddRoomDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Tambah Kamar
+              </Button>
+              <Button variant="outline" onClick={exportRoomingPDF} disabled={!rooms || rooms.length === 0}>
+                <Printer className="h-4 w-4 mr-2" />
+                Export PDF
               </Button>
             </Card>
           </div>

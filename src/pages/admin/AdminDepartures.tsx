@@ -24,7 +24,7 @@ import { Link } from "react-router-dom";
 import { 
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
   CalendarDays, Hotel, Building2, Link2Off, MapPin,
-  MessageCircle, Bell, Send
+  MessageCircle, Bell, Send, DollarSign
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
@@ -453,6 +453,16 @@ export default function AdminDepartures() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            title="Lihat P&L"
+                            asChild
+                          >
+                            <Link to="/admin/finance/pl">
+                              <DollarSign className="h-4 w-4" />
+                            </Link>
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
