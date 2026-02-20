@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/pagination";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { exportToExcel } from "@/lib/export-utils";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
   CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2
@@ -155,7 +155,7 @@ export default function AdminBookings() {
   }, [filteredBookings, currentPage]);
 
   // Reset page when filters change
-  useMemo(() => { setCurrentPage(1); }, [searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -206,6 +206,12 @@ export default function AdminBookings() {
           <p className="text-muted-foreground">Lihat dan kelola semua booking</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild>
+            <Link to="/admin/bookings/create">
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Buat Booking
+            </Link>
+          </Button>
           {selectedBookings.length > 0 && (
             <div className="flex items-center gap-2 mr-4 bg-muted p-1 rounded-md animate-in fade-in slide-in-from-right-2">
               <span className="text-sm font-medium px-2">{selectedBookings.length} dipilih</span>

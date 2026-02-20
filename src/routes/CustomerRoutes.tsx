@@ -10,6 +10,8 @@ const BookingDetail = lazy(() => import("@/pages/customer/BookingDetail"));
 const PaymentUpload = lazy(() => import("@/pages/customer/PaymentUpload"));
 const MySavings = lazy(() => import("@/pages/customer/MySavings"));
 const MyLoyalty = lazy(() => import("@/pages/customer/MyLoyalty"));
+const CustomerDashboard = lazy(() => import("@/pages/customer/CustomerDashboard"));
+const CustomerSupport = lazy(() => import("@/pages/customer/CustomerSupport"));
 const SavingsSuccess = lazy(() => import("@/pages/savings/SavingsSuccess"));
 const JamaahPortal = lazy(() => import("@/pages/jamaah/JamaahPortal"));
 const JamaahDigitalID = lazy(() => import("@/pages/jamaah/JamaahDigitalID"));
@@ -23,6 +25,8 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 export default function CustomerRoutes() {
   return (
     <>
+      <Route path="/customer/dashboard" element={<ProtectedRoute><LazyPage><CustomerDashboard /></LazyPage></ProtectedRoute>} />
+      <Route path="/customer/support" element={<ProtectedRoute><LazyPage><CustomerSupport /></LazyPage></ProtectedRoute>} />
       <Route path="/savings/success/:planId" element={<ProtectedRoute><LazyPage><SavingsSuccess /></LazyPage></ProtectedRoute>} />
       <Route path="/customer/my-savings" element={<ProtectedRoute><LazyPage><MySavings /></LazyPage></ProtectedRoute>} />
       <Route path="/customer/my-loyalty" element={<ProtectedRoute><LazyPage><MyLoyalty /></LazyPage></ProtectedRoute>} />
