@@ -32,7 +32,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'CRM Leads', icon: Target, path: '/admin/leads' },
       { label: 'Booking', icon: Calendar, path: '/admin/bookings' },
-      { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments' },
+      { label: 'Kupon', icon: Gift, path: '/admin/coupons' },
     ]
   },
   {
@@ -50,6 +50,7 @@ const NAV_GROUPS = [
     label: 'Keuangan',
     allowedRoles: ['super_admin', 'owner', 'finance'],
     items: [
+      { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments' },
       { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance' },
       { label: 'Kas & Gaji', icon: Wallet, path: '/admin/finance-cash' },
       { label: 'Vendor', icon: Truck, path: '/admin/vendors' },

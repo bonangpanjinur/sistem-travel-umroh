@@ -312,7 +312,7 @@ export default function AdminFinancePL() {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <p className="font-semibold">{(dep.package as any)?.name}</p>
+                          <p className="font-semibold">{dep.package?.name || 'Paket tidak diketahui'}</p>
                           <p className="text-sm text-muted-foreground">
                             {format(new Date(dep.departure_date), "dd MMM yyyy", { locale: localeId })}
                           </p>
