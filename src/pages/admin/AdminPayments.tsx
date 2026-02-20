@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -108,29 +108,8 @@ export default function AdminPayments() {
 
       if (paymentError) throw paymentError;
 
-      if (status === 'paid' && payment) {
-        const { data: booking } = await supabase
-          .from('bookings')
-          .select('paid_amount, total_price')
-          .eq('id', payment.booking_id)
-          .single();
-
-        if (booking) {
-          const newPaidAmount = (booking.paid_amount || 0) + payment.amount;
-          const newRemainingAmount = booking.total_price - newPaidAmount;
-          const newPaymentStatus = newRemainingAmount <= 0 ? 'paid' : 'partial';
-
-          await supabase
-            .from('bookings')
-            .update({
-              paid_amount: newPaidAmount,
-              remaining_amount: Math.max(0, newRemainingAmount),
-              payment_status: newPaymentStatus,
-              booking_status: newPaymentStatus === 'paid' ? 'confirmed' : 'pending',
-            })
-            .eq('id', payment.booking_id);
-        }
-      }
+      // paid_amount & payment_status are automatically updated by the
+      // database trigger `update_booking_paid_amount` — no manual update needed.
 
       return payment;
     },
@@ -217,7 +196,8 @@ export default function AdminPayments() {
     return filteredPayments?.slice(start, start + PAGE_SIZE);
   }, [filteredPayments, currentPage]);
 
-  useMemo(() => { setCurrentPage(1); }, [searchTerm, statusFilter, methodFilter, dateFrom, dateTo]);
+  // Reset to page 1 when filters change
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter, methodFilter, dateFrom, dateTo]);
 
   const pendingPayments = payments?.filter(p => p.status === 'pending') || [];
   const paidPayments = payments?.filter(p => p.status === 'paid') || [];

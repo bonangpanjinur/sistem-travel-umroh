@@ -282,7 +282,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipe Paket</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih tipe" />
@@ -452,7 +452,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Hotel Makkah</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih hotel" />
@@ -475,7 +475,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Hotel Madinah</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih hotel" />
@@ -500,7 +500,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Maskapai</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih maskapai" />
@@ -525,7 +525,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Muthawif</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih muthawif" />
