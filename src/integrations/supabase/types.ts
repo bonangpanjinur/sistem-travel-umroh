@@ -4390,6 +4390,11 @@ export type Database = {
       generate_payment_code: { Args: never; Returns: string }
       generate_savings_payment_code: { Args: never; Returns: string }
       generate_ticket_code: { Args: never; Returns: string }
+      get_booking_customer_ids_for_user: {
+        Args: { _user_id: string }
+        Returns: string[]
+      }
+      get_customer_user_id: { Args: { _customer_id: string }; Returns: string }
       get_failed_attempts: { Args: { _email: string }; Returns: number }
       get_next_document_number: {
         Args: { p_document_type: string; p_prefix: string }
@@ -4429,6 +4434,10 @@ export type Database = {
       }
       user_belongs_to_branch: {
         Args: { _branch_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_owns_booking: {
+        Args: { _booking_id: string; _user_id: string }
         Returns: boolean
       }
     }
