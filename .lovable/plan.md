@@ -1,93 +1,157 @@
 
-# Perbaikan: Featured Image, Menu Keuangan, dan Analisis Bug
+# Analisis Lengkap Sistem Travel Umrah & Haji - Rencana Perbaikan dan Pengembangan
 
-## 1. Featured Image Paket (Sudah Upload)
+## Ringkasan Sistem
 
-Setelah diperiksa, form paket (`PackageForm.tsx`) **sudah menggunakan upload file** ke storage `website-assets`. Tidak ada input URL teks. Fitur ini sudah berfungsi dengan benar:
-- Upload gambar dengan preview
-- Validasi format dan ukuran (maks 5MB)
-- Tombol hapus dan ganti gambar
-
-**Status: Tidak perlu perubahan.**
+Sistem ini adalah ERP & E-Commerce untuk travel Umrah/Haji dengan modul: Booking, CRM, Keuangan, Operasional, HR, Agent, Jamaah Portal, dan Website Builder. Setelah analisis menyeluruh terhadap seluruh fitur, berikut temuan bug dan fitur yang belum lengkap.
 
 ---
 
-## 2. Menu Keuangan yang Hilang
+## BAGIAN A: BUG YANG HARUS DIPERBAIKI
 
-### Masalah Ditemukan
-- Route `/admin/coupons` (Kupon/Diskon) **ada di router** tapi **tidak ada di sidebar** navigation
-- "Pembayaran" berada di grup "Sales & CRM" padahal lebih cocok di grup "Keuangan"
+### Bug #1 - useMemo sebagai Side Effect di AdminBookings
+**Severity: Medium**
+**File:** `src/pages/admin/AdminBookings.tsx` (line 158)
 
-### Perbaikan
-Perbarui `AdminLayout.tsx` sidebar navigation:
-- Pindahkan "Pembayaran" ke grup **Keuangan**
-- Tambahkan "Kupon" ke grup **Sales & CRM** (karena kupon terkait promosi penjualan)
-
-Struktur baru grup Keuangan:
 ```
-Keuangan
-  - Pembayaran (dipindahkan dari Sales & CRM)
-  - Laba/Rugi
-  - Kas & Gaji
-  - Vendor
+useMemo(() => { setCurrentPage(1); }, [...]);
 ```
 
-Grup Sales & CRM:
-```
-Sales & CRM
-  - CRM Leads
-  - Booking
-  - Kupon (baru ditambahkan)
-```
+Bug ini sama dengan yang sudah diperbaiki di AdminPayments. `useMemo` tidak boleh digunakan untuk side effect (setState). Harus diganti `useEffect`.
+
+### Bug #2 - Tombol "Generate Dokumen" Link Salah di Dashboard
+**Severity: Low**  
+**File:** `src/pages/admin/AdminDashboard.tsx` (line 71)
+
+Link mengarah ke `/admin/document-generator` (pakai strip) tapi route-nya `/admin/documents-generator` (pakai "s-"). Tombol Quick Action tidak akan bekerja.
+
+### Bug #3 - Tidak Ada Tombol "Buat Booking dari Admin"
+**Severity: High**
+
+Admin tidak bisa membuat booking baru untuk jamaah dari dashboard admin. Semua booking harus melalui website publik. Untuk travel umrah, admin sering mendaftarkan jamaah secara manual (walk-in, telepon, WhatsApp).
+
+### Bug #4 - Customer Portal Tidak Ada Navigasi ke /jamaah
+**Severity: Medium**
+
+Setelah customer login, tidak ada menu yang jelas mengarahkan ke portal jamaah (`/jamaah`). Customer hanya bisa akses `/my-bookings` dan `/customer/*`. Portal jamaah (Digital ID, Itinerary, Doa) sulit ditemukan.
+
+### Bug #5 - Vendor Cost Belum Terkoneksi ke Keberangkatan
+**Severity: Medium**
+**File:** `src/pages/admin/AdminVendors.tsx`
+
+Tabel `vendor_costs` ada di database tapi belum ada UI untuk input biaya vendor per keberangkatan. Laporan P&L tidak bisa akurat tanpa data ini.
 
 ---
 
-## 3. Analisis Bug dan Error
+## BAGIAN B: FITUR YANG BELUM ADA TAPI SEHARUSNYA ADA
 
-### Bug yang Teridentifikasi
+### Fitur #1 - Buat Booking dari Admin (Admin-side Booking)
+**Prioritas: Tinggi**
 
-| No | Masalah | Severity | File |
-|----|---------|----------|------|
-| 1 | Route `/admin/coupons` tidak muncul di sidebar | Medium | `AdminLayout.tsx` |
-| 2 | `Select` komponen di `PackageForm.tsx` menggunakan `defaultValue` bukan `value` -- nilai tidak update saat edit | Medium | `PackageForm.tsx` |
-| 3 | Verifikasi pembayaran di `AdminPayments.tsx` menghitung `paid_amount` manual padahal sudah ada trigger `update_booking_paid_amount` -- bisa terjadi double counting | High | `AdminPayments.tsx` |
-| 4 | `useMemo` digunakan sebagai side effect (line 220 di AdminPayments) untuk reset `currentPage` -- seharusnya `useEffect` | Low | `AdminPayments.tsx` |
-| 5 | `AdminFinancePL.tsx` cast `dep.package` sebagai `any` berulang kali -- rentan error jika `package` null | Low | `AdminFinancePL.tsx` |
-| 6 | Employee device fingerprint berbasis UA/screen/timezone sangat mudah di-spoof | Info | `EmployeeAttendance.tsx` |
+Travel umrah sangat bergantung pada pendaftaran manual. Admin harus bisa:
+- Pilih paket dan keberangkatan
+- Input data jamaah (baru atau existing)
+- Set tipe kamar dan jumlah pax
+- Langsung buat booking tanpa harus melalui website
 
-### Rencana Perbaikan per Item
+### Fitur #2 - Invoice / Kwitansi PDF untuk Jamaah
+**Prioritas: Tinggi**
 
-**Bug #1 - Menu sidebar hilang** (Perbaikan utama)
-- Tambahkan "Kupon" ke sidebar navigation dan pindahkan "Pembayaran"
+Sistem sudah punya `document-generator` tapi belum ada tombol "Cetak Invoice" atau "Cetak Kwitansi" yang mudah diakses dari halaman booking detail admin. Invoice harus bisa:
+- Dicetak dari AdminBookingDetail
+- Menampilkan info perusahaan, rekening tujuan, rincian paket
+- Menyertakan QR code atau nomor referensi
 
-**Bug #2 - Select defaultValue di PackageForm**
-- Ganti `defaultValue` menjadi `value` pada Select untuk hotel, airline, muthawif agar nilai terupdate saat edit paket
+### Fitur #3 - Manajemen Vendor Cost per Keberangkatan
+**Prioritas: Tinggi**
 
-**Bug #3 - Double counting pembayaran**
-- Hapus logika manual update `paid_amount` di `AdminPayments.tsx` karena sudah ditangani oleh database trigger `update_booking_paid_amount` yang berjalan otomatis saat status payment berubah
+Untuk P&L yang akurat, perlu UI untuk mencatat biaya vendor per keberangkatan:
+- Biaya hotel Makkah & Madinah
+- Biaya tiket pesawat
+- Biaya visa
+- Biaya handling, transportasi lokal, katering
+- Total cost vs total revenue per keberangkatan
 
-**Bug #4 - useMemo sebagai side effect**
-- Ganti `useMemo` ke `useEffect` untuk reset pagination saat filter berubah
+### Fitur #4 - Notifikasi Email/WhatsApp Otomatis
+**Prioritas: Sedang**
 
-**Bug #5 - Null safety di Finance P&L**
-- Tambahkan null check pada akses `dep.package?.name` dan `dep.package?.code`
+Tabel `whatsapp_templates` dan `email_logs` sudah ada, tapi belum ada trigger otomatis:
+- Notifikasi saat booking dibuat
+- Reminder pembayaran mendekati deadline
+- Konfirmasi pembayaran terverifikasi
+- Info keberangkatan H-7, H-3, H-1
+
+### Fitur #5 - Customer Bisa Submit Tiket Support dari Portal
+**Prioritas: Sedang**
+
+Tabel `support_tickets` ada dan admin bisa kelola, tapi tidak ada UI di sisi customer/jamaah untuk membuat tiket baru. Customer harus bisa mengajukan keluhan dari portal mereka.
+
+### Fitur #6 - Dashboard Customer yang Lebih Lengkap
+**Prioritas: Sedang**
+
+Saat ini customer hanya punya `/my-bookings` dan halaman terpisah. Perlu halaman dashboard utama customer yang menampilkan:
+- Ringkasan booking aktif
+- Status pembayaran
+- Link ke portal jamaah (jika sudah ada keberangkatan)
+- Poin loyalty
+- Tabungan aktif
+
+### Fitur #7 - Print Manifest & Rooming List ke PDF
+**Prioritas: Sedang**
+
+Halaman operasional (Manifest, Rooming List) sudah menampilkan data tapi belum bisa di-export ke PDF yang siap cetak untuk dibawa saat keberangkatan.
 
 ---
 
-## Detail Teknis
+## BAGIAN C: DETAIL TEKNIS IMPLEMENTASI
 
-### File yang Dimodifikasi
+### Urutan Implementasi (berdasarkan prioritas)
 
-| File | Perubahan |
-|------|-----------|
-| `AdminLayout.tsx` | Tambah menu Kupon, pindahkan Pembayaran ke Keuangan |
-| `PackageForm.tsx` | Ganti `defaultValue` ke `value` di Select komponen |
-| `AdminPayments.tsx` | Hapus manual paid_amount update (sudah ada trigger DB), fix useMemo ke useEffect |
-| `AdminFinancePL.tsx` | Null-safe access untuk package data |
+| No | Item | Tipe | Estimasi |
+|----|------|------|----------|
+| 1 | Fix useMemo di AdminBookings | Bug Fix | Kecil |
+| 2 | Fix link Dashboard "Generate Dokumen" | Bug Fix | Kecil |
+| 3 | Admin-side Booking Creation | Fitur Baru | Besar |
+| 4 | Vendor Cost per Keberangkatan | Fitur Baru | Sedang |
+| 5 | Cetak Invoice dari Booking Detail | Fitur Baru | Sedang |
+| 6 | Customer Dashboard + Link Jamaah Portal | Fitur Baru | Sedang |
+| 7 | Customer Submit Support Ticket | Fitur Baru | Sedang |
+| 8 | Export Manifest/Rooming ke PDF | Fitur Baru | Sedang |
+| 9 | Notifikasi Otomatis (WhatsApp/Email) | Fitur Baru | Besar |
 
-### Urutan Implementasi
+### File yang Perlu Diubah/Dibuat
 
-1. Fix sidebar navigation (AdminLayout.tsx)
-2. Fix PackageForm Select values
-3. Fix AdminPayments double-counting dan useMemo
-4. Fix null safety di AdminFinancePL
+**Bug Fixes:**
+- `src/pages/admin/AdminBookings.tsx` - Ganti useMemo ke useEffect
+- `src/pages/admin/AdminDashboard.tsx` - Fix link `/admin/document-generator` -> `/admin/documents-generator`
+
+**Fitur Baru - Admin Booking:**
+- `src/pages/admin/AdminBookingCreate.tsx` (BARU) - Form booking dari admin
+- `src/routes/AdminRoutes.tsx` - Tambah route `/admin/bookings/create`
+- `src/pages/admin/AdminBookings.tsx` - Tambah tombol "Buat Booking Baru"
+
+**Fitur Baru - Vendor Cost:**
+- `src/pages/admin/AdminDepartures.tsx` - Tambah tab/dialog input biaya vendor per keberangkatan
+- Migrasi: Pastikan tabel `vendor_costs` memiliki kolom yang tepat
+
+**Fitur Baru - Invoice:**
+- `src/pages/admin/AdminBookingDetail.tsx` - Tambah tombol "Cetak Invoice"
+- `src/lib/document-generator.ts` - Pastikan fungsi `generateInvoice` lengkap
+
+**Fitur Baru - Customer Dashboard:**
+- `src/pages/customer/CustomerDashboard.tsx` (BARU) - Dashboard utama customer
+- `src/routes/CustomerRoutes.tsx` - Tambah route `/customer/dashboard`
+- Redirect setelah login ke dashboard yang sesuai role
+
+**Fitur Baru - Support Ticket Customer:**
+- `src/pages/customer/CustomerSupport.tsx` (BARU) - Form buat tiket
+- `src/routes/CustomerRoutes.tsx` - Tambah route
+
+**Fitur Baru - Export PDF Operasional:**
+- `src/pages/operational/ManifestPage.tsx` - Tambah tombol export PDF
+- `src/pages/operational/RoomingListPage.tsx` - Tambah tombol export PDF
+
+### Catatan Penting
+- Sistem sudah sangat lengkap untuk Fase 2. Perbaikan bug dan fitur di atas adalah penyempurnaan untuk operasional sehari-hari.
+- Fitur Admin-side Booking adalah yang paling kritis karena mayoritas travel umrah mendaftarkan jamaah secara manual, bukan online.
+- Vendor Cost management sangat penting agar laporan keuangan (P&L) akurat dan bisa digunakan untuk pengambilan keputusan bisnis.
