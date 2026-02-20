@@ -14,6 +14,22 @@ import { toast } from "sonner";
 export default function BookingSuccess() {
   const { bookingId } = useParams();
 
+  // Fetch bank accounts dynamically
+  const { data: bankAccount } = useQuery({
+    queryKey: ['primary-bank-account'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_primary', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking-success', bookingId],
     queryFn: async () => {
@@ -146,11 +162,17 @@ export default function BookingSuccess() {
             <p className="mb-3">
               Silakan lakukan pembayaran ke rekening berikut:
             </p>
-            <div className="bg-white rounded-lg p-4 mb-3">
-              <p className="font-medium">Bank BCA</p>
-              <p className="text-lg font-bold">123-456-7890</p>
-              <p>a.n. PT Umroh Haji Berkah</p>
-            </div>
+            {bankAccount ? (
+              <div className="bg-white rounded-lg p-4 mb-3">
+                <p className="font-medium">{bankAccount.bank_name}</p>
+                <p className="text-lg font-bold">{bankAccount.account_number}</p>
+                <p>a.n. {bankAccount.account_name}</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg p-4 mb-3">
+                <p className="text-sm">Hubungi admin untuk info rekening pembayaran</p>
+              </div>
+            )}
             <p>
               Setelah transfer, upload bukti pembayaran melalui halaman "Booking Saya" 
               atau hubungi customer service kami.

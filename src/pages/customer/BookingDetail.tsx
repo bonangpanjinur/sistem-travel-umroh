@@ -39,14 +39,14 @@ export default function BookingDetail() {
             departure_date,
             return_date,
             flight_number,
+            airline:airlines(name),
             package:packages(
               name,
               duration_days,
-              featured_image,
-              airline:airlines(name),
-              hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, star_rating),
-              hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, star_rating)
-            )
+              featured_image
+            ),
+            hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name, star_rating),
+            hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, star_rating)
           ),
           booking_passengers(
             id,
@@ -77,6 +77,22 @@ export default function BookingDetail() {
       return data;
     },
     enabled: !!bookingId,
+  });
+
+  // Fetch bank accounts dynamically
+  const { data: bankAccount } = useQuery({
+    queryKey: ['primary-bank-account'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_primary', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
   });
 
   if (isLoading) {
@@ -229,12 +245,12 @@ export default function BookingDetail() {
                       </p>
                     </div>
                   </div>
-                  {pkg?.airline && (
+                  {departure?.airline && (
                     <div className="flex items-center gap-2">
                       <Plane className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-muted-foreground">Maskapai</p>
-                        <p className="font-medium">{pkg.airline.name}</p>
+                        <p className="font-medium">{(departure.airline as any).name}</p>
                       </div>
                     </div>
                   )}
@@ -418,18 +434,20 @@ export default function BookingDetail() {
             )}
 
             {/* Bank Info */}
-            <Card className="border-amber-200 bg-amber-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-amber-800">Transfer ke Rekening</CardTitle>
-              </CardHeader>
-              <CardContent className="text-amber-800">
-                <div className="bg-white rounded p-3 text-center">
-                  <p className="font-medium">Bank BCA</p>
-                  <p className="text-xl font-bold">123-456-7890</p>
-                  <p className="text-sm">a.n. PT Umroh Haji Berkah</p>
-                </div>
-              </CardContent>
-            </Card>
+            {bankAccount && (
+              <Card className="border-amber-200 bg-amber-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-amber-800">Transfer ke Rekening</CardTitle>
+                </CardHeader>
+                <CardContent className="text-amber-800">
+                  <div className="bg-white rounded p-3 text-center">
+                    <p className="font-medium">{bankAccount.bank_name}</p>
+                    <p className="text-xl font-bold">{bankAccount.account_number}</p>
+                    <p className="text-sm">a.n. {bankAccount.account_name}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
