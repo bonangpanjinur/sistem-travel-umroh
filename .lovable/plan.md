@@ -1,119 +1,138 @@
 
+# Analisis Bug Frontend Booking & Customer - Rencana Perbaikan
 
-# Rencana Perbaikan Bug - RLS Infinite Recursion dan Masalah Terkait
+## Bug yang Ditemukan
 
-## Masalah Utama: Infinite Recursion di Database
+### BUG 1: Harga di Review Menggunakan Harga Paket, Bukan Harga Keberangkatan (CRITICAL)
 
-Database mengeluarkan error **"infinite recursion detected in policy"** pada tabel `customers` dan `bookings`. Ini adalah bug CRITICAL yang menyebabkan banyak halaman gagal memuat data.
+**Lokasi:** `StepReviewDynamic.tsx` baris 37-42
 
-### Akar Masalah
+Halaman review menampilkan harga dari `packageInfo` (harga paket), padahal harga seharusnya dari tabel `departures` yang sudah dipilih. Sementara `useBookingWizardDynamic.ts` sudah benar menggunakan harga departure saat submit, **UI review menunjukkan harga yang salah** kepada jamaah.
 
-Kebijakan keamanan database saling merujuk secara melingkar:
-
-```text
-customers policy "Sales can view relevant customers"
-  --> query ke tabel bookings
-    --> bookings policy "Users can view own bookings"
-      --> query ke tabel customers  (LOOP!)
-
-customers policy "Agents can view customers from their bookings"
-  --> function agent_can_access_customer()
-    --> query ke booking_passengers
-      --> booking_passengers policy
-        --> query ke bookings
-          --> bookings policy
-            --> query ke customers  (LOOP!)
+```
+// BUG: Menggunakan packageInfo.price_quad bukan departure price
+const priceMap = {
+  quad: packageInfo.price_quad,    // SALAH
+  triple: packageInfo.price_triple, // SALAH
+  ...
+};
 ```
 
-### Dampak ke Pengguna
-- Halaman **Customer Dashboard** gagal memuat booking
-- Halaman **Booking Detail** (customer) error saat load passengers
-- Halaman **Admin Booking Detail** bisa error untuk beberapa role
-- Halaman **Admin Bookings** gagal untuk role sales
-- Semua query yang melibatkan relasi customers-bookings berpotensi error
+**Dampak:** Jamaah melihat harga berbeda di review vs yang sebenarnya di-charge. Ini masalah kepercayaan.
+
+**Fix:** Teruskan harga departure ke `StepReviewDynamic`, bukan harga paket.
 
 ---
 
-## Rencana Perbaikan
+### BUG 2: Duplikasi Header & Tombol Kembali di Halaman Booking (MINOR)
 
-### Langkah 1: Buat Helper Functions (SECURITY DEFINER)
+**Lokasi:** `BookingPage.tsx` + `BookingWizard.tsx`
 
-Buat fungsi-fungsi baru yang berjalan dengan hak akses tinggi (bypass RLS) sehingga tidak memicu recursion:
+`BookingPage.tsx` menampilkan header paket + tombol "Kembali ke Detail Paket", lalu `BookingWizard.tsx` juga menampilkan header yang sama + tombol kembali yang sama. Hasilnya ada **dua header dan dua tombol kembali** yang membingungkan.
 
-- `get_customer_user_id(customer_id)` - Ambil user_id dari customers tanpa kena RLS
-- `get_booking_customer_ids_for_user(user_id)` - Ambil daftar customer_id dari bookings milik user tanpa kena RLS
-- `is_sales_assigned(user_id)` - Cek apakah user adalah sales yang terkait
-
-### Langkah 2: Perbaiki RLS Policy di `customers`
-
-Ganti policy yang bermasalah:
-
-**HAPUS:**
-- "Sales can view relevant customers" (query ke bookings = recursion)
-- "Agents can view customers from their bookings" (via function yang query bookings = recursion)
-
-**GANTI DENGAN:**
-- Policy baru yang menggunakan SECURITY DEFINER functions, sehingga pengecekan relasi ke bookings tidak melewati RLS customers lagi
-
-### Langkah 3: Perbaiki RLS Policy di `bookings`
-
-**HAPUS:**
-- "Users can view own bookings" (query ke customers = recursion)
-- Policy duplikat "Staff can view all bookings" (sudah tercakup oleh "Admins can manage bookings")
-
-**GANTI DENGAN:**
-- Policy "Users can view own bookings" yang menggunakan function `get_customer_user_id()` untuk cek kepemilikan tanpa query langsung ke tabel customers
-
-### Langkah 4: Perbaiki RLS Policy di `booking_passengers`
-
-**HAPUS:**
-- "Users can view own booking passengers" (query ke bookings + customers = recursion chain)
-- "Agents can view their booking passengers" (query ke bookings = bisa recursion)
-
-**GANTI DENGAN:**
-- Policy yang menggunakan SECURITY DEFINER function untuk cek kepemilikan
+**Fix:** Hapus header dan tombol kembali dari `BookingPage.tsx` karena `BookingWizard.tsx` sudah menanganinya.
 
 ---
 
-## Detail Teknis
+### BUG 3: Login Redirect Tidak Menyimpan Query Params Booking (MEDIUM)
 
-### Database Migration (1 file SQL)
+**Lokasi:** `ProtectedRoute.tsx` baris 35
 
-Isi migrasi:
+Ketika user belum login dan mengakses `/booking/PKG123?departure=DEP1&quad=2`, ProtectedRoute hanya menyimpan `pathname` (`/booking/PKG123`) tanpa query string. Setelah login, user kehilangan pilihan departure dan room allocation.
 
-1. **3 fungsi SECURITY DEFINER baru:**
-
-```text
-get_customer_user_id(uuid) -> uuid
-  SELECT user_id FROM customers WHERE id = _customer_id
-
-get_booking_customer_ids_for_user(uuid) -> uuid[]
-  SELECT array_agg(customer_id) FROM bookings b 
-  JOIN customers c ON c.id = b.customer_id WHERE c.user_id = _user_id
-
-user_owns_booking(booking_id, user_id) -> boolean
-  SELECT EXISTS(SELECT 1 FROM bookings b 
-  JOIN customers c ON c.id = b.customer_id 
-  WHERE b.id = _booking_id AND c.user_id = _user_id)
+```
+// BUG: Hanya pathname, query params hilang
+return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname)}`} />
 ```
 
-2. **Drop 5 policy lama** (yang menyebabkan recursion)
-3. **Buat 5 policy pengganti** menggunakan functions di atas
-
-### File Kode yang Diubah
-
-Tidak ada perubahan kode frontend diperlukan - semua fix ada di level database. Query-query yang sudah ada akan otomatis bekerja setelah RLS diperbaiki.
+**Fix:** Sertakan `location.search` dalam redirect URL.
 
 ---
 
-## Ringkasan Perubahan
+### BUG 4: Tombol Upload KTP/Paspor Tidak Berfungsi (MEDIUM)
 
-| Item | Tipe | Detail |
-|------|------|--------|
-| 3 SECURITY DEFINER functions | Baru | Memutus rantai recursion |
-| 5 RLS policies | Hapus | Yang menyebabkan circular reference |
-| 5 RLS policies | Baru | Pengganti yang aman dari recursion |
-| 0 file frontend | - | Tidak perlu perubahan kode |
+**Lokasi:** `BookingDetail.tsx` baris 356-382
 
-Semua perbaikan ada dalam satu migrasi database.
+Tombol "Upload KTP" dan "Upload Paspor" di sidebar hanya tampilan visual tanpa event handler. Tidak ada `onClick` atau `onChange` yang terhubung ke upload logic.
 
+**Fix:** Implementasikan upload handler yang menyimpan dokumen ke storage dan mencatat di tabel `customer_documents`.
+
+---
+
+### BUG 5: Payment Code Dibuat di Client-Side (LOW)
+
+**Lokasi:** `PaymentUpload.tsx` baris 111
+
+```
+const paymentCode = `PAY${Date.now().toString(36).toUpperCase()}`;
+```
+
+Kode pembayaran dibuat di client, rentan terhadap duplikasi. Seharusnya menggunakan fungsi database `generate_payment_code()` yang sudah ada.
+
+**Fix:** Gunakan `supabase.rpc('generate_payment_code')`.
+
+---
+
+### BUG 6: Validasi Form Booking Lemah (LOW)
+
+**Lokasi:** `BookingWizard.tsx` `canProceed()` baris 255-264
+
+Hanya mengecek nama tidak kosong. Tidak validasi:
+- Nomor HP format salah
+- Nama terlalu pendek (1 karakter lolos)
+- Tipe jamaah bayi/anak tanpa dewasa pendamping
+
+**Fix:** Tambahkan validasi minimum nama 3 karakter dan pastikan ada minimal 1 dewasa.
+
+---
+
+### BUG 7: BookingSuccess Menampilkan room_type Tunggal (COSMETIC)
+
+**Lokasi:** `BookingSuccess.tsx` baris 139
+
+```
+Kamar {booking.room_type.charAt(0).toUpperCase() + booking.room_type.slice(1)}
+```
+
+Untuk booking multi-tipe kamar, hanya menampilkan tipe kamar "utama" (yang paling banyak), bukan breakdown lengkap. Ini membingungkan jika jamaah pesan campuran Quad + Double.
+
+**Fix:** Tampilkan ringkasan kamar dari `booking_passengers` per tipe.
+
+---
+
+## Rencana Implementasi
+
+### Prioritas 1 - Critical (Harga Salah di Review)
+
+1. Fetch harga departure di `BookingWizard.tsx` (sudah ada query `departure-info`, tinggal tambah field harga)
+2. Teruskan `departurePrices` ke `StepReviewDynamic` sebagai prop baru
+3. `StepReviewDynamic` gunakan departure prices, bukan package prices
+
+### Prioritas 2 - Medium (Login Redirect & Upload Dokumen)
+
+4. Fix `ProtectedRoute.tsx`: sertakan `location.search` di redirect
+5. Fix `PackageBookingForm.tsx` redirect: sertakan query params saat redirect ke login
+6. Implementasi upload KTP/Paspor di `BookingDetail.tsx` dengan handler ke Supabase Storage
+
+### Prioritas 3 - Minor/Low
+
+7. Hapus duplikasi header di `BookingPage.tsx`
+8. Ganti payment code ke server-side `generate_payment_code()` di `PaymentUpload.tsx`
+9. Perbaiki validasi `canProceed()` di `BookingWizard.tsx`
+10. Perbaiki tampilan kamar di `BookingSuccess.tsx` untuk multi-tipe
+
+---
+
+## Detail Teknis per File
+
+| File | Perubahan |
+|------|-----------|
+| `src/components/booking/BookingWizard.tsx` | Tambah departure prices ke query, teruskan ke StepReviewDynamic, perbaiki validasi |
+| `src/components/booking/steps/StepReviewDynamic.tsx` | Terima departurePrices prop, gunakan untuk kalkulasi |
+| `src/pages/booking/BookingPage.tsx` | Hapus duplikasi header & back button |
+| `src/components/auth/ProtectedRoute.tsx` | Tambah `location.search` ke redirect URL |
+| `src/pages/customer/BookingDetail.tsx` | Implementasi upload KTP/Paspor |
+| `src/pages/customer/PaymentUpload.tsx` | Gunakan RPC `generate_payment_code` |
+| `src/pages/booking/BookingSuccess.tsx` | Tampilkan breakdown kamar multi-tipe |
+
+Total: **7 file** yang perlu diubah, **0 migrasi database** (semua fix di frontend).
