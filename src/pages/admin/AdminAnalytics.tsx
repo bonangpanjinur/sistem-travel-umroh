@@ -88,6 +88,7 @@ export default function AdminAnalytics() {
       const monthEnd = endOfMonth(month);
       
       const monthBookings = bookings.filter(b => {
+        if (!b.created_at) return false;
         const date = parseISO(b.created_at);
         return date >= monthStart && date <= monthEnd;
       });
