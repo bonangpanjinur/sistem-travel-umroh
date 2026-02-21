@@ -41,6 +41,10 @@ export default function BookingSuccess() {
             departure_date,
             return_date,
             package:packages(name)
+          ),
+          booking_passengers(
+            id,
+            room_preference
           )
         `)
         .eq('id', bookingId)
@@ -136,7 +140,18 @@ export default function BookingSuccess() {
               <div>
                 <p className="font-medium">{booking.total_pax} Jamaah</p>
                 <p className="text-sm text-muted-foreground">
-                  Kamar {booking.room_type.charAt(0).toUpperCase() + booking.room_type.slice(1)}
+                  {(() => {
+                    const passengers = (booking as any).booking_passengers || [];
+                    const roomCounts: Record<string, number> = {};
+                    passengers.forEach((p: any) => {
+                      const rt = p.room_preference || booking.room_type;
+                      roomCounts[rt] = (roomCounts[rt] || 0) + 1;
+                    });
+                    const parts = Object.entries(roomCounts).map(
+                      ([type, count]) => `${count} ${type.charAt(0).toUpperCase() + type.slice(1)}`
+                    );
+                    return parts.length > 0 ? parts.join(', ') : `Kamar ${booking.room_type.charAt(0).toUpperCase() + booking.room_type.slice(1)}`;
+                  })()}
                 </p>
               </div>
             </div>

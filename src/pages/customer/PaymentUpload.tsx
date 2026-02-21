@@ -107,8 +107,11 @@ export default function PaymentUpload() {
         .from('payment-proofs')
         .getPublicUrl(filePath);
 
-      // 2. Create payment record
-      const paymentCode = `PAY${Date.now().toString(36).toUpperCase()}`;
+      // 2. Generate payment code server-side
+      const { data: paymentCode, error: rpcError } = await supabase.rpc('generate_payment_code');
+      if (rpcError || !paymentCode) {
+        throw new Error('Gagal membuat kode pembayaran');
+      }
       
       const { error: paymentError } = await supabase
         .from('payments')

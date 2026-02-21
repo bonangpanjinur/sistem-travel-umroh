@@ -64,7 +64,7 @@ export function BookingWizard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('departures')
-        .select('id, departure_date, return_date, flight_number')
+        .select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single')
         .eq('id', initialDepartureId)
         .single();
       if (error) throw error;
@@ -123,7 +123,7 @@ export function BookingWizard() {
           <p className="text-muted-foreground mb-6">
             Silakan login terlebih dahulu untuk melanjutkan pemesanan.
           </p>
-          <Button onClick={() => navigate(`/auth/login?redirect=/booking/${packageId}`)}>
+          <Button onClick={() => navigate(`/auth/login?redirect=${encodeURIComponent(`/booking/${packageId}${window.location.search}`)}`)}>
             Login Sekarang
           </Button>
         </CardContent>
@@ -216,6 +216,12 @@ export function BookingWizard() {
               formData={formData}
               packageInfo={packageInfo}
               departureInfo={departureInfo}
+              departurePrices={departureInfo ? {
+                price_quad: departureInfo.price_quad ?? packageInfo.price_quad,
+                price_triple: departureInfo.price_triple ?? packageInfo.price_triple,
+                price_double: departureInfo.price_double ?? packageInfo.price_double,
+                price_single: departureInfo.price_single ?? packageInfo.price_single,
+              } : undefined}
             />
           )}
         </CardContent>
@@ -255,8 +261,12 @@ export function BookingWizard() {
 function canProceed(step: BookingStep, formData: any): boolean {
   switch (step) {
     case 'passengers':
-      return formData.passengers.length > 0 && 
-        formData.passengers.every((p: any) => p.fullName?.trim());
+      if (formData.passengers.length === 0) return false;
+      // All passengers must have name >= 3 chars
+      const allNamesValid = formData.passengers.every((p: any) => p.fullName?.trim()?.length >= 3);
+      // At least 1 adult passenger
+      const hasAdult = formData.passengers.some((p: any) => p.passengerType === 'adult');
+      return allNamesValid && hasAdult;
     case 'review':
       return true;
     default:

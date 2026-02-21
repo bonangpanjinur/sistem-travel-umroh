@@ -148,7 +148,7 @@ export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
 
   const handleProceed = () => {
     if (!user) {
-      navigate(`/auth/login?redirect=/packages/${packageId}`);
+      navigate(`/auth/login?redirect=${encodeURIComponent(`/packages/${packageId}`)}`);
       return;
     }
 

@@ -32,7 +32,7 @@ export default function ProtectedRoute({
 
   // Check if authentication is required
   if (requireAuth && !user) {
-    return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+    return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
   // Check role-based access

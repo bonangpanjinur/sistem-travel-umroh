@@ -24,6 +24,12 @@ interface StepReviewDynamicProps {
     return_date: string;
     flight_number?: string | null;
   } | null;
+  departurePrices?: {
+    price_quad: number;
+    price_triple: number;
+    price_double: number;
+    price_single: number;
+  };
 }
 
 const ROOM_LABELS: Record<RoomType, string> = {
@@ -33,12 +39,14 @@ const ROOM_LABELS: Record<RoomType, string> = {
   single: 'Single',
 };
 
-export function StepReviewDynamic({ formData, packageInfo, departureInfo }: StepReviewDynamicProps) {
+export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices }: StepReviewDynamicProps) {
+  // Use departure prices (if available), fallback to package prices
+  const priceSource = departurePrices || packageInfo;
   const priceMap: Record<RoomType, number> = {
-    quad: packageInfo.price_quad,
-    triple: packageInfo.price_triple,
-    double: packageInfo.price_double,
-    single: packageInfo.price_single,
+    quad: priceSource.price_quad,
+    triple: priceSource.price_triple,
+    double: priceSource.price_double,
+    single: priceSource.price_single,
   };
 
   // Calculate price breakdown by room type
