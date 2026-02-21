@@ -1,5 +1,6 @@
+import { useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -14,7 +15,7 @@ import { id } from "date-fns/locale";
 import { 
   ArrowLeft, Calendar, CreditCard, Users, User,
   Plane, Hotel, Clock, CheckCircle, Upload,
-  AlertCircle, FileText, CheckCircle2, Circle
+  AlertCircle, FileText, CheckCircle2, Circle, Loader2
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -23,10 +24,15 @@ import {
   AlertTitle 
 } from "@/components/ui/alert";
 import { differenceInHours, parseISO } from "date-fns";
+import { toast } from "sonner";
 
 export default function BookingDetail() {
   const { bookingId } = useParams();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const ktpInputRef = useRef<HTMLInputElement>(null);
+  const passportInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking-detail', bookingId],
@@ -52,7 +58,7 @@ export default function BookingDetail() {
             id,
             passenger_type,
             is_main_passenger,
-            customer:customers(full_name, passport_number, gender)
+            customer:customers(id, full_name, passport_number, gender)
           )
         `)
         .eq('id', bookingId)
@@ -94,6 +100,79 @@ export default function BookingDetail() {
       return data;
     },
   });
+
+  // Fetch customer's documents
+  const mainPassenger = (booking?.booking_passengers as any[])?.find((bp: any) => bp.is_main_passenger);
+  const customerId = mainPassenger?.customer?.id;
+
+  const { data: customerDocs } = useQuery({
+    queryKey: ['customer-docs', customerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_documents')
+        .select('*, document_type:document_types(code, name)')
+        .eq('customer_id', customerId!);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!customerId,
+  });
+
+  const handleDocUpload = async (file: File, docTypeCode: string) => {
+    if (!user || !customerId) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5MB');
+      return;
+    }
+
+    setUploadingDoc(docTypeCode);
+    try {
+      // Get document type ID
+      const { data: docType } = await supabase
+        .from('document_types')
+        .select('id')
+        .eq('code', docTypeCode)
+        .single();
+
+      if (!docType) {
+        toast.error('Tipe dokumen tidak ditemukan');
+        return;
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${customerId}/${docTypeCode}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('customer-documents')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('customer-documents')
+        .getPublicUrl(filePath);
+
+      // Upsert document record
+      const { error: dbError } = await supabase
+        .from('customer_documents')
+        .insert({
+          customer_id: customerId,
+          document_type_id: docType.id,
+          file_url: publicUrl,
+          file_name: file.name,
+          status: 'pending',
+        });
+
+      if (dbError) throw dbError;
+
+      toast.success(`${docTypeCode === 'KTP' ? 'KTP' : 'Paspor'} berhasil diupload!`);
+      queryClient.invalidateQueries({ queryKey: ['customer-docs', customerId] });
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal mengupload dokumen');
+    } finally {
+      setUploadingDoc(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -353,30 +432,81 @@ export default function BookingDetail() {
                   Lengkapi dokumen perjalanan Anda untuk mempercepat proses verifikasi.
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {/* KTP Upload */}
                   <div className="p-4 border border-dashed rounded-lg flex flex-col items-center justify-center text-center gap-2">
                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      {customerDocs?.some((d: any) => d.document_type?.code === 'KTP') ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      )}
                     </div>
                     <div>
                       <p className="font-medium text-sm">Kartu Tanda Penduduk (KTP)</p>
                       <p className="text-xs text-muted-foreground">PDF, JPG (Maks 5MB)</p>
                     </div>
-                    <Button variant="outline" size="sm" className="w-full mt-2">
-                      <Upload className="h-3 w-3 mr-2" />
-                      Upload KTP
+                    <input
+                      ref={ktpInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleDocUpload(file, 'KTP');
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      disabled={uploadingDoc === 'KTP'}
+                      onClick={() => ktpInputRef.current?.click()}
+                    >
+                      {uploadingDoc === 'KTP' ? (
+                        <><Loader2 className="h-3 w-3 mr-2 animate-spin" />Uploading...</>
+                      ) : (
+                        <><Upload className="h-3 w-3 mr-2" />{customerDocs?.some((d: any) => d.document_type?.code === 'KTP') ? 'Ganti KTP' : 'Upload KTP'}</>
+                      )}
                     </Button>
                   </div>
+
+                  {/* Passport Upload */}
                   <div className="p-4 border border-dashed rounded-lg flex flex-col items-center justify-center text-center gap-2">
                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      {customerDocs?.some((d: any) => d.document_type?.code === 'PASSPORT') ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      )}
                     </div>
                     <div>
                       <p className="font-medium text-sm">Paspor</p>
                       <p className="text-xs text-muted-foreground">PDF, JPG (Maks 5MB)</p>
                     </div>
-                    <Button variant="outline" size="sm" className="w-full mt-2">
-                      <Upload className="h-3 w-3 mr-2" />
-                      Upload Paspor
+                    <input
+                      ref={passportInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleDocUpload(file, 'PASSPORT');
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      disabled={uploadingDoc === 'PASSPORT'}
+                      onClick={() => passportInputRef.current?.click()}
+                    >
+                      {uploadingDoc === 'PASSPORT' ? (
+                        <><Loader2 className="h-3 w-3 mr-2 animate-spin" />Uploading...</>
+                      ) : (
+                        <><Upload className="h-3 w-3 mr-2" />{customerDocs?.some((d: any) => d.document_type?.code === 'PASSPORT') ? 'Ganti Paspor' : 'Upload Paspor'}</>
+                      )}
                     </Button>
                   </div>
                 </div>
