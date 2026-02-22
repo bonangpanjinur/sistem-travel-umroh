@@ -64,7 +64,7 @@ export function LiveLocationShare({
   const saveLocation = async (loc: LocationData) => {
     try {
       const { error } = await supabase
-        .from("jamaah_live_locations" as any)
+        .from("jamaah_live_locations")
         .upsert({
           customer_id: customerId,
           departure_id: departureId,

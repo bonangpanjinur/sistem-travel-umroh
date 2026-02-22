@@ -22,6 +22,7 @@ import { formatCurrency } from "@/lib/format";
 import { SOSButton } from "@/components/jamaah/SOSButton";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
 import { useNotifications } from "@/hooks/useNotifications";
+import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -426,27 +427,7 @@ export default function JamaahPortal() {
         </Card>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t py-2 px-4">
-        <div className="flex justify-around">
-          <Link to="/jamaah" className="flex flex-col items-center text-primary">
-            <Home className="h-5 w-5" />
-            <span className="text-xs">Beranda</span>
-          </Link>
-          <Link to="/jamaah/digital-id" className="flex flex-col items-center text-muted-foreground hover:text-primary">
-            <QrCode className="h-5 w-5" />
-            <span className="text-xs">ID</span>
-          </Link>
-          <Link to="/jamaah/itinerary" className="flex flex-col items-center text-muted-foreground hover:text-primary">
-            <MapPin className="h-5 w-5" />
-            <span className="text-xs">Itinerary</span>
-          </Link>
-          <Link to="/settings" className="flex flex-col items-center text-muted-foreground hover:text-primary">
-            <User className="h-5 w-5" />
-            <span className="text-xs">Profil</span>
-          </Link>
-        </div>
-      </div>
+      <JamaahBottomNav />
     </div>
   );
 }

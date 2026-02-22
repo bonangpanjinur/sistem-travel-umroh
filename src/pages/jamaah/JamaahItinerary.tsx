@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MapPin, Clock, Calendar, Plane, QrCode, User, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { format, addDays, isToday, isBefore, isAfter } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -254,27 +255,7 @@ export default function JamaahItinerary() {
         )}
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t py-2 px-4">
-        <div className="flex justify-around">
-          <Link to="/jamaah" className="flex flex-col items-center text-muted-foreground hover:text-primary">
-            <Plane className="h-5 w-5" />
-            <span className="text-xs">Beranda</span>
-          </Link>
-          <Link to="/jamaah/digital-id" className="flex flex-col items-center text-muted-foreground hover:text-primary">
-            <QrCode className="h-5 w-5" />
-            <span className="text-xs">ID</span>
-          </Link>
-          <Link to="/jamaah/itinerary" className="flex flex-col items-center text-primary">
-            <Calendar className="h-5 w-5" />
-            <span className="text-xs">Itinerary</span>
-          </Link>
-          <Link to="/settings" className="flex flex-col items-center text-muted-foreground hover:text-primary">
-            <User className="h-5 w-5" />
-            <span className="text-xs">Profil</span>
-          </Link>
-        </div>
-      </div>
+      <JamaahBottomNav />
     </div>
   );
 }

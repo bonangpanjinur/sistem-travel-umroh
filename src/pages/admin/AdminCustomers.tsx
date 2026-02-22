@@ -62,6 +62,9 @@ export default function AdminCustomers() {
     },
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+
   const filteredCustomers = customers?.filter(customer => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
@@ -185,7 +188,9 @@ export default function AdminCustomers() {
             />
           ) : (
             <div className="divide-y">
-              {filteredCustomers.map((customer) => {
+              {filteredCustomers
+                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                .map((customer) => {
                 const bookingCount = bookingCounts?.[customer.id] || 0;
                 const docInfo = documentCounts?.[customer.id];
                 
@@ -268,6 +273,36 @@ export default function AdminCustomers() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {filteredCustomers && filteredCustomers.length > pageSize && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Menampilkan {Math.min((currentPage - 1) * pageSize + 1, filteredCustomers.length)}-{Math.min(currentPage * pageSize, filteredCustomers.length)} dari {filteredCustomers.length} jamaah
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Sebelumnya
+            </Button>
+            <span className="text-sm font-medium">
+              {currentPage} / {Math.ceil(filteredCustomers.length / pageSize)}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(Math.ceil((filteredCustomers?.length || 0) / pageSize), p + 1))}
+              disabled={currentPage >= Math.ceil((filteredCustomers?.length || 0) / pageSize)}
+            >
+              Berikutnya
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

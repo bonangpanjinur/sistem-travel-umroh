@@ -165,6 +165,12 @@ export default function CustomerDashboard() {
                 <div className="space-y-3">
                   {[1, 2].map(i => <Skeleton key={i} className="h-16 w-full" />)}
                 </div>
+              ) : !customer ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="font-medium">Profil jamaah belum terdaftar</p>
+                  <p className="text-sm mt-1">Hubungi admin untuk mendaftarkan data jamaah Anda</p>
+                </div>
               ) : !bookings || bookings.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
