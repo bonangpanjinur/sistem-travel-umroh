@@ -14,6 +14,7 @@ import {
   Download, Check
 } from "lucide-react";
 import { toast } from "sonner";
+import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 
 interface OfflineContent {
   id: string;
@@ -152,7 +153,7 @@ export default function JamaahDoaPanduan() {
   const hasCachedData = Object.keys(cachedData).length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
         <div className="flex items-center justify-between">
@@ -323,13 +324,15 @@ export default function JamaahDoaPanduan() {
           </TabsContent>
         </Tabs>
 
-        {/* Sync info */}
+      {/* Sync info */}
         {lastSync && (
           <p className="text-xs text-center text-muted-foreground">
             Terakhir disinkron: {new Date(lastSync).toLocaleString("id-ID")}
           </p>
         )}
       </div>
+
+      <JamaahBottomNav />
     </div>
   );
 }
