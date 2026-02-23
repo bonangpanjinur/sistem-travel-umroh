@@ -263,7 +263,7 @@ export default function JamaahPortal() {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
           <Link to="/my-bookings">
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
               <CreditCard className="h-6 w-6 mx-auto mb-1 text-primary" />
@@ -280,6 +280,12 @@ export default function JamaahPortal() {
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
               <MapPin className="h-6 w-6 mx-auto mb-1 text-primary" />
               <p className="text-xs">Itinerary</p>
+            </Card>
+          </Link>
+          <Link to="/faq">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <FileText className="h-6 w-6 mx-auto mb-1 text-primary" />
+              <p className="text-xs">FAQ</p>
             </Card>
           </Link>
           <Link to="/jamaah/documents">

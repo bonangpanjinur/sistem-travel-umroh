@@ -16,8 +16,10 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { 
   TrendingUp, TrendingDown, DollarSign, Receipt, 
-  Plane, Plus, AlertTriangle, CheckCircle2 
+  Plane, Plus, AlertTriangle, CheckCircle2,
+  FileText, Loader2
 } from "lucide-react";
+import { exportToPDF } from "@/lib/export-utils";
 
 const COST_TYPES = [
   { value: 'ACCOMMODATION', label: 'Akomodasi Hotel' },
@@ -214,6 +216,45 @@ export default function AdminFinancePL() {
   const totalRevenue = departures?.reduce((sum, d) => sum + d.totalRevenue, 0) || 0;
   const totalCost = departures?.reduce((sum, d) => sum + d.totalCost, 0) || 0;
   const totalProfit = totalRevenue - totalCost;
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPL = async (e: React.MouseEvent, dep: DeparturePL) => {
+    e.stopPropagation();
+    setIsExporting(true);
+    try {
+      const filename = `Laba_Rugi_${dep.package?.code || 'DEP'}_${format(new Date(dep.departure_date), 'yyyyMMdd')}`;
+      const title = `Laporan Laba Rugi per Keberangkatan`;
+      const subtitle = `${dep.package?.name} (${format(new Date(dep.departure_date), 'd MMM yyyy', { locale: localeId })})`;
+
+      const columns = [
+        { header: 'Kategori', accessor: 'category', width: 40 },
+        { header: 'Keterangan', accessor: 'description', width: 60 },
+        { header: 'Jumlah', accessor: 'amount', width: 30 },
+      ];
+
+      const data = [
+        { category: 'PENDAPATAN', description: 'Total Revenue (Booking)', amount: formatCurrency(dep.totalRevenue) },
+        { category: '', description: '', amount: '' },
+        { category: 'BIAYA VENDOR', description: '', amount: '' },
+        ...dep.costs.map(c => ({
+          category: '',
+          description: `${COST_TYPES.find(t => t.value === c.cost_type)?.label || c.cost_type} - ${c.vendor?.name || 'Vendor'}`,
+          amount: formatCurrency(c.amount)
+        })),
+        { category: '', description: 'Total Biaya', amount: formatCurrency(dep.totalCost) },
+        { category: '', description: '', amount: '' },
+        { category: 'RINGKASAN', description: 'Laba/Rugi Kotor', amount: formatCurrency(dep.profit) },
+        { category: '', description: 'Margin Profit', amount: `${dep.profitMargin.toFixed(2)}%` },
+      ];
+
+      exportToPDF(data, columns, filename, title, subtitle);
+      toast.success('Laporan PDF berhasil diunduh');
+    } catch (error) {
+      toast.error('Gagal mengekspor PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Upcoming payments
   const upcomingPayments = departures?.flatMap(d => 
@@ -317,9 +358,21 @@ export default function AdminFinancePL() {
                             {format(new Date(dep.departure_date), "dd MMM yyyy", { locale: localeId })}
                           </p>
                         </div>
-                        <Badge variant={dep.profit >= 0 ? "default" : "destructive"}>
-                          {dep.profit >= 0 ? '+' : ''}{formatCurrency(dep.profit)}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8"
+                            onClick={(e) => handleExportPL(e, dep)}
+                            disabled={isExporting}
+                          >
+                            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 mr-1" />}
+                            PDF
+                          </Button>
+                          <Badge variant={dep.profit >= 0 ? "default" : "destructive"}>
+                            {dep.profit >= 0 ? '+' : ''}{formatCurrency(dep.profit)}
+                          </Badge>
+                        </div>
                       </div>
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
