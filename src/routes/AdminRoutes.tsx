@@ -48,6 +48,7 @@ const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
 const AdminStaticPages = lazy(() => import("@/pages/admin/AdminStaticPages"));
 const AdminTestimonials = lazy(() => import("@/pages/admin/AdminTestimonials"));
 const AdminBookingCreate = lazy(() => import("@/pages/admin/AdminBookingCreate"));
+const AdminMarketingMaterials = lazy(() => import("@/pages/admin/AdminMarketingMaterials"));
 
 const ADMIN_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment'] as const;
 
@@ -105,6 +106,7 @@ export default function AdminRoutes() {
       <Route path="security" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
       <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
       <Route path="whatsapp" element={<LazyPage><AdminWhatsApp /></LazyPage>} />
+      <Route path="marketing-materials" element={<LazyPage><AdminMarketingMaterials /></LazyPage>} />
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />
       <Route path="static-pages" element={<LazyPage><AdminStaticPages /></LazyPage>} />
       <Route path="testimonials" element={<LazyPage><AdminTestimonials /></LazyPage>} />

@@ -76,10 +76,11 @@ const NAV_GROUPS = [
   },
   {
     label: 'Support & Komunikasi',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'marketing'],
     items: [
       { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support' },
       { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp' },
+      { label: 'Materi Promosi', icon: FileText, path: '/admin/marketing-materials' },
     ]
   },
   {
