@@ -6,7 +6,19 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ---
 
-## ADMIN PANEL - Status: 90% Lengkap
+## FITUR YANG SUDAH DISELESAIKAN (Update Terbaru)
+
+| No | Fitur / Bug Fix | Status | Lokasi |
+|---|---|---|---|
+| 1 | Fix redirect `/login` ke `/auth/login` | ✅ Selesai | `AgentLayout.tsx` |
+| 2 | Tambah link Document Verification ke sidebar | ✅ Selesai | `AdminLayout.tsx` |
+| 3 | Terjemahkan status booking di AgentDashboard | ✅ Selesai | `AgentDashboard.tsx` |
+| 4 | Filter cabang di Dashboard untuk Branch Manager | ✅ Selesai | `AdminDashboard.tsx` |
+| 5 | Notifikasi otomatis saat status komisi berubah | ✅ Selesai | Database Trigger |
+
+---
+
+## ADMIN PANEL - Status: 92% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -29,11 +41,11 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Dashboard tidak filter per cabang** - Branch Manager melihat data semua cabang, bukan hanya cabangnya
-2. **Tidak ada Audit Log viewer** - Tabel `audit_logs` ada di database, tapi tidak ada UI untuk melihatnya di admin panel
-3. **Belum ada notifikasi WhatsApp otomatis** - Halaman WhatsApp ada, tapi belum terintegrasi dengan event sistem (booking baru, payment verified, dll)
-4. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman
-5. **Tidak ada halaman verifikasi dokumen khusus** - `AdminDocumentVerification.tsx` ada tapi tidak terdaftar di sidebar (hanya ada di route)
+1. **Dashboard Super Admin tidak bisa pilih cabang** - Super Admin melihat total global, tapi belum ada dropdown untuk melihat dashboard cabang spesifik tanpa login sebagai branch manager.
+2. **Tidak ada Audit Log viewer** - Tabel `audit_logs` ada di database, tapi tidak ada UI untuk melihatnya di admin panel.
+3. **Belum ada notifikasi WhatsApp otomatis** - Halaman WhatsApp ada, tapi belum terintegrasi dengan event sistem (booking baru, payment verified, dll).
+4. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman.
+5. **Type Safety** - Masih banyak penggunaan `as any` di beberapa komponen admin yang perlu diperbaiki untuk kestabilan jangka panjang.
 
 ---
 
@@ -48,11 +60,10 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### Fitur yang Kurang
 
-1. **Branch Manager tidak bisa kelola staff cabangnya** - Sidebar "Karyawan" ada, tapi tidak ada filter per cabang di halaman HR
-2. **Dashboard cabang tidak ada** - Branch Manager melihat dashboard global, bukan ringkasan cabangnya sendiri
-3. **Laporan per cabang belum tersedia** - Reports menampilkan data global
-4. **Tidak ada fitur transfer jamaah antar cabang**
-  &nbsp;
+1. **Branch Manager tidak bisa kelola staff cabangnya** - Sidebar "Karyawan" ada, tapi tidak ada filter per cabang di halaman HR.
+2. **Laporan per cabang belum tersedia** - Reports menampilkan data global.
+3. **Tidak ada fitur transfer jamaah antar cabang**.
+4. **Manifest Generator** - Belum ada fitur untuk generate manifest jamaah per cabang untuk keperluan operasional.
 
 ---
 
@@ -71,11 +82,10 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### Fitur yang Kurang
 
-1. **Agen tidak bisa lihat status pembayaran jamaahnya** - Hanya lihat booking_status, bukan progress pembayaran
-2. **Tidak ada notifikasi untuk agen** - Saat komisi disetujui atau booking berubah status, agen tidak mendapat notifikasi
-3. **Daftarkan jamaah hanya 1 orang per booking** - Tidak bisa mendaftarkan rombongan (multiple passengers)
-4. **Tidak ada fitur download materi promosi** - Brosur digital, flyer, dll
-5. **AgentLayout redirect ke `/login` bukan `/auth/login**` - Bug: halaman login ada di `/auth/login`, tapi redirect ke `/login` (404)
+1. **Agen tidak bisa lihat status pembayaran jamaahnya** - Hanya lihat booking_status, bukan progress pembayaran.
+2. **Tidak ada notifikasi sistem untuk agen** - Selain komisi, agen belum mendapat notifikasi saat booking berubah status (misal: dokumen ditolak).
+3. **Daftarkan jamaah hanya 1 orang per booking** - Tidak bisa mendaftarkan rombongan (multiple passengers) sekaligus.
+4. **Tidak ada fitur download materi promosi** - Brosur digital, flyer, dll yang bisa di-share agen.
 
 ---
 
@@ -96,81 +106,58 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### Fitur yang Kurang
 
-1. **Tidak ada riwayat pembayaran di portal jamaah** - Jamaah hanya lihat total terbayar, bukan detail per transaksi
-2. **Kontak darurat masih hardcoded** - Nomor di JamaahPortal.tsx masih statis
-3. **Tidak ada feedback/rating perjalanan** - Setelah selesai umroh, jamaah tidak bisa memberi rating atau testimoni
-4. **Settings customer belum punya fitur edit foto profil**
-5. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll
+1. **Tidak ada riwayat pembayaran di portal jamaah** - Jamaah hanya lihat total terbayar, bukan detail per transaksi.
+2. **Kontak darurat masih hardcoded** - Nomor di JamaahPortal.tsx masih statis.
+3. **Tidak ada feedback/rating perjalanan** - Setelah selesai umroh, jamaah tidak bisa memberi rating atau testimoni.
+4. **Settings customer belum punya fitur edit foto profil**.
+5. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll.
 
 ---
 
-## BUG YANG DITEMUKAN
-
-### BUG KRITIS
-
-1. **AgentLayout redirect salah** (`src/pages/agent/AgentLayout.tsx` baris 31)
-  - Redirect ke `/login` padahal route login ada di `/auth/login`
-  - Efek: Agen yang belum login akan melihat halaman 404
+## BUG YANG DITEMUKAN (Tersisa)
 
 ### BUG MEDIUM
 
-2. **Sidebar "Dokumen & Surat" tidak punya link ke Document Verification**
-  - `AdminDocumentVerification.tsx` ada dan route terdaftar, tapi tidak ada di sidebar
-  - Halaman ini tidak bisa diakses kecuali tahu URL langsung
-3. **AgentWebsiteSettings menggunakan `as any` cast** (baris 28-30)
-  - Query `website_settings` di-cast ke `any` untuk menghindari type error
+1. **AgentWebsiteSettings menggunakan `as any` cast** (baris 28-30)
+  - Query `website_settings` di-cast ke `any` untuk menghindari type error.
 
 ### BUG RENDAH
 
-4. **AgentDashboard label "confirmed" tidak diterjemahkan** (baris 159)
-  - Menampilkan `booking_status` mentah ("confirmed") bukan label Indonesia ("Dikonfirmasi")
-5. **AgentCommissions menggunakan `as any` untuk booking data** (baris 161-164)
+2. **AgentCommissions menggunakan `as any` untuk booking data** (baris 161-164).
 
 ---
 
 ## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
 
-### Prioritas 1 - Bug Fix (Tidak merusak fitur lain)
+### Prioritas 1 - Fitur Operasional (Dampak Tinggi)
 
+| No | Fitur | File / Modul | Tujuan |
+|---|---|---|---|
+| 1 | Filter Cabang di Halaman Karyawan | `AdminHR.tsx` | Branch manager bisa kelola staff sendiri |
+| 2 | Detail Pembayaran di Portal Jamaah | `JamaahBookings.tsx` | Jamaah tahu transaksi mana yang sudah diverifikasi |
+| 3 | Dynamic Emergency Contact | `JamaahPortal.tsx` | Ambil nomor dari `company_settings` |
+| 4 | Manifest & Rooming List Generator | `AdminOperations.tsx` | Memudahkan operasional keberangkatan |
 
-| No  | Fix                                          | File                 | Perubahan                             |
-| --- | -------------------------------------------- | -------------------- | ------------------------------------- |
-| 1   | Fix redirect `/login` ke `/auth/login`       | `AgentLayout.tsx`    | Ubah baris 31                         |
-| 2   | Tambah link Document Verification ke sidebar | `AdminLayout.tsx`    | Tambah item di grup "Dokumen & Surat" |
-| 3   | Terjemahkan status booking di AgentDashboard | `AgentDashboard.tsx` | Gunakan `BOOKING_STATUS_LABELS`       |
+### Prioritas 2 - Pengembangan Agen & Sales
 
+| No | Fitur | Effort |
+|---|---|---|
+| 5 | Registrasi jamaah rombongan (multi-passenger) | Tinggi |
+| 6 | Download materi promosi (Digital Kit) | Sedang |
+| 7 | Integrasi Notifikasi WhatsApp Otomatis | Tinggi |
 
-### Prioritas 2 - Fitur Penting (Dampak tinggi, effort rendah)
+### Prioritas 3 - User Experience & Branding
 
-
-| No  | Fitur                                                  | File                 | Perubahan                     |
-| --- | ------------------------------------------------------ | -------------------- | ----------------------------- |
-| 4   | Tambah filter cabang di Dashboard untuk Branch Manager | `AdminDashboard.tsx` | Filter stats by branch_id     |
-| 5   | Tambah notifikasi agen saat komisi berubah             | Trigger database     | Insert ke tabel notifications |
-
-
-### Prioritas 3 - Nice to Have (Effort tinggi)
-
-
-| No  | Fitur                                                    | Effort |
-| --- | -------------------------------------------------------- | ------ |
-| 6   | Dashboard khusus per cabang                              | Sedang |
-| 7   | Registrasi jamaah rombongan (multi-passenger) untuk agen | Tinggi |
-| 8   | Riwayat pembayaran detail di portal jamaah               | Sedang |
-| 9   | Rating/feedback setelah perjalanan                       | Sedang |
-| 10  | Kontak darurat dari company_settings                     | Rendah |
-
+| No | Fitur | Effort |
+|---|---|---|
+| 8 | Rating/feedback setelah perjalanan | Sedang |
+| 9 | Edit Foto Profil Jamaah | Rendah |
+| 10 | Audit Log Viewer untuk Super Admin | Sedang |
 
 ---
 
 ## REKOMENDASI IMPLEMENTASI SEGERA
 
-Saya merekomendasikan untuk segera memperbaiki **3 bug** di Prioritas 1 karena:
+Saya merekomendasikan untuk fokus pada **Prioritas 1** karena fitur-fitur tersebut sangat krusial untuk operasional harian cabang dan kepercayaan jamaah terhadap status pembayaran mereka.
 
-- Effort sangat kecil (masing-masing hanya 1-3 baris)
-- Tidak ada risiko merusak fitur lain
-- Memperbaiki pengalaman pengguna langsung
-
-**Total: 3 file diubah, 0 file baru, 0 migrasi database**
-
-Apakah Anda ingin saya lanjutkan dengan perbaikan Prioritas 1 saja, atau termasuk Prioritas 2?
+**Apakah Anda ingin saya mulai mengerjakan salah satu dari Prioritas 1 di atas?**
