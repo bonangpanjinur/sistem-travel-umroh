@@ -49,7 +49,7 @@ const AdminStaticPages = lazy(() => import("@/pages/admin/AdminStaticPages"));
 const AdminTestimonials = lazy(() => import("@/pages/admin/AdminTestimonials"));
 const AdminBookingCreate = lazy(() => import("@/pages/admin/AdminBookingCreate"));
 
-const ADMIN_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing'] as const;
+const ADMIN_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment'] as const;
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
