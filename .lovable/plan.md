@@ -28,6 +28,9 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 16 | Edit Foto Profil Agen | ✅ Selesai | `AgentSettings.tsx` |
 | 17 | Edit Foto Profil Jamaah | ✅ Selesai | `ProfileForm.tsx` |
 | 18 | Laporan per Cabang (Filter Cabang di Reports) | ✅ Selesai | `AdminReports.tsx` |
+| 19 | Export PDF untuk Laba/Rugi | ✅ Selesai | `AdminFinancePL.tsx` |
+| 20 | Rating/Feedback setelah perjalanan | ✅ Selesai | `JamaahFeedback.tsx` |
+| 21 | FAQ/Panduan Umum untuk Jamaah | ✅ Selesai | `JamaahPortal.tsx` |
 
 ---
 
@@ -55,11 +58,11 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Verifikasi Dokumen** (Link di sidebar admin)
 - **Notifikasi WhatsApp Otomatis** (Booking, Payment, Document, Commission)
 - **Audit Log Viewer** - Tersedia di halaman Security Audit untuk memantau aktivitas sistem.
+- **Export PDF untuk Laba/Rugi** - Tombol export PDF tersedia di setiap keberangkatan di halaman P&L.
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export baru tersedia di laporan umum, belum ada di detail P&L per keberangkatan.
-2. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
+1. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
 
 ---
 
@@ -84,6 +87,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ## AGEN (Agent Portal) - Status: 100% Lengkap
 
+
 ### Fitur yang Sudah Ada
 - Dashboard dengan statistik komisi (Status booking sudah diterjemahkan)
 - Daftarkan jamaah baru (booking + customer + komisi otomatis)
@@ -101,7 +105,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ---
 
-## JAMAAH (Customer/Jamaah Portal) - Status: 95% Lengkap
+## JAMAAH (Customer/Jamaah Portal) - Status: 100% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -118,11 +122,8 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Riwayat pembayaran detail per transaksi**
 - **Kontak darurat dinamis dari sistem**
 - **Edit foto profil jamaah** - Sudah diimplementasikan di Profile Form.
-
-### Fitur yang Kurang
-
-1. **Tidak ada feedback/rating perjalanan** - Setelah selesai umroh, jamaah tidak bisa memberi rating atau testimoni.
-2. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll.
+- **Rating/Feedback setelah perjalanan** - Jamaah dapat memberikan rating dan testimoni setelah perjalanan selesai.
+- **FAQ/Panduan Umum** - Link FAQ tersedia di dashboard Jamaah Portal untuk akses mudah ke informasi umum.
 
 ---
 
@@ -141,16 +142,35 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
 
-### Prioritas 2 - User Experience & Branding
+### Prioritas 2 - User Experience & Branding (✅ SELESAI)
 
-| No | Fitur | Effort | Tujuan |
-|---|---|---|---|
-| 1 | Rating/feedback setelah perjalanan | Sedang | Mendapatkan testimoni & evaluasi layanan |
-| 2 | Export PDF untuk Laba/Rugi | Rendah | Memudahkan pelaporan keuangan per keberangkatan |
-| 3 | FAQ/Panduan Umum untuk Jamaah | Rendah | Mengurangi beban support dengan informasi mandiri |
+| No | Fitur | Effort | Status | Lokasi |
+|---|---|---|---|---|
+| 1 | Rating/feedback setelah perjalanan | Sedang | ✅ Selesai | `JamaahFeedback.tsx` |
+| 2 | Export PDF untuk Laba/Rugi | Rendah | ✅ Selesai | `AdminFinancePL.tsx` |
+| 3 | FAQ/Panduan Umum untuk Jamaah | Rendah | ✅ Selesai | `JamaahPortal.tsx` |
+
+**Deskripsi Implementasi:**
+- **Rating/Feedback**: Halaman `JamaahFeedback.tsx` memungkinkan jamaah memberikan rating bintang (1-5) dan feedback tekstual setelah perjalanan selesai. Feedback dapat disimpan dan ditampilkan sebagai testimoni di website.
+- **Export PDF P&L**: Tombol "Export PDF" ditambahkan ke setiap keberangkatan di halaman `AdminFinancePL.tsx`. PDF berisi breakdown lengkap revenue, vendor costs, dan profit margins.
+- **FAQ Link**: Link FAQ ditambahkan ke quick actions di `JamaahPortal.tsx` untuk memudahkan jamaah mengakses informasi umum tentang proses umroh, dokumen, dan pertanyaan lainnya.
 
 ---
 
 ## REKOMENDASI IMPLEMENTASI SEGERA
 
-Setelah menyelesaikan sebagian besar fitur di **Prioritas 2**, fokus selanjutnya adalah menyempurnakan **Type Safety** di seluruh aplikasi untuk mencegah runtime error dan mempermudah maintenance jangka panjang.
+### Prioritas 3 - Type Safety & Code Quality
+
+**Fokus:** Menyempurnakan **Type Safety** di seluruh aplikasi untuk mencegah runtime error dan mempermudah maintenance jangka panjang.
+
+#### Komponen yang Perlu Diperbaiki:
+
+1. **AgentWebsiteSettings.tsx** - Menghilangkan `as any` cast pada query `website_settings` dan update operations
+2. **AgentCommissions.tsx** - Menghilangkan `as any` untuk booking data
+3. **AdminFinancePL.tsx** - Menambahkan proper typing untuk vendor dan cost data
+
+#### Benefit:
+- Mengurangi runtime error
+- Meningkatkan IDE autocomplete
+- Mempermudah refactoring di masa depan
+- Meningkatkan maintainability kode
