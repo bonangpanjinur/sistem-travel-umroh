@@ -34,12 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           // Use deferred fetch to avoid Supabase auth deadlock
+          // setIsLoading(false) will be called in fetchUserData's finally block
           fetchUserData(session.user.id);
         } else {
           setProfile(null);
           setRoles([]);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
