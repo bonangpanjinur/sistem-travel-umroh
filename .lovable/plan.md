@@ -31,6 +31,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 19 | Export PDF untuk Laba/Rugi | ✅ Selesai | `AdminFinancePL.tsx` |
 | 20 | Rating/Feedback setelah perjalanan | ✅ Selesai | `JamaahFeedback.tsx` |
 | 21 | FAQ/Panduan Umum untuk Jamaah | ✅ Selesai | `JamaahPortal.tsx` |
+| 22 | Perbaikan Type Safety di Komponen Utama | ✅ Selesai | `AgentWebsiteSettings.tsx`, `AgentCommissions.tsx`, `AdminFinancePL.tsx` |
 
 ---
 
@@ -59,10 +60,11 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Notifikasi WhatsApp Otomatis** (Booking, Payment, Document, Commission)
 - **Audit Log Viewer** - Tersedia di halaman Security Audit untuk memantau aktivitas sistem.
 - **Export PDF untuk Laba/Rugi** - Tombol export PDF tersedia di setiap keberangkatan di halaman P&L.
+- **Peningkatan Type Safety** - Refactoring pada `AdminFinancePL.tsx` untuk mengurangi penggunaan `as any`.
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
+1. **Type Safety Lanjutan** - Masih terdapat penggunaan `as any` di berbagai komponen pendukung (sekitar 200+ lokasi) yang perlu dibersihkan secara bertahap.
 
 ---
 
@@ -80,7 +82,6 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Laporan per cabang** - Sudah tersedia filter cabang di halaman Reports.
 
 ### Fitur yang Kurang
-
 1. **Tidak ada fitur transfer jamaah antar cabang**.
 
 ---
@@ -102,6 +103,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Progress Pembayaran Jamaah** - Visual progress bar per jamaah.
 - **Sistem Notifikasi Agen** - Notifikasi real-time untuk dokumen & status booking.
 - **Edit foto profil agen** - Sudah diimplementasikan di halaman Agent Settings.
+- **Peningkatan Type Safety** - Refactoring pada `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`.
 
 ---
 
@@ -129,48 +131,31 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ## BUG YANG DITEMUKAN (Tersisa)
 
-### BUG MEDIUM
-
-1. **AgentWebsiteSettings menggunakan `as any` cast**
-  - Query `website_settings` dan beberapa update masih menggunakan `as any`.
-
 ### BUG RENDAH
 
-2. **AgentCommissions menggunakan `as any` untuk booking data**.
+1. **Penggunaan `as any` yang tersebar**
+  - Masih banyak komponen kecil yang menggunakan `as any` untuk casting data dari Supabase.
 
 ---
 
 ## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
 
-### Prioritas 2 - User Experience & Branding (✅ SELESAI)
-
-| No | Fitur | Effort | Status | Lokasi |
-|---|---|---|---|---|
-| 1 | Rating/feedback setelah perjalanan | Sedang | ✅ Selesai | `JamaahFeedback.tsx` |
-| 2 | Export PDF untuk Laba/Rugi | Rendah | ✅ Selesai | `AdminFinancePL.tsx` |
-| 3 | FAQ/Panduan Umum untuk Jamaah | Rendah | ✅ Selesai | `JamaahPortal.tsx` |
-
-**Deskripsi Implementasi:**
-- **Rating/Feedback**: Halaman `JamaahFeedback.tsx` memungkinkan jamaah memberikan rating bintang (1-5) dan feedback tekstual setelah perjalanan selesai. Feedback dapat disimpan dan ditampilkan sebagai testimoni di website.
-- **Export PDF P&L**: Tombol "Export PDF" ditambahkan ke setiap keberangkatan di halaman `AdminFinancePL.tsx`. PDF berisi breakdown lengkap revenue, vendor costs, dan profit margins.
-- **FAQ Link**: Link FAQ ditambahkan ke quick actions di `JamaahPortal.tsx` untuk memudahkan jamaah mengakses informasi umum tentang proses umroh, dokumen, dan pertanyaan lainnya.
-
----
-
-## REKOMENDASI IMPLEMENTASI SEGERA
-
-### Prioritas 3 - Type Safety & Code Quality
+### Prioritas 3 - Type Safety & Code Quality (Sedang Berjalan)
 
 **Fokus:** Menyempurnakan **Type Safety** di seluruh aplikasi untuk mencegah runtime error dan mempermudah maintenance jangka panjang.
 
-#### Komponen yang Perlu Diperbaiki:
+#### Komponen yang Telah Diperbaiki:
+1. **AgentWebsiteSettings.tsx** - Menghilangkan `as any` cast pada query `website_settings` dan update operations.
+2. **AgentCommissions.tsx** - Menghilangkan `as any` untuk booking data.
+3. **AdminFinancePL.tsx** - Menambahkan proper typing untuk vendor dan cost data (sebagian besar selesai).
 
-1. **AgentWebsiteSettings.tsx** - Menghilangkan `as any` cast pada query `website_settings` dan update operations
-2. **AgentCommissions.tsx** - Menghilangkan `as any` untuk booking data
-3. **AdminFinancePL.tsx** - Menambahkan proper typing untuk vendor dan cost data
+#### Langkah Selanjutnya:
+- Melakukan audit pada folder `components/admin/forms` untuk memperbaiki typing pada form submission.
+- Memperbaiki typing pada `components/booking/steps/StepReview.tsx`.
+- Standarisasi interface untuk data relasional dari Supabase di seluruh aplikasi.
 
 #### Benefit:
-- Mengurangi runtime error
-- Meningkatkan IDE autocomplete
-- Mempermudah refactoring di masa depan
-- Meningkatkan maintainability kode
+- Mengurangi runtime error.
+- Meningkatkan IDE autocomplete.
+- Mempermudah refactoring di masa depan.
+- Meningkatkan maintainability kode.
