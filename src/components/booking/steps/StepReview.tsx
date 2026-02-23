@@ -87,9 +87,9 @@ export function StepReview({ formData, packageId }: StepReviewProps) {
   const totalPrice = pricePerPerson * totalPax;
 
   // Type-safe access for joined data
-  const airline = pkg?.airline as unknown as { name: string } | null;
-  const hotelMakkah = pkg?.hotel_makkah as unknown as { name: string; star_rating: number } | null;
-  const hotelMadinah = pkg?.hotel_madinah as unknown as { name: string; star_rating: number } | null;
+  const airline = pkg?.airline as { name: string } | null;
+  const hotelMakkah = pkg?.hotel_makkah as { name: string; star_rating: number } | null;
+  const hotelMadinah = pkg?.hotel_madinah as { name: string; star_rating: number } | null;
 
   return (
     <div className="space-y-6">

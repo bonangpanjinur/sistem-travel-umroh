@@ -114,7 +114,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
     if (packageData?.package_type !== 'tabungan') return {};
     // Try to parse from description or a metadata convention
     try {
-      const meta = (packageData as any)?.metadata;
+      const meta = (packageData as PackageRow & { metadata?: any })?.metadata;
       if (meta) return meta;
     } catch {}
     return {};
@@ -126,7 +126,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
     defaultValues: {
       code: packageData?.code || "",
       name: packageData?.name || "",
-      package_type: (packageData?.package_type as any) || "umroh",
+      package_type: (packageData?.package_type as PackageFormValues["package_type"]) || "umroh",
       description: packageData?.description || "",
       duration_days: packageData?.duration_days || 9,
       hotel_makkah_id: packageData?.hotel_makkah_id || null,

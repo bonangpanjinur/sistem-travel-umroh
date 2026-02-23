@@ -49,7 +49,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
-      return (data || []) as unknown as ItineraryTemplate[];
+      return (data || []) as ItineraryTemplate[];
     },
   });
 
@@ -63,7 +63,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
         .eq("departure_id", departureId)
         .maybeSingle();
       if (error) throw error;
-      return data as unknown as DepartureItinerary | null;
+      return data as DepartureItinerary | null;
     },
   });
 
