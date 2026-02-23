@@ -64,7 +64,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Type Safety Lanjutan** - Masih terdapat penggunaan `as any` di berbagai komponen pendukung (sekitar 200+ lokasi) yang perlu dibersihkan secara bertahap.
+1. **Type Safety Lanjutan** - Telah dilakukan pembersihan `as any` pada folder `components/admin/forms` dan `StepReview.tsx`. Masih terdapat lokasi lain yang perlu dibersihkan secara bertahap.
 
 ---
 
@@ -150,8 +150,8 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 3. **AdminFinancePL.tsx** - Menambahkan proper typing untuk vendor dan cost data (sebagian besar selesai).
 
 #### Langkah Selanjutnya:
-- Melakukan audit pada folder `components/admin/forms` untuk memperbaiki typing pada form submission.
-- Memperbaiki typing pada `components/booking/steps/StepReview.tsx`.
+- ✅ Selesai: Audit dan perbaikan typing pada folder `components/admin/forms`.
+- ✅ Selesai: Perbaikan typing pada `components/booking/steps/StepReview.tsx`.
 - Standarisasi interface untuk data relasional dari Supabase di seluruh aplikasi.
 
 #### Benefit:
