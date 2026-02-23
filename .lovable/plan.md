@@ -32,6 +32,9 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 20 | Rating/Feedback setelah perjalanan | ✅ Selesai | `JamaahFeedback.tsx` |
 | 21 | FAQ/Panduan Umum untuk Jamaah | ✅ Selesai | `JamaahPortal.tsx` |
 | 22 | Perbaikan Type Safety di Komponen Utama | ✅ Selesai | `AgentWebsiteSettings.tsx`, `AgentCommissions.tsx`, `AdminFinancePL.tsx` |
+| 23 | Perbaikan Type Safety di Form Admin | ✅ Selesai | `PackageForm.tsx` |
+| 24 | Perbaikan Type Safety di Review Booking | ✅ Selesai | `StepReview.tsx` |
+| 25 | Perbaikan Type Safety di Link Itinerary | ✅ Selesai | `LinkItineraryForm.tsx` |
 
 ---
 
@@ -153,8 +156,6 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 6. **LinkItineraryForm.tsx** - Menghilangkan `as unknown` cast pada query results.
 
 #### Langkah Selanjutnya:
-- ✅ Melakukan audit pada folder `components/admin/forms` untuk memperbaiki typing pada form submission.
-- ✅ Memperbaiki typing pada `components/booking/steps/StepReview.tsx`.
 - Standarisasi interface untuk data relasional dari Supabase di seluruh aplikasi.
 
 #### Benefit:
