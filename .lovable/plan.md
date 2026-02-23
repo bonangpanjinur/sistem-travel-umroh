@@ -19,10 +19,12 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 7 | Detail Pembayaran di Portal Jamaah | ✅ Selesai | `BookingDetail.tsx` |
 | 8 | Dynamic Emergency Contact | ✅ Selesai | `JamaahPortal.tsx` |
 | 9 | Manifest & Rooming List Generator | ✅ Selesai | `ManifestPage.tsx` |
+| 10 | Registrasi jamaah rombongan (multi-passenger) | ✅ Selesai | `AgentRegisterGroup.tsx` |
+| 11 | Download materi promosi (Digital Kit) | ✅ Selesai | `AgentDigitalKit.tsx` |
 
 ---
 
-## ADMIN PANEL - Status: 95% Lengkap
+## ADMIN PANEL - Status: 98% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -42,18 +44,19 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Reports, Advanced Reports, Scheduled Reports
 - Document Generator, Offline Content
 - Multi-cabang dengan isolasi data
+- **Filter Cabang di Dashboard** (Super Admin & Branch Manager)
+- **Verifikasi Dokumen** (Link di sidebar admin)
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Dashboard Super Admin tidak bisa pilih cabang** - Super Admin melihat total global, tapi belum ada dropdown untuk melihat dashboard cabang spesifik tanpa login sebagai branch manager.
-2. **Tidak ada Audit Log viewer** - Tabel `audit_logs` ada di database, tapi tidak ada UI untuk melihatnya di admin panel.
-3. **Belum ada notifikasi WhatsApp otomatis** - Halaman WhatsApp ada, tapi belum terintegrasi dengan event sistem (booking baru, payment verified, dll).
-4. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman.
-5. **Type Safety** - Masih banyak penggunaan `as any` di beberapa komponen admin yang perlu diperbaiki untuk kestabilan jangka panjang.
+1. **Tidak ada Audit Log viewer** - Tabel `audit_logs` ada di database, tapi tidak ada UI untuk melihatnya di admin panel.
+2. **Belum ada notifikasi WhatsApp otomatis** - Halaman WhatsApp ada, tapi belum terintegrasi dengan event sistem (booking baru, payment verified, dll).
+3. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman.
+4. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
 
 ---
 
-## CABANG (Branch) - Status: 90% Lengkap
+## CABANG (Branch) - Status: 95% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -63,6 +66,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Isolasi data via RLS (branch_id)
 - **Branch Manager bisa kelola staff cabangnya** (Filter per cabang di HR)
 - **Manifest & Rooming List Generator** (Export PDF per keberangkatan)
+- **Dashboard terfilter per cabang**
 
 ### Fitur yang Kurang
 
@@ -71,25 +75,25 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ---
 
-## AGEN (Agent Portal) - Status: 85% Lengkap
+## AGEN (Agent Portal) - Status: 95% Lengkap
 
 ### Fitur yang Sudah Ada
 
-- Dashboard dengan statistik komisi
+- Dashboard dengan statistik komisi (Status booking sudah diterjemahkan)
 - Daftarkan jamaah baru (booking + customer + komisi otomatis)
+- **Daftarkan jamaah rombongan (multiple passengers)** sekaligus
 - Data jamaah dengan status kelengkapan dokumen
 - Riwayat komisi (total, pending, dibayar)
 - Dompet digital dengan tarik dana
 - Lihat paket tersedia
 - Website agen mandiri (`/a/:slug`)
 - Hierarki sub-agen
+- **Download materi promosi (Digital Kit)** - Brosur digital, flyer, dll.
 
 ### Fitur yang Kurang
 
 1. **Agen tidak bisa lihat status pembayaran jamaahnya** - Hanya lihat booking_status, bukan progress pembayaran.
 2. **Tidak ada notifikasi sistem untuk agen** - Selain komisi, agen belum mendapat notifikasi saat booking berubah status (misal: dokumen ditolak).
-3. **Daftarkan jamaah hanya 1 orang per booking** - Tidak bisa mendaftarkan rombongan (multiple passengers) sekaligus.
-4. **Tidak ada fitur download materi promosi** - Brosur digital, flyer, dll yang bisa di-share agen.
 
 ---
 
@@ -133,13 +137,13 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
 
-### Prioritas 1 - Pengembangan Agen & Sales (Dampak Tinggi)
+### Prioritas 1 - Otomasi & Notifikasi (Dampak Tinggi)
 
 | No | Fitur | Effort | Tujuan |
 |---|---|---|---|
-| 1 | Registrasi jamaah rombongan (multi-passenger) | Tinggi | Memudahkan agen mendaftarkan keluarga/grup |
-| 2 | Download materi promosi (Digital Kit) | Sedang | Membantu agen melakukan penjualan |
-| 3 | Integrasi Notifikasi WhatsApp Otomatis | Tinggi | Update status real-time ke jamaah & agen |
+| 1 | Integrasi Notifikasi WhatsApp Otomatis | Tinggi | Update status real-time ke jamaah & agen |
+| 2 | Notifikasi Sistem untuk Agen | Sedang | Memberitahu agen jika dokumen jamaah ditolak |
+| 3 | Progress Pembayaran untuk Agen | Rendah | Agen bisa memantau pelunasan jamaahnya |
 
 ### Prioritas 2 - User Experience & Branding
 
@@ -153,4 +157,4 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ## REKOMENDASI IMPLEMENTASI SEGERA
 
-Setelah menyelesaikan fitur operasional dasar, fokus selanjutnya adalah **Prioritas 1: Pengembangan Agen & Sales** untuk meningkatkan volume pendaftaran jamaah melalui platform.
+Setelah menyelesaikan fitur pendaftaran rombongan dan digital kit, fokus selanjutnya adalah **Prioritas 1: Otomasi & Notifikasi** terutama integrasi WhatsApp untuk meningkatkan efisiensi operasional dan kepuasan pengguna.
