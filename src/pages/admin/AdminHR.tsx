@@ -115,6 +115,7 @@ export default function AdminHR() {
   const [activeTab, setActiveTab] = useState("employees");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDept, setFilterDept] = useState("all");
+  const [filterBranch, setFilterBranch] = useState<string | null>(null);
   const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [attendanceDate, setAttendanceDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -127,9 +128,13 @@ export default function AdminHR() {
   // === DATA QUERIES ===
 
   const { data: employees = [], isLoading: loadingEmployees } = useQuery({
-    queryKey: ["employees"],
+    queryKey: ["employees", filterBranch],
     queryFn: async () => {
-      const { data, error } = await supabase.from("employees").select("*").order("full_name");
+      let query = supabase.from("employees").select("*");
+      if (filterBranch) {
+        query = query.eq("branch_id", filterBranch);
+      }
+      const { data, error } = await query.order("full_name");
       if (error) throw error;
       return data as Employee[];
     },
@@ -145,6 +150,15 @@ export default function AdminHR() {
         .order("check_in_time", { ascending: false });
       if (error) throw error;
       return data as unknown as AttendanceRecord[];
+    },
+  });
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branches"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("branches").select("*").order("name");
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -486,6 +500,17 @@ export default function AdminHR() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Cari karyawan..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
+              <Select value={filterBranch || "all"} onValueChange={(val) => setFilterBranch(val === "all" ? null : val)}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Cabang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Cabang</SelectItem>
+                  {branches.filter((b: any) => b.is_active).map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={filterDept} onValueChange={setFilterDept}>
                 <SelectTrigger className="w-44">
                   <SelectValue placeholder="Departemen" />

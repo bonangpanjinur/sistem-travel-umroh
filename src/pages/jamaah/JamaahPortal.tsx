@@ -148,6 +148,9 @@ export default function JamaahPortal() {
 
   // Get muthawif phone from departure
   const muthawifPhone = departure?.muthawif?.phone || undefined;
+  
+  // Get emergency contact from company settings
+  const emergencyPhone = getSetting('emergency_contact_phone') || getSetting('company_phone');
 
   const paymentProgress = booking 
     ? ((booking.paid_amount || 0) / booking.total_price) * 100 
@@ -217,6 +220,7 @@ export default function JamaahPortal() {
             <SOSButton 
               customerName={customer?.full_name || "Jamaah"}
               muthawifPhone={muthawifPhone}
+              emergencyPhone={emergencyPhone}
               bookingCode={booking?.booking_code}
             />
           </div>

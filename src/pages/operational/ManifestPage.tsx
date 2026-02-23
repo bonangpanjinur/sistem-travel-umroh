@@ -138,6 +138,59 @@ export default function ManifestPage() {
     toast.success('Manifest PDF berhasil di-download');
   };
 
+  const exportRoomingListPDF = () => {
+    if (!passengers || !selectedDepartureData) return;
+    const doc = new jsPDF();
+    const pkgName = (selectedDepartureData.package as any)?.name || 'Rooming List';
+    
+    const roomGroups: { [key: string]: any[] } = {};
+    passengers.forEach(p => {
+      const roomType = (p.booking as any)?.room_type || 'unknown';
+      if (!roomGroups[roomType]) roomGroups[roomType] = [];
+      roomGroups[roomType].push(p);
+    });
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Rooming List - ${pkgName}`, 14, 20);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Tanggal Berangkat: ${format(new Date(selectedDepartureData.departure_date), "dd MMMM yyyy", { locale: id })}`, 14, 28);
+
+    let startY = 36;
+    Object.entries(roomGroups).forEach(([roomType, pax]) => {
+      const roomsNeeded = Math.ceil(pax.length / (roomType === 'single' ? 1 : roomType === 'double' ? 2 : roomType === 'triple' ? 3 : 4));
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${roomType.toUpperCase()} (${roomsNeeded} kamar untuk ${pax.length} jamaah)`, 14, startY);
+      startY += 6;
+
+      const tableRows = pax.map((p, idx) => [
+        (idx + 1).toString(),
+        (p.customer as any)?.full_name || '-',
+        (p.customer as any)?.gender === 'male' ? 'L' : 'P',
+      ]);
+
+      autoTable(doc, {
+        startY,
+        head: [['No', 'Nama Jamaah', 'L/P']],
+        body: tableRows,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [100, 150, 200], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+      });
+
+      startY = (doc as any).lastAutoTable.finalY + 10;
+      if (startY > 250) {
+        doc.addPage();
+        startY = 20;
+      }
+    });
+
+    doc.save(`RoomingList-${pkgName}-${selectedDepartureData.departure_date}.pdf`);
+    toast.success('Rooming List PDF berhasil di-download');
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -222,10 +275,14 @@ export default function ManifestPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end gap-2 mb-4">
+            <Button size="sm" variant="outline" onClick={exportRoomingListPDF} disabled={!passengers || passengers.length === 0}>
+              <Printer className="h-4 w-4 mr-2" />
+              Rooming List
+            </Button>
             <Button size="sm" onClick={exportManifestPDF} disabled={!passengers || passengers.length === 0}>
               <Printer className="h-4 w-4 mr-2" />
-              Export PDF
+              Manifest PDF
             </Button>
           </div>
 

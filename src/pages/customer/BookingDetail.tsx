@@ -513,6 +513,43 @@ export default function BookingDetail() {
               </CardContent>
             </Card>
 
+            {/* Payment History */}
+            {payments && payments.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Riwayat Pembayaran
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {payments.map((payment: any, idx: number) => (
+                      <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">
+                            {payment.payment_method === 'transfer' ? 'Transfer Bank' : 
+                             payment.payment_method === 'cash' ? 'Tunai' : 
+                             payment.payment_method === 'card' ? 'Kartu Kredit' : 'Lainnya'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(payment.created_at), "d MMMM yyyy, HH:mm", { locale: id })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">{formatCurrency(payment.amount)}</p>
+                          <Badge variant={payment.status === 'verified' ? 'default' : payment.status === 'pending' ? 'secondary' : 'destructive'} className="text-xs mt-1">
+                            {payment.status === 'verified' ? 'Terverifikasi' : 
+                             payment.status === 'pending' ? 'Menunggu' : 'Ditolak'}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Payment Summary */}
             <Card className="bg-primary/5 border-primary/20">
               <CardHeader className="pb-3">
