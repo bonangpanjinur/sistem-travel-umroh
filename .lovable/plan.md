@@ -1,132 +1,176 @@
+# Analisis Kelengkapan Fitur: Admin, Cabang, Agen, dan Jamaah
 
-# Analisis Bug, UX, dan Keamanan Database - Admin Dashboard
+## Status Keseluruhan
 
-## Bug yang Ditemukan
-
-### BUG 1: Double `fetchUserData` pada Initial Load (MEDIUM)
-
-**Lokasi:** `src/hooks/useAuth.tsx` baris 28-57
-
-Saat aplikasi pertama kali dimuat, `onAuthStateChange` dan `getSession` **keduanya** memanggil `fetchUserData()`. Ini menyebabkan:
-- 2x query ke tabel `profiles`
-- 2x query ke tabel `user_roles`
-- Race condition: `setIsLoading(false)` bisa dipanggil oleh fetch pertama sebelum fetch kedua selesai, menyebabkan roles sementara hilang lalu muncul lagi (flicker)
-
-**Fix:** Tambahkan flag `initialSessionHandled` untuk mencegah `getSession` memanggil `fetchUserData` jika `onAuthStateChange` sudah menanganinya.
+Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, portal jamaah PWA, dan modul operasional. Berikut analisis per modul:
 
 ---
 
-### BUG 2: Console Warning di AdminPayments - Badge ref (LOW)
+## ADMIN PANEL - Status: 90% Lengkap
 
-**Lokasi:** `src/pages/admin/AdminPayments.tsx` baris 830
+### Fitur yang Sudah Ada
 
-`PendingPaymentCard` memberikan ref ke komponen `Badge` yang bukan forwardRef. Warning di console:
-```
-Function components cannot be given refs... Check the render method of PendingPaymentCard
-```
+- Dashboard dengan statistik real-time dan chart
+- CRUD Paket, Keberangkatan, Hotel, Maskapai, Bandara, Muthawif
+- Manajemen Booking (buat, detail, verifikasi)
+- Pembayaran (verifikasi, filter lanjutan, progress bar)
+- Keuangan: Laba/Rugi per keberangkatan, Kas & Gaji, Vendor
+- CRM Leads dengan pipeline dan analytics
+- Manajemen Jamaah, Agent (termasuk hierarki sub-agen)
+- SDM/HR lengkap (absensi, gaji, potongan, face recognition)
+- Loyalty, Referral, Kupon, Tabungan
+- Support Tickets, WhatsApp integration
+- Appearance/Branding multi-template
+- Role & Permission management
+- Security Audit, 2FA Settings
+- Reports, Advanced Reports, Scheduled Reports
+- Document Generator, Offline Content
+- Multi-cabang dengan isolasi data
 
-**Fix:** Ini bukan error fungsional, tapi menunjukkan bahwa Badge digunakan sebagai child dari komponen yang meneruskan ref. Tidak perlu perbaikan segera.
+### Fitur yang Kurang/Perlu Diperbaiki
 
----
-
-### BUG 3: `useDashboardStats` Tanpa Limit (LOW - Performance)
-
-**Lokasi:** `src/hooks/useDashboardStats.ts` baris 10-12
-
-Query mengambil SEMUA bookings tanpa `.limit()`. Dengan Supabase default limit 1000 rows, dashboard bisa menampilkan data yang tidak lengkap tanpa peringatan saat data > 1000.
-
-**Fix:** Gunakan RPC atau aggregate query di server-side. Untuk sekarang, tambahkan komentar/awareness saja karena data masih sedikit.
-
----
-
-### BUG 4: `AdminPayments` Query Tanpa Limit (MEDIUM - Performance)
-
-**Lokasi:** `src/pages/admin/AdminPayments.tsx` baris 72-93
-
-Sama seperti BUG 3, query payments mengambil semua data tanpa limit. Filtering dan pagination dilakukan di client-side. Dengan ribuan transaksi, halaman akan lambat.
-
-**Fix:** Implementasi server-side pagination. Tapi ini bukan bug kritis sekarang.
+1. **Dashboard tidak filter per cabang** - Branch Manager melihat data semua cabang, bukan hanya cabangnya
+2. **Tidak ada Audit Log viewer** - Tabel `audit_logs` ada di database, tapi tidak ada UI untuk melihatnya di admin panel
+3. **Belum ada notifikasi WhatsApp otomatis** - Halaman WhatsApp ada, tapi belum terintegrasi dengan event sistem (booking baru, payment verified, dll)
+4. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman
+5. **Tidak ada halaman verifikasi dokumen khusus** - `AdminDocumentVerification.tsx` ada tapi tidak terdaftar di sidebar (hanya ada di route)
 
 ---
 
-## Analisis UX yang Perlu Diperbaiki
+## CABANG (Branch) - Status: 75% Lengkap
 
-### UX 1: Sidebar Menu Stabil (SUDAH DIPERBAIKI)
+### Fitur yang Sudah Ada
 
-Race condition `useAuth` yang menyebabkan menu hilang **sudah diperbaiki** di iterasi sebelumnya. Namun masalah double-fetch (BUG 1) masih bisa menyebabkan flicker ringan.
+- CRUD cabang dengan kode, kota, kontak
+- Website multi-tenant per cabang (`/b/:slug`)
+- Pengaturan branding per cabang
+- Isolasi data via RLS (branch_id)
 
-### UX 2: Dashboard Tidak Responsif di Mobile
+### Fitur yang Kurang
 
-Dashboard admin menggunakan grid 4 kolom yang tidak optimal di layar kecil. Quick actions dan stats cards sudah responsif, tapi chart area bisa terlalu kecil.
-
-### UX 3: Tidak Ada Loading Skeleton Konsisten
-
-Beberapa halaman (AdminFinancePL, AdminVendors) menggunakan pattern loading yang berbeda-beda.
-
----
-
-## Analisis Keamanan Database
-
-### Status Keseluruhan: CUKUP AMAN
-
-Berdasarkan linter dan security scan:
-
-1. **RLS Enabled** - Semua tabel kritis sudah punya RLS
-2. **SECURITY DEFINER functions** - Sudah digunakan untuk menghindari recursion
-3. **Data isolation** - Jamaah, agen, dan staff sudah terisolasi per branch
-
-### Temuan Keamanan yang Tersisa:
-
-| Issue | Level | Status |
-|-------|-------|--------|
-| Leaked Password Protection disabled | WARN | Perlu diaktifkan manual di dashboard |
-| `v_financial_summary` view security | WARN | Sudah pakai `security_invoker=true` |
-| Permissive RLS policy (linter) | WARN | Kemungkinan pada tabel logging - acceptable |
-| Profile/Customer exposure | ERROR | Sudah di-fix sebelumnya |
-
-### Tidak Perlu Migrasi Database Baru
-
-Semua issue keamanan database sudah ditangani di iterasi sebelumnya. Yang tersisa adalah WARN-level yang acceptable.
+1. **Branch Manager tidak bisa kelola staff cabangnya** - Sidebar "Karyawan" ada, tapi tidak ada filter per cabang di halaman HR
+2. **Dashboard cabang tidak ada** - Branch Manager melihat dashboard global, bukan ringkasan cabangnya sendiri
+3. **Laporan per cabang belum tersedia** - Reports menampilkan data global
+4. **Tidak ada fitur transfer jamaah antar cabang**
+  &nbsp;
 
 ---
 
-## Rencana Perbaikan
+## AGEN (Agent Portal) - Status: 85% Lengkap
 
-### Prioritas 1: Fix Double-Fetch Race Condition
+### Fitur yang Sudah Ada
 
-**File:** `src/hooks/useAuth.tsx`
+- Dashboard dengan statistik komisi
+- Daftarkan jamaah baru (booking + customer + komisi otomatis)
+- Data jamaah dengan status kelengkapan dokumen
+- Riwayat komisi (total, pending, dibayar)
+- Dompet digital dengan tarik dana
+- Lihat paket tersedia
+- Website agen mandiri (`/a/:slug`)
+- Hierarki sub-agen
 
-Tambahkan mekanisme untuk mencegah double fetch:
-- Gunakan `useRef` flag untuk track apakah `fetchUserData` sudah dipanggil
-- Jika `onAuthStateChange` sudah fire dengan session, skip `getSession` fetch
-- Ini menghilangkan kemungkinan flicker roles yang bisa menyebabkan sidebar berkedip
+### Fitur yang Kurang
 
-```text
-SEBELUM:
-  onAuthStateChange -> fetchUserData(userId)  // fetch #1
-  getSession -> fetchUserData(userId)          // fetch #2 (redundant)
-
-SESUDAH:
-  onAuthStateChange -> fetchUserData(userId)  // fetch #1
-  getSession -> skip (sudah di-handle)         // no duplicate
-```
-
-### Prioritas 2: Tidak Ada Perubahan Lain yang Diperlukan
-
-Setelah analisis menyeluruh:
-- Menu admin sudah stabil (fix race condition sebelumnya bekerja)
-- Halaman Keuangan, Karyawan sudah terdaftar di routes dan sidebar
-- RLS policies sudah aman
-- Bug performance (no limit queries) bukan prioritas sekarang
+1. **Agen tidak bisa lihat status pembayaran jamaahnya** - Hanya lihat booking_status, bukan progress pembayaran
+2. **Tidak ada notifikasi untuk agen** - Saat komisi disetujui atau booking berubah status, agen tidak mendapat notifikasi
+3. **Daftarkan jamaah hanya 1 orang per booking** - Tidak bisa mendaftarkan rombongan (multiple passengers)
+4. **Tidak ada fitur download materi promosi** - Brosur digital, flyer, dll
+5. **AgentLayout redirect ke `/login` bukan `/auth/login**` - Bug: halaman login ada di `/auth/login`, tapi redirect ke `/login` (404)
 
 ---
 
-## Detail Teknis
+## JAMAAH (Customer/Jamaah Portal) - Status: 80% Lengkap
 
-| File | Perubahan |
-|------|-----------|
-| `src/hooks/useAuth.tsx` | Tambah `useRef` flag untuk mencegah double `fetchUserData` call |
+### Fitur yang Sudah Ada
 
-**Total: 1 file diubah, 0 file baru, 0 migrasi database**
+- Customer Dashboard dengan quick actions
+- Portal Jamaah PWA (countdown, SOS, live location)
+- Digital ID dengan QR Code
+- Itinerary perjalanan
+- Doa dan Panduan
+- Dokumen jamaah
+- My Bookings, Payment Upload
+- Loyalty Points, Tabungan
+- Support Tickets
+- Notifikasi (sudah filter per user_id)
 
-Perbaikan sangat minimal dan terfokus pada stabilitas auth flow yang merupakan akar dari masalah "menu hilang".
+### Fitur yang Kurang
+
+1. **Tidak ada riwayat pembayaran di portal jamaah** - Jamaah hanya lihat total terbayar, bukan detail per transaksi
+2. **Kontak darurat masih hardcoded** - Nomor di JamaahPortal.tsx masih statis
+3. **Tidak ada feedback/rating perjalanan** - Setelah selesai umroh, jamaah tidak bisa memberi rating atau testimoni
+4. **Settings customer belum punya fitur edit foto profil**
+5. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll
+
+---
+
+## BUG YANG DITEMUKAN
+
+### BUG KRITIS
+
+1. **AgentLayout redirect salah** (`src/pages/agent/AgentLayout.tsx` baris 31)
+  - Redirect ke `/login` padahal route login ada di `/auth/login`
+  - Efek: Agen yang belum login akan melihat halaman 404
+
+### BUG MEDIUM
+
+2. **Sidebar "Dokumen & Surat" tidak punya link ke Document Verification**
+  - `AdminDocumentVerification.tsx` ada dan route terdaftar, tapi tidak ada di sidebar
+  - Halaman ini tidak bisa diakses kecuali tahu URL langsung
+3. **AgentWebsiteSettings menggunakan `as any` cast** (baris 28-30)
+  - Query `website_settings` di-cast ke `any` untuk menghindari type error
+
+### BUG RENDAH
+
+4. **AgentDashboard label "confirmed" tidak diterjemahkan** (baris 159)
+  - Menampilkan `booking_status` mentah ("confirmed") bukan label Indonesia ("Dikonfirmasi")
+5. **AgentCommissions menggunakan `as any` untuk booking data** (baris 161-164)
+
+---
+
+## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
+
+### Prioritas 1 - Bug Fix (Tidak merusak fitur lain)
+
+
+| No  | Fix                                          | File                 | Perubahan                             |
+| --- | -------------------------------------------- | -------------------- | ------------------------------------- |
+| 1   | Fix redirect `/login` ke `/auth/login`       | `AgentLayout.tsx`    | Ubah baris 31                         |
+| 2   | Tambah link Document Verification ke sidebar | `AdminLayout.tsx`    | Tambah item di grup "Dokumen & Surat" |
+| 3   | Terjemahkan status booking di AgentDashboard | `AgentDashboard.tsx` | Gunakan `BOOKING_STATUS_LABELS`       |
+
+
+### Prioritas 2 - Fitur Penting (Dampak tinggi, effort rendah)
+
+
+| No  | Fitur                                                  | File                 | Perubahan                     |
+| --- | ------------------------------------------------------ | -------------------- | ----------------------------- |
+| 4   | Tambah filter cabang di Dashboard untuk Branch Manager | `AdminDashboard.tsx` | Filter stats by branch_id     |
+| 5   | Tambah notifikasi agen saat komisi berubah             | Trigger database     | Insert ke tabel notifications |
+
+
+### Prioritas 3 - Nice to Have (Effort tinggi)
+
+
+| No  | Fitur                                                    | Effort |
+| --- | -------------------------------------------------------- | ------ |
+| 6   | Dashboard khusus per cabang                              | Sedang |
+| 7   | Registrasi jamaah rombongan (multi-passenger) untuk agen | Tinggi |
+| 8   | Riwayat pembayaran detail di portal jamaah               | Sedang |
+| 9   | Rating/feedback setelah perjalanan                       | Sedang |
+| 10  | Kontak darurat dari company_settings                     | Rendah |
+
+
+---
+
+## REKOMENDASI IMPLEMENTASI SEGERA
+
+Saya merekomendasikan untuk segera memperbaiki **3 bug** di Prioritas 1 karena:
+
+- Effort sangat kecil (masing-masing hanya 1-3 baris)
+- Tidak ada risiko merusak fitur lain
+- Memperbaiki pengalaman pengguna langsung
+
+**Total: 3 file diubah, 0 file baru, 0 migrasi database**
+
+Apakah Anda ingin saya lanjutkan dengan perbaikan Prioritas 1 saja, atau termasuk Prioritas 2?
