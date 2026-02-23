@@ -15,10 +15,14 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 3 | Terjemahkan status booking di AgentDashboard | ✅ Selesai | `AgentDashboard.tsx` |
 | 4 | Filter cabang di Dashboard untuk Branch Manager | ✅ Selesai | `AdminDashboard.tsx` |
 | 5 | Notifikasi otomatis saat status komisi berubah | ✅ Selesai | Database Trigger |
+| 6 | Filter Cabang di Halaman Karyawan | ✅ Selesai | `AdminHR.tsx` |
+| 7 | Detail Pembayaran di Portal Jamaah | ✅ Selesai | `BookingDetail.tsx` |
+| 8 | Dynamic Emergency Contact | ✅ Selesai | `JamaahPortal.tsx` |
+| 9 | Manifest & Rooming List Generator | ✅ Selesai | `ManifestPage.tsx` |
 
 ---
 
-## ADMIN PANEL - Status: 92% Lengkap
+## ADMIN PANEL - Status: 95% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -49,7 +53,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ---
 
-## CABANG (Branch) - Status: 75% Lengkap
+## CABANG (Branch) - Status: 90% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -57,13 +61,13 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Website multi-tenant per cabang (`/b/:slug`)
 - Pengaturan branding per cabang
 - Isolasi data via RLS (branch_id)
+- **Branch Manager bisa kelola staff cabangnya** (Filter per cabang di HR)
+- **Manifest & Rooming List Generator** (Export PDF per keberangkatan)
 
 ### Fitur yang Kurang
 
-1. **Branch Manager tidak bisa kelola staff cabangnya** - Sidebar "Karyawan" ada, tapi tidak ada filter per cabang di halaman HR.
-2. **Laporan per cabang belum tersedia** - Reports menampilkan data global.
-3. **Tidak ada fitur transfer jamaah antar cabang**.
-4. **Manifest Generator** - Belum ada fitur untuk generate manifest jamaah per cabang untuk keperluan operasional.
+1. **Laporan per cabang belum tersedia** - Reports menampilkan data global.
+2. **Tidak ada fitur transfer jamaah antar cabang**.
 
 ---
 
@@ -89,7 +93,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ---
 
-## JAMAAH (Customer/Jamaah Portal) - Status: 80% Lengkap
+## JAMAAH (Customer/Jamaah Portal) - Status: 90% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -103,14 +107,14 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Loyalty Points, Tabungan
 - Support Tickets
 - Notifikasi (sudah filter per user_id)
+- **Riwayat pembayaran detail per transaksi**
+- **Kontak darurat dinamis dari sistem**
 
 ### Fitur yang Kurang
 
-1. **Tidak ada riwayat pembayaran di portal jamaah** - Jamaah hanya lihat total terbayar, bukan detail per transaksi.
-2. **Kontak darurat masih hardcoded** - Nomor di JamaahPortal.tsx masih statis.
-3. **Tidak ada feedback/rating perjalanan** - Setelah selesai umroh, jamaah tidak bisa memberi rating atau testimoni.
-4. **Settings customer belum punya fitur edit foto profil**.
-5. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll.
+1. **Tidak ada feedback/rating perjalanan** - Setelah selesai umroh, jamaah tidak bisa memberi rating atau testimoni.
+2. **Settings customer belum punya fitur edit foto profil**.
+3. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll.
 
 ---
 
@@ -129,35 +133,24 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
 
-### Prioritas 1 - Fitur Operasional (Dampak Tinggi)
+### Prioritas 1 - Pengembangan Agen & Sales (Dampak Tinggi)
 
-| No | Fitur | File / Modul | Tujuan |
+| No | Fitur | Effort | Tujuan |
 |---|---|---|---|
-| 1 | Filter Cabang di Halaman Karyawan | `AdminHR.tsx` | Branch manager bisa kelola staff sendiri |
-| 2 | Detail Pembayaran di Portal Jamaah | `JamaahBookings.tsx` | Jamaah tahu transaksi mana yang sudah diverifikasi |
-| 3 | Dynamic Emergency Contact | `JamaahPortal.tsx` | Ambil nomor dari `company_settings` |
-| 4 | Manifest & Rooming List Generator | `AdminOperations.tsx` | Memudahkan operasional keberangkatan |
+| 1 | Registrasi jamaah rombongan (multi-passenger) | Tinggi | Memudahkan agen mendaftarkan keluarga/grup |
+| 2 | Download materi promosi (Digital Kit) | Sedang | Membantu agen melakukan penjualan |
+| 3 | Integrasi Notifikasi WhatsApp Otomatis | Tinggi | Update status real-time ke jamaah & agen |
 
-### Prioritas 2 - Pengembangan Agen & Sales
-
-| No | Fitur | Effort |
-|---|---|---|
-| 5 | Registrasi jamaah rombongan (multi-passenger) | Tinggi |
-| 6 | Download materi promosi (Digital Kit) | Sedang |
-| 7 | Integrasi Notifikasi WhatsApp Otomatis | Tinggi |
-
-### Prioritas 3 - User Experience & Branding
+### Prioritas 2 - User Experience & Branding
 
 | No | Fitur | Effort |
 |---|---|---|
-| 8 | Rating/feedback setelah perjalanan | Sedang |
-| 9 | Edit Foto Profil Jamaah | Rendah |
-| 10 | Audit Log Viewer untuk Super Admin | Sedang |
+| 4 | Rating/feedback setelah perjalanan | Sedang |
+| 5 | Edit Foto Profil Jamaah | Rendah |
+| 6 | Audit Log Viewer untuk Super Admin | Sedang |
 
 ---
 
 ## REKOMENDASI IMPLEMENTASI SEGERA
 
-Saya merekomendasikan untuk fokus pada **Prioritas 1** karena fitur-fitur tersebut sangat krusial untuk operasional harian cabang dan kepercayaan jamaah terhadap status pembayaran mereka.
-
-**Apakah Anda ingin saya mulai mengerjakan salah satu dari Prioritas 1 di atas?**
+Setelah menyelesaikan fitur operasional dasar, fokus selanjutnya adalah **Prioritas 1: Pengembangan Agen & Sales** untuk meningkatkan volume pendaftaran jamaah melalui platform.
