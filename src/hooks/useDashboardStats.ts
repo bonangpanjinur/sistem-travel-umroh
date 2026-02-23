@@ -3,17 +3,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
-export function useDashboardStats() {
+export function useDashboardStats(branchId?: string | null) {
   return useQuery({
-    queryKey: ['admin-dashboard-stats'],
+    queryKey: ['admin-dashboard-stats', branchId],
     queryFn: async () => {
-      const { data: bookings } = await supabase
+      let bookingsQuery = supabase
         .from('bookings')
         .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax');
+      if (branchId) bookingsQuery = bookingsQuery.eq('branch_id', branchId);
+      const { data: bookings } = await bookingsQuery;
 
-      const { count: customerCount } = await supabase
+      let customerQuery = supabase
         .from('customers')
         .select('*', { count: 'exact', head: true });
+      if (branchId) customerQuery = customerQuery.eq('branch_id', branchId);
+      const { count: customerCount } = await customerQuery;
 
       const { data: pendingPayments } = await supabase
         .from('payments')
@@ -84,11 +88,11 @@ export function useDashboardStats() {
   });
 }
 
-export function useRecentBookings() {
+export function useRecentBookings(branchId?: string | null) {
   return useQuery({
-    queryKey: ['admin-recent-bookings'],
+    queryKey: ['admin-recent-bookings', branchId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('bookings')
         .select(`
           id, booking_code, total_price, booking_status, payment_status, created_at,
@@ -96,6 +100,8 @@ export function useRecentBookings() {
         `)
         .order('created_at', { ascending: false })
         .limit(5);
+      if (branchId) query = query.eq('branch_id', branchId);
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },

@@ -15,12 +15,15 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useDashboardStats, useRecentBookings, useUpcomingDepartures } from "@/hooks/useDashboardStats";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useAuth } from "@/hooks/useAuth";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export default function AdminDashboard() {
-  const { data: stats, isLoading } = useDashboardStats();
-  const { data: recentBookings } = useRecentBookings();
+  const { branchId, hasRole } = useAuth();
+  const effectiveBranchId = hasRole('super_admin') || hasRole('owner') ? null : branchId;
+  const { data: stats, isLoading } = useDashboardStats(effectiveBranchId);
+  const { data: recentBookings } = useRecentBookings(effectiveBranchId);
   const { data: upcomingDepartures } = useUpcomingDepartures();
 
   // Auto-refresh dashboard when bookings or payments change
