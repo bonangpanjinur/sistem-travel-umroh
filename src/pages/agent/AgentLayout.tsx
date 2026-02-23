@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   Home, Users, DollarSign, Package, UserCog,
-  Menu, X, LogOut, Wallet, Globe, Zap
+  Menu, X, LogOut, Wallet, Globe, Zap, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ const navItems = [
   { label: "Paket Tersedia", href: "/agent/packages", icon: Package },
   { label: "Digital Kit", href: "/agent/digital-kit", icon: Zap },
   { label: "Website Saya", href: "/agent/website", icon: Globe },
+  { label: "Pengaturan", href: "/agent/settings", icon: Settings },
 ];
 
 export default function AgentLayout() {

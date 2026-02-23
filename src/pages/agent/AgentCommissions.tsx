@@ -158,13 +158,19 @@ export default function AgentCommissions() {
                       {format(new Date(commission.created_at), "dd MMM yyyy", { locale: id })}
                     </TableCell>
                     <TableCell className="font-mono">
-                      {(commission.booking as any)?.booking_code}
+                      {commission.booking && typeof commission.booking === 'object' && 'booking_code' in commission.booking
+                        ? (commission.booking as any).booking_code
+                        : '-'}
                     </TableCell>
                     <TableCell>
-                      {(commission.booking as any)?.customer?.full_name}
+                      {commission.booking && typeof commission.booking === 'object' && 'customer' in commission.booking
+                        ? (commission.booking as any).customer?.full_name
+                        : '-'}
                     </TableCell>
                     <TableCell>
-                      {formatCurrency((commission.booking as any)?.total_price || 0)}
+                      {commission.booking && typeof commission.booking === 'object' && 'total_price' in commission.booking
+                        ? formatCurrency((commission.booking as any).total_price || 0)
+                        : formatCurrency(0)}
                     </TableCell>
                     <TableCell className="font-semibold text-primary">
                       {formatCurrency(commission.commission_amount)}

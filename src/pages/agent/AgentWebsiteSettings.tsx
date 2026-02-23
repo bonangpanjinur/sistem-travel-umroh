@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Database } from "@/integrations/supabase/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,11 +25,12 @@ export default function AgentWebsiteSettings() {
     queryKey: ["agent-website-settings", agentData?.id],
     enabled: !!agentData?.id,
     queryFn: async () => {
-      const { data } = await (supabase
+      const { data, error } = await supabase
         .from("website_settings")
-        .select("*") as any)
+        .select("*")
         .eq("agent_id", agentData!.id)
         .single();
+      if (error) throw error;
       return data;
     },
   });

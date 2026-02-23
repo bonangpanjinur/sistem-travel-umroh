@@ -54,6 +54,7 @@ export default function AdminReports() {
     to: endOfMonth(new Date()),
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [branchFilter, setBranchFilter] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
 
   // Quick date range presets
@@ -76,9 +77,22 @@ export default function AdminReports() {
     }
   };
 
+  // Fetch branches for filter
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches-for-filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch bookings data
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ['report-bookings', dateRange, statusFilter],
+    queryKey: ['report-bookings', dateRange, statusFilter, branchFilter],
     queryFn: async () => {
       let query = supabase
         .from('bookings')
@@ -102,6 +116,9 @@ export default function AdminReports() {
       }
       if (statusFilter !== 'all') {
         query = query.eq('booking_status', statusFilter as any);
+      }
+      if (branchFilter !== 'all') {
+        query = query.eq('branch_id', branchFilter);
       }
 
       const { data, error } = await query;
@@ -383,6 +400,22 @@ export default function AdminReports() {
                   <SelectItem value="all">Semua Status</SelectItem>
                   {getStatusOptions().map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Branch Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cabang</label>
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Semua Cabang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Cabang</SelectItem>
+                  {branches.map(branch => (
+                    <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
