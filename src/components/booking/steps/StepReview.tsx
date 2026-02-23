@@ -86,6 +86,11 @@ export function StepReview({ formData, packageId }: StepReviewProps) {
   const totalPax = formData.passengers.length;
   const totalPrice = pricePerPerson * totalPax;
 
+  // Type-safe access for joined data
+  const airline = pkg?.airline as unknown as { name: string } | null;
+  const hotelMakkah = pkg?.hotel_makkah as unknown as { name: string; star_rating: number } | null;
+  const hotelMadinah = pkg?.hotel_madinah as unknown as { name: string; star_rating: number } | null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -112,22 +117,22 @@ export function StepReview({ formData, packageId }: StepReviewProps) {
           </div>
           
           <div className="grid gap-2 text-sm">
-            {pkg?.airline && (
+            {airline && (
               <div className="flex items-center gap-2">
                 <Plane className="h-4 w-4 text-muted-foreground" />
-                <span>{(pkg.airline as any).name}</span>
+                <span>{airline.name}</span>
               </div>
             )}
-            {pkg?.hotel_makkah && (
+            {hotelMakkah && (
               <div className="flex items-center gap-2">
                 <Hotel className="h-4 w-4 text-muted-foreground" />
-                <span>Makkah: {(pkg.hotel_makkah as any).name} ({(pkg.hotel_makkah as any).star_rating}⭐)</span>
+                <span>Makkah: {hotelMakkah.name} ({hotelMakkah.star_rating}⭐)</span>
               </div>
             )}
-            {pkg?.hotel_madinah && (
+            {hotelMadinah && (
               <div className="flex items-center gap-2">
                 <Hotel className="h-4 w-4 text-muted-foreground" />
-                <span>Madinah: {(pkg.hotel_madinah as any).name} ({(pkg.hotel_madinah as any).star_rating}⭐)</span>
+                <span>Madinah: {hotelMadinah.name} ({hotelMadinah.star_rating}⭐)</span>
               </div>
             )}
           </div>

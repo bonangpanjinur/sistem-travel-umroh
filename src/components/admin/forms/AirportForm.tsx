@@ -16,6 +16,10 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type AirportInsert = Database["public"]["Tables"]["airports"]["Insert"];
+type AirportUpdate = Database["public"]["Tables"]["airports"]["Update"];
 
 const airportSchema = z.object({
   code: z.string().min(3, "Kode bandara harus 3 karakter").max(3),
@@ -28,7 +32,7 @@ const airportSchema = z.object({
 type AirportFormValues = z.infer<typeof airportSchema>;
 
 interface AirportFormProps {
-  airportData?: any;
+  airportData?: Database["public"]["Tables"]["airports"]["Row"];
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -50,11 +54,13 @@ export function AirportForm({ airportData, onSuccess, onCancel }: AirportFormPro
 
   const mutation = useMutation({
     mutationFn: async (values: AirportFormValues) => {
-      if (isEditing) {
-        const { error } = await supabase.from("airports").update(values).eq("id", airportData.id);
+      if (isEditing && airportData) {
+        const payload: AirportUpdate = values;
+        const { error } = await supabase.from("airports").update(payload).eq("id", airportData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("airports").insert(values as any);
+        const payload: AirportInsert = values;
+        const { error } = await supabase.from("airports").insert(payload);
         if (error) throw error;
       }
     },

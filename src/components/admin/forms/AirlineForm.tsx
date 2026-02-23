@@ -16,6 +16,10 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type AirlineInsert = Database["public"]["Tables"]["airlines"]["Insert"];
+type AirlineUpdate = Database["public"]["Tables"]["airlines"]["Update"];
 
 const airlineSchema = z.object({
   code: z.string().min(2, "Kode maskapai minimal 2 karakter").max(3),
@@ -27,7 +31,7 @@ const airlineSchema = z.object({
 type AirlineFormValues = z.infer<typeof airlineSchema>;
 
 interface AirlineFormProps {
-  airlineData?: any;
+  airlineData?: Database["public"]["Tables"]["airlines"]["Row"];
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -48,16 +52,19 @@ export function AirlineForm({ airlineData, onSuccess, onCancel }: AirlineFormPro
 
   const mutation = useMutation({
     mutationFn: async (values: AirlineFormValues) => {
-      const payload = {
-        ...values,
-        logo_url: values.logo_url || null,
-      };
-
-      if (isEditing) {
+      if (isEditing && airlineData) {
+        const payload: AirlineUpdate = {
+          ...values,
+          logo_url: values.logo_url || null,
+        };
         const { error } = await supabase.from("airlines").update(payload).eq("id", airlineData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("airlines").insert(payload as any);
+        const payload: AirlineInsert = {
+          ...values,
+          logo_url: values.logo_url || null,
+        };
+        const { error } = await supabase.from("airlines").insert(payload);
         if (error) throw error;
       }
     },

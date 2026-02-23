@@ -24,6 +24,11 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type CouponRow = Database["public"]["Tables"]["coupons"]["Row"];
+type CouponInsert = Database["public"]["Tables"]["coupons"]["Insert"];
+type CouponUpdate = Database["public"]["Tables"]["coupons"]["Update"];
 
 const couponSchema = z.object({
   code: z.string().min(1, "Kode kupon harus diisi"),
@@ -42,7 +47,7 @@ const couponSchema = z.object({
 type CouponFormValues = z.infer<typeof couponSchema>;
 
 interface CouponFormProps {
-  couponData?: any;
+  couponData?: CouponRow;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -57,7 +62,7 @@ export function CouponForm({ couponData, onSuccess, onCancel }: CouponFormProps)
       code: couponData?.code || "",
       name: couponData?.name || "",
       description: couponData?.description || "",
-      discount_type: couponData?.discount_type || "percentage",
+      discount_type: (couponData?.discount_type as "percentage" | "fixed") || "percentage",
       discount_value: couponData?.discount_value || 0,
       min_purchase: couponData?.min_purchase || 0,
       max_discount: couponData?.max_discount || null,
@@ -79,11 +84,13 @@ export function CouponForm({ couponData, onSuccess, onCancel }: CouponFormProps)
         description: values.description || null,
       };
 
-      if (isEditing) {
-        const { error } = await supabase.from("coupons").update(payload).eq("id", couponData.id);
+      if (isEditing && couponData) {
+        const updatePayload: CouponUpdate = payload;
+        const { error } = await supabase.from("coupons").update(updatePayload).eq("id", couponData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("coupons").insert(payload as any);
+        const insertPayload: CouponInsert = payload;
+        const { error } = await supabase.from("coupons").insert(insertPayload);
         if (error) throw error;
       }
     },

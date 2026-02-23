@@ -18,6 +18,10 @@ import {
 import { toast } from "sonner";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Database } from "@/integrations/supabase/types";
+
+type BranchInsert = Database["public"]["Tables"]["branches"]["Insert"];
+type BranchUpdate = Database["public"]["Tables"]["branches"]["Update"];
 
 const branchSchema = z.object({
   code: z.string().min(1, "Kode cabang harus diisi"),
@@ -38,7 +42,7 @@ const branchSchema = z.object({
 type BranchFormValues = z.infer<typeof branchSchema>;
 
 interface BranchFormProps {
-  branchData?: any;
+  branchData?: Database["public"]["Tables"]["branches"]["Row"];
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -107,11 +111,13 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
         province: values.province || null,
       };
 
-      if (isEditing) {
-        const { error } = await supabase.from("branches").update(payload).eq("id", branchData.id);
+      if (isEditing && branchData) {
+        const updatePayload: BranchUpdate = payload;
+        const { error } = await supabase.from("branches").update(updatePayload).eq("id", branchData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("branches").insert(payload as any);
+        const insertPayload: BranchInsert = payload;
+        const { error } = await supabase.from("branches").insert(insertPayload);
         if (error) throw error;
       }
     },

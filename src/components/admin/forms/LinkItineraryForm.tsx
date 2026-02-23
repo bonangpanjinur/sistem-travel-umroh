@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { MapPin, Calendar, Clock, Check, X } from "lucide-react";
 import { formatDate } from "@/lib/format";
+import { Database } from "@/integrations/supabase/types";
+
+type ItineraryTemplateRow = Database["public"]["Tables"]["itinerary_templates"]["Row"];
+type DepartureItineraryRow = Database["public"]["Tables"]["departure_itineraries"]["Row"];
 
 interface ItineraryDay {
   day: number;
@@ -16,22 +20,12 @@ interface ItineraryDay {
   activities: { time: string; activity: string; location?: string }[];
 }
 
-interface ItineraryTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  duration_days: number;
-  package_type: string;
+interface ItineraryTemplate extends Omit<ItineraryTemplateRow, "days"> {
   days: ItineraryDay[];
 }
 
-interface DepartureItinerary {
-  id: string;
-  departure_id: string;
-  template_id: string;
+interface DepartureItinerary extends Omit<DepartureItineraryRow, "customized_days"> {
   customized_days: ItineraryDay[] | null;
-  notes: string | null;
-  created_at: string;
   template?: ItineraryTemplate;
 }
 
@@ -50,12 +44,12 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
     queryKey: ["itinerary-templates"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("itinerary_templates" as any)
+        .from("itinerary_templates")
         .select("*")
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
-      return data as unknown as ItineraryTemplate[];
+      return (data || []) as unknown as ItineraryTemplate[];
     },
   });
 
@@ -64,7 +58,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
     queryKey: ["departure-itinerary", departureId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("departure_itineraries" as any)
+        .from("departure_itineraries")
         .select("*, template:itinerary_templates(*)")
         .eq("departure_id", departureId)
         .maybeSingle();
@@ -78,17 +72,17 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
     mutationFn: async (templateId: string) => {
       // First remove any existing link
       await supabase
-        .from("departure_itineraries" as any)
+        .from("departure_itineraries")
         .delete()
         .eq("departure_id", departureId);
 
       // Insert new link
       const { error } = await supabase
-        .from("departure_itineraries" as any)
+        .from("departure_itineraries")
         .insert({
           departure_id: departureId,
           template_id: templateId,
-        } as any);
+        });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -103,7 +97,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   const unlinkMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from("departure_itineraries" as any)
+        .from("departure_itineraries")
         .delete()
         .eq("departure_id", departureId);
       if (error) throw error;
@@ -117,7 +111,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   });
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
-  const currentTemplate = linkedItinerary?.template as ItineraryTemplate | undefined;
+  const currentTemplate = linkedItinerary?.template;
 
   // Calculate actual dates based on departure date
   const getActualDate = (dayNumber: number) => {

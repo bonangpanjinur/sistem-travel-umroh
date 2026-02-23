@@ -24,6 +24,11 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type HotelRow = Database["public"]["Tables"]["hotels"]["Row"];
+type HotelInsert = Database["public"]["Tables"]["hotels"]["Insert"];
+type HotelUpdate = Database["public"]["Tables"]["hotels"]["Update"];
 
 const hotelSchema = z.object({
   name: z.string().min(1, "Nama hotel harus diisi"),
@@ -38,7 +43,7 @@ const hotelSchema = z.object({
 type HotelFormValues = z.infer<typeof hotelSchema>;
 
 interface HotelFormProps {
-  hotelData?: any;
+  hotelData?: HotelRow;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -67,11 +72,13 @@ export function HotelForm({ hotelData, onSuccess, onCancel }: HotelFormProps) {
         facilities: values.facilities ? values.facilities.split("\n").filter(Boolean) : [],
       };
 
-      if (isEditing) {
-        const { error } = await supabase.from("hotels").update(payload).eq("id", hotelData.id);
+      if (isEditing && hotelData) {
+        const updatePayload: HotelUpdate = payload;
+        const { error } = await supabase.from("hotels").update(updatePayload).eq("id", hotelData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("hotels").insert(payload as any);
+        const insertPayload: HotelInsert = payload;
+        const { error } = await supabase.from("hotels").insert(insertPayload);
         if (error) throw error;
       }
     },

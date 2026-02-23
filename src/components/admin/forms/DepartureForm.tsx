@@ -23,6 +23,11 @@ import {
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Database } from "@/integrations/supabase/types";
+
+type DepartureRow = Database["public"]["Tables"]["departures"]["Row"];
+type DepartureInsert = Database["public"]["Tables"]["departures"]["Insert"];
+type DepartureUpdate = Database["public"]["Tables"]["departures"]["Update"];
 
 const departureSchema = z.object({
   package_id: z.string().min(1, "Paket harus dipilih"),
@@ -31,8 +36,8 @@ const departureSchema = z.object({
   quota: z.coerce.number().min(1, "Kuota minimal 1"),
   departure_airport_id: z.string().optional().nullable(),
   arrival_airport_id: z.string().optional().nullable(),
-  flight_number: z.string().optional(),
-  departure_time: z.string().optional(),
+  flight_number: z.string().optional().nullable(),
+  departure_time: z.string().optional().nullable(),
   status: z.string().default("open"),
   muthawif_id: z.string().optional().nullable(),
   team_leader_id: z.string().optional().nullable(),
@@ -49,7 +54,7 @@ const departureSchema = z.object({
 type DepartureFormValues = z.infer<typeof departureSchema>;
 
 interface DepartureFormProps {
-  departureData?: any;
+  departureData?: DepartureRow;
   packageId?: string;
   onSuccess: () => void;
   onCancel: () => void;
@@ -117,7 +122,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
   const form = useForm<DepartureFormValues>({
     resolver: zodResolver(departureSchema),
     defaultValues: {
-      package_id: departureData?.package_id || packageId || null,
+      package_id: departureData?.package_id || packageId || "",
       departure_date: departureData?.departure_date || "",
       return_date: departureData?.return_date || "",
       quota: departureData?.quota || 45,
@@ -142,7 +147,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
     mutationFn: async (values: DepartureFormValues) => {
       const payload = {
         ...values,
-        package_id: values.package_id || null,
+        package_id: values.package_id,
         departure_airport_id: values.departure_airport_id || null,
         arrival_airport_id: values.arrival_airport_id || null,
         flight_number: values.flight_number || null,
@@ -154,11 +159,13 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         hotel_madinah_id: values.hotel_madinah_id || null,
       };
 
-      if (isEditing) {
-        const { error } = await supabase.from("departures").update(payload).eq("id", departureData.id);
+      if (isEditing && departureData) {
+        const updatePayload: DepartureUpdate = payload;
+        const { error } = await supabase.from("departures").update(updatePayload).eq("id", departureData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("departures").insert(payload as any);
+        const insertPayload: DepartureInsert = payload;
+        const { error } = await supabase.from("departures").insert(insertPayload);
         if (error) throw error;
       }
     },
@@ -289,7 +296,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
 
         {/* Flight Info */}
         <div className="space-y-4">
-          <h3 className="font-medium text-sm text-muted-foreground">Penerbangan</h3>
+          <h3 className="font-medium text-sm text-muted-foreground">Penerbangan & Maskapai</h3>
           
           <FormField
             control={form.control}
@@ -347,7 +354,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="arrival_airport_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Bandara Tujuan</FormLabel>
+                  <FormLabel>Bandara Kedatangan</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger>
@@ -376,7 +383,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                 <FormItem>
                   <FormLabel>Nomor Penerbangan</FormLabel>
                   <FormControl>
-                    <Input placeholder="GA 987" {...field} />
+                    <Input placeholder="GA-980" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -388,9 +395,9 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="departure_time"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Jam Keberangkatan</FormLabel>
+                  <FormLabel>Waktu Keberangkatan</FormLabel>
                   <FormControl>
-                    <Input type="time" {...field} />
+                    <Input placeholder="11:30" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -401,10 +408,10 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
 
         <Separator />
 
-        {/* Hotels */}
+        {/* Accomodation Info */}
         <div className="space-y-4">
-          <h3 className="font-medium text-sm text-muted-foreground">Hotel</h3>
-
+          <h3 className="font-medium text-sm text-muted-foreground">Akomodasi & Tim</h3>
+          
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -419,17 +426,11 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {makkahHotels.length === 0 ? (
-                        <div className="p-2 text-sm text-muted-foreground text-center">
-                          Belum ada hotel Makkah
-                        </div>
-                      ) : (
-                        makkahHotels.map((hotel) => (
-                          <SelectItem key={hotel.id} value={hotel.id}>
-                            {hotel.name} ({hotel.star_rating}⭐)
-                          </SelectItem>
-                        ))
-                      )}
+                      {makkahHotels.map((hotel) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>
+                          {hotel.name} ({hotel.star_rating}⭐)
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -450,17 +451,11 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {madinahHotels.length === 0 ? (
-                        <div className="p-2 text-sm text-muted-foreground text-center">
-                          Belum ada hotel Madinah
-                        </div>
-                      ) : (
-                        madinahHotels.map((hotel) => (
-                          <SelectItem key={hotel.id} value={hotel.id}>
-                            {hotel.name} ({hotel.star_rating}⭐)
-                          </SelectItem>
-                        ))
-                      )}
+                      {madinahHotels.map((hotel) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>
+                          {hotel.name} ({hotel.star_rating}⭐)
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -468,78 +463,6 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               )}
             />
           </div>
-        </div>
-
-        <Separator />
-
-        {/* Pricing */}
-        <div className="space-y-4">
-          <h3 className="font-medium text-sm text-muted-foreground">Harga per Orang</h3>
-
-          <div className="grid gap-4 grid-cols-2">
-            <FormField
-              control={form.control}
-              name="price_quad"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quad (4 orang)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} placeholder="0" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price_triple"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Triple (3 orang)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} placeholder="0" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price_double"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Double (2 orang)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} placeholder="0" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price_single"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Single (1 orang)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} placeholder="0" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Team */}
-        <div className="space-y-4">
-          <h3 className="font-medium text-sm text-muted-foreground">Tim Pembimbing</h3>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
@@ -555,8 +478,10 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {muthawifs?.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      {muthawifs?.map((muthawif) => (
+                        <SelectItem key={muthawif.id} value={muthawif.id}>
+                          {muthawif.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -570,27 +495,89 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="team_leader_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tour Leader (TL)</FormLabel>
+                  <FormLabel>Tour Leader</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Pilih Tour Leader" />
+                        <SelectValue placeholder="Pilih TL" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {tourLeaders?.length === 0 ? (
-                        <div className="p-2 text-sm text-muted-foreground text-center">
-                          Belum ada jamaah yang ditandai sebagai Tour Leader
-                        </div>
-                      ) : (
-                        tourLeaders?.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.full_name} {c.phone ? `(${c.phone})` : ''}
-                          </SelectItem>
-                        ))
-                      )}
+                      {tourLeaders?.map((tl) => (
+                        <SelectItem key={tl.id} value={tl.id}>
+                          {tl.full_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Pricing Info */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-sm text-muted-foreground">Harga Khusus Keberangkatan (Override)</h3>
+            <p className="text-[10px] text-muted-foreground italic">* Kosongkan atau set 0 untuk menggunakan harga paket</p>
+          </div>
+          
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+            <FormField
+              control={form.control}
+              name="price_quad"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Quad (4)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price_triple"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Triple (3)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price_double"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Double (2)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price_single"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Single (1)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

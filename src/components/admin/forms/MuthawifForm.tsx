@@ -5,7 +5,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Form,
@@ -17,6 +16,11 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type MuthawifRow = Database["public"]["Tables"]["muthawifs"]["Row"];
+type MuthawifInsert = Database["public"]["Tables"]["muthawifs"]["Insert"];
+type MuthawifUpdate = Database["public"]["Tables"]["muthawifs"]["Update"];
 
 const muthawifSchema = z.object({
   name: z.string().min(1, "Nama muthawif harus diisi"),
@@ -31,7 +35,7 @@ const muthawifSchema = z.object({
 type MuthawifFormValues = z.infer<typeof muthawifSchema>;
 
 interface MuthawifFormProps {
-  muthawifData?: any;
+  muthawifData?: MuthawifRow;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -56,18 +60,22 @@ export function MuthawifForm({ muthawifData, onSuccess, onCancel }: MuthawifForm
   const mutation = useMutation({
     mutationFn: async (values: MuthawifFormValues) => {
       const payload = {
-        ...values,
+        name: values.name,
+        experience_years: values.experience_years,
         languages: values.languages ? values.languages.split(",").map(l => l.trim()).filter(Boolean) : [],
         photo_url: values.photo_url || null,
         email: values.email || null,
         phone: values.phone || null,
+        is_active: values.is_active,
       };
 
-      if (isEditing) {
-        const { error } = await supabase.from("muthawifs").update(payload).eq("id", muthawifData.id);
+      if (isEditing && muthawifData) {
+        const updatePayload: MuthawifUpdate = payload;
+        const { error } = await supabase.from("muthawifs").update(updatePayload).eq("id", muthawifData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("muthawifs").insert(payload as any);
+        const insertPayload: MuthawifInsert = payload;
+        const { error } = await supabase.from("muthawifs").insert(insertPayload);
         if (error) throw error;
       }
     },
