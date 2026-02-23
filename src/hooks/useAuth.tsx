@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useRef, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole, Profile } from '@/types/database';
@@ -24,17 +24,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const authHandledRef = useRef(false);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        authHandledRef.current = true;
 
         if (session?.user) {
-          // Use deferred fetch to avoid Supabase auth deadlock
-          // setIsLoading(false) will be called in fetchUserData's finally block
           fetchUserData(session.user.id);
         } else {
           setProfile(null);
@@ -44,8 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Then get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // Skip if onAuthStateChange already handled this
+      if (authHandledRef.current) return;
+
       setSession(session);
       setUser(session?.user ?? null);
       
