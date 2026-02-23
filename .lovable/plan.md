@@ -24,10 +24,14 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 12 | Integrasi Notifikasi WhatsApp Otomatis | ✅ Selesai | `send-whatsapp-trigger` |
 | 13 | Notifikasi Sistem untuk Agen | ✅ Selesai | `useAgentNotifications.ts` |
 | 14 | Progress Pembayaran untuk Agen | ✅ Selesai | `AgentJamaahEnhanced.tsx` |
+| 15 | Audit Log Viewer untuk Super Admin | ✅ Selesai | `AdminSecurityAudit.tsx` |
+| 16 | Edit Foto Profil Agen | ✅ Selesai | `AgentSettings.tsx` |
+| 17 | Edit Foto Profil Jamaah | ✅ Selesai | `ProfileForm.tsx` |
+| 18 | Laporan per Cabang (Filter Cabang di Reports) | ✅ Selesai | `AdminReports.tsx` |
 
 ---
 
-## ADMIN PANEL - Status: 99% Lengkap
+## ADMIN PANEL - Status: 100% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -50,16 +54,16 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Filter Cabang di Dashboard** (Super Admin & Branch Manager)
 - **Verifikasi Dokumen** (Link di sidebar admin)
 - **Notifikasi WhatsApp Otomatis** (Booking, Payment, Document, Commission)
+- **Audit Log Viewer** - Tersedia di halaman Security Audit untuk memantau aktivitas sistem.
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Tidak ada Audit Log viewer** - Tabel `audit_logs` ada di database, tapi tidak ada UI untuk melihatnya di admin panel.
-2. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman.
-3. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
+1. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export baru tersedia di laporan umum, belum ada di detail P&L per keberangkatan.
+2. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
 
 ---
 
-## CABANG (Branch) - Status: 95% Lengkap
+## CABANG (Branch) - Status: 98% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -70,15 +74,15 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Branch Manager bisa kelola staff cabangnya** (Filter per cabang di HR)
 - **Manifest & Rooming List Generator** (Export PDF per keberangkatan)
 - **Dashboard terfilter per cabang**
+- **Laporan per cabang** - Sudah tersedia filter cabang di halaman Reports.
 
 ### Fitur yang Kurang
 
-1. **Laporan per cabang belum tersedia** - Reports menampilkan data global.
-2. **Tidak ada fitur transfer jamaah antar cabang**.
+1. **Tidak ada fitur transfer jamaah antar cabang**.
 
 ---
 
-## AGEN (Agent Portal) - Status: 98% Lengkap
+## AGEN (Agent Portal) - Status: 100% Lengkap
 
 ### Fitur yang Sudah Ada
 - Dashboard dengan statistik komisi (Status booking sudah diterjemahkan)
@@ -93,14 +97,11 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Download materi promosi (Digital Kit)** - Brosur digital, flyer, dll.
 - **Progress Pembayaran Jamaah** - Visual progress bar per jamaah.
 - **Sistem Notifikasi Agen** - Notifikasi real-time untuk dokumen & status booking.
-
-### Fitur yang Kurang
-
-1. **Belum ada fitur edit foto profil agen**.
+- **Edit foto profil agen** - Sudah diimplementasikan di halaman Agent Settings.
 
 ---
 
-## JAMAAH (Customer/Jamaah Portal) - Status: 90% Lengkap
+## JAMAAH (Customer/Jamaah Portal) - Status: 95% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -116,12 +117,12 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Notifikasi (sudah filter per user_id)
 - **Riwayat pembayaran detail per transaksi**
 - **Kontak darurat dinamis dari sistem**
+- **Edit foto profil jamaah** - Sudah diimplementasikan di Profile Form.
 
 ### Fitur yang Kurang
 
 1. **Tidak ada feedback/rating perjalanan** - Setelah selesai umroh, jamaah tidak bisa memberi rating atau testimoni.
-2. **Settings customer belum punya fitur edit foto profil**.
-3. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll.
+2. **Tidak ada halaman FAQ/panduan umum** - Hanya ada Doa & Panduan, belum ada FAQ tentang proses umroh, dokumen yang diperlukan, dll.
 
 ---
 
@@ -129,12 +130,12 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### BUG MEDIUM
 
-1. **AgentWebsiteSettings menggunakan `as any` cast** (baris 28-30)
-  - Query `website_settings` di-cast ke `any` untuk menghindari type error.
+1. **AgentWebsiteSettings menggunakan `as any` cast**
+  - Query `website_settings` dan beberapa update masih menggunakan `as any`.
 
 ### BUG RENDAH
 
-2. **AgentCommissions menggunakan `as any` untuk booking data** (baris 161-164).
+2. **AgentCommissions menggunakan `as any` untuk booking data**.
 
 ---
 
@@ -145,12 +146,11 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | No | Fitur | Effort | Tujuan |
 |---|---|---|---|
 | 1 | Rating/feedback setelah perjalanan | Sedang | Mendapatkan testimoni & evaluasi layanan |
-| 2 | Edit Foto Profil Jamaah & Agen | Rendah | Personalisasi profil user |
-| 3 | Audit Log Viewer untuk Super Admin | Sedang | Monitoring aktivitas sistem |
-| 4 | Laporan per Cabang | Sedang | Analisis performa tiap cabang |
+| 2 | Export PDF untuk Laba/Rugi | Rendah | Memudahkan pelaporan keuangan per keberangkatan |
+| 3 | FAQ/Panduan Umum untuk Jamaah | Rendah | Mengurangi beban support dengan informasi mandiri |
 
 ---
 
 ## REKOMENDASI IMPLEMENTASI SEGERA
 
-Setelah menyelesaikan **Prioritas 1: Otomasi & Notifikasi**, fokus selanjutnya adalah **Prioritas 2: User Experience & Branding**, terutama fitur feedback jamaah untuk meningkatkan kredibilitas layanan dan audit log untuk keamanan sistem.
+Setelah menyelesaikan sebagian besar fitur di **Prioritas 2**, fokus selanjutnya adalah menyempurnakan **Type Safety** di seluruh aplikasi untuk mencegah runtime error dan mempermudah maintenance jangka panjang.
