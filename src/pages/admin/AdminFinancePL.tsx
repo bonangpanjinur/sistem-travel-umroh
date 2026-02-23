@@ -1,4 +1,31 @@
 import { useState } from "react";
+import type { Database } from "@/integrations/supabase/types";
+
+type DepartureRow = Database["public"]["Tables"]["departures"]["Row"];
+type PackageRow = Database["public"]["Tables"]["packages"]["Row"];
+type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+type VendorCostRow = Database["public"]["Tables"]["vendor_costs"]["Row"];
+type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
+
+interface DepartureQueryResult extends Pick<DepartureRow, "id" | "departure_date" | "return_date" | "quota" | "booked_count"> {
+  package: Pick<PackageRow, "name" | "code"> | null;
+}
+
+interface BookingQueryResult extends Pick<BookingRow, "departure_id" | "total_price" | "paid_amount"> {}
+
+interface VendorCostQueryResult extends Pick<VendorCostRow, "id" | "departure_id" | "vendor_id" | "cost_type" | "description" | "amount" | "due_date" | "paid_amount" | "status"> {
+  vendor: Pick<VendorRow, "name" | "vendor_type"> | null;
+}
+
+interface DeparturePL extends DepartureQueryResult {
+  totalRevenue: number;
+  totalCost: number;
+  profit: number;
+  profitMargin: number;
+  costs: VendorCostQueryResult[];
+}
+
+interface Vendor extends Pick<VendorRow, "id" | "name" | "vendor_type"> {}
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,38 +57,7 @@ const COST_TYPES = [
   { value: 'OTHER', label: 'Lainnya' },
 ];
 
-interface DeparturePL {
-  id: string;
-  departure_date: string;
-  return_date: string;
-  quota: number;
-  booked_count: number;
-  package: { name: string; code: string } | null;
-  totalRevenue: number;
-  totalCost: number;
-  profit: number;
-  profitMargin: number;
-  costs: VendorCost[];
-}
 
-interface VendorCost {
-  id: string;
-  departure_id: string;
-  vendor_id: string;
-  vendor?: { name: string; vendor_type: string };
-  cost_type: string;
-  description: string | null;
-  amount: number;
-  due_date: string | null;
-  paid_amount: number;
-  status: string;
-}
-
-interface Vendor {
-  id: string;
-  name: string;
-  vendor_type: string;
-}
 
 export default function AdminFinancePL() {
   const queryClient = useQueryClient();
@@ -77,11 +73,11 @@ export default function AdminFinancePL() {
 
   // Fetch departures with revenue and costs
   const { data: departures, isLoading } = useQuery({
-    queryKey: ['admin-departures-pl'],
-    queryFn: async () => {
+    queryKey: ["admin-departures-pl"],
+    queryFn: async (): Promise<DeparturePL[]> => {
       // Get departures
       const { data: deps, error: depError } = await supabase
-        .from('departures')
+        .from("departures")
         .select(`
           id,
           departure_date,
@@ -90,21 +86,23 @@ export default function AdminFinancePL() {
           booked_count,
           package:packages(name, code)
         `)
-        .gte('departure_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-        .order('departure_date', { ascending: false });
+        .gte("departure_date", new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
+        .order("departure_date", { ascending: false });
       
       if (depError) throw depError;
+      const typedDeps: DepartureQueryResult[] = deps;
 
       // Get bookings revenue per departure
       const { data: bookings, error: bookError } = await supabase
-        .from('bookings')
-        .select('departure_id, total_price, paid_amount');
+        .from("bookings")
+        .select("departure_id, total_price, paid_amount");
       
       if (bookError) throw bookError;
+      const typedBookings: BookingQueryResult[] = bookings;
 
       // Get vendor costs per departure
       const { data: costs, error: costError } = await supabase
-        .from('vendor_costs')
+        .from("vendor_costs")
         .select(`
           id,
           departure_id,
@@ -119,11 +117,12 @@ export default function AdminFinancePL() {
         `);
       
       if (costError) throw costError;
+      const typedCosts: VendorCostQueryResult[] = costs;
 
       // Calculate P&L for each departure
-      return deps?.map(dep => {
-        const depBookings = bookings?.filter(b => b.departure_id === dep.id) || [];
-        const depCosts = costs?.filter(c => c.departure_id === dep.id) || [];
+      return typedDeps?.map(dep => {
+        const depBookings = typedBookings?.filter(b => b.departure_id === dep.id) || [];
+        const depCosts = typedCosts?.filter(c => c.departure_id === dep.id) || [];
         
         const totalRevenue = depBookings.reduce((sum, b) => sum + (b.total_price || 0), 0);
         const totalCost = depCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
@@ -136,8 +135,8 @@ export default function AdminFinancePL() {
           totalCost,
           profit,
           profitMargin,
-          costs: depCosts as VendorCost[],
-        } as DeparturePL;
+          costs: depCosts,
+        };
       }) || [];
     },
   });
@@ -151,7 +150,7 @@ export default function AdminFinancePL() {
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
-      return data as Vendor[];
+      return data;
     },
   });
 
@@ -175,7 +174,7 @@ export default function AdminFinancePL() {
       setCostDialogOpen(false);
       setCostFormData({ vendor_id: "", cost_type: "ACCOMMODATION", description: "", amount: "", due_date: "" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error('Gagal menambah biaya: ' + error.message);
     },
   });
@@ -183,10 +182,11 @@ export default function AdminFinancePL() {
   const markPaidMutation = useMutation({
     mutationFn: async (costId: string) => {
       const { data: cost } = await supabase
-        .from('vendor_costs')
-        .select('amount')
-        .eq('id', costId)
+        .from("vendor_costs")
+        .select("amount")
+        .eq("id", costId)
         .single();
+      if (!cost) throw new Error("Cost not found");
       
       const { error } = await supabase
         .from('vendor_costs')
@@ -464,7 +464,7 @@ export default function AdminFinancePL() {
                     {selectedDeparture.costs.map((cost) => (
                       <div key={cost.id} className="flex items-center justify-between p-2 border rounded">
                         <div>
-                          <p className="font-medium text-sm">{(cost.vendor as any)?.name}</p>
+                          <p className="font-medium text-sm">{cost.vendor?.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {COST_TYPES.find(t => t.value === cost.cost_type)?.label}
                           </p>

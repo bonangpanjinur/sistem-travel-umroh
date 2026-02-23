@@ -1,4 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
+import type { Database } from "@/integrations/supabase/types";
+
+type AgentCommission = Database["public"]["Tables"]["agent_commissions"]["Row"];
+type Booking = Database["public"]["Tables"]["bookings"]["Row"];
+type Customer = Database["public"]["Tables"]["customers"]["Row"];
+
+interface BookingWithCustomer extends Booking {
+  customer: Pick<Customer, "full_name"> | null;
+}
+
+interface AgentCommissionWithBooking extends AgentCommission {
+  booking: Pick<BookingWithCustomer, "booking_code" | "total_price" | "customer"> | null;
+}
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function AgentCommissions() {
   const { user } = useAuth();
 
-  const { data: agentData } = useQuery({
+      const { data: agentData } = useQuery<Pick<Database["public"]["Tables"]["agents"]["Row"], "id" | "commission_rate"> | null>({
     queryKey: ['agent-profile-comm', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
@@ -31,7 +44,7 @@ export default function AgentCommissions() {
     },
   });
 
-  const { data: commissions, isLoading } = useQuery({
+      const { data: commissions, isLoading } = useQuery<AgentCommissionWithBooking[] | null>({
     queryKey: ['agent-commissions', agentData?.id],
     enabled: !!agentData?.id,
     queryFn: async () => {
@@ -158,19 +171,13 @@ export default function AgentCommissions() {
                       {format(new Date(commission.created_at), "dd MMM yyyy", { locale: id })}
                     </TableCell>
                     <TableCell className="font-mono">
-                      {commission.booking && typeof commission.booking === 'object' && 'booking_code' in commission.booking
-                        ? (commission.booking as any).booking_code
-                        : '-'}
+                      {commission.booking?.booking_code || '-'}
                     </TableCell>
                     <TableCell>
-                      {commission.booking && typeof commission.booking === 'object' && 'customer' in commission.booking
-                        ? (commission.booking as any).customer?.full_name
-                        : '-'}
+                      {commission.booking?.customer?.full_name || '-'}
                     </TableCell>
                     <TableCell>
-                      {commission.booking && typeof commission.booking === 'object' && 'total_price' in commission.booking
-                        ? formatCurrency((commission.booking as any).total_price || 0)
-                        : formatCurrency(0)}
+                      {formatCurrency(commission.booking?.total_price || 0)}
                     </TableCell>
                     <TableCell className="font-semibold text-primary">
                       {formatCurrency(commission.commission_amount)}

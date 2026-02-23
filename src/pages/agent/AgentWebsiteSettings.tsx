@@ -1,5 +1,8 @@
 import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
+
+type WebsiteSettings = Database["public"]["Tables"]["website_settings"]["Row"];
+type Agent = Database["public"]["Tables"]["agents"]["Row"];
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +20,7 @@ import { Globe, Save, Palette, ExternalLink, Copy, Link as LinkIcon } from "luci
 
 export default function AgentWebsiteSettings() {
   const { user } = useAuth();
-  const { data: agentData, isLoading: loadingAgent } = useAgentByUserId(user?.id);
+  const { data: agentData, isLoading: loadingAgent } = useAgentByUserId(user?.id) as { data: Agent | undefined, isLoading: boolean };
   const queryClient = useQueryClient();
 
   // Fetch agent's website settings
@@ -31,7 +34,7 @@ export default function AgentWebsiteSettings() {
         .eq("agent_id", agentData!.id)
         .single();
       if (error) throw error;
-      return data;
+      return data as WebsiteSettings;
     },
   });
 
@@ -79,25 +82,25 @@ export default function AgentWebsiteSettings() {
 
       if (settings) {
         // Update existing
-        const { error } = await (supabase
+        const { error } = await supabase
           .from("website_settings")
-          .update({ ...form, updated_at: new Date().toISOString() }) as any)
+          .update({ ...form, updated_at: new Date().toISOString() })
           .eq("agent_id", agentData.id);
         if (error) throw error;
       } else {
         // Create new with agent_id
-        const { error } = await (supabase
+        const { error } = await supabase
           .from("website_settings")
-          .insert({ ...form, agent_id: agentData.id }) as any);
+          .insert({ ...form, agent_id: agentData.id });
         if (error) throw error;
       }
 
       // Update agent slug if not set
-      if (!(agentData as any).slug) {
+      if (!agentData.slug) {
         const slug = agentData.agent_code.toLowerCase().replace(/[^a-z0-9]/g, '-');
-        await (supabase
+        await supabase
           .from("agents")
-          .update({ slug } as any) as any)
+          .update({ slug })
           .eq("id", agentData.id);
       }
     },
@@ -110,7 +113,7 @@ export default function AgentWebsiteSettings() {
     },
   });
 
-  const agentSlug = (agentData as any)?.slug || agentData?.agent_code?.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  const agentSlug = agentData?.slug || agentData?.agent_code?.toLowerCase().replace(/[^a-z0-9]/g, '-');
   const websiteUrl = `/a/${agentSlug}`;
 
   const handleCopyLink = () => {
