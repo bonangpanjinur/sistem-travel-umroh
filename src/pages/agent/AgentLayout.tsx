@@ -28,7 +28,7 @@ export default function AgentLayout() {
   }
 
   if (!user || !hasRole('agent')) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   return (

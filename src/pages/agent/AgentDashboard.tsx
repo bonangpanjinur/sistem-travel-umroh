@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
+import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgentByUserId, useAgentStats, useAgentRecentBookings } from "@/hooks/useAgents";
 import { Users, DollarSign, TrendingUp, Clock } from "lucide-react";
@@ -157,7 +158,7 @@ export default function AgentDashboard() {
                   <div className="text-right">
                     <p className="font-semibold">{formatCurrency(booking.total_price)}</p>
                     <Badge variant={booking.booking_status === 'confirmed' ? 'default' : 'secondary'}>
-                      {booking.booking_status}
+                      {BOOKING_STATUS_LABELS[booking.booking_status || ''] || booking.booking_status}
                     </Badge>
                   </div>
                 </div>

@@ -94,6 +94,7 @@ const NAV_GROUPS = [
     label: 'Dokumen & Surat',
     allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
+      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification' },
       { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator' },
       { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content' },
     ]
