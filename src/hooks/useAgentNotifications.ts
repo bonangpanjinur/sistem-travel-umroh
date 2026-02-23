@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
+import { Database } from "@/integrations/supabase/types";
 
 export interface AgentNotification {
   id: string;
@@ -12,6 +13,11 @@ export interface AgentNotification {
   read: boolean;
   data?: any;
 }
+
+type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type DocumentRow = Database['public']['Tables']['customer_documents']['Row'];
+type CommissionRow = Database['public']['Tables']['agent_commissions']['Row'];
+type PaymentRow = Database['public']['Tables']['payments']['Row'];
 
 export function useAgentNotifications(agentId?: string) {
   const [notifications, setNotifications] = useState<AgentNotification[]>([]);
@@ -68,8 +74,8 @@ export function useAgentNotifications(agentId?: string) {
           filter: `agent_id=eq.${agentId}`,
         },
         async (payload) => {
-          const booking = payload.new as any;
-          const oldBooking = payload.old as any;
+          const booking = payload.new as BookingRow;
+          const oldBooking = payload.old as BookingRow;
           
           // Only notify if status changed
           if (oldBooking.booking_status !== booking.booking_status) {
@@ -90,7 +96,7 @@ export function useAgentNotifications(agentId?: string) {
             addNotification({
               type: 'booking',
               title: '📋 Status Booking Berubah',
-              message: `Booking ${booking.booking_code} untuk ${customer?.full_name || 'Customer'} sekarang ${statusLabels[booking.booking_status] || booking.booking_status}`,
+              message: `Booking ${booking.booking_code} untuk ${customer?.full_name || 'Customer'} sekarang ${statusLabels[booking.booking_status || ''] || booking.booking_status}`,
               data: booking,
             });
           }
@@ -109,8 +115,8 @@ export function useAgentNotifications(agentId?: string) {
           table: 'customer_documents',
         },
         async (payload) => {
-          const document = payload.new as any;
-          const oldDocument = payload.old as any;
+          const document = payload.new as DocumentRow;
+          const oldDocument = payload.old as DocumentRow;
           
           // Only notify if status changed to rejected
           if (oldDocument.status !== 'rejected' && document.status === 'rejected') {
@@ -123,10 +129,11 @@ export function useAgentNotifications(agentId?: string) {
               .maybeSingle();
 
             if (booking) {
+              const customerName = (booking.customer as any)?.full_name || 'Customer';
               addNotification({
                 type: 'document',
                 title: '❌ Dokumen Ditolak',
-                message: `Dokumen ${document.document_type} untuk ${(booking.customer as any)?.full_name || 'Customer'} ditolak. Alasan: ${document.rejection_reason || 'Tidak ada keterangan'}`,
+                message: `Dokumen ${document.document_type} untuk ${customerName} ditolak. Alasan: ${document.rejection_reason || 'Tidak ada keterangan'}`,
                 data: document,
               });
             }
@@ -147,8 +154,8 @@ export function useAgentNotifications(agentId?: string) {
           filter: `agent_id=eq.${agentId}`,
         },
         async (payload) => {
-          const commission = payload.new as any;
-          const oldCommission = payload.old as any;
+          const commission = payload.new as CommissionRow;
+          const oldCommission = payload.old as CommissionRow;
           
           // Only notify if status changed to paid
           if (oldCommission.status !== 'paid' && commission.status === 'paid') {
@@ -174,8 +181,8 @@ export function useAgentNotifications(agentId?: string) {
           table: 'payments',
         },
         async (payload) => {
-          const payment = payload.new as any;
-          const oldPayment = payload.old as any;
+          const payment = payload.new as PaymentRow;
+          const oldPayment = payload.old as PaymentRow;
           
           // Check if this payment belongs to this agent's booking
           const { data: booking } = await supabase
@@ -186,12 +193,13 @@ export function useAgentNotifications(agentId?: string) {
             .maybeSingle();
 
           if (booking) {
+            const customerName = (booking.customer as any)?.full_name || 'Customer';
             // Notify if status changed to paid
             if (oldPayment.status !== 'paid' && payment.status === 'paid') {
               addNotification({
                 type: 'payment',
                 title: '✅ Pembayaran Diverifikasi',
-                message: `Pembayaran ${payment.payment_code} untuk ${(booking.customer as any)?.full_name || 'Customer'} sebesar ${formatCurrency(payment.amount)} telah diverifikasi`,
+                message: `Pembayaran ${payment.payment_code} untuk ${customerName} sebesar ${formatCurrency(payment.amount)} telah diverifikasi`,
                 data: payment,
               });
             }
@@ -200,7 +208,7 @@ export function useAgentNotifications(agentId?: string) {
               addNotification({
                 type: 'payment',
                 title: '⚠️ Pembayaran Ditolak',
-                message: `Pembayaran ${payment.payment_code} untuk ${(booking.customer as any)?.full_name || 'Customer'} ditolak. Alasan: ${payment.notes || 'Tidak ada keterangan'}`,
+                message: `Pembayaran ${payment.payment_code} untuk ${customerName} ditolak. Alasan: ${payment.notes || 'Tidak ada keterangan'}`,
                 data: payment,
               });
             }

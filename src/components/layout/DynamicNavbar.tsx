@@ -51,7 +51,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const navLinks = (settings?.nav_links as Array<{href: string; label: string}>) || defaultNavLinks;
 
   // Get header display mode from custom_sections
-  const customSections = (settings as any)?.custom_sections;
+  const customSections = settings?.custom_sections as any;
   const headerMode: HeaderDisplayMode = customSections?.headerDisplayMode || 'logo_name_tagline';
 
   const renderLogo = () => {

@@ -51,7 +51,7 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
   const footerLinks = settings?.footer_links || defaultFooterLinks;
 
   // Get footer layout settings from custom_sections
-  const customSections = (settings as any)?.custom_sections;
+  const customSections = settings?.custom_sections as any;
   const footerLayout = customSections?.footerLayout || 'full';
   const footerShowSocial = customSections?.footerShowSocial ?? true;
   const footerShowContact = customSections?.footerShowContact ?? true;

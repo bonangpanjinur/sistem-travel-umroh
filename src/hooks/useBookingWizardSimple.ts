@@ -109,7 +109,12 @@ export function useBookingWizardSimple(
       if (departureError || !departure?.package) throw new Error('Departure tidak ditemukan');
 
       // 3. Calculate pricing
-      const pkg = departure.package as any;
+      const pkg = departure.package as unknown as {
+        price_quad: number;
+        price_triple: number;
+        price_double: number;
+        price_single: number;
+      };
       const priceMap: Record<RoomType, number> = {
         quad: pkg.price_quad,
         triple: pkg.price_triple,

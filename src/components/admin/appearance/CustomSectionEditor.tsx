@@ -43,7 +43,7 @@ const DEFAULT_STATS: StatItem[] = [
 ];
 
 function parseCustomSections(settings: WebsiteSettings): CustomSections {
-  const raw = (settings as any).custom_sections;
+  const raw = settings.custom_sections as any;
   if (raw && typeof raw === 'object') {
     return {
       showBismillah: raw.showBismillah ?? true,
@@ -108,7 +108,7 @@ export function CustomSectionEditor({ settings }: CustomSectionEditorProps) {
       footerShowSocial, footerShowContact, footerShowLinks,
       footerCopyrightText,
     };
-    updateSettings.mutate({ custom_sections: customSections } as any);
+    updateSettings.mutate({ custom_sections: customSections as any });
   };
 
   const updateStat = (index: number, field: keyof StatItem, value: string) => {

@@ -461,7 +461,8 @@ export function generateInvoice(
     }
   });
   
-  y = (doc as any).lastAutoTable.finalY + 10;
+  // @ts-ignore - lastAutoTable is added by jspdf-autotable
+  y = doc.lastAutoTable.finalY + 10;
   
   // Totals
   const totalsX = pageWidth - 80;

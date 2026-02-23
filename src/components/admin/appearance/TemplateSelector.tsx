@@ -68,7 +68,7 @@ export function TemplateSelector({ settings }: TemplateSelectorProps) {
 
   const handleSelect = (templateId: string) => {
     if (templateId === currentTemplate) return;
-    updateSettings.mutate({ template: templateId } as any);
+    updateSettings.mutate({ template: templateId });
   };
 
   return (

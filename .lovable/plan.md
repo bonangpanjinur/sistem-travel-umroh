@@ -35,6 +35,8 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 23 | Perbaikan Type Safety di Form Admin | ✅ Selesai | `PackageForm.tsx` |
 | 24 | Perbaikan Type Safety di Review Booking | ✅ Selesai | `StepReview.tsx` |
 | 25 | Perbaikan Type Safety di Link Itinerary | ✅ Selesai | `LinkItineraryForm.tsx` |
+| 26 | Refactoring `useWebsiteSettings` & `useAgentNotifications` | ✅ Selesai | `useWebsiteSettings.ts`, `useAgentNotifications.ts` |
+| 27 | Pembersihan `as any` di Komponen UI Utama | ✅ Selesai | `DataTable.tsx`, `AdminLayout.tsx`, `DynamicNavbar.tsx` |
 
 ---
 
@@ -154,9 +156,14 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 4. **PackageForm.tsx** - Memperbaiki typing pada form default values dan metadata parsing.
 5. **StepReview.tsx** - Menghilangkan `as unknown` cast pada joined data.
 6. **LinkItineraryForm.tsx** - Menghilangkan `as unknown` cast pada query results.
+7. **useWebsiteSettings.ts** - Implementasi mapping data Supabase ke interface TypeScript yang kuat.
+8. **useAgentNotifications.ts & useAdminNotifications.ts** - Menghilangkan `as any` pada payload real-time Supabase.
+9. **DataTable.tsx** - Memperbaiki generic typing untuk akses properti `id`.
+10. **AdminLayout.tsx** - Menghilangkan `as any` pada pengecekan role pengguna.
 
 #### Langkah Selanjutnya:
 - Standarisasi interface untuk data relasional dari Supabase di seluruh aplikasi.
+- Pembersihan `as any` pada modul CRM dan Keuangan yang tersisa.
 
 #### Benefit:
 - Mengurangi runtime error.

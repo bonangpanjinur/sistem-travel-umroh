@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
+import { AppRole } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./NotificationBell";
 import { CommandPalette } from "./CommandPalette";
@@ -227,7 +228,7 @@ export function AdminLayout() {
                 // If no allowedRoles defined, show to all admin users
                 if (!group.allowedRoles) return true;
                 // Check if user has any of the allowed roles
-                return group.allowedRoles.some(role => roles.includes(role as any));
+                return group.allowedRoles.some(role => roles.includes(role as AppRole));
               }).map((group) => (
               <div key={group.label}>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">

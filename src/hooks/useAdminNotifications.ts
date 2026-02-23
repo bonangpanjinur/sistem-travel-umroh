@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
+import { Database } from "@/integrations/supabase/types";
 
 export interface AdminNotification {
   id: string;
@@ -12,6 +13,9 @@ export interface AdminNotification {
   read: boolean;
   data?: any;
 }
+
+type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type PaymentRow = Database['public']['Tables']['payments']['Row'];
 
 export function useAdminNotifications() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -65,7 +69,7 @@ export function useAdminNotifications() {
           table: 'bookings',
         },
         async (payload) => {
-          const booking = payload.new as any;
+          const booking = payload.new as BookingRow;
           
           // Fetch customer name
           const { data: customer } = await supabase
@@ -95,7 +99,7 @@ export function useAdminNotifications() {
           table: 'payments',
         },
         async (payload) => {
-          const payment = payload.new as any;
+          const payment = payload.new as PaymentRow;
           
           // Fetch booking code
           const { data: booking } = await supabase
@@ -125,8 +129,8 @@ export function useAdminNotifications() {
           table: 'payments',
         },
         async (payload) => {
-          const payment = payload.new as any;
-          const oldPayment = payload.old as any;
+          const payment = payload.new as PaymentRow;
+          const oldPayment = payload.old as PaymentRow;
           
           // Only notify if status changed to pending (new proof uploaded)
           if (oldPayment.status !== 'pending' && payment.status === 'pending' && payment.proof_url) {

@@ -1,10 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Database } from "@/integrations/supabase/types";
 
 export interface HomepageSection {
   id: string;
   title: string;
+  enabled: boolean;
+  order: number;
+}
+
+export interface CustomSection {
+  id: string;
+  title: string;
+  content: string;
   enabled: boolean;
   order: number;
 }
@@ -27,6 +36,7 @@ export interface WebsiteSettings {
   heading_font: string | null;
   body_font: string | null;
   homepage_sections: HomepageSection[] | null;
+  custom_sections: CustomSection[] | null;
   hero_title: string | null;
   hero_subtitle: string | null;
   hero_image_url: string | null;
@@ -69,6 +79,18 @@ export interface ThemePreset {
 
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 
+type WebsiteSettingsRow = Database['public']['Tables']['website_settings']['Row'];
+
+const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
+  return {
+    ...data,
+    homepage_sections: data.homepage_sections as unknown as HomepageSection[] | null,
+    custom_sections: data.custom_sections as unknown as CustomSection[] | null,
+    nav_links: data.nav_links as unknown as WebsiteSettings['nav_links'],
+    footer_links: data.footer_links as unknown as WebsiteSettings['footer_links'],
+  };
+};
+
 export function useWebsiteSettings() {
   return useQuery({
     queryKey: ["website-settings"],
@@ -81,12 +103,7 @@ export function useWebsiteSettings() {
 
       if (error) throw error;
       
-      return {
-        ...data,
-        homepage_sections: data.homepage_sections as unknown as HomepageSection[] | null,
-        nav_links: data.nav_links as unknown as WebsiteSettings['nav_links'],
-        footer_links: data.footer_links as unknown as WebsiteSettings['footer_links'],
-      } as unknown as WebsiteSettings;
+      return mapWebsiteSettings(data);
     },
   });
 }
@@ -96,10 +113,12 @@ export function useTenantWebsiteSettings(type: 'branch' | 'agent', slug?: string
     queryKey: ["website-settings", type, slug],
     enabled: !!slug,
     queryFn: async (): Promise<WebsiteSettings> => {
-      const fetchSettingsBy = async (key: string, value: string): Promise<any> => {
-        const { data } = await (supabase.from("website_settings").select("*") as any)
+      const fetchSettingsBy = async (key: 'branch_id' | 'agent_id', value: string): Promise<WebsiteSettingsRow | null> => {
+        const { data } = await supabase
+          .from("website_settings")
+          .select("*")
           .eq(key, value)
-          .single();
+          .maybeSingle();
         return data;
       };
 
@@ -114,59 +133,53 @@ export function useTenantWebsiteSettings(type: 'branch' | 'agent', slug?: string
       };
 
       if (type === 'branch') {
-        const { data: branch, error: branchError } = await (supabase
-          .from("branches").select("id, name") as any)
+        const { data: branch, error: branchError } = await supabase
+          .from("branches")
+          .select("id, name")
           .eq("slug", slug!)
           .single();
         if (branchError || !branch) throw new Error("Branch not found");
 
         const tenantSettings = await fetchSettingsBy("branch_id", branch.id);
         if (tenantSettings) {
+          const mapped = mapWebsiteSettings(tenantSettings);
           return {
-            ...tenantSettings,
-            homepage_sections: tenantSettings.homepage_sections as unknown as HomepageSection[] | null,
-            nav_links: tenantSettings.nav_links as unknown as WebsiteSettings['nav_links'],
-            footer_links: tenantSettings.footer_links as unknown as WebsiteSettings['footer_links'],
-            company_name: tenantSettings.company_name || branch.name,
-          } as unknown as WebsiteSettings;
+            ...mapped,
+            company_name: mapped.company_name || branch.name,
+          };
         }
 
         const mainSettings = await fetchMainSettings();
+        const mappedMain = mapWebsiteSettings(mainSettings);
         return {
-          ...mainSettings,
-          homepage_sections: mainSettings.homepage_sections as unknown as HomepageSection[] | null,
-          nav_links: mainSettings.nav_links as unknown as WebsiteSettings['nav_links'],
-          footer_links: mainSettings.footer_links as unknown as WebsiteSettings['footer_links'],
+          ...mappedMain,
           company_name: branch.name,
           tagline: `Cabang ${branch.name}`,
-        } as unknown as WebsiteSettings;
+        };
       } else {
-        const { data: agent, error: agentError } = await (supabase
-          .from("agents").select("id, company_name, agent_code") as any)
+        const { data: agent, error: agentError } = await supabase
+          .from("agents")
+          .select("id, company_name, agent_code")
           .eq("slug", slug!)
           .single();
         if (agentError || !agent) throw new Error("Agent not found");
 
         const tenantSettings = await fetchSettingsBy("agent_id", agent.id);
         if (tenantSettings) {
+          const mapped = mapWebsiteSettings(tenantSettings);
           return {
-            ...tenantSettings,
-            homepage_sections: tenantSettings.homepage_sections as unknown as HomepageSection[] | null,
-            nav_links: tenantSettings.nav_links as unknown as WebsiteSettings['nav_links'],
-            footer_links: tenantSettings.footer_links as unknown as WebsiteSettings['footer_links'],
-            company_name: tenantSettings.company_name || agent.company_name || agent.agent_code,
-          } as unknown as WebsiteSettings;
+            ...mapped,
+            company_name: mapped.company_name || agent.company_name || agent.agent_code,
+          };
         }
 
         const mainSettings = await fetchMainSettings();
+        const mappedMain = mapWebsiteSettings(mainSettings);
         return {
-          ...mainSettings,
-          homepage_sections: mainSettings.homepage_sections as unknown as HomepageSection[] | null,
-          nav_links: mainSettings.nav_links as unknown as WebsiteSettings['nav_links'],
-          footer_links: mainSettings.footer_links as unknown as WebsiteSettings['footer_links'],
+          ...mappedMain,
           company_name: agent.company_name || agent.agent_code,
           tagline: `Agen Resmi`,
-        } as unknown as WebsiteSettings;
+        };
       }
     },
   });
@@ -192,13 +205,21 @@ export function useUpdateWebsiteSettings() {
 
   return useMutation({
     mutationFn: async (updates: Partial<WebsiteSettings>) => {
-      // Convert homepage_sections to JSON-compatible format
-      const dbUpdates = {
-        ...updates,
-        homepage_sections: updates.homepage_sections 
-          ? JSON.parse(JSON.stringify(updates.homepage_sections))
-          : undefined,
-      };
+      // Convert JSON fields to JSON-compatible format if they exist
+      const dbUpdates: any = { ...updates };
+      
+      if (updates.homepage_sections) {
+        dbUpdates.homepage_sections = JSON.parse(JSON.stringify(updates.homepage_sections));
+      }
+      if (updates.custom_sections) {
+        dbUpdates.custom_sections = JSON.parse(JSON.stringify(updates.custom_sections));
+      }
+      if (updates.nav_links) {
+        dbUpdates.nav_links = JSON.parse(JSON.stringify(updates.nav_links));
+      }
+      if (updates.footer_links) {
+        dbUpdates.footer_links = JSON.parse(JSON.stringify(updates.footer_links));
+      }
 
       const { data, error } = await supabase
         .from("website_settings")

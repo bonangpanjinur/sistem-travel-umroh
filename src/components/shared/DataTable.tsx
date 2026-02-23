@@ -154,7 +154,7 @@ export function DataTable<T extends Record<string, any>>({
             ) : (
               paged.map((row, i) => (
                 <TableRow
-                  key={(row as any).id ?? i}
+                  key={row.id ?? i}
                   className={onRowClick ? 'cursor-pointer' : undefined}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
