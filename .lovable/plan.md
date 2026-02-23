@@ -21,10 +21,13 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 9 | Manifest & Rooming List Generator | ✅ Selesai | `ManifestPage.tsx` |
 | 10 | Registrasi jamaah rombongan (multi-passenger) | ✅ Selesai | `AgentRegisterGroup.tsx` |
 | 11 | Download materi promosi (Digital Kit) | ✅ Selesai | `AgentDigitalKit.tsx` |
+| 12 | Integrasi Notifikasi WhatsApp Otomatis | ✅ Selesai | `send-whatsapp-trigger` |
+| 13 | Notifikasi Sistem untuk Agen | ✅ Selesai | `useAgentNotifications.ts` |
+| 14 | Progress Pembayaran untuk Agen | ✅ Selesai | `AgentJamaahEnhanced.tsx` |
 
 ---
 
-## ADMIN PANEL - Status: 98% Lengkap
+## ADMIN PANEL - Status: 99% Lengkap
 
 ### Fitur yang Sudah Ada
 
@@ -46,13 +49,13 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Multi-cabang dengan isolasi data
 - **Filter Cabang di Dashboard** (Super Admin & Branch Manager)
 - **Verifikasi Dokumen** (Link di sidebar admin)
+- **Notifikasi WhatsApp Otomatis** (Booking, Payment, Document, Commission)
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
 1. **Tidak ada Audit Log viewer** - Tabel `audit_logs` ada di database, tapi tidak ada UI untuk melihatnya di admin panel.
-2. **Belum ada notifikasi WhatsApp otomatis** - Halaman WhatsApp ada, tapi belum terintegrasi dengan event sistem (booking baru, payment verified, dll).
-3. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman.
-4. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
+2. **Tidak ada export PDF untuk Laba/Rugi** - Fitur export hanya tersedia di beberapa halaman.
+3. **Type Safety** - Masih ada penggunaan `as any` di beberapa komponen (seperti `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`) yang perlu diperbaiki.
 
 ---
 
@@ -75,10 +78,9 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ---
 
-## AGEN (Agent Portal) - Status: 95% Lengkap
+## AGEN (Agent Portal) - Status: 98% Lengkap
 
 ### Fitur yang Sudah Ada
-
 - Dashboard dengan statistik komisi (Status booking sudah diterjemahkan)
 - Daftarkan jamaah baru (booking + customer + komisi otomatis)
 - **Daftarkan jamaah rombongan (multiple passengers)** sekaligus
@@ -89,11 +91,12 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Website agen mandiri (`/a/:slug`)
 - Hierarki sub-agen
 - **Download materi promosi (Digital Kit)** - Brosur digital, flyer, dll.
+- **Progress Pembayaran Jamaah** - Visual progress bar per jamaah.
+- **Sistem Notifikasi Agen** - Notifikasi real-time untuk dokumen & status booking.
 
 ### Fitur yang Kurang
 
-1. **Agen tidak bisa lihat status pembayaran jamaahnya** - Hanya lihat booking_status, bukan progress pembayaran.
-2. **Tidak ada notifikasi sistem untuk agen** - Selain komisi, agen belum mendapat notifikasi saat booking berubah status (misal: dokumen ditolak).
+1. **Belum ada fitur edit foto profil agen**.
 
 ---
 
@@ -101,9 +104,9 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### Fitur yang Sudah Ada
 
-- Customer Dashboard dengan quick actions
+- Customer Dashboard with quick actions
 - Portal Jamaah PWA (countdown, SOS, live location)
-- Digital ID dengan QR Code
+- Digital ID with QR Code
 - Itinerary perjalanan
 - Doa dan Panduan
 - Dokumen jamaah
@@ -137,24 +140,17 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
 
-### Prioritas 1 - Otomasi & Notifikasi (Dampak Tinggi)
+### Prioritas 2 - User Experience & Branding
 
 | No | Fitur | Effort | Tujuan |
 |---|---|---|---|
-| 1 | Integrasi Notifikasi WhatsApp Otomatis | Tinggi | Update status real-time ke jamaah & agen |
-| 2 | Notifikasi Sistem untuk Agen | Sedang | Memberitahu agen jika dokumen jamaah ditolak |
-| 3 | Progress Pembayaran untuk Agen | Rendah | Agen bisa memantau pelunasan jamaahnya |
-
-### Prioritas 2 - User Experience & Branding
-
-| No | Fitur | Effort |
-|---|---|---|
-| 4 | Rating/feedback setelah perjalanan | Sedang |
-| 5 | Edit Foto Profil Jamaah | Rendah |
-| 6 | Audit Log Viewer untuk Super Admin | Sedang |
+| 1 | Rating/feedback setelah perjalanan | Sedang | Mendapatkan testimoni & evaluasi layanan |
+| 2 | Edit Foto Profil Jamaah & Agen | Rendah | Personalisasi profil user |
+| 3 | Audit Log Viewer untuk Super Admin | Sedang | Monitoring aktivitas sistem |
+| 4 | Laporan per Cabang | Sedang | Analisis performa tiap cabang |
 
 ---
 
 ## REKOMENDASI IMPLEMENTASI SEGERA
 
-Setelah menyelesaikan fitur pendaftaran rombongan dan digital kit, fokus selanjutnya adalah **Prioritas 1: Otomasi & Notifikasi** terutama integrasi WhatsApp untuk meningkatkan efisiensi operasional dan kepuasan pengguna.
+Setelah menyelesaikan **Prioritas 1: Otomasi & Notifikasi**, fokus selanjutnya adalah **Prioritas 2: User Experience & Branding**, terutama fitur feedback jamaah untuk meningkatkan kredibilitas layanan dan audit log untuk keamanan sistem.
