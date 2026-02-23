@@ -190,6 +190,13 @@ export default function MyBookings() {
                             </Link>
                           </Button>
                         )}
+                        {booking.booking_status === 'completed' && (
+                          <Button size="sm" variant="secondary" asChild>
+                            <Link to={`/jamaah/feedback/${booking.id}`}>
+                              Rating &amp; Feedback
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

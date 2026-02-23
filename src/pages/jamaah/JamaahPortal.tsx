@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import {
 export default function JamaahPortal() {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
+  const { getSetting } = useCompanySettings();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
@@ -257,7 +259,7 @@ export default function JamaahPortal() {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           <Link to="/my-bookings">
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
               <CreditCard className="h-6 w-6 mx-auto mb-1 text-primary" />
@@ -280,6 +282,12 @@ export default function JamaahPortal() {
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
               <FileText className="h-6 w-6 mx-auto mb-1 text-primary" />
               <p className="text-xs">Dokumen</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/payment-history">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <CreditCard className="h-6 w-6 mx-auto mb-1 text-primary" />
+              <p className="text-xs">Riwayat</p>
             </Card>
           </Link>
         </div>
@@ -397,32 +405,36 @@ export default function JamaahPortal() {
             <CardTitle className="text-base">Kontak Darurat</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <a
-              href="tel:+6281234567890"
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-accent"
-            >
-              <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">Hotline 24 Jam</p>
-                  <p className="text-xs text-muted-foreground">+62 812-3456-7890</p>
+            {getSetting("company_phone") && (
+              <a
+                href={`tel:${getSetting("company_phone")}`}
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-accent"
+              >
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Hotline 24 Jam</p>
+                    <p className="text-xs text-muted-foreground">{getSetting("company_phone")}</p>
+                  </div>
                 </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </a>
-            <a
-              href="tel:+966123456789"
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-accent"
-            >
-              <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">Kantor Jeddah</p>
-                  <p className="text-xs text-muted-foreground">+966 12-345-6789</p>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </a>
+            )}
+            {getSetting("company_email") && (
+              <a
+                href={`mailto:${getSetting("company_email")}`}
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-accent"
+              >
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Email Support</p>
+                    <p className="text-xs text-muted-foreground">{getSetting("company_email")}</p>
+                  </div>
                 </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </a>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </a>
+            )}
           </CardContent>
         </Card>
       </div>

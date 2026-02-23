@@ -6,6 +6,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 const AgentLayout = lazy(() => import("@/pages/agent/AgentLayout"));
 const AgentDashboard = lazy(() => import("@/pages/agent/AgentDashboard"));
 const AgentRegister = lazy(() => import("@/pages/agent/AgentRegister"));
+const AgentRegisterGroup = lazy(() => import("@/pages/agent/AgentRegisterGroup"));
 const AgentJamaah = lazy(() => import("@/pages/agent/AgentJamaah"));
 const AgentCommissions = lazy(() => import("@/pages/agent/AgentCommissions"));
 const AgentPackages = lazy(() => import("@/pages/agent/AgentPackages"));
@@ -28,6 +29,7 @@ export default function AgentRoutes() {
     >
       <Route index element={<LazyPage><AgentDashboard /></LazyPage>} />
       <Route path="register" element={<LazyPage><AgentRegister /></LazyPage>} />
+      <Route path="register-group" element={<LazyPage><AgentRegisterGroup /></LazyPage>} />
       <Route path="jamaah" element={<LazyPage><AgentJamaah /></LazyPage>} />
       <Route path="commissions" element={<LazyPage><AgentCommissions /></LazyPage>} />
       <Route path="wallet" element={<LazyPage><AgentWallet /></LazyPage>} />

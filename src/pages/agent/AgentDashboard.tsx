@@ -5,7 +5,10 @@ import { formatCurrency } from "@/lib/format";
 import { BOOKING_STATUS_LABELS } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgentByUserId, useAgentStats, useAgentRecentBookings } from "@/hooks/useAgents";
-import { Users, DollarSign, TrendingUp, Clock } from "lucide-react";
+import { Users, DollarSign, TrendingUp, Clock, Plus, Users2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AgentDashboard() {
   const { user } = useAuth();
@@ -17,16 +20,32 @@ export default function AgentDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard Agent</h1>
-        <p className="text-muted-foreground">
-          Selamat datang, {agentData?.company_name || 'Agent'}
-        </p>
-        {agentData && (
-          <Badge variant="outline" className="mt-2">
-            Kode Agent: {agentData.agent_code}
-          </Badge>
-        )}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard Agent</h1>
+          <p className="text-muted-foreground">
+            Selamat datang, {agentData?.company_name || 'Agent'}
+          </p>
+          {agentData && (
+            <Badge variant="outline" className="mt-2">
+              Kode Agent: {agentData.agent_code}
+            </Badge>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link to="/agent/register">
+              <Plus className="h-4 w-4 mr-2" />
+              Daftarkan Jamaah
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/agent/register-group">
+              <Users2 className="h-4 w-4 mr-2" />
+              Daftarkan Rombongan
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
