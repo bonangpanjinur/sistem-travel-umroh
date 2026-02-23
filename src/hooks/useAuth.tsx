@@ -8,6 +8,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   roles: AppRole[];
+  branchId: string | null;
   isLoading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
+  const [branchId, setBranchId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const authHandledRef = useRef(false);
 
@@ -76,11 +78,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch roles
       const { data: rolesData } = await supabase
         .from('user_roles')
-        .select('role')
+        .select('role, branch_id')
         .eq('user_id', userId);
       
       if (rolesData) {
         setRoles(rolesData.map(r => r.role as AppRole));
+        const branchRole = rolesData.find(r => r.branch_id);
+        setBranchId(branchRole?.branch_id || null);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -125,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setProfile(null);
     setRoles([]);
+    setBranchId(null);
   };
 
   const hasRole = (role: AppRole): boolean => {
@@ -142,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         roles,
+        branchId,
         isLoading,
         signUp,
         signIn,
