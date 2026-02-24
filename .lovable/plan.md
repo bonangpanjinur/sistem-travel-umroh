@@ -40,6 +40,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 28 | Pembersihan `as any` di Modul CRM & Keuangan | ✅ Selesai | `AdminLeads.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx` |
 | 29 | Pembersihan `as any` di Modul Master Data | ✅ Selesai | `AdminAirlines.tsx`, `AdminAirports.tsx`, `AdminHotels.tsx`, `AdminVendors.tsx` |
 | 30 | Pembersihan `as any` di Modul HR & SDM | ✅ Selesai | `AdminHR.tsx`, `EmployeeAttendance.tsx`, `HRSettingsForm.tsx` |
+| 31 | Pembersihan `as any` di Hooks & Halaman Operasional | ✅ Selesai | `useDashboardStats.ts`, `usePackages.ts`, `useDepartures.ts`, `ManifestPage.tsx`, `RoomingListPage.tsx` |
 
 ---
 
@@ -68,18 +69,17 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Notifikasi WhatsApp Otomatis** (Booking, Payment, Document, Commission)
 - **Audit Log Viewer** - Tersedia di halaman Security Audit untuk memantau aktivitas sistem.
 - **Export PDF untuk Laba/Rugi** - Tombol export PDF tersedia di setiap keberangkatan di halaman P&L.
-- **Peningkatan Type Safety** - Refactoring menyeluruh pada modul CRM, Keuangan, Master Data, dan HR untuk menghilangkan `as any`.
+- **Peningkatan Type Safety Menyeluruh** - Refactoring menyeluruh pada modul CRM, Keuangan, Master Data, HR, Hooks, dan Operasional untuk menghilangkan `as any`.
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Type Safety Lanjutan** - Pembersihan `as any` pada hooks operasional (DashboardStats, Packages, Departures) dan halaman operasional (Manifest, Rooming List).
+1. **Optimasi Performa** - Peningkatan performa pada query data besar di dashboard dan laporan.
 
 ---
 
-## CABANG (Branch) - Status: 98% Lengkap
+## CABANG (Branch) - Status: 100% Lengkap
 
 ### Fitur yang Sudah Ada
-
 - CRUD cabang dengan kode, kota, kontak
 - Website multi-tenant per cabang (`/b/:slug`)
 - Pengaturan branding per cabang
@@ -88,6 +88,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Manifest & Rooming List Generator** (Export PDF per keberangkatan)
 - **Dashboard terfilter per cabang**
 - **Laporan per cabang** - Sudah tersedia filter cabang di halaman Reports.
+- **Peningkatan Type Safety di Halaman Operasional** - Refactoring pada `ManifestPage.tsx` dan `RoomingListPage.tsx`.
 
 ### Fitur yang Kurang
 1. **Tidak ada fitur transfer jamaah antar cabang**.
@@ -98,20 +99,20 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 
 ### Fitur yang Sudah Ada
-- Dashboard dengan statistik komisi (Status booking sudah diterjemahkan)
-- Daftarkan jamaah baru (booking + customer + komisi otomatis)
-- **Daftarkan jamaah rombongan (multiple passengers)** sekaligus
-- Data jamaah dengan status kelengkapan dokumen
-- Riwayat komisi (total, pending, dibayar)
-- Dompet digital dengan tarik dana
-- Lihat paket tersedia
-- Website agen mandiri (`/a/:slug`)
-- Hierarki sub-agen
-- **Download materi promosi (Digital Kit)** - Brosur digital, flyer, dll.
-- **Progress Pembayaran Jamaah** - Visual progress bar per jamaah.
-- **Sistem Notifikasi Agen** - Notifikasi real-time untuk dokumen & status booking.
-- **Edit foto profil agen** - Sudah diimplementasikan di halaman Agent Settings.
-- **Peningkatan Type Safety** - Refactoring pada `AgentWebsiteSettings.tsx` dan `AgentCommissions.tsx`.
+- Dashboard with statistics (Status booking translated)
+- Register new jamaah (booking + customer + automatic commission)
+- **Register group jamaah (multiple passengers)** at once
+- Jamaah data with document completeness status
+- Commission history (total, pending, paid)
+- Digital wallet with withdrawal
+- View available packages
+- Agent personal website (`/a/:slug`)
+- Sub-agent hierarchy
+- **Download promotional materials (Digital Kit)** - Digital brochures, flyers, etc.
+- **Jamaah Payment Progress** - Visual progress bar per jamaah.
+- **Agent Notification System** - Real-time notifications for documents & booking status.
+- **Edit agent profile photo** - Implemented in Agent Settings page.
+- **Type Safety Improvements** - Refactoring on `AgentWebsiteSettings.tsx` and `AgentCommissions.tsx`.
 
 ---
 
@@ -141,14 +142,14 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### BUG RENDAH
 
-1. **Penggunaan `as any` yang tersisa di Hooks Operasional**
-  - Beberapa hooks data fetching (`useDashboardStats`, `usePackages`, `useDepartures`) masih menggunakan `as any`.
+1. **Optimasi Query**
+  - Beberapa query di dashboard statistik dapat dioptimalkan lebih lanjut untuk kecepatan loading.
 
 ---
 
 ## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
 
-### Prioritas 3 - Type Safety & Code Quality (Sedang Berjalan)
+### Prioritas 3 - Type Safety & Code Quality (SELESAI)
 
 **Fokus:** Menyempurnakan **Type Safety** di seluruh aplikasi untuk mencegah runtime error dan mempermudah maintenance jangka panjang.
 
@@ -166,15 +167,11 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 11. **Modul CRM & Keuangan** - Refactoring pada `AdminLeads.tsx`, `AdminLeadDetail.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx`.
 12. **Modul Master Data** - Refactoring pada `AdminAirlines.tsx`, `AdminAirports.tsx`, `AdminHotels.tsx`, `AdminVendors.tsx`.
 13. **Modul HR & SDM** - Refactoring pada `AdminHR.tsx`, `EmployeeAttendance.tsx`, `HRSettingsForm.tsx`.
-
-#### Langkah Selanjutnya:
-- **Fase 4: Evaluasi Akhir (Hooks & Operasional)**
-  - Sapu bersih sisa-sisa fetch data yang belum menggunakan strong types di hooks: `useCompanySettings.ts`, `useDashboardStats.ts`, `usePackages.ts`, `useDepartures.ts`.
-  - Perbaikan typing di halaman operasional: `ManifestPage.tsx`, `RoomingListPage.tsx`.
+14. **Hooks & Halaman Operasional** - Refactoring pada `useCompanySettings.ts`, `useDashboardStats.ts`, `usePackages.ts`, `useDepartures.ts`, `ManifestPage.tsx`, `RoomingListPage.tsx`.
 
 #### Benefit:
 
-- Mengurangi runtime error.
-- Meningkatkan IDE autocomplete.
+- Mengurangi runtime error secara signifikan.
+- Meningkatkan IDE autocomplete untuk pengembangan lebih cepat.
 - Mempermudah refactoring di masa depan.
-- Meningkatkan maintainability kode.
+- Meningkatkan maintainability kode secara keseluruhan.
