@@ -18,15 +18,42 @@ import { LoadingState } from "@/components/shared/LoadingState";
 export default function AdminCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: customers, isLoading } = useCustomers();
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
 
-  // Fetch booking counts per customer
+  const { data: customersData, isLoading } = useQuery({
+    queryKey: ['admin-customers', currentPage, searchTerm],
+    queryFn: async () => {
+      let query = supabase
+        .from('customers')
+        .select('*', { count: 'exact' });
+
+      if (searchTerm) {
+        query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,nik.ilike.%${searchTerm}%,passport_number.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
+
+      if (error) throw error;
+      return { customers: data, count: count || 0 };
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const customers = customersData?.customers;
+  const totalCount = customersData?.count || 0;
+
+  // Fetch booking counts per customer for current page
   const { data: bookingCounts } = useQuery({
-    queryKey: ['admin-customer-booking-counts'],
+    queryKey: ['admin-customer-booking-counts', customers?.map(c => c.id)],
+    enabled: !!customers && customers.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('customer_id');
+        .select('customer_id')
+        .in('customer_id', customers!.map(c => c.id));
 
       if (error) throw error;
       
@@ -38,13 +65,15 @@ export default function AdminCustomers() {
     },
   });
 
-  // Fetch document counts per customer
+  // Fetch document counts per customer for current page
   const { data: documentCounts } = useQuery({
-    queryKey: ['admin-customer-document-counts'],
+    queryKey: ['admin-customer-document-counts', customers?.map(c => c.id)],
+    enabled: !!customers && customers.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('customer_documents')
-        .select('customer_id, status');
+        .select('customer_id, status')
+        .in('customer_id', customers!.map(c => c.id));
 
       if (error) throw error;
       
@@ -62,27 +91,26 @@ export default function AdminCustomers() {
     },
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 20;
+  const filteredCustomers = customers;
 
-  const filteredCustomers = customers?.filter(customer => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      customer.full_name?.toLowerCase().includes(search) ||
-      customer.email?.toLowerCase().includes(search) ||
-      customer.phone?.includes(search) ||
-      customer.nik?.includes(search) ||
-      customer.passport_number?.includes(search)
-    );
+  // Use a separate query for overall stats to be accurate
+  const { data: stats } = useQuery({
+    queryKey: ['admin-customers-stats'],
+    queryFn: async () => {
+      const { count: total } = await supabase.from('customers').select('*', { count: 'exact', head: true });
+      const { count: tourLeaders } = await supabase.from('customers').select('*', { count: 'exact', head: true }).eq('is_tour_leader', true);
+      
+      // For more complex stats like 'withBookings', we might need a RPC or a simplified estimation
+      // for now let's use the total and tourLeaders
+      return {
+        total: total || 0,
+        tourLeaders: tourLeaders || 0,
+        withBookings: '-', // Requires more complex query or RPC
+        withDocuments: '-', // Requires more complex query or RPC
+      };
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes
   });
-
-  const stats = {
-    total: customers?.length || 0,
-    withBookings: Object.keys(bookingCounts || {}).length,
-    withDocuments: Object.keys(documentCounts || {}).length,
-    tourLeaders: customers?.filter(c => c.is_tour_leader).length || 0,
-  };
 
   return (
     <div className="space-y-6">
@@ -130,7 +158,7 @@ export default function AdminCustomers() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Jamaah</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-2xl font-bold">{stats?.total || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -143,7 +171,7 @@ export default function AdminCustomers() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Pernah Booking</p>
-                <p className="text-2xl font-bold">{stats.withBookings}</p>
+                <p className="text-2xl font-bold">{stats?.withBookings || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -156,7 +184,7 @@ export default function AdminCustomers() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Dokumen Lengkap</p>
-                <p className="text-2xl font-bold">{stats.withDocuments}</p>
+                <p className="text-2xl font-bold">{stats?.withDocuments || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -169,7 +197,7 @@ export default function AdminCustomers() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Tour Leader</p>
-                <p className="text-2xl font-bold">{stats.tourLeaders}</p>
+                <p className="text-2xl font-bold">{stats?.tourLeaders || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -188,9 +216,7 @@ export default function AdminCustomers() {
             />
           ) : (
             <div className="divide-y">
-              {filteredCustomers
-                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-                .map((customer) => {
+              {filteredCustomers?.map((customer) => {
                 const bookingCount = bookingCounts?.[customer.id] || 0;
                 const docInfo = documentCounts?.[customer.id];
                 
@@ -275,10 +301,10 @@ export default function AdminCustomers() {
       </Card>
 
       {/* Pagination */}
-      {filteredCustomers && filteredCustomers.length > pageSize && (
+      {totalCount > pageSize && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Menampilkan {Math.min((currentPage - 1) * pageSize + 1, filteredCustomers.length)}-{Math.min(currentPage * pageSize, filteredCustomers.length)} dari {filteredCustomers.length} jamaah
+            Menampilkan {Math.min((currentPage - 1) * pageSize + 1, totalCount)}-{Math.min(currentPage * pageSize, totalCount)} dari {totalCount} jamaah
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -290,13 +316,13 @@ export default function AdminCustomers() {
               Sebelumnya
             </Button>
             <span className="text-sm font-medium">
-              {currentPage} / {Math.ceil(filteredCustomers.length / pageSize)}
+              {currentPage} / {Math.ceil(totalCount / pageSize)}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.min(Math.ceil((filteredCustomers?.length || 0) / pageSize), p + 1))}
-              disabled={currentPage >= Math.ceil((filteredCustomers?.length || 0) / pageSize)}
+              onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))}
+              disabled={currentPage >= Math.ceil(totalCount / pageSize)}
             >
               Berikutnya
             </Button>

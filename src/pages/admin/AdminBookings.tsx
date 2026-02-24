@@ -77,10 +77,10 @@ export default function AdminBookings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: bookings, isLoading } = useQuery({
-    queryKey: ['admin-bookings'],
-    queryFn: async (): Promise<Booking[]> => {
-      const { data, error } = await supabase
+  const { data: bookingsData, isLoading } = useQuery({
+    queryKey: ['admin-bookings', currentPage, searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo],
+    queryFn: async () => {
+      let query = supabase
         .from('bookings')
         .select(`
           *,
@@ -92,13 +92,30 @@ export default function AdminBookings() {
             package:packages(id, name, code)
           ),
           branch:branches(id, name)
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' });
+
+      if (searchTerm) {
+        // Search by booking code or customer name/phone
+        query = query.or(`booking_code.ilike.%${searchTerm}%,customer_id.in.(select id from customers where full_name.ilike.%${searchTerm}% or phone.ilike.%${searchTerm}%)`);
+      }
+      if (statusFilter !== "all") query = query.eq('booking_status', statusFilter);
+      if (paymentFilter !== "all") query = query.eq('payment_status', paymentFilter);
+      if (branchFilter !== "all") query = query.eq('branch_id', branchFilter);
+      if (dateFrom) query = query.gte('created_at', dateFrom);
+      if (dateTo) query = query.lte('created_at', dateTo + 'T23:59:59');
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
 
       if (error) throw error;
-      return data as unknown as Booking[];
+      return { bookings: data as unknown as Booking[], count: count || 0 };
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  const bookings = bookingsData?.bookings;
+  const totalCount = bookingsData?.count || 0;
 
   // Extract unique packages, departures, branches for filter options
   const filterOptions = useMemo(() => {
@@ -120,43 +137,14 @@ export default function AdminBookings() {
     };
   }, [bookings]);
 
-  const filteredBookings = useMemo(() => {
-    return bookings?.filter(booking => {
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        const customer = booking.customer;
-        const matchSearch = 
-          booking.booking_code.toLowerCase().includes(search) ||
-          customer?.full_name?.toLowerCase().includes(search) ||
-          customer?.phone?.includes(search);
-        if (!matchSearch) return false;
-      }
-      if (statusFilter !== "all" && booking.booking_status !== statusFilter) return false;
-      if (paymentFilter !== "all" && booking.payment_status !== paymentFilter) return false;
-      if (packageFilter !== "all") {
-        const dep = booking.departure;
-        if (dep?.package?.id !== packageFilter) return false;
-      }
-      if (departureFilter !== "all") {
-        const dep = booking.departure;
-        if (dep?.id !== departureFilter) return false;
-      }
-      if (branchFilter !== "all" && booking.branch_id !== branchFilter) return false;
-      if (dateFrom && booking.created_at && booking.created_at < dateFrom) return false;
-      if (dateTo && booking.created_at && booking.created_at > dateTo + 'T23:59:59') return false;
-      return true;
-    });
-  }, [bookings, searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo]);
-
   // Pagination
-  const totalPages = Math.ceil((filteredBookings?.length || 0) / PAGE_SIZE);
-  const paginatedBookings = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredBookings?.slice(start, start + PAGE_SIZE);
-  }, [filteredBookings, currentPage]);
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const paginatedBookings = bookings;
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo]);
+  useEffect(() => { 
+    if (currentPage !== 1) setCurrentPage(1); 
+  }, [searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setSearchTerm("");

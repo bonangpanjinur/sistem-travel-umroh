@@ -297,7 +297,7 @@ export function AdminLayout() {
       )}
 
       {/* Main Content */}
-      <main className="xl:pl-64 pt-16 xl:pt-0 min-h-screen">
+      <main className="xl:pl-64 pt-16 xl:pt-6 min-h-screen transition-all duration-300">
         <div className="p-6">
           <AdminBreadcrumb />
           <Outlet />
