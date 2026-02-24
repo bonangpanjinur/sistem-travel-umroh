@@ -7,17 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HotelForm } from "@/components/admin/forms/HotelForm";
-import { Search, Plus, Edit, Trash2, Hotel } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Hotel as HotelIcon } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Database } from "@/integrations/supabase/types";
+
+type Hotel = Database["public"]["Tables"]["hotels"]["Row"];
 
 export default function AdminHotels() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingHotel, setEditingHotel] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Hotel | null>(null);
   const queryClient = useQueryClient();
 
   const { data: hotels, isLoading } = useQuery({
@@ -25,7 +28,7 @@ export default function AdminHotels() {
     queryFn: async () => {
       const { data, error } = await supabase.from("hotels").select("*").order("name");
       if (error) throw error;
-      return data;
+      return data as Hotel[];
     },
   });
 
@@ -66,7 +69,13 @@ export default function AdminHotels() {
       {isLoading ? (
         <LoadingState message="Memuat data hotel..." />
       ) : !filteredHotels?.length ? (
-        <EmptyState icon={Hotel} title="Belum ada hotel" description="Tambahkan hotel Makkah & Madinah" actionLabel="Tambah Hotel" onAction={() => { setEditingHotel(null); setIsFormOpen(true); }} />
+        <EmptyState 
+          icon={HotelIcon} 
+          title="Belum ada hotel" 
+          description="Tambahkan hotel Makkah & Madinah" 
+          actionLabel="Tambah Hotel" 
+          onAction={() => { setEditingHotel(null); setIsFormOpen(true); }} 
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredHotels.map(hotel => (
@@ -94,7 +103,11 @@ export default function AdminHotels() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editingHotel ? "Edit Hotel" : "Tambah Hotel"}</DialogTitle></DialogHeader>
-          <HotelForm hotelData={editingHotel} onSuccess={() => setIsFormOpen(false)} onCancel={() => setIsFormOpen(false)} />
+          <HotelForm 
+            hotelData={editingHotel || undefined} 
+            onSuccess={() => setIsFormOpen(false)} 
+            onCancel={() => setIsFormOpen(false)} 
+          />
         </DialogContent>
       </Dialog>
 

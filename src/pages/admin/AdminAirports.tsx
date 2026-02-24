@@ -10,11 +10,14 @@ import { AirportForm } from "@/components/admin/forms/AirportForm";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Database } from "@/integrations/supabase/types";
+
+type Airport = Database["public"]["Tables"]["airports"]["Row"];
 
 export default function AdminAirports() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingAirport, setEditingAirport] = useState<any>(null);
+  const [editingAirport, setEditingAirport] = useState<Airport | null>(null);
   const queryClient = useQueryClient();
 
   const { data: airports, isLoading } = useQuery({
@@ -22,7 +25,7 @@ export default function AdminAirports() {
     queryFn: async () => {
       const { data, error } = await supabase.from("airports").select("*").order("code");
       if (error) throw error;
-      return data;
+      return data as Airport[];
     },
   });
 
@@ -68,35 +71,44 @@ export default function AdminAirports() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered?.map(airport => (
-              <TableRow key={airport.id}>
-                <TableCell className="font-mono font-bold">{airport.code}</TableCell>
-                <TableCell>{airport.name}</TableCell>
-                <TableCell>{airport.city}</TableCell>
-                <TableCell>{airport.country}</TableCell>
-                <TableCell>
-                  <Badge variant={airport.is_active ? "default" : "secondary"}>
-                    {airport.is_active ? "Aktif" : "Nonaktif"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setEditingAirport(airport); setIsFormOpen(true); }}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(airport.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Memuat data...</TableCell>
               </TableRow>
-            ))}
-            {!filtered?.length && (
+            ) : filtered?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   {searchTerm ? "Tidak ada hasil" : "Belum ada bandara"}
                 </TableCell>
               </TableRow>
+            ) : (
+              filtered?.map(airport => (
+                <TableRow key={airport.id}>
+                  <TableCell className="font-mono font-bold">{airport.code}</TableCell>
+                  <TableCell>{airport.name}</TableCell>
+                  <TableCell>{airport.city}</TableCell>
+                  <TableCell>{airport.country}</TableCell>
+                  <TableCell>
+                    <Badge variant={airport.is_active ? "default" : "secondary"}>
+                      {airport.is_active ? "Aktif" : "Nonaktif"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setEditingAirport(airport); setIsFormOpen(true); }}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => {
+                        if (confirm("Apakah Anda yakin ingin menghapus bandara ini?")) {
+                          deleteMutation.mutate(airport.id);
+                        }
+                      }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
@@ -107,7 +119,11 @@ export default function AdminAirports() {
           <DialogHeader>
             <DialogTitle>{editingAirport ? "Edit" : "Tambah"} Bandara</DialogTitle>
           </DialogHeader>
-          <AirportForm airportData={editingAirport} onSuccess={() => setIsFormOpen(false)} onCancel={() => setIsFormOpen(false)} />
+          <AirportForm 
+            airportData={editingAirport || undefined} 
+            onSuccess={() => setIsFormOpen(false)} 
+            onCancel={() => setIsFormOpen(false)} 
+          />
         </DialogContent>
       </Dialog>
     </div>

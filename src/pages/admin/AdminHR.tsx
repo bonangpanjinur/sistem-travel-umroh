@@ -19,94 +19,32 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
 import { HRSettingsForm } from "@/components/admin/HRSettingsForm";
+import { Database } from "@/integrations/supabase/types";
 
-interface Employee {
-  id: string;
-  employee_code: string;
-  full_name: string;
-  email: string | null;
-  phone: string | null;
-  position: string | null;
-  department: string | null;
-  photo_url: string | null;
-  is_active: boolean;
-  hire_date: string | null;
-  gender: string | null;
-  salary: number | null;
-  use_custom_deduction: boolean;
-  custom_absent_deduction: number | null;
-  custom_absent_deduction_type: string | null;
-  custom_late_deduction: number | null;
-  custom_late_deduction_type: string | null;
-}
+type Employee = Database["public"]["Tables"]["employees"]["Row"];
+type EmployeeInsert = Database["public"]["Tables"]["employees"]["Insert"];
+type EmployeeUpdate = Database["public"]["Tables"]["employees"]["Update"];
 
-interface AttendanceRecord {
-  id: string;
-  employee_id: string;
-  attendance_date: string;
-  check_in_time: string | null;
-  check_in_location: { lat: number; lng: number; address?: string } | null;
-  check_in_photo_url: string | null;
-  check_out_time: string | null;
-  check_out_location: { lat: number; lng: number; address?: string } | null;
-  check_out_photo_url: string | null;
-  status: string;
-  verified_by: string | null;
-  employee?: Employee;
-}
+type AttendanceRecord = Database["public"]["Tables"]["attendance_records"]["Row"] & {
+  employee?: Pick<Employee, 'full_name' | 'employee_code'>;
+};
 
-interface Department {
-  id: string;
-  name: string;
-  code: string;
-  is_active: boolean;
-}
+type Department = Database["public"]["Tables"]["departments"]["Row"];
+type DepartmentInsert = Database["public"]["Tables"]["departments"]["Insert"];
 
-interface Position {
-  id: string;
-  department_id: string | null;
-  name: string;
-  level: number;
-  is_active: boolean;
-}
+type Position = Database["public"]["Tables"]["positions"]["Row"];
+type PositionInsert = Database["public"]["Tables"]["positions"]["Insert"];
 
-interface HRSettings {
-  id: string;
-  absent_deduction_per_day: number;
-  absent_deduction_type: string;
-  absent_deduction_percentage: number;
-  late_deduction_per_incident: number;
-  late_deduction_type: string;
-  late_deduction_percentage: number;
-  overtime_rate_per_hour: number;
-  holiday_overtime_multiplier: number;
-  work_start_time: string;
-  work_end_time: string;
-  late_threshold_minutes: number;
-  require_device_registration: boolean;
-}
+type HRSettings = Database["public"]["Tables"]["hr_settings"]["Row"];
+type HRSettingsUpdate = Database["public"]["Tables"]["hr_settings"]["Update"];
 
-interface EmployeeDevice {
-  id: string;
-  employee_id: string;
-  device_fingerprint: string;
-  device_name: string;
-  user_agent: string | null;
-  screen_info: string | null;
-  registered_at: string;
-  is_active: boolean;
-  last_used_at: string | null;
-  employee?: { full_name: string; employee_code: string };
-}
+type EmployeeDevice = Database["public"]["Tables"]["employee_devices"]["Row"] & {
+  employee?: Pick<Employee, 'full_name' | 'employee_code'>;
+};
 
-interface WorkSchedule {
-  id: string;
-  employee_id: string;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_day_off: boolean;
-}
+type WorkSchedule = Database["public"]["Tables"]["work_schedules"]["Row"];
+type WorkScheduleInsert = Database["public"]["Tables"]["work_schedules"]["Insert"];
+type WorkScheduleUpdate = Database["public"]["Tables"]["work_schedules"]["Update"];
 
 const dayLabels = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -136,7 +74,7 @@ export default function AdminHR() {
       }
       const { data, error } = await query.order("full_name");
       if (error) throw error;
-      return data as Employee[];
+      return data;
     },
   });
 
@@ -145,11 +83,11 @@ export default function AdminHR() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("attendance_records")
-        .select("*, employee:employees(*)")
+        .select("*, employee:employees(full_name, employee_code)")
         .eq("attendance_date", attendanceDate)
         .order("check_in_time", { ascending: false });
       if (error) throw error;
-      return data as unknown as AttendanceRecord[];
+      return data;
     },
   });
 
@@ -167,7 +105,7 @@ export default function AdminHR() {
     queryFn: async () => {
       const { data, error } = await supabase.from("departments").select("*").order("name");
       if (error) throw error;
-      return data as Department[];
+      return data;
     },
   });
 
@@ -176,7 +114,7 @@ export default function AdminHR() {
     queryFn: async () => {
       const { data, error } = await supabase.from("positions").select("*").order("name");
       if (error) throw error;
-      return data as Position[];
+      return data;
     },
   });
 
@@ -185,7 +123,7 @@ export default function AdminHR() {
     queryFn: async () => {
       const { data, error } = await supabase.from("hr_settings").select("*").limit(1).maybeSingle();
       if (error) throw error;
-      return data as HRSettings | null;
+      return data;
     },
   });
 
@@ -199,7 +137,7 @@ export default function AdminHR() {
         .eq("employee_id", scheduleEmployeeId)
         .order("day_of_week");
       if (error) throw error;
-      return data as WorkSchedule[];
+      return data;
     },
   });
 
@@ -212,7 +150,7 @@ export default function AdminHR() {
         .select("*, employee:employees(full_name, employee_code)")
         .order("registered_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as EmployeeDevice[];
+      return data;
     },
   });
 
@@ -220,16 +158,16 @@ export default function AdminHR() {
 
   const saveEmployeeMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const genderValue = formData.get("gender") as string;
+      const genderValue = formData.get("gender") as Database["public"]["Enums"]["gender_type"];
       const salaryValue = formData.get("salary") as string;
       const useCustom = formData.get("use_custom_deduction") === "on";
-      const employeeData: any = {
+      const employeeData: EmployeeInsert = {
         full_name: formData.get("full_name") as string,
         email: (formData.get("email") as string) || null,
         phone: (formData.get("phone") as string) || null,
         position: (formData.get("position") as string) || null,
         department: (formData.get("department") as string) || null,
-        gender: genderValue === "male" || genderValue === "female" ? genderValue as "male" | "female" : null,
+        gender: genderValue || null,
         salary: salaryValue ? parseFloat(salaryValue) : null,
         hire_date: (formData.get("hire_date") as string) || null,
         is_active: true,
@@ -238,10 +176,12 @@ export default function AdminHR() {
         custom_absent_deduction_type: useCustom ? (formData.get("custom_absent_deduction_type") as string || null) : null,
         custom_late_deduction: useCustom ? (parseFloat(formData.get("custom_late_deduction") as string) || null) : null,
         custom_late_deduction_type: useCustom ? (formData.get("custom_late_deduction_type") as string || null) : null,
+        employee_code: "", // Will be generated if new
       };
 
       if (editingEmployee?.id) {
-        const { error } = await supabase.from("employees").update(employeeData).eq("id", editingEmployee.id);
+        const updatePayload: EmployeeUpdate = employeeData;
+        const { error } = await supabase.from("employees").update(updatePayload).eq("id", editingEmployee.id);
         if (error) throw error;
       } else {
         const { data: codeData } = await supabase.rpc("generate_employee_code");
@@ -262,7 +202,8 @@ export default function AdminHR() {
   const addDepartmentMutation = useMutation({
     mutationFn: async () => {
       if (!newDeptName || !newDeptCode) throw new Error("Nama dan kode wajib diisi");
-      const { error } = await supabase.from("departments").insert({ name: newDeptName, code: newDeptCode.toUpperCase() });
+      const payload: DepartmentInsert = { name: newDeptName, code: newDeptCode.toUpperCase() };
+      const { error } = await supabase.from("departments").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -281,15 +222,16 @@ export default function AdminHR() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments"] });
-      queryClient.invalidateQueries({ queryKey: ["positions"] });
-      toast.success("Departemen dihapus");
+      toast.success("Departemen berhasil dihapus");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const addPositionMutation = useMutation({
     mutationFn: async () => {
-      if (!newPosName || !newPosDeptId) throw new Error("Nama dan departemen wajib diisi");
-      const { error } = await supabase.from("positions").insert({ name: newPosName, department_id: newPosDeptId });
+      if (!newPosName || !newPosDeptId) throw new Error("Nama posisi dan departemen wajib diisi");
+      const payload: PositionInsert = { name: newPosName, department_id: newPosDeptId, level: 1 }; // Default level to 1
+      const { error } = await supabase.from("positions").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -308,32 +250,35 @@ export default function AdminHR() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["positions"] });
-      toast.success("Posisi dihapus");
+      toast.success("Posisi berhasil dihapus");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const saveHRSettingsMutation = useMutation({
-    mutationFn: async (settings: Partial<HRSettings>) => {
-      if (hrSettings?.id) {
-        const { error } = await supabase.from("hr_settings").update({ ...settings, updated_at: new Date().toISOString() }).eq("id", hrSettings.id);
-        if (error) throw error;
-      }
+  const saveWorkScheduleMutation = useMutation({
+    mutationFn: async (schedules: WorkScheduleInsert[]) => {
+      // Delete existing schedules for the employee first
+      await supabase.from("work_schedules").delete().eq("employee_id", scheduleEmployeeId);
+      const { error } = await supabase.from("work_schedules").insert(schedules);
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hr-settings"] });
-      toast.success("Pengaturan HR disimpan");
+      queryClient.invalidateQueries({ queryKey: ["work-schedules", scheduleEmployeeId] });
+      toast.success("Jadwal kerja berhasil disimpan");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const toggleDeviceMutation = useMutation({
+  const toggleDeviceStatusMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase.from("employee_devices").update({ is_active }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-devices"] });
-      toast.success("Status perangkat diperbarui");
+      toast.success("Status perangkat berhasil diperbarui");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteDeviceMutation = useMutation({
@@ -343,421 +288,161 @@ export default function AdminHR() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-devices"] });
-      toast.success("Perangkat dihapus");
+      toast.success("Perangkat berhasil dihapus");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const saveScheduleMutation = useMutation({
-    mutationFn: async ({ employeeId, day, startTime, endTime, isDayOff }: { employeeId: string; day: number; startTime: string; endTime: string; isDayOff: boolean }) => {
-      const { error } = await supabase.from("work_schedules").upsert(
-        { employee_id: employeeId, day_of_week: day, start_time: startTime, end_time: endTime, is_day_off: isDayOff },
-        { onConflict: "employee_id,day_of_week" }
-      );
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
-      toast.success("Jadwal disimpan");
-    },
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = searchTerm === "" ||
+      employee.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.employee_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDepartment = filterDept === "all" || employee.department === filterDept;
+    return matchesSearch && matchesDepartment;
   });
 
-  // === FILTERS ===
-
-  const filteredEmployees = employees.filter((emp) => {
-    const matchSearch = emp.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.employee_code.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchDept = filterDept === "all" || emp.department === filterDept;
-    return matchSearch && matchDept;
-  });
-
-  const stats = {
-    totalEmployees: employees.length,
-    activeEmployees: employees.filter((e) => e.is_active).length,
-    presentToday: attendanceRecords.filter((a) => a.status === "present").length,
-    lateToday: attendanceRecords.filter((a) => a.status === "late").length,
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setIsEmployeeDialogOpen(true);
   };
 
-  const handleSubmitEmployee = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    saveEmployeeMutation.mutate(new FormData(e.currentTarget));
+  const handleEmployeeDialogClose = () => {
+    setIsEmployeeDialogOpen(false);
+    setEditingEmployee(null);
   };
 
-  const getDeptName = (code: string | null) => departments.find(d => d.code === code)?.name || code || "-";
+  const getDepartmentName = (deptId: string | null) => {
+    return departments.find(d => d.id === deptId)?.name || "N/A";
+  };
+
+  const getPositionName = (posId: string | null) => {
+    return positions.find(p => p.id === posId)?.name || "N/A";
+  };
+
+  const getEmployeeName = (employeeId: string) => {
+    return employees.find(emp => emp.id === employeeId)?.full_name || "N/A";
+  };
+
+  const getEmployeeCode = (employeeId: string) => {
+    return employees.find(emp => emp.id === employeeId)?.employee_code || "N/A";
+  };
+
+  const handleSaveWorkSchedule = (schedules: WorkScheduleInsert[]) => {
+    saveWorkScheduleMutation.mutate(schedules);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Users className="h-8 w-8 text-primary" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">HR & Absensi</h1>
-          <p className="text-muted-foreground">Kelola karyawan, kehadiran, jadwal kerja & pengaturan HR</p>
+          <h1 className="text-2xl font-bold">Manajemen HR & Karyawan</h1>
+          <p className="text-muted-foreground">Kelola data karyawan, absensi, departemen, dan posisi</p>
         </div>
+        <Button onClick={() => handleEditEmployee(null as any)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Tambah Karyawan
+        </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{stats.totalEmployees}</p>
-                <p className="text-sm text-muted-foreground">Total Karyawan</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <UserCheck className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{stats.activeEmployees}</p>
-                <p className="text-sm text-muted-foreground">Aktif</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{stats.presentToday}</p>
-                <p className="text-sm text-muted-foreground">Hadir Hari Ini</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <UserX className="h-8 w-8 text-muted-foreground" />
-              <div>
-                <p className="text-2xl font-bold">{stats.lateToday}</p>
-                <p className="text-sm text-muted-foreground">Terlambat</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Shareable Attendance Link */}
-      <Card className="border-dashed">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Link2 className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Link Absensi Karyawan</p>
-                <p className="text-xs text-muted-foreground">Bagikan link ini ke karyawan untuk absen mandiri</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="text-xs bg-muted px-2 py-1 rounded hidden sm:block">
-                {window.location.origin}/absensi
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/absensi`);
-                  toast.success("Link absensi berhasil disalin!");
-                }}
-              >
-                <Copy className="h-4 w-4 mr-1" />
-                Salin Link
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open("/absensi", "_blank")}
-              >
-                <ExternalLink className="h-4 w-4 mr-1" />
-                Buka
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="employees">Karyawan</TabsTrigger>
-          <TabsTrigger value="attendance">Kehadiran</TabsTrigger>
-          <TabsTrigger value="devices">Perangkat</TabsTrigger>
+          <TabsTrigger value="attendance">Absensi</TabsTrigger>
+          <TabsTrigger value="departments">Departemen</TabsTrigger>
+          <TabsTrigger value="positions">Posisi</TabsTrigger>
           <TabsTrigger value="schedules">Jadwal Kerja</TabsTrigger>
+          <TabsTrigger value="devices">Perangkat</TabsTrigger>
           <TabsTrigger value="settings">Pengaturan HR</TabsTrigger>
         </TabsList>
 
-        {/* === EMPLOYEES TAB === */}
         <TabsContent value="employees" className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex gap-2 flex-1">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Cari karyawan..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
-              </div>
-              <Select value={filterBranch || "all"} onValueChange={(val) => setFilterBranch(val === "all" ? null : val)}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Cabang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Cabang</SelectItem>
-                  {branches.filter((b: any) => b.is_active).map((b: any) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterDept} onValueChange={setFilterDept}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Departemen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Departemen</SelectItem>
-                  {departments.filter(d => d.is_active).map(d => (
-                    <SelectItem key={d.id} value={d.code}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={() => setIsEmployeeDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Tambah Karyawan
-            </Button>
-          </div>
-
           <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Posisi</TableHead>
-                  <TableHead>Departemen</TableHead>
-                  <TableHead>Gaji Pokok</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmployees.map((emp) => (
-                  <TableRow key={emp.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={emp.photo_url || ""} />
-                          <AvatarFallback>{emp.full_name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <span className="font-medium">{emp.full_name}</span>
-                          {emp.hire_date && (
-                            <p className="text-xs text-muted-foreground">Sejak {format(new Date(emp.hire_date), "MMM yyyy", { locale: idLocale })}</p>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{emp.employee_code}</TableCell>
-                    <TableCell>{emp.position || "-"}</TableCell>
-                    <TableCell>{getDeptName(emp.department)}</TableCell>
-                    <TableCell>{emp.salary ? formatCurrency(emp.salary) : "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={emp.is_active ? "default" : "secondary"}>
-                        {emp.is_active ? "Aktif" : "Nonaktif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => { setEditingEmployee(emp); setIsEmployeeDialogOpen(true); }}>
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredEmployees.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">Tidak ada data karyawan</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
-
-        {/* === ATTENDANCE TAB === */}
-        <TabsContent value="attendance" className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Label>Tanggal:</Label>
-            <Input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="w-auto" />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Rekap Kehadiran - {format(new Date(attendanceDate), "dd MMMM yyyy", { locale: idLocale })}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Karyawan</TableHead>
-                    <TableHead>Check In</TableHead>
-                    <TableHead>Lokasi Masuk</TableHead>
-                    <TableHead>Check Out</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Foto</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendanceRecords.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback>{(record.employee as any)?.full_name?.[0] || "?"}</AvatarFallback>
-                          </Avatar>
-                          <span>{(record.employee as any)?.full_name || "Unknown"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{record.check_in_time ? format(new Date(record.check_in_time), "HH:mm") : "-"}</TableCell>
-                      <TableCell>
-                        {record.check_in_location ? (
-                          <div className="flex items-center gap-1 text-sm">
-                            <MapPin className="h-3 w-3" />
-                            {record.check_in_location.address || `${record.check_in_location.lat}, ${record.check_in_location.lng}`}
-                          </div>
-                        ) : "-"}
-                      </TableCell>
-                      <TableCell>{record.check_out_time ? format(new Date(record.check_out_time), "HH:mm") : "-"}</TableCell>
-                      <TableCell>
-                        <Badge variant={record.status === "present" ? "default" : record.status === "late" ? "secondary" : "destructive"}>
-                          {record.status === "present" ? "Hadir" : record.status === "late" ? "Terlambat" : record.status === "absent" ? "Tidak Hadir" : record.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {record.check_in_photo_url ? (
-                          <Badge variant="outline"><Camera className="h-3 w-3 mr-1" /> Foto</Badge>
-                        ) : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {attendanceRecords.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Belum ada data kehadiran untuk tanggal ini</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* === DEVICES TAB === */}
-        <TabsContent value="devices" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5" />
-                    Perangkat Terdaftar
-                  </CardTitle>
-                  <CardDescription>
-                    Kelola perangkat HP/komputer yang diizinkan untuk absensi karyawan
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="require_device" className="text-sm">Wajibkan Perangkat Terdaftar</Label>
-                  <Switch
-                    id="require_device"
-                    checked={hrSettings?.require_device_registration ?? false}
-                    onCheckedChange={(checked) => {
-                      if (hrSettings?.id) {
-                        saveHRSettingsMutation.mutate({ require_device_registration: checked } as any);
-                      }
-                    }}
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari karyawan..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-[250px]"
                   />
                 </div>
+                <Select value={filterDept} onValueChange={setFilterDept}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter Departemen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Departemen</SelectItem>
+                    {departments.map(dept => (
+                      <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent>
-              {!(hrSettings?.require_device_registration) && (
-                <div className="p-4 rounded-lg bg-muted text-center mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    ℹ️ Pembatasan perangkat saat ini <strong>nonaktif</strong>. Karyawan bisa absen dari perangkat mana saja. 
-                    Aktifkan toggle di atas untuk membatasi absensi hanya dari perangkat terdaftar.
-                  </p>
-                </div>
-              )}
-
-              {employeeDevices.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Smartphone className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>Belum ada perangkat terdaftar</p>
-                  <p className="text-xs mt-1">Perangkat akan terdaftar saat karyawan mengakses halaman absensi</p>
-                </div>
+              {loadingEmployees ? (
+                <div className="text-center py-8">Memuat data karyawan...</div>
+              ) : filteredEmployees.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">Tidak ada karyawan ditemukan.</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Karyawan</TableHead>
-                      <TableHead>Perangkat</TableHead>
-                      <TableHead>ID Perangkat</TableHead>
-                      <TableHead>Terdaftar</TableHead>
-                      <TableHead>Terakhir Digunakan</TableHead>
+                      <TableHead>Nama</TableHead>
+                      <TableHead>Kode</TableHead>
+                      <TableHead>Departemen</TableHead>
+                      <TableHead>Posisi</TableHead>
+                      <TableHead>Kontak</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Aksi</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {employeeDevices.map((device) => (
-                      <TableRow key={device.id}>
+                    {filteredEmployees.map(employee => (
+                      <TableRow key={employee.id}>
                         <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{device.employee?.full_name || "-"}</p>
-                            <p className="text-xs text-muted-foreground">{device.employee?.employee_code}</p>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={employee.photo_url || undefined} />
+                              <AvatarFallback>{employee.full_name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="font-medium">{employee.full_name}</div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{device.device_name}</TableCell>
+                        <TableCell className="font-mono text-sm">{employee.employee_code}</TableCell>
+                        <TableCell>{employee.department || "N/A"}</TableCell>
+                        <TableCell>{employee.position || "N/A"}</TableCell>
                         <TableCell>
-                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{device.device_fingerprint}</code>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {format(new Date(device.registered_at), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {device.last_used_at 
-                            ? format(new Date(device.last_used_at), "dd MMM yyyy HH:mm", { locale: idLocale })
-                            : "-"
-                          }
+                          <div className="text-sm">
+                            {employee.phone && <div className="flex items-center gap-1"><Phone className="h-3 w-3" /> {employee.phone}</div>}
+                            {employee.email && <div className="flex items-center gap-1"><Mail className="h-3 w-3" /> {employee.email}</div>}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={device.is_active ? "default" : "secondary"}>
-                            {device.is_active ? "Aktif" : "Nonaktif"}
+                          <Badge variant={employee.is_active ? "default" : "secondary"}>
+                            {employee.is_active ? "Aktif" : "Nonaktif"}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => toggleDeviceMutation.mutate({ id: device.id, is_active: !device.is_active })}
-                              title={device.is_active ? "Nonaktifkan" : "Aktifkan"}
-                            >
-                              {device.is_active ? (
-                                <ShieldX className="h-4 w-4 text-destructive" />
-                              ) : (
-                                <ShieldCheck className="h-4 w-4 text-green-600" />
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteDeviceMutation.mutate(device.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditEmployee(employee)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm("Apakah Anda yakin ingin menghapus karyawan ini?")) {
+                                // deleteEmployeeMutation.mutate(employee.id);
+                                toast.info("Fitur hapus karyawan belum diimplementasikan.");
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -768,230 +453,360 @@ export default function AdminHR() {
           </Card>
         </TabsContent>
 
-        {/* === WORK SCHEDULES TAB === */}
+        <TabsContent value="attendance" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Catatan Absensi</CardTitle>
+              <Input
+                type="date"
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+                className="w-fit"
+              />
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead>Check-in</TableHead>
+                    <TableHead>Check-out</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attendanceRecords.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Tidak ada catatan absensi untuk tanggal ini.</TableCell>
+                    </TableRow>
+                  ) : (
+                    attendanceRecords.map(record => (
+                      <TableRow key={record.id}>
+                        <TableCell>
+                          <div className="font-medium">{record.employee?.full_name || "N/A"}</div>
+                          <div className="text-sm text-muted-foreground">{record.employee?.employee_code || "N/A"}</div>
+                        </TableCell>
+                        <TableCell>{format(new Date(record.attendance_date), "dd MMMM yyyy", { locale: idLocale })}</TableCell>
+                        <TableCell>
+                          {record.check_in_time ? (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {format(new Date(`2000-01-01T${record.check_in_time}`), "HH:mm")}
+                              {record.check_in_location?.address && (
+                                <span className="text-muted-foreground text-xs">({record.check_in_location.address})</span>
+                              )}
+                            </div>
+                          ) : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {record.check_out_time ? (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {format(new Date(`2000-01-01T${record.check_out_time}`), "HH:mm")}
+                              {record.check_out_location?.address && (
+                                <span className="text-muted-foreground text-xs">({record.check_out_location.address})</span>
+                              )}
+                            </div>
+                          ) : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={record.status === "Hadir" ? "default" : "secondary"}>{record.status}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="departments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Departemen</CardTitle>
+              <CardDescription>Kelola departemen yang ada di perusahaan.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nama Departemen"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="Kode Departemen (ex: HRD)"
+                  value={newDeptCode}
+                  onChange={(e) => setNewDeptCode(e.target.value)}
+                  className="w-[150px]"
+                />
+                <Button onClick={() => addDepartmentMutation.mutate()} disabled={addDepartmentMutation.isPending}>
+                  {addDepartmentMutation.isPending ? "Menambahkan..." : "Tambah"}
+                </Button>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Kode</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {departments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Belum ada departemen.</TableCell>
+                    </TableRow>
+                  ) : (
+                    departments.map(dept => (
+                      <TableRow key={dept.id}>
+                        <TableCell>{dept.name}</TableCell>
+                        <TableCell className="font-mono">{dept.code}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Hapus departemen ${dept.name}?`)) {
+                                deleteDepartmentMutation.mutate(dept.id);
+                              }
+                            }}
+                            disabled={deleteDepartmentMutation.isPending}
+                          >
+                            Hapus
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="positions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Posisi</CardTitle>
+              <CardDescription>Kelola posisi atau jabatan karyawan.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nama Posisi"
+                  value={newPosName}
+                  onChange={(e) => setNewPosName(e.target.value)}
+                  className="flex-1"
+                />
+                <Select value={newPosDeptId} onValueChange={setNewPosDeptId}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Pilih Departemen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map(dept => (
+                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => addPositionMutation.mutate()} disabled={addPositionMutation.isPending}>
+                  {addPositionMutation.isPending ? "Menambahkan..." : "Tambah"}
+                </Button>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama Posisi</TableHead>
+                    <TableHead>Departemen</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {positions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Belum ada posisi.</TableCell>
+                    </TableRow>
+                  ) : (
+                    positions.map(pos => (
+                      <TableRow key={pos.id}>
+                        <TableCell>{pos.name}</TableCell>
+                        <TableCell>{getDepartmentName(pos.department_id)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Hapus posisi ${pos.name}?`)) {
+                                deletePositionMutation.mutate(pos.id);
+                              }
+                            }}
+                            disabled={deletePositionMutation.isPending}
+                          >
+                            Hapus
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="schedules" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Jadwal Kerja Karyawan</CardTitle>
-              <CardDescription>Pilih karyawan untuk melihat/mengatur jadwal kerja mingguan</CardDescription>
+              <CardTitle>Jadwal Kerja Karyawan</CardTitle>
+              <CardDescription>Atur jadwal kerja mingguan untuk setiap karyawan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Select value={scheduleEmployeeId} onValueChange={setScheduleEmployeeId}>
-                <SelectTrigger className="w-72">
-                  <SelectValue placeholder="Pilih karyawan..." />
+                <SelectTrigger className="w-[300px]">
+                  <SelectValue placeholder="Pilih Karyawan" />
                 </SelectTrigger>
                 <SelectContent>
-                  {employees.filter(e => e.is_active).map(emp => (
+                  {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>{emp.full_name} ({emp.employee_code})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
               {scheduleEmployeeId && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Hari</TableHead>
-                      <TableHead>Jam Masuk</TableHead>
-                      <TableHead>Jam Pulang</TableHead>
-                      <TableHead>Libur</TableHead>
-                      <TableHead>Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[0, 1, 2, 3, 4, 5, 6].map(day => {
-                      const schedule = workSchedules.find(s => s.day_of_week === day);
-                      const defaultStart = hrSettings?.work_start_time || "08:00";
-                      const defaultEnd = hrSettings?.work_end_time || "17:00";
-                      const isDayOff = schedule?.is_day_off ?? (day === 0 || day === 6);
-
-                      return (
-                        <TableRow key={day} className={isDayOff ? "bg-muted/50" : ""}>
-                          <TableCell className="font-medium">{dayLabels[day]}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="time"
-                              defaultValue={schedule?.start_time?.slice(0, 5) || defaultStart}
-                              disabled={isDayOff}
-                              className="w-28"
-                              id={`start-${day}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="time"
-                              defaultValue={schedule?.end_time?.slice(0, 5) || defaultEnd}
-                              disabled={isDayOff}
-                              className="w-28"
-                              id={`end-${day}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Switch
-                              defaultChecked={isDayOff}
-                              id={`off-${day}`}
-                              onCheckedChange={(checked) => {
-                                // Auto-save on toggle
-                                const startEl = document.getElementById(`start-${day}`) as HTMLInputElement;
-                                const endEl = document.getElementById(`end-${day}`) as HTMLInputElement;
-                                saveScheduleMutation.mutate({
-                                  employeeId: scheduleEmployeeId,
-                                  day,
-                                  startTime: startEl?.value || defaultStart,
-                                  endTime: endEl?.value || defaultEnd,
-                                  isDayOff: checked,
-                                });
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                const startEl = document.getElementById(`start-${day}`) as HTMLInputElement;
-                                const endEl = document.getElementById(`end-${day}`) as HTMLInputElement;
-                                const offEl = document.getElementById(`off-${day}`) as HTMLInputElement;
-                                saveScheduleMutation.mutate({
-                                  employeeId: scheduleEmployeeId,
-                                  day,
-                                  startTime: startEl?.value || defaultStart,
-                                  endTime: endEl?.value || defaultEnd,
-                                  isDayOff: offEl?.getAttribute("data-state") === "checked",
-                                });
-                              }}
-                            >
-                              <Save className="h-3 w-3 mr-1" /> Simpan
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <WorkScheduleEditor
+                  employeeId={scheduleEmployeeId}
+                  initialSchedules={workSchedules}
+                  onSave={handleSaveWorkSchedule}
+                  isSaving={saveWorkScheduleMutation.isPending}
+                />
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* === SETTINGS TAB === */}
-        <TabsContent value="settings" className="space-y-6">
-          {/* Departments & Positions */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Departemen</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input placeholder="Nama departemen" value={newDeptName} onChange={e => setNewDeptName(e.target.value)} />
-                  <Input placeholder="Kode" value={newDeptCode} onChange={e => setNewDeptCode(e.target.value)} className="w-24" />
-                  <Button size="sm" onClick={() => addDepartmentMutation.mutate()}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {departments.map(dept => (
-                    <div key={dept.id} className="flex items-center justify-between p-2 rounded border">
-                      <div>
-                        <span className="font-medium">{dept.name}</span>
-                        <Badge variant="outline" className="ml-2 text-xs">{dept.code}</Badge>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={() => deleteDepartmentMutation.mutate(dept.id)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> Posisi</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input placeholder="Nama posisi" value={newPosName} onChange={e => setNewPosName(e.target.value)} />
-                  <Select value={newPosDeptId} onValueChange={setNewPosDeptId}>
-                    <SelectTrigger className="w-40"><SelectValue placeholder="Dept" /></SelectTrigger>
-                    <SelectContent>
-                      {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={() => addPositionMutation.mutate()}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {departments.filter(d => d.is_active).map(dept => {
-                    const deptPositions = positions.filter(p => p.department_id === dept.id);
-                    if (deptPositions.length === 0) return null;
-                    return (
-                      <div key={dept.id}>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">{dept.name}</p>
-                        {deptPositions.map(pos => (
-                          <div key={pos.id} className="flex items-center justify-between p-2 rounded border ml-2 mb-1">
-                            <span className="text-sm">{pos.name}</span>
-                            <Button size="sm" variant="ghost" onClick={() => deletePositionMutation.mutate(pos.id)}>
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* HR Settings */}
+        <TabsContent value="devices" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /> Pengaturan Kehadiran & Gaji</CardTitle>
-              <CardDescription>Atur parameter perhitungan gaji otomatis. Potongan bisa berupa nominal tetap atau persentase dari gaji pokok.</CardDescription>
+              <CardTitle>Perangkat Karyawan</CardTitle>
+              <CardDescription>Kelola perangkat yang terdaftar untuk absensi karyawan.</CardDescription>
             </CardHeader>
             <CardContent>
-          {hrSettings && (
-                <HRSettingsForm hrSettings={hrSettings} onSave={(settings) => saveHRSettingsMutation.mutate(settings)} isPending={saveHRSettingsMutation.isPending} />
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead>Nama Perangkat</TableHead>
+                    <TableHead>Fingerprint</TableHead>
+                    <TableHead>Terdaftar Pada</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employeeDevices.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Tidak ada perangkat terdaftar.</TableCell>
+                    </TableRow>
+                  ) : (
+                    employeeDevices.map(device => (
+                      <TableRow key={device.id}>
+                        <TableCell>
+                          <div className="font-medium">{device.employee?.full_name || "N/A"}</div>
+                          <div className="text-sm text-muted-foreground">{device.employee?.employee_code || "N/A"}</div>
+                        </TableCell>
+                        <TableCell>{device.device_name}</TableCell>
+                        <TableCell className="font-mono text-xs">{device.device_fingerprint.substring(0, 10)}...</TableCell>
+                        <TableCell>{format(new Date(device.registered_at), "dd MMM yyyy HH:mm", { locale: idLocale })}</TableCell>
+                        <TableCell>
+                          <Badge variant={device.is_active ? "default" : "secondary"}>
+                            {device.is_active ? "Aktif" : "Nonaktif"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => toggleDeviceStatusMutation.mutate({ id: device.id, is_active: !device.is_active })}
+                            disabled={toggleDeviceStatusMutation.isPending}
+                          >
+                            {device.is_active ? <ShieldX className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm("Hapus perangkat ini?")) {
+                                deleteDeviceMutation.mutate(device.id);
+                              }
+                            }}
+                            disabled={deleteDeviceMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pengaturan HR</CardTitle>
+              <CardDescription>Konfigurasi aturan absensi, potongan, dan lembur.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {hrSettings ? (
+                <HRSettingsForm initialData={hrSettings} />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">Memuat pengaturan HR...</div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Employee Dialog */}
-      <Dialog open={isEmployeeDialogOpen} onOpenChange={(open) => { setIsEmployeeDialogOpen(open); if (!open) setEditingEmployee(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingEmployee ? "Edit Karyawan" : "Tambah Karyawan"}</DialogTitle>
-            <DialogDescription>Isi data karyawan</DialogDescription>
+            <DialogTitle>{editingEmployee ? "Edit Karyawan" : "Tambah Karyawan Baru"}</DialogTitle>
+            <DialogDescription>
+              Lengkapi detail karyawan untuk manajemen HR.
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmitEmployee} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Nama Lengkap *</Label>
-              <Input id="full_name" name="full_name" defaultValue={editingEmployee?.full_name || ""} required />
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            saveEmployeeMutation.mutate(formData);
+          }} className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Nama Lengkap *</Label>
+                <Input id="full_name" name="full_name" defaultValue={editingEmployee?.full_name || ""} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" name="email" type="email" defaultValue={editingEmployee?.email || ""} />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Departemen</Label>
-                <Select name="department" defaultValue={editingEmployee?.department || ""}>
-                  <SelectTrigger><SelectValue placeholder="Pilih departemen" /></SelectTrigger>
-                  <SelectContent>
-                    {departments.filter(d => d.is_active).map(d => (
-                      <SelectItem key={d.id} value={d.code}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="phone">Telepon</Label>
+                <Input id="phone" name="phone" defaultValue={editingEmployee?.phone || ""} />
               </div>
               <div className="space-y-2">
-                <Label>Posisi</Label>
+                <Label htmlFor="position">Posisi</Label>
                 <Select name="position" defaultValue={editingEmployee?.position || ""}>
-                  <SelectTrigger><SelectValue placeholder="Pilih posisi" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Posisi" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {positions.filter(p => p.is_active).map(p => (
-                      <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                    {positions.map(pos => (
+                      <SelectItem key={pos.id} value={pos.name}>{pos.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -999,19 +814,30 @@ export default function AdminHR() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>No. Telepon</Label>
-                <Input name="phone" defaultValue={editingEmployee?.phone || ""} />
+                <Label htmlFor="department">Departemen</Label>
+                <Select name="department" defaultValue={editingEmployee?.department || ""}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Departemen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map(dept => (
+                      <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
-                <Input name="email" type="email" defaultValue={editingEmployee?.email || ""} />
+                <Label htmlFor="hire_date">Tanggal Bergabung</Label>
+                <Input id="hire_date" name="hire_date" type="date" defaultValue={editingEmployee?.hire_date || ""} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Gender</Label>
+                <Label htmlFor="gender">Jenis Kelamin</Label>
                 <Select name="gender" defaultValue={editingEmployee?.gender || ""}>
-                  <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Jenis Kelamin" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Laki-laki</SelectItem>
                     <SelectItem value="female">Perempuan</SelectItem>
@@ -1019,79 +845,153 @@ export default function AdminHR() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Gaji Pokok</Label>
-                <Input type="number" name="salary" defaultValue={editingEmployee?.salary || ""} placeholder="0" />
-              </div>
-              <div className="space-y-2">
-                <Label>Tanggal Masuk</Label>
-                <Input type="date" name="hire_date" defaultValue={editingEmployee?.hire_date || ""} />
+                <Label htmlFor="salary">Gaji Pokok</Label>
+                <Input id="salary" name="salary" type="number" step="0.01" defaultValue={editingEmployee?.salary || ""} />
               </div>
             </div>
-
-            <Separator />
-
-            {/* Custom Deduction Override */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-semibold">Aturan Potongan Khusus</Label>
-                  <p className="text-xs text-muted-foreground">Override aturan potongan global untuk karyawan ini</p>
-                </div>
-                <Switch
-                  name="use_custom_deduction"
-                  defaultChecked={editingEmployee?.use_custom_deduction || false}
-                  id="use_custom_deduction"
-                />
-              </div>
-
-              <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
-                <p className="text-xs font-medium text-muted-foreground">Potongan Absen</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tipe</Label>
-                    <Select name="custom_absent_deduction_type" defaultValue={editingEmployee?.custom_absent_deduction_type || "fixed"}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fixed">Nominal (Rp)</SelectItem>
-                        <SelectItem value="percentage">% Gaji</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Nilai</Label>
-                    <Input type="number" step="0.1" name="custom_absent_deduction" className="h-8 text-xs" defaultValue={editingEmployee?.custom_absent_deduction || ""} placeholder="Kosongkan = ikut global" />
-                  </div>
-                </div>
-
-                <p className="text-xs font-medium text-muted-foreground">Potongan Terlambat</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tipe</Label>
-                    <Select name="custom_late_deduction_type" defaultValue={editingEmployee?.custom_late_deduction_type || "fixed"}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fixed">Nominal (Rp)</SelectItem>
-                        <SelectItem value="percentage">% Gaji</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Nilai</Label>
-                    <Input type="number" step="0.1" name="custom_late_deduction" className="h-8 text-xs" defaultValue={editingEmployee?.custom_late_deduction || ""} placeholder="Kosongkan = ikut global" />
-                  </div>
-                </div>
-              </div>
+            <Separator className="my-4" />
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="use_custom_deduction"
+                name="use_custom_deduction"
+                defaultChecked={editingEmployee?.use_custom_deduction || false}
+              />
+              <Label htmlFor="use_custom_deduction">Gunakan potongan kustom</Label>
             </div>
-
+            {/* Conditional custom deduction fields */}
+            {editingEmployee?.use_custom_deduction && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="custom_absent_deduction">Potongan Absen</Label>
+                  <Input id="custom_absent_deduction" name="custom_absent_deduction" type="number" step="0.01" defaultValue={editingEmployee?.custom_absent_deduction || ""} />
+                  <Select name="custom_absent_deduction_type" defaultValue={editingEmployee?.custom_absent_deduction_type || "fixed"}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tipe Potongan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fixed</SelectItem>
+                      <SelectItem value="percentage">Percentage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="custom_late_deduction">Potongan Telat</Label>
+                  <Input id="custom_late_deduction" name="custom_late_deduction" type="number" step="0.01" defaultValue={editingEmployee?.custom_late_deduction || ""} />
+                  <Select name="custom_late_deduction_type" defaultValue={editingEmployee?.custom_late_deduction_type || "fixed"}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tipe Potongan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fixed</SelectItem>
+                      <SelectItem value="percentage">Percentage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsEmployeeDialogOpen(false)}>Batal</Button>
+              <Button type="button" variant="outline" onClick={handleEmployeeDialogClose}>Batal</Button>
               <Button type="submit" disabled={saveEmployeeMutation.isPending}>
-                {saveEmployeeMutation.isPending ? "Menyimpan..." : "Simpan"}
+                {saveEmployeeMutation.isPending ? "Menyimpan..." : "Simpan Karyawan"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+
+interface WorkScheduleEditorProps {
+  employeeId: string;
+  initialSchedules: WorkSchedule[];
+  onSave: (schedules: WorkScheduleInsert[]) => void;
+  isSaving: boolean;
+}
+
+function WorkScheduleEditor({ employeeId, initialSchedules, onSave, isSaving }: WorkScheduleEditorProps) {
+  const [schedules, setSchedules] = useState<WorkScheduleInsert[]>(() => {
+    const defaultSchedules: WorkScheduleInsert[] = dayLabels.map((_, index) => ({
+      employee_id: employeeId,
+      day_of_week: index,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      is_day_off: false,
+    }));
+    return initialSchedules.length > 0 ? initialSchedules.map(s => ({...s})) : defaultSchedules;
+  });
+
+  // Update schedules when initialSchedules or employeeId changes
+  useState(() => {
+    const defaultSchedules: WorkScheduleInsert[] = dayLabels.map((_, index) => ({
+      employee_id: employeeId,
+      day_of_week: index,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      is_day_off: false,
+    }));
+    setSchedules(initialSchedules.length > 0 ? initialSchedules.map(s => ({...s})) : defaultSchedules);
+  }, [initialSchedules, employeeId]);
+
+  const handleScheduleChange = (index: number, field: keyof WorkScheduleInsert, value: any) => {
+    const newSchedules = [...schedules];
+    newSchedules[index] = { ...newSchedules[index], [field]: value };
+    setSchedules(newSchedules);
+  };
+
+  const handleSave = () => {
+    onSave(schedules);
+  };
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Hari</TableHead>
+              <TableHead>Jam Mulai</TableHead>
+              <TableHead>Jam Selesai</TableHead>
+              <TableHead>Libur</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {schedules.map((schedule, index) => (
+              <TableRow key={index}>
+                <TableCell>{dayLabels[schedule.day_of_week]}</TableCell>
+                <TableCell>
+                  <Input
+                    type="time"
+                    value={schedule.start_time || ""}
+                    onChange={(e) => handleScheduleChange(index, "start_time", e.target.value)}
+                    disabled={schedule.is_day_off}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="time"
+                    value={schedule.end_time || ""}
+                    onChange={(e) => handleScheduleChange(index, "end_time", e.target.value)}
+                    disabled={schedule.is_day_off}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={schedule.is_day_off}
+                    onCheckedChange={(checked) => handleScheduleChange(index, "is_day_off", checked)}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="flex justify-end mt-4">
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "Menyimpan..." : "Simpan Jadwal"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

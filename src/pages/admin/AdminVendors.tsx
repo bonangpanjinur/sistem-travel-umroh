@@ -1,18 +1,22 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Search, Building2, Phone, Mail, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Phone, Mail, Edit, Trash2 } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type Vendor = Database["public"]["Tables"]["vendors"]["Row"];
+type VendorInsert = Database["public"]["Tables"]["vendors"]["Insert"];
+type VendorUpdate = Database["public"]["Tables"]["vendors"]["Update"];
 
 const VENDOR_TYPES = [
   { value: 'HOTEL', label: 'Hotel' },
@@ -22,22 +26,6 @@ const VENDOR_TYPES = [
   { value: 'TRANSPORT', label: 'Transportasi' },
   { value: 'OTHER', label: 'Lainnya' },
 ];
-
-interface Vendor {
-  id: string;
-  name: string;
-  vendor_type: string;
-  contact_person: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  bank_name: string | null;
-  bank_account_number: string | null;
-  bank_account_name: string | null;
-  notes: string | null;
-  is_active: boolean;
-  created_at: string;
-}
 
 export default function AdminVendors() {
   const queryClient = useQueryClient();
@@ -71,17 +59,19 @@ export default function AdminVendors() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (data: typeof formData & { id?: string }) => {
-      if (data.id) {
+    mutationFn: async (data: any) => {
+      if (editingVendor) {
+        const payload: VendorUpdate = data;
         const { error } = await supabase
           .from('vendors')
-          .update(data)
-          .eq('id', data.id);
+          .update(payload)
+          .eq('id', editingVendor.id);
         if (error) throw error;
       } else {
+        const payload: VendorInsert = data;
         const { error } = await supabase
           .from('vendors')
-          .insert(data);
+          .insert(payload);
         if (error) throw error;
       }
     },
@@ -152,10 +142,7 @@ export default function AdminVendors() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveMutation.mutate({
-      ...formData,
-      ...(editingVendor && { id: editingVendor.id }),
-    });
+    saveMutation.mutate(formData);
   };
 
   const filteredVendors = vendors?.filter(v => {
@@ -305,10 +292,10 @@ export default function AdminVendors() {
                   <Label>Tipe Vendor *</Label>
                   <Select 
                     value={formData.vendor_type} 
-                    onValueChange={(v) => setFormData({ ...formData, vendor_type: v })}
+                    onValueChange={(value) => setFormData({ ...formData, vendor_type: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Pilih tipe" />
                     </SelectTrigger>
                     <SelectContent>
                       {VENDOR_TYPES.map(type => (
@@ -320,7 +307,7 @@ export default function AdminVendors() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Contact Person</Label>
+                  <Label>Kontak Person</Label>
                   <Input
                     value={formData.contact_person}
                     onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
@@ -383,9 +370,7 @@ export default function AdminVendors() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                Batal
-              </Button>
+              <Button type="button" variant="outline" onClick={handleCloseDialog}>Batal</Button>
               <Button type="submit" disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? 'Menyimpan...' : 'Simpan'}
               </Button>

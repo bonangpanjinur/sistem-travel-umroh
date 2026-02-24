@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AirlineForm } from "@/components/admin/forms/AirlineForm";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Edit, Trash2, Plane } from "lucide-react";
+import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Database } from "@/integrations/supabase/types";
+
+type Airline = Database["public"]["Tables"]["airlines"]["Row"];
 
 export default function AdminAirlines() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingAirline, setEditingAirline] = useState<any>(null);
+  const [editingAirline, setEditingAirline] = useState<Airline | null>(null);
   const queryClient = useQueryClient();
 
   const { data: airlines, isLoading } = useQuery({
@@ -22,7 +25,7 @@ export default function AdminAirlines() {
     queryFn: async () => {
       const { data, error } = await supabase.from("airlines").select("*").order("name");
       if (error) throw error;
-      return data;
+      return data as Airline[];
     },
   });
 
@@ -37,7 +40,10 @@ export default function AdminAirlines() {
     },
   });
 
-  const filtered = airlines?.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()) || a.code.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = airlines?.filter(a => 
+    a.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    a.code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -58,26 +64,47 @@ export default function AdminAirlines() {
             <TableRow><TableHead>Kode</TableHead><TableHead>Nama</TableHead><TableHead>Status</TableHead><TableHead>Aksi</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            {filtered?.map(airline => (
-              <TableRow key={airline.id}>
-                <TableCell className="font-mono">{airline.code}</TableCell>
-                <TableCell>{airline.name}</TableCell>
-                <TableCell><Badge variant={airline.is_active ? "default" : "secondary"}>{airline.is_active ? "Aktif" : "Nonaktif"}</Badge></TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setEditingAirline(airline); setIsFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(airline.id)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </TableCell>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Memuat data...</TableCell>
               </TableRow>
-            ))}
+            ) : filtered?.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Tidak ada data ditemukan</TableCell>
+              </TableRow>
+            ) : (
+              filtered?.map(airline => (
+                <TableRow key={airline.id}>
+                  <TableCell className="font-mono">{airline.code}</TableCell>
+                  <TableCell>{airline.name}</TableCell>
+                  <TableCell><Badge variant={airline.is_active ? "default" : "secondary"}>{airline.is_active ? "Aktif" : "Nonaktif"}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setEditingAirline(airline); setIsFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => {
+                        if (confirm("Apakah Anda yakin ingin menghapus maskapai ini?")) {
+                          deleteMutation.mutate(airline.id);
+                        }
+                      }}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent><DialogHeader><DialogTitle>{editingAirline ? "Edit" : "Tambah"} Maskapai</DialogTitle></DialogHeader>
-          <AirlineForm airlineData={editingAirline} onSuccess={() => setIsFormOpen(false)} onCancel={() => setIsFormOpen(false)} />
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingAirline ? "Edit" : "Tambah"} Maskapai</DialogTitle>
+          </DialogHeader>
+          <AirlineForm 
+            airlineData={editingAirline || undefined} 
+            onSuccess={() => setIsFormOpen(false)} 
+            onCancel={() => setIsFormOpen(false)} 
+          />
         </DialogContent>
       </Dialog>
     </div>
