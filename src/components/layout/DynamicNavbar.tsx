@@ -13,7 +13,12 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-const defaultNavLinks = [
+interface NavLink {
+  href: string;
+  label: string;
+}
+
+const defaultNavLinks: NavLink[] = [
   { href: '/', label: 'Beranda' },
   { href: '/packages', label: 'Paket Umroh' },
   { href: '/departures', label: 'Jadwal' },
@@ -23,6 +28,10 @@ const defaultNavLinks = [
 ];
 
 export type HeaderDisplayMode = 'logo_only' | 'logo_name_tagline' | 'name_tagline_only';
+
+interface CustomSectionsData {
+  headerDisplayMode?: HeaderDisplayMode;
+}
 
 interface DynamicNavbarProps {
   tenantSettings?: WebsiteSettings | null;
@@ -48,10 +57,10 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const companyName = settings?.company_name || 'UmrohTravel';
   const tagline = settings?.tagline || 'Perjalanan Suci Anda';
   const logoUrl = settings?.logo_url;
-  const navLinks = (settings?.nav_links as Array<{href: string; label: string}>) || defaultNavLinks;
+  const navLinks = ((settings?.nav_links as unknown as NavLink[] | null) || defaultNavLinks) as NavLink[];
 
   // Get header display mode from custom_sections
-  const customSections = settings?.custom_sections as any;
+  const customSections = settings?.custom_sections as unknown as CustomSectionsData | null;
   const headerMode: HeaderDisplayMode = customSections?.headerDisplayMode || 'logo_name_tagline';
 
   const renderLogo = () => {

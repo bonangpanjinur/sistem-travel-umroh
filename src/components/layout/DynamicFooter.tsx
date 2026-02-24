@@ -1,8 +1,27 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube } from 'lucide-react';
-import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 
-const defaultFooterLinks = {
+interface FooterLink {
+  href: string;
+  label: string;
+}
+
+interface FooterLinks {
+  layanan?: FooterLink[];
+  informasi?: FooterLink[];
+  panduan?: FooterLink[];
+}
+
+interface CustomFooterSections {
+  footerLayout?: 'full' | 'simple' | 'minimal';
+  footerShowSocial?: boolean;
+  footerShowContact?: boolean;
+  footerShowLinks?: boolean;
+  footerCopyrightText?: string;
+}
+
+const defaultFooterLinks: FooterLinks = {
   layanan: [
     { href: '/packages', label: 'Paket Umroh' },
     { href: '/departures', label: 'Jadwal Keberangkatan' },
@@ -28,7 +47,7 @@ function TikTokIcon({ className }: { className?: string }) {
 }
 
 interface DynamicFooterProps {
-  tenantSettings?: import('@/hooks/useWebsiteSettings').WebsiteSettings | null;
+  tenantSettings?: WebsiteSettings | null;
 }
 
 export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
@@ -48,11 +67,11 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
   const tiktok = settings?.social_tiktok;
   const footerDescription = settings?.footer_description || 'Melayani perjalanan ibadah Umroh dan Haji dengan pengalaman bertahun-tahun.';
   const footerBottomText = settings?.footer_bottom_text || 'Izin Resmi Kemenag RI';
-  const footerLinks = settings?.footer_links || defaultFooterLinks;
+  const footerLinks = (settings?.footer_links as unknown as FooterLinks | null) || defaultFooterLinks;
 
   // Get footer layout settings from custom_sections
-  const customSections = settings?.custom_sections as any;
-  const footerLayout = customSections?.footerLayout || 'full';
+  const customSections = settings?.custom_sections as unknown as CustomFooterSections | null;
+  const footerLayout = (customSections?.footerLayout || 'full') as 'full' | 'simple' | 'minimal';
   const footerShowSocial = customSections?.footerShowSocial ?? true;
   const footerShowContact = customSections?.footerShowContact ?? true;
   const footerShowLinks = customSections?.footerShowLinks ?? true;

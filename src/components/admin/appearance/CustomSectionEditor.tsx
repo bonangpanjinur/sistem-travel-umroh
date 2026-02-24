@@ -42,20 +42,37 @@ const DEFAULT_STATS: StatItem[] = [
   { value: '4.9', label: 'Rating Kepuasan' },
 ];
 
+function isValidCustomSections(obj: unknown): obj is CustomSections {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const section = obj as Record<string, unknown>;
+  return (
+    typeof section.showBismillah === 'boolean' &&
+    typeof section.showSearchWidget === 'boolean' &&
+    typeof section.showStats === 'boolean' &&
+    Array.isArray(section.stats) &&
+    typeof section.headerDisplayMode === 'string' &&
+    typeof section.footerLayout === 'string'
+  );
+}
+
 function parseCustomSections(settings: WebsiteSettings): CustomSections {
-  const raw = settings.custom_sections as any;
+  const raw = settings.custom_sections as unknown;
+  if (isValidCustomSections(raw)) {
+    return raw;
+  }
   if (raw && typeof raw === 'object') {
+    const section = raw as Record<string, unknown>;
     return {
-      showBismillah: raw.showBismillah ?? true,
-      showSearchWidget: raw.showSearchWidget ?? true,
-      showStats: raw.showStats ?? true,
-      stats: Array.isArray(raw.stats) ? raw.stats : DEFAULT_STATS,
-      headerDisplayMode: raw.headerDisplayMode || 'logo_name_tagline',
-      footerLayout: raw.footerLayout || 'full',
-      footerShowSocial: raw.footerShowSocial ?? true,
-      footerShowContact: raw.footerShowContact ?? true,
-      footerShowLinks: raw.footerShowLinks ?? true,
-      footerCopyrightText: raw.footerCopyrightText || '',
+      showBismillah: typeof section.showBismillah === 'boolean' ? section.showBismillah : true,
+      showSearchWidget: typeof section.showSearchWidget === 'boolean' ? section.showSearchWidget : true,
+      showStats: typeof section.showStats === 'boolean' ? section.showStats : true,
+      stats: Array.isArray(section.stats) ? section.stats : DEFAULT_STATS,
+      headerDisplayMode: (typeof section.headerDisplayMode === 'string' ? section.headerDisplayMode : 'logo_name_tagline') as HeaderDisplayMode,
+      footerLayout: (typeof section.footerLayout === 'string' ? section.footerLayout : 'full') as FooterLayout,
+      footerShowSocial: typeof section.footerShowSocial === 'boolean' ? section.footerShowSocial : true,
+      footerShowContact: typeof section.footerShowContact === 'boolean' ? section.footerShowContact : true,
+      footerShowLinks: typeof section.footerShowLinks === 'boolean' ? section.footerShowLinks : true,
+      footerCopyrightText: typeof section.footerCopyrightText === 'string' ? section.footerCopyrightText : '',
     };
   }
   return {
@@ -108,7 +125,7 @@ export function CustomSectionEditor({ settings }: CustomSectionEditorProps) {
       footerShowSocial, footerShowContact, footerShowLinks,
       footerCopyrightText,
     };
-    updateSettings.mutate({ custom_sections: customSections as any });
+    updateSettings.mutate({ custom_sections: customSections as unknown as Record<string, unknown> });
   };
 
   const updateStat = (index: number, field: keyof StatItem, value: string) => {

@@ -11,7 +11,18 @@ export interface AgentNotification {
   message: string;
   createdAt: Date;
   read: boolean;
-  data?: any;
+  data?: unknown;
+}
+
+interface CustomerData {
+  full_name: string | null;
+  id: string;
+}
+
+interface BookingWithCustomer {
+  booking_code: string;
+  customer: CustomerData | null;
+  id: string;
 }
 
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
@@ -129,7 +140,8 @@ export function useAgentNotifications(agentId?: string) {
               .maybeSingle();
 
             if (booking) {
-              const customerName = (booking.customer as any)?.full_name || 'Customer';
+              const bookingData = booking as unknown as BookingWithCustomer;
+              const customerName = bookingData.customer?.full_name || 'Customer';
               addNotification({
                 type: 'document',
                 title: '❌ Dokumen Ditolak',
@@ -193,7 +205,8 @@ export function useAgentNotifications(agentId?: string) {
             .maybeSingle();
 
           if (booking) {
-            const customerName = (booking.customer as any)?.full_name || 'Customer';
+            const bookingData = booking as unknown as BookingWithCustomer;
+            const customerName = bookingData.customer?.full_name || 'Customer';
             // Notify if status changed to paid
             if (oldPayment.status !== 'paid' && payment.status === 'paid') {
               addNotification({

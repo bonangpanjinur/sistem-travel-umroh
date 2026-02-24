@@ -22,6 +22,26 @@ import { ArrowLeft, Search, UserPlus, Plus, X, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
+interface PackageData {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface DepartureData {
+  id: string;
+  departure_date: string;
+  return_date: string;
+  quota: number;
+  booked_count: number | null;
+  status: string;
+  price_quad: number | null;
+  price_triple: number | null;
+  price_double: number | null;
+  price_single: number | null;
+  package: PackageData | null;
+}
+
 interface PassengerEntry {
   customer_id: string;
   full_name: string;
@@ -45,7 +65,7 @@ export default function AdminBookingCreate() {
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
 
   // Fetch departures with available slots
-  const { data: departures } = useQuery({
+  const { data: departures } = useQuery<DepartureData[]>({
     queryKey: ['admin-departures-for-booking'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,7 +79,7 @@ export default function AdminBookingCreate() {
         .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date');
       if (error) throw error;
-      return data;
+      return (data || []) as DepartureData[];
     },
   });
 
@@ -80,7 +100,7 @@ export default function AdminBookingCreate() {
   });
 
   const selectedDeparture = departures?.find(d => d.id === departureId);
-  const pkg = selectedDeparture?.package as any;
+  const pkg = selectedDeparture?.package as PackageData | null | undefined;
 
   const getPrice = () => {
     if (!selectedDeparture) return 0;
@@ -143,8 +163,8 @@ export default function AdminBookingCreate() {
       setNewCustomer({ full_name: "", phone: "", email: "", nik: "" });
       toast.success("Customer baru berhasil dibuat dan ditambahkan");
     },
-    onError: (error: any) => {
-      toast.error("Gagal membuat customer: " + error.message);
+    onError: (error: Error | null) => {
+      toast.error("Gagal membuat customer: " + (error?.message || 'Unknown error'));
     },
   });
 
@@ -164,7 +184,7 @@ export default function AdminBookingCreate() {
           booking_code: bookingCode,
           customer_id: mainCustomerId,
           departure_id: departureId,
-          room_type: roomType as any,
+          room_type: roomType as 'quad' | 'triple' | 'double' | 'single',
           base_price: unitPrice,
           total_price: totalPrice,
           total_pax: passengers.length,
@@ -186,7 +206,7 @@ export default function AdminBookingCreate() {
         customer_id: p.customer_id,
         is_main_passenger: idx === 0,
         passenger_type: p.passenger_type,
-        room_preference: roomType as any,
+        room_preference: roomType as 'quad' | 'triple' | 'double' | 'single',
       }));
 
       const { error: passError } = await supabase
@@ -208,8 +228,8 @@ export default function AdminBookingCreate() {
       toast.success("Booking berhasil dibuat!");
       navigate(`/admin/bookings/${booking.id}`);
     },
-    onError: (error: any) => {
-      toast.error("Gagal membuat booking: " + error.message);
+    onError: (error: Error | null) => {
+      toast.error("Gagal membuat booking: " + (error?.message || 'Unknown error'));
     },
   });
 
@@ -239,7 +259,7 @@ export default function AdminBookingCreate() {
                 </SelectTrigger>
                 <SelectContent>
                   {departures?.map(d => {
-                    const p = d.package as any;
+                    const p = d.package as PackageData | null | undefined;
                     const avail = d.quota - (d.booked_count || 0);
                     return (
                       <SelectItem key={d.id} value={d.id} disabled={avail <= 0}>

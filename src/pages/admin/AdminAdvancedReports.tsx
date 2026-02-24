@@ -16,6 +16,44 @@ import { id } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
 import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 
+// Type definitions for database views
+interface FinancialSummaryRow {
+  gross_revenue: number | null;
+  collected_amount: number | null;
+  outstanding_amount: number | null;
+  total_vendor_costs: number | null;
+  net_profit: number | null;
+  total_pax: number | null;
+  package_name: string | null;
+  departure_date: string | null;
+  return_date: string | null;
+  departure_id: string | null;
+  quota: number | null;
+  booked_count: number | null;
+}
+
+interface OperationalSummaryRow {
+  quota: number | null;
+  booked: number | null;
+  manifest_count: number | null;
+  checked_in_count: number | null;
+  departure_date: string | null;
+  package_name: string | null;
+}
+
+interface AgentPerformanceData {
+  agent_id: string;
+  agent_name: string;
+  bookings: number;
+  revenue: number;
+}
+
+interface LeadFunnelData {
+  name: string;
+  value: number;
+  color: string;
+}
+
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"];
 
 export default function AdminAdvancedReports() {
@@ -26,32 +64,32 @@ export default function AdminAdvancedReports() {
   });
 
   // Fetch financial summary
-  const { data: financialData = [] } = useQuery({
+  const { data: financialData = [] } = useQuery<FinancialSummaryRow[]>({
     queryKey: ["financial-summary", dateRange],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("v_financial_summary" as any)
+        .from("v_financial_summary")
         .select("*")
         .gte("departure_date", dateRange.start)
         .lte("departure_date", dateRange.end)
         .order("departure_date");
       if (error) throw error;
-      return data as any[];
+      return (data || []) as FinancialSummaryRow[];
     },
   });
 
   // Fetch operational summary
-  const { data: operationalData = [] } = useQuery({
+  const { data: operationalData = [] } = useQuery<OperationalSummaryRow[]>({
     queryKey: ["operational-summary", dateRange],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("v_operational_summary" as any)
+        .from("v_operational_summary")
         .select("*")
         .gte("departure_date", dateRange.start)
         .lte("departure_date", dateRange.end)
         .order("departure_date");
       if (error) throw error;
-      return data as any[];
+      return (data || []) as OperationalSummaryRow[];
     },
   });
 
@@ -113,7 +151,7 @@ export default function AdminAdvancedReports() {
     : 0;
 
   // Lead funnel data
-  const leadFunnel = [
+  const leadFunnel: LeadFunnelData[] = [
     { name: "Total Leads", value: leadData.length, color: "#8884d8" },
     { name: "Contacted", value: leadData.filter((l) => l.status !== "new").length, color: "#82ca9d" },
     { name: "Qualified", value: leadData.filter((l) => ["qualified", "proposal", "negotiation", "won"].includes(l.status)).length, color: "#ffc658" },
@@ -121,16 +159,17 @@ export default function AdminAdvancedReports() {
   ];
 
   // Agent performance
-  const agentPerformance = bookingData.reduce((acc: any[], booking) => {
+  const agentPerformance = bookingData.reduce((acc: AgentPerformanceData[], booking) => {
     if (!booking.agent) return acc;
     const existing = acc.find((a) => a.agent_id === booking.agent_id);
+    const agentData = booking.agent as { company_name?: string | null; id: string };
     if (existing) {
       existing.bookings += 1;
       existing.revenue += booking.total_price || 0;
     } else {
       acc.push({
         agent_id: booking.agent_id,
-        agent_name: (booking.agent as any)?.company_name || "Unknown",
+        agent_name: agentData?.company_name || "Unknown",
         bookings: 1,
         revenue: booking.total_price || 0,
       });

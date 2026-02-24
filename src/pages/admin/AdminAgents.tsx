@@ -30,26 +30,41 @@ import {
 } from "lucide-react";
 import AddAgentDialog from "@/components/admin/AddAgentDialog";
 
+interface AgentProfile {
+  full_name: string | null;
+  phone: string | null;
+}
+
 interface Agent {
   id: string;
   user_id: string;
   agent_code: string;
   company_name: string | null;
   commission_rate: number | null;
-  is_active: boolean;
+  is_active: boolean | null;
   bank_name: string | null;
   bank_account_number: string | null;
   bank_account_name: string | null;
   npwp: string | null;
   slug: string | null;
-  created_at: string;
+  created_at: string | null;
   branch_id: string | null;
   parent_agent_id: string | null;
-  profile?: {
-    full_name: string | null;
-    phone: string | null;
-  };
+  updated_at: string | null;
+  profile?: AgentProfile;
   sub_agents?: Agent[];
+}
+
+interface CommissionAgent {
+  agent_code: string;
+  company_name: string | null;
+  id: string;
+}
+
+interface CommissionBooking {
+  booking_code: string;
+  total_price: number;
+  id: string;
 }
 
 interface Commission {
@@ -57,18 +72,12 @@ interface Commission {
   agent_id: string;
   booking_id: string;
   commission_amount: number;
-  status: string;
-  created_at: string;
+  status: string | null;
+  created_at: string | null;
   paid_at: string | null;
   notes: string | null;
-  agent?: {
-    agent_code: string;
-    company_name: string | null;
-  };
-  booking?: {
-    booking_code: string;
-    total_price: number;
-  };
+  agent?: CommissionAgent;
+  booking?: CommissionBooking;
 }
 
 export default function AdminAgents() {
@@ -224,7 +233,7 @@ export default function AdminAgents() {
       }
       const { error } = await supabase
         .from('agents')
-        .update({ slug: slugValue } as any)
+        .update({ slug: slugValue })
         .eq('id', agentId);
       if (error) throw error;
     },
