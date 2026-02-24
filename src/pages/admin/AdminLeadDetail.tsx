@@ -438,6 +438,7 @@ export default function AdminLeadDetail() {
                     <p className="font-medium">{lead.assigned_profile?.full_name || '-'}</p>
                   </div>
                 </div>
+              </div>
 
               <Separator />
 
