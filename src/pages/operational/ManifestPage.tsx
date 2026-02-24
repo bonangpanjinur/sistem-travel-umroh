@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Table, TableBody, TableCell, TableHead, 
-  TableHeader, TableRow 
+import {
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -21,12 +21,28 @@ import {
 } from "@/components/ui/dialog";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Database } from "@/integrations/supabase/types";
+
+type DepartureRow = Database["public"]["Tables"]["departures"]["Row"];
+type PackageRow = Database["public"]["Tables"]["packages"]["Row"];
+type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
+type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+type BookingPassengerRow = Database["public"]["Tables"]["booking_passengers"]["Row"];
+
+interface ManifestDeparture extends DepartureRow {
+  package: Pick<PackageRow, "name" | "code"> | null;
+}
+
+interface ManifestPassenger extends BookingPassengerRow {
+  customer: Pick<CustomerRow, "id" | "full_name" | "gender" | "birth_date" | "passport_number" | "passport_expiry" | "phone"> | null;
+  booking: Pick<BookingRow, "id" | "booking_code" | "room_type" | "booking_status" | "departure_id"> | null;
+}
 
 export default function ManifestPage() {
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: departures, isLoading } = useQuery({
+  const { data: departures, isLoading } = useQuery<ManifestDeparture[]>({ // Added type annotation
     queryKey: ['manifest-departures'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -45,11 +61,11 @@ export default function ManifestPage() {
         .limit(50);
 
       if (error) throw error;
-      return data;
+      return data as ManifestDeparture[]; // Explicit cast
     },
   });
 
-  const { data: passengers, isLoading: loadingPassengers } = useQuery({
+  const { data: passengers, isLoading: loadingPassengers } = useQuery<ManifestPassenger[]>({ // Added type annotation
     queryKey: ['manifest-passengers', selectedDeparture],
     enabled: !!selectedDeparture,
     queryFn: async () => {
@@ -61,7 +77,7 @@ export default function ManifestPage() {
           room_preference,
           passenger_type,
           customer:customers(
-            id, full_name, gender, birth_date, 
+            id, full_name, gender, birth_date,
             passport_number, passport_expiry, phone
           ),
           booking:bookings!inner(
@@ -73,7 +89,7 @@ export default function ManifestPage() {
         .eq('booking.booking_status', 'confirmed');
 
       if (error) throw error;
-      return data;
+      return data as ManifestPassenger[]; // Explicit cast
     },
   });
 
@@ -107,7 +123,7 @@ export default function ManifestPage() {
   const exportManifestPDF = () => {
     if (!passengers || !selectedDepartureData) return;
     const doc = new jsPDF({ orientation: 'landscape' });
-    const pkgName = (selectedDepartureData.package as any)?.name || 'Manifest';
+    const pkgName = selectedDepartureData.package?.name || 'Manifest'; // Removed as any
     
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
@@ -122,12 +138,12 @@ export default function ManifestPage() {
       head: [['No', 'Nama Lengkap', 'L/P', 'No. Paspor', 'Exp. Paspor', 'Tipe Kamar', 'Telepon']],
       body: passengers.map((p, idx) => [
         (idx + 1).toString(),
-        (p.customer as any)?.full_name || '-',
-        (p.customer as any)?.gender === 'male' ? 'L' : 'P',
-        (p.customer as any)?.passport_number || '-',
-        (p.customer as any)?.passport_expiry ? format(new Date((p.customer as any).passport_expiry), "dd/MM/yyyy") : '-',
-        ((p.booking as any)?.room_type || '-').toUpperCase(),
-        (p.customer as any)?.phone || '-',
+        p.customer?.full_name || '-', // Removed as any
+        p.customer?.gender === 'male' ? 'L' : 'P', // Removed as any
+        p.customer?.passport_number || '-', // Removed as any
+        p.customer?.passport_expiry ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy") : '-', // Removed as any
+        (p.booking?.room_type || '-').toUpperCase(), // Removed as any
+        p.customer?.phone || '-', // Removed as any
       ]),
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
@@ -141,11 +157,11 @@ export default function ManifestPage() {
   const exportRoomingListPDF = () => {
     if (!passengers || !selectedDepartureData) return;
     const doc = new jsPDF();
-    const pkgName = (selectedDepartureData.package as any)?.name || 'Rooming List';
+    const pkgName = selectedDepartureData.package?.name || 'Rooming List'; // Removed as any
     
-    const roomGroups: { [key: string]: any[] } = {};
+    const roomGroups: { [key: string]: ManifestPassenger[] } = {}; // Added type annotation
     passengers.forEach(p => {
-      const roomType = (p.booking as any)?.room_type || 'unknown';
+      const roomType = p.booking?.room_type || 'unknown'; // Removed as any
       if (!roomGroups[roomType]) roomGroups[roomType] = [];
       roomGroups[roomType].push(p);
     });
@@ -167,8 +183,8 @@ export default function ManifestPage() {
 
       const tableRows = pax.map((p, idx) => [
         (idx + 1).toString(),
-        (p.customer as any)?.full_name || '-',
-        (p.customer as any)?.gender === 'male' ? 'L' : 'P',
+        p.customer?.full_name || '-', // Removed as any
+        p.customer?.gender === 'male' ? 'L' : 'P', // Removed as any
       ]);
 
       autoTable(doc, {
@@ -180,7 +196,7 @@ export default function ManifestPage() {
         alternateRowStyles: { fillColor: [245, 247, 250] },
       });
 
-      startY = (doc as any).lastAutoTable.finalY + 10;
+      startY = (doc as any).lastAutoTable.finalY + 10; // This cast is from jspdf-autotable, not related to supabase data
       if (startY > 250) {
         doc.addPage();
         startY = 20;
@@ -226,7 +242,7 @@ export default function ManifestPage() {
                 {departures?.map((departure) => (
                   <TableRow key={departure.id}>
                     <TableCell className="font-medium">
-                      {(departure.package as any)?.name}
+                      {departure.package?.name}
                     </TableCell>
                     <TableCell>
                       {format(new Date(departure.departure_date), "dd MMM yyyy", { locale: id })}
@@ -271,7 +287,7 @@ export default function ManifestPage() {
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Manifest - {selectedDepartureData && (selectedDepartureData.package as any)?.name}
+              Manifest - {selectedDepartureData?.package?.name}
             </DialogTitle>
           </DialogHeader>
 
@@ -311,19 +327,19 @@ export default function ManifestPage() {
                   <TableRow key={p.id}>
                     <TableCell>{idx + 1}</TableCell>
                     <TableCell className="font-medium">
-                      {(p.customer as any)?.full_name}
+                      {p.customer?.full_name}
                       {p.is_main_passenger && (
                         <Badge variant="outline" className="ml-2 text-xs">Main</Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      {(p.customer as any)?.gender === 'male' ? 'L' : 'P'}
+                      {p.customer?.gender === 'male' ? 'L' : 'P'}
                     </TableCell>
-                    <TableCell>{(p.customer as any)?.passport_number || '-'}</TableCell>
+                    <TableCell>{p.customer?.passport_number || '-'}</TableCell>
                     <TableCell className="capitalize">
-                      {(p.booking as any)?.room_type}
+                      {p.booking?.room_type}
                     </TableCell>
-                    <TableCell>{(p.customer as any)?.phone || '-'}</TableCell>
+                    <TableCell>{p.customer?.phone || '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

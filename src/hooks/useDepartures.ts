@@ -3,6 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type RoomType = Database['public']['Enums']['room_type'];
+type Departure = Database['public']['Tables']['departures']['Row'];
+type Package = Database['public']['Tables']['packages']['Row'];
+type Airline = Database['public']['Tables']['airlines']['Row'];
+type Airport = Database['public']['Tables']['airports']['Row'];
+type Hotel = Database['public']['Tables']['hotels']['Row'];
+type Muthawif = Database['public']['Tables']['muthawifs']['Row'];
 
 export function useDepartures(filters?: { status?: string; packageId?: string }) {
   return useQuery({
@@ -16,7 +22,12 @@ export function useDepartures(filters?: { status?: string; packageId?: string })
       if (filters?.packageId) query = query.eq('package_id', filters.packageId);
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      
+      return data as (Departure & {
+        packages: Pick<Package, 'name' | 'category'> | null;
+        airlines: Pick<Airline, 'name' | 'code'> | null;
+        hotels: Pick<Hotel, 'name' | 'city'> | null;
+      })[];
     },
   });
 }
@@ -32,7 +43,16 @@ export function useDeparture(id: string | undefined) {
         .eq('id', id!)
         .single();
       if (error) throw error;
-      return data;
+      
+      return data as (Departure & {
+        packages: Package | null;
+        airlines: Airline | null;
+        departure_airport: Airport | null;
+        arrival_airport: Airport | null;
+        hotel_makkah: Hotel | null;
+        hotel_madinah: Hotel | null;
+        muthawifs: Muthawif | null;
+      });
     },
   });
 }
@@ -48,7 +68,11 @@ export function useDepartureAvailability(departureId: string | undefined) {
         .eq('id', departureId!)
         .single();
       if (error) throw error;
-      return { available: (data.quota ?? 0) - (data.booked_count ?? 0), quota: data.quota, booked: data.booked_count };
+      return { 
+        available: (data.quota ?? 0) - (data.booked_count ?? 0), 
+        quota: data.quota, 
+        booked: data.booked_count 
+      };
     },
   });
 }

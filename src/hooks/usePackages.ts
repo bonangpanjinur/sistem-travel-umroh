@@ -88,7 +88,7 @@ export function usePackageDepartures(packageId: string | undefined) {
       
       return data.map(d => ({
         ...d,
-        available_seats: d.quota - d.booked_count,
+        available_seats: (d.quota || 0) - (d.booked_count || 0),
       })) as Departure[];
     },
     enabled: !!packageId,
@@ -114,7 +114,7 @@ export function useUpcomingDepartures() {
       
       return data.map(d => ({
         ...d,
-        available_seats: d.quota - d.booked_count,
+        available_seats: (d.quota || 0) - (d.booked_count || 0),
       })) as (Departure & { package: Package })[];
     },
   });

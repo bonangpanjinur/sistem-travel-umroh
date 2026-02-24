@@ -2,6 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { Database } from '@/integrations/supabase/types';
+
+type Booking = Database['public']['Tables']['bookings']['Row'];
+type Departure = Database['public']['Tables']['departures']['Row'];
+type Package = Database['public']['Tables']['packages']['Row'];
 
 export function useDashboardStats(branchId?: string | null) {
   return useQuery({
@@ -27,7 +32,7 @@ export function useDashboardStats(branchId?: string | null) {
       const totalRevenue = bookings?.reduce((sum, b) => sum + (b.paid_amount || 0), 0) || 0;
       const totalBookings = bookings?.length || 0;
       const pendingBookings = bookings?.filter(b => b.booking_status === 'pending').length || 0;
-      const pendingPaymentAmount = pendingPayments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+      const pendingPaymentAmount = pendingPayments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
       const pendingPaymentCount = pendingPayments?.length || 0;
       const totalPax = bookings?.reduce((sum, b) => sum + (b.total_pax || 0), 0) || 0;
 
@@ -103,7 +108,10 @@ export function useRecentBookings(branchId?: string | null) {
       if (branchId) query = query.eq('branch_id', branchId);
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      
+      return data as (Pick<Booking, 'id' | 'booking_code' | 'total_price' | 'booking_status' | 'payment_status' | 'created_at'> & {
+        customer: { full_name: string } | null;
+      })[];
     },
   });
 }
@@ -122,7 +130,10 @@ export function useUpcomingDepartures() {
         .order('departure_date', { ascending: true })
         .limit(5);
       if (error) throw error;
-      return data;
+      
+      return data as (Pick<Departure, 'id' | 'departure_date' | 'quota' | 'booked_count'> & {
+        package: Pick<Package, 'name' | 'code'> | null;
+      })[];
     },
   });
 }

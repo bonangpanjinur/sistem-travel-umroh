@@ -1,24 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Database } from "@/integrations/supabase/types";
 
-export interface CompanySetting {
-  id: string;
-  setting_key: string;
-  setting_value: any;
-  setting_type: string;
-  description: string | null;
-}
-
-export interface BankAccount {
-  id: string;
-  bank_name: string;
-  account_number: string;
-  account_name: string;
-  branch_name: string | null;
-  is_active: boolean;
-  is_primary: boolean;
-}
+export type CompanySetting = Database['public']['Tables']['company_settings']['Row'];
+export type BankAccount = Database['public']['Tables']['bank_accounts']['Row'];
 
 export function useCompanySettings() {
   const queryClient = useQueryClient();
@@ -31,7 +17,7 @@ export function useCompanySettings() {
         .select("*")
         .order("setting_key");
       if (error) throw error;
-      return data as CompanySetting[];
+      return data;
     },
   });
 
@@ -93,12 +79,12 @@ export function useBankAccounts() {
         .select("*")
         .order("is_primary", { ascending: false });
       if (error) throw error;
-      return data as BankAccount[];
+      return data;
     },
   });
 
   const createAccountMutation = useMutation({
-    mutationFn: async (account: Omit<BankAccount, "id">) => {
+    mutationFn: async (account: Database['public']['Tables']['bank_accounts']['Insert']) => {
       const { error } = await supabase.from("bank_accounts").insert(account);
       if (error) throw error;
     },
@@ -110,7 +96,7 @@ export function useBankAccounts() {
   });
 
   const updateAccountMutation = useMutation({
-    mutationFn: async ({ id, ...data }: Partial<BankAccount> & { id: string }) => {
+    mutationFn: async ({ id, ...data }: Database['public']['Tables']['bank_accounts']['Update'] & { id: string }) => {
       const { error } = await supabase
         .from("bank_accounts")
         .update(data)
