@@ -83,7 +83,7 @@ export default function AdminRoutes() {
       <Route path="vendors" element={<LazyPage><AdminVendors /></LazyPage>} />
       <Route path="customers" element={<LazyPage><AdminCustomers /></LazyPage>} />
       <Route path="customers/:id" element={<LazyPage><AdminCustomerDetail /></LazyPage>} />
-      {/* Document verification integrated into customer detail */}
+      <Route path="document-verification" element={<LazyPage><AdminDocumentVerification /></LazyPage>} />
       <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} />
       <Route path="permissions" element={<LazyPage><AdminRolePermissions /></LazyPage>} />
       <Route path="agents" element={<LazyPage><AdminAgents /></LazyPage>} />

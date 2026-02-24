@@ -29,7 +29,7 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
     bankAccountName: "",
     npwp: "",
     branchId: "",
-    parentAgentId: parentAgentId || "",
+    parentAgentId: parentAgentId || "none",
   });
 
   const { data: branches } = useQuery({
@@ -72,7 +72,7 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
           bankAccountName: form.bankAccountName,
           npwp: form.npwp,
           branchId: form.branchId || null,
-          parentAgentId: parentAgentId || form.parentAgentId || null,
+          parentAgentId: parentAgentId || (form.parentAgentId === "none" ? null : form.parentAgentId),
         },
       });
 
@@ -96,7 +96,7 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
     setForm({
       fullName: "", email: "", phone: "", companyName: "",
       commissionRate: "5", bankName: "", bankAccountNumber: "",
-      bankAccountName: "", npwp: "", branchId: "", parentAgentId: parentAgentId || "",
+      bankAccountName: "", npwp: "", branchId: "", parentAgentId: parentAgentId || "none",
     });
   };
 
@@ -154,7 +154,7 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
                 <Select value={form.parentAgentId} onValueChange={v => setForm({ ...form, parentAgentId: v })}>
                   <SelectTrigger><SelectValue placeholder="Tidak ada (agent utama)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tidak ada</SelectItem>
+                    <SelectItem value="none">Tidak ada</SelectItem>
                     {parentAgents?.map(a => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.agent_code} - {a.company_name || 'N/A'}
