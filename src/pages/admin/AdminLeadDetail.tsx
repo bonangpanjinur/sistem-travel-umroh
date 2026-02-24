@@ -47,6 +47,7 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+import { Lead } from "@/types/database";
 
 type LeadStatus = Database["public"]["Enums"]["lead_status"];
 
@@ -76,7 +77,7 @@ export default function AdminLeadDetail() {
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['admin-lead', id],
-    queryFn: async () => {
+    queryFn: async (): Promise<Lead> => {
       const { data, error } = await supabase
         .from('leads')
         .select(`
@@ -89,7 +90,7 @@ export default function AdminLeadDetail() {
         .single();
       
       if (error) throw error;
-      return data;
+      return data as unknown as Lead;
     },
   });
 
@@ -421,23 +422,22 @@ export default function AdminLeadDetail() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
-                    <Mail className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{lead.email || '-'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
                     <Package className="h-4 w-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Paket Diminati</p>
-                    <p className="font-medium">{(lead.package as any)?.name || '-'}</p>
+                    <p className="font-medium">{lead.package?.name || '-'}</p>
                   </div>
                 </div>
-              </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-purple-100 text-purple-600">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Sales/PIC</p>
+                    <p className="font-medium">{lead.assigned_profile?.full_name || '-'}</p>
+                  </div>
+                </div>
 
               <Separator />
 
@@ -547,7 +547,7 @@ export default function AdminLeadDetail() {
                       <div className="space-y-4">
                         <div className="p-3 bg-muted rounded-lg">
                           <p className="text-sm text-muted-foreground">Paket</p>
-                          <p className="font-medium">{(lead.package as any)?.name}</p>
+                          <p className="font-medium">{lead.package?.name}</p>
                         </div>
                         
                         {departures && departures.length > 0 ? (

@@ -419,7 +419,7 @@ export default function AdminFinancePL() {
                   {upcomingPayments.map((cost) => (
                     <div key={cost.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
-                        <p className="font-medium text-sm">{(cost.vendor as any)?.name}</p>
+                        <p className="font-medium text-sm">{cost.vendor?.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {cost.due_date && format(new Date(cost.due_date), "dd MMM yyyy")}
                         </p>

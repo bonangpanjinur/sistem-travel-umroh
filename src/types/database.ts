@@ -228,8 +228,18 @@ export interface Booking {
   created_at: string;
   updated_at: string;
   // Relations
-  departure?: Departure;
+  departure?: Departure & {
+    package?: {
+      id: string;
+      name: string;
+      code: string;
+    }
+  };
   customer?: Customer;
+  branch?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface Payment {
@@ -248,6 +258,8 @@ export interface Payment {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  // Relations
+  booking?: Booking;
 }
 
 export interface Coupon {
@@ -304,6 +316,73 @@ export interface BookingFormData {
 }
 
 // Dashboard stats
+export interface Lead {
+  id: string;
+  branch_id: string | null;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  source: string | null;
+  status: LeadStatus;
+  package_interest: string | null;
+  notes: string | null;
+  assigned_to: string | null;
+  follow_up_date: string | null;
+  converted_at: string | null;
+  converted_booking_id: string | null;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  package?: {
+    id: string;
+    name: string;
+    code: string;
+    price_quad: number;
+  };
+  branch?: {
+    name: string;
+  };
+  assigned_profile?: {
+    full_name: string | null;
+  };
+  converted_booking?: {
+    id: string;
+    booking_code: string;
+  };
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  vendor_type: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VendorCost {
+  id: string;
+  departure_id: string;
+  vendor_id: string;
+  cost_type: string;
+  description: string | null;
+  amount: number;
+  due_date: string | null;
+  paid_amount: number;
+  status: 'pending' | 'partial' | 'paid';
+  created_at: string;
+  updated_at: string;
+  // Relations
+  vendor?: {
+    name: string;
+    vendor_type: string;
+  };
+}
+
 export interface DashboardStats {
   total_revenue: number;
   total_bookings: number;

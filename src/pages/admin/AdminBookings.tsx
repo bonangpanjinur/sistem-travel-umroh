@@ -37,8 +37,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Booking } from "@/types/database";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 
@@ -78,7 +79,7 @@ export default function AdminBookings() {
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ['admin-bookings'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Booking[]> => {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -95,7 +96,7 @@ export default function AdminBookings() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as unknown as Booking[];
     },
   });
 
@@ -106,8 +107,8 @@ export default function AdminBookings() {
     const depMap = new Map<string, string>();
     const brMap = new Map<string, string>();
     bookings.forEach(b => {
-      const dep = b.departure as any;
-      const branch = b.branch as any;
+      const dep = b.departure;
+      const branch = b.branch;
       if (dep?.package?.id) pkgMap.set(dep.package.id, dep.package.name);
       if (dep?.id) depMap.set(dep.id, `${formatDate(dep.departure_date)} - ${dep.package?.name || ''}`);
       if (branch?.id) brMap.set(branch.id, branch.name);
@@ -123,7 +124,7 @@ export default function AdminBookings() {
     return bookings?.filter(booking => {
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
-        const customer = booking.customer as any;
+        const customer = booking.customer;
         const matchSearch = 
           booking.booking_code.toLowerCase().includes(search) ||
           customer?.full_name?.toLowerCase().includes(search) ||
@@ -133,11 +134,11 @@ export default function AdminBookings() {
       if (statusFilter !== "all" && booking.booking_status !== statusFilter) return false;
       if (paymentFilter !== "all" && booking.payment_status !== paymentFilter) return false;
       if (packageFilter !== "all") {
-        const dep = booking.departure as any;
+        const dep = booking.departure;
         if (dep?.package?.id !== packageFilter) return false;
       }
       if (departureFilter !== "all") {
-        const dep = booking.departure as any;
+        const dep = booking.departure;
         if (dep?.id !== departureFilter) return false;
       }
       if (branchFilter !== "all" && booking.branch_id !== branchFilter) return false;

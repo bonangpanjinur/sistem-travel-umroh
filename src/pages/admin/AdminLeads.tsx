@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 import { useLeads, useCreateLead, useUpdateLead } from "@/hooks/useLeads";
+import { Lead } from "@/types/database";
 
 type LeadStatus = Database["public"]["Enums"]["lead_status"];
 
@@ -116,15 +117,15 @@ export default function AdminLeads() {
   };
 
   // Pipeline value per column
-  const getPipelineValue = (statusLeads: any[]) => {
+  const getPipelineValue = (statusLeads: Lead[]) => {
     return statusLeads.reduce((sum, lead) => {
-      const price = (lead.package as any)?.price_quad || 0;
+      const price = lead.package?.price_quad || 0;
       return sum + price;
     }, 0);
   };
 
   const totalPipelineValue = leads?.filter(l => !['won', 'lost'].includes(l.status || '')).reduce((sum, lead) => {
-    return sum + ((lead.package as any)?.price_quad || 0);
+    return sum + (lead.package?.price_quad || 0);
   }, 0) || 0;
 
   const hasActiveFilters = sourceFilter !== 'all' || statusFilter !== 'all' || search;
@@ -416,10 +417,10 @@ export default function AdminLeads() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-sm">
-                            {(lead.package as any)?.name || '-'}
+                            {lead.package?.name || '-'}
                           </td>
                           <td className="py-3 px-4 text-sm text-muted-foreground">
-                            {(lead as any).assigned_profile?.full_name || '-'}
+                            {lead.assigned_profile?.full_name || '-'}
                           </td>
                           <td className="py-3 px-4">
                             <Badge className={cn("font-normal", STATUS_CONFIG[lead.status as LeadStatus]?.bgColor, STATUS_CONFIG[lead.status as LeadStatus]?.color)}>
@@ -493,7 +494,7 @@ function StatCard({ title, value, icon: Icon, color }: StatCardProps) {
 }
 
 interface LeadCardProps {
-  lead: any;
+  lead: Lead;
   onStatusChange: (status: LeadStatus) => void;
 }
 
@@ -507,7 +508,7 @@ function LeadCard({ lead, onStatusChange }: LeadCardProps) {
     !isToday(new Date(lead.follow_up_date)) &&
     lead.status !== 'won' && lead.status !== 'lost';
 
-  const assignedName = (lead as any).assigned_profile?.full_name;
+  const assignedName = lead.assigned_profile?.full_name;
 
   return (
     <Card className={cn(
@@ -532,15 +533,15 @@ function LeadCard({ lead, onStatusChange }: LeadCardProps) {
             )}
           </div>
 
-          {(lead.package as any)?.name && (
+          {lead.package?.name && (
             <p className="text-xs text-muted-foreground mb-1">
-              📦 {(lead.package as any).name}
+              📦 {lead.package.name}
             </p>
           )}
 
-          {(lead.package as any)?.price_quad > 0 && (
+          {(lead.package?.price_quad || 0) > 0 && (
             <p className="text-xs font-medium text-primary mb-2">
-              {formatCurrency((lead.package as any).price_quad)}
+              {formatCurrency(lead.package!.price_quad)}
             </p>
           )}
           

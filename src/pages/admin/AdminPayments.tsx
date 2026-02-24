@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Payment } from "@/types/database";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,7 +72,7 @@ export default function AdminPayments() {
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin-payments'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Payment[]> => {
       const { data, error } = await supabase
         .from('payments')
         .select(`
@@ -88,7 +89,7 @@ export default function AdminPayments() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as unknown as Payment[];
     },
   });
 
@@ -127,7 +128,7 @@ export default function AdminPayments() {
     },
   });
 
-  const handleApprove = (payment: any) => {
+  const handleApprove = (payment: Payment) => {
     verifyMutation.mutate({ paymentId: payment.id, status: 'paid' });
   };
 
@@ -140,7 +141,7 @@ export default function AdminPayments() {
     });
   };
 
-  const openProofDialog = (payment: any) => {
+  const openProofDialog = (payment: Payment) => {
     setSelectedPayment(payment);
     setShowProofDialog(true);
   };

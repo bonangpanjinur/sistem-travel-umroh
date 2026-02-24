@@ -162,8 +162,9 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 10. **AdminLayout.tsx** - Menghilangkan `as any` pada pengecekan role pengguna.
 
 #### Langkah Selanjutnya:
-- Standarisasi interface untuk data relasional dari Supabase di seluruh aplikasi.
-- Pembersihan `as any` pada modul CRM dan Keuangan yang tersisa.
+- Standarisasi interface untuk data relasional dari Supabase di seluruh aplikasi. (✅ Selesai - Interface Lead, Vendor, VendorCost, Booking, Payment ditambahkan ke `database.ts`)
+- Pembersihan `as any` pada modul CRM dan Keuangan yang tersisa. (✅ Selesai - Refactoring pada `AdminLeads.tsx`, `AdminLeadDetail.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx`, dan `AdminFinancePL.tsx`)
+- Pembersihan `as any` pada modul HR dan Master Data (Airlines, Airports, Hotels).
 
 #### Benefit:
 - Mengurangi runtime error.
