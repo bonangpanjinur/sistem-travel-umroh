@@ -37,6 +37,9 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 | 25 | Perbaikan Type Safety di Link Itinerary | ✅ Selesai | `LinkItineraryForm.tsx` |
 | 26 | Refactoring `useWebsiteSettings` & `useAgentNotifications` | ✅ Selesai | `useWebsiteSettings.ts`, `useAgentNotifications.ts` |
 | 27 | Pembersihan `as any` di Komponen UI Utama | ✅ Selesai | `DataTable.tsx`, `AdminLayout.tsx`, `DynamicNavbar.tsx` |
+| 28 | Pembersihan `as any` di Modul CRM & Keuangan | ✅ Selesai | `AdminLeads.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx` |
+| 29 | Pembersihan `as any` di Modul Master Data | ✅ Selesai | `AdminAirlines.tsx`, `AdminAirports.tsx`, `AdminHotels.tsx`, `AdminVendors.tsx` |
+| 30 | Pembersihan `as any` di Modul HR & SDM | ✅ Selesai | `AdminHR.tsx`, `EmployeeAttendance.tsx`, `HRSettingsForm.tsx` |
 
 ---
 
@@ -65,11 +68,11 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - **Notifikasi WhatsApp Otomatis** (Booking, Payment, Document, Commission)
 - **Audit Log Viewer** - Tersedia di halaman Security Audit untuk memantau aktivitas sistem.
 - **Export PDF untuk Laba/Rugi** - Tombol export PDF tersedia di setiap keberangkatan di halaman P&L.
-- **Peningkatan Type Safety** - Refactoring pada `AdminFinancePL.tsx` untuk mengurangi penggunaan `as any`.
+- **Peningkatan Type Safety** - Refactoring menyeluruh pada modul CRM, Keuangan, Master Data, dan HR untuk menghilangkan `as any`.
 
 ### Fitur yang Kurang/Perlu Diperbaiki
 
-1. **Type Safety Lanjutan** - Masih terdapat penggunaan `as any` di berbagai komponen pendukung (sekitar 200+ lokasi) yang perlu dibersihkan secara bertahap.
+1. **Type Safety Lanjutan** - Pembersihan `as any` pada hooks operasional (DashboardStats, Packages, Departures) dan halaman operasional (Manifest, Rooming List).
 
 ---
 
@@ -138,8 +141,8 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 
 ### BUG RENDAH
 
-1. **Penggunaan `as any` yang tersebar**
-  - Masih banyak komponen kecil yang menggunakan `as any` untuk casting data dari Supabase.
+1. **Penggunaan `as any` yang tersisa di Hooks Operasional**
+  - Beberapa hooks data fetching (`useDashboardStats`, `usePackages`, `useDepartures`) masih menggunakan `as any`.
 
 ---
 
@@ -152,7 +155,7 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 #### Komponen yang Telah Diperbaiki:
 1. **AgentWebsiteSettings.tsx** - Menghilangkan `as any` cast pada query `website_settings` dan update operations.
 2. **AgentCommissions.tsx** - Menghilangkan `as any` untuk booking data.
-3. **AdminFinancePL.tsx** - Menambahkan proper typing untuk vendor dan cost data (sebagian besar selesai).
+3. **AdminFinancePL.tsx** - Menambahkan proper typing untuk vendor dan cost data.
 4. **PackageForm.tsx** - Memperbaiki typing pada form default values dan metadata parsing.
 5. **StepReview.tsx** - Menghilangkan `as unknown` cast pada joined data.
 6. **LinkItineraryForm.tsx** - Menghilangkan `as unknown` cast pada query results.
@@ -160,13 +163,17 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 8. **useAgentNotifications.ts & useAdminNotifications.ts** - Menghilangkan `as any` pada payload real-time Supabase.
 9. **DataTable.tsx** - Memperbaiki generic typing untuk akses properti `id`.
 10. **AdminLayout.tsx** - Menghilangkan `as any` pada pengecekan role pengguna.
+11. **Modul CRM & Keuangan** - Refactoring pada `AdminLeads.tsx`, `AdminLeadDetail.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx`.
+12. **Modul Master Data** - Refactoring pada `AdminAirlines.tsx`, `AdminAirports.tsx`, `AdminHotels.tsx`, `AdminVendors.tsx`.
+13. **Modul HR & SDM** - Refactoring pada `AdminHR.tsx`, `EmployeeAttendance.tsx`, `HRSettingsForm.tsx`.
 
 #### Langkah Selanjutnya:
-- Standarisasi interface untuk data relasional dari Supabase di seluruh aplikasi. (✅ Selesai - Interface Lead, Vendor, VendorCost, Booking, Payment ditambahkan ke `database.ts`)
-- Pembersihan `as any` pada modul CRM dan Keuangan yang tersisa. (✅ Selesai - Refactoring pada `AdminLeads.tsx`, `AdminLeadDetail.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx`, dan `AdminFinancePL.tsx`)
-- Pembersihan `as any` pada modul HR dan Master Data (Airlines, Airports, Hotels).
+- **Fase 4: Evaluasi Akhir (Hooks & Operasional)**
+  - Sapu bersih sisa-sisa fetch data yang belum menggunakan strong types di hooks: `useCompanySettings.ts`, `useDashboardStats.ts`, `usePackages.ts`, `useDepartures.ts`.
+  - Perbaikan typing di halaman operasional: `ManifestPage.tsx`, `RoomingListPage.tsx`.
 
 #### Benefit:
+
 - Mengurangi runtime error.
 - Meningkatkan IDE autocomplete.
 - Mempermudah refactoring di masa depan.
