@@ -9,6 +9,7 @@ import { formatCurrency, formatPackageType } from "@/lib/format";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Plus, Edit, Eye, Package, Trash2, Calendar } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ export default function AdminPackages() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
   const [deletePackage, setDeletePackage] = useState<any>(null);
+  const [packageTypeFilter, setPackageTypeFilter] = useState<"all" | "regular" | "tabungan">("all");
   
   const queryClient = useQueryClient();
 
@@ -71,9 +73,22 @@ export default function AdminPackages() {
   });
 
   const filteredPackages = packages?.filter(pkg => {
-    if (!searchTerm) return true;
-    return pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           pkg.code.toLowerCase().includes(searchTerm.toLowerCase());
+    // Filter by search term
+    if (searchTerm && !(
+      pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pkg.code.toLowerCase().includes(searchTerm.toLowerCase())
+    )) {
+      return false;
+    }
+    
+    // Filter by package type
+    if (packageTypeFilter === "tabungan") {
+      return pkg.package_type === "tabungan";
+    } else if (packageTypeFilter === "regular") {
+      return pkg.package_type !== "tabungan";
+    }
+    
+    return true;
   });
 
   const handleEdit = (pkg: any) => {
@@ -116,6 +131,15 @@ export default function AdminPackages() {
         </div>
       </div>
 
+      {/* Package Type Tabs */}
+      <Tabs value={packageTypeFilter} onValueChange={(v: any) => setPackageTypeFilter(v)} className="w-full">
+        <TabsList>
+          <TabsTrigger value="all">Semua Paket</TabsTrigger>
+          <TabsTrigger value="regular">Paket Reguler</TabsTrigger>
+          <TabsTrigger value="tabungan">Paket Tabungan</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-64" />)}
@@ -125,7 +149,7 @@ export default function AdminPackages() {
           <CardContent className="py-12 text-center">
             <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              {searchTerm ? 'Tidak ada paket yang cocok.' : 'Belum ada paket.'}
+              {searchTerm ? 'Tidak ada paket yang cocok.' : packageTypeFilter !== 'all' ? `Belum ada paket ${packageTypeFilter === 'tabungan' ? 'tabungan' : 'reguler'}.` : 'Belum ada paket.'}
             </p>
           </CardContent>
         </Card>

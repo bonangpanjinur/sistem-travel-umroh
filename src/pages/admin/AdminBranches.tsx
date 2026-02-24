@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { BranchForm } from "@/components/admin/forms/BranchForm";
 import { Search, Plus, Edit, Trash2, Building2, MapPin, Phone, Mail, Globe, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ export default function AdminBranches() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [websiteBranch, setWebsiteBranch] = useState<any>(null);
+  const [deletingBranch, setDeletingBranch] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: branches, isLoading } = useQuery({
@@ -30,11 +32,20 @@ export default function AdminBranches() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("branches").delete().eq("id", id);
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('violates foreign key constraint') || error.code === '23503') {
+          throw new Error('Cabang tidak bisa dihapus karena masih memiliki data terkait.');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Cabang berhasil dihapus");
       queryClient.invalidateQueries({ queryKey: ["admin-branches"] });
+      setDeletingBranch(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal menghapus cabang");
     },
   });
 
@@ -112,7 +123,7 @@ export default function AdminBranches() {
                   <Button size="sm" variant="outline" onClick={() => setWebsiteBranch(branch)} disabled={!branch.slug}>
                     <Globe className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(branch.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => setDeletingBranch(branch)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -138,6 +149,28 @@ export default function AdminBranches() {
           onOpenChange={(open) => !open && setWebsiteBranch(null)}
         />
       )}
+
+      <AlertDialog open={!!deletingBranch} onOpenChange={(open) => !open && setDeletingBranch(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Cabang?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda yakin ingin menghapus cabang "{deletingBranch?.name}"? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletingBranch && deleteMutation.mutate(deletingBranch.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

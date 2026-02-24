@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,15 +14,20 @@ import { RegisterAsJamaahDialog } from "@/components/admin/RegisterAsJamaahDialo
 import { AddCustomerDialog } from "@/components/admin/AddCustomerDialog";
 import { useCustomers } from "@/hooks/useCustomers";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export default function AdminCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [packageFilter, setPackageFilter] = useState<string>("all");
+  const [departureFilter, setDepartureFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
 
   const { data: customersData, isLoading } = useQuery({
-    queryKey: ['admin-customers', currentPage, searchTerm],
+    queryKey: ['admin-customers', currentPage, searchTerm, packageFilter, departureFilter],
     queryFn: async () => {
       let query = supabase
         .from('customers')
@@ -91,6 +96,35 @@ export default function AdminCustomers() {
     },
   });
 
+  // Fetch packages for filter dropdown
+  const { data: packages = [] } = useQuery({
+    queryKey: ['packages-for-filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('packages')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch departures for filter dropdown
+  const { data: departures = [] } = useQuery({
+    queryKey: ['departures-for-filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departures')
+        .select('id, departure_date, package:packages(name)')
+        .gte('departure_date', new Date().toISOString().split('T')[0])
+        .order('departure_date')
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const filteredCustomers = customers;
 
   // Use a separate query for overall stats to be accurate
@@ -119,7 +153,7 @@ export default function AdminCustomers() {
           <h1 className="text-2xl font-bold">Data Jamaah</h1>
           <p className="text-muted-foreground">Lihat dan kelola data jamaah</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <AddCustomerDialog
             trigger={
               <Button size="sm">
@@ -145,8 +179,51 @@ export default function AdminCustomers() {
               className="pl-10 w-full sm:w-72"
             />
           </div>
+          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            Filter {packageFilter !== 'all' || departureFilter !== 'all' ? '✓' : ''}
+          </Button>
         </div>
       </div>
+
+      {/* Filter Section */}
+      {showFilters && (
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs font-semibold mb-2 block">Filter Paket</Label>
+                <Select value={packageFilter} onValueChange={setPackageFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Semua Paket" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Paket</SelectItem>
+                    {packages.map(pkg => (
+                      <SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold mb-2 block">Filter Keberangkatan</Label>
+                <Select value={departureFilter} onValueChange={setDepartureFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Semua Tanggal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Tanggal</SelectItem>
+                    {departures.map(dep => (
+                      <SelectItem key={dep.id} value={dep.id}>
+                        {new Date(dep.departure_date).toLocaleDateString('id-ID')} - {(dep.package as any)?.name || 'N/A'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

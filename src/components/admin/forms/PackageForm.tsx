@@ -117,7 +117,9 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
     try {
       const meta = (packageData as PackageRow & { metadata?: any })?.metadata;
       if (meta) return meta;
-    } catch {}
+    } catch (e) {
+      // Silently handle parsing errors
+    }
     return {};
   };
   const savingsMeta = parseSavingsMetadata();
@@ -519,6 +521,54 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
             />
           </div>
         </div>
+
+        {/* Step 3.5: Konfigurasi Tabungan (Conditional) */}
+        {isTabungan && (
+          <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-sm font-semibold text-blue-900 uppercase tracking-wide">Konfigurasi Tabungan</h4>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="target_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target Jumlah (Rp)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} placeholder="Contoh: 25000000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="monthly_installment"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cicilan per Bulan (Rp)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} placeholder="Contoh: 500000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="savings_duration_months"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Durasi Tabungan (Bulan)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} placeholder="Contoh: 12" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Step 4: Gambar & Pengaturan */}
         <div className="space-y-4">
