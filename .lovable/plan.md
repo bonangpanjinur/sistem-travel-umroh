@@ -175,3 +175,26 @@ Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, p
 - Meningkatkan IDE autocomplete untuk pengembangan lebih cepat.
 - Mempermudah refactoring di masa depan.
 - Meningkatkan maintainability kode secara keseluruhan.
+
+---
+
+## RENCANA PENGEMBANGAN FITUR BARU
+
+### Fitur: Transfer Jamaah Antar Cabang
+
+**Deskripsi**: Memungkinkan pemindahan data jamaah beserta booking terkait dari satu cabang ke cabang lain dalam sistem. Fitur ini krusial untuk fleksibilitas operasional, terutama ketika ada perubahan struktur organisasi, relokasi jamaah, atau kebutuhan manajemen lainnya yang mengharuskan pemindahan data jamaah antar cabang.
+
+**Status**: Direncanakan
+
+**Rencana Implementasi (Roadmap)**:
+
+| Fase | Deskripsi | Estimasi Waktu |
+| :--- | :--- | :--- |
+| **Fase 1** | Persiapan Database & API Inti (Penambahan kolom `previous_branch_id` di `customers` dan `bookings`, pembuatan tabel `transfer_requests`, pengembangan API inisiasi transfer). | 2 hari |
+| **Fase 2** | Pengembangan Logika Transfer & RLS (Pengembangan API persetujuan/penolakan, implementasi logika pembaruan `branch_id`, penyesuaian kebijakan RLS). | 3 hari |
+| **Fase 3** | Pengembangan UI/UX (Pembuatan antarmuka untuk pengajuan dan manajemen permintaan transfer di Admin Panel). | 4 hari |
+| **Fase 4** | Notifikasi & Pengujian (Implementasi notifikasi status transfer, pengujian menyeluruh). | 2 hari |
+
+**Total Estimasi Waktu**: 11 hari
+
+**Benefit**: Meningkatkan fleksibilitas operasional, mempermudah manajemen data jamaah antar cabang, dan mendukung skenario bisnis yang lebih kompleks.
