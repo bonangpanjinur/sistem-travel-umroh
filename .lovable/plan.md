@@ -1,200 +1,102 @@
-# Analisis Kelengkapan Fitur: Admin, Cabang, Agen, dan Jamaah
 
-## Status Keseluruhan
 
-Sistem ini sudah sangat lengkap dengan 45+ halaman admin, portal agen mandiri, portal jamaah PWA, dan modul operasional. Berikut analisis per modul:
+# Fix Build Errors - 22 Edge Function TS Errors + 8 Frontend TS Errors
 
----
+## Ringkasan Masalah
 
-## FITUR YANG SUDAH DISELESAIKAN (Update Terbaru)
+Build gagal karena **30 TypeScript errors** di 2 kategori:
+1. **Edge Functions (22 errors)**: Type safety issues di 3 file Deno
+2. **Frontend (8+ errors)**: Form type mismatches dan CustomSectionEditor type issue
 
-| No | Fitur / Bug Fix | Status | Lokasi |
-|---|---|---|---|
-| 1 | Fix redirect `/login` ke `/auth/login` | ✅ Selesai | `AgentLayout.tsx` |
-| 2 | Tambah link Document Verification ke sidebar | ✅ Selesai | `AdminLayout.tsx` |
-| 3 | Terjemahkan status booking di AgentDashboard | ✅ Selesai | `AgentDashboard.tsx` |
-| 4 | Filter cabang di Dashboard untuk Branch Manager | ✅ Selesai | `AdminDashboard.tsx` |
-| 5 | Notifikasi otomatis saat status komisi berubah | ✅ Selesai | Database Trigger |
-| 6 | Filter Cabang di Halaman Karyawan | ✅ Selesai | `AdminHR.tsx` |
-| 7 | Detail Pembayaran di Portal Jamaah | ✅ Selesai | `BookingDetail.tsx` |
-| 8 | Dynamic Emergency Contact | ✅ Selesai | `JamaahPortal.tsx` |
-| 9 | Manifest & Rooming List Generator | ✅ Selesai | `ManifestPage.tsx` |
-| 10 | Registrasi jamaah rombongan (multi-passenger) | ✅ Selesai | `AgentRegisterGroup.tsx` |
-| 11 | Download materi promosi (Digital Kit) | ✅ Selesai | `AgentDigitalKit.tsx` |
-| 12 | Integrasi Notifikasi WhatsApp Otomatis | ✅ Selesai | `send-whatsapp-trigger` |
-| 13 | Notifikasi Sistem untuk Agen | ✅ Selesai | `useAgentNotifications.ts` |
-| 14 | Progress Pembayaran untuk Agen | ✅ Selesai | `AgentJamaahEnhanced.tsx` |
-| 15 | Audit Log Viewer untuk Super Admin | ✅ Selesai | `AdminSecurityAudit.tsx` |
-| 16 | Edit Foto Profil Agen | ✅ Selesai | `AgentSettings.tsx` |
-| 17 | Edit Foto Profil Jamaah | ✅ Selesai | `ProfileForm.tsx` |
-| 18 | Laporan per Cabang (Filter Cabang di Reports) | ✅ Selesai | `AdminReports.tsx` |
-| 19 | Export PDF untuk Laba/Rugi | ✅ Selesai | `AdminFinancePL.tsx` |
-| 20 | Rating/Feedback setelah perjalanan | ✅ Selesai | `JamaahFeedback.tsx` |
-| 21 | FAQ/Panduan Umum untuk Jamaah | ✅ Selesai | `JamaahPortal.tsx` |
-| 22 | Perbaikan Type Safety di Komponen Utama | ✅ Selesai | `AgentWebsiteSettings.tsx`, `AgentCommissions.tsx`, `AdminFinancePL.tsx` |
-| 23 | Perbaikan Type Safety di Form Admin | ✅ Selesai | `PackageForm.tsx` |
-| 24 | Perbaikan Type Safety di Review Booking | ✅ Selesai | `StepReview.tsx` |
-| 25 | Perbaikan Type Safety di Link Itinerary | ✅ Selesai | `LinkItineraryForm.tsx` |
-| 26 | Refactoring `useWebsiteSettings` & `useAgentNotifications` | ✅ Selesai | `useWebsiteSettings.ts`, `useAgentNotifications.ts` |
-| 27 | Pembersihan `as any` di Komponen UI Utama | ✅ Selesai | `DataTable.tsx`, `AdminLayout.tsx`, `DynamicNavbar.tsx` |
-| 28 | Pembersihan `as any` di Modul CRM & Keuangan | ✅ Selesai | `AdminLeads.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx` |
-| 29 | Pembersihan `as any` di Modul Master Data | ✅ Selesai | `AdminAirlines.tsx`, `AdminAirports.tsx`, `AdminHotels.tsx`, `AdminVendors.tsx` |
-| 30 | Pembersihan `as any` di Modul HR & SDM | ✅ Selesai | `AdminHR.tsx`, `EmployeeAttendance.tsx`, `HRSettingsForm.tsx` |
-| 31 | Pembersihan `as any` di Hooks & Halaman Operasional | ✅ Selesai | `useDashboardStats.ts`, `usePackages.ts`, `useDepartures.ts`, `ManifestPage.tsx`, `RoomingListPage.tsx` |
+Menu admin **tidak hilang** karena masalah sidebar/routing, tapi karena **build gagal total** sehingga aplikasi tidak bisa di-render sama sekali.
 
 ---
 
-## ADMIN PANEL - Status: 100% Lengkap
+## Rencana Perbaikan
 
-### Fitur yang Sudah Ada
+### 1. Edge Function: `create-agent/index.ts` (1 error)
 
-- Dashboard dengan statistik real-time dan chart
-- CRUD Paket, Keberangkatan, Hotel, Maskapai, Bandara, Muthawif
-- Manajemen Booking (buat, detail, verifikasi)
-- Pembayaran (verifikasi, filter lanjutan, progress bar)
-- Keuangan: Laba/Rugi per keberangkatan, Kas & Gaji, Vendor
-- CRM Leads dengan pipeline dan analytics
-- Manajemen Jamaah, Agent (termasuk hierarki sub-agen)
-- SDM/HR lengkap (absensi, gaji, potongan, face recognition)
-- Loyalty, Referral, Kupon, Tabungan
-- Support Tickets, WhatsApp integration
-- Appearance/Branding multi-template
-- Role & Permission management
-- Security Audit, 2FA Settings
-- Reports, Advanced Reports, Scheduled Reports
-- Document Generator, Offline Content
-- Multi-cabang dengan isolasi data
-- **Filter Cabang di Dashboard** (Super Admin & Branch Manager)
-- **Verifikasi Dokumen** (Link di sidebar admin)
-- **Notifikasi WhatsApp Otomatis** (Booking, Payment, Document, Commission)
-- **Audit Log Viewer** - Tersedia di halaman Security Audit untuk memantau aktivitas sistem.
-- **Export PDF untuk Laba/Rugi** - Tombol export PDF tersedia di setiap keberangkatan di halaman P&L.
-- **Peningkatan Type Safety Menyeluruh** - Refactoring menyeluruh pada modul CRM, Keuangan, Master Data, HR, Hooks, dan Operasional untuk menghilangkan `as any`.
+**Error:** `'err' is of type 'unknown'` di baris 158
 
-### Fitur yang Kurang/Perlu Diperbaiki
+**Fix:** Cast `err` ke `Error` type:
+```typescript
+} catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal server error";
+```
 
-1. **Optimasi Performa** - Peningkatan performa pada query data besar di dashboard dan laporan.
+### 2. Edge Function: `send-whatsapp-notification/index.ts` (10 errors)
 
----
+**Error:** `'booking' is possibly 'null'` dan property access pada joined data
 
-## CABANG (Branch) - Status: 100% Lengkap
+**Fix:** Tambahkan null guard setelah `.single()` query dan sebelum akses properties. File ini sebenarnya sudah punya helper `getCustomer()` untuk handle array joins. Masalahnya adalah akses langsung ke `booking.total_price`, `booking.departure` dll tanpa null check.
 
-### Fitur yang Sudah Ada
-- CRUD cabang dengan kode, kota, kontak
-- Website multi-tenant per cabang (`/b/:slug`)
-- Pengaturan branding per cabang
-- Isolasi data via RLS (branch_id)
-- **Branch Manager bisa kelola staff cabangnya** (Filter per cabang di HR)
-- **Manifest & Rooming List Generator** (Export PDF per keberangkatan)
-- **Dashboard terfilter per cabang**
-- **Laporan per cabang** - Sudah tersedia filter cabang di halaman Reports.
-- **Peningkatan Type Safety di Halaman Operasional** - Refactoring pada `ManifestPage.tsx` dan `RoomingListPage.tsx`.
+Solusi: Tambahkan `if (!booking) break;` setelah setiap query `.single()`.
 
-### Fitur yang Kurang
-1. **Tidak ada fitur transfer jamaah antar cabang**.
+### 3. Edge Function: `send-whatsapp-trigger/index.ts` (11 errors)
 
----
+**Error:** Supabase join mengembalikan array `{ full_name, phone }[]` tapi kode mengakses sebagai objek tunggal (`.customer?.phone`).
 
-## AGEN (Agent Portal) - Status: 100% Lengkap
+**Fix:** Untuk setiap handler function, extract item pertama dari array join:
+- `handleBookingCreated`: `const customer = Array.isArray(booking.customer) ? booking.customer[0] : booking.customer;`
+- `handlePaymentVerified`: Same pattern untuk nested joins
+- `handleDocumentRejected`: Same pattern
+- `handleCommissionPaid`: Same pattern
+- Final catch: Cast `error` ke `Error` type
 
+### 4. Frontend Forms (6 files)
 
-### Fitur yang Sudah Ada
-- Dashboard with statistics (Status booking translated)
-- Register new jamaah (booking + customer + automatic commission)
-- **Register group jamaah (multiple passengers)** at once
-- Jamaah data with document completeness status
-- Commission history (total, pending, paid)
-- Digital wallet with withdrawal
-- View available packages
-- Agent personal website (`/a/:slug`)
-- Sub-agent hierarchy
-- **Download promotional materials (Digital Kit)** - Digital brochures, flyers, etc.
-- **Jamaah Payment Progress** - Visual progress bar per jamaah.
-- **Agent Notification System** - Real-time notifications for documents & booking status.
-- **Edit agent profile photo** - Implemented in Agent Settings page.
-- **Type Safety Improvements** - Refactoring on `AgentWebsiteSettings.tsx` and `AgentCommissions.tsx`.
+**Error:** Zod schema menghasilkan tipe dengan field optional (`code?: string`) yang tidak cocok dengan Supabase Insert type yang memerlukan field required (`code: string`).
+
+**Files:**
+- `AirlineForm.tsx`: `code` dan `name` required di Insert tapi optional di Zod output
+- `AirportForm.tsx`: `city`, `code`, `country` required
+- `BranchForm.tsx`: `code`, `name` required
+- `CouponForm.tsx`: `code`, `discount_value`, `name` required
+- `DepartureForm.tsx`: `departure_date` required
+- `HotelForm.tsx`: `city`, `name` required
+
+**Fix:** Untuk setiap form, cast payload insert menggunakan `as AirlineInsert` (sudah di-cast tapi Zod output type tidak match). Solusi paling aman: tambahkan explicit spread dengan required fields:
+```typescript
+const insertPayload: AirlineInsert = {
+  code: values.code!,
+  name: values.name!,
+  ...values,
+};
+```
+Atau lebih simpel: cast `as unknown as AirlineInsert` pada payload insert saja.
+
+### 5. Frontend: `CustomSectionEditor.tsx` (1 error)
+
+**Error:** `Record<string, unknown>` tidak bisa di-assign ke `CustomSection[]`
+
+**Fix:** Ubah baris 128 dari:
+```typescript
+updateSettings.mutate({ custom_sections: customSections as unknown as Record<string, unknown> });
+```
+Menjadi:
+```typescript
+updateSettings.mutate({ custom_sections: customSections as unknown as CustomSection[] });
+```
 
 ---
 
-## JAMAAH (Customer/Jamaah Portal) - Status: 100% Lengkap
+## Detail Teknis
 
-### Fitur yang Sudah Ada
 
-- Customer Dashboard with quick actions
-- Portal Jamaah PWA (countdown, SOS, live location)
-- Digital ID with QR Code
-- Itinerary perjalanan
-- Doa dan Panduan
-- Dokumen jamaah
-- My Bookings, Payment Upload
-- Loyalty Points, Tabungan
-- Support Tickets
-- Notifikasi (sudah filter per user_id)
-- **Riwayat pembayaran detail per transaksi**
-- **Kontak darurat dinamis dari sistem**
-- **Edit foto profil jamaah** - Sudah diimplementasikan di Profile Form.
-- **Rating/Feedback setelah perjalanan** - Jamaah dapat memberikan rating dan testimoni setelah perjalanan selesai.
-- **FAQ/Panduan Umum** - Link FAQ tersedia di dashboard Jamaah Portal untuk akses mudah ke informasi umum.
+| File | Errors | Tipe Fix |
+|------|--------|----------|
+| `supabase/functions/create-agent/index.ts` | 1 | Cast error type |
+| `supabase/functions/send-whatsapp-notification/index.ts` | 10 | Null guards |
+| `supabase/functions/send-whatsapp-trigger/index.ts` | 11 | Array join handling + error cast |
+| `src/components/admin/forms/AirlineForm.tsx` | 1 | Type assertion |
+| `src/components/admin/forms/AirportForm.tsx` | 1 | Type assertion |
+| `src/components/admin/forms/BranchForm.tsx` | 1 | Type assertion |
+| `src/components/admin/forms/CouponForm.tsx` | 1 | Type assertion |
+| `src/components/admin/forms/DepartureForm.tsx` | 1 | Type assertion |
+| `src/components/admin/forms/HotelForm.tsx` | 1 | Type assertion |
+| `src/components/admin/appearance/CustomSectionEditor.tsx` | 1 | Type assertion |
 
----
+**Total: 10 file diperbaiki, 0 file baru, 0 migrasi database**
 
-## BUG YANG DITEMUKAN (Tersisa)
+Setelah semua error ini diperbaiki, build akan berhasil dan semua menu admin akan kembali tampil normal karena aplikasi bisa di-render kembali.
 
-### BUG RENDAH
-
-1. **Optimasi Query**
-  - Beberapa query di dashboard statistik dapat dioptimalkan lebih lanjut untuk kecepatan loading.
-
----
-
-## RENCANA PERBAIKAN YANG DIREKOMENDASIKAN
-
-### Prioritas 3 - Type Safety & Code Quality (SELESAI)
-
-**Fokus:** Menyempurnakan **Type Safety** di seluruh aplikasi untuk mencegah runtime error dan mempermudah maintenance jangka panjang.
-
-#### Komponen yang Telah Diperbaiki:
-1. **AgentWebsiteSettings.tsx** - Menghilangkan `as any` cast pada query `website_settings` dan update operations.
-2. **AgentCommissions.tsx** - Menghilangkan `as any` untuk booking data.
-3. **AdminFinancePL.tsx** - Menambahkan proper typing untuk vendor dan cost data.
-4. **PackageForm.tsx** - Memperbaiki typing pada form default values dan metadata parsing.
-5. **StepReview.tsx** - Menghilangkan `as unknown` cast pada joined data.
-6. **LinkItineraryForm.tsx** - Menghilangkan `as unknown` cast pada query results.
-7. **useWebsiteSettings.ts** - Implementasi mapping data Supabase ke interface TypeScript yang kuat.
-8. **useAgentNotifications.ts & useAdminNotifications.ts** - Menghilangkan `as any` pada payload real-time Supabase.
-9. **DataTable.tsx** - Memperbaiki generic typing untuk akses properti `id`.
-10. **AdminLayout.tsx** - Menghilangkan `as any` pada pengecekan role pengguna.
-11. **Modul CRM & Keuangan** - Refactoring pada `AdminLeads.tsx`, `AdminLeadDetail.tsx`, `AdminBookings.tsx`, `AdminPayments.tsx`.
-12. **Modul Master Data** - Refactoring pada `AdminAirlines.tsx`, `AdminAirports.tsx`, `AdminHotels.tsx`, `AdminVendors.tsx`.
-13. **Modul HR & SDM** - Refactoring pada `AdminHR.tsx`, `EmployeeAttendance.tsx`, `HRSettingsForm.tsx`.
-14. **Hooks & Halaman Operasional** - Refactoring pada `useCompanySettings.ts`, `useDashboardStats.ts`, `usePackages.ts`, `useDepartures.ts`, `ManifestPage.tsx`, `RoomingListPage.tsx`.
-
-#### Benefit:
-
-- Mengurangi runtime error secara signifikan.
-- Meningkatkan IDE autocomplete untuk pengembangan lebih cepat.
-- Mempermudah refactoring di masa depan.
-- Meningkatkan maintainability kode secara keseluruhan.
-
----
-
-## RENCANA PENGEMBANGAN FITUR BARU
-
-### Fitur: Transfer Jamaah Antar Cabang
-
-**Deskripsi**: Memungkinkan pemindahan data jamaah beserta booking terkait dari satu cabang ke cabang lain dalam sistem. Fitur ini krusial untuk fleksibilitas operasional, terutama ketika ada perubahan struktur organisasi, relokasi jamaah, atau kebutuhan manajemen lainnya yang mengharuskan pemindahan data jamaah antar cabang.
-
-**Status**: Direncanakan
-
-**Rencana Implementasi (Roadmap)**:
-
-| Fase | Deskripsi | Estimasi Waktu |
-| :--- | :--- | :--- |
-| **Fase 1** | Persiapan Database & API Inti (Penambahan kolom `previous_branch_id` di `customers` dan `bookings`, pembuatan tabel `transfer_requests`, pengembangan API inisiasi transfer). | 2 hari |
-| **Fase 2** | Pengembangan Logika Transfer & RLS (Pengembangan API persetujuan/penolakan, implementasi logika pembaruan `branch_id`, penyesuaian kebijakan RLS). | 3 hari |
-| **Fase 3** | Pengembangan UI/UX (Pembuatan antarmuka untuk pengajuan dan manajemen permintaan transfer di Admin Panel). | 4 hari |
-| **Fase 4** | Notifikasi & Pengujian (Implementasi notifikasi status transfer, pengujian menyeluruh). | 2 hari |
-
-**Total Estimasi Waktu**: 11 hari
-
-**Benefit**: Meningkatkan fleksibilitas operasional, mempermudah manajemen data jamaah antar cabang, dan mendukung skenario bisnis yang lebih kompleks.
