@@ -164,7 +164,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         const { error } = await supabase.from("departures").update(updatePayload).eq("id", departureData.id);
         if (error) throw error;
       } else {
-        const insertPayload: DepartureInsert = payload;
+        const insertPayload = payload as unknown as DepartureInsert;
         const { error } = await supabase.from("departures").insert(insertPayload);
         if (error) throw error;
       }

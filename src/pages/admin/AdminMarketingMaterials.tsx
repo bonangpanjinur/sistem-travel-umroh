@@ -75,7 +75,7 @@ export default function AdminMarketingMaterials() {
   const { data: materials = [], isLoading } = useQuery({
     queryKey: ["admin-marketing-materials"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("marketing_materials")
         .select("*")
         .order("created_at", { ascending: false });
@@ -97,13 +97,13 @@ export default function AdminMarketingMaterials() {
       };
 
       if (editingMaterial?.id) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("marketing_materials")
           .update(materialData)
           .eq("id", editingMaterial.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("marketing_materials")
           .insert(materialData);
         if (error) throw error;
@@ -127,7 +127,7 @@ export default function AdminMarketingMaterials() {
   // Delete material mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("marketing_materials")
         .delete()
         .eq("id", id);

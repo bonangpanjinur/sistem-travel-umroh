@@ -74,7 +74,7 @@ export default function JamaahPaymentHistory() {
           )
         `)
         .eq("booking_id", 
-          bookings?.map(b => b.id) || []
+          (bookings?.map(b => b.id) || [])[0] || ''
         )
         .order("created_at", { ascending: false });
       if (error) throw error;

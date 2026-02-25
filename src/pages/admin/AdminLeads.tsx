@@ -326,7 +326,7 @@ export default function AdminLeads() {
               {KANBAN_COLUMNS.map(status => {
                 const statusLeads = filteredLeads?.filter(l => l.status === status) || [];
                 const config = STATUS_CONFIG[status];
-                const pipelineValue = getPipelineValue(statusLeads);
+                const pipelineValue = getPipelineValue(statusLeads as any[]);
                 
                 return (
                   <div key={status} className="min-w-[250px]">
@@ -345,7 +345,7 @@ export default function AdminLeads() {
                       {statusLeads.map(lead => (
                         <LeadCard 
                           key={lead.id} 
-                          lead={lead} 
+                          lead={lead as any} 
                           onStatusChange={(newStatus) => handleStatusChange(lead.id, newStatus)}
                         />
                       ))}
@@ -420,7 +420,7 @@ export default function AdminLeads() {
                             {lead.package?.name || '-'}
                           </td>
                           <td className="py-3 px-4 text-sm text-muted-foreground">
-                            {lead.assigned_profile?.full_name || '-'}
+                            {(lead as any).assigned_profile?.full_name || '-'}
                           </td>
                           <td className="py-3 px-4">
                             <Badge className={cn("font-normal", STATUS_CONFIG[lead.status as LeadStatus]?.bgColor, STATUS_CONFIG[lead.status as LeadStatus]?.color)}>

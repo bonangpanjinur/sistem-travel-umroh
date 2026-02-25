@@ -145,7 +145,7 @@ export function useAgentNotifications(agentId?: string) {
               addNotification({
                 type: 'document',
                 title: '❌ Dokumen Ditolak',
-                message: `Dokumen ${document.document_type} untuk ${customerName} ditolak. Alasan: ${document.rejection_reason || 'Tidak ada keterangan'}`,
+                message: `Dokumen ${document.document_type_id} untuk ${customerName} ditolak. Alasan: ${document.notes || 'Tidak ada keterangan'}`,
                 data: document,
               });
             }

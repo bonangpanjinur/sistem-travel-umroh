@@ -44,7 +44,7 @@ export default function AgentCommissions() {
     },
   });
 
-      const { data: commissions, isLoading } = useQuery<AgentCommissionWithBooking[] | null>({
+      const { data: commissions, isLoading } = useQuery({
     queryKey: ['agent-commissions', agentData?.id],
     enabled: !!agentData?.id,
     queryFn: async () => {
@@ -67,7 +67,7 @@ export default function AgentCommissions() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 

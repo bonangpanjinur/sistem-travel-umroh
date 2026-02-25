@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { MapPin, Clock, Camera, CheckCircle, LogIn, LogOut, Loader2, WifiOff, Wifi, ShieldCheck, ShieldAlert, Smartphone, SmartphoneCharging, UserCheck, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { Database } from "@/integrations/supabase/types";
+import type { Database } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/supabase/types";
 
 interface LocationData {
   lat: number;

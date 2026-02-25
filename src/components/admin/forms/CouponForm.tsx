@@ -89,7 +89,7 @@ export function CouponForm({ couponData, onSuccess, onCancel }: CouponFormProps)
         const { error } = await supabase.from("coupons").update(updatePayload).eq("id", couponData.id);
         if (error) throw error;
       } else {
-        const insertPayload: CouponInsert = payload;
+        const insertPayload = payload as unknown as CouponInsert;
         const { error } = await supabase.from("coupons").insert(insertPayload);
         if (error) throw error;
       }
