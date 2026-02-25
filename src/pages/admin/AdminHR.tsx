@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone } from "lucide-react";
+import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
@@ -32,8 +32,8 @@ type AttendanceRecord = Database["public"]["Tables"]["attendance_records"]["Row"
 type Department = Database["public"]["Tables"]["departments"]["Row"];
 type DepartmentInsert = Database["public"]["Tables"]["departments"]["Insert"];
 
-type Position = Database["public"]["Tables"]["positions"]["Row"];
-type PositionInsert = Database["public"]["Tables"]["positions"]["Insert"];
+type Position = { id: string; name: string; code: string; department_id?: string; is_active?: boolean; created_at?: string };
+type PositionInsert = { name: string; code: string; department_id?: string; is_active?: boolean };
 
 type HRSettings = Database["public"]["Tables"]["hr_settings"]["Row"];
 type HRSettingsUpdate = Database["public"]["Tables"]["hr_settings"]["Update"];
@@ -230,8 +230,8 @@ export default function AdminHR() {
   const addPositionMutation = useMutation({
     mutationFn: async () => {
       if (!newPosName || !newPosDeptId) throw new Error("Nama posisi dan departemen wajib diisi");
-      const payload: PositionInsert = { name: newPosName, department_id: newPosDeptId, level: 1 }; // Default level to 1
-      const { error } = await supabase.from("positions").insert(payload);
+      const payload: any = { name: newPosName, department_id: newPosDeptId, level: 1 };
+      const { error } = await (supabase as any).from("positions").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -492,8 +492,8 @@ export default function AdminHR() {
                           {record.check_in_time ? (
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" /> {format(new Date(`2000-01-01T${record.check_in_time}`), "HH:mm")}
-                              {record.check_in_location?.address && (
-                                <span className="text-muted-foreground text-xs">({record.check_in_location.address})</span>
+                              {(record.check_in_location as any)?.address && (
+                                <span className="text-muted-foreground text-xs">({(record.check_in_location as any).address})</span>
                               )}
                             </div>
                           ) : "-"}
@@ -502,8 +502,8 @@ export default function AdminHR() {
                           {record.check_out_time ? (
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" /> {format(new Date(`2000-01-01T${record.check_out_time}`), "HH:mm")}
-                              {record.check_out_location?.address && (
-                                <span className="text-muted-foreground text-xs">({record.check_out_location.address})</span>
+                              {(record.check_out_location as any)?.address && (
+                                <span className="text-muted-foreground text-xs">({(record.check_out_location as any).address})</span>
                               )}
                             </div>
                           ) : "-"}
@@ -923,7 +923,7 @@ function WorkScheduleEditor({ employeeId, initialSchedules, onSave, isSaving }: 
   });
 
   // Update schedules when initialSchedules or employeeId changes
-  useState(() => {
+  useEffect(() => {
     const defaultSchedules: WorkScheduleInsert[] = dayLabels.map((_, index) => ({
       employee_id: employeeId,
       day_of_week: index,

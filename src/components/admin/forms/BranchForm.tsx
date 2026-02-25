@@ -116,7 +116,7 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
         const { error } = await supabase.from("branches").update(updatePayload).eq("id", branchData.id);
         if (error) throw error;
       } else {
-        const insertPayload: BranchInsert = payload;
+        const insertPayload = payload as unknown as BranchInsert;
         const { error } = await supabase.from("branches").insert(insertPayload);
         if (error) throw error;
       }

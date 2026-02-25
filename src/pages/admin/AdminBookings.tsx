@@ -98,8 +98,8 @@ export default function AdminBookings() {
         // Search by booking code or customer name/phone
         query = query.or(`booking_code.ilike.%${searchTerm}%,customer_id.in.(select id from customers where full_name.ilike.%${searchTerm}% or phone.ilike.%${searchTerm}%)`);
       }
-      if (statusFilter !== "all") query = query.eq('booking_status', statusFilter);
-      if (paymentFilter !== "all") query = query.eq('payment_status', paymentFilter);
+      if (statusFilter !== "all") query = query.eq('booking_status', statusFilter as any);
+      if (paymentFilter !== "all") query = query.eq('payment_status', paymentFilter as any);
       if (branchFilter !== "all") query = query.eq('branch_id', branchFilter);
       if (dateFrom) query = query.gte('created_at', dateFrom);
       if (dateTo) query = query.lte('created_at', dateTo + 'T23:59:59');
@@ -260,9 +260,9 @@ export default function AdminBookings() {
             </div>
           )}
           <Button variant="outline" onClick={() => {
-            if (!filteredBookings || filteredBookings.length === 0) return;
+            if (!paginatedBookings || paginatedBookings.length === 0) return;
             exportToExcel(
-              filteredBookings,
+              paginatedBookings as any[],
               [
                 { header: 'Kode Booking', accessor: 'booking_code', width: 18 },
                 { header: 'Nama', accessor: (r: any) => (r.customer as any)?.full_name || '-', width: 25 },
@@ -515,12 +515,12 @@ export default function AdminBookings() {
                 const paymentPercent = booking.total_price > 0
                   ? Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))
                   : 0;
-                const isDeadlineSoon = booking.payment_deadline && 
-                  new Date(booking.payment_deadline).getTime() - Date.now() < 24 * 60 * 60 * 1000 &&
-                  new Date(booking.payment_deadline).getTime() > Date.now() &&
+                const isDeadlineSoon = (booking as any).payment_deadline && 
+                  new Date((booking as any).payment_deadline).getTime() - Date.now() < 24 * 60 * 60 * 1000 &&
+                  new Date((booking as any).payment_deadline).getTime() > Date.now() &&
                   paymentStatus !== 'paid';
-                const isOverdue = booking.payment_deadline &&
-                  new Date(booking.payment_deadline).getTime() < Date.now() &&
+                const isOverdue = (booking as any).payment_deadline &&
+                  new Date((booking as any).payment_deadline).getTime() < Date.now() &&
                   paymentStatus !== 'paid';
 
                 return (
@@ -660,10 +660,9 @@ export default function AdminBookings() {
       )}
 
       {/* Results count */}
-      {filteredBookings && filteredBookings.length > 0 && (
+      {paginatedBookings && paginatedBookings.length > 0 && (
         <p className="text-sm text-muted-foreground text-center">
-          Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, filteredBookings.length)} dari {filteredBookings.length} booking
-          {filteredBookings.length !== (bookings?.length || 0) && ` (total: ${bookings?.length})`}
+          Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)} dari {totalCount} booking
         </p>
       )}
     </div>

@@ -125,7 +125,7 @@ export function CustomSectionEditor({ settings }: CustomSectionEditorProps) {
       footerShowSocial, footerShowContact, footerShowLinks,
       footerCopyrightText,
     };
-    updateSettings.mutate({ custom_sections: customSections as unknown as Record<string, unknown> });
+    updateSettings.mutate({ custom_sections: customSections as any });
   };
 
   const updateStat = (index: number, field: keyof StatItem, value: string) => {

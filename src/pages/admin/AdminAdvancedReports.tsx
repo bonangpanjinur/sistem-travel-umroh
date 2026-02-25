@@ -24,6 +24,7 @@ interface FinancialSummaryRow {
   total_vendor_costs: number | null;
   net_profit: number | null;
   total_pax: number | null;
+  total_revenue: number | null;
   package_name: string | null;
   departure_date: string | null;
   return_date: string | null;
@@ -74,7 +75,7 @@ export default function AdminAdvancedReports() {
         .lte("departure_date", dateRange.end)
         .order("departure_date");
       if (error) throw error;
-      return (data || []) as FinancialSummaryRow[];
+      return (data || []) as unknown as FinancialSummaryRow[];
     },
   });
 
@@ -82,7 +83,7 @@ export default function AdminAdvancedReports() {
   const { data: operationalData = [] } = useQuery<OperationalSummaryRow[]>({
     queryKey: ["operational-summary", dateRange],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("v_operational_summary")
         .select("*")
         .gte("departure_date", dateRange.start)
@@ -159,10 +160,10 @@ export default function AdminAdvancedReports() {
   ];
 
   // Agent performance
-  const agentPerformance = bookingData.reduce((acc: AgentPerformanceData[], booking) => {
+  const agentPerformance = bookingData.reduce((acc: AgentPerformanceData[], booking: any) => {
     if (!booking.agent) return acc;
     const existing = acc.find((a) => a.agent_id === booking.agent_id);
-    const agentData = booking.agent as { company_name?: string | null; id: string };
+    const agentData = Array.isArray(booking.agent) ? booking.agent[0] : booking.agent;
     if (existing) {
       existing.bookings += 1;
       existing.revenue += booking.total_price || 0;
@@ -179,14 +180,14 @@ export default function AdminAdvancedReports() {
 
   const handleExportFinancial = () => {
     const columns = [
-      { header: "Paket", key: "package_name" },
-      { header: "Tanggal", key: "departure_date" },
-      { header: "Pax", key: "total_pax" },
-      { header: "Revenue", key: "gross_revenue" },
-      { header: "Terkumpul", key: "collected_amount" },
-      { header: "Net Profit", key: "net_profit" },
+      { header: "Paket", accessor: "package_name" },
+      { header: "Tanggal", accessor: "departure_date" },
+      { header: "Pax", accessor: "total_pax" },
+      { header: "Revenue", accessor: "gross_revenue" },
+      { header: "Terkumpul", accessor: "collected_amount" },
+      { header: "Net Profit", accessor: "net_profit" },
     ];
-    exportToExcel(columns, financialData, `Financial-Report-${dateRange.start}-${dateRange.end}`);
+    exportToExcel(financialData as any[], columns, `Financial-Report-${dateRange.start}-${dateRange.end}`);
   };
 
   return (

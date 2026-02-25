@@ -52,7 +52,7 @@ export default function AgentSettings() {
       address: profile?.address || "",
       city: profile?.city || "",
       province: profile?.province || "",
-      bio: profile?.bio || "",
+      bio: (profile as any)?.bio || "",
     },
   });
 

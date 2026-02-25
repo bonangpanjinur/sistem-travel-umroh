@@ -9,10 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { MapPin, Calendar, Clock, Check, X } from "lucide-react";
 import { formatDate } from "@/lib/format";
-import { Database } from "@/integrations/supabase/types";
-
-type ItineraryTemplateRow = Database["public"]["Tables"]["itinerary_templates"]["Row"];
-type DepartureItineraryRow = Database["public"]["Tables"]["departure_itineraries"]["Row"];
 
 interface ItineraryDay {
   day: number;
@@ -20,11 +16,21 @@ interface ItineraryDay {
   activities: { time: string; activity: string; location?: string }[];
 }
 
-interface ItineraryTemplate extends Omit<ItineraryTemplateRow, "days"> {
+interface ItineraryTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  package_type: string;
+  duration_days: number;
   days: ItineraryDay[];
+  is_active: boolean;
+  created_at: string | null;
 }
 
-interface DepartureItinerary extends Omit<DepartureItineraryRow, "customized_days"> {
+interface DepartureItinerary {
+  id: string;
+  departure_id: string;
+  template_id: string;
   customized_days: ItineraryDay[] | null;
   template?: ItineraryTemplate;
 }
@@ -43,7 +49,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   const { data: templates = [] } = useQuery({
     queryKey: ["itinerary-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("itinerary_templates")
         .select("*")
         .eq("is_active", true)
@@ -57,7 +63,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   const { data: linkedItinerary } = useQuery({
     queryKey: ["departure-itinerary", departureId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("departure_itineraries")
         .select("*, template:itinerary_templates(*)")
         .eq("departure_id", departureId)
@@ -70,14 +76,12 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   // Link mutation
   const linkMutation = useMutation({
     mutationFn: async (templateId: string) => {
-      // First remove any existing link
-      await supabase
+      await (supabase as any)
         .from("departure_itineraries")
         .delete()
         .eq("departure_id", departureId);
 
-      // Insert new link
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("departure_itineraries")
         .insert({
           departure_id: departureId,
@@ -96,7 +100,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   // Unlink mutation
   const unlinkMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("departure_itineraries")
         .delete()
         .eq("departure_id", departureId);
@@ -113,7 +117,6 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
   const currentTemplate = linkedItinerary?.template;
 
-  // Calculate actual dates based on departure date
   const getActualDate = (dayNumber: number) => {
     const date = new Date(departureDate);
     date.setDate(date.getDate() + dayNumber - 1);
@@ -122,7 +125,6 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
 
   return (
     <div className="space-y-6">
-      {/* Current Status */}
       {linkedItinerary && currentTemplate ? (
         <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
           <CardHeader className="pb-3">
@@ -177,7 +179,6 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
         </Card>
       ) : (
         <>
-          {/* Template Selection */}
           <div className="space-y-2">
             <Label>Pilih Template Itinerary</Label>
             <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
@@ -199,7 +200,6 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
             )}
           </div>
 
-          {/* Preview */}
           {selectedTemplate && (
             <Card>
               <CardHeader className="pb-3">

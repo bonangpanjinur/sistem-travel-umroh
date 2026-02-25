@@ -77,7 +77,7 @@ export function HotelForm({ hotelData, onSuccess, onCancel }: HotelFormProps) {
         const { error } = await supabase.from("hotels").update(updatePayload).eq("id", hotelData.id);
         if (error) throw error;
       } else {
-        const insertPayload: HotelInsert = payload;
+        const insertPayload = payload as unknown as HotelInsert;
         const { error } = await supabase.from("hotels").insert(insertPayload);
         if (error) throw error;
       }

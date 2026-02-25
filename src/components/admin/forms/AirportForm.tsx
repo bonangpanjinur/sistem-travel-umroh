@@ -59,7 +59,7 @@ export function AirportForm({ airportData, onSuccess, onCancel }: AirportFormPro
         const { error } = await supabase.from("airports").update(payload).eq("id", airportData.id);
         if (error) throw error;
       } else {
-        const payload: AirportInsert = values;
+        const payload = values as unknown as AirportInsert;
         const { error } = await supabase.from("airports").insert(payload);
         if (error) throw error;
       }

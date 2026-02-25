@@ -63,7 +63,7 @@ export default function AgentDigitalKit() {
   const { data: materials = [], isLoading } = useQuery({
     queryKey: ["marketing-materials", selectedType, selectedCategory, searchQuery],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from("marketing_materials")
         .select("*")
         .eq("is_active", true)
@@ -81,13 +81,12 @@ export default function AgentDigitalKit() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Filter by search query
       if (searchQuery) {
         return (data || []).filter(
-          (m) =>
-            m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (m: any) =>
+            m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             m.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            m.tags?.some((tag) =>
+            m.tags?.some((tag: string) =>
               tag.toLowerCase().includes(searchQuery.toLowerCase())
             )
         );
@@ -99,14 +98,14 @@ export default function AgentDigitalKit() {
 
   // Get unique categories
   const categories = Array.from(
-    new Set(materials.map((m) => m.category).filter(Boolean))
+    new Set((materials as any[]).map((m: any) => m.category).filter(Boolean))
   );
 
   // Download mutation
   const downloadMutation = useMutation({
     mutationFn: async (material: MarketingMaterial) => {
       // Record download
-      const { error: downloadError } = await supabase
+      const { error: downloadError } = await (supabase as any)
         .from("marketing_material_downloads")
         .insert({
           material_id: material.id,

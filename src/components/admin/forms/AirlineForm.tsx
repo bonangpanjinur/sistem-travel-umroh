@@ -60,10 +60,10 @@ export function AirlineForm({ airlineData, onSuccess, onCancel }: AirlineFormPro
         const { error } = await supabase.from("airlines").update(payload).eq("id", airlineData.id);
         if (error) throw error;
       } else {
-        const payload: AirlineInsert = {
+        const payload = {
           ...values,
           logo_url: values.logo_url || null,
-        };
+        } as unknown as AirlineInsert;
         const { error } = await supabase.from("airlines").insert(payload);
         if (error) throw error;
       }

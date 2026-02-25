@@ -23,11 +23,7 @@ export function useDepartures(filters?: { status?: string; packageId?: string })
       const { data, error } = await query;
       if (error) throw error;
       
-      return data as (Departure & {
-        packages: Pick<Package, 'name' | 'category'> | null;
-        airlines: Pick<Airline, 'name' | 'code'> | null;
-        hotels: Pick<Hotel, 'name' | 'city'> | null;
-      })[];
+      return data as any[];
     },
   });
 }
@@ -39,20 +35,12 @@ export function useDeparture(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('departures')
-        .select('*, packages(*), airlines(*), departure_airport:departure_airport_id(*), arrival_airport:arrival_airport_id(*), hotel_makkah:hotel_makkah_id(*), hotel_madinah:hotel_madinah_id(*), muthawifs:muthawif_id(*)')
+        .select('*, packages(*), airlines(*), departure_airport:airports!departures_departure_airport_id_fkey(*), arrival_airport:airports!departures_arrival_airport_id_fkey(*), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*), muthawifs:muthawif_id(*)')
         .eq('id', id!)
         .single();
       if (error) throw error;
       
-      return data as (Departure & {
-        packages: Package | null;
-        airlines: Airline | null;
-        departure_airport: Airport | null;
-        arrival_airport: Airport | null;
-        hotel_makkah: Hotel | null;
-        hotel_madinah: Hotel | null;
-        muthawifs: Muthawif | null;
-      });
+      return data as any;
     },
   });
 }
