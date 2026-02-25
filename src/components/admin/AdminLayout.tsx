@@ -30,7 +30,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Sales & CRM',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'marketing'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'marketing', 'operational'],
     items: [
       { label: 'CRM Leads', icon: Target, path: '/admin/leads' },
       { label: 'Booking', icon: Calendar, path: '/admin/bookings' },
@@ -39,7 +39,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Produk & Operasional',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational', 'equipment'],
     items: [
       { label: 'Paket', icon: Package, path: '/admin/packages' },
       { label: 'Keberangkatan', icon: Plane, path: '/admin/departures' },
@@ -49,8 +49,16 @@ const NAV_GROUPS = [
     ]
   },
   {
+    label: 'Perlengkapan',
+    allowedRoles: ['super_admin', 'owner', 'equipment'],
+    items: [
+      { label: 'Manajemen Aset', icon: Package, path: '/admin/equipment-assets' },
+      { label: 'Jadwal Maintenance', icon: Calendar, path: '/admin/equipment-maintenance' },
+    ]
+  },
+  {
     label: 'Keuangan',
-    allowedRoles: ['super_admin', 'owner', 'finance'],
+    allowedRoles: ['super_admin', 'owner', 'finance', 'operational'],
     items: [
       { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments' },
       { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance' },
@@ -60,7 +68,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Jamaah & Agent',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'operational'],
     items: [
       { label: 'Jamaah', icon: Users, path: '/admin/customers' },
       { label: 'Agent', icon: UserCheck, path: '/admin/agents' },
@@ -71,14 +79,14 @@ const NAV_GROUPS = [
   },
   {
     label: 'SDM (HR)',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
       { label: 'Karyawan', icon: UserCog, path: '/admin/hr' },
     ]
   },
   {
     label: 'Support & Komunikasi',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'marketing'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'marketing', 'operational'],
     items: [
       { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support' },
       { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp' },
@@ -87,7 +95,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Master Data',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
       { label: 'Master Data', icon: Settings, path: '/admin/master-data' },
       { label: 'Cabang', icon: Building2, path: '/admin/branches' },
@@ -95,7 +103,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Dokumen & Surat',
-    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational', 'equipment'],
     items: [
       { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification' },
       { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator' },
@@ -104,7 +112,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Laporan',
-    allowedRoles: ['super_admin', 'owner', 'finance', 'marketing'],
+    allowedRoles: ['super_admin', 'owner', 'finance', 'marketing', 'branch_manager', 'operational'],
     items: [
       { label: 'Laporan', icon: FileBarChart, path: '/admin/reports' },
       { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports' },
@@ -113,7 +121,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Pengaturan',
-    allowedRoles: ['super_admin', 'owner'],
+    allowedRoles: ['super_admin', 'owner', 'branch_manager'],
     items: [
       { label: 'Users', icon: Shield, path: '/admin/users' },
       { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions' },
