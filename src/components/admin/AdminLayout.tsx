@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Loader2 } from 'lucide-react';
 
 // Grouped navigation for better organization
 const NAV_GROUPS = [
@@ -127,7 +128,7 @@ const NAV_GROUPS = [
 ];
 
 export function AdminLayout() {
-  const { user, profile, signOut, isAdmin, roles } = useAuth();
+  const { user, profile, signOut, isAdmin, roles, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -144,6 +145,17 @@ export function AdminLayout() {
     await signOut();
     navigate('/');
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Memuat Navigasi...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || !isAdmin()) {
     return (
