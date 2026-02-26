@@ -52,6 +52,17 @@ export default defineConfig(({ mode }) => ({
               },
             },
           },
+          {
+            urlPattern: /\/assets\/.+\.js$/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "js-chunks",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
+            },
+          },
         ],
         skipWaiting: true,
         clientsClaim: true,
@@ -61,6 +72,31 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui/react-tabs', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-utils': ['zod', 'sonner', 'clsx', 'date-fns'],
+          // Admin pages chunks
+          'admin-appearance': ['./src/pages/admin/AdminAppearance.tsx'],
+          'admin-dashboard': ['./src/pages/admin/AdminDashboard.tsx'],
+          'admin-settings': ['./src/pages/admin/AdminSettings.tsx'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false,
+      },
     },
   },
 }));
