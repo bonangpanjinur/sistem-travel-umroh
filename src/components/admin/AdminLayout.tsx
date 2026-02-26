@@ -14,7 +14,7 @@ import {
   Banknote, Clock, Briefcase, Smartphone,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
-  FileType, Star, ExternalLink
+  FileType, Star, ExternalLink, ChevronDown
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -50,13 +50,15 @@ const NAV_GROUPS = [
     ]
   },
   {
-    label: 'Keuangan',
+    label: 'Keuangan & Akuntansi',
     allowedRoles: ['super_admin', 'owner', 'finance', 'operational', 'branch_manager'],
     items: [
       { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments' },
-      { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance' },
-      { label: 'Kas & Gaji', icon: Wallet, path: '/admin/finance-cash' },
-      { label: 'Vendor', icon: Truck, path: '/admin/vendors' },
+      { label: 'Kas & Bank', icon: Wallet, path: '/admin/finance-cash' },
+      { label: 'Piutang Jamaah', icon: FileText, path: '/admin/finance/ar' },
+      { label: 'Hutang Vendor', icon: Truck, path: '/admin/finance/ap' },
+      { label: 'Laporan Laba Rugi', icon: DollarSign, path: '/admin/finance' },
+      { label: 'Vendor', icon: Building2, path: '/admin/vendors' },
       { label: 'Tabungan', icon: Wallet, path: '/admin/savings' },
     ]
   },
@@ -75,13 +77,13 @@ const NAV_GROUPS = [
     label: 'SDM (HR)',
     allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
-      { label: 'Karyawan', icon: UserCog, path: '/admin/hr?tab=employees' },
+      { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr?tab=employees' },
       { label: 'Absensi', icon: Clock, path: '/admin/hr?tab=attendance' },
+      { label: 'Penggajian / Payroll', icon: Banknote, path: '/admin/hr/payroll' },
       { label: 'Departemen', icon: Building2, path: '/admin/hr?tab=departments' },
       { label: 'Posisi', icon: Briefcase, path: '/admin/hr?tab=positions' },
       { label: 'Jadwal Kerja', icon: Calendar, path: '/admin/hr?tab=schedules' },
       { label: 'Perangkat', icon: Smartphone, path: '/admin/hr?tab=devices' },
-      { label: 'Gaji & Kas', icon: Banknote, path: '/admin/finance-cash?tab=salary' },
       { label: 'Pengaturan HR', icon: Settings, path: '/admin/hr?tab=settings' },
     ]
   },

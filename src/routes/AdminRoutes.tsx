@@ -49,6 +49,9 @@ const AdminStaticPages = lazy(() => import("@/pages/admin/AdminStaticPages"));
 const AdminTestimonials = lazy(() => import("@/pages/admin/AdminTestimonials"));
 const AdminBookingCreate = lazy(() => import("@/pages/admin/AdminBookingCreate"));
 const AdminMarketingMaterials = lazy(() => import("@/pages/admin/AdminMarketingMaterials"));
+const AdminFinanceAR = lazy(() => import("@/pages/admin/AdminFinanceAR"));
+const AdminFinanceAP = lazy(() => import("@/pages/admin/AdminFinanceAP"));
+const AdminPayroll = lazy(() => import("@/pages/admin/AdminPayroll"));
 
 const ADMIN_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment'] as const;
 
@@ -111,6 +114,9 @@ export default function AdminRoutes() {
       <Route path="static-pages" element={<LazyPage><AdminStaticPages /></LazyPage>} />
       <Route path="testimonials" element={<LazyPage><AdminTestimonials /></LazyPage>} />
       <Route path="settings" element={<LazyPage><AdminSettings /></LazyPage>} />
+      <Route path="finance/ar" element={<LazyPage><AdminFinanceAR /></LazyPage>} />
+      <Route path="finance/ap" element={<LazyPage><AdminFinanceAP /></LazyPage>} />
+      <Route path="hr/payroll" element={<LazyPage><AdminPayroll /></LazyPage>} />
     </Route>
   );
 }
