@@ -142,7 +142,7 @@ export function AdminLayout() {
   const { user, profile, signOut, isAdmin, roles, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Overview', 'Sales & CRM', 'Produk & Operasional']));
   
@@ -159,18 +159,15 @@ export function AdminLayout() {
     const handleResize = () => {
       const isLargeScreen = window.innerWidth >= 1024;
       setIsDesktop(isLargeScreen);
-      // Auto-open sidebar on desktop, close on mobile
-      setSidebarOpen(isLargeScreen);
+      // On mobile, close sidebar; on desktop, keep current state
+      if (!isLargeScreen) {
+        setSidebarOpen(false);
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Initialize sidebar state based on screen size
-  useEffect(() => {
-    setSidebarOpen(isDesktop);
-  }, [isDesktop]);
 
   const handleLogout = async () => {
     await signOut();
@@ -295,7 +292,7 @@ export function AdminLayout() {
       {/* Sidebar - Responsive */}
       <aside className={cn(
         "fixed top-14 sm:top-16 left-0 bottom-0 w-56 sm:w-64 bg-background border-r z-30 transform transition-transform duration-300 ease-in-out overflow-y-auto",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Navigation */}
@@ -342,7 +339,12 @@ export function AdminLayout() {
                           <Link
                             key={item.path}
                             to={item.path}
-                            onClick={() => !isDesktop && setSidebarOpen(false)}
+                            onClick={() => {
+                              // Close sidebar only on mobile when item is clicked
+                              if (!isDesktop) {
+                                setSidebarOpen(false);
+                              }
+                            }}
                             className={cn(
                               "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-lg transition-colors text-xs sm:text-sm",
                               isActive 
@@ -390,7 +392,7 @@ export function AdminLayout() {
       {/* Main Content - Responsive Margin */}
       <main className={cn(
         "pt-14 sm:pt-16 min-h-screen transition-all duration-300",
-        sidebarOpen || isDesktop ? "lg:ml-56 sm:lg:ml-64" : "ml-0"
+        sidebarOpen ? "lg:ml-56 sm:lg:ml-64" : "ml-0"
       )}>
         <div className="p-3 sm:p-4 md:p-6">
           <AdminBreadcrumb />
