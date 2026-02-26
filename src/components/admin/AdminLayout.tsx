@@ -11,6 +11,7 @@ import {
   Settings, LogOut, Menu, X, Shield, UserCheck,
   FileBarChart, BarChart3, Target, KeyRound, BedDouble, Plane,
   Wallet, FileCheck, Building2, DollarSign, Truck, Gift,
+  Banknote, Clock,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
   FileType, Star, ExternalLink
@@ -56,6 +57,7 @@ const NAV_GROUPS = [
       { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance' },
       { label: 'Kas & Gaji', icon: Wallet, path: '/admin/finance-cash' },
       { label: 'Vendor', icon: Truck, path: '/admin/vendors' },
+      { label: 'Tabungan', icon: Wallet, path: '/admin/savings' },
     ]
   },
   {
@@ -74,6 +76,8 @@ const NAV_GROUPS = [
     allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
       { label: 'Karyawan', icon: UserCog, path: '/admin/hr' },
+      { label: 'Absensi', icon: Clock, path: '/admin/hr?tab=attendance' },
+      { label: 'Gaji & Kas', icon: Banknote, path: '/admin/finance-cash?tab=salary' },
     ]
   },
   {
