@@ -269,7 +269,7 @@ export function AdminLayout() {
 
       {/* Sidebar - Collapsible */}
       <aside className={cn(
-        "fixed top-16 left-0 bottom-0 w-64 bg-background border-r z-30 transform transition-transform duration-300 lg:translate-x-0 overflow-y-auto",
+        "fixed top-16 left-0 bottom-0 w-64 bg-background border-r z-30 transform transition-transform duration-300 overflow-y-auto",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -360,10 +360,7 @@ export function AdminLayout() {
       )}
 
       {/* Main Content */}
-      <main className={cn(
-        "pt-16 min-h-screen transition-all duration-300",
-        sidebarOpen ? "lg:ml-64" : "ml-0"
-      )}>
+      <main className="pt-16 min-h-screen transition-all duration-300 ml-0">
         <div className="p-6">
           <AdminBreadcrumb />
           <Outlet />
