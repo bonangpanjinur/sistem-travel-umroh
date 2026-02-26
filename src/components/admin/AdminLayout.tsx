@@ -142,7 +142,7 @@ export function AdminLayout() {
   const { user, profile, signOut, isAdmin, roles, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Overview', 'Sales & CRM', 'Produk & Operasional']));
   
@@ -162,6 +162,8 @@ export function AdminLayout() {
       // On mobile, close sidebar; on desktop, keep current state
       if (!isLargeScreen) {
         setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
       }
     };
 
@@ -392,7 +394,7 @@ export function AdminLayout() {
       {/* Main Content - Responsive Margin */}
       <main className={cn(
         "pt-14 sm:pt-16 min-h-screen transition-all duration-300",
-        sidebarOpen ? "lg:ml-56 sm:lg:ml-64" : "ml-0"
+        sidebarOpen ? "lg:pl-64" : "pl-0"
       )}>
         <div className="p-3 sm:p-4 md:p-6">
           <AdminBreadcrumb />
