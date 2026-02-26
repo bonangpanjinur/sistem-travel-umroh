@@ -394,7 +394,7 @@ export function AdminLayout() {
       {/* Main Content - Responsive Margin */}
       <main className={cn(
         "pt-14 sm:pt-16 min-h-screen transition-all duration-300",
-        sidebarOpen ? "lg:pl-64" : "pl-0"
+        sidebarOpen && isDesktop ? "pl-56 sm:pl-64" : "pl-0"
       )}>
         <div className="p-3 sm:p-4 md:p-6">
           <AdminBreadcrumb />
