@@ -11,7 +11,7 @@ import {
   Settings, LogOut, Menu, X, Shield, UserCheck,
   FileBarChart, BarChart3, Target, KeyRound, BedDouble, Plane,
   Wallet, FileCheck, Building2, DollarSign, Truck, Gift,
-  Banknote, Clock,
+  Banknote, Clock, Briefcase, Smartphone,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
   FileType, Star, ExternalLink
@@ -75,9 +75,14 @@ const NAV_GROUPS = [
     label: 'SDM (HR)',
     allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
-      { label: 'Karyawan', icon: UserCog, path: '/admin/hr' },
+      { label: 'Karyawan', icon: UserCog, path: '/admin/hr?tab=employees' },
       { label: 'Absensi', icon: Clock, path: '/admin/hr?tab=attendance' },
+      { label: 'Departemen', icon: Building2, path: '/admin/hr?tab=departments' },
+      { label: 'Posisi', icon: Briefcase, path: '/admin/hr?tab=positions' },
+      { label: 'Jadwal Kerja', icon: Calendar, path: '/admin/hr?tab=schedules' },
+      { label: 'Perangkat', icon: Smartphone, path: '/admin/hr?tab=devices' },
       { label: 'Gaji & Kas', icon: Banknote, path: '/admin/finance-cash?tab=salary' },
+      { label: 'Pengaturan HR', icon: Settings, path: '/admin/hr?tab=settings' },
     ]
   },
   {
