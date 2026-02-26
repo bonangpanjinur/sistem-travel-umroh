@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "js-chunks",
               expiration: {
-                maxEntries: 100,
+                maxEntries: 150,
                 maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
               },
             },
@@ -77,17 +77,47 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks: (id) => {
           // Vendor chunks
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui/react-tabs', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-utils': ['zod', 'sonner', 'clsx', 'date-fns'],
-          // Admin pages chunks
-          'admin-appearance': ['./src/pages/admin/AdminAppearance.tsx'],
-          'admin-dashboard': ['./src/pages/admin/AdminDashboard.tsx'],
-          'admin-settings': ['./src/pages/admin/AdminSettings.tsx'],
+          if (id.includes('node_modules/react')) return 'vendor-react';
+          if (id.includes('node_modules/react-dom')) return 'vendor-react';
+          if (id.includes('node_modules/react-router-dom')) return 'vendor-react';
+          
+          if (id.includes('node_modules/@radix-ui')) return 'vendor-ui';
+          if (id.includes('node_modules/lucide-react')) return 'vendor-ui';
+          
+          if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('node_modules/@supabase')) return 'vendor-supabase';
+          
+          if (id.includes('node_modules/zod')) return 'vendor-utils';
+          if (id.includes('node_modules/sonner')) return 'vendor-utils';
+          if (id.includes('node_modules/clsx')) return 'vendor-utils';
+          if (id.includes('node_modules/date-fns')) return 'vendor-utils';
+          if (id.includes('node_modules/recharts')) return 'vendor-charts';
+          
+          // Page chunks - Public pages
+          if (id.includes('src/pages/packages/PackageDetail')) return 'page-package-detail';
+          if (id.includes('src/pages/packages/PackageList')) return 'page-package-list';
+          if (id.includes('src/pages/public/')) return 'page-public';
+          if (id.includes('src/pages/savings/')) return 'page-savings';
+          
+          // Page chunks - Admin pages
+          if (id.includes('src/pages/admin/AdminAppearance')) return 'page-admin-appearance';
+          if (id.includes('src/pages/admin/AdminDashboard')) return 'page-admin-dashboard';
+          if (id.includes('src/pages/admin/AdminSettings')) return 'page-admin-settings';
+          if (id.includes('src/pages/admin/AdminPackages')) return 'page-admin-packages';
+          if (id.includes('src/pages/admin/AdminBookings')) return 'page-admin-bookings';
+          if (id.includes('src/pages/admin/AdminFinance')) return 'page-admin-finance';
+          if (id.includes('src/pages/admin/')) return 'page-admin-other';
+          
+          // Page chunks - Customer pages
+          if (id.includes('src/pages/customer/')) return 'page-customer';
+          if (id.includes('src/pages/operational/')) return 'page-operational';
+          if (id.includes('src/pages/agent/')) return 'page-agent';
+          
+          // Component chunks
+          if (id.includes('src/components/admin/')) return 'comp-admin';
+          if (id.includes('src/components/')) return 'comp-shared';
         },
       },
     },

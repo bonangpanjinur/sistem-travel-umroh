@@ -19,12 +19,36 @@ if ("serviceWorker" in navigator) {
 }
 
 // Handle chunk load errors (failed to fetch dynamically imported module)
+let reloadAttempts = 0;
+const MAX_RELOAD_ATTEMPTS = 3;
+
 window.addEventListener('error', (event) => {
-  if (event.message.includes('Failed to fetch dynamically imported module') || 
-      (event.target && (event.target as any).tagName === 'SCRIPT' && (event.target as any).src.includes('/assets/'))) {
-    console.warn('Chunk load error detected, reloading page...');
-    window.location.reload();
+  const isChunkError = event.message?.includes('Failed to fetch dynamically imported module') || 
+      (event.target && (event.target as any).tagName === 'SCRIPT' && (event.target as any).src.includes('/assets/'));
+  
+  if (isChunkError) {
+    reloadAttempts++;
+    if (reloadAttempts <= MAX_RELOAD_ATTEMPTS) {
+      console.warn(`Chunk load error detected (attempt ${reloadAttempts}/${MAX_RELOAD_ATTEMPTS}), reloading page...`);
+      // Add a small delay before reload to avoid rapid reload loops
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      console.error('Max reload attempts reached. Chunk loading failed persistently.');
+    }
   }
 }, true);
+
+// Also handle promise rejection for dynamic imports
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason?.message?.includes('Failed to fetch dynamically imported module')) {
+    console.warn('Unhandled rejection: Chunk load error, reloading page...');
+    event.preventDefault();
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  }
+});
 
 createRoot(document.getElementById("root")!).render(<App />);
