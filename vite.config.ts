@@ -31,25 +31,14 @@ export default defineConfig(({ mode }) => ({
         start_url: "/jamaah",
         icons: [
           {
-            src: "/pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-          {
-            src: "/pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
+            src: "/favicon.ico",
+            sizes: "any",
+            type: "image/x-icon",
           },
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
         runtimeCaching: [
           {
@@ -64,6 +53,8 @@ export default defineConfig(({ mode }) => ({
             },
           },
         ],
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ].filter(Boolean),
