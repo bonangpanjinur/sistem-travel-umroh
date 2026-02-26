@@ -138,7 +138,7 @@ const NAV_GROUPS = [
   },
 ];
 
-export function AdminLayout() {
+function AdminLayout() {
   const { user, profile, signOut, isAdmin, roles, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -404,3 +404,5 @@ export function AdminLayout() {
     </div>
   );
 }
+
+export default AdminLayout;

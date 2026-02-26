@@ -1,7 +1,7 @@
 import { Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import { LoadingState } from "@/components/shared/LoadingState";
 
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
