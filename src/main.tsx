@@ -18,4 +18,13 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// Handle chunk load errors (failed to fetch dynamically imported module)
+window.addEventListener('error', (event) => {
+  if (event.message.includes('Failed to fetch dynamically imported module') || 
+      (event.target && (event.target as any).tagName === 'SCRIPT' && (event.target as any).src.includes('/assets/'))) {
+    console.warn('Chunk load error detected, reloading page...');
+    window.location.reload();
+  }
+}, true);
+
 createRoot(document.getElementById("root")!).render(<App />);
