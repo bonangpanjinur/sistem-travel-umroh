@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Layout, Sparkles } from "lucide-react";
+import { Check, Layout, Sparkles, Crown } from "lucide-react";
 import { WebsiteSettings, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 
 interface TemplateSelectorProps {
@@ -56,6 +56,30 @@ const templates = [
           <div className="h-10 bg-primary/10 rounded" />
           <div className="h-10 bg-primary/10 rounded" />
           <div className="h-10 bg-primary/10 rounded" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "luxury",
+    name: "Elegant Luxury",
+    description: "Desain eksklusif dengan tipografi serif, aksen emas, dan layout asimetris. Memberikan kesan premium dan terpercaya untuk layanan VVIP.",
+    icon: Crown,
+    features: ["Tipografi Serif Premium", "Aksen Emas & Border Halus", "Layout Asimetris"],
+    preview: (
+      <div className="space-y-2">
+        <div className="h-20 bg-gradient-to-br from-amber-500/10 to-primary/20 rounded-lg border border-amber-500/20 flex flex-col items-center justify-center text-[10px] text-amber-700 font-serif">
+          <Crown className="h-3 w-3 mb-1 text-amber-600" />
+          Exclusive Experience
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1 h-12 bg-muted/40 rounded border-l-2 border-amber-500" />
+          <div className="w-1/3 h-12 bg-muted/60 rounded" />
+        </div>
+        <div className="h-4 w-2/3 mx-auto bg-amber-500/10 rounded-full" />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-14 bg-white border border-amber-100 rounded shadow-sm" />
+          <div className="h-14 bg-white border border-amber-100 rounded shadow-sm" />
         </div>
       </div>
     ),
