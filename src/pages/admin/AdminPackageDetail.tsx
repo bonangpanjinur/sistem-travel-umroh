@@ -29,8 +29,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { formatCurrency, formatPackageType, formatDate } from "@/lib/format";
-import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane } from "lucide-react";
+import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye } from "lucide-react";
 import { useState } from "react";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
 import { PackageForm } from "@/components/admin/forms/PackageForm";
@@ -43,6 +48,7 @@ export default function AdminPackageDetail() {
   const [isPackageFormOpen, setIsPackageFormOpen] = useState(false);
   const [isLinkDepartureOpen, setIsLinkDepartureOpen] = useState(false);
   const [unlinkDeparture, setUnlinkDeparture] = useState<any>(null);
+  const [expandedDepartures, setExpandedDepartures] = useState<Set<string>>(new Set());
 
   const { data: packageData, isLoading } = useQuery({
     queryKey: ['admin-package', id],
@@ -73,7 +79,17 @@ export default function AdminPackageDetail() {
         .select(`
           *,
           departure_airport:airports!departures_departure_airport_id_fkey(code, city),
-          arrival_airport:airports!departures_arrival_airport_id_fkey(code, city)
+          arrival_airport:airports!departures_arrival_airport_id_fkey(code, city),
+          bookings(
+            id,
+            booking_code,
+            booking_status,
+            payment_status,
+            total_pax,
+            total_price,
+            paid_amount,
+            customer:customers(id, full_name, phone, email, nik)
+          )
         `)
         .eq('package_id', id)
         .order('departure_date', { ascending: true });
@@ -117,6 +133,50 @@ export default function AdminPackageDetail() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getBookingStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline">Pending</Badge>;
+      case 'confirmed':
+        return <Badge className="bg-blue-500">Confirmed</Badge>;
+      case 'processing':
+        return <Badge className="bg-yellow-500">Processing</Badge>;
+      case 'completed':
+        return <Badge className="bg-green-500">Completed</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
+      case 'refunded':
+        return <Badge variant="secondary">Refunded</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline">Belum Bayar</Badge>;
+      case 'partial':
+        return <Badge className="bg-yellow-500">Sebagian</Badge>;
+      case 'paid':
+        return <Badge className="bg-green-500">Lunas</Badge>;
+      case 'refunded':
+        return <Badge variant="secondary">Refund</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const toggleDepartureExpanded = (departureId: string) => {
+    const newExpanded = new Set(expandedDepartures);
+    if (newExpanded.has(departureId)) {
+      newExpanded.delete(departureId);
+    } else {
+      newExpanded.add(departureId);
+    }
+    setExpandedDepartures(newExpanded);
   };
 
   if (isLoading) {
@@ -279,12 +339,12 @@ export default function AdminPackageDetail() {
         </Card>
       </div>
 
-      {/* Departures */}
+      {/* Departures with Jamaah List */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Jadwal Keberangkatan
+            Jadwal Keberangkatan & Daftar Jamaah
           </CardTitle>
           <Button onClick={() => setIsLinkDepartureOpen(true)}>
             <Link2 className="h-4 w-4 mr-2" />
@@ -295,7 +355,7 @@ export default function AdminPackageDetail() {
           {departuresLoading ? (
             <Skeleton className="h-32" />
           ) : !departures || departures.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-12">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Belum ada jadwal keberangkatan terhubung</p>
               <p className="text-sm mt-1">
@@ -303,66 +363,134 @@ export default function AdminPackageDetail() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Rute</TableHead>
-                    <TableHead>Penerbangan</TableHead>
-                    <TableHead className="text-center">Kuota</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {departures.map((departure) => (
-                    <TableRow key={departure.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{formatDate(departure.departure_date)}</p>
-                          <p className="text-xs text-muted-foreground">
-                            s/d {formatDate(departure.return_date)}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span>{departure.departure_airport?.code || '-'}</span>
-                          <Plane className="h-3 w-3" />
-                          <span>{departure.arrival_airport?.code || '-'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p>{departure.flight_number || '-'}</p>
-                          {departure.departure_time && (
-                            <p className="text-xs text-muted-foreground">{departure.departure_time}</p>
+            <div className="space-y-4">
+              {departures.map((departure) => {
+                const isExpanded = expandedDepartures.has(departure.id);
+                const bookingCount = departure.bookings?.length || 0;
+                
+                return (
+                  <div key={departure.id} className="border rounded-lg">
+                    {/* Departure Header */}
+                    <Collapsible open={isExpanded} onOpenChange={() => toggleDepartureExpanded(departure.id)}>
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full px-4 py-3 hover:bg-muted/50 transition-colors flex items-center justify-between">
+                          <div className="flex-1 text-left">
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <div>
+                                <p className="font-medium">{formatDate(departure.departure_date)}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  s/d {formatDate(departure.return_date)}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <span>{departure.departure_airport?.code || '-'}</span>
+                                <Plane className="h-3 w-3" />
+                                <span>{departure.arrival_airport?.code || '-'}</span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-muted-foreground">Penerbangan:</span>
+                                <span className="ml-1 font-medium">{departure.flight_number || '-'}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-sm">
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                                <span>{departure.booked_count || 0}/{departure.quota}</span>
+                              </div>
+                              <div>{getStatusBadge(departure.status)}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <Badge variant="secondary">{bookingCount} Jamaah</Badge>
+                            <ChevronDown 
+                              className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="text-destructive hover:text-destructive ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUnlinkDeparture(departure);
+                            }}
+                            title="Lepas dari paket"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </button>
+                      </CollapsibleTrigger>
+
+                      {/* Jamaah List */}
+                      <CollapsibleContent className="border-t">
+                        <div className="p-4">
+                          {!departure.bookings || departure.bookings.length === 0 ? (
+                            <div className="text-center py-8">
+                              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm text-muted-foreground">Belum ada jamaah terdaftar pada keberangkatan ini</p>
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Nama Jamaah</TableHead>
+                                    <TableHead>NIK</TableHead>
+                                    <TableHead>Kode Booking</TableHead>
+                                    <TableHead>Status Booking</TableHead>
+                                    <TableHead>Status Pembayaran</TableHead>
+                                    <TableHead className="text-right">Harga</TableHead>
+                                    <TableHead className="text-right">Terbayar</TableHead>
+                                    <TableHead className="text-center">Aksi</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {departure.bookings.map((booking: any) => (
+                                    <TableRow key={booking.id}>
+                                      <TableCell>
+                                        <div>
+                                          <p className="font-medium">{booking.customer?.full_name || '-'}</p>
+                                          <p className="text-xs text-muted-foreground">{booking.customer?.phone || '-'}</p>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-sm">{booking.customer?.nik || '-'}</TableCell>
+                                      <TableCell>
+                                        <p className="font-mono text-sm">{booking.booking_code}</p>
+                                      </TableCell>
+                                      <TableCell>
+                                        {getBookingStatusBadge(booking.booking_status)}
+                                      </TableCell>
+                                      <TableCell>
+                                        {getPaymentStatusBadge(booking.payment_status)}
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium">
+                                        {formatCurrency(booking.total_price)}
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium">
+                                        {formatCurrency(booking.paid_amount)}
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon"
+                                          asChild
+                                          title="Lihat detail booking"
+                                        >
+                                          <Link to={`/admin/bookings/${booking.id}`}>
+                                            <Eye className="h-4 w-4" />
+                                          </Link>
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>{departure.booked_count || 0}/{departure.quota}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(departure.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setUnlinkDeparture(departure)}
-                          title="Lepas dari paket"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -419,7 +547,7 @@ export default function AdminPackageDetail() {
               Lepas
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </AlertDialog>
       </AlertDialog>
     </div>
   );
