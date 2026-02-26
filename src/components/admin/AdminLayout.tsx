@@ -16,7 +16,7 @@ import {
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
   FileType, Star, ExternalLink, ChevronDown, Hotel, Plane as PlaneIcon
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from 'lucide-react';
 
@@ -143,6 +143,7 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Overview', 'Sales & CRM', 'Produk & Operasional']));
   
   const {
@@ -152,6 +153,24 @@ export function AdminLayout() {
     markAllAsRead,
     clearAll,
   } = useAdminNotifications();
+
+  // Handle responsive sidebar behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const isLargeScreen = window.innerWidth >= 1024;
+      setIsDesktop(isLargeScreen);
+      // Auto-open sidebar on desktop, close on mobile
+      setSidebarOpen(isLargeScreen);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Initialize sidebar state based on screen size
+  useEffect(() => {
+    setSidebarOpen(isDesktop);
+  }, [isDesktop]);
 
   const handleLogout = async () => {
     await signOut();
@@ -209,32 +228,32 @@ export function AdminLayout() {
       <CommandPalette />
 
       {/* Desktop Header - Top Navigation Bar */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-background border-b z-40 flex items-center justify-between px-6">
+      <header className="fixed top-0 left-0 right-0 h-14 sm:h-16 bg-background border-b z-40 flex items-center justify-between px-3 sm:px-6">
         {/* Left side - Logo and Toggle */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="hidden lg:flex"
-            title="Toggle sidebar"
+            className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
+            title={sidebarOpen ? "Tutup sidebar" : "Buka sidebar"}
           >
-            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {sidebarOpen ? <X className="h-4 w-4 sm:h-5 sm:w-5" /> : <Menu className="h-4 w-4 sm:h-5 sm:w-5" />}
           </Button>
-          <Link to="/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
+          <Link to="/admin" className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs sm:text-sm flex-shrink-0">
               U
             </div>
-            <span className="font-semibold hidden sm:inline">UmrohTravel</span>
+            <span className="font-semibold hidden xs:inline text-sm sm:text-base truncate">UmrohTravel</span>
           </Link>
         </div>
 
         {/* Right side - Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 hidden sm:flex"
+            className="h-8 w-8 sm:h-10 sm:w-10 hidden sm:flex"
             onClick={() => {
               const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true });
               document.dispatchEvent(event);
@@ -254,27 +273,33 @@ export function AdminLayout() {
             variant="outline" 
             size="sm" 
             asChild
-            className="hidden sm:flex"
+            className="hidden md:flex text-xs sm:text-sm"
           >
             <a href="/" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Website
+              <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden lg:inline">Website</span>
             </a>
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="h-5 w-5" />
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-8 w-8 sm:h-10 sm:w-10"
+            onClick={handleLogout}
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         </div>
       </header>
 
-      {/* Sidebar - Collapsible */}
+      {/* Sidebar - Responsive */}
       <aside className={cn(
-        "fixed top-16 left-0 bottom-0 w-64 bg-background border-r z-30 transform transition-transform duration-300 overflow-y-auto",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed top-14 sm:top-16 left-0 bottom-0 w-56 sm:w-64 bg-background border-r z-30 transform transition-transform duration-300 ease-in-out overflow-y-auto",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex flex-col h-full">
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-3 sm:p-4 space-y-2">
             {NAV_GROUPS.filter((group) => {
               // If no allowedRoles defined, show to all admin users
               if (!group.allowedRoles) return true;
@@ -283,30 +308,33 @@ export function AdminLayout() {
             }).map((group) => {
               const isExpanded = isGroupExpanded(group.label);
               const hasActiveItem = group.items.some(item => isPathActive(item.path));
+              
               return (
                 <div key={group.label} className="space-y-1">
                   {/* Group Header with Toggle */}
                   <button
                     onClick={() => toggleGroup(group.label)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors text-sm font-semibold",
+                      "w-full flex items-center justify-between px-2 sm:px-3 py-2 rounded-lg transition-colors text-xs sm:text-sm font-semibold",
                       hasActiveItem 
                         ? "bg-primary/10 text-primary" 
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <span className="uppercase tracking-wider text-xs">{group.label}</span>
+                    <span className="uppercase tracking-wider text-xs truncate">{group.label}</span>
                     <ChevronDown 
                       className={cn(
-                        "h-4 w-4 transition-transform duration-200",
-                        isExpanded ? "rotate-180" : ""
+                        "h-3 w-3 sm:h-4 sm:w-4 transition-transform duration-200 flex-shrink-0"
                       )}
+                      style={{
+                        transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                      }}
                     />
                   </button>
 
                   {/* Group Items - Collapsible */}
                   {isExpanded && (
-                    <div className="space-y-1 pl-2 border-l border-muted ml-3">
+                    <div className="space-y-1 pl-2 sm:pl-3 border-l border-muted ml-2 sm:ml-3">
                       {group.items.map((item) => {
                         const isActive = isPathActive(item.path);
                         
@@ -314,15 +342,15 @@ export function AdminLayout() {
                           <Link
                             key={item.path}
                             to={item.path}
-                            onClick={() => setSidebarOpen(false)}
+                            onClick={() => !isDesktop && setSidebarOpen(false)}
                             className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                              "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-lg transition-colors text-xs sm:text-sm",
                               isActive 
                                 ? "bg-primary text-primary-foreground" 
                                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
                             )}
                           >
-                            <item.icon className="h-4 w-4 flex-shrink-0" />
+                            <item.icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                             <span className="truncate">{item.label}</span>
                           </Link>
                         );
@@ -335,15 +363,15 @@ export function AdminLayout() {
           </nav>
 
           {/* User Info at Bottom */}
-          <div className="p-4 border-t space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-primary font-semibold">
+          <div className="p-3 sm:p-4 border-t space-y-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-primary font-semibold text-xs sm:text-sm">
                   {profile?.full_name?.charAt(0) || 'A'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate text-sm">{profile?.full_name || 'Admin'}</p>
+                <p className="font-medium truncate text-xs sm:text-sm">{profile?.full_name || 'Admin'}</p>
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
@@ -352,16 +380,19 @@ export function AdminLayout() {
       </aside>
 
       {/* Overlay for mobile/tablet when sidebar is open */}
-      {sidebarOpen && (
+      {sidebarOpen && !isDesktop && (
         <div 
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden top-16" 
+          className="fixed inset-0 bg-black/50 z-20 top-14 sm:top-16" 
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Main Content */}
-      <main className="pt-16 min-h-screen transition-all duration-300 ml-0">
-        <div className="p-6">
+      {/* Main Content - Responsive Margin */}
+      <main className={cn(
+        "pt-14 sm:pt-16 min-h-screen transition-all duration-300",
+        sidebarOpen || isDesktop ? "lg:ml-56 sm:lg:ml-64" : "ml-0"
+      )}>
+        <div className="p-3 sm:p-4 md:p-6">
           <AdminBreadcrumb />
           <Outlet />
         </div>
