@@ -547,7 +547,7 @@ export default function AdminPackageDetail() {
               Lepas
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialog>
+        </AlertDialogContent>
       </AlertDialog>
     </div>
   );
