@@ -50,7 +50,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Keuangan',
-    allowedRoles: ['super_admin', 'owner', 'finance', 'operational'],
+    allowedRoles: ['super_admin', 'owner', 'finance', 'operational', 'branch_manager'],
     items: [
       { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments' },
       { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance' },
