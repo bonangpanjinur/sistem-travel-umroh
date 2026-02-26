@@ -208,13 +208,41 @@ export function AdminLayout() {
     <div className="min-h-screen bg-muted/30">
       <CommandPalette />
 
-      {/* Mobile/Tablet Header */}
-      <header className="xl:hidden fixed top-0 left-0 right-0 h-16 bg-background border-b z-50 flex items-center justify-between px-4">
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-        <span className="font-semibold">Admin Panel</span>
-        <div className="flex items-center gap-1">
+      {/* Desktop Header - Top Navigation Bar */}
+      <header className="fixed top-0 left-0 right-0 h-16 bg-background border-b z-40 flex items-center justify-between px-6">
+        {/* Left side - Logo and Toggle */}
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="hidden lg:flex"
+            title="Toggle sidebar"
+          >
+            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+          <Link to="/admin" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
+              U
+            </div>
+            <span className="font-semibold hidden sm:inline">UmrohTravel</span>
+          </Link>
+        </div>
+
+        {/* Right side - Actions */}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hidden sm:flex"
+            onClick={() => {
+              const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true });
+              document.dispatchEvent(event);
+            }}
+            title="Cari halaman (Ctrl+K)"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
           <NotificationBell
             notifications={notifications}
             unreadCount={unreadCount}
@@ -222,51 +250,31 @@ export function AdminLayout() {
             onMarkAllAsRead={markAllAsRead}
             onClearAll={clearAll}
           />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            asChild
+            className="hidden sm:flex"
+          >
+            <a href="/" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Website
+            </a>
+          </Button>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />
           </Button>
         </div>
       </header>
 
-      {/* Sidebar - visible on xl+, togglable on mobile/tablet */}
+      {/* Sidebar - Collapsible */}
       <aside className={cn(
-        "fixed top-0 left-0 bottom-0 w-64 bg-background border-r z-40 transform transition-transform xl:translate-x-0",
+        "fixed top-16 left-0 bottom-0 w-64 bg-background border-r z-30 transform transition-transform duration-300 lg:translate-x-0 overflow-y-auto",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="h-16 flex items-center justify-between px-6 border-b">
-            <Link to="/admin" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
-                U
-              </div>
-              <span className="font-semibold">UmrohTravel</span>
-            </Link>
-            <div className="hidden xl:flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => {
-                  const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true });
-                  document.dispatchEvent(event);
-                }}
-                title="Cari halaman (Ctrl+K)"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-              <NotificationBell
-                notifications={notifications}
-                unreadCount={unreadCount}
-                onMarkAsRead={markAsRead}
-                onMarkAllAsRead={markAllAsRead}
-                onClearAll={clearAll}
-              />
-            </div>
-          </div>
-
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <nav className="flex-1 p-4 space-y-2">
             {NAV_GROUPS.filter((group) => {
               // If no allowedRoles defined, show to all admin users
               if (!group.allowedRoles) return true;
@@ -275,7 +283,6 @@ export function AdminLayout() {
             }).map((group) => {
               const isExpanded = isGroupExpanded(group.label);
               const hasActiveItem = group.items.some(item => isPathActive(item.path));
-              
               return (
                 <div key={group.label} className="space-y-1">
                   {/* Group Header with Toggle */}
@@ -327,14 +334,8 @@ export function AdminLayout() {
             })}
           </nav>
 
-          {/* Back to Website + User Info */}
+          {/* User Info at Bottom */}
           <div className="p-4 border-t space-y-3">
-            <Button variant="outline" size="sm" className="w-full" asChild>
-              <a href="/" target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Kembali ke Website
-              </a>
-            </Button>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-primary font-semibold">
@@ -346,24 +347,23 @@ export function AdminLayout() {
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
           </div>
         </div>
       </aside>
 
-      {/* Overlay for mobile/tablet */}
+      {/* Overlay for mobile/tablet when sidebar is open */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-30 xl:hidden" 
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden top-16" 
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <main className="xl:pl-64 pt-16 xl:pt-6 min-h-screen transition-all duration-300">
+      <main className={cn(
+        "pt-16 min-h-screen transition-all duration-300",
+        sidebarOpen ? "lg:ml-64" : "ml-0"
+      )}>
         <div className="p-6">
           <AdminBreadcrumb />
           <Outlet />
