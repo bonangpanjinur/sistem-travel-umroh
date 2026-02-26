@@ -14,7 +14,7 @@ import {
   Banknote, Clock, Briefcase, Smartphone,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
-  FileType, Star, ExternalLink, ChevronDown
+  FileType, Star, ExternalLink, ChevronDown, Hotel, Plane as PlaneIcon
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -60,7 +60,6 @@ const NAV_GROUPS = [
       { label: 'Hutang Vendor', icon: Truck, path: '/admin/finance/ap' },
       { label: 'Laporan Laba Rugi', icon: DollarSign, path: '/admin/finance' },
       { label: 'Vendor', icon: Building2, path: '/admin/vendors' },
-      { label: 'Tabungan', icon: Wallet, path: '/admin/savings' },
     ]
   },
   {
@@ -144,6 +143,7 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Overview', 'Sales & CRM', 'Produk & Operasional']));
   
   const {
     notifications,
@@ -156,6 +156,25 @@ export function AdminLayout() {
   const handleLogout = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const toggleGroup = (groupLabel: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupLabel)) {
+      newExpanded.delete(groupLabel);
+    } else {
+      newExpanded.add(groupLabel);
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  const isGroupExpanded = (groupLabel: string) => {
+    return expandedGroups.has(groupLabel);
+  };
+
+  const isPathActive = (path: string) => {
+    return location.pathname === path || 
+      (path !== '/admin' && location.pathname.startsWith(path));
   };
 
   if (isLoading) {
@@ -247,42 +266,65 @@ export function AdminLayout() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-  {NAV_GROUPS.filter((group) => {
-                // If no allowedRoles defined, show to all admin users
-                if (!group.allowedRoles) return true;
-                // Check if user has any of the allowed roles
-                return group.allowedRoles.some(role => roles.includes(role as AppRole));
-              }).map((group) => (
-              <div key={group.label}>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
-                  {group.label}
-                </p>
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    const isActive = location.pathname === item.path || 
-                      (item.path !== '/admin' && location.pathname.startsWith(item.path));
-                    
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setSidebarOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
-                          isActive 
-                            ? "bg-primary text-primary-foreground" 
-                            : "hover:bg-muted"
-                        )}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            {NAV_GROUPS.filter((group) => {
+              // If no allowedRoles defined, show to all admin users
+              if (!group.allowedRoles) return true;
+              // Check if user has any of the allowed roles
+              return group.allowedRoles.some(role => roles.includes(role as AppRole));
+            }).map((group) => {
+              const isExpanded = isGroupExpanded(group.label);
+              const hasActiveItem = group.items.some(item => isPathActive(item.path));
+              
+              return (
+                <div key={group.label} className="space-y-1">
+                  {/* Group Header with Toggle */}
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors text-sm font-semibold",
+                      hasActiveItem 
+                        ? "bg-primary/10 text-primary" 
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <span className="uppercase tracking-wider text-xs">{group.label}</span>
+                    <ChevronDown 
+                      className={cn(
+                        "h-4 w-4 transition-transform duration-200",
+                        isExpanded ? "rotate-180" : ""
+                      )}
+                    />
+                  </button>
+
+                  {/* Group Items - Collapsible */}
+                  {isExpanded && (
+                    <div className="space-y-1 pl-2 border-l border-muted ml-3">
+                      {group.items.map((item) => {
+                        const isActive = isPathActive(item.path);
+                        
+                        return (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setSidebarOpen(false)}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                              isActive 
+                                ? "bg-primary text-primary-foreground" 
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                          >
+                            <item.icon className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
 
           {/* Back to Website + User Info */}
@@ -294,13 +336,13 @@ export function AdminLayout() {
               </a>
             </Button>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-primary font-semibold">
                   {profile?.full_name?.charAt(0) || 'A'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{profile?.full_name || 'Admin'}</p>
+                <p className="font-medium truncate text-sm">{profile?.full_name || 'Admin'}</p>
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
