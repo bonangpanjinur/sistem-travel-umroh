@@ -9,7 +9,7 @@ import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { 
   LayoutDashboard, Package, Users, Calendar, CreditCard, 
   Settings, LogOut, Menu, X, Shield, UserCheck,
-  FileBarChart, BarChart3, Target, KeyRound, BedDouble, Plane,
+  FileBarChart, BarChart3, Target, KeyRound, BedDouble, Plane, Box,
   Wallet, FileCheck, Building2, DollarSign, Truck, Gift,
   Banknote, Clock, Briefcase, Smartphone,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
@@ -44,6 +44,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Paket', icon: Package, path: '/admin/packages' },
       { label: 'Keberangkatan', icon: Plane, path: '/admin/departures' },
+      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment' },
       { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates' },
       { label: 'Tabungan', icon: Wallet, path: '/admin/savings' },
       { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments' },
