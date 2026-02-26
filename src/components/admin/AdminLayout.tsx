@@ -49,14 +49,6 @@ const NAV_GROUPS = [
     ]
   },
   {
-    label: 'Perlengkapan',
-    allowedRoles: ['super_admin', 'owner', 'equipment'],
-    items: [
-      { label: 'Manajemen Aset', icon: Package, path: '/admin/equipment-assets' },
-      { label: 'Jadwal Maintenance', icon: Calendar, path: '/admin/equipment-maintenance' },
-    ]
-  },
-  {
     label: 'Keuangan',
     allowedRoles: ['super_admin', 'owner', 'finance', 'operational'],
     items: [

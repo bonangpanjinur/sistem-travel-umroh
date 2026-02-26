@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   const effectiveBranchId = hasRole('super_admin') || hasRole('owner') ? null : branchId;
   const { data: stats, isLoading } = useDashboardStats(effectiveBranchId);
   const { data: recentBookings } = useRecentBookings(effectiveBranchId);
-  const { data: upcomingDepartures } = useUpcomingDepartures();
+  const { data: upcomingDepartures } = useUpcomingDepartures(effectiveBranchId);
 
   // Auto-refresh dashboard when bookings or payments change
   useRealtimeSubscription('bookings', [
@@ -262,7 +262,7 @@ export default function AdminDashboard() {
                   <div className="text-right">
                     <p className="font-semibold">{formatCurrency(booking.total_price)}</p>
                     <p className="text-xs text-muted-foreground capitalize">
-                      {booking.payment_status}
+                      {({ pending: 'Menunggu', unpaid: 'Belum Bayar', partial: 'Sebagian', paid: 'Lunas', refunded: 'Dikembalikan' } as Record<string, string>)[booking.payment_status || ''] || booking.payment_status}
                     </p>
                   </div>
                 </div>

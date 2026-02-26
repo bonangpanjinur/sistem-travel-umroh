@@ -24,10 +24,12 @@ export function useDashboardStats(branchId?: string | null) {
       if (branchId) customerQuery = customerQuery.eq('branch_id', branchId);
       const { count: customerCount } = await customerQuery;
 
-      const { data: pendingPayments } = await supabase
+      let pendingQuery = supabase
         .from('payments')
-        .select('amount')
+        .select('amount, booking:bookings!inner(branch_id)')
         .eq('status', 'pending');
+      if (branchId) pendingQuery = pendingQuery.eq('booking.branch_id', branchId);
+      const { data: pendingPayments } = await pendingQuery;
 
       const totalRevenue = bookings?.reduce((sum, b) => sum + (b.paid_amount || 0), 0) || 0;
       const totalBookings = bookings?.length || 0;
@@ -62,8 +64,15 @@ export function useDashboardStats(branchId?: string | null) {
         const status = b.booking_status || 'pending';
         statusMap[status] = (statusMap[status] || 0) + 1;
       });
+      const bookingStatusLabels: Record<string, string> = {
+        pending: 'Menunggu',
+        confirmed: 'Dikonfirmasi',
+        cancelled: 'Dibatalkan',
+        completed: 'Selesai',
+        waiting_payment: 'Menunggu Pembayaran',
+      };
       const statusData = Object.entries(statusMap).map(([name, value]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
+        name: bookingStatusLabels[name] || name.charAt(0).toUpperCase() + name.slice(1),
         value
       }));
 
@@ -72,8 +81,15 @@ export function useDashboardStats(branchId?: string | null) {
         const status = b.payment_status || 'pending';
         paymentMap[status] = (paymentMap[status] || 0) + 1;
       });
+      const paymentStatusLabels: Record<string, string> = {
+        pending: 'Menunggu',
+        unpaid: 'Belum Bayar',
+        partial: 'Sebagian',
+        paid: 'Lunas',
+        refunded: 'Dikembalikan',
+      };
       const paymentData = Object.entries(paymentMap).map(([name, value]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
+        name: paymentStatusLabels[name] || name.charAt(0).toUpperCase() + name.slice(1),
         value
       }));
 
@@ -116,11 +132,11 @@ export function useRecentBookings(branchId?: string | null) {
   });
 }
 
-export function useUpcomingDepartures() {
+export function useUpcomingDepartures(branchId?: string | null) {
   return useQuery({
-    queryKey: ['admin-upcoming-departures'],
+    queryKey: ['admin-upcoming-departures', branchId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('departures')
         .select(`
           id, departure_date, quota, booked_count,
@@ -129,6 +145,7 @@ export function useUpcomingDepartures() {
         .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date', { ascending: true })
         .limit(5);
+      const { data, error } = await query;
       if (error) throw error;
       
       return data as (Pick<Departure, 'id' | 'departure_date' | 'quota' | 'booked_count'> & {
