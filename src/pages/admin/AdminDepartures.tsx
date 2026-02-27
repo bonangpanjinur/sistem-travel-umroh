@@ -307,10 +307,10 @@ export default function AdminDepartures() {
                     <TableHead>Maskapai & Rute</TableHead>
                     <TableHead>Hotel Makkah</TableHead>
                     <TableHead>Hotel Madinah</TableHead>
-                    <TableHead>Harga per Kamar</TableHead>
+                    <TableHead className="min-w-[140px]">Harga per Kamar</TableHead>
                     <TableHead className="text-center">Kuota</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
+                    <TableHead className="text-right w-[60px]">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -425,64 +425,50 @@ export default function AdminDepartures() {
                       </TableCell>
                       <TableCell>{getStatusBadge(dep.status)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" title="Kirim Notifikasi">
-                                <MessageCircle className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                onClick={() => sendNotificationMutation.mutate({ 
-                                  departureId: dep.id, 
-                                  type: 'departure_reminder' 
-                                })}
-                              >
-                                <Bell className="h-4 w-4 mr-2" />
-                                Kirim Reminder H-3
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => sendNotificationMutation.mutate({ 
-                                  departureId: dep.id, 
-                                  type: 'welcome_umrah' 
-                                })}
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Kirim Ucapan Selamat
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title="Lihat P&L"
-                            asChild
-                          >
-                            <Link to="/admin/finance/pl">
-                              <DollarSign className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title="Itinerary"
-                            onClick={() => setItineraryDeparture(dep)}
-                          >
-                            <MapPin className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(dep)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteDeparture(dep)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(dep)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setItineraryDeparture(dep)}>
+                              <MapPin className="h-4 w-4 mr-2" />
+                              Itinerary
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link to="/admin/finance/pl">
+                                <DollarSign className="h-4 w-4 mr-2" />
+                                Lihat P&L
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'departure_reminder' })}
+                            >
+                              <Bell className="h-4 w-4 mr-2" />
+                              Kirim Reminder H-3
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'welcome_umrah' })}
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              Kirim Ucapan Selamat
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteDeparture(dep)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Hapus
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}

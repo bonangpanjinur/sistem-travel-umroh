@@ -84,7 +84,7 @@ export default function AdminPayroll() {
     const workDays = 22; // Standard working days per month
     const attendanceDays = empAttendance.filter(a => a.status === "present").length;
     const absentDays = workDays - attendanceDays;
-    const lateCount = empAttendance.filter(a => a.is_late).length;
+    const lateCount = empAttendance.filter(a => (a as any).is_late).length;
 
     const baseSalary = emp.salary || 0;
     const dailyRate = baseSalary / workDays;

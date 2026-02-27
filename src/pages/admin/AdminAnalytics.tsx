@@ -570,29 +570,29 @@ interface StatCardProps {
 function StatCard({ title, value, icon: Icon, loading, subtitle, trend }: StatCardProps) {
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
             {loading ? (
               <Skeleton className="h-8 w-24 mt-1" />
             ) : (
               <>
-                <p className="text-2xl font-bold">{value}</p>
+                <p className="text-xl sm:text-2xl font-bold truncate">{value}</p>
                 {subtitle && (
                   <p className="text-xs text-muted-foreground">{subtitle}</p>
                 )}
                 {trend && (
                   <p className="text-xs text-green-600 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
+                    <TrendingUp className="h-3 w-3 shrink-0" />
                     {trend} dari periode sebelumnya
                   </p>
                 )}
               </>
             )}
           </div>
-          <div className="p-3 rounded-full bg-primary/10">
-            <Icon className="h-6 w-6 text-primary" />
+          <div className="p-2 sm:p-3 rounded-full bg-primary/10 shrink-0">
+            <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
           </div>
         </div>
       </CardContent>

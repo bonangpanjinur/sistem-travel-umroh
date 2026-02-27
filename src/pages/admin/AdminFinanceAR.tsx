@@ -49,7 +49,7 @@ export default function AdminFinanceAR() {
           booking_code,
           total_price,
           paid_amount,
-          status,
+          payment_status,
           created_at,
           customer:customers(full_name, phone, email)
         `)
@@ -58,18 +58,21 @@ export default function AdminFinanceAR() {
       if (error) throw error;
       
       // Transform to AR format
-      return data?.map(b => ({
-        id: b.id,
-        booking_code: b.booking_code,
-        customer_name: b.customer?.full_name || "Unknown",
-        customer_phone: b.customer?.phone,
-        customer_email: b.customer?.email,
-        total_amount: b.total_price,
-        paid_amount: b.paid_amount || 0,
-        outstanding: (b.total_price || 0) - (b.paid_amount || 0),
-        status: b.status,
-        created_at: b.created_at,
-      })) || [];
+      return data?.map(b => {
+        const customer = Array.isArray(b.customer) ? b.customer[0] : b.customer;
+        return {
+          id: b.id,
+          booking_code: b.booking_code,
+          customer_name: customer?.full_name || "Unknown",
+          customer_phone: customer?.phone,
+          customer_email: customer?.email,
+          total_amount: b.total_price,
+          paid_amount: b.paid_amount || 0,
+          outstanding: (b.total_price || 0) - (b.paid_amount || 0),
+          status: b.payment_status,
+          created_at: b.created_at,
+        };
+      }) || [];
     },
   });
 

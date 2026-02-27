@@ -1924,6 +1924,42 @@ export type Database = {
         }
         Relationships: []
       }
+      itinerary_templates: {
+        Row: {
+          created_at: string
+          days: Json
+          description: string | null
+          duration_days: number
+          id: string
+          is_active: boolean
+          name: string
+          package_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days?: Json
+          description?: string | null
+          duration_days?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          package_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days?: Json
+          description?: string | null
+          duration_days?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          package_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jamaah_live_locations: {
         Row: {
           accuracy: number | null
