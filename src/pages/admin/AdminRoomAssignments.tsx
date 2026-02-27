@@ -164,6 +164,23 @@ export default function AdminRoomAssignments() {
     },
   });
 
+  // Update room number for any passenger
+  const updateRoomMutation = useMutation({
+    mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
+      const { error } = await supabase.from('booking_passengers')
+        .update({ room_number: roomNumber || null })
+        .eq('id', passengerId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Nomor kamar diperbarui!");
+      queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
+    },
+    onError: (error) => {
+      toast.error("Gagal update: " + error.message);
+    },
+  });
+
   // Paired groups for double
   const pairedGroups: Passenger[][] = [];
   const processedIds = new Set<string>();
@@ -517,7 +534,13 @@ export default function AdminRoomAssignments() {
                                 <TableCell>
                                   <Badge variant="outline">{ROOM_TYPE_LABELS[passenger.room_preference || ''] || '-'}</Badge>
                                 </TableCell>
-                                <TableCell>{passenger.room_number || '-'}</TableCell>
+                                <TableCell>
+                                  <RoomNumberInput 
+                                    passengerId={passenger.id} 
+                                    currentValue={passenger.room_number || ''} 
+                                    onSave={(val) => updateRoomMutation.mutate({ passengerId: passenger.id, roomNumber: val })}
+                                  />
+                                </TableCell>
                                 <TableCell>{roommate?.customer?.full_name || '-'}</TableCell>
                                 <TableCell>
                                   <Badge variant="outline">{passenger.booking?.booking_code}</Badge>
@@ -650,5 +673,42 @@ function PairingDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RoomNumberInput({ passengerId, currentValue, onSave }: { 
+  passengerId: string; currentValue: string; onSave: (val: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentValue);
+
+  if (!editing) {
+    return (
+      <button 
+        className="text-left hover:bg-muted px-2 py-1 rounded cursor-pointer min-w-[60px] text-sm"
+        onClick={() => { setValue(currentValue); setEditing(true); }}
+      >
+        {currentValue || <span className="text-muted-foreground">—</span>}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input 
+        className="h-7 w-20 text-sm" 
+        value={value} 
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { onSave(value); setEditing(false); }
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        autoFocus
+        placeholder="301"
+      />
+      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { onSave(value); setEditing(false); }}>
+        <Check className="h-3 w-3" />
+      </Button>
+    </div>
   );
 }

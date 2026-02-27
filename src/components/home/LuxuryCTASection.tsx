@@ -31,14 +31,14 @@ export function LuxuryCTASection({ settings: propSettings }: LuxuryCTASectionPro
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <Button asChild size="xl" className="bg-amber-500 hover:bg-amber-600 text-[#1a2e25] font-bold px-10 py-8 rounded-none transition-transform hover:-translate-y-1 shadow-2xl">
+            <Button asChild size="lg" className="bg-amber-500 hover:bg-amber-600 text-[#1a2e25] font-bold px-10 py-8 rounded-none transition-transform hover:-translate-y-1 shadow-2xl">
               <Link to={heroCTALink} className="flex items-center gap-3">
                 <Calendar className="h-5 w-5" />
                 {heroCTAText}
               </Link>
             </Button>
             
-            <Button asChild size="xl" variant="outline" className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 px-10 py-8 rounded-none">
+            <Button asChild size="lg" variant="outline" className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 px-10 py-8 rounded-none">
               <Link to="/contact" className="flex items-center gap-3">
                 <MessageSquare className="h-5 w-5" />
                 Konsultasi WhatsApp
