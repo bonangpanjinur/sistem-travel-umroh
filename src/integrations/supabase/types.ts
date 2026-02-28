@@ -2969,6 +2969,60 @@ export type Database = {
           },
         ]
       }
+      preparation_checklists: {
+        Row: {
+          booking_id: string | null
+          category: string
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          is_completed: boolean
+          item_key: string
+          item_label: string
+          notes: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_completed?: boolean
+          item_key: string
+          item_label: string
+          notes?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_completed?: boolean
+          item_key?: string
+          item_label?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preparation_checklists_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preparation_checklists_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
@@ -4058,6 +4112,88 @@ export type Database = {
           vendor_type?: string
         }
         Relationships: []
+      }
+      visa_applications: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          customer_id: string
+          departure_id: string | null
+          id: string
+          notes: string | null
+          passport_expiry: string | null
+          passport_number: string | null
+          processed_by: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          visa_expiry: string | null
+          visa_number: string | null
+          visa_type: string
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          customer_id: string
+          departure_id?: string | null
+          id?: string
+          notes?: string | null
+          passport_expiry?: string | null
+          passport_number?: string | null
+          processed_by?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          visa_expiry?: string | null
+          visa_number?: string | null
+          visa_type?: string
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          customer_id?: string
+          departure_id?: string | null
+          id?: string
+          notes?: string | null
+          passport_expiry?: string | null
+          passport_number?: string | null
+          processed_by?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          visa_expiry?: string | null
+          visa_number?: string | null
+          visa_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visa_applications_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visa_applications_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visa_applications_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["departure_id"]
+          },
+        ]
       }
       website_settings: {
         Row: {

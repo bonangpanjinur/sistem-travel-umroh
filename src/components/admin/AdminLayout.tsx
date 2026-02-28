@@ -71,6 +71,8 @@ const NAV_GROUPS = [
       { label: 'Loyalty', icon: Gift, path: '/admin/loyalty' },
       { label: 'Referral', icon: Share2, path: '/admin/referrals' },
       { label: 'Haji', icon: BookOpen, path: '/admin/haji' },
+      { label: 'Manasik', icon: Calendar, path: '/admin/manasik' },
+      { label: 'Visa', icon: FileCheck, path: '/admin/visa' },
     ]
   },
   {

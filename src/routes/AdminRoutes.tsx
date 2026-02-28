@@ -53,6 +53,8 @@ const AdminMarketingMaterials = lazy(() => import("@/pages/admin/AdminMarketingM
 const AdminFinanceAR = lazy(() => import("@/pages/admin/AdminFinanceAR"));
 const AdminFinanceAP = lazy(() => import("@/pages/admin/AdminFinanceAP"));
 const AdminPayroll = lazy(() => import("@/pages/admin/AdminPayroll"));
+const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
+const AdminVisaManagement = lazy(() => import("@/pages/admin/AdminVisaManagement"));
 
 const ADMIN_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment'] as const;
 
@@ -119,6 +121,8 @@ export default function AdminRoutes() {
       <Route path="finance/ar" element={<LazyPage><AdminFinanceAR /></LazyPage>} />
       <Route path="finance/ap" element={<LazyPage><AdminFinanceAP /></LazyPage>} />
       <Route path="hr/payroll" element={<LazyPage><AdminPayroll /></LazyPage>} />
+      <Route path="manasik" element={<LazyPage><AdminManasik /></LazyPage>} />
+      <Route path="visa" element={<LazyPage><AdminVisaManagement /></LazyPage>} />
     </Route>
   );
 }
