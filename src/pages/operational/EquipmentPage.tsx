@@ -105,9 +105,10 @@ export default function EquipmentPage() {
       const { data, error } = await supabase
         .from("booking_passengers")
         .select(`
-          customer:customers(id, full_name)
+          customer:customers(id, full_name),
+          booking:bookings!inner(departure_id)
         `)
-        .eq("booking_id", selectedDeparture);
+        .eq("booking.departure_id", selectedDeparture);
       
       if (error) {
         // Fallback to all customers if join fails

@@ -145,6 +145,8 @@ export function useUpcomingDepartures(branchId?: string | null) {
         .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date', { ascending: true })
         .limit(5);
+      // Note: departures table has no branch_id column, so branch filtering
+      // is not directly possible here without a subquery via bookings.
       const { data, error } = await query;
       if (error) throw error;
       
