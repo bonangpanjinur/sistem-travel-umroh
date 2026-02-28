@@ -1,106 +1,103 @@
 
-# Rencana Perbaikan: Bug Dashboard Admin & Alur Kerja Kamar
+# Audit Bug Keseluruhan & Rencana Perbaikan
 
-## A. BUG YANG DITEMUKAN
+## A. BUG KRITIS (Menyebabkan Error / Crash)
 
-### BUG 1: Menu "Perlengkapan" Mengarah ke Halaman 404 (KRITIS)
-Sidebar memiliki 2 link di grup "Perlengkapan":
-- `/admin/equipment-assets` (Manajemen Aset)
-- `/admin/equipment-maintenance` (Jadwal Maintenance)
-
-Tetapi **tidak ada route** yang terdaftar di `AdminRoutes.tsx` untuk kedua path ini. Klik menu ini akan menampilkan halaman kosong/404.
-
-**Fix:** Hapus grup "Perlengkapan" dari sidebar karena halaman belum dibuat, atau buat halaman placeholder.
-
----
-
-### BUG 2: Dashboard - Label Status Tidak Diterjemahkan (RENDAH)
-Di `AdminDashboard.tsx` baris 169 dan 265, status booking dan pembayaran ditampilkan mentah dalam bahasa Inggris (e.g. "Confirmed", "Pending", "Partial") tanpa label Indonesia.
-
-**Fix:** Gunakan mapping label Indonesia seperti yang sudah ada di `AdminBookings.tsx`.
-
----
-
-### BUG 3: Dashboard - Pending Payments Tidak Filter per Cabang (MEDIUM)
-Di `useDashboardStats.ts` baris 27-30, query `pendingPayments` mengambil **semua** payment pending tanpa filter `branch_id`. Sehingga Branch Manager melihat jumlah pending payment dari seluruh cabang.
-
-**Fix:** Filter pending payments berdasarkan booking yang terkait dengan branch_id.
-
----
-
-### BUG 4: Dashboard - Upcoming Departures Tidak Filter per Cabang (MEDIUM)
-`useUpcomingDepartures()` tidak menerima parameter `branchId` sama sekali. Branch Manager melihat keberangkatan dari semua cabang.
-
-**Fix:** Tambahkan parameter `branchId` dan filter sesuai.
-
----
-
-## B. ANALISIS ALUR KERJA KAMAR
-
-### Mengapa Menu Kamar Kosong?
-
-Halaman "Kamar" (`AdminRoomAssignments.tsx`) dirancang **hanya** untuk jamaah dengan `room_preference = 'double'` (baris 108). Ini karena tujuan fitur kamar adalah memasangkan 2 jamaah yang memilih tipe kamar sharing/double.
-
-Masalah: Data dummy yang dibuat sebelumnya mengisi `room_preference` dengan nilai `'quad'` dan `'single'`, **bukan** `'double'`. Sehingga query filter `.eq('room_preference', 'double')` tidak mengembalikan hasil apapun.
-
-### Alur Kerja Kamar yang Benar
-
-```text
-1. Jamaah booking paket --> pilih tipe kamar (quad/triple/double/single)
-2. Admin buka menu Kamar --> pilih Paket --> pilih Keberangkatan
-3. Sistem menampilkan jamaah yang perlu dipasangkan (double/sharing)
-4. Admin klik "Pasangkan" --> pilih teman sekamar (gender sama)
-5. Admin bisa atur nomor kamar
-6. Jamaah quad/single tidak perlu pairing manual
+### BUG 1: EquipmentPage - Query Salah untuk Customer
+**File:** `src/pages/operational/EquipmentPage.tsx` baris 110
+**Masalah:** Query filter menggunakan `.eq("booking_id", selectedDeparture)` tapi `selectedDeparture` adalah ID dari tabel `departures`, bukan `bookings`. Ini menyebabkan query selalu gagal dan fallback ke semua customer.
+**Dampak:** Distribusi perlengkapan tidak bisa menampilkan jamaah per keberangkatan yang benar.
+**Fix:** Ubah query agar join via bookings yang punya `departure_id` = selectedDeparture:
+```sql
+booking_passengers.select('customer:customers(id, full_name), booking:bookings!inner(departure_id)')
+  .eq('booking.departure_id', selectedDeparture)
 ```
 
-### Masalah Desain Saat Ini
-- Hanya menampilkan jamaah `double`, padahal semua tipe kamar butuh manajemen
-- Tidak ada tombol export data kamar (PDF/Excel)
-- Tidak ada ringkasan per tipe kamar (quad berapa, double berapa, dll)
+### BUG 2: DB Error - "column bookings.status does not exist"
+**Sumber:** Error di Postgres logs. Kolom yang benar adalah `booking_status` dan `payment_status`, bukan `status`.
+**Investigasi:** Error ini muncul dari query yang masuk via API. Setelah audit semua file frontend, tidak ditemukan query `.status` langsung di bookings. Kemungkinan berasal dari edge function `send-whatsapp-trigger` atau `send-whatsapp-notification` yang mengakses `booking.status` alih-alih `booking.booking_status`.
+**Fix:** Periksa dan perbaiki edge functions yang mengakses `booking.status`.
+
+### BUG 3: DB Error - "column employees.employee_id does not exist"
+**Sumber:** Error di Postgres logs. Kolom yang benar di tabel `employees` adalah `id`, bukan `employee_id`. Kolom `employee_id` hanya ada di tabel lain yang mereferensikan employees.
+**Investigasi:** Kemungkinan dari query di halaman HR atau Payroll yang salah mengakses `employees.employee_id`.
+**Fix:** Cari dan perbaiki query yang menggunakan `employees.employee_id` menjadi `employees.id`.
 
 ---
 
-## C. RENCANA PERBAIKAN
+## B. BUG MEDIUM (Fitur Tidak Berfungsi Optimal)
 
-### Fix 1: Hapus Menu "Perlengkapan" yang 404
-**File:** `src/components/admin/AdminLayout.tsx`
-- Hapus grup "Perlengkapan" (baris 52-58) karena halaman belum ada
-- Ini mencegah user mengklik link yang mengarah ke halaman kosong
+### BUG 4: useUpcomingDepartures - branchId Diterima tapi Tidak Digunakan
+**File:** `src/hooks/useDashboardStats.ts` baris 135-155
+**Masalah:** Function menerima parameter `branchId` tapi tidak pernah menerapkan filter `.eq('branch_id', branchId)` ke query. Branch Manager tetap melihat semua keberangkatan.
+**Fix:** Tambahkan filter:
+```typescript
+if (branchId) query = query.eq('branch_id', branchId);
+```
+Catatan: Tabel `departures` mungkin tidak memiliki kolom `branch_id`. Jika demikian, perlu join via packages atau bookings.
 
-### Fix 2: Terjemahkan Label Status di Dashboard
-**File:** `src/pages/admin/AdminDashboard.tsx`
-- Tambahkan mapping label Indonesia untuk status booking dan pembayaran
-- Terapkan di chart legend (baris 169) dan recent bookings (baris 265)
+### BUG 5: EquipmentPage - Distribusi Tidak Terintegrasi dengan Keberangkatan
+**File:** `src/pages/operational/EquipmentPage.tsx`
+**Masalah:** Selain bug query (BUG 1), alur kerja distribusi perlengkapan tidak menampilkan daftar jamaah berdasarkan keberangkatan yang dipilih dengan benar. Customer list selalu fallback ke semua customer.
+**Fix:** Perbaiki query agar mengambil passenger list berdasarkan departure_id via inner join ke bookings.
 
-### Fix 3: Filter Pending Payments per Cabang
-**File:** `src/hooks/useDashboardStats.ts`
-- Ubah query pending payments agar join ke bookings dan filter by branch_id
-- Tambahkan branchId ke `useUpcomingDepartures()`
-
-### Fix 4: Perbaiki Halaman Kamar - Tampilkan Semua Tipe Kamar
-**File:** `src/pages/admin/AdminRoomAssignments.tsx`
-- Ubah query agar menampilkan **semua** jamaah (tidak hanya `double`)
-- Tampilkan jamaah dikelompokkan per tipe kamar (Quad, Triple, Double, Single)
-- Tambahkan tab/filter per tipe kamar
-- Tampilkan ringkasan statistik per tipe kamar
-- Fitur pairing tetap hanya untuk tipe Double/Sharing
-
-### Fix 5: Tambahkan Export Data Kamar
-**File:** `src/pages/admin/AdminRoomAssignments.tsx`
-- Tambahkan tombol Export Excel dan Export PDF
-- Data export: Nama Jamaah, Gender, Tipe Kamar, Nomor Kamar, Teman Sekamar, Kode Booking
+### BUG 6: AdminPayroll - Status Selalu "pending"
+**File:** `src/pages/admin/AdminPayroll.tsx` baris 128
+**Masalah:** Payroll data selalu di-set `status: 'pending'` secara hardcoded. Tidak ada mekanisme untuk menyimpan status payroll (processed/paid) ke database. Data payroll dihitung on-the-fly dari employees dan attendance, tanpa persistensi.
+**Dampak:** Filter status di payroll tidak berguna karena semua data selalu "pending".
+**Fix:** Ini adalah limitasi desain. Untuk sekarang, biarkan sebagai kalkulasi. Atau buat tabel `payroll_records` untuk menyimpan hasil payroll yang sudah diproses.
 
 ---
 
-## D. DETAIL TEKNIS
+## C. BUG RINGAN (UI/UX)
 
-| No | Fix | File | Dampak |
-|----|-----|------|--------|
-| 1 | Hapus menu Perlengkapan (404) | `AdminLayout.tsx` | Sidebar bersih |
-| 2 | Label status Indonesia di dashboard | `AdminDashboard.tsx` | UX lebih baik |
-| 3 | Filter branch di pending payments & departures | `useDashboardStats.ts` | Data akurat per cabang |
-| 4 | Tampilkan semua tipe kamar + grouping | `AdminRoomAssignments.tsx` | Jamaah muncul di menu kamar |
-| 5 | Export Excel/PDF data kamar | `AdminRoomAssignments.tsx` | Admin bisa cetak data |
+### BUG 7: Sidebar - Menu "Perlengkapan" Route Salah
+**File:** `src/components/admin/AdminLayout.tsx` baris 47
+**Masalah:** Menu "Perlengkapan" mengarah ke `/admin/equipment`, tapi route di `AdminRoutes.tsx` terdaftar sebagai `/admin/equipment` (baris dari route). Perlu diverifikasi path ini cocok. Dari AdminRoutes, route equipment sudah ada di path `equipment`.
+**Status:** Route sudah benar (`/admin/equipment` di sidebar, `equipment` di AdminRoutes). Tidak ada bug di sini.
 
-**Total: 4 file diubah, 0 file baru, 0 migrasi database**
+### BUG 8: AdminBookings - Search Query Rentan SQL Injection-like Issues
+**File:** `src/pages/admin/AdminBookings.tsx` baris 99
+**Masalah:** Query menggunakan string interpolation langsung:
+```typescript
+query.or(`booking_code.ilike.%${searchTerm}%,...`)
+```
+Karakter khusus di searchTerm (seperti `%`, `_`, `(`, `)`) bisa menyebabkan query error atau hasil tidak terduga.
+**Fix:** Sanitize searchTerm sebelum digunakan dalam query.
+
+---
+
+## D. RENCANA PERBAIKAN
+
+### Prioritas 1: Fix DB Error (BUG 1, 2, 3)
+
+**File yang diubah:**
+1. `src/pages/operational/EquipmentPage.tsx` - Perbaiki query customer agar menggunakan `booking.departure_id` bukan `booking_id`
+2. `supabase/functions/send-whatsapp-trigger/index.ts` - Ganti `booking.status` menjadi `booking.booking_status`
+3. `supabase/functions/send-whatsapp-notification/index.ts` - Ganti `booking.status` menjadi `booking.booking_status`
+
+### Prioritas 2: Fix Branch Filter (BUG 4)
+
+**File yang diubah:**
+1. `src/hooks/useDashboardStats.ts` - Tambahkan filter branchId di `useUpcomingDepartures`. Periksa apakah `departures` punya kolom `branch_id`, jika tidak gunakan subquery via packages.
+
+### Prioritas 3: Sanitize Search (BUG 8)
+
+**File yang diubah:**
+1. `src/pages/admin/AdminBookings.tsx` - Escape karakter khusus di searchTerm
+
+---
+
+## E. RINGKASAN
+
+| No | Bug | Severity | File | Status |
+|----|-----|----------|------|--------|
+| 1 | Equipment query salah (booking_id vs departure_id) | KRITIS | EquipmentPage.tsx | Perlu fix |
+| 2 | bookings.status tidak ada (harus booking_status) | KRITIS | Edge functions | Perlu fix |
+| 3 | employees.employee_id tidak ada (harus id) | KRITIS | Perlu investigasi | Perlu fix |
+| 4 | branchId tidak difilter di upcoming departures | MEDIUM | useDashboardStats.ts | Perlu fix |
+| 5 | Distribusi perlengkapan tidak terintegrasi | MEDIUM | EquipmentPage.tsx | Fix via BUG 1 |
+| 6 | Payroll status selalu pending | MEDIUM | AdminPayroll.tsx | Desain limitasi |
+| 8 | Search query tidak di-sanitize | RINGAN | AdminBookings.tsx | Perlu fix |
+
+**Total: 5-6 file diperbaiki, 0 file baru, 0 migrasi database**
