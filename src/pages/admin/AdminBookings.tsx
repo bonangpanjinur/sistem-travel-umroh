@@ -95,8 +95,11 @@ export default function AdminBookings() {
         `, { count: 'exact' });
 
       if (searchTerm) {
-        // Search by booking code or customer name/phone
-        query = query.or(`booking_code.ilike.%${searchTerm}%,customer_id.in.(select id from customers where full_name.ilike.%${searchTerm}% or phone.ilike.%${searchTerm}%)`);
+        // Sanitize special characters that could break PostgREST queries
+        const sanitized = searchTerm.replace(/[%_()\\*?{}[\]]/g, '');
+        if (sanitized.trim()) {
+          query = query.or(`booking_code.ilike.%${sanitized}%,customer_id.in.(select id from customers where full_name.ilike.%${sanitized}% or phone.ilike.%${sanitized}%)`);
+        }
       }
       if (statusFilter !== "all") query = query.eq('booking_status', statusFilter as any);
       if (paymentFilter !== "all") query = query.eq('payment_status', paymentFilter as any);

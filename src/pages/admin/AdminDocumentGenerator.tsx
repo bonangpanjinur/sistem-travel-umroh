@@ -29,10 +29,10 @@ import {
 interface Employee {
   id: string;
   full_name: string;
-  employee_id: string;
+  employee_code: string;
   position: string;
   department: string;
-  status: string;
+  is_active: boolean;
 }
 
 // ── Cascading filter component with Year & Month ──────────────────────────
@@ -287,10 +287,10 @@ const AdminDocumentGenerator = () => {
     queryKey: ['employees-for-letter'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('employees' as any)
-        .select('id, full_name, employee_id, position, department, status')
-        .eq('status', 'active')
-        .order('full_name') as { data: Employee[] | null; error: any };
+        .from('employees')
+        .select('id, full_name, employee_code, position, department, is_active')
+        .eq('is_active', true)
+        .order('full_name');
       return data || [];
     }
   });
@@ -402,7 +402,7 @@ const AdminDocumentGenerator = () => {
     const data: LeaveLetterData = {
       employeeName: employee.full_name,
       employeePosition: employee.position || 'Staff',
-      employeeNik: employee.employee_id || '-',
+      employeeNik: employee.employee_code || '-',
       startDate: employeeLeaveForm.startDate,
       endDate: employeeLeaveForm.endDate,
       reason: employeeLeaveForm.reason,
