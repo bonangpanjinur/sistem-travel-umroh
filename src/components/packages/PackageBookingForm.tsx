@@ -163,7 +163,8 @@ export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
     navigate(`/booking/${packageId}?${params.toString()}`);
   };
 
-  const canProceed = selectedDeparture && totalPassengers > 0 && hasPricing;
+  const doubleValidationError = roomAllocation.double > 0 && roomAllocation.double % 2 !== 0;
+  const canProceed = selectedDeparture && totalPassengers > 0 && hasPricing && !doubleValidationError;
 
   if (departuresLoading) {
     return (
@@ -287,47 +288,56 @@ export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
                 // Skip if no price for this room type
                 if (price <= 0) return null;
                 
+                const isDoubleError = type === 'double' && count > 0 && count % 2 !== 0;
+                
                 return (
-                  <div 
-                    key={type}
-                    className={cn(
-                      "flex items-center justify-between p-3 border rounded-lg transition-colors",
-                      count > 0 ? "border-primary bg-primary/5" : "border-border"
-                    )}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{info.label}</span>
-                        <span className="text-xs text-muted-foreground">({info.desc})</span>
+                  <div key={type} className="space-y-1">
+                    <div 
+                      className={cn(
+                        "flex items-center justify-between p-3 border rounded-lg transition-colors",
+                        count > 0 ? "border-primary bg-primary/5" : "border-border",
+                        isDoubleError && "border-destructive bg-destructive/5"
+                      )}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{info.label}</span>
+                          <span className="text-xs text-muted-foreground">({info.desc})</span>
+                        </div>
+                        <span className="text-xs text-primary font-medium">
+                          {formatCurrency(price)}/org
+                        </span>
                       </div>
-                      <span className="text-xs text-primary font-medium">
-                        {formatCurrency(price)}/org
-                      </span>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => updateRoomCount(type, -1)}
+                          disabled={count <= 0}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-6 text-center text-sm font-medium">{count}</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => updateRoomCount(type, 1)}
+                          disabled={totalPassengers >= availableSeats}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updateRoomCount(type, -1)}
-                        disabled={count <= 0}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-6 text-center text-sm font-medium">{count}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updateRoomCount(type, 1)}
-                        disabled={totalPassengers >= availableSeats}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    {isDoubleError && (
+                      <p className="text-xs text-destructive px-2">
+                        ⚠ Tipe Double harus kelipatan 2 orang (min. 2)
+                      </p>
+                    )}
                   </div>
                 );
               })}
