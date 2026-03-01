@@ -22,6 +22,8 @@ const VENDOR_TYPES = [
   { value: 'HOTEL', label: 'Hotel' },
   { value: 'AIRLINE', label: 'Maskapai' },
   { value: 'VISA_PROVIDER', label: 'Provider Visa' },
+  { value: 'TASREH_PROVIDER', label: 'Provider Tasreh' },
+  { value: 'HANDLING', label: 'Handling' },
   { value: 'CATERING', label: 'Katering' },
   { value: 'TRANSPORT', label: 'Transportasi' },
   { value: 'OTHER', label: 'Lainnya' },

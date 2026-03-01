@@ -1,11 +1,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hotel, Plane, MapPin, User, Building2, Ticket } from "lucide-react";
+import { Hotel, Plane, MapPin, User, Building2, Ticket, Bus, Store } from "lucide-react";
 import AdminHotels from "./AdminHotels";
 import AdminAirlines from "./AdminAirlines";
 import AdminAirports from "./AdminAirports";
 import AdminMuthawifs from "./AdminMuthawifs";
 import AdminBranches from "./AdminBranches";
 import AdminCoupons from "./AdminCoupons";
+import AdminBusProviders from "./AdminBusProviders";
+import AdminVendors from "./AdminVendors";
 
 export default function AdminMasterData() {
   return (
@@ -41,6 +43,14 @@ export default function AdminMasterData() {
             <Ticket className="h-4 w-4" />
             <span className="hidden sm:inline">Kupon</span>
           </TabsTrigger>
+          <TabsTrigger value="bus" className="gap-2">
+            <Bus className="h-4 w-4" />
+            <span className="hidden sm:inline">Bus</span>
+          </TabsTrigger>
+          <TabsTrigger value="vendors" className="gap-2">
+            <Store className="h-4 w-4" />
+            <span className="hidden sm:inline">Vendor</span>
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="hotels">
@@ -60,6 +70,12 @@ export default function AdminMasterData() {
         </TabsContent>
         <TabsContent value="coupons">
           <AdminCoupons />
+        </TabsContent>
+        <TabsContent value="bus">
+          <AdminBusProviders />
+        </TabsContent>
+        <TabsContent value="vendors">
+          <AdminVendors />
         </TabsContent>
       </Tabs>
     </div>
