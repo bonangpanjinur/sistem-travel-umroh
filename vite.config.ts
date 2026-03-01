@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
         runtimeCaching: [
