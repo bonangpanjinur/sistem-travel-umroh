@@ -8,17 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
-  Search, Plus, Check, Users, Box, Database, BarChart3
+  Search, Plus, Check, Users, Box, Database, BarChart3, AlertTriangle, Zap
 } from "lucide-react";
 
 // Import sub-components
 import { InventoryTab } from "@/components/operational/equipment/InventoryTab";
 import { DistributionTab } from "@/components/operational/equipment/DistributionTab";
 import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab";
+import { KioskMode } from "@/components/operational/equipment/KioskMode";
 
 export interface EquipmentItem {
   id: string;
@@ -47,6 +50,7 @@ export default function EquipmentPage() {
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
+  const [kioskMode, setKioskMode] = useState(false);
 
   // Fetch departures
   const { data: departures } = useQuery({
@@ -182,8 +186,18 @@ export default function EquipmentPage() {
     onError: (error) => toast.error(`❌ Gagal mengembalikan perlengkapan: ${error.message}`),
   });
 
+  // Calculate KPI metrics
   const totalDistributed = distributions?.filter(d => d.status !== "returned").length || 0;
   const totalReturned = distributions?.filter(d => d.status === "returned").length || 0;
+  const totalStock = items?.reduce((sum, i) => sum + (i.stock_quantity || 0), 0) || 0;
+  const criticalStockItems = items?.filter(i => (i.stock_quantity || 0) < 5) || [];
+  const nextDeparture = departures?.[0];
+  const nextDepartureDistributions = distributions?.filter(d => d.departure_id === nextDeparture?.id && d.status !== "returned").length || 0;
+  const distributionProgress = nextDeparture ? Math.round((nextDepartureDistributions / 100) * 100) : 0;
+
+  if (kioskMode) {
+    return <KioskMode onExit={() => setKioskMode(false)} />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -192,58 +206,119 @@ export default function EquipmentPage() {
           <h1 className="text-2xl font-bold">Manajemen Perlengkapan</h1>
           <p className="text-muted-foreground">Kelola stok dan distribusi perlengkapan jamaah</p>
         </div>
-        <Select value={selectedDeparture} onValueChange={setSelectedDeparture}>
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Pilih Keberangkatan" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Keberangkatan</SelectItem>
-            {departures?.map((d: any) => (
-              <SelectItem key={d.id} value={d.id}>
-                {format(new Date(d.departure_date), "dd MMM yyyy", { locale: localeId })} - {d.package?.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Button 
+            size="lg" 
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+            onClick={() => setKioskMode(true)}
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            Mode Distribusi Layar Penuh
+          </Button>
+          <Select value={selectedDeparture} onValueChange={setSelectedDeparture}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Pilih Keberangkatan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Keberangkatan</SelectItem>
+              {departures?.map((d: any) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {format(new Date(d.departure_date), "dd MMM yyyy", { locale: localeId })} - {d.package?.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* KPI Dashboard Cards */}
       <div className="grid gap-4 md:grid-cols-4 animate-in fade-in duration-500">
-        <Card>
+        {/* Card 1: Distribution Progress */}
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Item</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-600" />
+              Progress Keberangkatan Terdekat
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{items?.length || 0}</div>
+          <CardContent className="space-y-2">
+            <div className="text-2xl font-bold text-blue-600">
+              {nextDepartureDistributions}/{100}
+            </div>
+            <Progress value={distributionProgress} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {nextDeparture ? format(new Date(nextDeparture.departure_date), "dd MMM yyyy", { locale: localeId }) : "Tidak ada keberangkatan"}
+            </p>
           </CardContent>
         </Card>
-        <Card>
+
+        {/* Card 2: Critical Stock Alert */}
+        <Card className={`border-l-4 ${criticalStockItems.length > 0 ? 'border-l-red-500' : 'border-l-green-500'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Stok Tersedia</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className={`h-4 w-4 ${criticalStockItems.length > 0 ? 'text-red-600' : 'text-green-600'}`} />
+              Stok Kritis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className={`text-2xl font-bold ${criticalStockItems.length > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              {criticalStockItems.length}
+            </div>
+            {criticalStockItems.length > 0 && (
+              <p className="text-xs text-red-600">
+                {criticalStockItems.map(i => i.name).join(", ")}
+              </p>
+            )}
+            {criticalStockItems.length === 0 && (
+              <p className="text-xs text-green-600">Semua stok aman</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Total Stock */}
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Box className="h-4 w-4 text-green-600" />
+              Sisa Stok Total
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {items?.reduce((sum, i) => sum + (i.stock_quantity || 0), 0) || 0}
+            <div className="text-2xl font-bold text-green-600">{totalStock}</div>
+            <p className="text-xs text-muted-foreground">{items?.length || 0} jenis item</p>
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Distribution Summary */}
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4 text-orange-600" />
+              Ringkasan Distribusi
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="flex justify-between">
+              <span className="text-xs text-muted-foreground">Terdistribusi:</span>
+              <span className="text-sm font-semibold text-blue-600">{totalDistributed}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-xs text-muted-foreground">Dikembalikan:</span>
+              <span className="text-sm font-semibold text-orange-600">{totalReturned}</span>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Terdistribusi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{totalDistributed}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Dikembalikan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{totalReturned}</div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Critical Stock Alert */}
+      {criticalStockItems.length > 0 && (
+        <Alert variant="destructive" className="animate-in fade-in">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            ⚠️ {criticalStockItems.length} item memiliki stok kurang dari 5 unit. Segera lakukan pemesanan ulang untuk menghindari kehabisan stok.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="inventory" className="w-full animate-in fade-in duration-700">
         <TabsList className="grid w-full grid-cols-3 mb-4 bg-muted p-1 rounded-lg">

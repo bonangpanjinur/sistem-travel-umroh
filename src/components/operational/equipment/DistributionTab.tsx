@@ -11,7 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowRight, ArrowLeft, Package, Users, CheckCircle2, Search, Loader2 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ArrowRight, ArrowLeft, Package, Users, CheckCircle2, Search, Loader2, ClipboardList } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Distribution } from "@/pages/operational/EquipmentPage";
@@ -25,7 +31,7 @@ interface DistributionTabProps {
   selectedDeparture: string;
 }
 
-type DistributionStep = "package" | "departure" | "passengers" | "checklist";
+type DistributionStep = "package" | "departure" | "passengers";
 
 export function DistributionTab({
   distributions,
@@ -39,6 +45,7 @@ export function DistributionTab({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [packageSearch, setPackageSearch] = useState("");
   const [departureSearch, setDepartureSearch] = useState("");
+  const [showChecklistSheet, setShowChecklistSheet] = useState(false);
 
   // Fetch all packages
   const { data: packages, isLoading: loadingPackages } = useQuery({
@@ -94,7 +101,7 @@ export function DistributionTab({
   });
 
   // Fetch equipment items for checklist
-  const { data: equipmentItems } = useQuery({
+  const { data: equipmentItems = [] } = useQuery({
     queryKey: ["equipment-items"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -107,7 +114,7 @@ export function DistributionTab({
   });
 
   // Fetch existing distributions for selected customer and departure
-  const { data: customerDistributions } = useQuery({
+  const { data: customerDistributions = [] } = useQuery({
     queryKey: ["customer-distributions", selectedCustomerId, selectedDepartureId],
     queryFn: async () => {
       if (!selectedCustomerId || !selectedDepartureId) return [];
@@ -150,8 +157,6 @@ export function DistributionTab({
       setCurrentStep("departure");
     } else if (currentStep === "departure" && selectedDepartureId) {
       setCurrentStep("passengers");
-    } else if (currentStep === "passengers" && selectedCustomerId) {
-      setCurrentStep("checklist");
     }
   };
 
@@ -164,10 +169,12 @@ export function DistributionTab({
       setSelectedDepartureId("");
       setDepartureSearch("");
       setCurrentStep("departure");
-    } else if (currentStep === "checklist") {
-      setSelectedCustomerId("");
-      setCurrentStep("passengers");
     }
+  };
+
+  const handlePassengerSelect = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    setShowChecklistSheet(true);
   };
 
   const selectedPackageData = packages?.find((p) => p.id === selectedPackage);
@@ -181,92 +188,79 @@ export function DistributionTab({
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Progress Indicator */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 bg-muted/50 p-4 rounded-xl border">
         <div className="flex items-center gap-2">
           <div
             className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "package" || currentStep === "departure" || currentStep === "passengers" || currentStep === "checklist"
-                ? "bg-blue-600 text-white"
+              currentStep === "package" || currentStep === "departure" || currentStep === "passengers"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-200"
                 : "bg-gray-300 text-gray-600"
             }`}
           >
             1
           </div>
-          <span className="text-sm font-medium">Paket</span>
+          <span className={cn("text-sm font-medium", currentStep === "package" ? "text-blue-600" : "text-gray-500")}>Paket</span>
         </div>
         <div className="flex-1 h-1 mx-2 bg-gray-200" />
         <div className="flex items-center gap-2">
           <div
             className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "departure" || currentStep === "passengers" || currentStep === "checklist"
-                ? "bg-blue-600 text-white"
+              currentStep === "departure" || currentStep === "passengers"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-200"
                 : "bg-gray-300 text-gray-600"
             }`}
           >
             2
           </div>
-          <span className="text-sm font-medium">Tanggal</span>
+          <span className={cn("text-sm font-medium", currentStep === "departure" ? "text-blue-600" : "text-gray-500")}>Tanggal</span>
         </div>
         <div className="flex-1 h-1 mx-2 bg-gray-200" />
         <div className="flex items-center gap-2">
           <div
             className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "passengers" || currentStep === "checklist"
-                ? "bg-blue-600 text-white"
+              currentStep === "passengers"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-200"
                 : "bg-gray-300 text-gray-600"
             }`}
           >
             3
           </div>
-          <span className="text-sm font-medium">Jamaah</span>
-        </div>
-        <div className="flex-1 h-1 mx-2 bg-gray-200" />
-        <div className="flex items-center gap-2">
-          <div
-            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "checklist"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-300 text-gray-600"
-            }`}
-          >
-            4
-          </div>
-          <span className="text-sm font-medium">Checklist</span>
+          <span className={cn("text-sm font-medium", currentStep === "passengers" ? "text-blue-600" : "text-gray-500")}>Jamaah</span>
         </div>
       </div>
 
       {/* Step 1: Package Selection */}
       {currentStep === "package" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="border-2 border-blue-100 shadow-lg">
+          <CardHeader className="bg-blue-50/50 border-b">
+            <CardTitle className="flex items-center gap-2 text-blue-800">
               <Package className="h-5 w-5" />
               Pilih Paket Umrah/Haji
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-6 space-y-4">
             {loadingPackages ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
               </div>
             ) : (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Cari Paket</label>
+                  <label className="text-sm font-bold text-gray-700">Cari Paket</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Cari nama atau kode paket..."
                       value={packageSearch}
                       onChange={(e) => setPackageSearch(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 h-12 text-lg border-2 focus:border-blue-400"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Paket</label>
+                  <label className="text-sm font-bold text-gray-700">Paket</label>
                   <Select value={selectedPackage} onValueChange={setSelectedPackage}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-lg border-2">
                       <SelectValue placeholder="Pilih paket..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -284,57 +278,61 @@ export function DistributionTab({
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex justify-end pt-4">
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={!selectedPackage}
+                    size="lg"
+                    className="px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
+                  >
+                    Lanjut
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </div>
               </>
             )}
-            <div className="flex justify-end gap-2">
-              <Button
-                onClick={handleNextStep}
-                disabled={!selectedPackage || loadingPackages}
-                className="gap-2"
-              >
-                Lanjut
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 2: Departure Selection */}
+      {/* Step 2: Departure Date Selection */}
       {currentStep === "departure" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
+        <Card className="border-2 border-blue-100 shadow-lg">
+          <CardHeader className="bg-blue-50/50 border-b flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <ClipboardList className="h-5 w-5" />
               Pilih Tanggal Keberangkatan
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
+            <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
               Paket: {selectedPackageData?.name}
-            </p>
+            </Badge>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-6 space-y-4">
             {loadingDepartures ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
               </div>
             ) : (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Cari Tanggal</label>
+                  <label className="text-sm font-bold text-gray-700">Cari Tanggal</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Cari tanggal keberangkatan..."
+                      placeholder="Cari tanggal (contoh: Januari)..."
                       value={departureSearch}
                       onChange={(e) => setDepartureSearch(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 h-12 text-lg border-2 focus:border-blue-400"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Tanggal Keberangkatan</label>
-                  <Select value={selectedDepartureId} onValueChange={setSelectedDepartureId}>
-                    <SelectTrigger>
+                  <label className="text-sm font-bold text-gray-700">Keberangkatan</label>
+                  <Select
+                    value={selectedDepartureId}
+                    onValueChange={setSelectedDepartureId}
+                  >
+                    <SelectTrigger className="h-12 text-lg border-2">
                       <SelectValue placeholder="Pilih tanggal keberangkatan..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -348,118 +346,93 @@ export function DistributionTab({
                         ))
                       ) : (
                         <div className="p-2 text-sm text-muted-foreground">
-                          Tanggal tidak ditemukan
+                          Tidak ada keberangkatan tersedia
                         </div>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex justify-between pt-4">
+                  <Button variant="outline" onClick={handlePreviousStep} size="lg">
+                    <ArrowLeft className="mr-2 h-5 w-5" />
+                    Kembali
+                  </Button>
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={!selectedDepartureId}
+                    size="lg"
+                    className="px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
+                  >
+                    Lanjut
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </div>
               </>
             )}
-            <div className="flex justify-between gap-2">
-              <Button
-                onClick={handlePreviousStep}
-                variant="outline"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Kembali
-              </Button>
-              <Button
-                onClick={handleNextStep}
-                disabled={!selectedDepartureId || loadingDepartures}
-                className="gap-2"
-              >
-                Lanjut
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
 
       {/* Step 3: Passenger Selection */}
       {currentStep === "passengers" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Pilih Jamaah
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              {selectedPackageData?.name} -{" "}
-              {format(new Date(selectedDepartureData?.departure_date || ""), "dd MMMM yyyy", {
-                locale: localeId,
-              })}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingPassengers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={handlePreviousStep} size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Kembali ke Tanggal
+            </Button>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="bg-blue-50 border-blue-200">
+                Paket: {selectedPackageData?.name}
+              </Badge>
+              <Badge variant="outline" className="bg-blue-50 border-blue-200">
+                Tgl: {selectedDepartureData && format(new Date(selectedDepartureData.departure_date), "dd MMM yyyy", { locale: localeId })}
+              </Badge>
+            </div>
+          </div>
+          
+          <Card className="border-2 border-blue-100 shadow-lg">
+            <CardHeader className="bg-blue-50/50 border-b">
+              <CardTitle className="flex items-center gap-2 text-blue-800">
+                <Users className="h-5 w-5" />
+                Pilih Jamaah untuk Distribusi
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
               <PassengerSelection
                 passengers={passengers || []}
-                selectedCustomerId={selectedCustomerId}
-                onSelectCustomer={setSelectedCustomerId}
-                selectedDepartureId={selectedDepartureId}
+                loading={loadingPassengers}
+                onSelect={handlePassengerSelect}
               />
-            )}
-            <div className="flex justify-between gap-2">
-              <Button
-                onClick={handlePreviousStep}
-                variant="outline"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Kembali
-              </Button>
-              <Button
-                onClick={handleNextStep}
-                disabled={!selectedCustomerId || loadingPassengers}
-                className="gap-2"
-              >
-                Lanjut
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Step 4: Equipment Checklist */}
-      {currentStep === "checklist" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5" />
+      {/* Equipment Checklist Sheet (Slide-out Drawer) */}
+      <Sheet open={showChecklistSheet} onOpenChange={setShowChecklistSheet}>
+        <SheetContent side="right" className="sm:max-w-md w-full p-0 flex flex-col">
+          <SheetHeader className="p-6 bg-blue-600 text-white">
+            <SheetTitle className="text-white flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
               Checklist Perlengkapan
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              Jamaah: {selectedPassenger?.customer?.full_name}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </SheetTitle>
+            <div className="mt-2">
+              <p className="text-blue-100 text-sm font-medium">{selectedPassenger?.customer?.full_name}</p>
+              <p className="text-blue-200 text-xs">Tipe: {selectedPassenger?.passenger_type || "Jamaah"}</p>
+            </div>
+          </SheetHeader>
+          
+          <div className="flex-1 overflow-auto p-6">
             <EquipmentChecklist
-              equipmentItems={equipmentItems || []}
+              equipmentItems={equipmentItems}
               selectedCustomerId={selectedCustomerId}
               selectedDepartureId={selectedDepartureId}
-              existingDistributions={customerDistributions || []}
+              existingDistributions={customerDistributions}
             />
-            <div className="flex justify-between gap-2">
-              <Button
-                onClick={handlePreviousStep}
-                variant="outline"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Kembali
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

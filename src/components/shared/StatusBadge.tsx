@@ -4,15 +4,32 @@ import { cn } from '@/lib/utils';
 type StatusVariant = 'success' | 'warning' | 'error' | 'info' | 'default';
 
 const variantStyles: Record<StatusVariant, string> = {
-  success: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  default: 'bg-muted text-muted-foreground',
+  success: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200',
+  warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200',
+  error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200',
+  info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200',
+  default: 'bg-muted text-muted-foreground border-muted-foreground/20',
+};
+
+const indicatorStyles: Record<StatusVariant, string> = {
+  success: 'bg-green-500',
+  warning: 'bg-yellow-500',
+  error: 'bg-red-500',
+  info: 'bg-blue-500',
+  default: 'bg-gray-400',
 };
 
 // Auto-map common statuses to variants
 const statusVariantMap: Record<string, StatusVariant> = {
+  // Equipment specific statuses
+  distributed: 'success',
+  ready: 'success',
+  stock_low: 'warning',
+  in_progress: 'warning',
+  out_of_stock: 'error',
+  missing: 'error',
+  
+  // General statuses
   confirmed: 'success', completed: 'success', paid: 'success', verified: 'success', active: 'success', won: 'success',
   pending: 'warning', partial: 'warning', waiting_payment: 'warning', new: 'warning', contacted: 'warning',
   cancelled: 'error', rejected: 'error', failed: 'error', lost: 'error', unpaid: 'error',
@@ -24,17 +41,25 @@ interface StatusBadgeProps {
   label?: string;
   variant?: StatusVariant;
   className?: string;
+  showIndicator?: boolean;
 }
 
-export function StatusBadge({ status, label, variant, className }: StatusBadgeProps) {
+export function StatusBadge({ status, label, variant, className, showIndicator = true }: StatusBadgeProps) {
   const resolvedVariant = variant || statusVariantMap[status] || 'default';
   
   return (
     <Badge
       variant="outline"
-      className={cn('border-transparent font-medium', variantStyles[resolvedVariant], className)}
+      className={cn(
+        'font-medium flex items-center gap-1.5 px-2 py-0.5', 
+        variantStyles[resolvedVariant], 
+        className
+      )}
     >
-      {label || status}
+      {showIndicator && (
+        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", indicatorStyles[resolvedVariant])} />
+      )}
+      {label || status.replace(/_/g, ' ')}
     </Badge>
   );
 }
