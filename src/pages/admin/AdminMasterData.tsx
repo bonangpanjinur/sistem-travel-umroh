@@ -1,13 +1,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hotel, Plane, MapPin, User, Building2, Ticket, Bus, Store } from "lucide-react";
+import { Hotel, Plane, MapPin, User, Ticket, Bus, Store, Package } from "lucide-react";
 import AdminHotels from "./AdminHotels";
 import AdminAirlines from "./AdminAirlines";
 import AdminAirports from "./AdminAirports";
 import AdminMuthawifs from "./AdminMuthawifs";
-import AdminBranches from "./AdminBranches";
 import AdminCoupons from "./AdminCoupons";
 import AdminBusProviders from "./AdminBusProviders";
 import AdminVendors from "./AdminVendors";
+import AdminEquipmentMaster from "./AdminEquipmentMaster";
 
 export default function AdminMasterData() {
   return (
@@ -35,9 +35,9 @@ export default function AdminMasterData() {
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Muthawif</span>
           </TabsTrigger>
-          <TabsTrigger value="branches" className="gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Cabang</span>
+          <TabsTrigger value="equipment" className="gap-2">
+            <Package className="h-4 w-4" />
+            <span className="hidden sm:inline">Perlengkapan</span>
           </TabsTrigger>
           <TabsTrigger value="coupons" className="gap-2">
             <Ticket className="h-4 w-4" />
@@ -65,8 +65,8 @@ export default function AdminMasterData() {
         <TabsContent value="muthawifs">
           <AdminMuthawifs />
         </TabsContent>
-        <TabsContent value="branches">
-          <AdminBranches />
+        <TabsContent value="equipment">
+          <AdminEquipmentMaster />
         </TabsContent>
         <TabsContent value="coupons">
           <AdminCoupons />

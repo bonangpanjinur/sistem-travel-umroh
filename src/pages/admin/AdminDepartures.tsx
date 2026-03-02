@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
@@ -24,7 +25,7 @@ import { Link } from "react-router-dom";
 import { 
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
   CalendarDays, Hotel, Building2, Link2Off, MapPin,
-  MessageCircle, Bell, Send, DollarSign
+  MessageCircle, Bell, Send, DollarSign, MoreVertical
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
@@ -93,7 +94,6 @@ export default function AdminDepartures() {
     },
   });
 
-  // Get unique months for filter
   const months = departures 
     ? [...new Set(departures.map(d => d.departure_date.substring(0, 7)))]
         .sort()
@@ -101,7 +101,6 @@ export default function AdminDepartures() {
     : [];
 
   const filteredDepartures = departures?.filter(dep => {
-    // Search filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       const matchesSearch = 
@@ -111,17 +110,10 @@ export default function AdminDepartures() {
         dep.airline?.name?.toLowerCase().includes(search);
       if (!matchesSearch) return false;
     }
-    
-    // Status filter
     if (statusFilter !== "all" && dep.status !== statusFilter) return false;
-    
-    // Month filter
     if (monthFilter !== "all" && !dep.departure_date.startsWith(monthFilter)) return false;
-    
-    // Linked filter
     if (linkedFilter === "linked" && !dep.package_id) return false;
     if (linkedFilter === "unlinked" && dep.package_id) return false;
-    
     return true;
   });
 
@@ -134,7 +126,7 @@ export default function AdminDepartures() {
       case 'full':
         return <Badge variant="destructive">Penuh</Badge>;
       case 'departed':
-        return <Badge variant="outline">Sudah Berangkat</Badge>;
+        return <Badge variant="outline">Berangkat</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -150,7 +142,6 @@ export default function AdminDepartures() {
     setEditingDeparture(null);
   };
 
-  // Stats
   const stats = {
     total: departures?.length || 0,
     linked: departures?.filter(d => d.package_id).length || 0,
@@ -159,16 +150,23 @@ export default function AdminDepartures() {
     totalBooked: departures?.reduce((sum, d) => sum + (d.booked_count || 0), 0) || 0,
   };
 
+  const formatShortCurrency = (value: number | null | undefined) => {
+    if (!value || value <= 0) return '-';
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace('.0', '')}jt`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
+    return formatCurrency(value);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Jadwal Keberangkatan</h1>
-          <p className="text-muted-foreground">Kelola semua jadwal keberangkatan secara independen</p>
+          <p className="text-muted-foreground">Kelola semua jadwal keberangkatan</p>
         </div>
         <Button onClick={() => setIsFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Tambah Keberangkatan
+          Tambah
         </Button>
       </div>
 
@@ -283,9 +281,9 @@ export default function AdminDepartures() {
 
       {/* Table */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 px-0">
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-4 px-6">
               {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16" />)}
             </div>
           ) : !filteredDepartures || filteredDepartures.length === 0 ? (
@@ -298,183 +296,229 @@ export default function AdminDepartures() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Paket</TableHead>
-                    <TableHead>Maskapai & Rute</TableHead>
-                    <TableHead>Hotel Makkah</TableHead>
-                    <TableHead>Hotel Madinah</TableHead>
-                    <TableHead className="min-w-[140px]">Harga per Kamar</TableHead>
-                    <TableHead className="text-center">Kuota</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right w-[60px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDepartures.map((dep) => (
-                    <TableRow key={dep.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{formatDate(dep.departure_date)}</p>
+            <TooltipProvider>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Tanggal</TableHead>
+                      <TableHead className="whitespace-nowrap">Paket</TableHead>
+                      <TableHead className="whitespace-nowrap">Penerbangan</TableHead>
+                      <TableHead className="whitespace-nowrap">Hotel</TableHead>
+                      <TableHead className="whitespace-nowrap">Harga per Kamar</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Kuota</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                      <TableHead className="text-right w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDepartures.map((dep) => (
+                      <TableRow key={dep.id}>
+                        {/* Tanggal */}
+                        <TableCell className="whitespace-nowrap">
+                          <p className="font-medium text-sm">{formatDate(dep.departure_date)}</p>
                           <p className="text-xs text-muted-foreground">
                             s/d {formatDate(dep.return_date)}
                           </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {dep.package ? (
-                          <div>
-                            <Link 
-                              to={`/admin/packages/${dep.package.id}`}
-                              className="font-medium hover:text-primary hover:underline"
-                            >
-                              {dep.package.name}
-                            </Link>
-                            <p className="text-xs text-muted-foreground">{dep.package.code}</p>
-                          </div>
-                        ) : (
-                          <Badge variant="outline" className="text-orange-600 border-orange-300">
-                            <Link2Off className="h-3 w-3 mr-1" />
-                            Belum Terhubung
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {dep.airline && (
-                            <p className="text-sm font-medium">{dep.airline.name}</p>
+                        </TableCell>
+
+                        {/* Paket */}
+                        <TableCell>
+                          {dep.package ? (
+                            <div className="max-w-[160px]">
+                              <Link 
+                                to={`/admin/packages/${dep.package.id}`}
+                                className="font-medium text-sm hover:text-primary hover:underline line-clamp-2"
+                              >
+                                {dep.package.name}
+                              </Link>
+                              <p className="text-xs text-muted-foreground">{dep.package.code}</p>
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">
+                              <Link2Off className="h-3 w-3 mr-1" />
+                              Belum
+                            </Badge>
                           )}
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span>{dep.departure_airport?.code || '-'}</span>
-                            <Plane className="h-3 w-3" />
-                            <span>{dep.arrival_airport?.code || '-'}</span>
+                        </TableCell>
+
+                        {/* Penerbangan */}
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            {dep.airline && (
+                              <p className="text-sm font-medium truncate max-w-[120px]">{dep.airline.name}</p>
+                            )}
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <span>{dep.departure_airport?.code || '-'}</span>
+                              <Plane className="h-3 w-3 shrink-0" />
+                              <span>{dep.arrival_airport?.code || '-'}</span>
+                            </div>
                             {dep.flight_number && (
-                              <span className="ml-1">• {dep.flight_number}</span>
+                              <p className="text-xs text-muted-foreground">{dep.flight_number}</p>
                             )}
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {dep.hotel_makkah ? (
-                          <div className="flex items-start gap-2">
-                            <Hotel className="h-4 w-4 text-amber-600 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium">{dep.hotel_makkah.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {'⭐'.repeat(dep.hotel_makkah.star_rating || 0)}
-                              </p>
+                        </TableCell>
+
+                        {/* Hotel - Gabung Makkah & Madinah */}
+                        <TableCell>
+                          <div className="space-y-1 max-w-[180px]">
+                            {dep.hotel_makkah ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1.5">
+                                    <Hotel className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                    <span className="text-sm truncate">{dep.hotel_makkah.name}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Makkah: {dep.hotel_makkah.name} {'⭐'.repeat(dep.hotel_makkah.star_rating || 0)}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Makkah: -</span>
+                            )}
+                            {dep.hotel_madinah ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1.5">
+                                    <Hotel className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                    <span className="text-sm truncate">{dep.hotel_madinah.name}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Madinah: {dep.hotel_madinah.name} {'⭐'.repeat(dep.hotel_madinah.star_rating || 0)}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Madinah: -</span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Harga per Kamar - Layout vertikal yang rapi */}
+                        <TableCell>
+                          <div className="space-y-0.5 text-xs min-w-[120px]">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground">Q:</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium tabular-nums cursor-default">
+                                    {formatShortCurrency(dep.price_quad)}
+                                  </span>
+                                </TooltipTrigger>
+                                {dep.price_quad > 0 && (
+                                  <TooltipContent><p>Quad: {formatCurrency(dep.price_quad)}</p></TooltipContent>
+                                )}
+                              </Tooltip>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground">T:</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium tabular-nums cursor-default">
+                                    {formatShortCurrency(dep.price_triple)}
+                                  </span>
+                                </TooltipTrigger>
+                                {dep.price_triple > 0 && (
+                                  <TooltipContent><p>Triple: {formatCurrency(dep.price_triple)}</p></TooltipContent>
+                                )}
+                              </Tooltip>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground">D:</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium tabular-nums cursor-default">
+                                    {formatShortCurrency(dep.price_double)}
+                                  </span>
+                                </TooltipTrigger>
+                                {dep.price_double > 0 && (
+                                  <TooltipContent><p>Double: {formatCurrency(dep.price_double)}</p></TooltipContent>
+                                )}
+                              </Tooltip>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground">S:</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium tabular-nums cursor-default">
+                                    {formatShortCurrency(dep.price_single)}
+                                  </span>
+                                </TooltipTrigger>
+                                {dep.price_single > 0 && (
+                                  <TooltipContent><p>Single: {formatCurrency(dep.price_single)}</p></TooltipContent>
+                                )}
+                              </Tooltip>
                             </div>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Belum diatur</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {dep.hotel_madinah ? (
-                          <div className="flex items-start gap-2">
-                            <Hotel className="h-4 w-4 text-emerald-600 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium">{dep.hotel_madinah.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {'⭐'.repeat(dep.hotel_madinah.star_rating || 0)}
-                              </p>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Belum diatur</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Quad:</span>
-                            <span className="font-medium">
-                              {dep.price_quad > 0 ? formatCurrency(dep.price_quad) : '-'}
+                        </TableCell>
+
+                        {/* Kuota */}
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className={`text-sm font-medium ${dep.booked_count >= dep.quota ? 'text-destructive' : ''}`}>
+                              {dep.booked_count || 0}/{dep.quota}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Triple:</span>
-                            <span className="font-medium">
-                              {dep.price_triple > 0 ? formatCurrency(dep.price_triple) : '-'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Double:</span>
-                            <span className="font-medium">
-                              {dep.price_double > 0 ? formatCurrency(dep.price_double) : '-'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Single:</span>
-                            <span className="font-medium">
-                              {dep.price_single > 0 ? formatCurrency(dep.price_single) : '-'}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className={dep.booked_count >= dep.quota ? 'text-destructive font-bold' : ''}>
-                            {dep.booked_count || 0}/{dep.quota}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(dep.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(dep)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setItineraryDeparture(dep)}>
-                              <MapPin className="h-4 w-4 mr-2" />
-                              Itinerary
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link to="/admin/finance/pl">
-                                <DollarSign className="h-4 w-4 mr-2" />
-                                Lihat P&L
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'departure_reminder' })}
-                            >
-                              <Bell className="h-4 w-4 mr-2" />
-                              Kirim Reminder H-3
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'welcome_umrah' })}
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              Kirim Ucapan Selamat
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteDeparture(dep)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Hapus
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>{getStatusBadge(dep.status)}</TableCell>
+
+                        {/* Aksi */}
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(dep)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setItineraryDeparture(dep)}>
+                                <MapPin className="h-4 w-4 mr-2" />
+                                Itinerary
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link to="/admin/finance/pl">
+                                  <DollarSign className="h-4 w-4 mr-2" />
+                                  Lihat P&L
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'departure_reminder' })}
+                              >
+                                <Bell className="h-4 w-4 mr-2" />
+                                Reminder H-3
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'welcome_umrah' })}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Ucapan Selamat
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteDeparture(dep)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Hapus
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>

@@ -65,13 +65,43 @@ export default function AdminCustomerDetail() {
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [leaveLetterOpen, setLeaveLetterOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    employerName: "", employerPosition: "", employerInstitution: "", employerAddress: "",
+    startDate: "", endDate: "", purpose: "Umrah"
+  });
 
   // Quick generate letter handlers
   const handleQuickGenerateLeaveLetter = async () => {
     if (!customer) return;
-    // Need employer info - show toast with instructions
-    toast.info('Untuk surat cuti jamaah, gunakan menu Generate Surat Lengkap yang memerlukan data pemberi kerja.');
-    window.open(`/admin/documents-generator`, '_blank');
+    setLeaveLetterOpen(true);
+  };
+
+  const handleGenerateLeaveLetterConfirm = () => {
+    if (!customer) return;
+    try {
+      const data: JamaahLeaveLetterData = {
+        jamaahName: customer.full_name,
+        nik: customer.nik || '-',
+        birthPlace: customer.birth_place || '-',
+        birthDate: customer.birth_date ? new Date(customer.birth_date) : new Date(),
+        address: customer.address || '-',
+        employerName: leaveForm.employerName || '-',
+        employerPosition: leaveForm.employerPosition || undefined,
+        employerInstitution: leaveForm.employerInstitution || '-',
+        employerAddress: leaveForm.employerAddress || '-',
+        startDate: leaveForm.startDate ? new Date(leaveForm.startDate) : new Date(),
+        endDate: leaveForm.endDate ? new Date(leaveForm.endDate) : new Date(),
+        purpose: leaveForm.purpose,
+      };
+      const doc = generateJamaahLeaveLetter(data, `CUTI-JMH/${new Date().getFullYear()}`);
+      doc.save(`surat-cuti-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
+      toast.success('Surat cuti jamaah berhasil diunduh');
+      setLeaveLetterOpen(false);
+    } catch (err) {
+      toast.error('Gagal generate surat');
+      console.error(err);
+    }
   };
 
   const handleQuickGeneratePassportLetter = async () => {
@@ -974,6 +1004,51 @@ export default function AdminCustomerDetail() {
                 <ShieldX className="h-4 w-4 mr-2" />
               )}
               Tolak Dokumen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Letter Dialog */}
+      <Dialog open={leaveLetterOpen} onOpenChange={setLeaveLetterOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generate Surat Cuti Jamaah</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Data jamaah akan otomatis terisi. Lengkapi data pemberi kerja:</p>
+            <div className="space-y-2">
+              <Label>Nama Atasan / Pimpinan</Label>
+              <Input value={leaveForm.employerName} onChange={e => setLeaveForm(p => ({...p, employerName: e.target.value}))} placeholder="Nama pimpinan perusahaan" />
+            </div>
+            <div className="space-y-2">
+              <Label>Jabatan (opsional)</Label>
+              <Input value={leaveForm.employerPosition} onChange={e => setLeaveForm(p => ({...p, employerPosition: e.target.value}))} placeholder="Contoh: HRD Manager" />
+            </div>
+            <div className="space-y-2">
+              <Label>Nama Perusahaan / Instansi</Label>
+              <Input value={leaveForm.employerInstitution} onChange={e => setLeaveForm(p => ({...p, employerInstitution: e.target.value}))} placeholder="Nama perusahaan" />
+            </div>
+            <div className="space-y-2">
+              <Label>Alamat Perusahaan</Label>
+              <Input value={leaveForm.employerAddress} onChange={e => setLeaveForm(p => ({...p, employerAddress: e.target.value}))} placeholder="Alamat perusahaan" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Tanggal Berangkat</Label>
+                <Input type="date" value={leaveForm.startDate} onChange={e => setLeaveForm(p => ({...p, startDate: e.target.value}))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Tanggal Kembali</Label>
+                <Input type="date" value={leaveForm.endDate} onChange={e => setLeaveForm(p => ({...p, endDate: e.target.value}))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLeaveLetterOpen(false)}>Batal</Button>
+            <Button onClick={handleGenerateLeaveLetterConfirm} disabled={!leaveForm.employerName || !leaveForm.employerInstitution}>
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
             </Button>
           </DialogFooter>
         </DialogContent>
