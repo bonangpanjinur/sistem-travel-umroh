@@ -5,27 +5,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
-  Package, Search, Plus, Minus, Check, X, 
-  RefreshCw, Download, Users, Box
+  Search, Plus, Check, Users, Box, Database, BarChart3
 } from "lucide-react";
 
-interface EquipmentItem {
+// Import sub-components
+import { InventoryTab } from "@/components/operational/equipment/InventoryTab";
+import { DistributionTab } from "@/components/operational/equipment/DistributionTab";
+import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab";
+
+export interface EquipmentItem {
   id: string;
   name: string;
   description?: string;
   stock_quantity: number;
 }
 
-interface Distribution {
+export interface Distribution {
   id: string;
   equipment_id: string;
   customer_id: string;
@@ -111,7 +113,6 @@ export default function EquipmentPage() {
         .eq("booking.departure_id", selectedDeparture);
       
       if (error) {
-        // Fallback to all customers if join fails
         const { data: allCustomers } = await supabase
           .from("customers")
           .select("id, full_name")
@@ -141,14 +142,13 @@ export default function EquipmentPage() {
       
       if (error) throw error;
 
-      // Update stock
       await supabase
         .from("equipment_items")
         .update({ stock_quantity: selectedItem.stock_quantity - quantity })
         .eq("id", selectedItem.id);
     },
     onSuccess: () => {
-      toast.success("Perlengkapan berhasil didistribusikan");
+      toast.success(`✅ ${selectedItem?.name} berhasil didistribusikan ke ${selectedCustomerId}`);
       queryClient.invalidateQueries({ queryKey: ["equipment-distributions"] });
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
       setDistributeDialog(false);
@@ -156,7 +156,7 @@ export default function EquipmentPage() {
       setSelectedCustomerId("");
       setQuantity(1);
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) => toast.error(`❌ ${error.message}`),
   });
 
   // Return equipment
@@ -169,32 +169,28 @@ export default function EquipmentPage() {
       
       if (error) throw error;
 
-      // Restore stock
       await supabase
         .from("equipment_items")
         .update({ stock_quantity: (distribution.equipment?.stock_quantity || 0) + distribution.quantity })
         .eq("id", distribution.equipment_id);
     },
     onSuccess: () => {
-      toast.success("Perlengkapan dikembalikan");
+      toast.success(`✅ ${distribution.equipment?.name} berhasil dikembalikan`);
       queryClient.invalidateQueries({ queryKey: ["equipment-distributions"] });
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
     },
+    onError: (error) => toast.error(`❌ Gagal mengembalikan perlengkapan: ${error.message}`),
   });
-
-  const filteredItems = items?.filter(i =>
-    i.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const totalDistributed = distributions?.filter(d => d.status !== "returned").length || 0;
   const totalReturned = distributions?.filter(d => d.status === "returned").length || 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
         <div>
-          <h1 className="text-2xl font-bold">Distribusi Perlengkapan</h1>
-          <p className="text-muted-foreground">Kelola distribusi perlengkapan jamaah</p>
+          <h1 className="text-2xl font-bold">Manajemen Perlengkapan</h1>
+          <p className="text-muted-foreground">Kelola stok dan distribusi perlengkapan jamaah</p>
         </div>
         <Select value={selectedDeparture} onValueChange={setSelectedDeparture}>
           <SelectTrigger className="w-64">
@@ -211,8 +207,8 @@ export default function EquipmentPage() {
         </Select>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4 animate-in fade-in duration-500">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Item</CardTitle>
@@ -249,128 +245,37 @@ export default function EquipmentPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="items">
-        <TabsList>
-          <TabsTrigger value="items" className="gap-2">
-            <Box className="h-4 w-4" />
-            Daftar Item
+      <Tabs defaultValue="inventory" className="w-full animate-in fade-in duration-700">
+        <TabsList className="grid w-full grid-cols-3 mb-4 bg-muted p-1 rounded-lg">
+          <TabsTrigger value="inventory" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Pantauan Stok
           </TabsTrigger>
-          <TabsTrigger value="distributions" className="gap-2">
+          <TabsTrigger value="distribution" className="gap-2">
             <Users className="h-4 w-4" />
-            Riwayat Distribusi
+            Distribusi Keberangkatan
+          </TabsTrigger>
+          <TabsTrigger value="master" className="gap-2">
+            <Database className="h-4 w-4" />
+            Data Master
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="items" className="space-y-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari item..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredItems?.map((item) => (
-              <Card key={item.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Package className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{item.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Stok: {item.stock_quantity || 0}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant={item.stock_quantity > 0 ? "default" : "destructive"}>
-                      {item.stock_quantity > 0 ? "Tersedia" : "Habis"}
-                    </Badge>
-                  </div>
-                  {item.description && (
-                    <p className="text-sm text-muted-foreground mt-2">{item.description}</p>
-                  )}
-                  <Button
-                    className="w-full mt-4"
-                    disabled={item.stock_quantity < 1 || selectedDeparture === "all"}
-                    onClick={() => {
-                      setSelectedItem(item);
-                      setDistributeDialog(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Distribusi
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {selectedDeparture === "all" && (
-            <p className="text-center text-muted-foreground py-4">
-              Pilih keberangkatan terlebih dahulu untuk mendistribusikan perlengkapan
-            </p>
-          )}
+        <TabsContent value="inventory">
+          <InventoryTab items={items} searchTerm={searchTerm} setSearchTerm={setSearchTerm} selectedDeparture={selectedDeparture} />
         </TabsContent>
 
-        <TabsContent value="distributions">
-          <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Jamaah</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {distributions?.map((dist) => (
-                  <TableRow key={dist.id}>
-                    <TableCell>
-                      {format(new Date(dist.distributed_at), "dd MMM yyyy HH:mm", { locale: localeId })}
-                    </TableCell>
-                    <TableCell className="font-medium">{dist.equipment?.name}</TableCell>
-                    <TableCell>{dist.customer?.full_name}</TableCell>
-                    <TableCell>{dist.quantity}</TableCell>
-                    <TableCell>
-                      <Badge variant={dist.status === "returned" ? "secondary" : "default"}>
-                        {dist.status === "returned" ? "Dikembalikan" : "Terdistribusi"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {dist.status !== "returned" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => returnMutation.mutate(dist)}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-1" />
-                          Kembalikan
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!distributions?.length && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Belum ada distribusi
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </Card>
+        <TabsContent value="distribution">
+          <DistributionTab 
+            distributions={distributions} 
+            onReturn={(dist) => returnMutation.mutate(dist)}
+            departures={departures}
+            selectedDeparture={selectedDeparture}
+          />
+        </TabsContent>
+
+        <TabsContent value="master">
+          <MasterDataTab items={items} />
         </TabsContent>
       </Tabs>
 
