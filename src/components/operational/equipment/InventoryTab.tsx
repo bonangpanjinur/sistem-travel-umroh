@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +17,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Zap,
 } from "lucide-react";
 import { EquipmentItem } from "@/pages/operational/EquipmentPage";
+import { QuickDistributionDialog } from "./QuickDistributionDialog";
 
 interface InventoryTabProps {
   items: EquipmentItem[] | undefined;
@@ -32,6 +35,9 @@ export function InventoryTab({
   setSearchTerm,
   selectedDeparture,
 }: InventoryTabProps) {
+  const [quickDistItem, setQuickDistItem] = useState<EquipmentItem | null>(null);
+  const [quickDistDialogOpen, setQuickDistDialogOpen] = useState(false);
+
   const filteredItems = items?.filter((i) =>
     i.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -76,6 +82,11 @@ export function InventoryTab({
       icon: CheckCircle2,
       color: "text-green-600",
     };
+  };
+
+  const handleQuickDistribute = (item: EquipmentItem) => {
+    setQuickDistItem(item);
+    setQuickDistDialogOpen(true);
   };
 
   return (
@@ -176,23 +187,24 @@ export function InventoryTab({
           filteredItems.map((item) => {
             const status = getStockStatus(item.stock_quantity);
             const StatusIcon = status.icon;
+            const canDistribute = item.stock_quantity > 0 && selectedDeparture !== "all";
 
             return (
               <Card
                 key={item.id}
-                className="hover:shadow-lg transition-shadow duration-200"
+                className="hover:shadow-lg transition-shadow duration-200 flex flex-col"
               >
-                <CardContent className="p-4">
+                <CardContent className="p-4 flex-1 flex flex-col">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="p-2 bg-primary/10 rounded-lg">
+                      <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
                         <Package className="h-6 w-6 text-primary" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-sm leading-tight">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm leading-tight truncate">
                           {item.name}
                         </h3>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
                           {item.description || "Tidak ada deskripsi"}
                         </p>
                       </div>
@@ -210,17 +222,34 @@ export function InventoryTab({
                     <Badge variant={status.variant}>{status.label}</Badge>
                   </div>
 
-                  {/* Action Button */}
-                  <Button
-                    className="w-full"
-                    disabled={
-                      item.stock_quantity < 1 || selectedDeparture === "all"
-                    }
-                    size="sm"
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    Distribusi
-                  </Button>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 mt-auto">
+                    <Button
+                      className="flex-1"
+                      disabled={!canDistribute}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleQuickDistribute(item)}
+                      title={
+                        !canDistribute
+                          ? selectedDeparture === "all"
+                            ? "Pilih keberangkatan terlebih dahulu"
+                            : "Stok tidak tersedia"
+                          : "Distribusi cepat ke jamaah"
+                      }
+                    >
+                      <Zap className="h-4 w-4 mr-1" />
+                      Cepat
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      disabled={item.stock_quantity < 1 || selectedDeparture === "all"}
+                      size="sm"
+                    >
+                      <Package className="h-4 w-4 mr-1" />
+                      Kelola
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -241,10 +270,18 @@ export function InventoryTab({
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800 flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
-            Pilih keberangkatan terlebih dahulu untuk mendistribusikan perlengkapan
+            Pilih keberangkatan terlebih dahulu untuk mengaktifkan fitur distribusi
           </p>
         </div>
       )}
+
+      {/* Quick Distribution Dialog */}
+      <QuickDistributionDialog
+        open={quickDistDialogOpen}
+        onOpenChange={setQuickDistDialogOpen}
+        item={quickDistItem}
+        selectedDeparture={selectedDeparture}
+      />
     </div>
   );
 }

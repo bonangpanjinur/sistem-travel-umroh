@@ -4,18 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ArrowRight, ArrowLeft, Package, Users, CheckCircle2, Search, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Users, Search, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Distribution } from "@/pages/operational/EquipmentPage";
-import { PassengerSelection } from "./PassengerSelection";
 import { EquipmentChecklist } from "./EquipmentChecklist";
 
 interface DistributionTabProps {
@@ -25,7 +19,14 @@ interface DistributionTabProps {
   selectedDeparture: string;
 }
 
-type DistributionStep = "package" | "departure" | "passengers" | "checklist";
+interface Passenger {
+  id: string;
+  customer_id: string;
+  customer: { id: string; full_name: string };
+  booking: { departure_id: string };
+  is_main_passenger: boolean;
+  passenger_type: string;
+}
 
 export function DistributionTab({
   distributions,
@@ -33,49 +34,16 @@ export function DistributionTab({
   departures,
   selectedDeparture,
 }: DistributionTabProps) {
-  const [currentStep, setCurrentStep] = useState<DistributionStep>("package");
-  const [selectedPackage, setSelectedPackage] = useState<string>("");
-  const [selectedDepartureId, setSelectedDepartureId] = useState<string>("");
+  const [searchPassenger, setSearchPassenger] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
-  const [packageSearch, setPackageSearch] = useState("");
-  const [departureSearch, setDepartureSearch] = useState("");
-
-  // Fetch all packages
-  const { data: packages, isLoading: loadingPackages } = useQuery({
-    queryKey: ["packages-for-distribution"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("packages")
-        .select("id, name, code")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch departures for selected package
-  const { data: packageDepartures, isLoading: loadingDepartures } = useQuery({
-    queryKey: ["departures-for-package", selectedPackage],
-    queryFn: async () => {
-      if (!selectedPackage) return [];
-      const { data, error } = await supabase
-        .from("departures")
-        .select("id, departure_date, package_id")
-        .eq("package_id", selectedPackage)
-        .gte("departure_date", new Date().toISOString().split("T")[0])
-        .order("departure_date");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!selectedPackage,
-  });
+  const [activeTab, setActiveTab] = useState<"distribution" | "returns">("distribution");
 
   // Fetch passengers for selected departure
   const { data: passengers, isLoading: loadingPassengers } = useQuery({
-    queryKey: ["passengers-for-departure", selectedDepartureId],
+    queryKey: ["passengers-for-departure", selectedDeparture],
     queryFn: async () => {
-      if (!selectedDepartureId) return [];
+      if (selectedDeparture === "all") return [];
+      
       const { data, error } = await supabase
         .from("booking_passengers")
         .select(`
@@ -86,11 +54,13 @@ export function DistributionTab({
           is_main_passenger,
           passenger_type
         `)
-        .eq("booking.departure_id", selectedDepartureId);
+        .eq("booking.departure_id", selectedDeparture)
+        .order("customer.full_name");
+      
       if (error) throw error;
-      return data;
+      return data as Passenger[];
     },
-    enabled: !!selectedDepartureId,
+    enabled: selectedDeparture !== "all",
   });
 
   // Fetch equipment items for checklist
@@ -108,355 +78,218 @@ export function DistributionTab({
 
   // Fetch existing distributions for selected customer and departure
   const { data: customerDistributions } = useQuery({
-    queryKey: ["customer-distributions", selectedCustomerId, selectedDepartureId],
+    queryKey: ["customer-distributions", selectedCustomerId, selectedDeparture],
     queryFn: async () => {
-      if (!selectedCustomerId || !selectedDepartureId) return [];
+      if (!selectedCustomerId || selectedDeparture === "all") return [];
       const { data, error } = await supabase
         .from("equipment_distributions")
         .select("equipment_id")
         .eq("customer_id", selectedCustomerId)
-        .eq("departure_id", selectedDepartureId)
+        .eq("departure_id", selectedDeparture)
         .eq("status", "distributed");
       if (error) throw error;
       return data;
     },
-    enabled: !!selectedCustomerId && !!selectedDepartureId,
+    enabled: !!selectedCustomerId && selectedDeparture !== "all",
   });
 
-  // Filter packages based on search
-  const filteredPackages = useMemo(() => {
-    if (!packageSearch.trim()) return packages;
-    const lowerSearch = packageSearch.toLowerCase();
-    return packages?.filter(
-      (p) =>
-        p.name.toLowerCase().includes(lowerSearch) ||
-        p.code.toLowerCase().includes(lowerSearch)
+  // Filter passengers based on search
+  const filteredPassengers = useMemo(() => {
+    if (!passengers) return [];
+    if (!searchPassenger.trim()) return passengers;
+    
+    const lowerSearch = searchPassenger.toLowerCase();
+    return passengers.filter((p) =>
+      p.customer.full_name.toLowerCase().includes(lowerSearch)
     );
-  }, [packages, packageSearch]);
+  }, [passengers, searchPassenger]);
 
-  // Filter departures based on search
-  const filteredDepartures = useMemo(() => {
-    if (!departureSearch.trim()) return packageDepartures;
-    const lowerSearch = departureSearch.toLowerCase();
-    return packageDepartures?.filter((d) =>
-      format(new Date(d.departure_date), "dd MMMM yyyy", { locale: localeId })
-        .toLowerCase()
-        .includes(lowerSearch)
+  // Get distributed items for current departure
+  const distributedItems = useMemo(() => {
+    if (!distributions || selectedDeparture === "all") return [];
+    return distributions.filter(
+      (d) => d.departure_id === selectedDeparture && d.status !== "returned"
     );
-  }, [packageDepartures, departureSearch]);
+  }, [distributions, selectedDeparture]);
 
-  const handleNextStep = () => {
-    if (currentStep === "package" && selectedPackage) {
-      setCurrentStep("departure");
-    } else if (currentStep === "departure" && selectedDepartureId) {
-      setCurrentStep("passengers");
-    } else if (currentStep === "passengers" && selectedCustomerId) {
-      setCurrentStep("checklist");
-    }
-  };
+  // Get returned items for current departure
+  const returnedItems = useMemo(() => {
+    if (!distributions || selectedDeparture === "all") return [];
+    return distributions.filter(
+      (d) => d.departure_id === selectedDeparture && d.status === "returned"
+    );
+  }, [distributions, selectedDeparture]);
 
-  const handlePreviousStep = () => {
-    if (currentStep === "departure") {
-      setSelectedPackage("");
-      setPackageSearch("");
-      setCurrentStep("package");
-    } else if (currentStep === "passengers") {
-      setSelectedDepartureId("");
-      setDepartureSearch("");
-      setCurrentStep("departure");
-    } else if (currentStep === "checklist") {
-      setSelectedCustomerId("");
-      setCurrentStep("passengers");
-    }
-  };
-
-  const selectedPackageData = packages?.find((p) => p.id === selectedPackage);
-  const selectedDepartureData = packageDepartures?.find(
-    (d) => d.id === selectedDepartureId
-  );
   const selectedPassenger = passengers?.find(
     (p) => p.customer_id === selectedCustomerId
   );
 
-  return (
-    <div className="space-y-6 animate-in fade-in">
-      {/* Progress Indicator */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <div
-            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "package" || currentStep === "departure" || currentStep === "passengers" || currentStep === "checklist"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-300 text-gray-600"
-            }`}
-          >
-            1
-          </div>
-          <span className="text-sm font-medium">Paket</span>
-        </div>
-        <div className="flex-1 h-1 mx-2 bg-gray-200" />
-        <div className="flex items-center gap-2">
-          <div
-            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "departure" || currentStep === "passengers" || currentStep === "checklist"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-300 text-gray-600"
-            }`}
-          >
-            2
-          </div>
-          <span className="text-sm font-medium">Tanggal</span>
-        </div>
-        <div className="flex-1 h-1 mx-2 bg-gray-200" />
-        <div className="flex items-center gap-2">
-          <div
-            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "passengers" || currentStep === "checklist"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-300 text-gray-600"
-            }`}
-          >
-            3
-          </div>
-          <span className="text-sm font-medium">Jamaah</span>
-        </div>
-        <div className="flex-1 h-1 mx-2 bg-gray-200" />
-        <div className="flex items-center gap-2">
-          <div
-            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-              currentStep === "checklist"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-300 text-gray-600"
-            }`}
-          >
-            4
-          </div>
-          <span className="text-sm font-medium">Checklist</span>
+  if (selectedDeparture === "all") {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <p className="text-muted-foreground">
+            Pilih keberangkatan terlebih dahulu untuk melihat daftar jamaah
+          </p>
         </div>
       </div>
+    );
+  }
 
-      {/* Step 1: Package Selection */}
-      {currentStep === "package" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Pilih Paket Umrah/Haji
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingPackages ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  return (
+    <div className="space-y-6 animate-in fade-in">
+      {/* Tab Selector */}
+      <div className="flex gap-2">
+        <Button
+          variant={activeTab === "distribution" ? "default" : "outline"}
+          onClick={() => setActiveTab("distribution")}
+          className="gap-2"
+        >
+          <Users className="h-4 w-4" />
+          Distribusi Perlengkapan ({distributedItems.length})
+        </Button>
+        <Button
+          variant={activeTab === "returns" ? "default" : "outline"}
+          onClick={() => setActiveTab("returns")}
+          className="gap-2"
+        >
+          <Users className="h-4 w-4" />
+          Pengembalian ({returnedItems.length})
+        </Button>
+      </div>
+
+      {/* Distribution Tab */}
+      {activeTab === "distribution" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Passenger List */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Daftar Jamaah
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama jamaah..."
+                  value={searchPassenger}
+                  onChange={(e) => setSearchPassenger(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Cari Paket</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari nama atau kode paket..."
-                      value={packageSearch}
-                      onChange={(e) => setPackageSearch(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
+
+              {loadingPassengers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Paket</label>
-                  <Select value={selectedPackage} onValueChange={setSelectedPackage}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih paket..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredPackages && filteredPackages.length > 0 ? (
-                        filteredPackages.map((pkg) => (
-                          <SelectItem key={pkg.id} value={pkg.id}>
-                            {pkg.name} ({pkg.code})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="p-2 text-sm text-muted-foreground">
-                          Paket tidak ditemukan
+              ) : filteredPassengers && filteredPassengers.length > 0 ? (
+                <ScrollArea className="h-[600px] border rounded-lg p-2">
+                  <div className="space-y-2">
+                    {filteredPassengers.map((passenger) => (
+                      <button
+                        key={passenger.id}
+                        onClick={() => setSelectedCustomerId(passenger.customer_id)}
+                        className={`w-full text-left p-3 rounded-lg transition-all border-2 ${
+                          selectedCustomerId === passenger.customer_id
+                            ? "bg-blue-50 border-blue-500"
+                            : "bg-muted/30 border-transparent hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">
+                              {passenger.customer.full_name}
+                            </p>
+                            {passenger.is_main_passenger && (
+                              <Badge variant="secondary" className="text-xs mt-1">
+                                Penumpang Utama
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                onClick={handleNextStep}
-                disabled={!selectedPackage || loadingPackages}
-                className="gap-2"
-              >
-                Lanjut
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 2: Departure Selection */}
-      {currentStep === "departure" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Pilih Tanggal Keberangkatan
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              Paket: {selectedPackageData?.name}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingDepartures ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Cari Tanggal</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari tanggal keberangkatan..."
-                      value={departureSearch}
-                      onChange={(e) => setDepartureSearch(e.target.value)}
-                      className="pl-10"
-                    />
+                      </button>
+                    ))}
                   </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-sm text-muted-foreground">
+                    {searchPassenger
+                      ? "Tidak ada jamaah yang cocok"
+                      : "Tidak ada jamaah untuk keberangkatan ini"}
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Tanggal Keberangkatan</label>
-                  <Select value={selectedDepartureId} onValueChange={setSelectedDepartureId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih tanggal keberangkatan..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredDepartures && filteredDepartures.length > 0 ? (
-                        filteredDepartures.map((dep) => (
-                          <SelectItem key={dep.id} value={dep.id}>
-                            {format(new Date(dep.departure_date), "dd MMMM yyyy", {
-                              locale: localeId,
-                            })}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="p-2 text-sm text-muted-foreground">
-                          Tanggal tidak ditemukan
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Right Column: Equipment Checklist */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">
+                {selectedPassenger
+                  ? `Perlengkapan untuk ${selectedPassenger.customer.full_name}`
+                  : "Pilih Jamaah untuk Melihat Perlengkapan"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedPassenger && equipmentItems ? (
+                <EquipmentChecklist
+                  equipmentItems={equipmentItems}
+                  selectedCustomerId={selectedCustomerId}
+                  selectedDepartureId={selectedDeparture}
+                  existingDistributions={customerDistributions || []}
+                />
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-muted-foreground">
+                    Pilih seorang jamaah dari daftar untuk memulai distribusi perlengkapan
+                  </p>
                 </div>
-              </>
-            )}
-            <div className="flex justify-between gap-2">
-              <Button
-                onClick={handlePreviousStep}
-                variant="outline"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Kembali
-              </Button>
-              <Button
-                onClick={handleNextStep}
-                disabled={!selectedDepartureId || loadingDepartures}
-                className="gap-2"
-              >
-                Lanjut
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Step 3: Passenger Selection */}
-      {currentStep === "passengers" && (
+      {/* Returns Tab */}
+      {activeTab === "returns" && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Pilih Jamaah
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              {selectedPackageData?.name} -{" "}
-              {format(new Date(selectedDepartureData?.departure_date || ""), "dd MMMM yyyy", {
-                locale: localeId,
-              })}
-            </p>
+            <CardTitle>Daftar Pengembalian Perlengkapan</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingPassengers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <CardContent>
+            {returnedItems && returnedItems.length > 0 ? (
+              <div className="space-y-3">
+                {returnedItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
+                  >
+                    <div>
+                      <p className="font-semibold text-sm">
+                        {item.equipment?.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.customer?.full_name} • {item.quantity}x
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="bg-green-50">
+                      Dikembalikan
+                    </Badge>
+                  </div>
+                ))}
               </div>
             ) : (
-              <PassengerSelection
-                passengers={passengers || []}
-                selectedCustomerId={selectedCustomerId}
-                onSelectCustomer={setSelectedCustomerId}
-                selectedDepartureId={selectedDepartureId}
-              />
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  Belum ada perlengkapan yang dikembalikan untuk keberangkatan ini
+                </p>
+              </div>
             )}
-            <div className="flex justify-between gap-2">
-              <Button
-                onClick={handlePreviousStep}
-                variant="outline"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Kembali
-              </Button>
-              <Button
-                onClick={handleNextStep}
-                disabled={!selectedCustomerId || loadingPassengers}
-                className="gap-2"
-              >
-                Lanjut
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 4: Equipment Checklist */}
-      {currentStep === "checklist" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5" />
-              Checklist Perlengkapan
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              Jamaah: {selectedPassenger?.customer?.full_name}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <EquipmentChecklist
-              equipmentItems={equipmentItems || []}
-              selectedCustomerId={selectedCustomerId}
-              selectedDepartureId={selectedDepartureId}
-              existingDistributions={customerDistributions || []}
-            />
-            <div className="flex justify-between gap-2">
-              <Button
-                onClick={handlePreviousStep}
-                variant="outline"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Kembali
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}

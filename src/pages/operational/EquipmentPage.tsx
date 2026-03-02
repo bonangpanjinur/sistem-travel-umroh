@@ -249,11 +249,11 @@ export default function EquipmentPage() {
         <TabsList className="grid w-full grid-cols-3 mb-4 bg-muted p-1 rounded-lg">
           <TabsTrigger value="inventory" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            Pantauan Stok
+            Stok & Inventaris
           </TabsTrigger>
           <TabsTrigger value="distribution" className="gap-2">
             <Users className="h-4 w-4" />
-            Distribusi Keberangkatan
+            Distribusi & Pengembalian
           </TabsTrigger>
           <TabsTrigger value="master" className="gap-2">
             <Database className="h-4 w-4" />
