@@ -68,6 +68,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Jamaah', icon: Users, path: '/admin/customers' },
       { label: 'Agent', icon: UserCheck, path: '/admin/agents' },
+      { label: 'Cabang', icon: Building2, path: '/admin/branches' },
       { label: 'Loyalty', icon: Gift, path: '/admin/loyalty' },
       { label: 'Referral', icon: Share2, path: '/admin/referrals' },
       { label: 'Haji', icon: BookOpen, path: '/admin/haji' },
@@ -103,7 +104,6 @@ const NAV_GROUPS = [
     allowedRoles: ['super_admin', 'owner', 'branch_manager', 'operational'],
     items: [
       { label: 'Master Data', icon: Settings, path: '/admin/master-data' },
-      { label: 'Cabang', icon: Building2, path: '/admin/branches' },
     ]
   },
   {
