@@ -1248,6 +1248,52 @@ export type Database = {
         }
         Relationships: []
       }
+      departure_itineraries: {
+        Row: {
+          created_at: string | null
+          customized_days: Json | null
+          departure_id: string
+          id: string
+          template_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customized_days?: Json | null
+          departure_id: string
+          id?: string
+          template_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customized_days?: Json | null
+          departure_id?: string
+          id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departure_itineraries_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: true
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departure_itineraries_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: true
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["departure_id"]
+          },
+          {
+            foreignKeyName: "departure_itineraries_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "itinerary_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departures: {
         Row: {
           airline_id: string | null
@@ -1712,6 +1758,7 @@ export type Database = {
       }
       equipment_items: {
         Row: {
+          category: string
           created_at: string | null
           description: string | null
           id: string
@@ -1719,6 +1766,7 @@ export type Database = {
           stock_quantity: number | null
         }
         Insert: {
+          category?: string
           created_at?: string | null
           description?: string | null
           id?: string
@@ -1726,6 +1774,7 @@ export type Database = {
           stock_quantity?: number | null
         }
         Update: {
+          category?: string
           created_at?: string | null
           description?: string | null
           id?: string
