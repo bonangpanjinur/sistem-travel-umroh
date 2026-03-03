@@ -395,61 +395,27 @@ export default function AdminDepartures() {
                           </div>
                         </TableCell>
 
-                        {/* Harga per Kamar - Layout vertikal yang rapi */}
+                        {/* Harga per Kamar - Grid 2x2 */}
                         <TableCell>
-                          <div className="space-y-0.5 text-xs min-w-[120px]">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-muted-foreground">Q:</span>
-                              <Tooltip>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs min-w-[140px]">
+                            {[
+                              { label: 'Q', value: dep.price_quad, full: 'Quad', color: 'text-blue-600' },
+                              { label: 'T', value: dep.price_triple, full: 'Triple', color: 'text-emerald-600' },
+                              { label: 'D', value: dep.price_double, full: 'Double', color: 'text-amber-600' },
+                              { label: 'S', value: dep.price_single, full: 'Single', color: 'text-purple-600' },
+                            ].map(p => (
+                              <Tooltip key={p.label}>
                                 <TooltipTrigger asChild>
-                                  <span className="font-medium tabular-nums cursor-default">
-                                    {formatShortCurrency(dep.price_quad)}
-                                  </span>
+                                  <div className="flex items-center gap-1 cursor-default">
+                                    <span className={`font-bold ${p.color}`}>{p.label}</span>
+                                    <span className="font-medium tabular-nums">{formatShortCurrency(p.value)}</span>
+                                  </div>
                                 </TooltipTrigger>
-                                {dep.price_quad > 0 && (
-                                  <TooltipContent><p>Quad: {formatCurrency(dep.price_quad)}</p></TooltipContent>
+                                {p.value && p.value > 0 && (
+                                  <TooltipContent><p>{p.full}: {formatCurrency(p.value)}</p></TooltipContent>
                                 )}
                               </Tooltip>
-                            </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-muted-foreground">T:</span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="font-medium tabular-nums cursor-default">
-                                    {formatShortCurrency(dep.price_triple)}
-                                  </span>
-                                </TooltipTrigger>
-                                {dep.price_triple > 0 && (
-                                  <TooltipContent><p>Triple: {formatCurrency(dep.price_triple)}</p></TooltipContent>
-                                )}
-                              </Tooltip>
-                            </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-muted-foreground">D:</span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="font-medium tabular-nums cursor-default">
-                                    {formatShortCurrency(dep.price_double)}
-                                  </span>
-                                </TooltipTrigger>
-                                {dep.price_double > 0 && (
-                                  <TooltipContent><p>Double: {formatCurrency(dep.price_double)}</p></TooltipContent>
-                                )}
-                              </Tooltip>
-                            </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-muted-foreground">S:</span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="font-medium tabular-nums cursor-default">
-                                    {formatShortCurrency(dep.price_single)}
-                                  </span>
-                                </TooltipTrigger>
-                                {dep.price_single > 0 && (
-                                  <TooltipContent><p>Single: {formatCurrency(dep.price_single)}</p></TooltipContent>
-                                )}
-                              </Tooltip>
-                            </div>
+                            ))}
                           </div>
                         </TableCell>
 
