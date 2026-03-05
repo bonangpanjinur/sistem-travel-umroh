@@ -15,6 +15,7 @@ import { id as idLocale } from "date-fns/locale";
 import { Calendar, Users, BedDouble, Minus, Plus, Loader2, Info, Plane, Hotel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
+import { HotelDisplay } from "@/components/hotels/HotelDisplay";
 
 interface PackageBookingFormProps {
   packageId: string;
@@ -54,9 +55,7 @@ export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
         .from('departures')
         .select(`
           *,
-          airline:airlines(code, name),
-          hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name, star_rating),
-          hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, star_rating)
+          airline:airlines(code, name)
         `)
         .eq('package_id', packageId)
         .eq('status', 'open')
@@ -245,16 +244,16 @@ export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
                   {selectedDepartureData.airline.name}
                 </p>
               )}
-              {(selectedDepartureData.hotel_makkah || selectedDepartureData.hotel_madinah) && (
+              {(selectedDepartureData.hotel_makkah_id || selectedDepartureData.hotel_madinah_id) && (
                 <div className="flex items-start gap-1">
                   <Hotel className="h-3 w-3 mt-0.5" />
                   <div>
-                    {selectedDepartureData.hotel_makkah && (
-                      <span>M: {selectedDepartureData.hotel_makkah.name}</span>
+                    {selectedDepartureData.hotel_makkah_id && (
+                      <span>M: <HotelDisplay hotelIds={selectedDepartureData.hotel_makkah_id} /></span>
                     )}
-                    {selectedDepartureData.hotel_makkah && selectedDepartureData.hotel_madinah && <span> • </span>}
-                    {selectedDepartureData.hotel_madinah && (
-                      <span>D: {selectedDepartureData.hotel_madinah.name}</span>
+                    {selectedDepartureData.hotel_makkah_id && selectedDepartureData.hotel_madinah_id && <span> • </span>}
+                    {selectedDepartureData.hotel_madinah_id && (
+                      <span>D: <HotelDisplay hotelIds={selectedDepartureData.hotel_madinah_id} /></span>
                     )}
                   </div>
                 </div>
@@ -276,160 +275,92 @@ export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
           <div className="space-y-3">
             <Label className="flex items-center gap-2 text-sm font-medium">
               <BedDouble className="h-4 w-4 text-primary" />
-              Pilih Kamar & Jumlah Jamaah
+              Jumlah Jamaah per Kamar
             </Label>
             
-            <div className="space-y-2">
+            <div className="space-y-3">
               {(Object.keys(ROOM_INFO) as RoomType[]).map((type) => {
-                const info = ROOM_INFO[type];
-                const count = roomAllocation[type];
                 const price = prices[type];
-                
-                // Skip if no price for this room type
-                if (price <= 0) return null;
-                
-                const isDoubleError = type === 'double' && count > 0 && count % 2 !== 0;
-                
+                if (price === 0) return null;
+
                 return (
-                  <div key={type} className="space-y-1">
-                    <div 
-                      className={cn(
-                        "flex items-center justify-between p-3 border rounded-lg transition-colors",
-                        count > 0 ? "border-primary bg-primary/5" : "border-border",
-                        isDoubleError && "border-destructive bg-destructive/5"
-                      )}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{info.label}</span>
-                          <span className="text-xs text-muted-foreground">({info.desc})</span>
-                        </div>
-                        <span className="text-xs text-primary font-medium">
-                          {formatCurrency(price)}/org
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => updateRoomCount(type, -1)}
-                          disabled={count <= 0}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-6 text-center text-sm font-medium">{count}</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => updateRoomCount(type, 1)}
-                          disabled={totalPassengers >= availableSeats}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
+                  <div key={type} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                    <div className="space-y-0.5">
+                      <p className="font-medium text-sm capitalize">{ROOM_INFO[type].label}</p>
+                      <p className="text-xs text-muted-foreground">{ROOM_INFO[type].desc}</p>
+                      <p className="text-sm font-semibold text-primary">{formatCurrency(price)}</p>
                     </div>
-                    {isDoubleError && (
-                      <p className="text-xs text-destructive px-2">
-                        ⚠ Tipe Double harus kelipatan 2 orang (min. 2)
-                      </p>
-                    )}
+                    
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => updateRoomCount(type, -1)}
+                        disabled={roomAllocation[type] === 0}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-4 text-center font-medium">{roomAllocation[type]}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => updateRoomCount(type, 1)}
+                        disabled={totalPassengers >= availableSeats}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
             </div>
+          </div>
+        )}
 
-            {/* Room Summary */}
-            {roomSummary.length > 0 && (
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="text-xs text-muted-foreground">
-                    <p className="font-medium text-foreground mb-1">Ringkasan Kamar:</p>
-                    {roomSummary.map((s, i) => (
-                      <p key={i}>• {s}</p>
-                    ))}
-                  </div>
-                </div>
+        {/* 3. Summary & Action */}
+        {totalPassengers > 0 && (
+          <div className="pt-4 space-y-4 border-t">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total {totalPassengers} Jamaah</span>
+                <span className="font-medium">{roomSummary.join(", ")}</span>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Total Summary */}
-        {hasPricing && (
-          <div className="border-t pt-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                Total Jamaah
-              </span>
-              <span className="font-medium">{totalPassengers} orang</span>
+              <div className="flex justify-between items-end">
+                <span className="text-sm font-medium">Total Harga</span>
+                <span className="text-xl font-bold text-primary">{formatCurrency(totalPrice)}</span>
+              </div>
             </div>
-            
-            {totalPassengers > 0 && (
-              <>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  {roomAllocation.quad > 0 && prices.quad > 0 && (
-                    <div className="flex justify-between">
-                      <span>{roomAllocation.quad}x Quad @ {formatCurrency(prices.quad)}</span>
-                      <span>{formatCurrency(roomAllocation.quad * prices.quad)}</span>
-                    </div>
-                  )}
-                  {roomAllocation.triple > 0 && prices.triple > 0 && (
-                    <div className="flex justify-between">
-                      <span>{roomAllocation.triple}x Triple @ {formatCurrency(prices.triple)}</span>
-                      <span>{formatCurrency(roomAllocation.triple * prices.triple)}</span>
-                    </div>
-                  )}
-                  {roomAllocation.double > 0 && prices.double > 0 && (
-                    <div className="flex justify-between">
-                      <span>{roomAllocation.double}x Double @ {formatCurrency(prices.double)}</span>
-                      <span>{formatCurrency(roomAllocation.double * prices.double)}</span>
-                    </div>
-                  )}
-                  {roomAllocation.single > 0 && prices.single > 0 && (
-                    <div className="flex justify-between">
-                      <span>{roomAllocation.single}x Single @ {formatCurrency(prices.single)}</span>
-                      <span>{formatCurrency(roomAllocation.single * prices.single)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-between font-semibold text-lg pt-2 border-t">
-                  <span>Total</span>
-                  <span className="text-primary">{formatCurrency(totalPrice)}</span>
-                </div>
-              </>
+
+            {doubleValidationError && (
+              <p className="text-xs text-destructive bg-destructive/5 p-2 rounded border border-destructive/20">
+                Tipe kamar Double harus berjumlah genap (kelipatan 2). Jika Anda berangkat sendiri, pilih tipe kamar Single.
+              </p>
             )}
+
+            <Button 
+              className="w-full h-11 text-base font-semibold" 
+              onClick={handleProceed}
+              disabled={!canProceed}
+            >
+              {authLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                "Lanjutkan Pemesanan"
+              )}
+            </Button>
+            
+            <p className="text-[10px] text-center text-muted-foreground italic">
+              * Harga dapat berubah sewaktu-waktu sebelum pembayaran uang muka (DP)
+            </p>
           </div>
         )}
 
-        {/* CTA Button */}
-        <Button 
-          className="w-full" 
-          size="lg"
-          onClick={handleProceed}
-          disabled={!canProceed || authLoading}
-        >
-          {authLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : null}
-          {!user ? 'Login untuk Pesan' : 'Lanjut ke Data Jamaah'}
-        </Button>
-
-        {!selectedDeparture && departures && departures.length > 0 && (
-          <p className="text-xs text-center text-muted-foreground">
-            Pilih tanggal keberangkatan untuk melanjutkan
-          </p>
-        )}
-        {selectedDeparture && hasPricing && totalPassengers === 0 && (
-          <p className="text-xs text-center text-muted-foreground">
-            Pilih jumlah jamaah per tipe kamar
-          </p>
+        {!selectedDepartureData && (
+          <div className="p-4 bg-muted/50 rounded-lg text-center">
+            <p className="text-sm text-muted-foreground">Pilih tanggal keberangkatan untuk melihat harga dan memesan paket.</p>
+          </div>
         )}
       </CardContent>
     </Card>
