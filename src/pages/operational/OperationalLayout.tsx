@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "Dashboard", href: "/operational", icon: Home },
+  { label: "Booking", href: "/admin/bookings", icon: ClipboardList },
   { label: "Manifest", href: "/operational/manifest", icon: ClipboardList },
   { label: "Rooming List", href: "/operational/rooming", icon: BedDouble },
   { label: "QR Code Jamaah", href: "/operational/qrcode", icon: ScanLine },

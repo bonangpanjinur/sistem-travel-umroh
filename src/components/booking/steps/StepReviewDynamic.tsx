@@ -1,12 +1,17 @@
+import { useState } from "react";
 import { DynamicBookingFormData } from "@/hooks/useBookingWizardDynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Calendar, Users, BedDouble, Plane, User } from "lucide-react";
+import { Calendar, Users, BedDouble, Plane, User, Tag, Share2, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { RoomType } from "@/types/database";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StepReviewDynamicProps {
   formData: DynamicBookingFormData;
@@ -30,6 +35,8 @@ interface StepReviewDynamicProps {
     price_double: number;
     price_single: number;
   };
+  onCouponApplied?: (discount: number, code: string) => void;
+  onReferralApplied?: (code: string) => void;
 }
 
 const ROOM_LABELS: Record<RoomType, string> = {
@@ -39,7 +46,14 @@ const ROOM_LABELS: Record<RoomType, string> = {
   single: 'Single',
 };
 
-export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices }: StepReviewDynamicProps) {
+export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied }: StepReviewDynamicProps) {
+  const [couponCode, setCouponCode] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [couponResult, setCouponResult] = useState<{ valid: boolean; discount: number; name: string } | null>(null);
+  const [referralResult, setReferralResult] = useState<{ valid: boolean; name: string } | null>(null);
+
   // Use departure prices (if available), fallback to package prices
   const priceSource = departurePrices || packageInfo;
   const priceMap: Record<RoomType, number> = {
@@ -60,7 +74,9 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
     return acc;
   }, {} as Record<RoomType, { count: number; price: number; total: number }>);
 
-  const totalPrice = formData.passengers.reduce((sum, p) => sum + priceMap[p.roomType], 0);
+  const subtotal = formData.passengers.reduce((sum, p) => sum + priceMap[p.roomType], 0);
+  const discountAmount = couponResult?.valid ? couponResult.discount : 0;
+  const totalPrice = Math.max(0, subtotal - discountAmount);
 
   // Group passengers by room type for display
   const groupedPassengers = formData.passengers.reduce((acc, passenger) => {
@@ -71,6 +87,92 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
     acc[roomType].push(passenger);
     return acc;
   }, {} as Record<RoomType, typeof formData.passengers>);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', couponCode.trim().toUpperCase())
+        .eq('is_active', true)
+        .single();
+
+      if (error || !data) {
+        setCouponResult({ valid: false, discount: 0, name: '' });
+        return;
+      }
+
+      // Validate coupon
+      const now = new Date();
+      if (data.valid_from && new Date(data.valid_from) > now) {
+        setCouponResult({ valid: false, discount: 0, name: '' });
+        return;
+      }
+      if (data.valid_until && new Date(data.valid_until) < now) {
+        setCouponResult({ valid: false, discount: 0, name: '' });
+        return;
+      }
+      if (data.usage_limit && (data.used_count || 0) >= data.usage_limit) {
+        setCouponResult({ valid: false, discount: 0, name: '' });
+        return;
+      }
+      if (data.min_purchase && subtotal < data.min_purchase) {
+        setCouponResult({ valid: false, discount: 0, name: '' });
+        return;
+      }
+
+      let discount = 0;
+      if (data.discount_type === 'percentage') {
+        discount = Math.round(subtotal * data.discount_value / 100);
+        if (data.max_discount && discount > data.max_discount) {
+          discount = data.max_discount;
+        }
+      } else {
+        discount = data.discount_value;
+      }
+
+      setCouponResult({ valid: true, discount, name: data.name });
+      onCouponApplied?.(discount, data.code);
+    } catch {
+      setCouponResult({ valid: false, discount: 0, name: '' });
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleApplyReferral = async () => {
+    if (!referralCode.trim()) return;
+    setReferralLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('referral_codes')
+        .select('id, code, customer_id, customers(full_name)')
+        .eq('code', referralCode.trim().toUpperCase())
+        .eq('is_active', true)
+        .single();
+
+      if (error || !data) {
+        setReferralResult({ valid: false, name: '' });
+        return;
+      }
+
+      const customerName = (data as any).customers?.full_name || 'Jamaah';
+      setReferralResult({ valid: true, name: customerName });
+      onReferralApplied?.(data.code);
+    } catch {
+      setReferralResult({ valid: false, name: '' });
+    } finally {
+      setReferralLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponResult(null);
+    onCouponApplied?.(0, "");
+  };
 
   return (
     <div className="space-y-6">
@@ -137,7 +239,7 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
                 </Badge>
               </div>
               <div className="grid gap-2 pl-6">
-                {groupedPassengers[roomType].map((passenger, idx) => (
+                {groupedPassengers[roomType].map((passenger) => (
                   <div key={passenger.id} className="flex items-center gap-3 text-sm">
                     <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                       <User className="h-3 w-3" />
@@ -159,6 +261,102 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
         </CardContent>
       </Card>
 
+      {/* Coupon & Referral */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Kode Promo & Referral</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Coupon Code */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2 text-sm">
+              <Tag className="h-4 w-4 text-primary" />
+              Kode Kupon
+            </Label>
+            {couponResult?.valid ? (
+              <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <div>
+                    <p className="text-sm font-medium text-green-800">{couponResult.name}</p>
+                    <p className="text-xs text-green-600">Diskon: {formatCurrency(couponResult.discount)}</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={removeCoupon} className="text-destructive h-8">
+                  Hapus
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Masukkan kode kupon"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase());
+                    setCouponResult(null);
+                  }}
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={handleApplyCoupon}
+                  disabled={couponLoading || !couponCode.trim()}
+                >
+                  {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Pakai'}
+                </Button>
+              </div>
+            )}
+            {couponResult && !couponResult.valid && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <XCircle className="h-3 w-3" />
+                Kode kupon tidak valid atau sudah kadaluarsa
+              </p>
+            )}
+          </div>
+
+          {/* Referral Code */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2 text-sm">
+              <Share2 className="h-4 w-4 text-primary" />
+              Kode Referral
+            </Label>
+            {referralResult?.valid ? (
+              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <CheckCircle className="h-4 w-4 text-blue-600" />
+                <p className="text-sm text-blue-800">
+                  Direferensikan oleh <strong>{referralResult.name}</strong>
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Masukkan kode referral (opsional)"
+                  value={referralCode}
+                  onChange={(e) => {
+                    setReferralCode(e.target.value.toUpperCase());
+                    setReferralResult(null);
+                  }}
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={handleApplyReferral}
+                  disabled={referralLoading || !referralCode.trim()}
+                >
+                  {referralLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Pakai'}
+                </Button>
+              </div>
+            )}
+            {referralResult && !referralResult.valid && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <XCircle className="h-3 w-3" />
+                Kode referral tidak ditemukan
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Price Summary */}
       <Card className="bg-primary/5 border-primary/20">
         <CardHeader className="pb-3">
@@ -176,6 +374,19 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
               </div>
             );
           })}
+          
+          {discountAmount > 0 && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Diskon Kupon</span>
+                <span>-{formatCurrency(discountAmount)}</span>
+              </div>
+            </>
+          )}
           
           <Separator className="my-2" />
           
