@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -33,10 +33,10 @@ import {
   Navigation, 
   ListChecks, 
   Info,
-  CheckCircle2
+  CheckCircle2,
+  X
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
-import { cn } from "@/lib/utils";
 
 type HotelRow = Database["public"]["Tables"]["hotels"]["Row"];
 type HotelInsert = Database["public"]["Tables"]["hotels"]["Insert"];
@@ -110,211 +110,213 @@ export function HotelForm({ hotelData, onSuccess, onCancel }: HotelFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Section 1: Informasi Dasar */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <Info className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Informasi Dasar</h3>
-          </div>
-          
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  Nama Hotel
-                </FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="Contoh: Pullman Zamzam Makkah" 
-                    className="focus-visible:ring-primary"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                    Kota
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Makkah, Madinah, Jeddah..." 
-                      className="focus-visible:ring-primary"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="star_rating"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Star className="h-3.5 w-3.5 text-muted-foreground" />
-                    Rating Bintang
-                  </FormLabel>
-                  <Select onValueChange={(v) => field.onChange(parseInt(v))} defaultValue={field.value.toString()}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[85vh]">
+        {/* Scrollable Content Area */}
+        <ScrollArea className="flex-1 px-1 pr-4">
+          <div className="space-y-5 py-1">
+            {/* Section 1: Informasi Dasar */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-1 border-b border-muted">
+                <Info className="h-3.5 w-3.5 text-primary" />
+                <h3 className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Informasi Dasar</h3>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs flex items-center gap-2">
+                      <Building2 className="h-3 w-3 text-muted-foreground" />
+                      Nama Hotel
+                    </FormLabel>
                     <FormControl>
-                      <SelectTrigger className="focus:ring-primary">
-                        <SelectValue placeholder="Pilih rating" />
-                      </SelectTrigger>
+                      <Input 
+                        placeholder="Pullman Zamzam Makkah" 
+                        className="h-9 text-sm focus-visible:ring-primary"
+                        {...field} 
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <SelectItem key={star} value={star.toString()}>
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: star }).map((_, i) => (
-                              <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />
-                            ))}
-                            <span className="ml-2 text-xs text-muted-foreground">({star} Bintang)</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs flex items-center gap-2">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        Kota
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Makkah" 
+                          className="h-9 text-sm focus-visible:ring-primary"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px]" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="star_rating"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs flex items-center gap-2">
+                        <Star className="h-3 w-3 text-muted-foreground" />
+                        Rating
+                      </FormLabel>
+                      <Select onValueChange={(v) => field.onChange(parseInt(v))} defaultValue={field.value.toString()}>
+                        <FormControl>
+                          <SelectTrigger className="h-9 text-sm focus:ring-primary">
+                            <SelectValue placeholder="Pilih rating" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <SelectItem key={star} value={star.toString()}>
+                              <div className="flex items-center gap-1">
+                                {Array.from({ length: star }).map((_, i) => (
+                                  <Star key={i} className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                                ))}
+                                <span className="ml-1 text-[11px] text-muted-foreground">({star})</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage className="text-[10px]" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Section 2: Lokasi & Detail */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-1 border-b border-muted">
+                <Navigation className="h-3.5 w-3.5 text-primary" />
+                <h3 className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Lokasi & Detail</h3>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs">Alamat</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Jl. Ibrahim Al Khalil, Makkah" 
+                        className="h-9 text-sm focus-visible:ring-primary"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="distance_to_masjid"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs">Jarak ke Masjid</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input 
+                          placeholder="50 meter" 
+                          className="h-9 pl-8 text-sm focus-visible:ring-primary"
+                          {...field} 
+                        />
+                        <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Section 3: Fasilitas */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-1 border-b border-muted">
+                <ListChecks className="h-3.5 w-3.5 text-primary" />
+                <h3 className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Fasilitas</h3>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="facilities"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs">Daftar Fasilitas (per baris)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="WiFi Gratis&#10;Restoran&#10;Laundry" 
+                        rows={3} 
+                        className="text-sm resize-none focus-visible:ring-primary min-h-[80px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-md border p-2 shadow-sm bg-muted/20">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-xs">Status Aktif</FormLabel>
+                      <p className="text-[10px] text-muted-foreground">Tampilkan hotel di pilihan paket</p>
+                    </div>
+                    <FormControl>
+                      <Switch 
+                        checked={field.value} 
+                        onCheckedChange={field.onChange}
+                        className="scale-90"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
-        </div>
+        </ScrollArea>
 
-        {/* Section 2: Lokasi & Detail */}
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <Navigation className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Lokasi & Detail</h3>
-          </div>
-
-          <FormField
-            control={form.control}
-            name="address"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Alamat Lengkap</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="Jl. Ibrahim Al Khalil, Makkah..." 
-                    className="focus-visible:ring-primary"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="distance_to_masjid"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Jarak ke Masjid</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input 
-                      placeholder="Contoh: 50 meter" 
-                      className="pl-9 focus-visible:ring-primary"
-                      {...field} 
-                    />
-                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  </div>
-                </FormControl>
-                <FormDescription className="text-[10px]">
-                  Sebutkan jarak perkiraan dari pintu masuk utama masjid.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Section 3: Fasilitas */}
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <ListChecks className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Fasilitas</h3>
-          </div>
-
-          <FormField
-            control={form.control}
-            name="facilities"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Daftar Fasilitas</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder="WiFi Gratis&#10;Restoran&#10;Laundry&#10;Layanan Kamar 24 Jam" 
-                    rows={4} 
-                    className="resize-none focus-visible:ring-primary"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormDescription className="text-[10px]">
-                  Tulis satu fasilitas per baris.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="is_active"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-sm">Status Aktif</FormLabel>
-                  <FormDescription className="text-[10px]">
-                    Hotel yang tidak aktif tidak akan muncul di pilihan paket.
-                  </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch 
-                    checked={field.value} 
-                    onCheckedChange={field.onChange} 
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="flex justify-end gap-3 pt-6 border-t sticky bottom-0 bg-background pb-2">
+        {/* Fixed Footer with Action Buttons */}
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t bg-background">
           <Button 
             type="button" 
             variant="ghost" 
+            size="sm"
             onClick={onCancel}
-            className="hover:bg-destructive/10 hover:text-destructive transition-colors"
+            className="h-9 px-4 hover:bg-destructive/10 hover:text-destructive transition-colors text-xs"
           >
+            <X className="h-3.5 w-3.5 mr-1.5" />
             Batal
           </Button>
           <Button 
             type="submit" 
+            size="sm"
             disabled={mutation.isPending}
-            className="min-w-[140px] shadow-md hover:shadow-lg transition-all"
+            className="h-9 px-6 shadow-sm hover:shadow-md transition-all text-xs"
           >
             {mutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
             ) : (
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
             )}
             {isEditing ? "Simpan Perubahan" : "Tambah Hotel"}
           </Button>
