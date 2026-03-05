@@ -34,9 +34,13 @@ import {
   ListChecks, 
   Info,
   CheckCircle2,
-  X
+  X,
+  Map,
+  Copy,
+  ExternalLink
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
+import { cn } from "@/lib/utils";
 
 type HotelRow = Database["public"]["Tables"]["hotels"]["Row"];
 type HotelInsert = Database["public"]["Tables"]["hotels"]["Insert"];
@@ -46,13 +50,25 @@ const hotelSchema = z.object({
   name: z.string().min(1, "Nama hotel harus diisi"),
   city: z.string().min(1, "Kota harus diisi"),
   star_rating: z.coerce.number().min(1).max(5),
-  address: z.string().optional(),
+  address: z.string().url("URL Google Maps harus valid").optional().or(z.literal("")),
   distance_to_masjid: z.string().optional(),
   facilities: z.string().optional(),
   is_active: z.boolean().default(true),
 });
 
 type HotelFormValues = z.infer<typeof hotelSchema>;
+
+// Popular cities for Umrah & Hajj packages
+const POPULAR_CITIES = [
+  { name: "Makkah", label: "Makkah", category: "Umrah" },
+  { name: "Madinah", label: "Madinah", category: "Umrah" },
+  { name: "Cappadocia", label: "Cappadocia", category: "Plus" },
+  { name: "Bursa", label: "Bursa", category: "Plus" },
+  { name: "Istanbul", label: "Istanbul", category: "Plus" },
+  { name: "Kairo", label: "Kairo", category: "Plus" },
+  { name: "Dubai", label: "Dubai", category: "Plus" },
+  { name: "Jeddah", label: "Jeddah", category: "Gateway" },
+];
 
 interface HotelFormProps {
   hotelData?: HotelRow;
@@ -108,6 +124,13 @@ export function HotelForm({ hotelData, onSuccess, onCancel }: HotelFormProps) {
     mutation.mutate(values);
   };
 
+  const handleCitySelect = (cityName: string) => {
+    form.setValue("city", cityName);
+  };
+
+  const currentCity = form.watch("city");
+  const mapsUrl = form.watch("address");
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[85vh]">
@@ -160,6 +183,28 @@ export function HotelForm({ hotelData, onSuccess, onCancel }: HotelFormProps) {
                         />
                       </FormControl>
                       <FormMessage className="text-[10px]" />
+                      
+                      {/* Quick City Selection Buttons */}
+                      <div className="space-y-1.5 mt-2">
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">Pilihan Cepat:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {POPULAR_CITIES.map((city) => (
+                            <button
+                              key={city.name}
+                              type="button"
+                              onClick={() => handleCitySelect(city.name)}
+                              className={cn(
+                                "px-2.5 py-1 rounded text-[10px] font-medium transition-all duration-200 border",
+                                currentCity === city.name
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                  : "bg-muted hover:bg-muted/80 border-muted-foreground/20 text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              {city.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </FormItem>
                   )}
                 />
@@ -211,14 +256,33 @@ export function HotelForm({ hotelData, onSuccess, onCancel }: HotelFormProps) {
                 name="address"
                 render={({ field }) => (
                   <FormItem className="space-y-1">
-                    <FormLabel className="text-xs">Alamat</FormLabel>
+                    <FormLabel className="text-xs flex items-center gap-2">
+                      <Map className="h-3 w-3 text-muted-foreground" />
+                      URL Google Maps
+                    </FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Jl. Ibrahim Al Khalil, Makkah" 
-                        className="h-9 text-sm focus-visible:ring-primary"
-                        {...field} 
-                      />
+                      <div className="relative">
+                        <Input 
+                          placeholder="https://maps.google.com/..." 
+                          className="h-9 pr-8 text-sm focus-visible:ring-primary"
+                          {...field} 
+                        />
+                        {mapsUrl && (
+                          <a
+                            href={mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-primary transition-colors"
+                            title="Buka di Google Maps"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
                     </FormControl>
+                    <FormDescription className="text-[9px]">
+                      Salin URL dari Google Maps untuk lokasi hotel yang akurat.
+                    </FormDescription>
                     <FormMessage className="text-[10px]" />
                   </FormItem>
                 )}
