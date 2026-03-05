@@ -120,17 +120,9 @@ export function HotelForm({ hotelData, onSuccess, onCancel }: HotelFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Kota</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih kota" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Makkah">Makkah</SelectItem>
-                    <SelectItem value="Madinah">Madinah</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Input placeholder="Makkah, Madinah, Jeddah, dll" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

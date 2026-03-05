@@ -116,8 +116,10 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
     },
   });
 
-  const makkahHotels = hotels?.filter(h => h.city === 'Makkah') || [];
-  const madinahHotels = hotels?.filter(h => h.city === 'Madinah') || [];
+  // Filter hotels based on common city names, but allow all hotels if needed
+  const makkahHotels = hotels?.filter(h => h.city.toLowerCase() === 'makkah') || [];
+  const madinahHotels = hotels?.filter(h => h.city.toLowerCase() === 'madinah') || [];
+  const otherHotels = hotels?.filter(h => h.city.toLowerCase() !== 'makkah' && h.city.toLowerCase() !== 'madinah') || [];
 
   const form = useForm<DepartureFormValues>({
     resolver: zodResolver(departureSchema),
@@ -281,8 +283,8 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                     <SelectContent>
                       <SelectItem value="open">Open</SelectItem>
                       <SelectItem value="closed">Closed</SelectItem>
-                      <SelectItem value="full">Full</SelectItem>
-                      <SelectItem value="departed">Departed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -296,7 +298,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
 
         {/* Flight Info */}
         <div className="space-y-4">
-          <h3 className="font-medium text-sm text-muted-foreground">Penerbangan & Maskapai</h3>
+          <h3 className="font-medium text-sm text-muted-foreground">Penerbangan</h3>
           
           <FormField
             control={form.control}
@@ -313,7 +315,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                   <SelectContent>
                     {airlines?.map((airline) => (
                       <SelectItem key={airline.id} value={airline.id}>
-                        {airline.code} - {airline.name}
+                        {airline.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -329,7 +331,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="departure_airport_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Bandara Keberangkatan</FormLabel>
+                  <FormLabel>Bandara Berangkat</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger>
@@ -354,7 +356,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="arrival_airport_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Bandara Kedatangan</FormLabel>
+                  <FormLabel>Bandara Tiba</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger>
@@ -383,7 +385,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                 <FormItem>
                   <FormLabel>Nomor Penerbangan</FormLabel>
                   <FormControl>
-                    <Input placeholder="GA-980" {...field} value={field.value || ""} />
+                    <Input placeholder="SV-817" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -395,9 +397,9 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="departure_time"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Waktu Keberangkatan</FormLabel>
+                  <FormLabel>Waktu Berangkat</FormLabel>
                   <FormControl>
-                    <Input placeholder="11:30" {...field} value={field.value || ""} />
+                    <Input type="time" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -418,7 +420,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="hotel_makkah_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hotel Makkah</FormLabel>
+                  <FormLabel>Hotel Makkah / Kota 1</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger>
@@ -426,11 +428,26 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {makkahHotels.map((hotel) => (
-                        <SelectItem key={hotel.id} value={hotel.id}>
-                          {hotel.name} ({hotel.star_rating}⭐)
-                        </SelectItem>
-                      ))}
+                      {makkahHotels.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">Makkah</div>
+                          {makkahHotels.map((hotel) => (
+                            <SelectItem key={hotel.id} value={hotel.id}>
+                              {hotel.name} ({hotel.star_rating}⭐)
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {otherHotels.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">Kota Lainnya</div>
+                          {otherHotels.map((hotel) => (
+                            <SelectItem key={hotel.id} value={hotel.id}>
+                              {hotel.name} - {hotel.city} ({hotel.star_rating}⭐)
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -443,7 +460,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               name="hotel_madinah_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hotel Madinah</FormLabel>
+                  <FormLabel>Hotel Madinah / Kota 2</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger>
@@ -451,11 +468,26 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {madinahHotels.map((hotel) => (
-                        <SelectItem key={hotel.id} value={hotel.id}>
-                          {hotel.name} ({hotel.star_rating}⭐)
-                        </SelectItem>
-                      ))}
+                      {madinahHotels.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">Madinah</div>
+                          {madinahHotels.map((hotel) => (
+                            <SelectItem key={hotel.id} value={hotel.id}>
+                              {hotel.name} ({hotel.star_rating}⭐)
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {otherHotels.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">Kota Lainnya</div>
+                          {otherHotels.map((hotel) => (
+                            <SelectItem key={hotel.id} value={hotel.id}>
+                              {hotel.name} - {hotel.city} ({hotel.star_rating}⭐)
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

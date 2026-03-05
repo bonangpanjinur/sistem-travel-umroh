@@ -39,8 +39,8 @@ export function StepReview({ formData, packageId }: StepReviewProps) {
           price_single,
           currency,
           airline:airlines(name),
-          hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, star_rating),
-          hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, star_rating)
+          hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, city, star_rating),
+          hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, city, star_rating)
         `)
         .eq('id', packageId)
         .single();
@@ -88,8 +88,8 @@ export function StepReview({ formData, packageId }: StepReviewProps) {
 
   // Type-safe access for joined data
   const airline = pkg?.airline as { name: string } | null;
-  const hotelMakkah = pkg?.hotel_makkah as { name: string; star_rating: number } | null;
-  const hotelMadinah = pkg?.hotel_madinah as { name: string; star_rating: number } | null;
+  const hotelMakkah = pkg?.hotel_makkah as { name: string; city: string; star_rating: number } | null;
+  const hotelMadinah = pkg?.hotel_madinah as { name: string; city: string; star_rating: number } | null;
 
   return (
     <div className="space-y-6">
@@ -126,13 +126,13 @@ export function StepReview({ formData, packageId }: StepReviewProps) {
             {hotelMakkah && (
               <div className="flex items-center gap-2">
                 <Hotel className="h-4 w-4 text-muted-foreground" />
-                <span>Makkah: {hotelMakkah.name} ({hotelMakkah.star_rating}⭐)</span>
+                <span>{hotelMakkah.city}: {hotelMakkah.name} ({hotelMakkah.star_rating}⭐)</span>
               </div>
             )}
             {hotelMadinah && (
               <div className="flex items-center gap-2">
                 <Hotel className="h-4 w-4 text-muted-foreground" />
-                <span>Madinah: {hotelMadinah.name} ({hotelMadinah.star_rating}⭐)</span>
+                <span>{hotelMadinah.city}: {hotelMadinah.name} ({hotelMadinah.star_rating}⭐)</span>
               </div>
             )}
           </div>
