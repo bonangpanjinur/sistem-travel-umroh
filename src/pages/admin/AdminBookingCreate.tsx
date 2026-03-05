@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -17,8 +17,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { formatCurrency, formatDate, getRoomTypeLabel } from "@/lib/format";
-import { ArrowLeft, Search, UserPlus, Plus, X, Users, Minus, BedDouble, AlertTriangle, Info } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { ArrowLeft, Search, UserPlus, Plus, X, Users, Minus, BedDouble, AlertTriangle, Info, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ interface PackageData {
 
 interface DepartureData {
   id: string;
+  package_id: string;
   departure_date: string;
   return_date: string;
   quota: number;
@@ -41,7 +42,6 @@ interface DepartureData {
   price_triple: number | null;
   price_double: number | null;
   price_single: number | null;
-  package: PackageData | null;
 }
 
 interface PassengerEntry {
@@ -71,33 +71,51 @@ export default function AdminBookingCreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [departureId, setDepartureId] = useState("");
+  const [packageId, setPackageId] = useState<string>("");
+  const [departureId, setDepartureId] = useState<string>("");
   const [roomAllocation, setRoomAllocation] = useState<RoomAllocation>({
     quad: 0, triple: 0, double: 0, single: 0,
   });
   const [notes, setNotes] = useState("");
   const [passengers, setPassengers] = useState<PassengerEntry[]>([]);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [activePassengerIndex, setActivePassengerIndex] = useState<number | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
 
-  // Fetch departures with available slots
-  const { data: departures } = useQuery<DepartureData[]>({
-    queryKey: ['admin-departures-for-booking'],
+  // Fetch active packages
+  const { data: packages } = useQuery<PackageData[]>({
+    queryKey: ['admin-packages-for-booking'],
     queryFn: async () => {
+      const { data, error } = await supabase
+        .from('packages')
+        .select('id, name, code')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch departures for selected package
+  const { data: departures } = useQuery<DepartureData[]>({
+    queryKey: ['admin-departures-for-package', packageId],
+    queryFn: async () => {
+      if (!packageId) return [];
       const { data, error } = await supabase
         .from('departures')
         .select(`
-          id, departure_date, return_date, quota, booked_count, status,
-          price_quad, price_triple, price_double, price_single,
-          package:packages(id, name, code)
+          id, package_id, departure_date, return_date, quota, booked_count, status,
+          price_quad, price_triple, price_double, price_single
         `)
+        .eq('package_id', packageId)
         .in('status', ['open', 'confirmed'])
         .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date');
       if (error) throw error;
       return (data || []) as DepartureData[];
     },
+    enabled: !!packageId,
   });
 
   // Search existing customers
@@ -116,8 +134,8 @@ export default function AdminBookingCreate() {
     enabled: customerSearch.length >= 2,
   });
 
+  const selectedPackage = packages?.find(p => p.id === packageId);
   const selectedDeparture = departures?.find(d => d.id === departureId);
-  const pkg = selectedDeparture?.package as PackageData | null | undefined;
   const availableSlots = selectedDeparture ? selectedDeparture.quota - (selectedDeparture.booked_count || 0) : 0;
 
   // Prices from departure
@@ -144,7 +162,33 @@ export default function AdminBookingCreate() {
 
   // Validation
   const doubleValidationError = roomAllocation.double > 0 && roomAllocation.double % 2 !== 0;
-  const passengerCountMismatch = passengers.length !== totalFromRooms;
+  
+  // Effect to sync passengers with room allocation
+  useEffect(() => {
+    const newPassengers: PassengerEntry[] = [];
+    let currentIdx = 0;
+    
+    (['quad', 'triple', 'double', 'single'] as RoomType[]).forEach(type => {
+      for (let i = 0; i < roomAllocation[type]; i++) {
+        const existing = passengers[currentIdx];
+        if (existing) {
+          newPassengers.push({ ...existing, room_type: type });
+        } else {
+          newPassengers.push({
+            customer_id: "",
+            full_name: "",
+            phone: "",
+            passenger_type: 'adult',
+            room_type: type,
+            is_new: false,
+          });
+        }
+        currentIdx++;
+      }
+    });
+    
+    setPassengers(newPassengers);
+  }, [roomAllocation]);
 
   const updateRoomCount = (type: RoomType, delta: number) => {
     setRoomAllocation(prev => {
@@ -153,12 +197,14 @@ export default function AdminBookingCreate() {
         (type === 'triple' ? newCount : prev.triple) +
         (type === 'double' ? newCount : prev.double) +
         (type === 'single' ? newCount : prev.single);
-      if (newTotal > availableSlots) return prev;
+      if (newTotal > availableSlots) {
+        toast.error("Slot tidak mencukupi");
+        return prev;
+      }
       return { ...prev, [type]: newCount };
     });
   };
 
-  // Get the dominant room type for the booking record (the one with most passengers)
   const getDominantRoomType = (): RoomType => {
     const entries: [RoomType, number][] = [
       ['quad', roomAllocation.quad],
@@ -170,43 +216,30 @@ export default function AdminBookingCreate() {
     return entries[0][1] > 0 ? entries[0][0] : 'quad';
   };
 
-  // Assign room types to passengers based on allocation order
-  const getPassengerRoomType = (index: number): RoomType => {
-    let offset = 0;
-    for (const type of ['quad', 'triple', 'double', 'single'] as RoomType[]) {
-      if (index < offset + roomAllocation[type]) return type;
-      offset += roomAllocation[type];
-    }
-    return 'quad';
-  };
-
-  const addExistingCustomer = (customer: any) => {
-    if (passengers.find(p => p.customer_id === customer.id)) {
-      toast.error("Jamaah sudah ditambahkan");
+  const assignCustomerToSlot = (customer: any, index: number) => {
+    if (passengers.some((p, i) => i !== index && p.customer_id === customer.id)) {
+      toast.error("Jamaah sudah ada di slot lain");
       return;
     }
-    if (passengers.length >= totalFromRooms) {
-      toast.error(`Jumlah jamaah sudah sesuai alokasi kamar (${totalFromRooms} orang)`);
-      return;
-    }
-    const idx = passengers.length;
-    setPassengers(prev => [...prev, {
+    
+    setPassengers(prev => prev.map((p, i) => i === index ? {
+      ...p,
       customer_id: customer.id,
       full_name: customer.full_name,
       phone: customer.phone || '',
-      passenger_type: 'adult',
-      room_type: getPassengerRoomType(idx),
-      is_new: false,
-    }]);
+    } : p));
+    
     setCustomerSearch("");
+    setActivePassengerIndex(null);
   };
 
-  const removePassenger = (index: number) => {
-    setPassengers(prev => {
-      const updated = prev.filter((_, i) => i !== index);
-      // Re-assign room types
-      return updated.map((p, i) => ({ ...p, room_type: getPassengerRoomType(i) }));
-    });
+  const clearSlot = (index: number) => {
+    setPassengers(prev => prev.map((p, i) => i === index ? {
+      ...p,
+      customer_id: "",
+      full_name: "",
+      phone: "",
+    } : p));
   };
 
   const createCustomerMutation = useMutation({
@@ -225,19 +258,9 @@ export default function AdminBookingCreate() {
       return customer;
     },
     onSuccess: (customer) => {
-      if (passengers.length >= totalFromRooms) {
-        toast.error(`Jumlah jamaah sudah sesuai alokasi kamar (${totalFromRooms} orang)`);
-        return;
+      if (activePassengerIndex !== null) {
+        assignCustomerToSlot(customer, activePassengerIndex);
       }
-      const idx = passengers.length;
-      setPassengers(prev => [...prev, {
-        customer_id: customer.id,
-        full_name: customer.full_name,
-        phone: customer.phone || '',
-        passenger_type: 'adult',
-        room_type: getPassengerRoomType(idx),
-        is_new: true,
-      }]);
       setShowAddCustomer(false);
       setNewCustomer({ full_name: "", phone: "", email: "", nik: "" });
       toast.success("Customer baru berhasil dibuat dan ditambahkan");
@@ -249,15 +272,12 @@ export default function AdminBookingCreate() {
 
   const createBookingMutation = useMutation({
     mutationFn: async () => {
-      if (!departureId || passengers.length === 0) throw new Error("Data tidak lengkap");
+      if (!departureId || passengers.some(p => !p.customer_id)) throw new Error("Data jamaah belum lengkap");
       if (doubleValidationError) throw new Error("Tipe Double harus kelipatan 2 orang");
-      if (passengerCountMismatch) throw new Error(`Jumlah jamaah (${passengers.length}) tidak sesuai alokasi kamar (${totalFromRooms})`);
 
       const { data: bookingCode } = await supabase.rpc('generate_booking_code');
       const mainCustomerId = passengers[0].customer_id;
       const dominantRoom = getDominantRoomType();
-
-      // Calculate base price from dominant room type
       const basePrice = prices[dominantRoom];
 
       const { data: booking, error: bookingError } = await supabase
@@ -312,6 +332,13 @@ export default function AdminBookingCreate() {
     },
   });
 
+  const handlePackageChange = (id: string) => {
+    setPackageId(id);
+    setDepartureId("");
+    setRoomAllocation({ quad: 0, triple: 0, double: 0, single: 0 });
+    setPassengers([]);
+  };
+
   const handleDepartureChange = (id: string) => {
     setDepartureId(id);
     setRoomAllocation({ quad: 0, triple: 0, double: 0, single: 0 });
@@ -320,7 +347,7 @@ export default function AdminBookingCreate() {
 
   const canSubmit = departureId &&
     totalFromRooms > 0 &&
-    passengers.length === totalFromRooms &&
+    passengers.every(p => p.customer_id) &&
     !doubleValidationError &&
     passengers.length <= availableSlots &&
     !createBookingMutation.isPending;
@@ -339,61 +366,76 @@ export default function AdminBookingCreate() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* Step 1: Pilih Keberangkatan */}
+          {/* Step 1: Pilih Paket */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">1. Pilih Keberangkatan</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                1. Pilih Paket
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Select value={departureId} onValueChange={handleDepartureChange}>
+            <CardContent>
+              <Select value={packageId} onValueChange={handlePackageChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih keberangkatan..." />
+                  <SelectValue placeholder="Pilih paket..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {departures?.map(d => {
-                    const p = d.package as PackageData | null | undefined;
-                    const avail = d.quota - (d.booked_count || 0);
-                    return (
-                      <SelectItem key={d.id} value={d.id} disabled={avail <= 0}>
-                        {p?.name} — {formatDate(d.departure_date)} ({avail} slot)
-                      </SelectItem>
-                    );
-                  })}
+                  {packages?.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} ({p.code})</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-
-              {selectedDeparture && (
-                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Paket</p>
-                    <p className="font-medium">{pkg?.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Tersedia</p>
-                    <p className="font-medium">{availableSlots} dari {selectedDeparture.quota}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Berangkat</p>
-                    <p className="font-medium">{formatDate(selectedDeparture.departure_date)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Pulang</p>
-                    <p className="font-medium">{formatDate(selectedDeparture.return_date)}</p>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          {/* Step 2: Pilih Tipe Kamar & Jumlah */}
+          {/* Step 2: Pilih Keberangkatan */}
+          {packageId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">2. Pilih Keberangkatan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Select value={departureId} onValueChange={handleDepartureChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih tanggal keberangkatan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departures?.map(d => {
+                      const avail = d.quota - (d.booked_count || 0);
+                      return (
+                        <SelectItem key={d.id} value={d.id} disabled={avail <= 0}>
+                          {formatDate(d.departure_date)} ({avail} slot tersedia)
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+
+                {selectedDeparture && (
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Tersedia</p>
+                      <p className="font-medium">{availableSlots} dari {selectedDeparture.quota}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Pulang</p>
+                      <p className="font-medium">{formatDate(selectedDeparture.return_date)}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Pilih Tipe Kamar & Jumlah */}
           {selectedDeparture && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <BedDouble className="h-5 w-5" />
-                  2. Pilih Tipe Kamar & Jumlah Jamaah
+                  3. Pilih Tipe Kamar & Jumlah Jamaah
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Tentukan berapa orang per tipe kamar. Anda bisa campuran beberapa tipe.</p>
+                <p className="text-sm text-muted-foreground">Tentukan berapa orang per tipe kamar.</p>
               </CardHeader>
               <CardContent className="space-y-3">
                 {(Object.keys(ROOM_INFO) as RoomType[]).map((type) => {
@@ -421,11 +463,6 @@ export default function AdminBookingCreate() {
                           <span className="text-sm text-primary font-medium">
                             {formatCurrency(price)} / orang
                           </span>
-                          {count > 0 && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              = {formatCurrency(count * price)}
-                            </span>
-                          )}
                         </div>
 
                         <div className="flex items-center gap-3">
@@ -461,104 +498,97 @@ export default function AdminBookingCreate() {
                     </div>
                   );
                 })}
-
-                {totalFromRooms > 0 && (
-                  <div className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Total jamaah dari alokasi kamar:</span>
-                    </div>
-                    <span className="font-bold">{totalFromRooms} orang</span>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
 
-          {/* Step 3: Tambah Jamaah */}
+          {/* Step 4: Data Jamaah */}
           {totalFromRooms > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-base">
                   <span className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    3. Data Jamaah ({passengers.length}/{totalFromRooms})
+                    4. Data Jamaah ({passengers.filter(p => p.customer_id).length}/{totalFromRooms})
                   </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowAddCustomer(true)}
-                    disabled={passengers.length >= totalFromRooms}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Customer Baru
-                  </Button>
                 </CardTitle>
-                {passengerCountMismatch && passengers.length < totalFromRooms && (
-                  <p className="text-sm text-amber-600 flex items-center gap-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    Tambahkan {totalFromRooms - passengers.length} jamaah lagi sesuai alokasi kamar
-                  </p>
-                )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Search existing */}
-                {passengers.length < totalFromRooms && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari jamaah berdasarkan nama, telepon, atau NIK..."
-                      value={customerSearch}
-                      onChange={e => setCustomerSearch(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                )}
-                {searchResults && searchResults.length > 0 && passengers.length < totalFromRooms && (
-                  <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-                    {searchResults.map(c => (
-                      <button
-                        key={c.id}
-                        className="w-full text-left p-3 hover:bg-muted/50 flex items-center justify-between"
-                        onClick={() => addExistingCustomer(c)}
-                      >
-                        <div>
-                          <p className="font-medium">{c.full_name}</p>
-                          <p className="text-sm text-muted-foreground">{c.phone || c.email || c.nik}</p>
-                        </div>
-                        <UserPlus className="h-4 w-4 text-primary" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {passengers.length > 0 && <Separator />}
-
-                {passengers.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">Belum ada jamaah ditambahkan</p>
-                ) : (
-                  <div className="space-y-2">
-                    {passengers.map((p, idx) => (
-                      <div key={p.customer_id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-mono text-muted-foreground w-5">{idx + 1}</span>
-                          <div>
-                            <p className="font-medium">{p.full_name}</p>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm text-muted-foreground">{p.phone}</span>
-                              {idx === 0 && <Badge variant="outline" className="text-xs">Pemesan Utama</Badge>}
-                              <Badge variant="secondary" className="text-xs">
-                                {ROOM_INFO[p.room_type]?.label}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
+                <div className="space-y-3">
+                  {passengers.map((p, idx) => (
+                    <div key={idx} className="border rounded-lg p-4 space-y-4">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center">
+                            {idx + 1}
+                          </Badge>
+                          <span className="font-medium">Slot {idx + 1}</span>
+                          <Badge variant="secondary">{ROOM_INFO[p.room_type].label}</Badge>
+                        </div>
+                        {p.customer_id && (
+                          <Button size="sm" variant="ghost" className="text-destructive h-8 px-2" onClick={() => clearSlot(idx)}>
+                            <X className="h-4 w-4 mr-1" /> Lepas
+                          </Button>
+                        )}
+                      </div>
+
+                      {!p.customer_id ? (
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Cari jamaah atau tambah baru..."
+                              value={activePassengerIndex === idx ? customerSearch : ""}
+                              onChange={e => {
+                                setActivePassengerIndex(idx);
+                                setCustomerSearch(e.target.value);
+                              }}
+                              onFocus={() => setActivePassengerIndex(idx)}
+                              className="pl-10"
+                            />
+                          </div>
+                          
+                          {activePassengerIndex === idx && searchResults && searchResults.length > 0 && (
+                            <div className="border rounded-lg divide-y max-h-48 overflow-y-auto bg-popover">
+                              {searchResults.map(c => (
+                                <button
+                                  key={c.id}
+                                  className="w-full text-left p-3 hover:bg-muted flex items-center justify-between"
+                                  onClick={() => assignCustomerToSlot(c, idx)}
+                                >
+                                  <div>
+                                    <p className="font-medium">{c.full_name}</p>
+                                    <p className="text-xs text-muted-foreground">{c.phone || c.nik || 'No phone/NIK'}</p>
+                                  </div>
+                                  <UserPlus className="h-4 w-4 text-primary" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          <Button
+                            variant="outline"
+                            className="w-full border-dashed"
+                            onClick={() => {
+                              setActivePassengerIndex(idx);
+                              setShowAddCustomer(true);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Tambah Customer Baru
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between bg-muted/30 p-3 rounded-md">
+                          <div>
+                            <p className="font-bold">{p.full_name}</p>
+                            <p className="text-sm text-muted-foreground">{p.phone || 'No phone'}</p>
+                          </div>
                           <Select
                             value={p.passenger_type}
                             onValueChange={v => setPassengers(prev => prev.map((pp, i) => i === idx ? { ...pp, passenger_type: v } : pp))}
                           >
-                            <SelectTrigger className="w-[100px] h-8">
+                            <SelectTrigger className="w-[120px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -567,16 +597,13 @@ export default function AdminBookingCreate() {
                               <SelectItem value="infant">Bayi</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button size="icon" variant="ghost" onClick={() => removePassenger(idx)}>
-                            <X className="h-4 w-4" />
-                          </Button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 pt-4">
                   <Label>Catatan (opsional)</Label>
                   <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Catatan internal booking..." />
                 </div>
@@ -595,17 +622,16 @@ export default function AdminBookingCreate() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Paket</span>
-                  <span className="font-medium">{pkg?.name || '-'}</span>
+                  <span className="font-medium">{selectedPackage?.name || '-'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Jamaah</span>
-                  <span className="font-medium">{passengers.length}/{totalFromRooms} orang</span>
+                  <span className="font-medium">{passengers.filter(p => p.customer_id).length}/{totalFromRooms} orang</span>
                 </div>
               </div>
 
-              {/* Room breakdown */}
               {totalFromRooms > 0 && (
-                <div className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs border-t pt-2">
                   {roomAllocation.quad > 0 && (
                     <div className="flex justify-between text-muted-foreground">
                       <span>{roomAllocation.quad}x Quad @ {formatCurrency(prices.quad)}</span>
@@ -645,13 +671,7 @@ export default function AdminBookingCreate() {
                   Double harus kelipatan 2
                 </p>
               )}
-              {passengerCountMismatch && totalFromRooms > 0 && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Jamaah belum lengkap ({passengers.length}/{totalFromRooms})
-                </p>
-              )}
-
+              
               <Button
                 className="w-full"
                 size="lg"
