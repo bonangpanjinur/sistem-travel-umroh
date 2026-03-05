@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { ArrowLeft, Search, UserPlus, Plus, X, Users, Minus, BedDouble, AlertTriangle, Info, Package } from "lucide-react";
+import { 
+  ArrowLeft, Search, UserPlus, Plus, X, Users, Minus, 
+  BedDouble, AlertTriangle, Info, Package, Calendar, 
+  CheckCircle2, CreditCard, UserCheck
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -60,7 +64,7 @@ interface RoomAllocation {
   single: number;
 }
 
-const ROOM_INFO: Record<RoomType, { label: string; occupancy: number; desc: string; icon: typeof Users }> = {
+const ROOM_INFO: Record<RoomType, { label: string; occupancy: number; desc: string; icon: any }> = {
   quad: { label: 'Quad', occupancy: 4, desc: '4 orang/kamar', icon: Users },
   triple: { label: 'Triple', occupancy: 3, desc: '3 orang/kamar', icon: Users },
   double: { label: 'Double', occupancy: 2, desc: '2 orang/kamar', icon: BedDouble },
@@ -82,6 +86,14 @@ export default function AdminBookingCreate() {
   const [activePassengerIndex, setActivePassengerIndex] = useState<number | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
+
+  // Determine current step for UI feedback
+  const currentStep = useMemo(() => {
+    if (!packageId) return 1;
+    if (!departureId) return 2;
+    if (roomAllocation.quad + roomAllocation.triple + roomAllocation.double + roomAllocation.single === 0) return 3;
+    return 4;
+  }, [packageId, departureId, roomAllocation]);
 
   // Fetch active packages
   const { data: packages } = useQuery<PackageData[]>({
@@ -352,59 +364,109 @@ export default function AdminBookingCreate() {
     passengers.length <= availableSlots &&
     !createBookingMutation.isPending;
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link to="/admin/bookings"><ArrowLeft className="h-5 w-5" /></Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Buat Booking Baru</h1>
-          <p className="text-muted-foreground">Daftarkan jamaah secara manual</p>
+  // Stepper UI Component
+  const Stepper = () => (
+    <div className="flex items-center justify-between mb-8 px-4">
+      {[
+        { step: 1, label: "Pilih Paket", icon: Package },
+        { step: 2, label: "Keberangkatan", icon: Calendar },
+        { step: 3, label: "Tipe Kamar", icon: BedDouble },
+        { step: 4, label: "Data Jamaah", icon: UserCheck }
+      ].map((item, idx) => (
+        <div key={item.step} className="flex items-center flex-1 last:flex-none">
+          <div className="flex flex-col items-center relative">
+            <div className={cn(
+              "h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
+              currentStep >= item.step ? "bg-primary border-primary text-primary-foreground" : "bg-background border-muted text-muted-foreground"
+            )}>
+              {currentStep > item.step ? <CheckCircle2 className="h-6 w-6" /> : <item.icon className="h-5 w-5" />}
+            </div>
+            <span className={cn(
+              "text-xs font-medium mt-2 absolute -bottom-6 whitespace-nowrap",
+              currentStep >= item.step ? "text-primary" : "text-muted-foreground"
+            )}>
+              {item.label}
+            </span>
+          </div>
+          {idx < 3 && (
+            <div className={cn(
+              "h-[2px] flex-1 mx-4 transition-all duration-300",
+              currentStep > item.step ? "bg-primary" : "bg-muted"
+            )} />
+          )}
         </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8 pb-20">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild className="rounded-full">
+            <Link to="/admin/bookings"><ArrowLeft className="h-5 w-5" /></Link>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight">Buat Booking Baru</h1>
+            <p className="text-muted-foreground">Sistem pendaftaran jamaah manual yang terintegrasi</p>
+          </div>
+        </div>
+        <Badge variant="outline" className="px-4 py-1 text-sm font-medium">
+          Admin Portal
+        </Badge>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Step 1: Pilih Paket */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                1. Pilih Paket
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select value={packageId} onValueChange={handlePackageChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih paket..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {packages?.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name} ({p.code})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+      <Stepper />
 
-          {/* Step 2: Pilih Keberangkatan */}
-          {packageId && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">2. Pilih Keberangkatan</CardTitle>
+      <div className="grid gap-8 lg:grid-cols-12 items-start pt-4">
+        <div className="lg:col-span-8 space-y-8">
+          {/* Step 1 & 2: Pemilihan Paket & Jadwal */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className={cn("transition-all duration-300", currentStep === 1 && "ring-2 ring-primary ring-offset-2")}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  1. Pilih Paket
+                </CardTitle>
+                <CardDescription>Pilih kategori layanan umrah/haji</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Select value={packageId} onValueChange={handlePackageChange}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Pilih paket..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {packages?.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="py-3">
+                        <div className="font-medium">{p.name}</div>
+                        <div className="text-xs text-muted-foreground">{p.code}</div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            <Card className={cn("transition-all duration-300", currentStep === 2 && "ring-2 ring-primary ring-offset-2", !packageId && "opacity-50 pointer-events-none")}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  2. Keberangkatan
+                </CardTitle>
+                <CardDescription>Pilih jadwal yang tersedia</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Select value={departureId} onValueChange={handleDepartureChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih tanggal keberangkatan..." />
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Pilih tanggal..." />
                   </SelectTrigger>
                   <SelectContent>
                     {departures?.map(d => {
                       const avail = d.quota - (d.booked_count || 0);
                       return (
-                        <SelectItem key={d.id} value={d.id} disabled={avail <= 0}>
-                          {formatDate(d.departure_date)} ({avail} slot tersedia)
+                        <SelectItem key={d.id} value={d.id} disabled={avail <= 0} className="py-3">
+                          <div className="font-medium">{formatDate(d.departure_date)}</div>
+                          <div className="text-xs text-muted-foreground">{avail} slot tersedia</div>
                         </SelectItem>
                       );
                     })}
@@ -412,274 +474,335 @@ export default function AdminBookingCreate() {
                 </Select>
 
                 {selectedDeparture && (
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Tersedia</p>
-                      <p className="font-medium">{availableSlots} dari {selectedDeparture.quota}</p>
+                  <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/10 text-sm">
+                    <div className="flex items-center gap-2 text-primary font-medium">
+                      <Info className="h-4 w-4" />
+                      <span>{availableSlots} Slot Tersedia</span>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Pulang</p>
-                      <p className="font-medium">{formatDate(selectedDeparture.return_date)}</p>
+                    <div className="text-muted-foreground">
+                      Hingga {formatDate(selectedDeparture.return_date)}
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
-          )}
+          </div>
 
-          {/* Step 3: Pilih Tipe Kamar & Jumlah */}
-          {selectedDeparture && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BedDouble className="h-5 w-5" />
-                  3. Pilih Tipe Kamar & Jumlah Jamaah
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">Tentukan berapa orang per tipe kamar.</p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(Object.keys(ROOM_INFO) as RoomType[]).map((type) => {
-                  const info = ROOM_INFO[type];
-                  const count = roomAllocation[type];
-                  const price = prices[type];
-                  if (price <= 0) return null;
+          {/* Step 3: Tipe Kamar */}
+          <Card className={cn("transition-all duration-300", currentStep === 3 && "ring-2 ring-primary ring-offset-2", !departureId && "opacity-50 pointer-events-none")}>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BedDouble className="h-5 w-5 text-primary" />
+                3. Tipe Kamar & Alokasi
+              </CardTitle>
+              <CardDescription>Tentukan jumlah jamaah berdasarkan jenis kamar</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              {(Object.keys(ROOM_INFO) as RoomType[]).map((type) => {
+                const info = ROOM_INFO[type];
+                const count = roomAllocation[type];
+                const price = prices[type];
+                if (price <= 0) return null;
 
-                  const isDoubleError = type === 'double' && count > 0 && count % 2 !== 0;
+                const isDoubleError = type === 'double' && count > 0 && count % 2 !== 0;
 
-                  return (
-                    <div key={type} className="space-y-1">
-                      <div
-                        className={cn(
-                          "flex items-center justify-between p-4 border-2 rounded-lg transition-all",
-                          count > 0 ? "border-primary bg-primary/5" : "border-border hover:border-primary/30",
-                          isDoubleError && "border-destructive bg-destructive/5"
-                        )}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold">{info.label}</span>
-                            <Badge variant="outline" className="text-xs font-normal">{info.desc}</Badge>
-                          </div>
-                          <span className="text-sm text-primary font-medium">
-                            {formatCurrency(price)} / orang
-                          </span>
+                return (
+                  <div key={type} className="relative group">
+                    <div className={cn(
+                      "p-4 rounded-xl border-2 transition-all duration-200",
+                      count > 0 ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/30",
+                      isDoubleError && "border-destructive bg-destructive/5"
+                    )}>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="p-2 bg-background rounded-lg border shadow-sm">
+                          <info.icon className={cn("h-5 w-5", count > 0 ? "text-primary" : "text-muted-foreground")} />
                         </div>
-
-                        <div className="flex items-center gap-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() => updateRoomCount(type, -1)}
-                            disabled={count <= 0}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-8 text-center text-lg font-bold">{count}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() => updateRoomCount(type, 1)}
-                            disabled={totalFromRooms >= availableSlots}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Badge variant={count > 0 ? "default" : "outline"} className="font-bold">
+                          {count}
+                        </Badge>
                       </div>
-                      {isDoubleError && (
-                        <div className="flex items-center gap-2 text-destructive text-xs px-2">
-                          <AlertTriangle className="h-3 w-3" />
-                          <span>Tipe Double harus kelipatan 2 orang (min. 2 orang)</span>
-                        </div>
-                      )}
+                      
+                      <div className="space-y-1">
+                        <h3 className="font-bold text-base">{info.label}</h3>
+                        <p className="text-xs text-muted-foreground">{info.desc}</p>
+                        <p className="text-sm font-semibold text-primary mt-2">
+                          {formatCurrency(price)} <span className="text-[10px] text-muted-foreground font-normal">/ pax</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-4">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => updateRoomCount(type, -1)}
+                          disabled={count <= 0}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <div className="flex-1 text-center font-bold text-sm">{count}</div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => updateRoomCount(type, 1)}
+                          disabled={totalFromRooms >= availableSlots}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+                    {isDoubleError && (
+                      <div className="absolute -bottom-6 left-0 right-0 text-center">
+                        <span className="text-[10px] text-destructive font-medium flex items-center justify-center gap-1">
+                          <AlertTriangle className="h-3 w-3" /> Kelipatan 2
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
 
           {/* Step 4: Data Jamaah */}
-          {totalFromRooms > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-base">
-                  <span className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    4. Data Jamaah ({passengers.filter(p => p.customer_id).length}/{totalFromRooms})
-                  </span>
+          <Card className={cn("transition-all duration-300", currentStep === 4 && "ring-2 ring-primary ring-offset-2", totalFromRooms === 0 && "opacity-50 pointer-events-none")}>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  4. Detail Jamaah
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {passengers.map((p, idx) => (
-                    <div key={idx} className="border rounded-lg p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center">
-                            {idx + 1}
-                          </Badge>
-                          <span className="font-medium">Slot {idx + 1}</span>
-                          <Badge variant="secondary">{ROOM_INFO[p.room_type].label}</Badge>
+                <CardDescription>Lengkapi identitas untuk setiap slot yang dipilih</CardDescription>
+              </div>
+              <Badge variant="secondary" className="h-7 px-3">
+                {passengers.filter(p => p.customer_id).length} / {totalFromRooms} Terisi
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4">
+                {passengers.map((p, idx) => (
+                  <div key={idx} className={cn(
+                    "group relative overflow-hidden border rounded-xl transition-all duration-200",
+                    p.customer_id ? "bg-background border-primary/20 shadow-sm" : "bg-muted/20 border-dashed"
+                  )}>
+                    <div className={cn(
+                      "absolute top-0 left-0 bottom-0 w-1",
+                      p.customer_id ? "bg-primary" : "bg-muted-foreground/20"
+                    )} />
+                    
+                    <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex items-center gap-3 min-w-[120px]">
+                        <div className={cn(
+                          "h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm",
+                          p.customer_id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        )}>
+                          {idx + 1}
                         </div>
-                        {p.customer_id && (
-                          <Button size="sm" variant="ghost" className="text-destructive h-8 px-2" onClick={() => clearSlot(idx)}>
-                            <X className="h-4 w-4 mr-1" /> Lepas
-                          </Button>
-                        )}
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Slot {idx + 1}</p>
+                          <Badge variant="outline" className="mt-1 text-[10px] font-medium h-5">
+                            {ROOM_INFO[p.room_type].label}
+                          </Badge>
+                        </div>
                       </div>
 
-                      {!p.customer_id ? (
-                        <div className="space-y-3">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="Cari jamaah atau tambah baru..."
-                              value={activePassengerIndex === idx ? customerSearch : ""}
-                              onChange={e => {
-                                setActivePassengerIndex(idx);
-                                setCustomerSearch(e.target.value);
-                              }}
-                              onFocus={() => setActivePassengerIndex(idx)}
-                              className="pl-10"
-                            />
-                          </div>
-                          
-                          {activePassengerIndex === idx && searchResults && searchResults.length > 0 && (
-                            <div className="border rounded-lg divide-y max-h-48 overflow-y-auto bg-popover">
-                              {searchResults.map(c => (
-                                <button
-                                  key={c.id}
-                                  className="w-full text-left p-3 hover:bg-muted flex items-center justify-between"
-                                  onClick={() => assignCustomerToSlot(c, idx)}
-                                >
-                                  <div>
-                                    <p className="font-medium">{c.full_name}</p>
-                                    <p className="text-xs text-muted-foreground">{c.phone || c.nik || 'No phone/NIK'}</p>
-                                  </div>
-                                  <UserPlus className="h-4 w-4 text-primary" />
-                                </button>
-                              ))}
+                      <div className="flex-1">
+                        {!p.customer_id ? (
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="relative flex-1">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Cari nama atau telepon..."
+                                value={activePassengerIndex === idx ? customerSearch : ""}
+                                onChange={e => {
+                                  setActivePassengerIndex(idx);
+                                  setCustomerSearch(e.target.value);
+                                }}
+                                onFocus={() => setActivePassengerIndex(idx)}
+                                className="pl-9 h-10 border-muted-foreground/20"
+                              />
+                              
+                              {activePassengerIndex === idx && searchResults && searchResults.length > 0 && (
+                                <div className="absolute z-10 top-full left-0 right-0 mt-2 bg-popover border rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                                  {searchResults.map(c => (
+                                    <button
+                                      key={c.id}
+                                      className="w-full text-left p-3 hover:bg-muted transition-colors flex items-center justify-between border-b last:border-0"
+                                      onClick={() => assignCustomerToSlot(c, idx)}
+                                    >
+                                      <div className="space-y-1">
+                                        <p className="font-bold text-sm">{c.full_name}</p>
+                                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {c.nik || 'No NIK'}</span>
+                                          <span className="flex items-center gap-1"><Info className="h-3 w-3" /> {c.phone || 'No Phone'}</span>
+                                        </div>
+                                      </div>
+                                      <UserPlus className="h-4 w-4 text-primary" />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          )}
-
-                          <Button
-                            variant="outline"
-                            className="w-full border-dashed"
-                            onClick={() => {
-                              setActivePassengerIndex(idx);
-                              setShowAddCustomer(true);
-                            }}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Tambah Customer Baru
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between bg-muted/30 p-3 rounded-md">
-                          <div>
-                            <p className="font-bold">{p.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{p.phone || 'No phone'}</p>
+                            <Button
+                              variant="outline"
+                              className="h-10 border-dashed"
+                              onClick={() => {
+                                setActivePassengerIndex(idx);
+                                setShowAddCustomer(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Baru
+                            </Button>
                           </div>
-                          <Select
-                            value={p.passenger_type}
-                            onValueChange={v => setPassengers(prev => prev.map((pp, i) => i === idx ? { ...pp, passenger_type: v } : pp))}
-                          >
-                            <SelectTrigger className="w-[120px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="adult">Dewasa</SelectItem>
-                              <SelectItem value="child">Anak</SelectItem>
-                              <SelectItem value="infant">Bayi</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <p className="font-extrabold text-base">{p.full_name}</p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Info className="h-3 w-3" /> {p.phone || 'No phone number'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Select
+                                value={p.passenger_type}
+                                onValueChange={v => setPassengers(prev => prev.map((pp, i) => i === idx ? { ...pp, passenger_type: v } : pp))}
+                              >
+                                <SelectTrigger className="w-[110px] h-9 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="adult">Dewasa</SelectItem>
+                                  <SelectItem value="child">Anak</SelectItem>
+                                  <SelectItem value="infant">Bayi</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" 
+                                onClick={() => clearSlot(idx)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
 
-                <div className="space-y-2 pt-4">
-                  <Label>Catatan (opsional)</Label>
-                  <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Catatan internal booking..." />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="text-sm font-bold flex items-center gap-2">
+                  <Info className="h-4 w-4 text-primary" /> Catatan Internal
+                </Label>
+                <Textarea 
+                  value={notes} 
+                  onChange={e => setNotes(e.target.value)} 
+                  rows={3} 
+                  placeholder="Contoh: Permintaan kamar lantai bawah, alergi makanan, dll..." 
+                  className="resize-none border-muted-foreground/20 focus:ring-primary"
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Sidebar Summary */}
-        <div>
-          <Card className="sticky top-4">
-            <CardHeader>
-              <CardTitle className="text-base">Ringkasan Booking</CardTitle>
+        {/* Sidebar Summary - Right Column */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="sticky top-6 border-2 shadow-lg overflow-hidden">
+            <div className="h-2 bg-primary w-full" />
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Ringkasan Biaya
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Paket</span>
-                  <span className="font-medium">{selectedPackage?.name || '-'}</span>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <span className="text-sm text-muted-foreground">Paket Dipilih</span>
+                  <span className="text-sm font-bold text-right max-w-[150px]">{selectedPackage?.name || '-'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Jamaah</span>
-                  <span className="font-medium">{passengers.filter(p => p.customer_id).length}/{totalFromRooms} orang</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Total Jamaah</span>
+                  <Badge variant="secondary" className="font-bold">
+                    {passengers.filter(p => p.customer_id).length} / {totalFromRooms} Orang
+                  </Badge>
                 </div>
               </div>
 
+              <Separator />
+
               {totalFromRooms > 0 && (
-                <div className="space-y-1 text-xs border-t pt-2">
-                  {roomAllocation.quad > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>{roomAllocation.quad}x Quad @ {formatCurrency(prices.quad)}</span>
-                      <span>{formatCurrency(roomAllocation.quad * prices.quad)}</span>
-                    </div>
-                  )}
-                  {roomAllocation.triple > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>{roomAllocation.triple}x Triple @ {formatCurrency(prices.triple)}</span>
-                      <span>{formatCurrency(roomAllocation.triple * prices.triple)}</span>
-                    </div>
-                  )}
-                  {roomAllocation.double > 0 && (
-                    <div className={cn("flex justify-between", doubleValidationError ? "text-destructive" : "text-muted-foreground")}>
-                      <span>{roomAllocation.double}x Double @ {formatCurrency(prices.double)}</span>
-                      <span>{formatCurrency(roomAllocation.double * prices.double)}</span>
-                    </div>
-                  )}
-                  {roomAllocation.single > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>{roomAllocation.single}x Single @ {formatCurrency(prices.single)}</span>
-                      <span>{formatCurrency(roomAllocation.single * prices.single)}</span>
-                    </div>
-                  )}
+                <div className="space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rincian Kamar</p>
+                  {(Object.keys(roomAllocation) as RoomType[]).map(type => {
+                    if (roomAllocation[type] === 0) return null;
+                    return (
+                      <div key={type} className="flex justify-between items-center text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                          <span className="text-muted-foreground uppercase text-xs font-medium">{type}</span>
+                          <span className="font-bold">x{roomAllocation[type]}</span>
+                        </div>
+                        <span className="font-medium">{formatCurrency(roomAllocation[type] * prices[type])}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              <Separator />
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span className="text-primary">{formatCurrency(totalPrice)}</span>
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-1">
+                <div className="flex justify-between items-end">
+                  <span className="text-xs font-bold text-primary uppercase tracking-tighter">Total Estimasi</span>
+                  <span className="text-2xl font-black text-primary leading-none">{formatCurrency(totalPrice)}</span>
+                </div>
               </div>
 
               {doubleValidationError && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Double harus kelipatan 2
-                </p>
+                <div className="flex items-center gap-2 p-3 bg-destructive/5 text-destructive rounded-lg border border-destructive/20 animate-pulse">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <p className="text-[10px] font-bold">Kamar DOUBLE harus berjumlah genap!</p>
+                </div>
               )}
               
               <Button
-                className="w-full"
+                className="w-full h-14 text-lg font-bold shadow-md hover:shadow-xl transition-all duration-300"
                 size="lg"
                 disabled={!canSubmit}
                 onClick={() => createBookingMutation.mutate()}
               >
-                {createBookingMutation.isPending ? 'Memproses...' : 'Buat Booking'}
+                {createBookingMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                    Memproses...
+                  </div>
+                ) : (
+                  'Konfirmasi Booking'
+                )}
               </Button>
+
+              <p className="text-[10px] text-center text-muted-foreground px-4">
+                Dengan mengklik tombol di atas, Anda mengonfirmasi bahwa data yang dimasukkan telah sesuai dengan dokumen asli jamaah.
+              </p>
+            </CardContent>
+          </Card>
+          
+          {/* Helpful Tips Card */}
+          <Card className="bg-muted/30 border-dashed">
+            <CardContent className="p-4 space-y-3">
+              <h4 className="text-xs font-bold flex items-center gap-2">
+                <Info className="h-3 w-3 text-primary" /> Tips Admin
+              </h4>
+              <ul className="text-[10px] space-y-2 text-muted-foreground">
+                <li>• Gunakan fitur <strong>Cari</strong> untuk mempercepat input data jamaah lama.</li>
+                <li>• Pastikan <strong>Tipe Kamar</strong> sudah sesuai sebelum mengisi data jamaah.</li>
+                <li>• Catatan internal akan muncul pada manifest keberangkatan.</li>
+              </ul>
             </CardContent>
           </Card>
         </div>
@@ -687,51 +810,61 @@ export default function AdminBookingCreate() {
 
       {/* Add New Customer Dialog */}
       <Dialog open={showAddCustomer} onOpenChange={setShowAddCustomer}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Tambah Customer Baru</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Tambah Jamaah Baru</DialogTitle>
+            <CardDescription>Masukkan data dasar untuk pendaftaran awal</CardDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
             <div className="space-y-2">
-              <Label>Nama Lengkap *</Label>
+              <Label className="font-bold">Nama Lengkap sesuai Paspor/KTP *</Label>
               <Input
                 value={newCustomer.full_name}
                 onChange={e => setNewCustomer(p => ({ ...p, full_name: e.target.value }))}
+                placeholder="Contoh: Ahmad Subagjo"
+                className="h-11"
                 required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>No. Telepon</Label>
+                <Label className="font-bold">No. Telepon / WhatsApp</Label>
                 <Input
                   value={newCustomer.phone}
                   onChange={e => setNewCustomer(p => ({ ...p, phone: e.target.value }))}
+                  placeholder="0812..."
+                  className="h-11"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label className="font-bold">Email (Opsional)</Label>
                 <Input
                   type="email"
                   value={newCustomer.email}
                   onChange={e => setNewCustomer(p => ({ ...p, email: e.target.value }))}
+                  placeholder="ahmad@email.com"
+                  className="h-11"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>NIK</Label>
+              <Label className="font-bold">NIK (Nomor Induk Kependudukan)</Label>
               <Input
                 value={newCustomer.nik}
                 onChange={e => setNewCustomer(p => ({ ...p, nik: e.target.value }))}
+                placeholder="16 digit angka..."
+                className="h-11"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddCustomer(false)}>Batal</Button>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowAddCustomer(false)} className="rounded-xl">Batal</Button>
             <Button
               disabled={!newCustomer.full_name || createCustomerMutation.isPending}
               onClick={() => createCustomerMutation.mutate(newCustomer)}
+              className="rounded-xl px-8 font-bold"
             >
-              {createCustomerMutation.isPending ? 'Menyimpan...' : 'Simpan & Tambahkan'}
+              {createCustomerMutation.isPending ? 'Menyimpan...' : 'Simpan & Masukkan'}
             </Button>
           </DialogFooter>
         </DialogContent>
