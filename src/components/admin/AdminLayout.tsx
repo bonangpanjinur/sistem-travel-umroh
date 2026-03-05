@@ -34,7 +34,6 @@ const NAV_GROUPS = [
     allowedRoles: ['super_admin', 'owner', 'branch_manager', 'sales', 'marketing', 'operational'],
     items: [
       { label: 'CRM Leads', icon: Target, path: '/admin/leads' },
-      { label: 'Booking', icon: Calendar, path: '/admin/bookings' },
       { label: 'Kupon', icon: Gift, path: '/admin/coupons' },
     ]
   },
@@ -44,6 +43,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Paket', icon: Package, path: '/admin/packages' },
       { label: 'Keberangkatan', icon: Plane, path: '/admin/departures' },
+      { label: 'Booking', icon: Calendar, path: '/admin/bookings' },
       { label: 'Perlengkapan', icon: Box, path: '/admin/equipment' },
       { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates' },
       { label: 'Tabungan', icon: Wallet, path: '/admin/savings' },
