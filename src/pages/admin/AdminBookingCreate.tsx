@@ -342,12 +342,16 @@ export default function AdminBookingCreate() {
     setDepartureId("");
     setRoomAllocation({ quad: 0, triple: 0, double: 0, single: 0 });
     setPassengers([]);
+    // Auto-advance to next step after package selection
+    setTimeout(() => setActiveStep(2), 300);
   };
 
   const handleDepartureChange = (id: string) => {
     setDepartureId(id);
     setRoomAllocation({ quad: 0, triple: 0, double: 0, single: 0 });
     setPassengers([]);
+    // Auto-advance to next step after departure selection
+    setTimeout(() => setActiveStep(3), 300);
   };
 
   const canSubmit = departureId &&
