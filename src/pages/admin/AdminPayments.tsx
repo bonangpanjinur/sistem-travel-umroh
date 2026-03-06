@@ -549,8 +549,15 @@ export default function AdminPayments() {
                                 <p className="text-xs text-muted-foreground">{payment.bank_name}</p>
                               </div>
                             </TableCell>
-                            <TableCell className="text-right font-semibold">
-                              {formatCurrency(payment.amount)}
+                            <TableCell className="text-right">
+                              <div>
+                                <p className="font-semibold">{formatCurrency(payment.amount)}</p>
+                                {booking?.total_price && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Sisa: {formatCurrency(booking.remaining_amount || 0)}
+                                  </p>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               {payment.proof_url ? (
@@ -569,7 +576,10 @@ export default function AdminPayments() {
                                   />
                                 </button>
                               ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
+                                <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Belum
+                                </Badge>
                               )}
                             </TableCell>
                             <TableCell>{getStatusBadge(payment.status || 'pending')}</TableCell>
@@ -808,6 +818,11 @@ interface PendingPaymentCardProps {
 
 function PendingPaymentCard({ payment, onViewProof, onApprove, onReject, isPending }: PendingPaymentCardProps) {
   const booking = payment.booking as any;
+  const totalPrice = booking?.total_price || 0;
+  const paidAmount = booking?.paid_amount || 0;
+  const progressPct = totalPrice > 0 ? Math.min((paidAmount / totalPrice) * 100, 100) : 0;
+  const willComplete = (paidAmount + payment.amount) >= totalPrice;
+  const hasProof = !!payment.proof_url;
 
   return (
     <Card className="border-2 border-yellow-300 bg-yellow-50/50 dark:bg-yellow-950/20">
@@ -815,20 +830,27 @@ function PendingPaymentCard({ payment, onViewProof, onApprove, onReject, isPendi
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             {/* Inline proof thumbnail */}
-            {payment.proof_url ? (
+            {hasProof ? (
               <button onClick={onViewProof} className="shrink-0 w-16 h-16 rounded-lg border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer">
                 <img src={payment.proof_url} alt="Bukti" className="w-full h-full object-cover" />
               </button>
             ) : (
-              <div className="shrink-0 w-16 h-16 rounded-lg border bg-muted flex items-center justify-center">
-                <ImageIcon className="h-6 w-6 text-muted-foreground" />
+              <div className="shrink-0 w-16 h-16 rounded-lg border-2 border-dashed border-orange-400 bg-orange-50 dark:bg-orange-950/20 flex flex-col items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-orange-500" />
+                <span className="text-[9px] text-orange-600 font-medium">No Bukti</span>
               </div>
             )}
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
                 <span className="font-mono font-semibold">{payment.payment_code}</span>
                 <Badge className="bg-yellow-100 text-yellow-800">Menunggu Verifikasi</Badge>
+                {!hasProof && (
+                  <Badge variant="destructive" className="text-xs">Belum Upload Bukti</Badge>
+                )}
+                {willComplete && (
+                  <Badge className="bg-green-100 text-green-800 text-xs">🎉 Akan Lunas</Badge>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -836,6 +858,15 @@ function PendingPaymentCard({ payment, onViewProof, onApprove, onReject, isPendi
                   {booking?.customer?.full_name}
                 </span>
                 <span>Booking: {booking?.booking_code}</span>
+              </div>
+              {/* Payment progress bar */}
+              <div className="flex items-center gap-2 max-w-xs">
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
+                </div>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {formatCurrency(paidAmount)}/{formatCurrency(totalPrice)} ({progressPct.toFixed(0)}%)
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -856,7 +887,7 @@ function PendingPaymentCard({ payment, onViewProof, onApprove, onReject, isPendi
             </div>
             
             <div className="flex gap-2">
-              {payment.proof_url && (
+              {hasProof && (
                 <Button variant="outline" size="sm" onClick={onViewProof}>
                   <Eye className="h-4 w-4 mr-1" />
                   Bukti
@@ -865,8 +896,9 @@ function PendingPaymentCard({ payment, onViewProof, onApprove, onReject, isPendi
               <Button 
                 size="sm" 
                 onClick={onApprove}
-                disabled={isPending}
+                disabled={isPending || !hasProof}
                 className="bg-green-600 hover:bg-green-700"
+                title={!hasProof ? 'Bukti pembayaran belum diupload' : ''}
               >
                 <CheckCircle className="h-4 w-4 mr-1" />
                 Setujui

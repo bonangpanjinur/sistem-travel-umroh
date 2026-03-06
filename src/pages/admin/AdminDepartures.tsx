@@ -421,12 +421,28 @@ export default function AdminDepartures() {
 
                         {/* Kuota */}
                         <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className={`text-sm font-medium ${dep.booked_count >= dep.quota ? 'text-destructive' : ''}`}>
-                              {dep.booked_count || 0}/{dep.quota}
-                            </span>
-                          </div>
+                          {(() => {
+                            const booked = dep.booked_count || 0;
+                            const quota = dep.quota;
+                            const pct = quota > 0 ? (booked / quota) * 100 : 0;
+                            const color = pct >= 100 ? 'text-destructive' : pct >= 75 ? 'text-orange-600' : 'text-green-600';
+                            return (
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className={`text-sm font-bold ${color}`}>
+                                    {booked}/{quota}
+                                  </span>
+                                </div>
+                                <div className="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
+                                  <div 
+                                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-destructive' : pct >= 75 ? 'bg-orange-500' : 'bg-green-500'}`}
+                                    style={{ width: `${Math.min(pct, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
 
                         {/* Status */}

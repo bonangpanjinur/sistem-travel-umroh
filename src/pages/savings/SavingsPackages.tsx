@@ -20,13 +20,9 @@ export default function SavingsPackages() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('packages')
-        .select(`
-          *,
-          hotel_makkah:hotels!packages_hotel_makkah_id_fkey(*),
-          hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
-          airline:airlines(*)
-        `)
+        .select('*')
         .eq('is_active', true)
+        .gt('price_quad', 0)
         .order('price_quad', { ascending: true });
 
       if (error) throw error;
@@ -136,25 +132,10 @@ export default function SavingsPackages() {
                         <Clock className="h-4 w-4" />
                         {pkg.duration_days} Hari
                       </span>
-                      {pkg.airline && (
-                        <span className="flex items-center gap-1">
-                          <Plane className="h-4 w-4" />
-                          {pkg.airline.name}
-                        </span>
-                      )}
                     </div>
                   </CardHeader>
                   
                   <CardContent className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      {pkg.hotel_makkah && (
-                        <span className="flex items-center gap-1">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          {pkg.hotel_makkah.name}
-                        </span>
-                      )}
-                    </div>
-                    
                     <div className="pt-2 border-t">
                       <p className="text-sm text-muted-foreground mb-1">Mulai dari</p>
                       <p className="text-2xl font-bold text-primary">

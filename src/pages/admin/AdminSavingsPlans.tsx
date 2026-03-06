@@ -59,7 +59,7 @@ export default function AdminSavingsPlans() {
   });
 
   const verifyMutation = useMutation({
-    mutationFn: async ({ paymentId, status }: { paymentId: string; status: 'verified' | 'rejected' }) => {
+    mutationFn: async ({ paymentId, status }: { paymentId: string; status: 'paid' | 'rejected' }) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       const { error } = await supabase
@@ -74,7 +74,7 @@ export default function AdminSavingsPlans() {
       if (error) throw error;
 
       // If verified, update savings plan paid_amount
-      if (status === 'verified') {
+      if (status === 'paid') {
         const payment = payments?.find(p => p.id === paymentId);
         if (payment) {
           const newPaidAmount = (selectedPlan?.paid_amount || 0) + payment.amount;
@@ -132,7 +132,7 @@ export default function AdminSavingsPlans() {
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="text-orange-500">Menunggu</Badge>;
-      case 'verified':
+      case 'paid':
         return <Badge className="bg-green-500">Terverifikasi</Badge>;
       case 'rejected':
         return <Badge variant="destructive">Ditolak</Badge>;
@@ -469,7 +469,7 @@ export default function AdminSavingsPlans() {
               Tolak
             </Button>
             <Button 
-              onClick={() => verifyMutation.mutate({ paymentId: verifyPayment?.id, status: 'verified' })}
+              onClick={() => verifyMutation.mutate({ paymentId: verifyPayment?.id, status: 'paid' })}
               disabled={verifyMutation.isPending}
             >
               <CheckCircle className="h-4 w-4 mr-1" />

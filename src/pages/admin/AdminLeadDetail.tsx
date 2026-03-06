@@ -186,7 +186,7 @@ export default function AdminLeadDetail() {
       const basePrice = selectedPackage?.price_quad || 0;
 
       // Generate booking code
-      const { data: bookingCode } = await supabase.rpc('generate_booking_code');
+      const { data: bookingCode } = await supabase.rpc('generate_booking_code', { _package_code: selectedPackage?.code || '', _departure_date: new Date().toISOString().split('T')[0] });
 
       // Create booking
       const { data: booking, error: bookingError } = await supabase

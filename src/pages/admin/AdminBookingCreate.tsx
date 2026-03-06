@@ -280,7 +280,7 @@ export default function AdminBookingCreate() {
       if (!departureId || passengers.some(p => !p.customer_id)) throw new Error("Data jamaah belum lengkap");
       if (doubleValidationError) throw new Error("Tipe Double harus kelipatan 2 orang");
 
-      const { data: bookingCode } = await supabase.rpc('generate_booking_code');
+      const { data: bookingCode } = await supabase.rpc('generate_booking_code', { _package_code: selectedPackage?.code || '', _departure_date: selectedDeparture?.departure_date || new Date().toISOString().split('T')[0] });
       const mainCustomerId = passengers[0].customer_id;
       const dominantRoom = getDominantRoomType();
       const basePrice = prices[dominantRoom];

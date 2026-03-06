@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,8 +131,9 @@ export default function AdminRoomAssignments() {
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
-      const { error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId);
+      const { data, error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId).select('id, room_number').single();
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast.success("Nomor kamar diperbarui!");
@@ -510,6 +511,11 @@ function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassenge
 function RoomNumberInput({ passengerId, currentValue, onSave }: { passengerId: string; currentValue: string; onSave: (v: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(currentValue);
+
+  // Sync with external data changes
+  useEffect(() => {
+    setValue(currentValue);
+  }, [currentValue]);
 
   if (!editing) {
     return (
