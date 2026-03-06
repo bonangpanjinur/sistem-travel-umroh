@@ -143,7 +143,7 @@ export function useBookingWizardDynamic(
       // 2. Get departure info for pricing (use departure-specific prices which override package prices)
       const { data: departure, error: departureError } = await supabase
         .from('departures')
-        .select('id, price_quad, price_triple, price_double, price_single')
+        .select('id, departure_date, price_quad, price_triple, price_double, price_single, package:packages(code)')
         .eq('id', formData.departureId)
         .single();
 
@@ -181,7 +181,7 @@ export function useBookingWizardDynamic(
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
-          booking_code: (await supabase.rpc('generate_booking_code')).data || `UMR${Date.now().toString(36).toUpperCase()}`,
+          booking_code: (await supabase.rpc('generate_booking_code', { _package_code: (departure.package as any)?.code || '', _departure_date: departure.departure_date })).data || `TRA${Date.now().toString(36).toUpperCase()}`,
           departure_id: formData.departureId,
           customer_id: customer.id,
           room_type: mainRoomType,

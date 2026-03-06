@@ -2780,6 +2780,8 @@ export type Database = {
           price_quad: number
           price_single: number
           price_triple: number
+          savings_installment: number | null
+          savings_target: number | null
           updated_at: string | null
         }
         Insert: {
@@ -2807,6 +2809,8 @@ export type Database = {
           price_quad?: number
           price_single?: number
           price_triple?: number
+          savings_installment?: number | null
+          savings_target?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -2834,6 +2838,8 @@ export type Database = {
           price_quad?: number
           price_single?: number
           price_triple?: number
+          savings_installment?: number | null
+          savings_target?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -4606,7 +4612,12 @@ export type Database = {
         }
         Returns: number
       }
-      generate_booking_code: { Args: never; Returns: string }
+      generate_booking_code:
+        | { Args: never; Returns: string }
+        | {
+            Args: { _departure_date?: string; _package_code?: string }
+            Returns: string
+          }
       generate_employee_code: { Args: never; Returns: string }
       generate_payment_code: { Args: never; Returns: string }
       generate_savings_payment_code: { Args: never; Returns: string }
