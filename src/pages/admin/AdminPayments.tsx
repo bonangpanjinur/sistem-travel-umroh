@@ -587,38 +587,39 @@ export default function AdminPayments() {
                               {formatDate(payment.created_at || '')}
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
+                              <div className="flex justify-end gap-1 flex-wrap">
                                 {payment.proof_url && (
                                   <Button 
-                                    variant="ghost" 
-                                    size="icon"
+                                    variant="outline" 
+                                    size="sm"
                                     onClick={() => openProofDialog(payment)}
                                   >
-                                    <Eye className="h-4 w-4" />
+                                    <Eye className="h-3.5 w-3.5 mr-1" /> Lihat Bukti
                                   </Button>
                                 )}
                                 {isPending && (
                                   <>
                                     <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="text-green-600 hover:text-green-700"
+                                      variant="outline" 
+                                      size="sm"
+                                      className="text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
                                       onClick={() => handleApprove(payment)}
-                                      disabled={verifyMutation.isPending}
+                                      disabled={verifyMutation.isPending || !payment.proof_url}
+                                      title={!payment.proof_url ? 'Bukti pembayaran belum diupload' : 'Setujui pembayaran'}
                                     >
-                                      <CheckCircle className="h-4 w-4" />
+                                      <CheckCircle className="h-3.5 w-3.5 mr-1" /> Setujui
                                     </Button>
                                     <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="text-destructive hover:text-destructive"
+                                      variant="outline" 
+                                      size="sm"
+                                      className="text-destructive border-destructive/30 hover:bg-destructive/10"
                                       onClick={() => {
                                         setSelectedPayment(payment);
                                         setShowRejectDialog(true);
                                       }}
                                       disabled={verifyMutation.isPending}
                                     >
-                                      <XCircle className="h-4 w-4" />
+                                      <XCircle className="h-3.5 w-3.5 mr-1" /> Tolak
                                     </Button>
                                   </>
                                 )}

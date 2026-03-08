@@ -131,7 +131,7 @@ export default function AdminRoomAssignments() {
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
-      const { data, error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId).select('id, room_number').single();
+      const { data, error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId).select('id, room_number').maybeSingle();
       if (error) throw error;
       return data;
     },
