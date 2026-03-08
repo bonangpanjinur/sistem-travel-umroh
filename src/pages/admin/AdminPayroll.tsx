@@ -39,6 +39,7 @@ interface PayrollData {
 }
 
 export default function AdminPayroll() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
