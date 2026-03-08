@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,6 +39,7 @@ interface PayrollData {
 }
 
 export default function AdminPayroll() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -165,6 +167,9 @@ export default function AdminPayroll() {
           <h1 className="text-2xl font-bold">Penggajian / Payroll</h1>
           <p className="text-muted-foreground">Kelola slip gaji dan pembayaran gaji karyawan</p>
         </div>
+        <Button variant="outline" onClick={() => navigate('/admin/finance-cash?tab=salary')}>
+          <Banknote className="h-4 w-4 mr-2" /> Lihat Slip Gaji di Keuangan
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

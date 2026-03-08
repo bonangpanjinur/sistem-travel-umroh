@@ -1,77 +1,110 @@
 
 
-# Rencana Perbaikan 5 Fitur
+# Rencana Perbaikan 5 Fitur Utama
 
-## 1. Fix Kamar: Error `.single()` pada Update Room Number
+## 1. Paket Tabungan: Perbaikan Alur Lengkap
 
-**Masalah**: `updateRoomMutation` di `AdminRoomAssignments.tsx` line 134 menggunakan `.select().single()`. Jika update tidak match row (misal RLS block), `.single()` throw error "Cannot coerce the result to a single JSON object".
+### Masalah
+- SavingsPackages.tsx menggunakan `pkg.price_quad` yang sudah dihapus dari packages (harga kini di departures)
+- SavingsRegister.tsx sama: `targetAmount = pkg.price_quad` -- field ini null/0
+- Admin SavingsPlans verifikasi menggunakan status `'verified'` yang bukan enum valid (harusnya `'paid'`)
+- Tidak ada tombol "Konversi ke Booking" saat tabungan lunas
 
-**Solusi**: Ganti `.select('id, room_number').single()` menjadi `.select('id, room_number').maybeSingle()` dan handle null result.
+### Solusi
+- **SavingsPackages.tsx**: Filter hanya paket bertipe `umroh` yang punya `savings_target > 0` (kolom sudah ada). Tampilkan `savings_target` sebagai harga, bukan `price_quad`. Cicilan = `savings_target / 12`
+- **SavingsRegister.tsx**: Gunakan `savings_target` atau `savings_installment` dari packages sebagai basis kalkulasi
+- **AdminSavingsPlans.tsx**: 
+  - Ganti status `'verified'` -> `'paid'` di verifyMutation
+  - Tambah tombol "Konversi ke Booking" pada plan yang status `completed`
+  - Konversi = buat booking baru dari data savings plan (customer, package, amount)
 
-**File**: `src/pages/admin/AdminRoomAssignments.tsx` (line 134)
+## 2. Tabel Keberangkatan: Perbaikan Layout
+
+### Masalah
+Data terlalu padat, kolom hotel dan harga sulit dibaca.
+
+### Solusi
+Refaktor tabel menjadi format card-list hybrid:
+- **Baris utama**: Tanggal | Paket (nama+kode) | Status | Kuota | Aksi
+- **Sub-baris expandable** (klik row): Detail penerbangan, hotel, harga (grid 2x2 yang sudah ada tapi lebih besar)
+- Atau: tetap tabel tapi hapus kolom Hotel dari tabel utama, pindahkan ke tooltip/expand. Fokus tabel pada: **Tanggal, Paket, Harga (grid), Kuota, Status, Aksi**
+- Tambah indikator warna pada kuota (hijau: banyak, kuning: hampir penuh, merah: penuh)
+
+## 3. Kode Booking: Format TRA + Inisial Paket + Tanggal
+
+### Masalah
+Kode saat ini `TRA260301-XXXX` (tanggal+random), tidak ada inisial paket.
+
+### Solusi
+- Update fungsi database `generate_booking_code` untuk menerima parameter: `_package_code TEXT`, `_departure_date DATE`
+- Format baru: `TRA{package_code}{YYMMDD}{random4}` contoh: `TRAUMR260315A7B2`
+- Update semua caller (3 hooks + AdminBookingCreate + AdminLeadDetail) untuk pass parameter baru
+- Fallback tetap format lama jika parameter kosong
+
+### Migration SQL
+```sql
+CREATE OR REPLACE FUNCTION public.generate_booking_code(_package_code TEXT DEFAULT '', _departure_date DATE DEFAULT CURRENT_DATE)
+RETURNS TEXT LANGUAGE plpgsql SET search_path TO 'public' AS $$
+DECLARE
+  new_code TEXT;
+  code_exists BOOLEAN;
+  pkg_init TEXT;
+  date_part TEXT;
+BEGIN
+  pkg_init := UPPER(SUBSTRING(COALESCE(NULLIF(_package_code, ''), 'XX'), 1, 3));
+  date_part := TO_CHAR(_departure_date, 'YYMMDD');
+  LOOP
+    new_code := 'TRA' || pkg_init || date_part || UPPER(SUBSTRING(md5(random()::text), 1, 4));
+    SELECT EXISTS(SELECT 1 FROM public.bookings WHERE booking_code = new_code) INTO code_exists;
+    EXIT WHEN NOT code_exists;
+  END LOOP;
+  RETURN new_code;
+END;
+$$;
+```
+
+## 4. Pengaturan Kamar (Room Number) Tidak Tersimpan
+
+### Masalah
+`updateRoomMutation` memanggil `supabase.from('booking_passengers').update({ room_number })` tapi query invalidation mungkin tidak me-refresh data karena RLS atau karena update tidak match.
+
+### Solusi
+- Tambah `.select()` pada update mutation untuk memastikan data kembali
+- Pastikan `RoomNumberInput` component me-sync `currentValue` saat data berubah (tambah `useEffect` untuk sync state internal)
+- Tambah `key={p.room_number}` pada RoomNumberInput agar re-render saat data berubah
+- Juga update roommate's room_number saat ada pasangan (double)
+
+## 5. Verifikasi Pembayaran: Perbaikan Alur
+
+### Masalah
+- Alur approve/reject sudah ada tapi bukti pembayaran yang belum di-upload tidak ada indikasi yang jelas
+- Tidak ada progress pembayaran booking (berapa % sudah dibayar) di halaman ini
+- Setelah approve, tidak ada feedback visual bahwa booking status berubah
+- Tab "Menunggu" tidak menampilkan konteks booking (total harga, sisa pembayaran)
+
+### Solusi
+- **PendingPaymentCard**: Tambah progress bar pembayaran booking (paid_amount/total_price)
+- Tambah badge "Belum Ada Bukti" yang mencolok jika `proof_url` null
+- Setelah approve/reject, tampilkan toast yang lebih informatif (sisa pembayaran booking)
+- Tambah kolom "Sisa Pembayaran" di tabel all-payments
+- Tambah alert jika pembayaran ini akan melunasi booking (paid_amount + amount >= total_price)
+- Disable tombol "Setujui" jika tidak ada bukti pembayaran
 
 ---
 
-## 2. Pembayaran: Perjelas Aksi Verifikasi
-
-**Masalah**: Tombol aksi di tabel "Semua Pembayaran" hanya ikon kecil tanpa label -- sulit dibedakan. Pending card sudah bagus, tapi tabel kurang jelas.
-
-**Solusi**:
-- Ganti tombol ikon di tabel (lines 589-624) menjadi tombol dengan label teks: "Lihat Bukti", "Setujui", "Tolak"
-- Tambah kolom "Progress Booking" di tabel showing paid_amount/total_price progress
-- Disable "Setujui" jika `proof_url` null (sudah ada di pending card, belum di tabel)
-- Tambah tooltip pada tombol disabled
-
-**File**: `src/pages/admin/AdminPayments.tsx`
-
----
-
-## 3. Slip Gaji Auto-Generate dari Data HR/Absensi
-
-**Masalah**: Slip gaji di `SalaryTab` (AdminFinanceCash.tsx) harus manual input per karyawan. Padahal data absensi dan gaji pokok sudah ada di HR.
-
-**Solusi**: Tambah tombol **"Generate Semua Slip Gaji"** yang:
-1. Fetch semua `employees` aktif
-2. Fetch `attendance_records` untuk bulan/tahun terpilih
-3. Hitung otomatis: `base_salary` dari employee, `deductions` dari absen/telat (menggunakan logika yang sudah ada di `AdminPayroll.tsx` lines 82-130), `overtime_pay` dan `allowances` dari data HR
-4. Bulk insert ke `salary_payments` untuk semua karyawan yang belum punya slip di periode tersebut
-5. Skip karyawan yang sudah punya slip gaji di periode itu
-
-**File**: `src/pages/admin/AdminFinanceCash.tsx` (SalaryTab function)
-
----
-
-## 4. Hapus Menu Vendor dari Keuangan & Akuntansi
-
-**Masalah**: Menu "Vendor" sudah ada di Master Data, duplikasi di Keuangan & Akuntansi tidak perlu.
-
-**Solusi**: Hapus entry `{ label: 'Vendor', icon: Building2, path: '/admin/vendors' }` dari group "Keuangan & Akuntansi" di `NAV_GROUPS` (line 62).
-
-**File**: `src/components/admin/AdminLayout.tsx`
-
----
-
-## 5. Integrasi HR dengan Keuangan
-
-**Masalah**: Menu SDM (HR) dan Keuangan terpisah. Payroll ada di HR (`/admin/hr/payroll`) tapi slip gaji ada di Kas & Bank.
-
-**Solusi**:
-- Tambah link **"Slip Gaji"** di menu SDM (HR) yang mengarah ke `/admin/finance-cash?tab=salary`
-- Tambah link **"Data Karyawan"** di menu Keuangan yang mengarah ke `/admin/hr?tab=employees`
-- Di `AdminPayroll.tsx`: tambah tombol navigasi "Lihat Slip Gaji di Keuangan" yang redirect ke `/admin/finance-cash?tab=salary`
-- Di `SalaryTab`: tambah tombol "Lihat Detail Absensi" yang redirect ke `/admin/hr?tab=attendance`
-
-**File**: `src/components/admin/AdminLayout.tsx`, `src/pages/admin/AdminPayroll.tsx`, `src/pages/admin/AdminFinanceCash.tsx`
-
----
-
-## Ringkasan File
+## File yang Dimodifikasi
 
 | File | Perubahan |
 |:---|:---|
-| `AdminRoomAssignments.tsx` | `.single()` → `.maybeSingle()` |
-| `AdminPayments.tsx` | Perjelas tombol aksi di tabel, disable setujui tanpa bukti |
-| `AdminFinanceCash.tsx` | Auto-generate slip gaji dari data HR, link ke absensi |
-| `AdminLayout.tsx` | Hapus Vendor dari Keuangan, tambah cross-link HR↔Keuangan |
-| `AdminPayroll.tsx` | Tambah navigasi ke slip gaji di Keuangan |
+| `src/pages/savings/SavingsPackages.tsx` | Gunakan `savings_target` bukan `price_quad` |
+| `src/pages/savings/SavingsRegister.tsx` | Gunakan `savings_target` untuk kalkulasi |
+| `src/pages/admin/AdminSavingsPlans.tsx` | Fix status enum, tambah konversi ke booking |
+| `src/pages/admin/AdminDepartures.tsx` | Simplify tabel, fokus data penting |
+| `src/pages/admin/AdminRoomAssignments.tsx` | Fix RoomNumberInput sync, mutation select |
+| `src/pages/admin/AdminPayments.tsx` | Progress bar booking, bukti upload check |
+| `src/pages/admin/AdminBookingCreate.tsx` | Pass package_code + departure_date ke RPC |
+| `src/hooks/useBookingWizard.ts` | Update generate_booking_code call |
+| `src/hooks/useBookingWizardDynamic.ts` | Update generate_booking_code call |
+| `src/hooks/useBookingWizardSimple.ts` | Update generate_booking_code call |
+| Migration SQL | Update fungsi `generate_booking_code` |
 

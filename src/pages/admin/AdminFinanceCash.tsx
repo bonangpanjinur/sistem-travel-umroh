@@ -21,7 +21,7 @@ import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 import {
   Plus, ArrowUpCircle, ArrowDownCircle, Wallet, Download,
   Search, Filter, X, Users, Banknote, TrendingUp, TrendingDown,
-  CheckCircle2, Clock, FileText
+  CheckCircle2, Clock, FileText, Loader2
 } from "lucide-react";
 
 const CASH_CATEGORIES = [
@@ -328,11 +328,11 @@ function SalaryTab({ userId }: { userId?: string }) {
   const [periodYear, setPeriodYear] = useState(new Date().getFullYear());
 
   const { data: employees } = useQuery({
-    queryKey: ['employees-active'],
+    queryKey: ['employees-active-full'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('id, full_name, position, salary')
+        .select('id, full_name, position, salary, use_custom_deduction, custom_absent_deduction, custom_absent_deduction_type, custom_late_deduction, custom_late_deduction_type')
         .eq('is_active', true)
         .order('full_name');
       if (error) throw error;
@@ -361,6 +361,83 @@ function SalaryTab({ userId }: { userId?: string }) {
     overtime_pay: '0',
     allowances: '0',
     notes: '',
+  });
+
+  // Auto-generate all salary slips from HR/attendance data
+  const bulkGenerateMutation = useMutation({
+    mutationFn: async () => {
+      if (!employees?.length) throw new Error('Tidak ada karyawan aktif');
+
+      // Fetch attendance for this period
+      const startDate = `${periodYear}-${String(periodMonth).padStart(2, '0')}-01`;
+      const endMonth = periodMonth === 12 ? 1 : periodMonth + 1;
+      const endYear = periodMonth === 12 ? periodYear + 1 : periodYear;
+      const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
+
+      const { data: attendance } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .gte('attendance_date', startDate)
+        .lt('attendance_date', endDate);
+
+      const existingEmpIds = new Set(salaryPayments?.map(sp => sp.employee_id) || []);
+      const newSlips: any[] = [];
+      const workDays = 22;
+
+      for (const emp of employees) {
+        if (existingEmpIds.has(emp.id)) continue;
+
+        const empAtt = (attendance || []).filter(a => a.employee_id === emp.id);
+        const attendanceDays = empAtt.filter(a => a.status === 'present').length;
+        const absentDays = Math.max(0, workDays - attendanceDays);
+        const lateCount = empAtt.filter(a => (a as any).is_late).length;
+
+        const baseSalary = emp.salary || 0;
+        const dailyRate = baseSalary / workDays;
+
+        let deduction = 0;
+        if (emp.use_custom_deduction && emp.custom_absent_deduction) {
+          const absDed = emp.custom_absent_deduction_type === 'percentage'
+            ? (baseSalary * emp.custom_absent_deduction) / 100
+            : emp.custom_absent_deduction;
+          deduction += absDed * absentDays;
+        } else {
+          deduction += dailyRate * absentDays;
+        }
+        if (emp.use_custom_deduction && emp.custom_late_deduction) {
+          const lateDed = emp.custom_late_deduction_type === 'percentage'
+            ? (baseSalary * emp.custom_late_deduction) / 100
+            : emp.custom_late_deduction;
+          deduction += lateDed * lateCount;
+        } else {
+          deduction += (dailyRate * 0.1) * lateCount;
+        }
+
+        const totalPay = baseSalary - Math.round(deduction);
+        newSlips.push({
+          employee_id: emp.id,
+          period_month: periodMonth,
+          period_year: periodYear,
+          base_salary: baseSalary,
+          deductions: Math.round(deduction),
+          overtime_pay: 0,
+          allowances: 0,
+          total_pay: Math.max(0, totalPay),
+          status: 'draft',
+        });
+      }
+
+      if (!newSlips.length) throw new Error('Semua karyawan sudah memiliki slip gaji di periode ini');
+
+      const { error } = await supabase.from('salary_payments').insert(newSlips);
+      if (error) throw error;
+      return newSlips.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['salary-payments'] });
+      toast.success(`${count} slip gaji berhasil di-generate dari data HR & absensi`);
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const generateMutation = useMutation({
@@ -466,14 +543,20 @@ function SalaryTab({ userId }: { userId?: string }) {
           </Select>
         </div>
         <div className="flex-1" />
-        <Button onClick={() => {
-          setDialogOpen(true);
-          if (selectedEmployee) {
-            setSalaryForm(prev => ({ ...prev, base_salary: String(selectedEmployee.salary || 0) }));
-          }
-        }}>
-          <Plus className="h-4 w-4 mr-2" /> Buat Slip Gaji
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => bulkGenerateMutation.mutate()} disabled={bulkGenerateMutation.isPending}>
+            {bulkGenerateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Users className="h-4 w-4 mr-2" />}
+            Generate Semua dari HR
+          </Button>
+          <Button onClick={() => {
+            setDialogOpen(true);
+            if (selectedEmployee) {
+              setSalaryForm(prev => ({ ...prev, base_salary: String(selectedEmployee.salary || 0) }));
+            }
+          }}>
+            <Plus className="h-4 w-4 mr-2" /> Buat Slip Manual
+          </Button>
+        </div>
       </div>
 
       {/* Salary list */}

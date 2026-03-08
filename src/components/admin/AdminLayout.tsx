@@ -59,7 +59,6 @@ const NAV_GROUPS = [
       { label: 'Piutang Jamaah', icon: FileText, path: '/admin/finance/ar' },
       { label: 'Hutang Vendor', icon: Truck, path: '/admin/finance/ap' },
       { label: 'Laporan Laba Rugi', icon: DollarSign, path: '/admin/finance' },
-      { label: 'Vendor', icon: Building2, path: '/admin/vendors' },
     ]
   },
   {
@@ -83,6 +82,7 @@ const NAV_GROUPS = [
       { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr?tab=employees' },
       { label: 'Absensi', icon: Clock, path: '/admin/hr?tab=attendance' },
       { label: 'Penggajian / Payroll', icon: Banknote, path: '/admin/hr/payroll' },
+      { label: 'Slip Gaji', icon: FileText, path: '/admin/finance-cash?tab=salary' },
       { label: 'Departemen', icon: Building2, path: '/admin/hr?tab=departments' },
       { label: 'Posisi', icon: Briefcase, path: '/admin/hr?tab=positions' },
       { label: 'Jadwal Kerja', icon: Calendar, path: '/admin/hr?tab=schedules' },
