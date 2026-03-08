@@ -543,14 +543,20 @@ function SalaryTab({ userId }: { userId?: string }) {
           </Select>
         </div>
         <div className="flex-1" />
-        <Button onClick={() => {
-          setDialogOpen(true);
-          if (selectedEmployee) {
-            setSalaryForm(prev => ({ ...prev, base_salary: String(selectedEmployee.salary || 0) }));
-          }
-        }}>
-          <Plus className="h-4 w-4 mr-2" /> Buat Slip Gaji
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => bulkGenerateMutation.mutate()} disabled={bulkGenerateMutation.isPending}>
+            {bulkGenerateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Users className="h-4 w-4 mr-2" />}
+            Generate Semua dari HR
+          </Button>
+          <Button onClick={() => {
+            setDialogOpen(true);
+            if (selectedEmployee) {
+              setSalaryForm(prev => ({ ...prev, base_salary: String(selectedEmployee.salary || 0) }));
+            }
+          }}>
+            <Plus className="h-4 w-4 mr-2" /> Buat Slip Manual
+          </Button>
+        </div>
       </div>
 
       {/* Salary list */}
