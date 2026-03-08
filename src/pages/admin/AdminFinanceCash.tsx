@@ -21,7 +21,7 @@ import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 import {
   Plus, ArrowUpCircle, ArrowDownCircle, Wallet, Download,
   Search, Filter, X, Users, Banknote, TrendingUp, TrendingDown,
-  CheckCircle2, Clock, FileText
+  CheckCircle2, Clock, FileText, Loader2
 } from "lucide-react";
 
 const CASH_CATEGORIES = [
