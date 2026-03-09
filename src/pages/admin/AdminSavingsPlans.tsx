@@ -547,6 +547,40 @@ export default function AdminSavingsPlans() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Manual Payment Dialog */}
+      <Dialog open={manualPaymentOpen} onOpenChange={setManualPaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Input Pembayaran Manual</DialogTitle>
+          </DialogHeader>
+          {manualPaymentPlan && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Jamaah</p>
+                <p className="font-medium">{manualPaymentPlan.customer?.full_name}</p>
+                <p className="text-sm text-muted-foreground mt-2">Sisa Target</p>
+                <p className="font-bold">{formatCurrency(manualPaymentPlan.target_amount - (manualPaymentPlan.paid_amount || 0))}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Jumlah Pembayaran</Label>
+                <Input
+                  type="number"
+                  value={manualAmount}
+                  onChange={e => setManualAmount(e.target.value)}
+                  placeholder="Masukkan jumlah..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualPaymentOpen(false)}>Batal</Button>
+            <Button onClick={() => manualPaymentMutation.mutate()} disabled={manualPaymentMutation.isPending}>
+              {manualPaymentMutation.isPending ? 'Memproses...' : 'Catat Pembayaran'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
