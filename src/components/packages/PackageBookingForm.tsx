@@ -12,13 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Calendar, Users, BedDouble, Minus, Plus, Loader2, Info, Plane, Hotel } from "lucide-react";
+import { Calendar, Users, BedDouble, Minus, Plus, Loader2, Info, Plane, Hotel, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
 import { HotelDisplay } from "@/components/hotels/HotelDisplay";
 
 interface PackageBookingFormProps {
-  packageId: string;
+  pkg: any;
 }
 
 interface RoomAllocation {
@@ -35,7 +35,8 @@ const ROOM_INFO: Record<RoomType, { label: string; occupancy: number; desc: stri
   single: { label: 'Single', occupancy: 1, desc: '1 orang/kamar' },
 };
 
-export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
+export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
+  const packageId = pkg.id;
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
   
@@ -339,17 +340,32 @@ export function PackageBookingForm({ packageId }: PackageBookingFormProps) {
               </p>
             )}
 
-            <Button 
-              className="w-full h-11 text-base font-semibold" 
-              onClick={handleProceed}
-              disabled={!canProceed}
-            >
-              {authLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                "Lanjutkan Pemesanan"
-              )}
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button 
+                className="w-full h-11 text-base font-semibold" 
+                onClick={handleProceed}
+                disabled={!canProceed}
+              >
+                {authLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  "Lanjutkan Pemesanan"
+                )}
+              </Button>
+              
+              <Button 
+                variant="outline"
+                className="w-full h-11 text-base font-semibold gap-2 border-primary text-primary hover:bg-primary/5" 
+                onClick={() => {
+                  const whatsapp = pkg.pic?.bank_account_number?.replace(/\D/g, '') || '6281234567890';
+                  const message = encodeURIComponent(`Halo, saya tertarik dengan paket *${pkg.name}*. Bisa bantu saya untuk proses booking?`);
+                  window.open(`https://wa.me/${whatsapp}?text=${message}`, '_blank');
+                }}
+              >
+                <MessageCircle className="h-5 w-5" />
+                Konsultasi via PIC
+              </Button>
+            </div>
             
             <p className="text-[10px] text-center text-muted-foreground italic">
               * Harga dapat berubah sewaktu-waktu sebelum pembayaran uang muka (DP)

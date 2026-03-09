@@ -11,7 +11,7 @@ import { formatPackageType } from '@/lib/format';
 import { PackageBookingForm } from '@/components/packages/PackageBookingForm';
 import { 
   Clock, MapPin, Plane, Building2, Users, 
-  Check, X, Star, ChevronLeft
+  Check, X, Star, ChevronLeft, MessageCircle, Phone, Mail
 } from 'lucide-react';
 export default function PackageDetail() {
   const { id } = useParams<{ id: string }>();
@@ -27,7 +27,8 @@ export default function PackageDetail() {
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(*),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
           muthawif:muthawifs(*),
-          departures(*)
+          departures(*),
+          pic:agents!packages_pic_id_fkey(*)
         `)
         .eq('id', id)
         .single();
@@ -372,9 +373,61 @@ export default function PackageDetail() {
             </Tabs>
           </div>
 
-          {/* Sidebar - Booking Form */}
-          <div className="lg:col-span-1">
-            <PackageBookingForm packageId={pkg.id} />
+          {/* Sidebar - Book          {/* Sidebar */}
+          <div className="space-y-6">
+            <PackageBookingForm pkg={pkg} />
+
+            {/* PIC Section */}
+            {pkg.pic && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Konsultan Anda</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-full overflow-hidden bg-muted flex-shrink-0">
+                      {pkg.pic.avatar_url ? (
+                        <img src={pkg.pic.avatar_url} alt={pkg.pic.company_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <Users className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{pkg.pic.company_name}</h4>
+                      <p className="text-xs text-muted-foreground">{pkg.pic.specialization || 'Konsultan Umroh'}</p>
+                      {pkg.pic.location && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                          <MapPin className="h-3 w-3" />
+                          {pkg.pic.location}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {pkg.pic.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {pkg.pic.description}
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-2 pt-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start gap-2 h-9"
+                      onClick={() => {
+                        const whatsapp = pkg.pic.bank_account_number?.replace(/\D/g, '') || '';
+                        if (whatsapp) window.open(`https://wa.me/${whatsapp}`, '_blank');
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4 text-green-600" />
+                      WhatsApp PIC
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

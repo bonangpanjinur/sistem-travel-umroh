@@ -40,7 +40,8 @@ export default function TeamPage() {
           specialization,
           location,
           description,
-          is_active
+          is_active,
+          bank_account_number
         `)
         .eq("is_pic", true)
         .eq("is_active", true)
@@ -160,13 +161,15 @@ interface TeamMemberCardProps {
 }
 
 function TeamMemberCard({ member }: TeamMemberCardProps) {
+  const whatsapp = member.bank_account_number; // Placeholder as per migration
+  
   const handleWhatsAppChat = () => {
-    if (!member.whatsapp) return;
+    if (!whatsapp) return;
     
     const message = encodeURIComponent(
       "Halo, saya ingin bertanya tentang paket umroh Anda."
     );
-    const whatsappNumber = member.whatsapp.replace(/\D/g, "");
+    const whatsappNumber = whatsapp.replace(/\D/g, "");
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
   };
 
@@ -248,7 +251,7 @@ function TeamMemberCard({ member }: TeamMemberCardProps) {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
-            {member.whatsapp && (
+            {whatsapp && (
               <Button
                 onClick={handleWhatsAppChat}
                 className="flex-1 gap-2"
