@@ -50,7 +50,7 @@ export function PICLocationMatcher({ packageId, onPICSelected }: PICLocationMatc
       const { data, error } = await supabase
         .from('agents')
         .select('location')
-        .eq('is_pic', true)
+
         .eq('is_active', true)
         .not('location', 'is', null)
         .order('location', { ascending: true });
@@ -58,7 +58,7 @@ export function PICLocationMatcher({ packageId, onPICSelected }: PICLocationMatc
       if (error) throw error;
       
       // Get unique locations
-      const uniqueLocations = [...new Set(data.map(d => d.location))];
+      const uniqueLocations = [...new Set(data.map(d => d.location).filter(Boolean))];
       return uniqueLocations;
     },
   });
@@ -70,7 +70,7 @@ export function PICLocationMatcher({ packageId, onPICSelected }: PICLocationMatc
       const { data, error } = await supabase
         .from('agents')
         .select('id, company_name, location, specialization, avatar_url')
-        .eq('is_pic', true)
+
         .eq('is_active', true)
         .eq('location', selectedLocation)
         .order('company_name', { ascending: true });

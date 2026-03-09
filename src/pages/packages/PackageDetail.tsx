@@ -29,7 +29,7 @@ export default function PackageDetail() {
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
           muthawif:muthawifs(*),
           departures(*),
-          pic:agents!packages_pic_id_fkey(*)
+          pic:agents(*)
         `)
         .eq('id', id)
         .single();
@@ -75,9 +75,9 @@ export default function PackageDetail() {
     );
   }
 
-  const includes = pkg.includes || [];
-  const excludes = pkg.excludes || [];
-  const itinerary = (pkg.itinerary as any[]) || [];
+  const includes = Array.isArray(pkg.includes) ? pkg.includes : [];
+  const excludes = Array.isArray(pkg.excludes) ? pkg.excludes : [];
+  const itinerary = Array.isArray(pkg.itinerary) ? pkg.itinerary : [];
 
   // Get upcoming departures
   const upcomingDepartures = (pkg.departures || [])
