@@ -308,7 +308,7 @@ export default function AdminSavingsPlans() {
                           </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(plan.status)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right space-x-2">
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -320,6 +320,18 @@ export default function AdminSavingsPlans() {
                             <Eye className="h-4 w-4 mr-1" />
                             Detail
                           </Button>
+                          {plan.status === 'completed' && (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => {
+                                toast.info(`Konversi tabungan ${plan.customer?.full_name} ke booking — fitur akan tersedia segera`);
+                              }}
+                            >
+                              <CreditCard className="h-4 w-4 mr-1" />
+                              Konversi
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
