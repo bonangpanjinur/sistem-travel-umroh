@@ -15,7 +15,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { 
   Wallet, Plus, Search, TrendingUp, Users, CheckCircle, 
-  Clock, Eye, CreditCard, AlertCircle
+  Clock, Eye, CreditCard, AlertCircle, DollarSign
 } from "lucide-react";
 
 export default function AdminSavingsPlans() {
@@ -25,6 +25,9 @@ export default function AdminSavingsPlans() {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [verifyPayment, setVerifyPayment] = useState<any>(null);
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
+  const [manualPaymentPlan, setManualPaymentPlan] = useState<any>(null);
+  const [manualAmount, setManualAmount] = useState('');
 
   const { data: savingsPlans, isLoading } = useQuery({
     queryKey: ['admin-savings-plans'],
@@ -99,6 +102,46 @@ export default function AdminSavingsPlans() {
     onError: (error: any) => {
       toast.error(error.message || "Gagal memverifikasi");
     },
+  });
+
+  // Manual payment mutation
+  const manualPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!manualPaymentPlan || !manualAmount) throw new Error('Data tidak lengkap');
+      const amount = parseFloat(manualAmount);
+      if (isNaN(amount) || amount <= 0) throw new Error('Jumlah tidak valid');
+
+      const { data: paymentCode } = await supabase.rpc('generate_savings_payment_code');
+      
+      const { error } = await supabase.from('savings_payments').insert({
+        savings_plan_id: manualPaymentPlan.id,
+        amount,
+        payment_code: paymentCode || `SAV${Date.now().toString(36).toUpperCase()}`,
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'cash',
+        status: 'paid',
+        verified_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+
+      // Update savings plan
+      const newPaid = (manualPaymentPlan.paid_amount || 0) + amount;
+      const newStatus = newPaid >= manualPaymentPlan.target_amount ? 'completed' : 'active';
+      await supabase.from('savings_plans').update({
+        paid_amount: newPaid,
+        remaining_amount: Math.max(0, manualPaymentPlan.target_amount - newPaid),
+        status: newStatus,
+      }).eq('id', manualPaymentPlan.id);
+    },
+    onSuccess: () => {
+      toast.success('Pembayaran manual berhasil dicatat');
+      queryClient.invalidateQueries({ queryKey: ['admin-savings-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['savings-payments'] });
+      setManualPaymentOpen(false);
+      setManualPaymentPlan(null);
+      setManualAmount('');
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const filteredPlans = savingsPlans?.filter(plan => {
@@ -309,6 +352,20 @@ export default function AdminSavingsPlans() {
                         </TableCell>
                         <TableCell>{getStatusBadge(plan.status)}</TableCell>
                         <TableCell className="text-right space-x-2">
+                          {plan.status === 'active' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setManualPaymentPlan(plan);
+                                setManualAmount(String(plan.monthly_amount || 0));
+                                setManualPaymentOpen(true);
+                              }}
+                            >
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              Bayar
+                            </Button>
+                          )}
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -486,6 +543,40 @@ export default function AdminSavingsPlans() {
             >
               <CheckCircle className="h-4 w-4 mr-1" />
               Verifikasi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Payment Dialog */}
+      <Dialog open={manualPaymentOpen} onOpenChange={setManualPaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Input Pembayaran Manual</DialogTitle>
+          </DialogHeader>
+          {manualPaymentPlan && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Jamaah</p>
+                <p className="font-medium">{manualPaymentPlan.customer?.full_name}</p>
+                <p className="text-sm text-muted-foreground mt-2">Sisa Target</p>
+                <p className="font-bold">{formatCurrency(manualPaymentPlan.target_amount - (manualPaymentPlan.paid_amount || 0))}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Jumlah Pembayaran</Label>
+                <Input
+                  type="number"
+                  value={manualAmount}
+                  onChange={e => setManualAmount(e.target.value)}
+                  placeholder="Masukkan jumlah..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualPaymentOpen(false)}>Batal</Button>
+            <Button onClick={() => manualPaymentMutation.mutate()} disabled={manualPaymentMutation.isPending}>
+              {manualPaymentMutation.isPending ? 'Memproses...' : 'Catat Pembayaran'}
             </Button>
           </DialogFooter>
         </DialogContent>

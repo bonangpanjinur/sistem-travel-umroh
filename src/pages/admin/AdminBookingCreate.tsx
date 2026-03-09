@@ -83,6 +83,9 @@ export default function AdminBookingCreate() {
   });
   const [notes, setNotes] = useState("");
   const [passengers, setPassengers] = useState<PassengerEntry[]>([]);
+  const [picType, setPicType] = useState<'pusat' | 'cabang' | 'agen'>('pusat');
+  const [picBranchId, setPicBranchId] = useState<string>("");
+  const [picAgentId, setPicAgentId] = useState<string>("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [activePassengerIndex, setActivePassengerIndex] = useState<number | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
@@ -97,6 +100,26 @@ export default function AdminBookingCreate() {
         .select('id, name, code')
         .eq('is_active', true)
         .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch branches for PIC
+  const { data: branches } = useQuery({
+    queryKey: ['branches-for-pic'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('branches').select('id, name, code').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch agents for PIC
+  const { data: agents } = useQuery({
+    queryKey: ['agents-for-pic'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('agents').select('id, agent_code, company_name, user_id').eq('is_active', true);
       if (error) throw error;
       return data || [];
     },
@@ -301,6 +324,8 @@ export default function AdminBookingCreate() {
           booking_status: 'confirmed',
           payment_status: 'pending',
           notes: notes || null,
+          branch_id: picType === 'cabang' && picBranchId ? picBranchId : null,
+          agent_id: picType === 'agen' && picAgentId ? picAgentId : null,
         })
         .select()
         .single();

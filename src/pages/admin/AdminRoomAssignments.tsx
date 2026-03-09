@@ -131,39 +131,69 @@ export default function AdminRoomAssignments() {
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
-      const { data, error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId).select('id, room_number').maybeSingle();
+      // Update the passenger's room number
+      const { error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId);
       if (error) throw error;
-      return data;
+
+      // Auto-sync: if this passenger has a roommate, update roommate's room number too
+      const passenger = passengers?.find(p => p.id === passengerId);
+      if (passenger?.roommate_id) {
+        await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passenger.roommate_id);
+      }
+
+      // Also sync any passengers that have this passenger as their roommate
+      const linkedPassengers = passengers?.filter(p => p.roommate_id === passengerId && p.id !== passengerId) || [];
+      for (const linked of linkedPassengers) {
+        await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', linked.id);
+      }
     },
     onSuccess: () => {
-      toast.success("Nomor kamar diperbarui!");
+      toast.success("Nomor kamar diperbarui (termasuk teman sekamar)!");
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
     },
     onError: (error) => toast.error("Gagal: " + error.message),
   });
 
-  // Auto-assign: pair unpaired double passengers by gender
+  // Auto-assign: pair/group unpaired passengers by gender for all room types
   const autoAssignMutation = useMutation({
     mutationFn: async () => {
-      const unpaired = doublePassengers?.filter(p => !p.roommate_id) || [];
-      const males = unpaired.filter(p => p.customer?.gender === 'male');
-      const females = unpaired.filter(p => p.customer?.gender === 'female');
       let paired = 0;
 
-      for (const group of [males, females]) {
-        for (let i = 0; i + 1 < group.length; i += 2) {
-          const a = group[i], b = group[i + 1];
-          await Promise.all([
-            supabase.from('booking_passengers').update({ roommate_id: b.id }).eq('id', a.id),
-            supabase.from('booking_passengers').update({ roommate_id: a.id }).eq('id', b.id),
-          ]);
-          paired++;
+      // Process each room type
+      for (const roomType of ROOM_TYPES) {
+        const groupSize = roomType === 'quad' ? 4 : roomType === 'triple' ? 3 : roomType === 'double' ? 2 : 1;
+        if (groupSize <= 1) continue; // Single rooms don't need pairing
+
+        const unpairedOfType = (roomTypeGroups[roomType] || []).filter(p => !p.roommate_id);
+        const males = unpairedOfType.filter(p => p.customer?.gender === 'male');
+        const females = unpairedOfType.filter(p => p.customer?.gender === 'female');
+
+        for (const group of [males, females]) {
+          // Group passengers in chunks of groupSize
+          for (let i = 0; i + groupSize - 1 < group.length; i += groupSize) {
+            const chunk = group.slice(i, i + groupSize);
+            // Link all members to each other (using first member as the "anchor")
+            const anchorId = chunk[0].id;
+            for (const member of chunk) {
+              // Each member points to the anchor (or for double, they point to each other)
+              const roommateId = groupSize === 2 
+                ? (member.id === chunk[0].id ? chunk[1].id : chunk[0].id)
+                : anchorId;
+              await supabase.from('booking_passengers').update({ roommate_id: roommateId }).eq('id', member.id);
+            }
+            // For double, also set the anchor's roommate
+            if (groupSize === 2) {
+              await supabase.from('booking_passengers').update({ roommate_id: chunk[1].id }).eq('id', chunk[0].id);
+              await supabase.from('booking_passengers').update({ roommate_id: chunk[0].id }).eq('id', chunk[1].id);
+            }
+            paired++;
+          }
         }
       }
       return paired;
     },
     onSuccess: (count) => {
-      toast.success(`✅ ${count} pasangan berhasil dibuat`);
+      toast.success(`✅ ${count} grup berhasil dibuat`);
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
     },
     onError: (err) => toast.error("Gagal: " + err.message),
@@ -293,6 +323,17 @@ export default function AdminRoomAssignments() {
               <span>👥 {paired} terpasang</span>
             </div>
           </div>
+
+          {/* Global auto-assign button (visible in all/non-double tabs) */}
+          {selectedRoomType !== 'double' && (
+            <div className="flex items-center gap-3">
+              <Button size="sm" onClick={() => autoAssignMutation.mutate()} disabled={autoAssignMutation.isPending}>
+                <Wand2 className="h-4 w-4 mr-1" />
+                Auto-Kelompokkan Semua Tipe Kamar
+              </Button>
+              <span className="text-xs text-muted-foreground">Kelompokkan jamaah berdasarkan tipe kamar & gender</span>
+            </div>
+          )}
 
           {/* Double: pairing section */}
           {selectedRoomType === 'double' && (

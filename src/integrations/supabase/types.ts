@@ -367,6 +367,8 @@ export type Database = {
           created_at: string | null
           employee_id: string
           id: string
+          is_manual: boolean | null
+          manual_reason: string | null
           notes: string | null
           status: string | null
           updated_at: string | null
@@ -384,6 +386,8 @@ export type Database = {
           created_at?: string | null
           employee_id: string
           id?: string
+          is_manual?: boolean | null
+          manual_reason?: string | null
           notes?: string | null
           status?: string | null
           updated_at?: string | null
@@ -401,6 +405,8 @@ export type Database = {
           created_at?: string | null
           employee_id?: string
           id?: string
+          is_manual?: boolean | null
+          manual_reason?: string | null
           notes?: string | null
           status?: string | null
           updated_at?: string | null

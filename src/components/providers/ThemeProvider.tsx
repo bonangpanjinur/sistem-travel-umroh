@@ -5,6 +5,8 @@ interface ThemeProviderProps {
   children: ReactNode;
 }
 
+const THEME_CACHE_KEY = 'website-theme-cache';
+
 // Generate CSS variables from website settings
 function generateCSSVariables(settings: WebsiteSettings | null | undefined): Record<string, string> {
   if (!settings) return {};
@@ -29,10 +31,24 @@ function generateCSSVariables(settings: WebsiteSettings | null | undefined): Rec
     '--ring': settings.primary_color || '142 70% 45%',
     '--sidebar-primary': settings.primary_color || '142 70% 45%',
     '--sidebar-accent': settings.accent_color || '142 60% 35%',
-    // Font family
     '--font-heading': settings.heading_font || 'Plus Jakarta Sans',
     '--font-body': settings.body_font || 'Inter',
   };
+}
+
+// Apply CSS variables to root element
+function applyCSSVariables(cssVariables: Record<string, string>, settings?: Partial<WebsiteSettings> | null) {
+  const root = document.documentElement;
+  Object.entries(cssVariables).forEach(([key, value]) => {
+    root.style.setProperty(key, value);
+  });
+
+  if (settings?.heading_font) {
+    root.style.setProperty('--font-display', `"${settings.heading_font}", sans-serif`);
+  }
+  if (settings?.body_font) {
+    root.style.setProperty('--font-sans', `"${settings.body_font}", sans-serif`);
+  }
 }
 
 // Load Google Fonts dynamically
@@ -42,11 +58,8 @@ function loadGoogleFonts(headingFont: string | null, bodyFont: string | null) {
   
   if (uniqueFonts.length === 0) return;
 
-  // Remove existing dynamic font link
   const existingLink = document.getElementById('dynamic-google-fonts');
-  if (existingLink) {
-    existingLink.remove();
-  }
+  if (existingLink) existingLink.remove();
 
   const fontFamilies = uniqueFonts.map(f => f.replace(/\s+/g, '+')).join('&family=');
   const link = document.createElement('link');
@@ -60,12 +73,10 @@ function loadGoogleFonts(headingFont: string | null, bodyFont: string | null) {
 function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   if (!settings) return;
 
-  // Title
   if (settings.meta_title) {
     document.title = settings.meta_title;
   }
 
-  // Meta description
   let metaDescription = document.querySelector('meta[name="description"]');
   if (!metaDescription) {
     metaDescription = document.createElement('meta');
@@ -76,7 +87,6 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
     metaDescription.setAttribute('content', settings.meta_description);
   }
 
-  // Favicon
   if (settings.favicon_url) {
     let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
     if (!favicon) {
@@ -88,6 +98,25 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   }
 }
 
+// Apply cached theme immediately on module load (before React renders)
+function applyCachedTheme() {
+  try {
+    const cached = localStorage.getItem(THEME_CACHE_KEY);
+    if (cached) {
+      const cssVars = JSON.parse(cached) as Record<string, string>;
+      const root = document.documentElement;
+      Object.entries(cssVars).forEach(([key, value]) => {
+        root.style.setProperty(key, value);
+      });
+    }
+  } catch {
+    // Ignore parse errors
+  }
+}
+
+// Run immediately
+applyCachedTheme();
+
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { data: settings } = useWebsiteSettings();
 
@@ -96,18 +125,14 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   useEffect(() => {
     if (!settings) return;
 
-    // Apply CSS variables to :root
-    const root = document.documentElement;
-    Object.entries(cssVariables).forEach(([key, value]) => {
-      root.style.setProperty(key, value);
-    });
+    // Apply CSS variables
+    applyCSSVariables(cssVariables, settings);
 
-    // Apply font families
-    if (settings.heading_font) {
-      root.style.setProperty('--font-display', `"${settings.heading_font}", sans-serif`);
-    }
-    if (settings.body_font) {
-      root.style.setProperty('--font-sans', `"${settings.body_font}", sans-serif`);
+    // Cache to localStorage for instant apply on next reload
+    try {
+      localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(cssVariables));
+    } catch {
+      // Ignore quota errors
     }
 
     // Load Google Fonts
@@ -120,5 +145,4 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   return <>{children}</>;
 }
 
-// Context hook for accessing settings directly in components
 export { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
