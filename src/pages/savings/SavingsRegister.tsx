@@ -110,7 +110,7 @@ export default function SavingsRegister() {
       const targetDateCalc = new Date();
       targetDateCalc.setMonth(targetDateCalc.getMonth() + tenorMonths);
 
-      // Create savings plan (remaining_amount is auto-calculated by database)
+      // Create savings plan
       const { data: savingsPlan, error: savingsError } = await supabase
         .from('savings_plans')
         .insert({
@@ -121,6 +121,7 @@ export default function SavingsRegister() {
           tenor_months: tenorMonths,
           target_date: targetDateCalc.toISOString().split('T')[0],
           paid_amount: 0,
+          remaining_amount: targetAmount,
           status: 'active',
         })
         .select()
@@ -149,6 +150,11 @@ export default function SavingsRegister() {
 
     if (!formData.fullName.trim()) {
       toast.error('Nama lengkap harus diisi');
+      return;
+    }
+
+    if (targetAmount <= 0) {
+      toast.error('Harga paket tidak valid untuk tabungan');
       return;
     }
 
@@ -367,7 +373,7 @@ export default function SavingsRegister() {
 
             {/* Right Column - Summary */}
             <div className="lg:col-span-1">
-              <Card className="sticky top-24">
+              <Card className="sticky top-24 z-10 max-h-[calc(100vh-120px)] overflow-y-auto">
                 <CardHeader className="bg-primary text-primary-foreground rounded-t-lg">
                   <CardTitle>Ringkasan Tabungan</CardTitle>
                 </CardHeader>
