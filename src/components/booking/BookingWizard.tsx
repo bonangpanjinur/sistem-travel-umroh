@@ -49,7 +49,7 @@ export function BookingWizard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('packages')
-        .select('id, name, code, duration_days, package_type, price_quad, price_triple, price_double, price_single')
+        .select('id, name, code, duration_days, package_type')
         .eq('id', packageId)
         .single();
       if (error) throw error;

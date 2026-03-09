@@ -91,37 +91,29 @@ export function useBookingWizardSimple(
         customer = newCustomer;
       }
 
-      // 2. Get departure & package info for pricing
+      // 2. Get departure info for pricing (use departure prices)
       const { data: departure, error: departureError } = await supabase
         .from('departures')
         .select(`
           id,
           departure_date,
-          package:packages(
-            code,
-            price_quad,
-            price_triple,
-            price_double,
-            price_single
-          )
+          price_quad,
+          price_triple,
+          price_double,
+          price_single,
+          package:packages(code)
         `)
         .eq('id', formData.departureId)
         .single();
 
-      if (departureError || !departure?.package) throw new Error('Departure tidak ditemukan');
+      if (departureError || !departure) throw new Error('Departure tidak ditemukan');
 
-      // 3. Calculate pricing
-      const pkg = departure.package as unknown as {
-        price_quad: number;
-        price_triple: number;
-        price_double: number;
-        price_single: number;
-      };
+      // 3. Calculate pricing from departure
       const priceMap: Record<RoomType, number> = {
-        quad: pkg.price_quad,
-        triple: pkg.price_triple,
-        double: pkg.price_double,
-        single: pkg.price_single,
+        quad: departure.price_quad || 0,
+        triple: departure.price_triple || 0,
+        double: departure.price_double || 0,
+        single: departure.price_single || 0,
       };
       
       const basePrice = priceMap[formData.roomType];
