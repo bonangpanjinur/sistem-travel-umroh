@@ -31,6 +31,8 @@ function generateCSSVariables(settings: WebsiteSettings | null | undefined): Rec
     '--ring': settings.primary_color || '142 70% 45%',
     '--sidebar-primary': settings.primary_color || '142 70% 45%',
     '--sidebar-accent': settings.accent_color || '142 60% 35%',
+    '--sidebar-background': settings.background_color || '0 0% 100%',
+    '--sidebar-foreground': settings.foreground_color || '142 20% 10%',
     '--font-heading': settings.heading_font || 'Plus Jakarta Sans',
     '--font-body': settings.body_font || 'Inter',
   };

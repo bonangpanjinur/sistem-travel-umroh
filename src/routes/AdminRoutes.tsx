@@ -2,6 +2,7 @@ import { Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { LoadingState } from "@/components/shared/LoadingState";
 
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
@@ -68,7 +69,9 @@ export default function AdminRoutes() {
       path="/admin"
       element={
         <ProtectedRoute allowedRoles={[...ADMIN_ROLES]}>
-          <AdminLayout />
+          <ThemeProvider>
+            <AdminLayout />
+          </ThemeProvider>
         </ProtectedRoute>
       }
     >
