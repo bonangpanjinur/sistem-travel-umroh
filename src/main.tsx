@@ -56,6 +56,8 @@ const hideInitialLoader = () => {
   const loader = document.getElementById('initialLoader');
   if (loader) {
     loader.classList.add('hidden');
+    // Remove loading state from body to enable scrolling
+    document.body.classList.remove('loading-state');
     // Remove from DOM after transition completes
     setTimeout(() => {
       loader.remove();

@@ -64,6 +64,10 @@
         padding: 0;
         width: 100%;
         height: 100%;
+      }
+
+      /* Lock scroll only during initial loading */
+      body.loading-state {
         overflow: hidden;
       }
 
@@ -137,7 +141,7 @@
     </style>
   </head>
 
-  <body>
+  <body class="loading-state">
     <!-- Initial Loader - akan dihapus setelah React siap -->
     <div class="initial-loader" id="initialLoader">
       <div>
