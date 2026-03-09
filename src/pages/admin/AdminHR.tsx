@@ -468,6 +468,10 @@ export default function AdminHR() {
         </TabsContent>
 
         <TabsContent value="attendance" className="space-y-4">
+          <ManualAttendanceSection 
+            employees={employees} 
+            queryClient={queryClient}
+          />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Catatan Absensi</CardTitle>

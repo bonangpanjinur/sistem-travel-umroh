@@ -324,6 +324,17 @@ export default function AdminRoomAssignments() {
             </div>
           </div>
 
+          {/* Global auto-assign button (visible in all/non-double tabs) */}
+          {selectedRoomType !== 'double' && (
+            <div className="flex items-center gap-3">
+              <Button size="sm" onClick={() => autoAssignMutation.mutate()} disabled={autoAssignMutation.isPending}>
+                <Wand2 className="h-4 w-4 mr-1" />
+                Auto-Kelompokkan Semua Tipe Kamar
+              </Button>
+              <span className="text-xs text-muted-foreground">Kelompokkan jamaah berdasarkan tipe kamar & gender</span>
+            </div>
+          )
+
           {/* Double: pairing section */}
           {selectedRoomType === 'double' && (
             <div className="space-y-4">

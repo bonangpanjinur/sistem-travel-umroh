@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, AlertCircle, Bell, Send } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Database } from "@/integrations/supabase/types";
@@ -210,6 +210,7 @@ export default function AdminFinanceAR() {
                 <TableHead>Piutang</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tanggal</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -234,6 +235,43 @@ export default function AdminFinanceAR() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(ar.created_at), "dd MMM yyyy", { locale: localeId })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {ar.outstanding > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            // Send in-app notification
+                            const { data: customerData } = await supabase
+                              .from('customers')
+                              .select('user_id')
+                              .eq('full_name', ar.customer_name)
+                              .limit(1)
+                              .maybeSingle();
+
+                            if (customerData?.user_id) {
+                              await supabase.from('notifications').insert({
+                                user_id: customerData.user_id,
+                                title: 'Pengingat Pembayaran',
+                                message: `Anda memiliki piutang sebesar ${formatCurrency(ar.outstanding)} untuk booking ${ar.booking_code}. Segera lakukan pembayaran.`,
+                                type: 'warning',
+                                link: '/customer/bookings',
+                              });
+                              toast.success(`Reminder berhasil dikirim ke ${ar.customer_name}`);
+                            } else {
+                              toast.error('User ID jamaah tidak ditemukan');
+                            }
+                          } catch (err: any) {
+                            toast.error('Gagal mengirim reminder: ' + err.message);
+                          }
+                        }}
+                      >
+                        <Bell className="h-4 w-4 mr-1" />
+                        Reminder
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
