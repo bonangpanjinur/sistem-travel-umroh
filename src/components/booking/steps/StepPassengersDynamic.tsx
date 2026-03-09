@@ -80,9 +80,9 @@ export function StepPassengersDynamic({ passengers, onUpdate }: StepPassengersDy
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2">
                     {/* Full Name */}
-                    <div className="space-y-1.5 sm:col-span-2">
+                    <div className="space-y-1.5 col-span-1 sm:col-span-2">
                       <Label htmlFor={`name-${passenger.id}`} className="text-sm">
                         Nama Lengkap <span className="text-destructive">*</span>
                       </Label>
@@ -91,11 +91,12 @@ export function StepPassengersDynamic({ passengers, onUpdate }: StepPassengersDy
                         placeholder="Sesuai KTP/Passport"
                         value={passenger.fullName}
                         onChange={(e) => updatePassenger(passenger.id, 'fullName', e.target.value)}
+                        className="text-base"
                       />
                     </div>
 
                     {/* Gender */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 col-span-1">
                       <Label htmlFor={`gender-${passenger.id}`} className="text-sm">
                         Jenis Kelamin
                       </Label>
@@ -103,7 +104,7 @@ export function StepPassengersDynamic({ passengers, onUpdate }: StepPassengersDy
                         value={passenger.gender}
                         onValueChange={(val) => updatePassenger(passenger.id, 'gender', val)}
                       >
-                        <SelectTrigger id={`gender-${passenger.id}`}>
+                        <SelectTrigger id={`gender-${passenger.id}`} className="h-10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -114,7 +115,7 @@ export function StepPassengersDynamic({ passengers, onUpdate }: StepPassengersDy
                     </div>
 
                     {/* Phone (optional) */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 col-span-1">
                       <Label htmlFor={`phone-${passenger.id}`} className="text-sm">
                         No. HP <span className="text-muted-foreground text-xs">(opsional)</span>
                       </Label>
@@ -123,11 +124,12 @@ export function StepPassengersDynamic({ passengers, onUpdate }: StepPassengersDy
                         placeholder="08xxxxxxxxxx"
                         value={passenger.phone}
                         onChange={(e) => updatePassenger(passenger.id, 'phone', e.target.value)}
+                        className="text-base"
                       />
                     </div>
 
                     {/* Passenger Type */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 col-span-1 sm:col-span-2">
                       <Label htmlFor={`type-${passenger.id}`} className="text-sm">
                         Tipe Jamaah
                       </Label>
@@ -135,7 +137,7 @@ export function StepPassengersDynamic({ passengers, onUpdate }: StepPassengersDy
                         value={passenger.passengerType}
                         onValueChange={(val) => updatePassenger(passenger.id, 'passengerType', val)}
                       >
-                        <SelectTrigger id={`type-${passenger.id}`}>
+                        <SelectTrigger id={`type-${passenger.id}`} className="h-10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

@@ -131,12 +131,12 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Button variant="ghost" className="flex items-center gap-2" aria-label={`Menu pengguna: ${profile?.full_name || 'User'}`} aria-haspopup="true">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden="true">
                       <User className="h-4 w-4" />
                     </div>
                     <span>{profile?.full_name || 'User'}</span>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -163,7 +163,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                     onClick={handleSignOut}
                     className="flex items-center gap-2 text-destructive"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
                     Keluar
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -186,8 +186,10 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
             size="icon"
             className="lg:hidden"
             onClick={() => setIsOpen(!isOpen)}
-            aria-label={isOpen ? "Tutup menu" : "Buka menu"}
+            aria-label={isOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
             aria-expanded={isOpen}
+            aria-controls="mobile-navigation"
+            title={isOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
           >
             {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -195,7 +197,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
 
         {/* Mobile Navigation - includes user menu items */}
         {isOpen && (
-          <div className="border-t py-4 lg:hidden">
+          <div className="border-t py-4 lg:hidden" id="mobile-navigation" role="navigation" aria-label="Menu navigasi mobile">
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
@@ -247,7 +249,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                     onClick={() => { handleSignOut(); setIsOpen(false); }}
                     className="rounded-lg px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 flex items-center gap-2 text-left w-full"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
                     Keluar
                   </button>
                 </>

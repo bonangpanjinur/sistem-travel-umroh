@@ -40,6 +40,27 @@
     @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
   }
 
+  /* Enhanced focus styles for interactive elements */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background rounded;
+  }
+
+  /* Ensure focus visible on mobile */
+  @media (prefers-reduced-motion: no-preference) {
+    :focus-visible {
+      transition: outline-offset 0.2s ease-out;
+    }
+  }
+
+  /* Keyboard navigation indicator for better accessibility */
+  *:focus-visible {
+    outline-offset: 2px;
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
