@@ -186,6 +186,8 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
             size="icon"
             className="lg:hidden"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label={isOpen ? "Tutup menu" : "Buka menu"}
+            aria-expanded={isOpen}
           >
             {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>

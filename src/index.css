@@ -35,6 +35,11 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
+  /* Global Focus Styles for Accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
