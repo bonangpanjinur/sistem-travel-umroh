@@ -51,4 +51,21 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Hide initial loader when React is ready to render
+const hideInitialLoader = () => {
+  const loader = document.getElementById('initialLoader');
+  if (loader) {
+    loader.classList.add('hidden');
+    // Remove from DOM after transition completes
+    setTimeout(() => {
+      loader.remove();
+    }, 300);
+  }
+};
+
+// Render app and hide loader
+const root = createRoot(document.getElementById("root")!);
+root.render(<App />);
+
+// Hide loader after a brief delay to ensure React has started rendering
+setTimeout(hideInitialLoader, 100);

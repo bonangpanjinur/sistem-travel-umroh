@@ -10,135 +10,18 @@
 
 @layer base {
   :root {
-    /* Base Colors - Light Mode */
-    --background: 60 20% 99%;
-    --foreground: 160 30% 10%;
-
-    /* Card & Popover */
-    --card: 60 20% 99%;
-    --card-foreground: 160 30% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 160 30% 10%;
-
-    /* Primary - Emerald Green (Islamic) */
-    --primary: 160 84% 25%;
-    --primary-foreground: 60 20% 99%;
-
-    /* Secondary - Warm Sand */
-    --secondary: 40 30% 94%;
-    --secondary-foreground: 160 30% 15%;
-
-    /* Accent - Gold */
-    --accent: 45 93% 47%;
-    --accent-foreground: 160 30% 10%;
-
-    /* Muted */
-    --muted: 40 20% 94%;
-    --muted-foreground: 160 10% 45%;
-
-    /* Destructive */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Success */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-
-    /* Warning */
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    /* Info */
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 100%;
-
-    /* Border & Input */
-    --border: 40 20% 88%;
-    --input: 40 20% 88%;
-    --ring: 160 84% 25%;
-
+    /* 
+      IMPORTANT: Default color values removed to prevent Flash of Unstyled Content (FOUC).
+      These values are now applied by the theme restoration script in index.html and ThemeProvider.
+      This ensures consistent design from the first pixel rendered.
+    */
+    
+    /* Border Radius - kept as it's not theme-dependent */
     --radius: 0.75rem;
-
-    /* Sidebar - Dashboard */
-    --sidebar-background: 160 30% 8%;
-    --sidebar-foreground: 60 20% 95%;
-    --sidebar-primary: 45 93% 47%;
-    --sidebar-primary-foreground: 160 30% 10%;
-    --sidebar-accent: 160 30% 15%;
-    --sidebar-accent-foreground: 60 20% 95%;
-    --sidebar-border: 160 20% 18%;
-    --sidebar-ring: 45 93% 47%;
-
-    /* Chart Colors */
-    --chart-1: 160 84% 25%;
-    --chart-2: 45 93% 47%;
-    --chart-3: 199 89% 48%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 0 84% 60%;
-
-    /* Custom Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(160, 84%, 25%), hsl(160, 70%, 35%));
-    --gradient-gold: linear-gradient(135deg, hsl(45, 93%, 47%), hsl(38, 92%, 50%));
-    --gradient-hero: linear-gradient(135deg, hsl(160, 30%, 8%) 0%, hsl(160, 40%, 15%) 100%);
   }
 
   .dark {
-    /* Base Colors - Dark Mode */
-    --background: 160 30% 6%;
-    --foreground: 60 20% 95%;
-
-    /* Card & Popover */
-    --card: 160 25% 10%;
-    --card-foreground: 60 20% 95%;
-    --popover: 160 25% 10%;
-    --popover-foreground: 60 20% 95%;
-
-    /* Primary - Emerald Green (Brighter for dark mode) */
-    --primary: 160 70% 40%;
-    --primary-foreground: 160 30% 6%;
-
-    /* Secondary */
-    --secondary: 160 20% 18%;
-    --secondary-foreground: 60 20% 95%;
-
-    /* Accent - Gold */
-    --accent: 45 93% 50%;
-    --accent-foreground: 160 30% 6%;
-
-    /* Muted */
-    --muted: 160 20% 15%;
-    --muted-foreground: 60 10% 60%;
-
-    /* Destructive */
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Success */
-    --success: 142 70% 45%;
-    --success-foreground: 0 0% 100%;
-
-    /* Warning */
-    --warning: 38 92% 55%;
-    --warning-foreground: 160 30% 6%;
-
-    /* Info */
-    --info: 199 89% 55%;
-    --info-foreground: 160 30% 6%;
-
-    /* Border & Input */
-    --border: 160 20% 20%;
-    --input: 160 20% 20%;
-    --ring: 160 70% 40%;
-
-    /* Sidebar */
-    --sidebar-background: 160 35% 5%;
-    --sidebar-foreground: 60 20% 95%;
-    --sidebar-primary: 45 93% 50%;
-    --sidebar-primary-foreground: 160 30% 6%;
-    --sidebar-accent: 160 25% 12%;
-    --sidebar-accent-foreground: 60 20% 95%;
-    --sidebar-border: 160 20% 15%;
-    --sidebar-ring: 45 93% 50%;
+    /* Dark mode color overrides are now applied by ThemeProvider */
   }
 }
 

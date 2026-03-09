@@ -100,24 +100,8 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   }
 }
 
-// Apply cached theme immediately on module load (before React renders)
-function applyCachedTheme() {
-  try {
-    const cached = localStorage.getItem(THEME_CACHE_KEY);
-    if (cached) {
-      const cssVars = JSON.parse(cached) as Record<string, string>;
-      const root = document.documentElement;
-      Object.entries(cssVars).forEach(([key, value]) => {
-        root.style.setProperty(key, value);
-      });
-    }
-  } catch {
-    // Ignore parse errors
-  }
-}
-
-// Run immediately
-applyCachedTheme();
+// NOTE: Theme caching is now handled by the inline script in index.html
+// This ensures the theme is applied before React renders, preventing FOUC
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { data: settings } = useWebsiteSettings();
