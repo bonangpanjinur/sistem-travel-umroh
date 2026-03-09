@@ -333,7 +333,7 @@ export default function AdminRoomAssignments() {
               </Button>
               <span className="text-xs text-muted-foreground">Kelompokkan jamaah berdasarkan tipe kamar & gender</span>
             </div>
-          )
+          )}
 
           {/* Double: pairing section */}
           {selectedRoomType === 'double' && (
