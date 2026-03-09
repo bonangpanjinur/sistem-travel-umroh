@@ -352,6 +352,20 @@ export default function AdminSavingsPlans() {
                         </TableCell>
                         <TableCell>{getStatusBadge(plan.status)}</TableCell>
                         <TableCell className="text-right space-x-2">
+                          {plan.status === 'active' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setManualPaymentPlan(plan);
+                                setManualAmount(String(plan.monthly_amount || 0));
+                                setManualPaymentOpen(true);
+                              }}
+                            >
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              Bayar
+                            </Button>
+                          )}
                           <Button 
                             variant="outline" 
                             size="sm"
