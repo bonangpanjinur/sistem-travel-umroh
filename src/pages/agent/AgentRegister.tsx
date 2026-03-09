@@ -129,7 +129,7 @@ export default function AgentRegister() {
       if (customerError) throw customerError;
 
       // 2. Generate booking code
-      const bookingCode = `UMR${format(new Date(), 'yyMMdd')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const bookingCode = (await supabase.rpc('generate_booking_code', { _package_code: selectedPackageData?.code || '', _departure_date: selectedDepartureData?.departure_date || new Date().toISOString().split('T')[0] })).data || `TRA${Date.now().toString(36).toUpperCase()}`;
       const price = getPrice();
 
       // 3. Create booking
@@ -279,7 +279,7 @@ export default function AgentRegister() {
               </Select>
             </div>
 
-            {selectedPackageData && (
+            {selectedDepartureData && (
               <div className="flex items-center">
                 <div>
                   <p className="text-sm text-muted-foreground">Harga</p>
