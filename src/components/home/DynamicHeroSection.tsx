@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useHeroStats } from '@/hooks/useHeroStats';
+import { usePackageTypes } from '@/hooks/usePackageTypes';
+import { useDepartures } from '@/hooks/useDepartures';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DynamicHeroSectionProps {
   settings?: WebsiteSettings;
@@ -13,14 +17,20 @@ interface DynamicHeroSectionProps {
 export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectionProps) {
   const navigate = useNavigate();
   const { data: fetchedSettings } = useWebsiteSettings();
+  const { data: heroStats, isLoading: statsLoading } = useHeroStats();
+  const { data: packageTypes, isLoading: packageTypesLoading } = usePackageTypes();
+  const { data: departures } = useDepartures();
+  
   const settings = propSettings || fetchedSettings;
-  const [packageType, setPackageType] = useState('umroh');
+  const [packageType, setPackageType] = useState('');
   const [month, setMonth] = useState('');
+  const [jamaahCount, setJamaahCount] = useState('1');
 
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (packageType) params.set('type', packageType);
     if (month) params.set('month', month);
+    if (jamaahCount) params.set('jamaah', jamaahCount);
     navigate(`/packages?${params.toString()}`);
   };
 
@@ -29,6 +39,27 @@ export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectio
   const heroImageUrl = settings?.hero_image_url || 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=2070';
   const heroCTAText = settings?.hero_cta_text || 'Lihat Paket';
   const heroCTALink = settings?.hero_cta_link || '/packages';
+
+  // Get unique months from departures data
+  const getAvailableMonths = () => {
+    if (!departures || departures.length === 0) {
+      return Array.from({ length: 12 }, (_, i) => i + 1);
+    }
+    
+    const months = new Set<number>();
+    departures.forEach((dep: any) => {
+      if (dep.departure_date) {
+        const date = new Date(dep.departure_date);
+        months.add(date.getMonth() + 1);
+      }
+    });
+    
+    return Array.from(months).sort((a, b) => a - b);
+  };
+
+  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const currentYear = new Date().getFullYear();
+  const availableMonths = getAvailableMonths();
 
   return (
     <section className="relative min-h-[600px] flex items-center justify-center overflow-hidden">
@@ -78,10 +109,17 @@ export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectio
                     <SelectValue placeholder="Pilih jenis" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="umroh">Umroh</SelectItem>
-                    <SelectItem value="haji">Haji Reguler</SelectItem>
-                    <SelectItem value="haji_plus">Haji Plus</SelectItem>
-                    <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
+                    {packageTypesLoading ? (
+                      <div className="p-2">
+                        <Skeleton className="h-8 w-full" />
+                      </div>
+                    ) : (
+                      packageTypes?.map((pkg) => (
+                        <SelectItem key={pkg.id} value={pkg.code}>
+                          {pkg.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -96,8 +134,10 @@ export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectio
                     <SelectValue placeholder="Pilih bulan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => (
-                      <SelectItem key={i} value={String(i+1).padStart(2,'0')}>{m} 2026</SelectItem>
+                    {availableMonths.map((m) => (
+                      <SelectItem key={m} value={String(m).padStart(2, '0')}>
+                        {monthNames[m - 1]} {currentYear}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -108,7 +148,13 @@ export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectio
                   <Users className="h-4 w-4 text-primary" />
                   Jumlah Jamaah
                 </label>
-                <Input type="number" min="1" placeholder="1" defaultValue="1" />
+                <Input 
+                  type="number" 
+                  min="1" 
+                  placeholder="1" 
+                  value={jamaahCount}
+                  onChange={(e) => setJamaahCount(e.target.value)}
+                />
               </div>
 
               <div className="flex items-end">
@@ -122,17 +168,21 @@ export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectio
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
-            {[
-              { value: '15+', label: 'Tahun Pengalaman' },
-              { value: '50K+', label: 'Jamaah Terlayani' },
-              { value: '100+', label: 'Keberangkatan/Tahun' },
-              { value: '4.9', label: 'Rating Kepuasan' },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-accent">{stat.value}</div>
-                <div className="text-sm text-white/80">{stat.label}</div>
-              </div>
-            ))}
+            {statsLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="text-center">
+                  <Skeleton className="h-10 w-16 mx-auto mb-2" />
+                  <Skeleton className="h-4 w-24 mx-auto" />
+                </div>
+              ))
+            ) : (
+              heroStats?.map((stat, i) => (
+                <div key={i} className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-accent">{stat.stat_value}</div>
+                  <div className="text-sm text-white/80">{stat.stat_label}</div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
