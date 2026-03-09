@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatPackageType } from '@/lib/format';
 import { PackageBookingForm } from '@/components/packages/PackageBookingForm';
+import { PICLocationMatcher } from '@/components/packages/PICLocationMatcher';
 import { 
   Clock, MapPin, Plane, Building2, Users, 
   Check, X, Star, ChevronLeft, MessageCircle, Phone, Mail
@@ -376,6 +377,9 @@ export default function PackageDetail() {
           {/* Sidebar - Book          {/* Sidebar */}
           <div className="space-y-6">
             <PackageBookingForm pkg={pkg} />
+
+            {/* PIC Location Matcher */}
+            <PICLocationMatcher packageId={id!} />
 
             {/* PIC Section */}
             {pkg.pic && (
