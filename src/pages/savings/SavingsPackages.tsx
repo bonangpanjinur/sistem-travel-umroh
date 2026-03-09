@@ -22,11 +22,12 @@ export default function SavingsPackages() {
         .from('packages')
         .select('*')
         .eq('is_active', true)
-        .gt('price_quad', 0)
         .order('price_quad', { ascending: true });
 
       if (error) throw error;
-      return data;
+      // Filter packages that have a valid savings target or price
+      return (data || []).filter(pkg => (pkg.savings_target && pkg.savings_target > 0) || pkg.price_quad > 0);
+
     },
   });
 
@@ -138,13 +139,20 @@ export default function SavingsPackages() {
                   <CardContent className="space-y-4">
                     <div className="pt-2 border-t">
                       <p className="text-sm text-muted-foreground mb-1">Mulai dari</p>
-                      <p className="text-2xl font-bold text-primary">
-                        {formatCurrency(Math.round(pkg.price_quad / 12))}
-                        <span className="text-sm font-normal text-muted-foreground">/bulan</span>
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Total: {formatCurrency(pkg.price_quad)}
-                      </p>
+                      {(() => {
+                        const target = (pkg.savings_target && pkg.savings_target > 0) ? pkg.savings_target : pkg.price_quad;
+                        return (
+                          <>
+                            <p className="text-2xl font-bold text-primary">
+                              {formatCurrency(Math.round(target / 12))}
+                              <span className="text-sm font-normal text-muted-foreground">/bulan</span>
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Total: {formatCurrency(target)}
+                            </p>
+                          </>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                   
