@@ -32,7 +32,7 @@ export function PackageCard({ pkg }: PackageCardProps) {
         {/* Badges */}
         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
           <Badge variant="secondary" className="bg-primary text-primary-foreground">
-            {getPackageTypeLabel(pkg.package_type)}
+            <span>{getPackageTypeLabel(pkg.package_type)}</span>
           </Badge>
           {pkg.is_featured && (
             <Badge className="bg-accent text-accent-foreground">

@@ -61,7 +61,7 @@ export default function SavingsRegister() {
   const { targetAmount, monthlyAmount, targetDate } = useMemo(() => {
     if (!pkg) return { targetAmount: 0, monthlyAmount: 0, targetDate: '' };
     
-    const target = pkg.price_quad; // Using quad price as base
+    const target = (pkg.savings_target && pkg.savings_target > 0) ? pkg.savings_target : pkg.price_quad;
     const monthly = Math.ceil(target / tenorMonths);
     
     const date = new Date();

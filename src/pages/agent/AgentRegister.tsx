@@ -65,7 +65,7 @@ export default function AgentRegister() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('packages')
-        .select('id, name, code, price_quad, price_triple, price_double, price_single')
+        .select('id, name, code')
         .eq('is_active', true);
 
       if (error) throw error;
@@ -79,7 +79,7 @@ export default function AgentRegister() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('departures')
-        .select('id, departure_date, quota, booked_count, status')
+        .select('id, departure_date, quota, booked_count, status, price_quad, price_triple, price_double, price_single')
         .eq('package_id', selectedPackage)
         .eq('status', 'open')
         .gt('quota', 0)
@@ -91,15 +91,16 @@ export default function AgentRegister() {
   });
 
   const selectedPackageData = packages?.find(p => p.id === selectedPackage);
+  const selectedDepartureData = departures?.find(d => d.id === selectedDeparture);
 
   const getPrice = () => {
-    if (!selectedPackageData) return 0;
+    if (!selectedDepartureData) return 0;
     switch (roomType) {
-      case 'single': return selectedPackageData.price_single;
-      case 'double': return selectedPackageData.price_double;
-      case 'triple': return selectedPackageData.price_triple;
-      case 'quad': return selectedPackageData.price_quad;
-      default: return selectedPackageData.price_quad;
+      case 'single': return selectedDepartureData.price_single || 0;
+      case 'double': return selectedDepartureData.price_double || 0;
+      case 'triple': return selectedDepartureData.price_triple || 0;
+      case 'quad': return selectedDepartureData.price_quad || 0;
+      default: return selectedDepartureData.price_quad || 0;
     }
   };
 
@@ -128,7 +129,7 @@ export default function AgentRegister() {
       if (customerError) throw customerError;
 
       // 2. Generate booking code
-      const bookingCode = `UMR${format(new Date(), 'yyMMdd')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const bookingCode = (await supabase.rpc('generate_booking_code', { _package_code: selectedPackageData?.code || '', _departure_date: selectedDepartureData?.departure_date || new Date().toISOString().split('T')[0] })).data || `TRA${Date.now().toString(36).toUpperCase()}`;
       const price = getPrice();
 
       // 3. Create booking
@@ -278,7 +279,7 @@ export default function AgentRegister() {
               </Select>
             </div>
 
-            {selectedPackageData && (
+            {selectedDepartureData && (
               <div className="flex items-center">
                 <div>
                   <p className="text-sm text-muted-foreground">Harga</p>

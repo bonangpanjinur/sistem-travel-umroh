@@ -49,7 +49,7 @@ export function BookingWizard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('packages')
-        .select('id, name, code, duration_days, package_type, price_quad, price_triple, price_double, price_single')
+        .select('id, name, code, duration_days, package_type')
         .eq('id', packageId)
         .single();
       if (error) throw error;
@@ -214,13 +214,13 @@ export function BookingWizard() {
           {currentStep === 'review' && packageInfo && (
             <StepReviewDynamic
               formData={formData}
-              packageInfo={packageInfo}
+              packageInfo={packageInfo as any}
               departureInfo={departureInfo}
               departurePrices={departureInfo ? {
-                price_quad: departureInfo.price_quad ?? packageInfo.price_quad,
-                price_triple: departureInfo.price_triple ?? packageInfo.price_triple,
-                price_double: departureInfo.price_double ?? packageInfo.price_double,
-                price_single: departureInfo.price_single ?? packageInfo.price_single,
+                price_quad: departureInfo.price_quad ?? 0,
+                price_triple: departureInfo.price_triple ?? 0,
+                price_double: departureInfo.price_double ?? 0,
+                price_single: departureInfo.price_single ?? 0,
               } : undefined}
             />
           )}
