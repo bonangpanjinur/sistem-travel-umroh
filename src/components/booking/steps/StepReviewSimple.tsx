@@ -182,9 +182,9 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
       </Card>
 
       {/* Info */}
-      <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-        <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-        <div className="text-sm text-green-700 dark:text-green-300">
+      <div className="flex items-start gap-3 p-4 rounded-lg bg-success-muted dark:bg-success/10 border border-success/20">
+        <CheckCircle className="h-5 w-5 text-success mt-0.5" />
+        <div className="text-sm text-success">
           <p className="font-medium">Langkah Selanjutnya</p>
           <p>Setelah booking dikonfirmasi, Anda akan diarahkan untuk melakukan pembayaran. Data lengkap jamaah (NIK, paspor, dokumen) dapat dilengkapi setelah pembayaran terverifikasi.</p>
         </div>

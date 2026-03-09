@@ -3,6 +3,7 @@ import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings'
 
 interface ThemeProviderProps {
   children: ReactNode;
+  settings?: WebsiteSettings | null;
 }
 
 const THEME_CACHE_KEY = 'website-theme-cache';
@@ -33,6 +34,20 @@ function generateCSSVariables(settings: WebsiteSettings | null | undefined): Rec
     '--sidebar-accent': settings.accent_color || '142 60% 35%',
     '--sidebar-background': settings.background_color || '0 0% 100%',
     '--sidebar-foreground': settings.foreground_color || '142 20% 10%',
+    '--sidebar-border': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 90%`,
+    '--sidebar-ring': settings.primary_color || '142 70% 45%',
+    '--success': '142 76% 36%',
+    '--success-foreground': '0 0% 100%',
+    '--warning': '38 92% 50%',
+    '--warning-foreground': '0 0% 0%',
+    '--info': '199 89% 48%',
+    '--info-foreground': '0 0% 100%',
+    '--success-muted': '142 76% 95%',
+    '--warning-muted': '38 92% 95%',
+    '--info-muted': '199 89% 95%',
+    '--destructive': '0 84% 60%',
+    '--destructive-foreground': '0 0% 100%',
+    '--destructive-muted': '0 84% 95%',
     '--font-heading': settings.heading_font || 'Plus Jakarta Sans',
     '--font-body': settings.body_font || 'Inter',
   };
@@ -103,8 +118,9 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
 // NOTE: Theme caching is now handled by the inline script in index.html
 // This ensures the theme is applied before React renders, preventing FOUC
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
-  const { data: settings } = useWebsiteSettings();
+export function ThemeProvider({ children, settings: propSettings }: ThemeProviderProps) {
+  const { data: fetchedSettings } = useWebsiteSettings();
+  const settings = propSettings !== undefined ? propSettings : fetchedSettings;
 
   const cssVariables = useMemo(() => generateCSSVariables(settings), [settings]);
 

@@ -13,7 +13,7 @@ export function TenantPublicLayout({ children, settings }: TenantPublicLayoutPro
   // For tenant websites, we use the main settings as fallback
   // The tenant-specific settings override branding
   return (
-    <ThemeProvider>
+    <ThemeProvider settings={settings}>
       <div className="flex min-h-screen flex-col">
         <DynamicNavbar tenantSettings={settings ?? undefined} />
         <main className="flex-1">{children}</main>

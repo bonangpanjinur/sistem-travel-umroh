@@ -41,8 +41,8 @@ type EmergencyType = "medical" | "lost" | "security" | "other";
 
 const emergencyTypes: { type: EmergencyType; label: string; icon: React.ReactNode; color: string }[] = [
   { type: "medical", label: "Medis/Kesehatan", icon: <Heart className="h-5 w-5" />, color: "bg-destructive" },
-  { type: "lost", label: "Tersesat/Hilang", icon: <MapPin className="h-5 w-5" />, color: "bg-orange-600" },
-  { type: "security", label: "Keamanan", icon: <Shield className="h-5 w-5" />, color: "bg-amber-600" },
+  { type: "lost", label: "Tersesat/Hilang", icon: <MapPin className="h-5 w-5" />, color: "bg-warning" },
+  { type: "security", label: "Keamanan", icon: <Shield className="h-5 w-5" />, color: "bg-warning" },
   { type: "other", label: "Lainnya", icon: <HelpCircle className="h-5 w-5" />, color: "bg-primary" },
 ];
 
@@ -287,7 +287,7 @@ export function SOSButton({ customerName, muthawifPhone, emergencyPhone, booking
             <div className="space-y-2">
               {/* WhatsApp to Muthawif */}
               <Button
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full bg-success hover:bg-success/90"
                 onClick={() => sendSOSWhatsApp(contactPhone)}
                 disabled={!selectedType || isSending}
               >
