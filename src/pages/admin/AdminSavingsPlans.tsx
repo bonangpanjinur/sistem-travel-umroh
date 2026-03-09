@@ -15,7 +15,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { 
   Wallet, Plus, Search, TrendingUp, Users, CheckCircle, 
-  Clock, Eye, CreditCard, AlertCircle
+  Clock, Eye, CreditCard, AlertCircle, DollarSign
 } from "lucide-react";
 
 export default function AdminSavingsPlans() {
@@ -25,6 +25,9 @@ export default function AdminSavingsPlans() {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [verifyPayment, setVerifyPayment] = useState<any>(null);
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
+  const [manualPaymentPlan, setManualPaymentPlan] = useState<any>(null);
+  const [manualAmount, setManualAmount] = useState('');
 
   const { data: savingsPlans, isLoading } = useQuery({
     queryKey: ['admin-savings-plans'],
@@ -99,6 +102,46 @@ export default function AdminSavingsPlans() {
     onError: (error: any) => {
       toast.error(error.message || "Gagal memverifikasi");
     },
+  });
+
+  // Manual payment mutation
+  const manualPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!manualPaymentPlan || !manualAmount) throw new Error('Data tidak lengkap');
+      const amount = parseFloat(manualAmount);
+      if (isNaN(amount) || amount <= 0) throw new Error('Jumlah tidak valid');
+
+      const { data: paymentCode } = await supabase.rpc('generate_savings_payment_code');
+      
+      const { error } = await supabase.from('savings_payments').insert({
+        savings_plan_id: manualPaymentPlan.id,
+        amount,
+        payment_code: paymentCode || `SAV${Date.now().toString(36).toUpperCase()}`,
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'cash',
+        status: 'paid',
+        verified_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+
+      // Update savings plan
+      const newPaid = (manualPaymentPlan.paid_amount || 0) + amount;
+      const newStatus = newPaid >= manualPaymentPlan.target_amount ? 'completed' : 'active';
+      await supabase.from('savings_plans').update({
+        paid_amount: newPaid,
+        remaining_amount: Math.max(0, manualPaymentPlan.target_amount - newPaid),
+        status: newStatus,
+      }).eq('id', manualPaymentPlan.id);
+    },
+    onSuccess: () => {
+      toast.success('Pembayaran manual berhasil dicatat');
+      queryClient.invalidateQueries({ queryKey: ['admin-savings-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['savings-payments'] });
+      setManualPaymentOpen(false);
+      setManualPaymentPlan(null);
+      setManualAmount('');
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const filteredPlans = savingsPlans?.filter(plan => {

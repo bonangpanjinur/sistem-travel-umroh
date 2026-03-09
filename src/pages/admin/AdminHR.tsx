@@ -16,6 +16,9 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
@@ -1011,5 +1014,122 @@ function WorkScheduleEditor({ employeeId, initialSchedules, onSave, isSaving }: 
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// Manual Attendance Section Component
+function ManualAttendanceSection({ employees, queryClient }: { employees: Employee[]; queryClient: any }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [manualData, setManualData] = useState({
+    employee_id: '',
+    attendance_date: format(new Date(), 'yyyy-MM-dd'),
+    check_in_time: '08:00',
+    check_out_time: '17:00',
+    status: 'Hadir',
+    manual_reason: '',
+  });
+
+  const { hasRole } = useAuth();
+  const canManualAttendance = hasRole('super_admin') || hasRole('owner');
+
+  const submitManualMutation = useMutation({
+    mutationFn: async () => {
+      if (!manualData.employee_id) throw new Error('Pilih karyawan');
+      if (!manualData.manual_reason.trim()) throw new Error('Alasan wajib diisi');
+      
+      const { error } = await supabase.from('attendance_records').insert({
+        employee_id: manualData.employee_id,
+        attendance_date: manualData.attendance_date,
+        check_in_time: manualData.check_in_time || null,
+        check_out_time: manualData.check_out_time || null,
+        status: manualData.status,
+        is_manual: true,
+        manual_reason: manualData.manual_reason,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Absensi manual berhasil dicatat');
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      setDialogOpen(false);
+      setManualData(prev => ({ ...prev, employee_id: '', manual_reason: '' }));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!canManualAttendance) return null;
+
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <Button variant="outline" onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Absen Manual
+        </Button>
+        <span className="text-xs text-muted-foreground">Khusus Owner/Super Admin</span>
+      </div>
+      
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Input Absensi Manual</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Karyawan</Label>
+              <Select value={manualData.employee_id} onValueChange={v => setManualData(prev => ({ ...prev, employee_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+                <SelectContent>
+                  {employees.filter(e => e.is_active).map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.full_name} ({emp.employee_code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tanggal</Label>
+              <Input type="date" value={manualData.attendance_date} onChange={e => setManualData(prev => ({ ...prev, attendance_date: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Jam Masuk</Label>
+                <Input type="time" value={manualData.check_in_time} onChange={e => setManualData(prev => ({ ...prev, check_in_time: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Jam Keluar</Label>
+                <Input type="time" value={manualData.check_out_time} onChange={e => setManualData(prev => ({ ...prev, check_out_time: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={manualData.status} onValueChange={v => setManualData(prev => ({ ...prev, status: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Hadir">Hadir</SelectItem>
+                  <SelectItem value="Izin">Izin</SelectItem>
+                  <SelectItem value="Sakit">Sakit</SelectItem>
+                  <SelectItem value="Cuti">Cuti</SelectItem>
+                  <SelectItem value="Alpha">Alpha</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Alasan Absen Manual *</Label>
+              <Textarea 
+                placeholder="Jelaskan alasan input manual..."
+                value={manualData.manual_reason} 
+                onChange={e => setManualData(prev => ({ ...prev, manual_reason: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
+            <Button onClick={() => submitManualMutation.mutate()} disabled={submitManualMutation.isPending}>
+              {submitManualMutation.isPending ? 'Menyimpan...' : 'Simpan Absensi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
