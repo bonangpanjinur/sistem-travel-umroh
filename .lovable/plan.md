@@ -1,110 +1,104 @@
 
 
-# Rencana Perbaikan 5 Fitur Utama
+# Rencana Perbaikan Bug & Kekurangan Fitur
 
-## 1. Paket Tabungan: Perbaikan Alur Lengkap
+## Temuan Kritis
 
-### Masalah
-- SavingsPackages.tsx menggunakan `pkg.price_quad` yang sudah dihapus dari packages (harga kini di departures)
-- SavingsRegister.tsx sama: `targetAmount = pkg.price_quad` -- field ini null/0
-- Admin SavingsPlans verifikasi menggunakan status `'verified'` yang bukan enum valid (harusnya `'paid'`)
-- Tidak ada tombol "Konversi ke Booking" saat tabungan lunas
+### BUG 1: Kamar -- Nomor Kamar Tidak Bisa Disimpan (ROOT CAUSE DITEMUKAN)
+**Penyebab**: Tabel `booking_passengers` **tidak punya RLS policy UPDATE**. Hanya ada policy SELECT (3) dan INSERT (1). Saat admin update `room_number`, Supabase diam-diam menolak karena tidak ada policy yang mengizinkan UPDATE.
 
-### Solusi
-- **SavingsPackages.tsx**: Filter hanya paket bertipe `umroh` yang punya `savings_target > 0` (kolom sudah ada). Tampilkan `savings_target` sebagai harga, bukan `price_quad`. Cicilan = `savings_target / 12`
-- **SavingsRegister.tsx**: Gunakan `savings_target` atau `savings_installment` dari packages sebagai basis kalkulasi
-- **AdminSavingsPlans.tsx**: 
-  - Ganti status `'verified'` -> `'paid'` di verifyMutation
-  - Tambah tombol "Konversi ke Booking" pada plan yang status `completed`
-  - Konversi = buat booking baru dari data savings plan (customer, package, amount)
-
-## 2. Tabel Keberangkatan: Perbaikan Layout
-
-### Masalah
-Data terlalu padat, kolom hotel dan harga sulit dibaca.
-
-### Solusi
-Refaktor tabel menjadi format card-list hybrid:
-- **Baris utama**: Tanggal | Paket (nama+kode) | Status | Kuota | Aksi
-- **Sub-baris expandable** (klik row): Detail penerbangan, hotel, harga (grid 2x2 yang sudah ada tapi lebih besar)
-- Atau: tetap tabel tapi hapus kolom Hotel dari tabel utama, pindahkan ke tooltip/expand. Fokus tabel pada: **Tanggal, Paket, Harga (grid), Kuota, Status, Aksi**
-- Tambah indikator warna pada kuota (hijau: banyak, kuning: hampir penuh, merah: penuh)
-
-## 3. Kode Booking: Format TRA + Inisial Paket + Tanggal
-
-### Masalah
-Kode saat ini `TRA260301-XXXX` (tanggal+random), tidak ada inisial paket.
-
-### Solusi
-- Update fungsi database `generate_booking_code` untuk menerima parameter: `_package_code TEXT`, `_departure_date DATE`
-- Format baru: `TRA{package_code}{YYMMDD}{random4}` contoh: `TRAUMR260315A7B2`
-- Update semua caller (3 hooks + AdminBookingCreate + AdminLeadDetail) untuk pass parameter baru
-- Fallback tetap format lama jika parameter kosong
-
-### Migration SQL
+**Solusi**: Tambah migration SQL:
 ```sql
-CREATE OR REPLACE FUNCTION public.generate_booking_code(_package_code TEXT DEFAULT '', _departure_date DATE DEFAULT CURRENT_DATE)
-RETURNS TEXT LANGUAGE plpgsql SET search_path TO 'public' AS $$
-DECLARE
-  new_code TEXT;
-  code_exists BOOLEAN;
-  pkg_init TEXT;
-  date_part TEXT;
-BEGIN
-  pkg_init := UPPER(SUBSTRING(COALESCE(NULLIF(_package_code, ''), 'XX'), 1, 3));
-  date_part := TO_CHAR(_departure_date, 'YYMMDD');
-  LOOP
-    new_code := 'TRA' || pkg_init || date_part || UPPER(SUBSTRING(md5(random()::text), 1, 4));
-    SELECT EXISTS(SELECT 1 FROM public.bookings WHERE booking_code = new_code) INTO code_exists;
-    EXIT WHEN NOT code_exists;
-  END LOOP;
-  RETURN new_code;
-END;
-$$;
+CREATE POLICY "Staff can update passengers"
+ON public.booking_passengers FOR UPDATE
+TO public
+USING (is_admin(auth.uid()) OR has_role(auth.uid(), 'operational'::app_role))
+WITH CHECK (is_admin(auth.uid()) OR has_role(auth.uid(), 'operational'::app_role));
 ```
 
-## 4. Pengaturan Kamar (Room Number) Tidak Tersimpan
-
-### Masalah
-`updateRoomMutation` memanggil `supabase.from('booking_passengers').update({ room_number })` tapi query invalidation mungkin tidak me-refresh data karena RLS atau karena update tidak match.
-
-### Solusi
-- Tambah `.select()` pada update mutation untuk memastikan data kembali
-- Pastikan `RoomNumberInput` component me-sync `currentValue` saat data berubah (tambah `useEffect` untuk sync state internal)
-- Tambah `key={p.room_number}` pada RoomNumberInput agar re-render saat data berubah
-- Juga update roommate's room_number saat ada pasangan (double)
-
-## 5. Verifikasi Pembayaran: Perbaikan Alur
-
-### Masalah
-- Alur approve/reject sudah ada tapi bukti pembayaran yang belum di-upload tidak ada indikasi yang jelas
-- Tidak ada progress pembayaran booking (berapa % sudah dibayar) di halaman ini
-- Setelah approve, tidak ada feedback visual bahwa booking status berubah
-- Tab "Menunggu" tidak menampilkan konteks booking (total harga, sisa pembayaran)
-
-### Solusi
-- **PendingPaymentCard**: Tambah progress bar pembayaran booking (paid_amount/total_price)
-- Tambah badge "Belum Ada Bukti" yang mencolok jika `proof_url` null
-- Setelah approve/reject, tampilkan toast yang lebih informatif (sisa pembayaran booking)
-- Tambah kolom "Sisa Pembayaran" di tabel all-payments
-- Tambah alert jika pembayaran ini akan melunasi booking (paid_amount + amount >= total_price)
-- Disable tombol "Setujui" jika tidak ada bukti pembayaran
+**File**: Migration SQL baru saja.
 
 ---
 
-## File yang Dimodifikasi
+### BUG 2: Tabungan -- Masih Pakai `price_quad` dari Packages (Null/0 untuk Paket Baru)
+**Penyebab**: `SavingsPackages.tsx` line 25 filter `.gt('price_quad', 0)` dan line 142 tampilkan `pkg.price_quad / 12`. `SavingsRegister.tsx` line 64 `target = pkg.price_quad`. Paket baru yang dibuat setelah refaktor form akan punya `price_quad = 0`.
 
-| File | Perubahan |
-|:---|:---|
-| `src/pages/savings/SavingsPackages.tsx` | Gunakan `savings_target` bukan `price_quad` |
-| `src/pages/savings/SavingsRegister.tsx` | Gunakan `savings_target` untuk kalkulasi |
-| `src/pages/admin/AdminSavingsPlans.tsx` | Fix status enum, tambah konversi ke booking |
-| `src/pages/admin/AdminDepartures.tsx` | Simplify tabel, fokus data penting |
-| `src/pages/admin/AdminRoomAssignments.tsx` | Fix RoomNumberInput sync, mutation select |
-| `src/pages/admin/AdminPayments.tsx` | Progress bar booking, bukti upload check |
-| `src/pages/admin/AdminBookingCreate.tsx` | Pass package_code + departure_date ke RPC |
-| `src/hooks/useBookingWizard.ts` | Update generate_booking_code call |
-| `src/hooks/useBookingWizardDynamic.ts` | Update generate_booking_code call |
-| `src/hooks/useBookingWizardSimple.ts` | Update generate_booking_code call |
-| Migration SQL | Update fungsi `generate_booking_code` |
+**Solusi**: 
+- Karena `savings_target` dan `savings_installment` semua = 0 di database, dan `price_quad` masih ada data (20jt, 25jt, dst), maka gunakan fallback: `savings_target > 0 ? savings_target : price_quad`
+- `SavingsPackages.tsx`: ubah filter dan display
+- `SavingsRegister.tsx`: ubah kalkulasi target
+
+**File**: `SavingsPackages.tsx`, `SavingsRegister.tsx`
+
+---
+
+### BUG 3: Kode Booking -- Fungsi Lama Belum Dihapus
+Ada 2 versi `generate_booking_code` di database. Yang lama (tanpa parameter) masih ada. Hooks masih memanggil versi lama karena tidak pass parameter.
+
+**Solusi**: Periksa semua caller dan pastikan memanggil versi baru dengan parameter.
+
+**File**: `useBookingWizard.ts`, `useBookingWizardDynamic.ts`, `useBookingWizardSimple.ts`
+
+---
+
+### BUG 4: PackageCard -- forwardRef Warning
+`PackageCard.tsx` meneruskan ref ke `Badge` yang bukan forwardRef component. Warning muncul di console.
+
+**Solusi**: Wrap Badge content atau hapus ref passing.
+
+**File**: `PackageCard.tsx`
+
+---
+
+### BUG 5: Tabungan Admin -- Tidak Ada Tombol "Konversi ke Booking"
+Saat savings plan status `completed`, seharusnya ada opsi untuk mengonversi ke booking. Saat ini hanya ada tombol "Detail".
+
+**Solusi**: Tambah tombol "Konversi ke Booking" di kolom aksi untuk plan dengan status `completed`.
+
+**File**: `AdminSavingsPlans.tsx`
+
+---
+
+### BUG 6: Agent Register -- Masih Pakai `price_quad` dari Packages
+`AgentRegister.tsx` dan `AgentRegisterGroup.tsx` ambil harga dari `packages.price_quad` bukan dari `departures`. Setelah refaktor, harga ada di departures.
+
+**Solusi**: Ubah untuk ambil harga dari departure yang dipilih, bukan dari package.
+
+**File**: `AgentRegister.tsx`, `AgentRegisterGroup.tsx`
+
+---
+
+### BUG 7: BookingWizard -- Masih Fetch `price_quad` dari Packages
+`BookingWizard.tsx` line 52 masih fetch `price_quad, price_triple, price_double, price_single` dari packages. Padahal sudah refaktor harga ke departures.
+
+**Solusi**: Hapus fetch harga dari packages, gunakan harga dari departures saja.
+
+**File**: `BookingWizard.tsx`
+
+---
+
+## Kekurangan Fitur
+
+### 1. Pembayaran (AdminPayments) -- Proof Dialog Tidak Bisa Approve/Reject dari Tabel
+Tab "Semua Pembayaran" sudah punya tombol Setujui/Tolak yang baik. Proof dialog juga bisa approve. Namun **tidak ada konfirmasi ulang** sebelum approve -- langsung eksekusi. Sebaiknya tambah konfirmasi.
+
+### 2. Keberangkatan (AdminDepartures) -- Tabel Terlalu Padat
+Kolom Hotel dan Penerbangan memakan banyak space. Bisa diperbaiki dengan expandable rows.
+
+### 3. Tabungan -- Tidak Ada Fitur Input Pembayaran Manual
+Admin hanya bisa verifikasi pembayaran yang sudah ada, tapi tidak bisa input pembayaran cicilan secara manual (misalnya pembayaran cash di kantor).
+
+---
+
+## Ringkasan Perbaikan yang Akan Diimplementasi
+
+| # | Prioritas | Perbaikan | File |
+|:--|:----------|:----------|:-----|
+| 1 | **KRITIS** | Tambah UPDATE RLS policy pada `booking_passengers` | Migration SQL |
+| 2 | **KRITIS** | Fix tabungan pakai fallback `savings_target \|\| price_quad` | `SavingsPackages.tsx`, `SavingsRegister.tsx` |
+| 3 | **TINGGI** | Fix agent register ambil harga dari departures | `AgentRegister.tsx`, `AgentRegisterGroup.tsx` |
+| 4 | **TINGGI** | Fix BookingWizard hapus harga packages, pakai departures | `BookingWizard.tsx` |
+| 5 | **SEDANG** | Tambah tombol "Konversi ke Booking" di tabungan lunas | `AdminSavingsPlans.tsx` |
+| 6 | **SEDANG** | Fix PackageCard forwardRef warning | `PackageCard.tsx` |
+| 7 | **RENDAH** | Hapus fungsi `generate_booking_code` lama (tanpa parameter) | Migration SQL |
 
