@@ -72,7 +72,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
               <img src={logoUrl} alt={companyName} className="h-10 w-auto object-contain" />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="font-display text-xl font-bold">ع</span>
+                <span className="font-display text-xl font-bold">{companyName.charAt(0)}</span>
               </div>
             )}
           </Link>
@@ -94,7 +94,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
               <img src={logoUrl} alt={companyName} className="h-10 w-auto object-contain" />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="font-display text-xl font-bold">ع</span>
+                <span className="font-display text-xl font-bold">{companyName.charAt(0)}</span>
               </div>
             )}
             <div className="hidden sm:block">

@@ -86,22 +86,42 @@ function loadGoogleFonts(headingFont: string | null, bodyFont: string | null) {
   document.head.appendChild(link);
 }
 
+// Helper to update or create meta tags
+function updateMetaTag(name: string, content: string, attr: 'name' | 'property' = 'name') {
+  let element = document.querySelector(`meta[${attr}="${name}"]`);
+  if (!element) {
+    element = document.createElement('meta');
+    element.setAttribute(attr, name);
+    document.head.appendChild(element);
+  }
+  element.setAttribute('content', content);
+}
+
 // Apply dynamic meta tags for SEO
 function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   if (!settings) return;
 
-  if (settings.meta_title) {
-    document.title = settings.meta_title;
-  }
+  const title = settings.meta_title || settings.company_name || 'Umrah Haji';
+  const description = settings.meta_description || settings.tagline || 'Sistem Manajemen Umrah & Haji';
+  const logo = settings.logo_url || '/favicon.ico';
 
-  let metaDescription = document.querySelector('meta[name="description"]');
-  if (!metaDescription) {
-    metaDescription = document.createElement('meta');
-    metaDescription.setAttribute('name', 'description');
-    document.head.appendChild(metaDescription);
-  }
-  if (settings.meta_description) {
-    metaDescription.setAttribute('content', settings.meta_description);
+  document.title = title;
+  updateMetaTag('description', description);
+  
+  // Open Graph
+  updateMetaTag('og:title', title, 'property');
+  updateMetaTag('og:description', description, 'property');
+  updateMetaTag('og:image', logo, 'property');
+  
+  // Twitter
+  updateMetaTag('twitter:title', title);
+  updateMetaTag('twitter:description', description);
+  updateMetaTag('twitter:image', logo);
+
+  // Theme Color (Sync with Primary)
+  if (settings.primary_color) {
+    // Convert HSL to Hex or similar if needed, but for now use the variable
+    updateMetaTag('theme-color', `hsl(${settings.primary_color})`);
   }
 
   if (settings.favicon_url) {
@@ -112,6 +132,15 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
       document.head.appendChild(favicon);
     }
     favicon.href = settings.favicon_url;
+    
+    // Apple Touch Icon
+    let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
+    if (!appleIcon) {
+      appleIcon = document.createElement('link');
+      appleIcon.rel = 'apple-touch-icon';
+      document.head.appendChild(appleIcon);
+    }
+    appleIcon.href = settings.favicon_url;
   }
 }
 
