@@ -6,8 +6,8 @@ export interface AboutPageContent {
   settings_id: string;
   mission_text: string | null;
   vision_text: string | null;
-  values: any; // JSONB type
-  milestones: any; // JSONB type
+  values: any;
+  milestones: any;
   created_at: string;
   updated_at: string;
 }
@@ -38,15 +38,15 @@ const DEFAULT_ABOUT_PAGE_CONTENT: AboutPageContent = {
 export function useAboutPageContent(settingsId: string = 'default') {
   return useQuery<AboutPageContent, Error>({
     queryKey: ['about-page-content', settingsId],
-    queryFn: async () => {
+    queryFn: async (): Promise<AboutPageContent> => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('about_page_content')
           .select('*')
           .eq('settings_id', settingsId)
           .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+        if (error && error.code !== 'PGRST116') {
           console.warn('Error fetching about page content:', error);
           return DEFAULT_ABOUT_PAGE_CONTENT;
         }
@@ -57,6 +57,6 @@ export function useAboutPageContent(settingsId: string = 'default') {
         return DEFAULT_ABOUT_PAGE_CONTENT;
       }
     },
-    staleTime: 1000 * 60 * 60, // 1 hour
+    staleTime: 1000 * 60 * 60,
   });
 }

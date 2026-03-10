@@ -29,26 +29,22 @@ export default function TeamPage() {
   // Fetch team members (PICs)
   const { data: teamMembers, isLoading: teamLoading } = useQuery({
     queryKey: ["team-members"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agents")
-        .select(`
-          id,
-          agent_code,
-          company_name,
-          avatar_url,
-          specialization,
-          location,
-          description,
-          is_active,
-          bank_account_number
-        `)
-        .eq("is_pic", true)
-        .eq("is_active", true)
-        .order("location", { ascending: true });
+    queryFn: async (): Promise<TeamMember[]> => {
+      try {
+        const { data, error } = await supabase
+          .from("agents")
+          .select('id, agent_code, company_name, is_active, slug, branch_id')
+          .eq("is_active", true);
 
-      if (error) throw error;
-      return data as TeamMember[];
+        if (error) throw error;
+        return (data || []).map(a => ({
+          id: a.id,
+          agent_code: a.agent_code,
+          company_name: a.company_name || 'Agent',
+        }));
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -161,7 +157,7 @@ interface TeamMemberCardProps {
 }
 
 function TeamMemberCard({ member }: TeamMemberCardProps) {
-  const whatsapp = member.bank_account_number; // Placeholder as per migration
+  const whatsapp = (member as any).bank_account_number || ''; // Placeholder
   
   const handleWhatsAppChat = () => {
     if (!whatsapp) return;

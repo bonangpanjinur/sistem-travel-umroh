@@ -6,7 +6,7 @@ export function WhatsAppWidget() {
   const { data: settings } = useWebsiteSettings();
   
   const handleWhatsAppClick = () => {
-    const phone = settings?.phone?.replace(/\D/g, '') || '6281234567890';
+    const phone = (settings as any)?.footer_phone?.replace(/\D/g, '') || '6281234567890';
     const message = encodeURIComponent("Halo, saya ingin bertanya tentang paket umroh.");
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
   };

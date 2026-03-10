@@ -1,103 +1,110 @@
 
-# Rencana Perbaikan: Build Errors, Detail Paket & PIC Booking
 
-## Analisis Masalah
+# Rencana Perbaikan 5 Fitur Utama
 
-Ada **30+ build errors** yang disebabkan oleh tabel-tabel dan kolom yang direferensikan di kode tapi **tidak ada di database**:
+## 1. Paket Tabungan: Perbaikan Alur Lengkap
 
-### Tabel Tidak Ada di DB:
-- `gallery_items` → dipakai di `GallerySection.tsx`
-- `about_page_content` → dipakai di `useAboutPageContent.ts`
-- `company_features` → dipakai di `CompanyFeaturesEditor.tsx`, `useCompanyFeatures.ts`
-- `hero_stats` → dipakai di `HeroStatsEditor.tsx`, `useHeroStats.ts`
-- `package_types` → dipakai di `usePackageTypes.ts`
+### Masalah
+- SavingsPackages.tsx menggunakan `pkg.price_quad` yang sudah dihapus dari packages (harga kini di departures)
+- SavingsRegister.tsx sama: `targetAmount = pkg.price_quad` -- field ini null/0
+- Admin SavingsPlans verifikasi menggunakan status `'verified'` yang bukan enum valid (harusnya `'paid'`)
+- Tidak ada tombol "Konversi ke Booking" saat tabungan lunas
 
-### Kolom Tidak Ada di DB:
-- `agents.location` → dipakai di `PICLocationMatcher.tsx`
-- `agents.specialization` → dipakai di `PICLocationMatcher.tsx`
-- `agents.avatar_url` → dipakai di `PICLocationMatcher.tsx`
-- `website_settings.phone` → dipakai di `WhatsAppWidget.tsx` (seharusnya `footer_phone`)
+### Solusi
+- **SavingsPackages.tsx**: Filter hanya paket bertipe `umroh` yang punya `savings_target > 0` (kolom sudah ada). Tampilkan `savings_target` sebagai harga, bukan `price_quad`. Cicilan = `savings_target / 12`
+- **SavingsRegister.tsx**: Gunakan `savings_target` atau `savings_installment` dari packages sebagai basis kalkulasi
+- **AdminSavingsPlans.tsx**: 
+  - Ganti status `'verified'` -> `'paid'` di verifyMutation
+  - Tambah tombol "Konversi ke Booking" pada plan yang status `completed`
+  - Konversi = buat booking baru dari data savings plan (customer, package, amount)
 
-### Relasi Tidak Ada:
-- `packages` tidak punya FK `pic_id` ke `agents` → `PackageDetail.tsx` query `pic:agents(*)` gagal
+## 2. Tabel Keberangkatan: Perbaikan Layout
+
+### Masalah
+Data terlalu padat, kolom hotel dan harga sulit dibaca.
+
+### Solusi
+Refaktor tabel menjadi format card-list hybrid:
+- **Baris utama**: Tanggal | Paket (nama+kode) | Status | Kuota | Aksi
+- **Sub-baris expandable** (klik row): Detail penerbangan, hotel, harga (grid 2x2 yang sudah ada tapi lebih besar)
+- Atau: tetap tabel tapi hapus kolom Hotel dari tabel utama, pindahkan ke tooltip/expand. Fokus tabel pada: **Tanggal, Paket, Harga (grid), Kuota, Status, Aksi**
+- Tambah indikator warna pada kuota (hijau: banyak, kuning: hampir penuh, merah: penuh)
+
+## 3. Kode Booking: Format TRA + Inisial Paket + Tanggal
+
+### Masalah
+Kode saat ini `TRA260301-XXXX` (tanggal+random), tidak ada inisial paket.
+
+### Solusi
+- Update fungsi database `generate_booking_code` untuk menerima parameter: `_package_code TEXT`, `_departure_date DATE`
+- Format baru: `TRA{package_code}{YYMMDD}{random4}` contoh: `TRAUMR260315A7B2`
+- Update semua caller (3 hooks + AdminBookingCreate + AdminLeadDetail) untuk pass parameter baru
+- Fallback tetap format lama jika parameter kosong
+
+### Migration SQL
+```sql
+CREATE OR REPLACE FUNCTION public.generate_booking_code(_package_code TEXT DEFAULT '', _departure_date DATE DEFAULT CURRENT_DATE)
+RETURNS TEXT LANGUAGE plpgsql SET search_path TO 'public' AS $$
+DECLARE
+  new_code TEXT;
+  code_exists BOOLEAN;
+  pkg_init TEXT;
+  date_part TEXT;
+BEGIN
+  pkg_init := UPPER(SUBSTRING(COALESCE(NULLIF(_package_code, ''), 'XX'), 1, 3));
+  date_part := TO_CHAR(_departure_date, 'YYMMDD');
+  LOOP
+    new_code := 'TRA' || pkg_init || date_part || UPPER(SUBSTRING(md5(random()::text), 1, 4));
+    SELECT EXISTS(SELECT 1 FROM public.bookings WHERE booking_code = new_code) INTO code_exists;
+    EXIT WHEN NOT code_exists;
+  END LOOP;
+  RETURN new_code;
+END;
+$$;
+```
+
+## 4. Pengaturan Kamar (Room Number) Tidak Tersimpan
+
+### Masalah
+`updateRoomMutation` memanggil `supabase.from('booking_passengers').update({ room_number })` tapi query invalidation mungkin tidak me-refresh data karena RLS atau karena update tidak match.
+
+### Solusi
+- Tambah `.select()` pada update mutation untuk memastikan data kembali
+- Pastikan `RoomNumberInput` component me-sync `currentValue` saat data berubah (tambah `useEffect` untuk sync state internal)
+- Tambah `key={p.room_number}` pada RoomNumberInput agar re-render saat data berubah
+- Juga update roommate's room_number saat ada pasangan (double)
+
+## 5. Verifikasi Pembayaran: Perbaikan Alur
+
+### Masalah
+- Alur approve/reject sudah ada tapi bukti pembayaran yang belum di-upload tidak ada indikasi yang jelas
+- Tidak ada progress pembayaran booking (berapa % sudah dibayar) di halaman ini
+- Setelah approve, tidak ada feedback visual bahwa booking status berubah
+- Tab "Menunggu" tidak menampilkan konteks booking (total harga, sisa pembayaran)
+
+### Solusi
+- **PendingPaymentCard**: Tambah progress bar pembayaran booking (paid_amount/total_price)
+- Tambah badge "Belum Ada Bukti" yang mencolok jika `proof_url` null
+- Setelah approve/reject, tampilkan toast yang lebih informatif (sisa pembayaran booking)
+- Tambah kolom "Sisa Pembayaran" di tabel all-payments
+- Tambah alert jika pembayaran ini akan melunasi booking (paid_amount + amount >= total_price)
+- Disable tombol "Setujui" jika tidak ada bukti pembayaran
 
 ---
 
-## Rencana Implementasi
-
-### 1. Fix Build Errors -- Tabel Tidak Ada (Bypass dengan Type Cast)
-
-Karena tabel `gallery_items`, `about_page_content`, `company_features`, `hero_stats`, `package_types` belum ada di database, solusinya:
-- Setiap hook/component yang query tabel ini **sudah punya fallback default** dan catch error
-- Fix TS error dengan cast query result ke `any` sebelum return, karena Supabase types tidak mengenal tabel ini
-- Contoh: `supabase.from('gallery_items' as any).select('*')...` lalu cast result
-
-**File**: `GallerySection.tsx`, `useAboutPageContent.ts`, `useCompanyFeatures.ts`, `useHeroStats.ts`, `usePackageTypes.ts`, `CompanyFeaturesEditor.tsx`, `HeroStatsEditor.tsx`
-
-### 2. Fix PICLocationMatcher -- Kolom Tidak Ada di `agents`
-
-Tabel `agents` tidak punya `location`, `specialization`, `avatar_url`. Solusi:
-- Ganti query untuk join data dari `branches` (yang punya `city`) atau `profiles` (yang punya `avatar_url`)
-- Atau cast query ke `any` dan gunakan data yang tersedia
-- Paling pragmatis: query `agents` hanya select kolom yang ada (`id, company_name, slug, branch_id`) lalu join `branches(city, name)` untuk lokasi
-
-**File**: `PICLocationMatcher.tsx`
-
-### 3. Fix WhatsAppWidget -- `phone` → `footer_phone`
-
-`website_settings` tidak punya `phone`, tapi punya `footer_phone`.
-
-**File**: `WhatsAppWidget.tsx` -- ganti `settings?.phone` → `settings?.footer_phone`
-
-### 4. Fix PackageDetail -- Hapus Query `pic:agents(*)`
-
-`packages` tidak punya FK ke `agents`. Hapus join `pic:agents(*)` dari query dan hapus section PIC di halaman detail (atau ganti dengan PICLocationMatcher yang sudah ada di sidebar).
-
-**File**: `PackageDetail.tsx`
-
-### 5. Tambah PIC Selection di Booking (Fitur Baru)
-
-Tambah pilihan sumber booking (PIC) di `PackageBookingForm.tsx` dan teruskan ke `BookingWizard`:
-- **Default**: "Pusat" (branch_id = null, agent_id = null)
-- **Cabang**: Dropdown pilih cabang
-- **Agen**: Dropdown pilih agen
-- **Referral**: Input kode referral jamaah
-
-Alur:
-1. Di `PackageBookingForm.tsx`: tambah section "Sumber Pendaftaran" sebelum tombol submit
-2. Pass `pic_type`, `branch_id`, `agent_id`, `referral_code` via URL params ke BookingWizard
-3. Di `useBookingWizardDynamic.ts`: baca params dan include di booking insert (`branch_id`, `agent_id`)
-4. Jika referral code diisi, lookup `referral_codes` table dan create `referral_usages` record setelah booking berhasil
-
-**File**: `PackageBookingForm.tsx`, `BookingWizard.tsx`, `useBookingWizardDynamic.ts`
-
----
-
-## Ringkasan File
+## File yang Dimodifikasi
 
 | File | Perubahan |
 |:---|:---|
-| `GallerySection.tsx` | Cast `from('gallery_items' as any)` untuk bypass TS |
-| `useAboutPageContent.ts` | Cast query ke `any` |
-| `useCompanyFeatures.ts` | Cast query ke `any` |
-| `useHeroStats.ts` | Cast query ke `any` |
-| `usePackageTypes.ts` | Cast query ke `any` |
-| `CompanyFeaturesEditor.tsx` | Cast query dan state ke `any` |
-| `HeroStatsEditor.tsx` | Cast query dan state ke `any` |
-| `WhatsAppWidget.tsx` | `phone` → `footer_phone` |
-| `PICLocationMatcher.tsx` | Ganti query, join `branches` untuk lokasi |
-| `PackageDetail.tsx` | Hapus `pic:agents(*)`, hapus PIC section yang error |
-| `PackageBookingForm.tsx` | Tambah section PIC (Pusat/Cabang/Agen/Referral) |
-| `BookingWizard.tsx` | Baca PIC params dari URL, pass ke hook |
-| `useBookingWizardDynamic.ts` | Terima PIC data, include di booking insert + referral usage |
+| `src/pages/savings/SavingsPackages.tsx` | Gunakan `savings_target` bukan `price_quad` |
+| `src/pages/savings/SavingsRegister.tsx` | Gunakan `savings_target` untuk kalkulasi |
+| `src/pages/admin/AdminSavingsPlans.tsx` | Fix status enum, tambah konversi ke booking |
+| `src/pages/admin/AdminDepartures.tsx` | Simplify tabel, fokus data penting |
+| `src/pages/admin/AdminRoomAssignments.tsx` | Fix RoomNumberInput sync, mutation select |
+| `src/pages/admin/AdminPayments.tsx` | Progress bar booking, bukti upload check |
+| `src/pages/admin/AdminBookingCreate.tsx` | Pass package_code + departure_date ke RPC |
+| `src/hooks/useBookingWizard.ts` | Update generate_booking_code call |
+| `src/hooks/useBookingWizardDynamic.ts` | Update generate_booking_code call |
+| `src/hooks/useBookingWizardSimple.ts` | Update generate_booking_code call |
+| Migration SQL | Update fungsi `generate_booking_code` |
 
-## Prioritas
-
-| # | Prioritas | Item |
-|:--|:----------|:-----|
-| 1 | **KRITIS** | Fix 30+ build errors (type casts untuk tabel yang belum ada) |
-| 2 | **KRITIS** | Fix PackageDetail.tsx (hapus invalid join) |
-| 3 | **TINGGI** | Fix WhatsAppWidget (`footer_phone`) |
-| 4 | **TINGGI** | Fix PICLocationMatcher (kolom yang tidak ada) |
-| 5 | **TINGGI** | Tambah PIC selection di booking form |
-| 6 | **TINGGI** | Teruskan PIC ke booking insert |

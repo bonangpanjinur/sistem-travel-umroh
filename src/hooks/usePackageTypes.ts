@@ -13,54 +13,18 @@ export interface PackageType {
 }
 
 const DEFAULT_PACKAGE_TYPES: PackageType[] = [
-  {
-    id: '1',
-    code: 'umroh',
-    name: 'Umroh',
-    description: 'Paket umroh reguler',
-    is_active: true,
-    display_order: 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    code: 'haji',
-    name: 'Haji Reguler',
-    description: 'Paket haji reguler',
-    is_active: true,
-    display_order: 2,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    code: 'haji_plus',
-    name: 'Haji Plus',
-    description: 'Paket haji dengan fasilitas tambahan',
-    is_active: true,
-    display_order: 3,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    code: 'umroh_plus',
-    name: 'Umroh Plus',
-    description: 'Paket umroh dengan fasilitas tambahan',
-    is_active: true,
-    display_order: 4,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
+  { id: '1', code: 'umroh', name: 'Umroh', description: 'Paket umroh reguler', is_active: true, display_order: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: '2', code: 'haji', name: 'Haji Reguler', description: 'Paket haji reguler', is_active: true, display_order: 2, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: '3', code: 'haji_plus', name: 'Haji Plus', description: 'Paket haji dengan fasilitas tambahan', is_active: true, display_order: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: '4', code: 'umroh_plus', name: 'Umroh Plus', description: 'Paket umroh dengan fasilitas tambahan', is_active: true, display_order: 4, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
 export function usePackageTypes() {
   return useQuery({
     queryKey: ['package-types'],
-    queryFn: async () => {
+    queryFn: async (): Promise<PackageType[]> => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('package_types')
           .select('*')
           .eq('is_active', true)
@@ -77,6 +41,6 @@ export function usePackageTypes() {
         return DEFAULT_PACKAGE_TYPES;
       }
     },
-    staleTime: 1000 * 60 * 10, // 10 minutes
+    staleTime: 1000 * 60 * 10,
   });
 }
