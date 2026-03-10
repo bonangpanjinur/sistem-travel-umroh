@@ -157,7 +157,7 @@ interface TeamMemberCardProps {
 }
 
 function TeamMemberCard({ member }: TeamMemberCardProps) {
-  const whatsapp = member.bank_account_number; // Placeholder as per migration
+  const whatsapp = (member as any).bank_account_number || ''; // Placeholder
   
   const handleWhatsAppChat = () => {
     if (!whatsapp) return;
