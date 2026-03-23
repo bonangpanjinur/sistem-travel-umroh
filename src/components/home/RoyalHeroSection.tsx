@@ -13,12 +13,12 @@ export function RoyalHeroSection({ settings: propSettings }: RoyalHeroSectionPro
 
   const heroTitle = settings?.hero_title || 'Layanan Ibadah Eksklusif & Premium';
   const heroSubtitle = settings?.hero_subtitle || 'Pengalaman spiritual tak terlupakan dengan fasilitas bintang lima dan pendampingan personal untuk kenyamanan ibadah Anda.';
-  const heroImageUrl = settings?.hero_image_url || 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?q=80&w=2070';
+  const heroImageUrl = settings?.hero_image_url || '/images/hero/makkah-hero.jpg';
   const heroCTAText = settings?.hero_cta_text || 'Lihat Paket Premium';
   const heroCTALink = settings?.hero_cta_link || '/packages';
 
   return (
-    <section className="relative min-h-screen flex items-center bg-[#0a0a0a] overflow-hidden pt-20">
+    <section className="relative min-h-screen flex items-center bg-[#0a0a0a] overflow-hidden pt-20 pb-32">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/black-paper.png')]" />
@@ -64,7 +64,7 @@ export function RoyalHeroSection({ settings: propSettings }: RoyalHeroSectionPro
           </div>
 
           {/* Floating Stats */}
-          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
+          <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
             {[
               { icon: Star, label: 'Bintang 5', desc: 'Akomodasi Terbaik' },
               { icon: ShieldCheck, label: 'VVIP Service', desc: 'Pendampingan 24/7' },

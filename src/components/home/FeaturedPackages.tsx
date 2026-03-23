@@ -24,7 +24,7 @@ export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
     : packages.slice(0, 3);
 
   return (
-    <section className={`py-20 transition-colors duration-500 ${isRoyal ? 'bg-[#0a0a0a] text-white' : 'bg-muted/30'}`}>
+    <section className={`py-20 pb-24 transition-colors duration-500 ${isRoyal ? 'bg-[#0a0a0a] text-white' : 'bg-muted/30'}`}>
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="text-center mb-12">
