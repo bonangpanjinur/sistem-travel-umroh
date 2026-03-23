@@ -192,14 +192,16 @@ SELECT
     d.return_date,
     d.quota,
     d.booked_count,
+    COALESCE(SUM(b.total_pax), 0) as total_pax,
+    COALESCE(SUM(b.total_price), 0) as gross_revenue,
     COALESCE(SUM(b.total_price), 0) as total_revenue,
     COALESCE(SUM(b.paid_amount), 0) as collected_amount,
     COALESCE(SUM(b.remaining_amount), 0) as outstanding_amount,
     COALESCE(vc_agg.total_vendor_costs, 0) as total_vendor_costs,
-    COALESCE(SUM(b.paid_amount), 0) - COALESCE(vc_agg.total_vendor_costs, 0) as net_profit
+    COALESCE(SUM(b.total_price), 0) - COALESCE(vc_agg.total_vendor_costs, 0) as net_profit
 FROM public.departures d
 LEFT JOIN public.packages p ON d.package_id = p.id
-LEFT JOIN public.bookings b ON b.departure_id = d.id
+LEFT JOIN public.bookings b ON b.departure_id = d.id AND b.booking_status != 'cancelled'
 LEFT JOIN (
     SELECT departure_id, COALESCE(SUM(amount), 0) as total_vendor_costs
     FROM public.vendor_costs
