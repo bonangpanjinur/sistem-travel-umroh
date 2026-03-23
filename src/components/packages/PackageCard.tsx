@@ -25,11 +25,18 @@ export function PackageCard({ pkg }: PackageCardProps) {
     (d: any) => d.status === 'open' && new Date(d.departure_date) > new Date()
   );
   
-  const totalAvailableSeats = openDepartures.reduce(
-    (acc: number, d: any) => acc + (d.quota - (d.booked_count || 0)), 
+  const totalQuota = openDepartures.reduce(
+    (acc: number, d: any) => acc + (d.quota || 0), 
     0
   );
 
+  const totalBooked = openDepartures.reduce(
+    (acc: number, d: any) => acc + (d.booked_count || 0), 
+    0
+  );
+
+  const totalAvailableSeats = totalQuota - totalBooked;
+  const occupancyPercentage = totalQuota > 0 ? (totalBooked / totalQuota) * 100 : 0;
   const isAlmostFull = totalAvailableSeats > 0 && totalAvailableSeats < 10;
   const isSoldOut = openDepartures.length > 0 && totalAvailableSeats <= 0;
 
@@ -56,29 +63,6 @@ export function PackageCard({ pkg }: PackageCardProps) {
             </Badge>
           )}
         </div>
-
-        {/* Seat Badge - High Visibility */}
-        {openDepartures.length > 0 && (
-          <div className="absolute right-3 top-3">
-            {isSoldOut ? (
-              <Badge variant="destructive" className="font-bold shadow-md">
-                Habis Terjual
-              </Badge>
-            ) : (
-              <Badge 
-                className={cn(
-                  "font-bold shadow-md border-none",
-                  isAlmostFull 
-                    ? "bg-red-600 text-white animate-pulse" 
-                    : "bg-green-600 text-white"
-                )}
-              >
-                <Users className="mr-1.5 h-3.5 w-3.5" />
-                Sisa {totalAvailableSeats} Kursi
-              </Badge>
-            )}
-          </div>
-        )}
 
         {/* Duration */}
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-white bg-black/40 px-2 py-1 rounded-md backdrop-blur-sm">
@@ -116,6 +100,38 @@ export function PackageCard({ pkg }: PackageCardProps) {
           )}
         </div>
       </CardContent>
+
+      {/* Remaining Seats Progress Bar */}
+      {openDepartures.length > 0 && (
+        <div className="px-4 py-3 bg-muted/30 border-t space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-semibold text-foreground">
+                {isSoldOut ? 'Habis Terjual' : `Sisa ${totalAvailableSeats} Kursi`}
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {totalBooked}/{totalQuota}
+            </span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full transition-all duration-500 rounded-full",
+                isSoldOut
+                  ? "bg-destructive"
+                  : isAlmostFull
+                  ? "bg-amber-500"
+                  : "bg-green-500"
+              )}
+              style={{ width: `${Math.min(occupancyPercentage, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <CardFooter className="flex items-center justify-between border-t p-4">
         <div>
