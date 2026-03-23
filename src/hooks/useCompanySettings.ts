@@ -64,6 +64,16 @@ export function useCompanySettings() {
     getSetting,
     updateSetting: updateSettingMutation.mutate,
     updateMultipleSettings: updateMultipleSettings.mutate,
+    resetDatabase: async (confirmText: string) => {
+      const { data, error } = await supabase.rpc('reset_database', { confirm_text: confirmText });
+      if (error) {
+        toast.error("Gagal reset database: " + error.message);
+        throw error;
+      }
+      queryClient.invalidateQueries();
+      toast.success("Database berhasil direset");
+      return data;
+    },
     isUpdating: updateSettingMutation.isPending || updateMultipleSettings.isPending,
   };
 }

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Bell, Plus, Trash2, Loader2 } from "lucide-react";
+import { Building2, CreditCard, Bell, Plus, Trash2, Loader2, Database, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import ChangePassword from "@/components/settings/ChangePassword";
@@ -11,9 +11,13 @@ import ProfileForm from "@/components/settings/ProfileForm";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
 
 export default function AdminSettings() {
-  const { getSetting, updateMultipleSettings, isLoading, isUpdating } = useCompanySettings();
+  const { getSetting, updateMultipleSettings, resetDatabase, isLoading, isUpdating } = useCompanySettings();
   const { accounts, createAccount, updateAccount, deleteAccount, isLoading: loadingAccounts } = useBankAccounts();
   
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   const [companyForm, setCompanyForm] = useState({
     company_name: "",
     company_phone: "",
@@ -63,6 +67,21 @@ export default function AdminSettings() {
     }
     setIsBankDialogOpen(false);
     setEditingBank(null);
+  };
+
+  const handleResetDatabase = async () => {
+    if (resetConfirm !== "RESET DATABASE SEKARANG") return;
+    
+    setIsResetting(true);
+    try {
+      await resetDatabase(resetConfirm);
+      setIsResetDialogOpen(false);
+      setResetConfirm("");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (
@@ -226,6 +245,66 @@ export default function AdminSettings() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Database Reset - Super Admin Only UI */}
+      <Card className="border-destructive/20 bg-destructive/5">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+            <Database className="h-5 w-5" />
+            Zona Bahaya: Reset Database
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Fitur ini akan menghapus **semua data transaksi** termasuk semua booking, pembayaran, data jamaah per booking, dan leads. Data master seperti paket, hotel, dan maskapai tetap aman.
+          </p>
+          <Button 
+            variant="destructive" 
+            onClick={() => setIsResetDialogOpen(true)}
+          >
+            Bersihkan Semua Data Transaksi
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Reset Database Dialog */}
+      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Konfirmasi Reset Database
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+              <strong>Peringatan:</strong> Tindakan ini tidak dapat dibatalkan. Semua data booking dan pembayaran akan hilang selamanya.
+            </div>
+            <div className="space-y-2">
+              <Label>Ketik <strong>RESET DATABASE SEKARANG</strong> untuk mengonfirmasi:</Label>
+              <Input 
+                value={resetConfirm}
+                onChange={(e) => setResetConfirm(e.target.value)}
+                placeholder="RESET DATABASE SEKARANG"
+                className="border-destructive"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} disabled={isResetting}>
+              Batal
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleResetDatabase}
+              disabled={resetConfirm !== "RESET DATABASE SEKARANG" || isResetting}
+            >
+              {isResetting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reset Database
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Bank Account Dialog */}
       <Dialog open={isBankDialogOpen} onOpenChange={setIsBankDialogOpen}>
