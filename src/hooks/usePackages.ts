@@ -12,7 +12,8 @@ export function usePackages() {
           *,
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(*),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
-          airline:airlines(*)
+          airline:airlines(*),
+          departures(*)
         `)
         .eq('is_active', true)
         .order('is_featured', { ascending: false })
@@ -34,7 +35,8 @@ export function useFeaturedPackages() {
           *,
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(*),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
-          airline:airlines(*)
+          airline:airlines(*),
+          departures(*)
         `)
         .eq('is_active', true)
         .eq('is_featured', true)
@@ -58,7 +60,8 @@ export function usePackage(packageId: string | undefined) {
           *,
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(*),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
-          airline:airlines(*)
+          airline:airlines(*),
+          departures(*)
         `)
         .eq('id', packageId)
         .single();
@@ -130,7 +133,8 @@ export function useSearchPackages(searchTerm: string, packageType?: string) {
           *,
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(*),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
-          airline:airlines(*)
+          airline:airlines(*),
+          departures(*)
         `)
         .eq('is_active', true);
 

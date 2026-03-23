@@ -17,6 +17,7 @@ import {
   Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon
 } from 'lucide-react';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export default function PackageDetail() {
   const { idSlug } = useParams<{ idSlug: string }>();

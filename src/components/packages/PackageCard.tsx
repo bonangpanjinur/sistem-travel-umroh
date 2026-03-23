@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Package } from '@/types/database';
 import { formatCurrency, getPackageTypeLabel, formatDuration } from '@/lib/format';
 import { slugify } from '@/lib/slug';
+import { cn } from '@/lib/utils';
 
 interface PackageCardProps {
   pkg: Package;
@@ -19,8 +20,21 @@ export function PackageCard({ pkg }: PackageCardProps) {
     pkg.price_single
   );
 
+  // Calculate total available seats from all open departures
+  const openDepartures = (pkg.departures || []).filter(
+    (d: any) => d.status === 'open' && new Date(d.departure_date) > new Date()
+  );
+  
+  const totalAvailableSeats = openDepartures.reduce(
+    (acc: number, d: any) => acc + (d.quota - (d.booked_count || 0)), 
+    0
+  );
+
+  const isAlmostFull = totalAvailableSeats > 0 && totalAvailableSeats < 10;
+  const isSoldOut = openDepartures.length > 0 && totalAvailableSeats <= 0;
+
   return (
-    <Card className="group card-hover overflow-hidden">
+    <Card className="group card-hover overflow-hidden flex flex-col h-full">
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
@@ -32,47 +46,70 @@ export function PackageCard({ pkg }: PackageCardProps) {
         
         {/* Badges */}
         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-          <Badge variant="secondary" className="bg-primary text-primary-foreground">
+          <Badge variant="secondary" className="bg-primary text-primary-foreground border-none shadow-sm">
             <span>{getPackageTypeLabel(pkg.package_type)}</span>
           </Badge>
           {pkg.is_featured && (
-            <Badge className="bg-accent text-accent-foreground">
-              <Star className="mr-1 h-3 w-3" />
+            <Badge className="bg-amber-500 text-white border-none shadow-sm">
+              <Star className="mr-1 h-3 w-3 fill-current" />
               Favorit
             </Badge>
           )}
         </div>
 
+        {/* Seat Badge - High Visibility */}
+        {openDepartures.length > 0 && (
+          <div className="absolute right-3 top-3">
+            {isSoldOut ? (
+              <Badge variant="destructive" className="font-bold shadow-md">
+                Habis Terjual
+              </Badge>
+            ) : (
+              <Badge 
+                className={cn(
+                  "font-bold shadow-md border-none",
+                  isAlmostFull 
+                    ? "bg-red-600 text-white animate-pulse" 
+                    : "bg-green-600 text-white"
+                )}
+              >
+                <Users className="mr-1.5 h-3.5 w-3.5" />
+                Sisa {totalAvailableSeats} Kursi
+              </Badge>
+            )}
+          </div>
+        )}
+
         {/* Duration */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-1 text-white">
-          <Clock className="h-4 w-4" />
-          <span className="text-sm font-medium">{formatDuration(pkg.duration_days)}</span>
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-white bg-black/40 px-2 py-1 rounded-md backdrop-blur-sm">
+          <Clock className="h-3.5 w-3.5" />
+          <span className="text-xs font-bold">{formatDuration(pkg.duration_days)}</span>
         </div>
       </div>
 
-      <CardContent className="p-4">
+      <CardContent className="p-4 flex-1">
         {/* Title */}
-        <h3 className="mb-2 line-clamp-2 text-lg font-bold text-foreground group-hover:text-primary">
+        <h3 className="mb-2 line-clamp-2 text-lg font-bold text-foreground group-hover:text-primary transition-colors">
           {pkg.name}
         </h3>
 
         {/* Description */}
-        <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">
+        <p className="mb-4 line-clamp-2 text-sm text-muted-foreground leading-relaxed">
           {pkg.description || 'Perjalanan ibadah yang nyaman dan berkualitas'}
         </p>
 
         {/* Features */}
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           {pkg.airline && (
-            <div className="flex items-center gap-1">
-              <Plane className="h-3 w-3" />
-              <span>{pkg.airline.name}</span>
+            <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded">
+              <Plane className="h-3.5 w-3.5 text-primary" />
+              <span className="font-medium">{pkg.airline.name}</span>
             </div>
           )}
           {pkg.hotel_makkah && (
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              <span>
+            <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded">
+              <MapPin className="h-3.5 w-3.5 text-primary" />
+              <span className="font-medium">
                 {pkg.hotel_makkah.star_rating}★ Makkah
               </span>
             </div>
