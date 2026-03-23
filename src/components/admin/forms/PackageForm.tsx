@@ -61,6 +61,11 @@ const packageSchema = z.object({
   target_amount: z.coerce.number().optional(),
   monthly_installment: z.coerce.number().optional(),
   savings_duration_months: z.coerce.number().optional(),
+  // PIC Fee fields
+  fee_branch: z.coerce.number().min(0, "Fee cabang tidak boleh negatif").default(0),
+  fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
+  fee_sub_agent: z.coerce.number().min(0, "Fee sub agen tidak boleh negatif").default(0),
+  fee_referral: z.coerce.number().min(0, "Fee referral jemaah tidak boleh negatif").default(0),
 });
 
 type PackageFormValues = z.infer<typeof packageSchema>;
@@ -107,6 +112,10 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
       target_amount: savingsMeta.target_amount || 0,
       monthly_installment: savingsMeta.monthly_installment || 0,
       savings_duration_months: savingsMeta.savings_duration_months || 12,
+      fee_branch: packageData?.fee_branch || 0,
+      fee_agent: packageData?.fee_agent || 0,
+      fee_sub_agent: packageData?.fee_sub_agent || 0,
+      fee_referral: packageData?.fee_referral || 0,
     },
   });
 
@@ -163,7 +172,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
 
   const mutation = useMutation({
     mutationFn: async (values: PackageFormValues) => {
-      const { target_amount, monthly_installment, savings_duration_months, ...rest } = values;
+      const { target_amount, monthly_installment, savings_duration_months, fee_branch, fee_agent, fee_sub_agent, fee_referral, ...rest } = values;
       const payload: any = {
         ...rest,
         code: isEditing ? rest.code : generatePackageCode(rest.package_type),
@@ -178,6 +187,11 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
         hotel_madinah_id: null,
         airline_id: null,
         muthawif_id: null,
+        // Add PIC fee fields
+        fee_branch,
+        fee_agent,
+        fee_sub_agent,
+        fee_referral,
       };
 
       if (isEditing && packageData) {
@@ -289,7 +303,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
               <FormItem>
                 <FormLabel>Deskripsi Singkat</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Tuliskan deskripsi paket..." rows={3} {...field} />
+                  <Textarea placeholder="Deskripsi paket..." rows={3} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -391,6 +405,66 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
             </div>
           </div>
         )}
+
+        {/* Pengaturan Fee PIC */}
+        <div className="space-y-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <h4 className="text-sm font-semibold text-green-900 uppercase tracking-wide">Pengaturan Fee PIC</h4>
+          <p className="text-xs text-green-800 mb-4">Tentukan fee standar untuk setiap tipe PIC (dalam Rupiah)</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <FormField
+              control={form.control}
+              name="fee_branch"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fee Cabang (Rp)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="Contoh: 4000000" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="fee_agent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fee Agen (Rp)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="Contoh: 3000000" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="fee_sub_agent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fee Sub Agen (Rp)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="Contoh: 2500000" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="fee_referral"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fee Referral Jemaah (Rp)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="Contoh: 2000000" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
 
         {/* Media & Pengaturan */}
         <div className="space-y-4">
