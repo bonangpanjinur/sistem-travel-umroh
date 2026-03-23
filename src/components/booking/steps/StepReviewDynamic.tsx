@@ -48,11 +48,8 @@ const ROOM_LABELS: Record<RoomType, string> = {
 
 export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied }: StepReviewDynamicProps) {
   const [couponCode, setCouponCode] = useState("");
-  const [referralCode, setReferralCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
-  const [referralLoading, setReferralLoading] = useState(false);
   const [couponResult, setCouponResult] = useState<{ valid: boolean; discount: number; name: string } | null>(null);
-  const [referralResult, setReferralResult] = useState<{ valid: boolean; name: string } | null>(null);
 
   // Use departure prices (if available), fallback to package prices
   const priceSource = departurePrices || packageInfo;
@@ -142,31 +139,7 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
     }
   };
 
-  const handleApplyReferral = async () => {
-    if (!referralCode.trim()) return;
-    setReferralLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('referral_codes')
-        .select('id, code, customer_id, customers(full_name)')
-        .eq('code', referralCode.trim().toUpperCase())
-        .eq('is_active', true)
-        .single();
 
-      if (error || !data) {
-        setReferralResult({ valid: false, name: '' });
-        return;
-      }
-
-      const customerName = (data as any).customers?.full_name || 'Jamaah';
-      setReferralResult({ valid: true, name: customerName });
-      onReferralApplied?.(data.code);
-    } catch {
-      setReferralResult({ valid: false, name: '' });
-    } finally {
-      setReferralLoading(false);
-    }
-  };
 
   const removeCoupon = () => {
     setCouponCode("");
@@ -261,18 +234,16 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
         </CardContent>
       </Card>
 
-      {/* Coupon & Referral */}
+      {/* Coupon Code */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Kode Promo & Referral</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Tag className="h-4 w-4 text-primary" />
+            Kode Kupon
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Coupon Code */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2 text-sm">
-              <Tag className="h-4 w-4 text-primary" />
-              Kode Kupon
-            </Label>
             {couponResult?.valid ? (
               <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-2">
@@ -310,47 +281,6 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
               <p className="text-xs text-destructive flex items-center gap-1">
                 <XCircle className="h-3 w-3" />
                 Kode kupon tidak valid atau sudah kadaluarsa
-              </p>
-            )}
-          </div>
-
-          {/* Referral Code */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2 text-sm">
-              <Share2 className="h-4 w-4 text-primary" />
-              Kode Referral
-            </Label>
-            {referralResult?.valid ? (
-              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <CheckCircle className="h-4 w-4 text-blue-600" />
-                <p className="text-sm text-blue-800">
-                  Direferensikan oleh <strong>{referralResult.name}</strong>
-                </p>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Masukkan kode referral (opsional)"
-                  value={referralCode}
-                  onChange={(e) => {
-                    setReferralCode(e.target.value.toUpperCase());
-                    setReferralResult(null);
-                  }}
-                  className="flex-1"
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={handleApplyReferral}
-                  disabled={referralLoading || !referralCode.trim()}
-                >
-                  {referralLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Pakai'}
-                </Button>
-              </div>
-            )}
-            {referralResult && !referralResult.valid && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <XCircle className="h-3 w-3" />
-                Kode referral tidak ditemukan
               </p>
             )}
           </div>
