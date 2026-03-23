@@ -61,7 +61,13 @@ export default function SavingsRegister() {
   const { targetAmount, monthlyAmount, targetDate } = useMemo(() => {
     if (!pkg) return { targetAmount: 0, monthlyAmount: 0, targetDate: '' };
     
-    const target = (pkg.savings_target && pkg.savings_target > 0) ? pkg.savings_target : pkg.price_quad;
+    // Use savings_target for tabungan packages
+    const target = pkg.savings_target && pkg.savings_target > 0 ? pkg.savings_target : 0;
+    
+    if (target <= 0) {
+      return { targetAmount: 0, monthlyAmount: 0, targetDate: '' };
+    }
+    
     const monthly = Math.ceil(target / tenorMonths);
     
     const date = new Date();
@@ -109,6 +115,11 @@ export default function SavingsRegister() {
       // Calculate target date
       const targetDateCalc = new Date();
       targetDateCalc.setMonth(targetDateCalc.getMonth() + tenorMonths);
+
+      // Validate target amount before creating savings plan
+      if (targetAmount <= 0) {
+        throw new Error('Target tabungan tidak valid. Silakan hubungi admin.');
+      }
 
       // Create savings plan
       const { data: savingsPlan, error: savingsError } = await supabase
