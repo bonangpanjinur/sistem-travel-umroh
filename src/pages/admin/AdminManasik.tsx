@@ -12,13 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Users, Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Plus, Users, Calendar, CheckCircle2, Clock, Edit, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function AdminManasik() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [selectedManasik, setSelectedManasik] = useState<any>(null);
+  const [deletingManasik, setDeletingManasik] = useState<any>(null);
+  const [editingManasik, setEditingManasik] = useState<any>(null);
   const [form, setForm] = useState({
     title: "", description: "", location: "", schedule_date: "",
     start_time: "", end_time: "", instructor: "", max_participants: "",
@@ -77,24 +80,53 @@ export default function AdminManasik() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("manasik_schedules").insert({
-        title: form.title,
-        description: form.description || null,
-        location: form.location || null,
-        schedule_date: form.schedule_date,
-        start_time: form.start_time || null,
-        end_time: form.end_time || null,
-        instructor: form.instructor || null,
-        max_participants: form.max_participants ? parseInt(form.max_participants) : null,
-        departure_id: form.departure_id || null,
-      });
-      if (error) throw error;
+      if (editingManasik?.id) {
+        const { error } = await supabase.from("manasik_schedules").update({
+          title: form.title,
+          description: form.description || null,
+          location: form.location || null,
+          schedule_date: form.schedule_date,
+          start_time: form.start_time || null,
+          end_time: form.end_time || null,
+          instructor: form.instructor || null,
+          max_participants: form.max_participants ? parseInt(form.max_participants) : null,
+          departure_id: form.departure_id || null,
+        }).eq("id", editingManasik.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("manasik_schedules").insert({
+          title: form.title,
+          description: form.description || null,
+          location: form.location || null,
+          schedule_date: form.schedule_date,
+          start_time: form.start_time || null,
+          end_time: form.end_time || null,
+          instructor: form.instructor || null,
+          max_participants: form.max_participants ? parseInt(form.max_participants) : null,
+          departure_id: form.departure_id || null,
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["manasik-schedules"] });
       setDialogOpen(false);
+      setEditingManasik(null);
       setForm({ title: "", description: "", location: "", schedule_date: "", start_time: "", end_time: "", instructor: "", max_participants: "", departure_id: "" });
-      toast({ title: "Jadwal manasik berhasil dibuat" });
+      toast({ title: editingManasik?.id ? "Jadwal manasik berhasil diperbarui" : "Jadwal manasik berhasil dibuat" });
+    },
+    onError: (e: any) => toast({ title: "Gagal", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("manasik_schedules").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["manasik-schedules"] });
+      setDeletingManasik(null);
+      toast({ title: "Jadwal manasik berhasil dihapus" });
     },
     onError: (e: any) => toast({ title: "Gagal", description: e.message, variant: "destructive" }),
   });
@@ -125,14 +157,20 @@ export default function AdminManasik() {
           <h1 className="text-2xl font-bold">Jadwal Manasik Umroh</h1>
           <p className="text-muted-foreground">Kelola jadwal bimbingan manasik jamaah</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) {
+            setEditingManasik(null);
+            setForm({ title: "", description: "", location: "", schedule_date: "", start_time: "", end_time: "", instructor: "", max_participants: "", departure_id: "" });
+          }
+        }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Tambah Jadwal</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Tambah Jadwal Manasik</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingManasik?.id ? "Edit Jadwal Manasik" : "Tambah Jadwal Manasik"}</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div><Label>Judul *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Manasik Umroh Batch 1" /></div>
+              <div><Label>Judul *</Label><Input value={form.title || editingManasik?.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Manasik Umroh Batch 1" /></div>
               <div>
                 <Label>Keberangkatan</Label>
                 <Select value={form.departure_id} onValueChange={v => setForm(f => ({ ...f, departure_id: v }))}>
@@ -145,19 +183,19 @@ export default function AdminManasik() {
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Tanggal *</Label><Input type="date" value={form.schedule_date} onChange={e => setForm(f => ({ ...f, schedule_date: e.target.value }))} /></div>
-                <div><Label>Lokasi</Label><Input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
+                <div><Label>Tanggal *</Label><Input type="date" value={form.schedule_date || editingManasik?.schedule_date || ""} onChange={e => setForm(f => ({ ...f, schedule_date: e.target.value }))} /></div>
+                <div><Label>Lokasi</Label><Input value={form.location || editingManasik?.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Jam Mulai</Label><Input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} /></div>
-                <div><Label>Jam Selesai</Label><Input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} /></div>
+                <div><Label>Jam Mulai</Label><Input type="time" value={form.start_time || editingManasik?.start_time || ""} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} /></div>
+                <div><Label>Jam Selesai</Label><Input type="time" value={form.end_time || editingManasik?.end_time || ""} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Instruktur</Label><Input value={form.instructor} onChange={e => setForm(f => ({ ...f, instructor: e.target.value }))} /></div>
-                <div><Label>Maks Peserta</Label><Input type="number" value={form.max_participants} onChange={e => setForm(f => ({ ...f, max_participants: e.target.value }))} /></div>
+                <div><Label>Instruktur</Label><Input value={form.instructor || editingManasik?.instructor || ""} onChange={e => setForm(f => ({ ...f, instructor: e.target.value }))} /></div>
+                <div><Label>Maks Peserta</Label><Input type="number" value={form.max_participants || editingManasik?.max_participants || ""} onChange={e => setForm(f => ({ ...f, max_participants: e.target.value }))} /></div>
               </div>
-              <div><Label>Deskripsi</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-              <Button className="w-full" onClick={() => createMutation.mutate()} disabled={!form.title || !form.schedule_date || createMutation.isPending}>
+              <div><Label>Deskripsi</Label><Textarea value={form.description || editingManasik?.description || ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+              <Button className="w-full" onClick={() => createMutation.mutate()} disabled={!(form.title || editingManasik?.title) || !(form.schedule_date || editingManasik?.schedule_date) || createMutation.isPending}>
                 {createMutation.isPending ? "Menyimpan..." : "Simpan"}
               </Button>
             </div>
@@ -206,9 +244,29 @@ export default function AdminManasik() {
                       {isPast(s.schedule_date) ? "Selesai" : "Akan Datang"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => { setSelectedManasik(s); setAttendanceDialogOpen(true); }}>
                       <Users className="h-3 w-3 mr-1" /> Absensi
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingManasik(s);
+                      setForm({
+                        title: s.title,
+                        description: s.description || "",
+                        location: s.location || "",
+                        schedule_date: s.schedule_date,
+                        start_time: s.start_time || "",
+                        end_time: s.end_time || "",
+                        instructor: s.instructor || "",
+                        max_participants: s.max_participants?.toString() || "",
+                        departure_id: s.departure_id || "",
+                      });
+                      setDialogOpen(true);
+                    }}>
+                      <Edit className="h-3 w-3 mr-1" /> Edit
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => setDeletingManasik(s)}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Hapus
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -217,6 +275,28 @@ export default function AdminManasik() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingManasik} onOpenChange={(open) => !open && setDeletingManasik(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Jadwal Manasik</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus jadwal manasik "{deletingManasik?.title}"? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-2">
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate(deletingManasik.id)}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Menghapus..." : "Hapus"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Attendance Dialog */}
       <Dialog open={attendanceDialogOpen} onOpenChange={setAttendanceDialogOpen}>

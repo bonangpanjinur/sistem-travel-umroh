@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Users, Calendar, FileText, Plus, Search, Clock, CheckCircle, XCircle, GraduationCap, Moon } from "lucide-react";
+import { Users, Calendar, FileText, Plus, Search, Clock, CheckCircle, XCircle, GraduationCap, Moon, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -74,6 +75,7 @@ export default function AdminHajiManagement() {
   const [filterType, setFilterType] = useState("all");
   const [isManasikDialogOpen, setIsManasikDialogOpen] = useState(false);
   const [editingManasik, setEditingManasik] = useState<ManasikSchedule | null>(null);
+  const [deletingManasik, setDeletingManasik] = useState<ManasikSchedule | null>(null);
 
   // Fetch haji registrations
   const { data: registrations = [], isLoading: loadingRegistrations } = useQuery({
@@ -134,6 +136,22 @@ export default function AdminHajiManagement() {
       toast.success("Jadwal manasik berhasil disimpan");
       setIsManasikDialogOpen(false);
       setEditingManasik(null);
+    },
+    onError: (error: Error) => toast.error("Gagal: " + error.message),
+  });
+
+  const deleteManasikMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("manasik_schedules" as any)
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["manasik-schedules"] });
+      toast.success("Jadwal manasik berhasil dihapus");
+      setDeletingManasik(null);
     },
     onError: (error: Error) => toast.error("Gagal: " + error.message),
   });
@@ -366,6 +384,13 @@ export default function AdminHajiManagement() {
                       Edit
                     </Button>
                     <Button variant="outline" size="sm">Absensi</Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setDeletingManasik(schedule)}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" /> Hapus
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -466,6 +491,28 @@ export default function AdminHajiManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingManasik} onOpenChange={(open) => !open && setDeletingManasik(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Jadwal Manasik</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus jadwal manasik "{deletingManasik?.title}"? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-2">
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingManasik && deleteManasikMutation.mutate(deletingManasik.id)}
+              disabled={deleteManasikMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteManasikMutation.isPending ? "Menghapus..." : "Hapus"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Manasik Dialog */}
       <Dialog open={isManasikDialogOpen} onOpenChange={setIsManasikDialogOpen}>
