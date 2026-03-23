@@ -52,7 +52,7 @@ const savingsPackageSchema = z.object({
   // Tabungan-specific fields
   savings_target: z.coerce.number().min(1, "Target tabungan harus diisi dan lebih dari 0"),
   is_tenor_flexible: z.boolean().default(true),
-  tenor_months: z.coerce.number().min(6, "Durasi minimal 6 bulan").optional(),
+  fixed_tenor_months: z.coerce.number().min(6, "Durasi minimal 6 bulan").optional(),
   // PIC Fee fields
   fee_branch: z.coerce.number().min(0, "Fee cabang tidak boleh negatif").default(0),
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
@@ -88,8 +88,8 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
       is_featured: packageData?.is_featured || false,
       is_active: packageData?.is_active ?? true,
       savings_target: packageData?.savings_target || 0,
-      is_tenor_flexible: true,
-      tenor_months: 12,
+      is_tenor_flexible: packageData?.is_tenor_flexible ?? true,
+      fixed_tenor_months: packageData?.fixed_tenor_months || 12,
       fee_branch: packageData?.fee_branch || 0,
       fee_agent: packageData?.fee_agent || 0,
       fee_sub_agent: packageData?.fee_sub_agent || 0,
@@ -99,10 +99,10 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
 
   const watchedFlexible = form.watch("is_tenor_flexible");
   const watchedTarget = form.watch("savings_target");
-  const watchedTenor = form.watch("tenor_months");
+  const watchedFixedTenor = form.watch("fixed_tenor_months");
 
   // Calculate estimated monthly installment
-  const estimatedMonthly = watchedTenor && watchedTarget ? Math.ceil(watchedTarget / watchedTenor) : 0;
+  const estimatedMonthly = watchedFixedTenor && watchedTarget ? Math.ceil(watchedTarget / watchedFixedTenor) : 0;
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -154,7 +154,7 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
 
   const mutation = useMutation({
     mutationFn: async (values: SavingsPackageFormValues) => {
-      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, savings_target, is_tenor_flexible, tenor_months, ...rest } = values;
+      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, savings_target, is_tenor_flexible, fixed_tenor_months, ...rest } = values;
       const payload: any = {
         ...rest,
         package_type: "tabungan",
@@ -172,6 +172,8 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
         muthawif_id: null,
         // Add savings-specific fields
         savings_target,
+        is_tenor_flexible,
+        fixed_tenor_months: is_tenor_flexible ? null : fixed_tenor_months,
         // Add PIC fee fields
         fee_branch,
         fee_agent,
@@ -323,7 +325,7 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
           {!watchedFlexible && (
             <FormField
               control={form.control}
-              name="tenor_months"
+              name="fixed_tenor_months"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Durasi Cicilan Standar (Bulan)</FormLabel>
@@ -337,12 +339,22 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
             />
           )}
 
-          {watchedFlexible && estimatedMonthly > 0 && (
+          {!watchedFlexible && estimatedMonthly > 0 && (
             <div className="p-3 bg-white rounded border border-amber-100">
-              <p className="text-xs text-muted-foreground">Estimasi Cicilan Bulanan (Tenor 12 bulan):</p>
+              <p className="text-xs text-muted-foreground">Estimasi Cicilan Bulanan:</p>
               <p className="text-lg font-bold text-amber-900">
                 Rp {estimatedMonthly.toLocaleString('id-ID')}
               </p>
+            </div>
+          )}
+
+          {watchedFlexible && watchedTarget > 0 && (
+            <div className="p-3 bg-white rounded border border-amber-100">
+              <p className="text-xs text-muted-foreground">Estimasi Cicilan Bulanan (Tenor 12 bulan):</p>
+              <p className="text-lg font-bold text-amber-900">
+                Rp {Math.ceil(watchedTarget / 12).toLocaleString('id-ID')}
+              </p>
+              <p className="text-xs text-amber-700 mt-2">Jemaah dapat memilih tenor antara 6-36 bulan</p>
             </div>
           )}
         </div>

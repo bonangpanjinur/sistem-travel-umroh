@@ -13,12 +13,15 @@ import { Link } from "react-router-dom";
 import {
   Calendar, CreditCard, Star, PiggyBank, Headphones,
   ArrowRight, BookOpen, IdCard, MapPin, Clock, CheckCircle2,
-  Plane, FileCheck, Stethoscope, ShieldCheck
+  Plane, FileCheck, Stethoscope, ShieldCheck, Calculator
 } from "lucide-react";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { differenceInDays, format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { Slider } from "@/components/ui/slider";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const DEFAULT_CHECKLIST = [
   { key: "passport", label: "Paspor (min. 6 bulan berlaku)", category: "document" },
@@ -51,6 +54,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function CustomerDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [simulatorTarget, setSimulatorTarget] = useState(25000000);
+  const [simulatorTenor, setSimulatorTenor] = useState(12);
 
   const { data: customer } = useQuery({
     queryKey: ['my-customer-profile'],
@@ -461,14 +466,47 @@ export default function CustomerDashboard() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Simulasi Tabungan</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calculator className="h-4 w-4 text-primary" /> Simulasi Tabungan
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Ingin tahu berapa yang harus Anda tabung setiap bulan?
-                  </p>
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link to="/savings">Coba Kalkulator Simulasi</Link>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Target Tabungan</label>
+                    <p className="text-lg font-bold text-primary">{formatCurrency(simulatorTarget)}</p>
+                    <Slider
+                      value={[simulatorTarget]}
+                      onValueChange={(v) => setSimulatorTarget(v[0])}
+                      min={5000000}
+                      max={100000000}
+                      step={1000000}
+                      className="py-2"
+                    />
+                    <p className="text-xs text-muted-foreground">Rp 5 juta - Rp 100 juta</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Tenor Cicilan</label>
+                    <p className="text-lg font-bold text-primary">{simulatorTenor} Bulan</p>
+                    <Slider
+                      value={[simulatorTenor]}
+                      onValueChange={(v) => setSimulatorTenor(v[0])}
+                      min={6}
+                      max={36}
+                      step={6}
+                      className="py-2"
+                    />
+                    <p className="text-xs text-muted-foreground">6 - 36 bulan</p>
+                  </div>
+
+                  <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                    <p className="text-xs text-muted-foreground mb-1">Cicilan per Bulan</p>
+                    <p className="text-2xl font-bold text-primary">{formatCurrency(Math.ceil(simulatorTarget / simulatorTenor))}</p>
+                    <p className="text-xs text-muted-foreground mt-2">Selesai dalam {simulatorTenor} bulan</p>
+                  </div>
+
+                  <Button className="w-full" asChild>
+                    <Link to="/savings">Mulai Tabungan</Link>
                   </Button>
                 </CardContent>
               </Card>

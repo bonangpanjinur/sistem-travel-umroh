@@ -57,10 +57,7 @@ const packageSchema = z.object({
   excludes: z.string().optional(),
   is_featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
-  // Tabungan-specific fields
-  target_amount: z.coerce.number().optional(),
-  monthly_installment: z.coerce.number().optional(),
-  savings_duration_months: z.coerce.number().optional(),
+
   // PIC Fee fields
   fee_branch: z.coerce.number().min(0, "Fee cabang tidak boleh negatif").default(0),
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
@@ -83,18 +80,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
   const [imagePreview, setImagePreview] = useState<string | null>(packageData?.featured_image || null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Parse tabungan metadata from existing package
-  const parseSavingsMetadata = () => {
-    if (packageData?.package_type !== 'tabungan') return {};
-    try {
-      const meta = (packageData as PackageRow & { metadata?: any })?.metadata;
-      if (meta) return meta;
-    } catch (e) {
-      // Silently handle parsing errors
-    }
-    return {};
-  };
-  const savingsMeta = parseSavingsMetadata();
+
 
   const form = useForm<PackageFormValues>({
     resolver: zodResolver(packageSchema),
@@ -109,9 +95,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
       excludes: packageData?.excludes?.join("\n") || "",
       is_featured: packageData?.is_featured || false,
       is_active: packageData?.is_active ?? true,
-      target_amount: savingsMeta.target_amount || 0,
-      monthly_installment: savingsMeta.monthly_installment || 0,
-      savings_duration_months: savingsMeta.savings_duration_months || 12,
+
       fee_branch: packageData?.fee_branch || 0,
       fee_agent: packageData?.fee_agent || 0,
       fee_sub_agent: packageData?.fee_sub_agent || 0,
@@ -119,8 +103,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
     },
   });
 
-  const watchedType = form.watch("package_type");
-  const isTabungan = watchedType === "tabungan";
+
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -172,7 +155,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
 
   const mutation = useMutation({
     mutationFn: async (values: PackageFormValues) => {
-      const { target_amount, monthly_installment, savings_duration_months, fee_branch, fee_agent, fee_sub_agent, fee_referral, ...rest } = values;
+      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, ...rest } = values;
       const payload: any = {
         ...rest,
         code: isEditing ? rest.code : generatePackageCode(rest.package_type),
@@ -358,53 +341,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
           </div>
         </div>
 
-        {/* Konfigurasi Tabungan (Conditional) */}
-        {isTabungan && (
-          <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="text-sm font-semibold text-blue-900 uppercase tracking-wide">Konfigurasi Tabungan</h4>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="target_amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Target Jumlah (Rp)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} placeholder="Contoh: 25000000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="monthly_installment"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cicilan per Bulan (Rp)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} placeholder="Contoh: 500000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="savings_duration_months"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Durasi Tabungan (Bulan)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} placeholder="Contoh: 12" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        )}
+
 
         {/* Pengaturan Fee PIC */}
         <div className="space-y-4 p-4 bg-green-50 border border-green-200 rounded-lg">
