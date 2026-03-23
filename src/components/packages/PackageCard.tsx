@@ -83,11 +83,11 @@ export function PackageCard({ pkg }: PackageCardProps) {
       <CardFooter className="flex items-center justify-between border-t p-4">
         <div>
           <p className="text-xs text-muted-foreground">Mulai dari</p>
-          <p className="text-lg font-bold text-primary">
+          <p className="text-lg font-bold text-amber-600">
             {formatCurrency(lowestPrice)}
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="bg-[#D98E27] hover:bg-[#BF7A1D] text-white border-none rounded-lg px-6">
           <Link to={`/packages/${pkg.id}-${slugify(pkg.name)}`}>Lihat Detail</Link>
         </Button>
       </CardFooter>
