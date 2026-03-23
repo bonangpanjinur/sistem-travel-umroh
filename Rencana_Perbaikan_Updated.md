@@ -6,7 +6,7 @@
 
 ## 1. Pendahuluan
 
-Rencana perbaikan ini disusun berdasarkan analisis mendalam terhadap website sistemtravelumroh.vercel.app dari perspektif pembeli, perbandingan dengan website referensi umroh-gateway.lovable.app, serta evaluasi kebutuhan akan integrasi *Person in Charge* (PIC). Tujuan utama dari rencana ini adalah untuk meningkatkan kredibilitas, pengalaman pengguna, dan efisiensi alur pemesanan, yang pada akhirnya akan mendorong konversi *booking* paket umroh.
+Rencana perbaikan ini disusun berdasarkan analisis mendalam terhadap website sistemtravelumroh.vercel.app dari perspektif pembeli, serta evaluasi kebutuhan akan integrasi *Person in Charge* (PIC). Tujuan utama dari rencana ini adalah untuk meningkatkan kredibilitas, pengalaman pengguna, dan efisiensi alur pemesanan, yang pada akhirnya akan mendorong konversi *booking* paket umroh.
 
 ## 2. Roadmap Perbaikan
 
