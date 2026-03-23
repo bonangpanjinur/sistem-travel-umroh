@@ -14,12 +14,15 @@ interface PackageCardProps {
 }
 
 export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
-  const lowestPrice = Math.min(
-    pkg.price_quad,
-    pkg.price_triple,
-    pkg.price_double,
-    pkg.price_single
-  );
+  const isTabungan = pkg.package_type === 'tabungan';
+  const lowestPrice = isTabungan 
+    ? (pkg.savings_target || 0)
+    : Math.min(
+        pkg.price_quad,
+        pkg.price_triple,
+        pkg.price_double,
+        pkg.price_single
+      );
 
   // Calculate total available seats from all open departures
   const openDepartures = (pkg.departures || []).filter(
@@ -160,7 +163,9 @@ export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
         isRoyal ? "border-amber-500/10" : ""
       )}>
         <div>
-          <p className={cn("text-xs", isRoyal ? "text-gray-400" : "text-muted-foreground")}>Mulai dari</p>
+          <p className={cn("text-xs", isRoyal ? "text-gray-400" : "text-muted-foreground")}>
+            {isTabungan ? 'Target Tabungan' : 'Mulai dari'}
+          </p>
           <p className={cn("text-lg font-bold", isRoyal ? "text-amber-500" : "text-amber-600")}>
             {formatCurrency(lowestPrice)}
           </p>
@@ -169,7 +174,9 @@ export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
           "border-none rounded-lg px-6",
           isRoyal ? "bg-amber-600 hover:bg-amber-500 text-black font-bold" : "bg-[#D98E27] hover:bg-[#BF7A1D] text-white"
         )}>
-          <Link to={`/packages/${pkg.id}-${slugify(pkg.name)}`}>Lihat Detail</Link>
+          <Link to={isTabungan ? `/savings/register/${pkg.id}` : `/packages/${pkg.id}-${slugify(pkg.name)}`}>
+            {isTabungan ? 'Mulai Menabung' : 'Lihat Detail'}
+          </Link>
         </Button>
       </CardFooter>
     </Card>

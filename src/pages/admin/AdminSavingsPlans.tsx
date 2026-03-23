@@ -28,6 +28,9 @@ export default function AdminSavingsPlans() {
   const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
   const [manualPaymentPlan, setManualPaymentPlan] = useState<any>(null);
   const [manualAmount, setManualAmount] = useState('');
+  const [conversionDialogOpen, setConversionDialogOpen] = useState(false);
+  const [conversionPlan, setConversionPlan] = useState<any>(null);
+  const [selectedDepartureId, setSelectedDepartureId] = useState<string>('');
 
   const { data: savingsPlans, isLoading } = useQuery({
     queryKey: ['admin-savings-plans'],
@@ -59,6 +62,75 @@ export default function AdminSavingsPlans() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: departures } = useQuery({
+    queryKey: ['package-departures', conversionPlan?.package_id],
+    enabled: !!conversionPlan,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departures')
+        .select('*')
+        .eq('package_id', conversionPlan.package_id)
+        .eq('status', 'open')
+        .gte('departure_date', new Date().toISOString().split('T')[0])
+        .order('departure_date', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: async () => {
+      if (!conversionPlan || !selectedDepartureId) throw new Error('Pilih jadwal keberangkatan');
+      
+      const departure = departures?.find(d => d.id === selectedDepartureId);
+      if (!departure) throw new Error('Jadwal tidak ditemukan');
+
+      // 1. Create booking
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          customer_id: conversionPlan.customer_id,
+          departure_id: selectedDepartureId,
+          room_type: 'quad', // Default
+          total_pax: 1,
+          base_price: conversionPlan.target_amount,
+          total_price: conversionPlan.target_amount,
+          paid_amount: conversionPlan.paid_amount,
+          booking_status: 'confirmed',
+          payment_status: conversionPlan.paid_amount >= conversionPlan.target_amount ? 'paid' : 'partial',
+          notes: `Konversi dari tabungan ${conversionPlan.package?.name}`
+        })
+        .select()
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      // 2. Update savings plan
+      const { error: planError } = await supabase
+        .from('savings_plans')
+        .update({
+          status: 'converted',
+          converted_booking_id: booking.id
+        })
+        .eq('id', conversionPlan.id);
+
+      if (planError) throw planError;
+
+      return booking;
+    },
+    onSuccess: () => {
+      toast.success("Tabungan berhasil dikonversi menjadi booking");
+      queryClient.invalidateQueries({ queryKey: ['admin-savings-plans'] });
+      setConversionDialogOpen(false);
+      setConversionPlan(null);
+      setSelectedDepartureId('');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal mengkonversi tabungan");
+    }
   });
 
   const verifyMutation = useMutation({
@@ -382,7 +454,8 @@ export default function AdminSavingsPlans() {
                               size="sm"
                               className="bg-green-600 hover:bg-green-700 text-white"
                               onClick={() => {
-                                toast.info(`Konversi tabungan ${plan.customer?.full_name} ke booking — fitur akan tersedia segera`);
+                                setConversionPlan(plan);
+                                setConversionDialogOpen(true);
                               }}
                             >
                               <CreditCard className="h-4 w-4 mr-1" />
@@ -577,6 +650,54 @@ export default function AdminSavingsPlans() {
             <Button variant="outline" onClick={() => setManualPaymentOpen(false)}>Batal</Button>
             <Button onClick={() => manualPaymentMutation.mutate()} disabled={manualPaymentMutation.isPending}>
               {manualPaymentMutation.isPending ? 'Memproses...' : 'Catat Pembayaran'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Conversion Dialog */}
+      <Dialog open={conversionDialogOpen} onOpenChange={setConversionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konversi Tabungan ke Booking</DialogTitle>
+          </DialogHeader>
+          {conversionPlan && (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  Tabungan <strong>{conversionPlan.customer?.full_name}</strong> untuk paket <strong>{conversionPlan.package?.name}</strong> telah lunas. 
+                  Silakan pilih jadwal keberangkatan untuk mengkonversi tabungan ini menjadi booking aktif.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pilih Jadwal Keberangkatan</Label>
+                <Select value={selectedDepartureId} onValueChange={setSelectedDepartureId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih jadwal..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departures?.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {formatDate(d.departure_date)} (Sisa Quota: {d.quota - (d.booked_count || 0)})
+                      </SelectItem>
+                    ))}
+                    {(!departures || departures.length === 0) && (
+                      <SelectItem value="none" disabled>Tidak ada jadwal tersedia</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConversionDialogOpen(false)}>Batal</Button>
+            <Button 
+              onClick={() => convertMutation.mutate()} 
+              disabled={convertMutation.isPending || !selectedDepartureId}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {convertMutation.isPending ? 'Memproses...' : 'Konversi Sekarang'}
             </Button>
           </DialogFooter>
         </DialogContent>
