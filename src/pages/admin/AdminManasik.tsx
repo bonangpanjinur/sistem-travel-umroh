@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Users, Calendar, CheckCircle2, Clock, Edit, Trash2 } from "lucide-react";
+import { Plus, Users, Calendar, CheckCircle2, Clock, Edit, Trash2, Share2, MapPin } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function AdminManasik() {
@@ -23,7 +23,7 @@ export default function AdminManasik() {
   const [deletingManasik, setDeletingManasik] = useState<any>(null);
   const [editingManasik, setEditingManasik] = useState<any>(null);
   const [form, setForm] = useState({
-    title: "", description: "", location: "", schedule_date: "",
+    title: "", description: "", location: "", google_maps_url: "", schedule_date: "",
     start_time: "", end_time: "", instructor: "", max_participants: "",
     departure_id: "",
   });
@@ -85,6 +85,7 @@ export default function AdminManasik() {
           title: form.title,
           description: form.description || null,
           location: form.location || null,
+          google_maps_url: form.google_maps_url || null,
           schedule_date: form.schedule_date,
           start_time: form.start_time || null,
           end_time: form.end_time || null,
@@ -98,6 +99,7 @@ export default function AdminManasik() {
           title: form.title,
           description: form.description || null,
           location: form.location || null,
+          google_maps_url: form.google_maps_url || null,
           schedule_date: form.schedule_date,
           start_time: form.start_time || null,
           end_time: form.end_time || null,
@@ -112,7 +114,7 @@ export default function AdminManasik() {
       queryClient.invalidateQueries({ queryKey: ["manasik-schedules"] });
       setDialogOpen(false);
       setEditingManasik(null);
-      setForm({ title: "", description: "", location: "", schedule_date: "", start_time: "", end_time: "", instructor: "", max_participants: "", departure_id: "" });
+      setForm({ title: "", description: "", location: "", google_maps_url: "", schedule_date: "", start_time: "", end_time: "", instructor: "", max_participants: "", departure_id: "" });
       toast({ title: editingManasik?.id ? "Jadwal manasik berhasil diperbarui" : "Jadwal manasik berhasil dibuat" });
     },
     onError: (e: any) => toast({ title: "Gagal", description: e.message, variant: "destructive" }),
@@ -161,7 +163,7 @@ export default function AdminManasik() {
           setDialogOpen(open);
           if (!open) {
             setEditingManasik(null);
-            setForm({ title: "", description: "", location: "", schedule_date: "", start_time: "", end_time: "", instructor: "", max_participants: "", departure_id: "" });
+            setForm({ title: "", description: "", location: "", google_maps_url: "", schedule_date: "", start_time: "", end_time: "", instructor: "", max_participants: "", departure_id: "" });
           }
         }}>
           <DialogTrigger asChild>
@@ -185,6 +187,14 @@ export default function AdminManasik() {
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Tanggal *</Label><Input type="date" value={form.schedule_date || editingManasik?.schedule_date || ""} onChange={e => setForm(f => ({ ...f, schedule_date: e.target.value }))} /></div>
                 <div><Label>Lokasi</Label><Input value={form.location || editingManasik?.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
+              </div>
+              <div>
+                <Label>Link Google Maps</Label>
+                <Input 
+                  value={form.google_maps_url || editingManasik?.google_maps_url || ""} 
+                  onChange={e => setForm(f => ({ ...f, google_maps_url: e.target.value }))} 
+                  placeholder="https://maps.google.com/..." 
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Jam Mulai</Label><Input type="time" value={form.start_time || editingManasik?.start_time || ""} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} /></div>
@@ -237,7 +247,21 @@ export default function AdminManasik() {
                   <TableCell className="text-sm">{(s.departure as any)?.package?.name || "-"}</TableCell>
                   <TableCell>{format(new Date(s.schedule_date), "dd MMM yyyy")}</TableCell>
                   <TableCell className="text-sm">{s.start_time ? `${s.start_time}${s.end_time ? ` - ${s.end_time}` : ""}` : "-"}</TableCell>
-                  <TableCell>{s.location || "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span>{s.location || "-"}</span>
+                      {s.google_maps_url && (
+                        <a 
+                          href={s.google_maps_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-xs text-primary flex items-center gap-1 hover:underline"
+                        >
+                          <MapPin className="h-3 w-3" /> Lihat Peta
+                        </a>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{s.instructor || "-"}</TableCell>
                   <TableCell>
                     <Badge variant={isPast(s.schedule_date) ? "secondary" : "outline"}>
@@ -254,6 +278,7 @@ export default function AdminManasik() {
                         title: s.title,
                         description: s.description || "",
                         location: s.location || "",
+                        google_maps_url: s.google_maps_url || "",
                         schedule_date: s.schedule_date,
                         start_time: s.start_time || "",
                         end_time: s.end_time || "",
@@ -264,6 +289,17 @@ export default function AdminManasik() {
                       setDialogOpen(true);
                     }}>
                       <Edit className="h-3 w-3 mr-1" /> Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      const text = `Jadwal Manasik: ${s.title}\nTanggal: ${format(new Date(s.schedule_date), "dd MMM yyyy")}\nWaktu: ${s.start_time || ""}\nLokasi: ${s.location || ""}\n${s.google_maps_url ? `Peta: ${s.google_maps_url}` : ""}`;
+                      if (navigator.share) {
+                        navigator.share({ title: s.title, text: text });
+                      } else {
+                        navigator.clipboard.writeText(text);
+                        toast({ title: "Berhasil disalin", description: "Informasi manasik telah disalin ke clipboard" });
+                      }
+                    }}>
+                      <Share2 className="h-3 w-3 mr-1" /> Share
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => setDeletingManasik(s)}>
                       <Trash2 className="h-3 w-3 mr-1" /> Hapus

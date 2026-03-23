@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Users, Calendar, FileText, Plus, Search, Clock, CheckCircle, XCircle, GraduationCap, Moon, Trash2 } from "lucide-react";
+import { Users, Calendar, FileText, Plus, Search, Clock, CheckCircle, XCircle, GraduationCap, Moon, Trash2, Share2, MapPin } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -43,6 +43,7 @@ interface ManasikSchedule {
   start_time: string | null;
   end_time: string | null;
   location: string | null;
+  google_maps_url: string | null;
   instructor: string | null;
   max_participants: number;
   is_mandatory: boolean;
@@ -113,6 +114,7 @@ export default function AdminHajiManagement() {
         start_time: formData.get("start_time") as string || null,
         end_time: formData.get("end_time") as string || null,
         location: formData.get("location") as string || null,
+        google_maps_url: formData.get("google_maps_url") as string || null,
         instructor: formData.get("instructor") as string || null,
         max_participants: parseInt(formData.get("max_participants") as string) || 100,
         is_mandatory: formData.get("is_mandatory") === "on",
@@ -366,7 +368,19 @@ export default function AdminHajiManagement() {
                       </div>
                     )}
                     {schedule.location && (
-                      <p className="text-muted-foreground">📍 {schedule.location}</p>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-muted-foreground">📍 {schedule.location}</p>
+                        {schedule.google_maps_url && (
+                          <a 
+                            href={schedule.google_maps_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-xs text-primary flex items-center gap-1 hover:underline"
+                          >
+                            <MapPin className="h-3 w-3" /> Lihat Peta
+                          </a>
+                        )}
+                      </div>
                     )}
                     {schedule.instructor && (
                       <p className="text-muted-foreground">👤 {schedule.instructor}</p>
@@ -384,6 +398,21 @@ export default function AdminHajiManagement() {
                       Edit
                     </Button>
                     <Button variant="outline" size="sm">Absensi</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const text = `Jadwal Manasik: ${schedule.title}\nTanggal: ${format(new Date(schedule.schedule_date), "dd MMM yyyy")}\nWaktu: ${schedule.start_time || ""}\nLokasi: ${schedule.location || ""}\n${schedule.google_maps_url ? `Peta: ${schedule.google_maps_url}` : ""}`;
+                        if (navigator.share) {
+                          navigator.share({ title: schedule.title, text: text });
+                        } else {
+                          navigator.clipboard.writeText(text);
+                          toast.success("Informasi manasik telah disalin ke clipboard");
+                        }
+                      }}
+                    >
+                      <Share2 className="h-3 w-3 mr-1" /> Share
+                    </Button>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -590,6 +619,15 @@ export default function AdminHajiManagement() {
                   placeholder="Ustadz..."
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="google_maps_url">Link Google Maps</Label>
+              <Input
+                id="google_maps_url"
+                name="google_maps_url"
+                defaultValue={editingManasik?.google_maps_url || ""}
+                placeholder="https://maps.google.com/..."
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
