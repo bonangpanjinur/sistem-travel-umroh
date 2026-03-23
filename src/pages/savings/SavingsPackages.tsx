@@ -14,19 +14,20 @@ import {
 } from 'lucide-react';
 
 export default function SavingsPackages() {
-  // Fetch savings-compatible packages (tabungan type)
+  // Fetch savings-compatible packages (tabungan type only)
   const { data: packages = [], isLoading } = useQuery({
     queryKey: ['packages', 'savings'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('packages')
         .select('*')
+        .eq('package_type', 'tabungan')
         .eq('is_active', true)
-        .order('price_quad', { ascending: true });
+        .order('savings_target', { ascending: true });
 
       if (error) throw error;
-      // Filter packages that have a valid savings target or price
-      return (data || []).filter(pkg => (pkg.savings_target && pkg.savings_target > 0) || pkg.price_quad > 0);
+      // Filter packages that have a valid savings target
+      return (data || []).filter(pkg => pkg.savings_target && pkg.savings_target > 0);
 
     },
   });
@@ -138,21 +139,13 @@ export default function SavingsPackages() {
                   
                   <CardContent className="space-y-4">
                     <div className="pt-2 border-t">
-                      <p className="text-sm text-muted-foreground mb-1">Mulai dari</p>
-                      {(() => {
-                        const target = (pkg.savings_target && pkg.savings_target > 0) ? pkg.savings_target : pkg.price_quad;
-                        return (
-                          <>
-                            <p className="text-2xl font-bold text-primary">
-                              {formatCurrency(Math.round(target / 12))}
-                              <span className="text-sm font-normal text-muted-foreground">/bulan</span>
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Total: {formatCurrency(target)}
-                            </p>
-                          </>
-                        );
-                      })()}
+                      <p className="text-sm text-muted-foreground mb-1">Target Tabungan</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {formatCurrency(pkg.savings_target)}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Cicilan mulai dari {formatCurrency(Math.round(pkg.savings_target / 12))}/bulan (tenor 12 bulan)
+                      </p>
                     </div>
                   </CardContent>
                   

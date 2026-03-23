@@ -26,7 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PackageForm } from "@/components/admin/forms/PackageForm";
+import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
+import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { toast } from "sonner";
 
 export default function AdminPackages() {
@@ -96,6 +97,12 @@ export default function AdminPackages() {
     setIsFormOpen(true);
   };
 
+  const handleAddPackage = (type: "regular" | "tabungan") => {
+    setEditingPackage(null);
+    setPackageTypeFilter(type === "regular" ? "regular" : "tabungan");
+    setIsFormOpen(true);
+  };
+
   const handleFormClose = () => {
     setIsFormOpen(false);
     setEditingPackage(null);
@@ -114,21 +121,25 @@ export default function AdminPackages() {
           <h1 className="text-2xl font-bold">Kelola Paket</h1>
           <p className="text-muted-foreground">Lihat dan kelola paket umroh & haji</p>
         </div>
-        <div className="flex gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari paket..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10 w-full sm:w-64"
-            />
+        <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1 sm:flex-none">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cari paket..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 w-full sm:w-64"
+              />
+            </div>
+            <Button onClick={() => handleAddPackage("regular")} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Paket Reguler
+            </Button>
+            <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Paket Tabungan
+            </Button>
           </div>
-          <Button onClick={() => setIsFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Tambah Paket
-          </Button>
-        </div>
       </div>
 
       {/* Package Type Tabs */}
@@ -222,14 +233,25 @@ export default function AdminPackages() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingPackage ? 'Edit Paket' : 'Tambah Paket Baru'}
+              {editingPackage ? 
+                (editingPackage.package_type === 'tabungan' ? 'Edit Paket Tabungan' : 'Edit Paket Reguler') 
+                : (packageTypeFilter === 'tabungan' ? 'Tambah Paket Tabungan' : 'Tambah Paket Reguler')
+              }
             </DialogTitle>
           </DialogHeader>
-          <PackageForm
-            packageData={editingPackage}
-            onSuccess={handleFormClose}
-            onCancel={handleFormClose}
-          />
+          {packageTypeFilter === 'tabungan' || editingPackage?.package_type === 'tabungan' ? (
+            <SavingsPackageForm
+              packageData={editingPackage}
+              onSuccess={handleFormClose}
+              onCancel={handleFormClose}
+            />
+          ) : (
+            <RegularPackageForm
+              packageData={editingPackage}
+              onSuccess={handleFormClose}
+              onCancel={handleFormClose}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
