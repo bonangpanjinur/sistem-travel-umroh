@@ -34,7 +34,7 @@ export default function PublicRoutes() {
       <Route path="/auth/forgot-password" element={<LazyPage><ForgotPassword /></LazyPage>} />
       <Route path="/auth/reset-password" element={<LazyPage><ResetPassword /></LazyPage>} />
       <Route path="/packages" element={<LazyPage><PackageList /></LazyPage>} />
-      <Route path="/packages/:id" element={<LazyPage><PackageDetail /></LazyPage>} />
+      <Route path="/packages/:idSlug" element={<LazyPage><PackageDetail /></LazyPage>} />
       <Route path="/about" element={<LazyPage><AboutPage /></LazyPage>} />
       <Route path="/contact" element={<LazyPage><ContactPage /></LazyPage>} />
       <Route path="/savings" element={<LazyPage><SavingsPackages /></LazyPage>} />

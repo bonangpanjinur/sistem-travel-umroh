@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Package } from '@/types/database';
 import { formatCurrency, getPackageTypeLabel, formatDuration } from '@/lib/format';
+import { slugify } from '@/lib/slug';
 
 interface PackageCardProps {
   pkg: Package;
@@ -87,7 +88,7 @@ export function PackageCard({ pkg }: PackageCardProps) {
           </p>
         </div>
         <Button asChild>
-          <Link to={`/packages/${pkg.id}`}>Lihat Detail</Link>
+          <Link to={`/packages/${pkg.id}-${slugify(pkg.name)}`}>Lihat Detail</Link>
         </Button>
       </CardFooter>
     </Card>

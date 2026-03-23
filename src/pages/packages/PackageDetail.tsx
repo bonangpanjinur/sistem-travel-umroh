@@ -1,4 +1,6 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { slugify, extractIdFromSlug } from '@/lib/slug';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
@@ -16,11 +18,14 @@ import {
 } from 'lucide-react';
 
 export default function PackageDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { idSlug } = useParams<{ idSlug: string }>();
+  const navigate = useNavigate();
+  const id = extractIdFromSlug(idSlug || '');
 
   const { data: pkg, isLoading } = useQuery({
     queryKey: ['package', id],
     queryFn: async () => {
+      if (!id) return null;
       const { data, error } = await supabase
         .from('packages')
         .select(`
@@ -39,6 +44,16 @@ export default function PackageDetail() {
     },
     enabled: !!id,
   });
+
+  // Redirect to correct slug if name changed or slug is missing
+  useEffect(() => {
+    if (pkg && idSlug) {
+      const correctSlug = `${pkg.id}-${slugify(pkg.name)}`;
+      if (idSlug !== correctSlug) {
+        navigate(`/packages/${correctSlug}`, { replace: true });
+      }
+    }
+  }, [pkg, idSlug, navigate]);
 
   if (isLoading) {
     return (

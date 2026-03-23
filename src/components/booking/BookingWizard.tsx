@@ -11,6 +11,7 @@ import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket } from "lucide-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/format";
+import { slugify } from "@/lib/slug";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -127,7 +128,7 @@ export function BookingWizard() {
         <CardContent className="p-8 text-center">
           <h2 className="text-xl font-semibold mb-4">Pilih Keberangkatan & Kamar</h2>
           <p className="text-muted-foreground mb-6">Silakan pilih tanggal keberangkatan dan jumlah jamaah terlebih dahulu di halaman detail paket.</p>
-          <Button asChild><Link to={`/packages/${packageId}`}>Kembali ke Detail Paket</Link></Button>
+          <Button asChild><Link to={`/packages/${packageId}${packageInfo ? `-${slugify(packageInfo.name)}` : ''}`}>Kembali ke Detail Paket</Link></Button>
         </CardContent>
       </Card>
     );
@@ -143,7 +144,7 @@ export function BookingWizard() {
     <div className="space-y-6">
       <div>
         <Button variant="outline" size="sm" asChild className="mb-4">
-          <Link to={`/packages/${packageId}`}><ArrowLeft className="h-4 w-4 mr-2" />Kembali ke Detail Paket</Link>
+          <Link to={`/packages/${packageId}${packageInfo ? `-${slugify(packageInfo.name)}` : ''}`}><ArrowLeft className="h-4 w-4 mr-2" />Kembali ke Detail Paket</Link>
         </Button>
         {packageInfo && (
           <div>
