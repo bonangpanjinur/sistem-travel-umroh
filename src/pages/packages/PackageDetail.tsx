@@ -16,10 +16,10 @@ import {
   Clock, MapPin, Plane, Building2, Users, 
   Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon
 } from 'lucide-react';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export default function PackageDetail() {
+  const [openDepartureId, setOpenDepartureId] = useState<string | null>(null);
   const { idSlug } = useParams<{ idSlug: string }>();
   const navigate = useNavigate();
   const id = extractIdFromSlug(idSlug || '');
@@ -57,8 +57,17 @@ export default function PackageDetail() {
     }
   }, [pkg, idSlug, navigate]);
 
-  // Initialize state before any conditional returns
-  const [openDepartureId, setOpenDepartureId] = useState<string | null>(null);
+  useEffect(() => {
+    if (pkg) {
+      const upcomingDepartures = (pkg.departures || [])
+        .filter((d: any) => new Date(d.departure_date) > new Date() && d.status === 'open')
+        .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
+
+      if (upcomingDepartures.length > 0 && !openDepartureId) {
+        setOpenDepartureId(upcomingDepartures[0].id);
+      }
+    }
+  }, [pkg, openDepartureId]);
 
   if (isLoading) {
     return (
@@ -98,12 +107,7 @@ export default function PackageDetail() {
     .filter((d: any) => new Date(d.departure_date) > new Date() && d.status === 'open')
     .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
 
-  // Update state when departures change
-  useEffect(() => {
-    if (upcomingDepartures.length > 0 && !openDepartureId) {
-      setOpenDepartureId(upcomingDepartures[0].id);
-    }
-  }, [upcomingDepartures, openDepartureId]);
+
 
   return (
     <DynamicPublicLayout>
