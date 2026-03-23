@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { slugify, extractIdFromSlug } from '@/lib/slug';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,6 +57,9 @@ export default function PackageDetail() {
     }
   }, [pkg, idSlug, navigate]);
 
+  // Initialize state before any conditional returns
+  const [openDepartureId, setOpenDepartureId] = useState<string | null>(null);
+
   if (isLoading) {
     return (
       <DynamicPublicLayout>
@@ -95,7 +98,12 @@ export default function PackageDetail() {
     .filter((d: any) => new Date(d.departure_date) > new Date() && d.status === 'open')
     .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
 
-  const [openDepartureId, setOpenDepartureId] = useState<string | null>(upcomingDepartures.length > 0 ? upcomingDepartures[0].id : null);
+  // Update state when departures change
+  useEffect(() => {
+    if (upcomingDepartures.length > 0 && !openDepartureId) {
+      setOpenDepartureId(upcomingDepartures[0].id);
+    }
+  }, [upcomingDepartures, openDepartureId]);
 
   return (
     <DynamicPublicLayout>
