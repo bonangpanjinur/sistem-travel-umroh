@@ -103,6 +103,7 @@ export function getPaymentStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     pending: 'Menunggu Pembayaran',
     partial: 'Sebagian Lunas',
+    verified: 'Terverifikasi',
     paid: 'Lunas',
     refunded: 'Dikembalikan',
     failed: 'Gagal',

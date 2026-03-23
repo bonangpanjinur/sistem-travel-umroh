@@ -194,7 +194,7 @@ export default function AdminBookingDetail() {
   });
 
   const handleApprovePayment = (payment: any) => {
-    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'paid' });
+    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'verified' });
   };
 
   // Send WhatsApp notification
@@ -283,6 +283,7 @@ export default function AdminBookingDetail() {
 
   const getPaymentBadgeClass = (status: string) => {
     switch (status) {
+      case 'verified':
       case 'paid':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'partial':

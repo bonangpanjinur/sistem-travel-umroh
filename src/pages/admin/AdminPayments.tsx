@@ -129,7 +129,7 @@ export default function AdminPayments() {
   });
 
   const handleApprove = (payment: Payment) => {
-    verifyMutation.mutate({ paymentId: payment.id, status: 'paid' });
+    verifyMutation.mutate({ paymentId: payment.id, status: 'verified' });
   };
 
   const handleReject = () => {
