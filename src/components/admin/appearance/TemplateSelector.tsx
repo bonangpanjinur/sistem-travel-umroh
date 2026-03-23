@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Layout, Sparkles, Crown, Moon } from "lucide-react";
+import { Check, Layout, Sparkles, Crown, Moon, Zap, Leaf } from "lucide-react";
 import { WebsiteSettings, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 
 interface TemplateSelectorProps {
@@ -112,6 +112,46 @@ const templates = [
           <div className="h-6 bg-muted rounded" />
           <div className="h-6 bg-muted rounded" />
         </div>
+      </div>
+    ),
+  },
+  {
+    id: "futuristic",
+    name: "Futuristic Dark",
+    description: "Desain gelap yang elegan dengan aksen neon dan elemen digital. Memberikan kesan teknologi tinggi, modern, dan profesional.",
+    icon: Zap,
+    features: ["Dark Mode UI", "Neon Accents", "Digital Elements"],
+    preview: (
+      <div className="space-y-2 bg-[#050505] p-2 rounded">
+        <div className="h-20 bg-primary/20 rounded border border-primary/30 flex flex-col items-center justify-center text-[10px] text-primary font-bold">
+          <Zap className="h-3 w-3 mb-1" />
+          NEXT-GEN TECH
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-12 bg-white/5 border border-white/10 rounded" />
+          <div className="h-12 bg-white/5 border border-white/10 rounded" />
+        </div>
+        <div className="h-8 bg-primary rounded-none clip-path-polygon" />
+      </div>
+    ),
+  },
+  {
+    id: "nature",
+    name: "Nature Serenity",
+    description: "Desain yang menenangkan dengan palet warna alam dan tipografi serif. Memberikan kesan kedamaian spiritual dan pelayanan yang tulus.",
+    icon: Leaf,
+    features: ["Earthy Color Palette", "Serif Typography", "Organic Shapes"],
+    preview: (
+      <div className="space-y-2 bg-[#fdfcf8] p-2 rounded">
+        <div className="h-20 bg-emerald-50 rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-[10px] text-emerald-700 font-serif">
+          <Leaf className="h-3 w-3 mb-1" />
+          Pure Serenity
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1 h-12 bg-white border border-emerald-50 rounded-2xl shadow-sm" />
+          <div className="w-1/3 h-12 bg-emerald-700 rounded-2xl" />
+        </div>
+        <div className="h-4 w-1/2 mx-auto bg-emerald-100 rounded-full" />
       </div>
     ),
   },
