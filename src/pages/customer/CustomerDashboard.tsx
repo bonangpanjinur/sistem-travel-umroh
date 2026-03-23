@@ -530,7 +530,6 @@ export default function CustomerDashboard() {
               </Button>
             </CardContent>
           </Card>
-        </div>
       </div>
     </PublicLayout>
   );
