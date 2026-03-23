@@ -176,7 +176,14 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
   };
 
   const doubleValidationError = roomAllocation.double > 0 && roomAllocation.double % 2 !== 0;
-  const canProceed = selectedDeparture && totalPassengers > 0 && hasPricing && !doubleValidationError;
+  
+  // Validate PIC selection
+  const picValidationError = 
+    (picSource === 'cabang' && !selectedBranchId) ||
+    (picSource === 'agen' && !selectedAgentId) ||
+    (picSource === 'referral' && !referralCode);
+  
+  const canProceed = selectedDeparture && totalPassengers > 0 && hasPricing && !doubleValidationError && !picValidationError;
 
   if (departuresLoading) {
     return (
@@ -409,6 +416,17 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
               </div>
             </div>
 
+            {picValidationError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {picSource === 'cabang' && 'Silakan pilih cabang yang ingin Anda gunakan untuk pendaftaran.'}
+                  {picSource === 'agen' && 'Silakan pilih agen yang ingin Anda gunakan untuk pendaftaran.'}
+                  {picSource === 'referral' && 'Silakan masukkan kode referral yang valid.'}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="flex flex-col gap-2">
               <Button 
                 className="w-full h-11 text-base font-semibold" 
