@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,8 @@ import { Calendar, Users, BedDouble, Minus, Plus, Loader2, Info, Plane, Hotel, M
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
 import { HotelDisplay } from "@/components/hotels/HotelDisplay";
+import { PICSelectionStepImproved } from "@/components/booking/PICSelectionStepImproved";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface PackageBookingFormProps {
   pkg: any;
@@ -43,6 +45,7 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
   const packageId = pkg.id;
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
+  const { tenant } = useTenant();
   
   const [selectedDeparture, setSelectedDeparture] = useState<string>("");
   const [roomAllocation, setRoomAllocation] = useState<RoomAllocation>({ quad: 0, triple: 0, double: 0, single: 0 });
@@ -50,6 +53,17 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [referralCode, setReferralCode] = useState<string>('');
+
+  // Auto-set PIC based on tenant context
+  useEffect(() => {
+    if (tenant.type === 'branch' && tenant.id && picSource !== 'cabang') {
+      setPicSource('cabang');
+      setSelectedBranchId(tenant.id);
+    } else if (tenant.type === 'agent' && tenant.id && picSource !== 'agen') {
+      setPicSource('agen');
+      setSelectedAgentId(tenant.id);
+    }
+  }, [tenant.type, tenant.id]);
 
   // Fetch departures
   const { data: departures, isLoading: departuresLoading } = useQuery({
@@ -309,13 +323,26 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
 
             {picSource === 'referral' && (
               <Input
-                placeholder="Masukkan kode referral (contoh: REF-NAMA123)"
+                placeholder="Contoh: REF-NAMA123"
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                className="text-sm uppercase"
               />
             )}
-          </div>
-        )}
+
+            {/* Use improved PIC selection */}
+            {false && (
+              <PICSelectionStepImproved
+                picSource={picSource}
+                selectedBranchId={selectedBranchId}
+                selectedAgentId={selectedAgentId}
+                referralCode={referralCode}
+                onPICSourceChange={setPicSource}
+                onBranchChange={setSelectedBranchId}
+                onAgentChange={setSelectedAgentId}
+                onReferralChange={setReferralCode}
+              />
+            )}
 
         {/* 4. Summary & Action */}
         {totalPassengers > 0 && (

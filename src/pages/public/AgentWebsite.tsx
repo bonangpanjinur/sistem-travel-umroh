@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
 import { ModernHeroSection } from '@/components/home/ModernHeroSection';
@@ -11,11 +11,25 @@ import { useTenantWebsiteSettings, HomepageSection, WebsiteSettings } from '@/ho
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
+import { useTenant } from '@/contexts/TenantContext';
 
 export default function AgentWebsite() {
   const { agentSlug } = useParams<{ agentSlug: string }>();
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('agent', agentSlug);
+  const { setTenant } = useTenant();
   const template = settings?.template || 'classic';
+
+  // Set tenant context when agent is loaded
+  useEffect(() => {
+    if (settings?.agent_id) {
+      setTenant({
+        type: 'agent',
+        id: settings.agent_id,
+        slug: agentSlug,
+        name: settings.company_name,
+      });
+    }
+  }, [settings?.agent_id, settings?.company_name, agentSlug, setTenant]);
 
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
     hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,

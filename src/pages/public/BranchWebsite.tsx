@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
 import { ModernHeroSection } from '@/components/home/ModernHeroSection';
@@ -11,11 +11,25 @@ import { useTenantWebsiteSettings, HomepageSection, WebsiteSettings } from '@/ho
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
+import { useTenant } from '@/contexts/TenantContext';
 
 export default function BranchWebsite() {
   const { branchSlug } = useParams<{ branchSlug: string }>();
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('branch', branchSlug);
+  const { setTenant } = useTenant();
   const template = settings?.template || 'classic';
+
+  // Set tenant context when branch is loaded
+  useEffect(() => {
+    if (settings?.branch_id) {
+      setTenant({
+        type: 'branch',
+        id: settings.branch_id,
+        slug: branchSlug,
+        name: settings.company_name,
+      });
+    }
+  }, [settings?.branch_id, settings?.company_name, branchSlug, setTenant]);
 
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
     hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,

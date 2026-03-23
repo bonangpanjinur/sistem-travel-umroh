@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StepProgressIndicator } from "@/components/booking/StepProgressIndicator";
 import { RoomAllocationVisualizer } from "@/components/booking/RoomAllocationVisualizer";
-import { PICSelectionStep } from "@/components/booking/PICSelectionStep";
+import { PICSelectionStepImproved } from "@/components/booking/PICSelectionStepImproved";
+import { useTenant } from "@/contexts/TenantContext";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -53,6 +54,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
   const packageId = pkg.id;
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
+  const { tenant } = useTenant();
 
   // Form state
   const [currentStep, setCurrentStep] = useState(1);
@@ -305,7 +307,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
 
         {/* Step 3: Sumber Pendaftaran */}
         {currentStep === 3 && (
-          <PICSelectionStep
+          <PICSelectionStepImproved
             picSource={picSource}
             selectedBranchId={selectedBranchId}
             selectedAgentId={selectedAgentId}

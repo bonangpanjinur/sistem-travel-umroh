@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { TenantProvider } from "@/contexts/TenantContext";
 import NotFound from "./pages/NotFound";
 
 // Route modules
@@ -21,22 +22,24 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ThemeProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {PublicRoutes()}
-                {CustomerRoutes()}
-                {AdminRoutes()}
-                {OperationalRoutes()}
-                {AgentRoutes()}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </ThemeProvider>
+        <TenantProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {PublicRoutes()}
+                  {CustomerRoutes()}
+                  {AdminRoutes()}
+                  {OperationalRoutes()}
+                  {AgentRoutes()}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </ThemeProvider>
+        </TenantProvider>
       </AuthProvider>
     </QueryClientProvider>
   </ErrorBoundary>
