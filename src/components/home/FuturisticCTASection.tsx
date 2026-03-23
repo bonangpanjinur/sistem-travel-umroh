@@ -42,7 +42,7 @@ export function FuturisticCTASection({ settings: propSettings }: FuturisticCTASe
                     Lihat Paket <ArrowRight className="h-5 w-5" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="border-white/10 hover:bg-white/5 text-white font-bold px-8 py-6 rounded-none">
+                <Button asChild size="lg" className="bg-[#25D366] hover:bg-[#25D366]/90 text-white font-bold px-8 py-6 rounded-none border-none">
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" /> WhatsApp
                   </a>

@@ -49,7 +49,7 @@ export function FuturisticHeroSection({ settings: propSettings }: FuturisticHero
                   <ArrowRight className="h-5 w-5" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="border-white/10 hover:bg-white/5 text-white font-bold text-lg px-10 py-7 rounded-none">
+              <Button asChild size="lg" variant="outline" className="border-white/10 hover:bg-white/5 text-white font-bold text-lg px-10 py-7 rounded-none bg-transparent">
                 <Link to="/contact">Konsultasi Gratis</Link>
               </Button>
             </div>
@@ -72,11 +72,11 @@ export function FuturisticHeroSection({ settings: propSettings }: FuturisticHero
           <div className="lg:col-span-5 relative">
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-black aspect-[4/5]">
+              <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-black aspect-square lg:aspect-[4/5]">
                 <img
                   src={heroImageUrl}
                   alt="Futuristic Travel"
-                  className="w-full h-full object-cover opacity-80 grayscale hover:grayscale-0 transition-all duration-700"
+                  className="w-full h-full object-cover transition-all duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
                 
