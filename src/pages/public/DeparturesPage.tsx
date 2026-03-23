@@ -10,6 +10,7 @@ import { Calendar, Users, Plane, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/format";
+import { slugify } from "@/lib/slug";
 
 export default function DeparturesPage() {
   const { data: departures, isLoading } = useQuery({
@@ -126,7 +127,7 @@ export default function DeparturesPage() {
                     </div>
 
                     <Button asChild className="w-full">
-                      <Link to={dep.package?.id ? `/packages/${dep.package.id}` : "/packages"}>
+                      <Link to={dep.package?.id ? `/packages/${dep.package.id}-${slugify(dep.package.name)}` : "/packages"}>
                         Daftar Sekarang
                       </Link>
                     </Button>

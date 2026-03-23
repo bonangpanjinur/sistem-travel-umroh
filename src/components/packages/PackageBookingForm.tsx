@@ -20,6 +20,7 @@ import { RoomType } from "@/types/database";
 import { HotelDisplay } from "@/components/hotels/HotelDisplay";
 import { PICSelectionStepImproved } from "@/components/booking/PICSelectionStepImproved";
 import { useTenant } from "@/contexts/TenantContext";
+import { slugify } from "@/lib/slug";
 
 interface PackageBookingFormProps {
   pkg: any;
@@ -147,7 +148,8 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
 
   const handleProceed = () => {
     if (!user) {
-      navigate(`/auth/login?redirect=${encodeURIComponent(`/packages/${packageId}`)}`);
+      const packageSlug = `${packageId}-${slugify(pkg.name)}`;
+      navigate(`/auth/login?redirect=${encodeURIComponent(`/packages/${packageSlug}`)}`);
       return;
     }
 

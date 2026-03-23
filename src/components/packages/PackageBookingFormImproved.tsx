@@ -22,6 +22,7 @@ import { Calendar, Users, BedDouble, Minus, Plus, Loader2, Info, Plane, Hotel, M
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
 import { HotelDisplay } from "@/components/hotels/HotelDisplay";
+import { slugify } from "@/lib/slug";
 
 interface PackageBookingFormImprovedProps {
   pkg: any;
@@ -141,7 +142,8 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
 
   const handleProceed = () => {
     if (!user) {
-      navigate(`/auth/login?redirect=${encodeURIComponent(`/packages/${packageId}`)}`);
+      const packageSlug = `${packageId}-${slugify(pkg.name)}`;
+      navigate(`/auth/login?redirect=${encodeURIComponent(`/packages/${packageSlug}`)}`);
       return;
     }
 
