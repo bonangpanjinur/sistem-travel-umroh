@@ -91,7 +91,7 @@ export function BookingWizard() {
 
   const {
     currentStep, setCurrentStep, formData, updateFormData, isSubmitting, submitBooking,
-    updateRoomAllocation, picState, setPicState
+    updateRoomAllocation, picState, setPicState, picValidation, isValidatingPIC
   } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
@@ -221,6 +221,8 @@ export function BookingWizard() {
               onBranchChange={(id) => setPicState(prev => ({ ...prev, branchId: id }))}
               onAgentChange={(id) => setPicState(prev => ({ ...prev, agentId: id }))}
               onReferralChange={(c) => setPicState(prev => ({ ...prev, referralCode: c }))}
+              validation={picValidation}
+              isValidating={isValidatingPIC}
             />
           )}
           {currentStep === 'review' && packageInfo && (
@@ -242,18 +244,29 @@ export function BookingWizard() {
       <div className="flex justify-between">
         <Button variant="outline" onClick={handlePrev} disabled={currentStepIndex === 0}>Sebelumnya</Button>
         {currentStep === 'review' ? (
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !picValidation.isValid}>
             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses...</> : 'Konfirmasi Booking'}
           </Button>
         ) : (
-          <Button onClick={handleNext} disabled={!canProceed(currentStep, formData, picState)}>Selanjutnya</Button>
+          <Button 
+            onClick={handleNext} 
+            disabled={!canProceed(currentStep, formData, picState, picValidation, isValidatingPIC)}
+          >
+            Selanjutnya
+          </Button>
         )}
       </div>
     </div>
   );
 }
 
-function canProceed(step: BookingStep, formData: any, picState?: any): boolean {
+function canProceed(
+  step: BookingStep, 
+  formData: any, 
+  picState?: any, 
+  picValidation?: any, 
+  isValidatingPIC?: boolean
+): boolean {
   switch (step) {
     case 'rooms':
       const allocated = formData.roomAllocation.quad + formData.roomAllocation.triple + formData.roomAllocation.double + formData.roomAllocation.single;
@@ -265,14 +278,10 @@ function canProceed(step: BookingStep, formData: any, picState?: any): boolean {
       const hasAdult = formData.passengers.some((p: any) => p.passengerType === 'adult');
       return allNamesValid && hasAdult;
     case 'pic':
-      if (!picState) return true;
-      if (picState.picSource === 'pusat') return true;
-      if (picState.picSource === 'cabang' && !!picState.branchId) return true;
-      if (picState.picSource === 'agen' && !!picState.agentId) return true;
-      if (picState.picSource === 'referral' && !!picState.referralCode) return true;
-      return false;
+      if (isValidatingPIC) return false;
+      return !!picValidation?.isValid;
     case 'review':
-      return true;
+      return !!picValidation?.isValid;
     default:
       return false;
   }

@@ -23,6 +23,8 @@ interface PICSelectionStepImprovedProps {
   onBranchChange: (branchId: string) => void;
   onAgentChange: (agentId: string) => void;
   onReferralChange: (code: string) => void;
+  validation?: { isValid: boolean; errorMessage?: string; metadata?: any };
+  isValidating?: boolean;
 }
 
 export function PICSelectionStepImproved({
@@ -34,6 +36,8 @@ export function PICSelectionStepImproved({
   onBranchChange,
   onAgentChange,
   onReferralChange,
+  validation,
+  isValidating
 }: PICSelectionStepImprovedProps) {
   const [searchBranch, setSearchBranch] = useState('');
   const [searchAgent, setSearchAgent] = useState('');
@@ -143,9 +147,33 @@ export function PICSelectionStepImproved({
         </p>
       </div>
 
-      {/* Auto-detected banner */}
-      {isAutoDetected && (
-        <Alert className="border-emerald-200 bg-emerald-50">
+      {/* Validation Feedback */}
+      {isValidating ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse mb-4">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Memverifikasi pilihan Anda...
+        </div>
+      ) : validation && !validation.isValid ? (
+        <Alert variant="destructive" className="mb-4">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            {validation.errorMessage || 'Pilihan pendaftaran tidak valid'}
+          </AlertDescription>
+        </Alert>
+      ) : validation?.isValid && validation.metadata && picSource !== 'pusat' && (
+        <Alert className="border-emerald-200 bg-emerald-50 mb-4">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <AlertDescription className="text-emerald-800">
+            Terverifikasi: <strong>{validation.metadata.name || validation.metadata.branch_name || 'Data Valid'}</strong>
+            {picSource === 'referral' && ` (Oleh: ${validation.metadata.name})`}
+            {picSource === 'agen' && ` (Cabang: ${validation.metadata.branch_name})`}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Auto-detected banner (only show if no validation error) */}
+      {isAutoDetected && (!validation || validation.isValid) && (
+        <Alert className="border-emerald-200 bg-emerald-50 mb-4">
           <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           <AlertDescription className="text-emerald-800">
             PIC Anda telah otomatis terdeteksi sebagai <strong>{tenant.name}</strong>
@@ -352,22 +380,46 @@ export function PICSelectionStepImproved({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Input
-                placeholder="Contoh: REF-NAMA123"
-                value={referralCode}
-                onChange={(e) => onReferralChange(e.target.value.toUpperCase())}
-                className="text-sm uppercase"
-              />
+              <div className="relative">
+                <Input
+                  placeholder="Contoh: REF-NAMA123"
+                  value={referralCode}
+                  onChange={(e) => onReferralChange(e.target.value.toUpperCase())}
+                  className={cn(
+                    "text-sm uppercase pr-10",
+                    validation?.isValid && picSource === 'referral' ? "border-emerald-500 bg-emerald-50/30" : ""
+                  )}
+                />
+                {isValidating && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {validation?.isValid && picSource === 'referral' && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Kode referral biasanya diberikan oleh jamaah yang telah terdaftar sebelumnya. Pastikan Anda memasukkan kode yang benar.
               </p>
             </div>
 
-            {referralCode && (
-              <Alert className="border-orange-200 bg-orange-50">
-                <Info className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-orange-800 text-sm">
-                  Kode referral <strong>{referralCode}</strong> akan diverifikasi saat proses pendaftaran
+            {validation?.isValid && picSource === 'referral' && validation.metadata && (
+              <Alert className="border-emerald-200 bg-emerald-50">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <AlertDescription className="text-emerald-800 text-sm">
+                  Kode valid! Pemberi referral: <strong>{validation.metadata.name}</strong>
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {validation && !validation.isValid && picSource === 'referral' && (
+              <Alert variant="destructive">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  {validation.errorMessage}
                 </AlertDescription>
               </Alert>
             )}

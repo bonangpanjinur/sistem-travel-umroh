@@ -65,6 +65,48 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [referralCode, setReferralCode] = useState<string>('');
+  const [picValidation, setPicValidation] = useState<{ isValid: boolean; errorMessage?: string; metadata?: any }>({ isValid: true });
+  const [isValidatingPIC, setIsValidatingPIC] = useState(false);
+
+  // Real-time validation for PIC
+  useMemo(() => {
+    const validate = async () => {
+      if (picSource === 'pusat') {
+        setPicValidation({ isValid: true, metadata: { name: 'Kantor Pusat' } });
+        return;
+      }
+      if (picSource === 'cabang' && !selectedBranchId) {
+        setPicValidation({ isValid: false, errorMessage: 'Silakan pilih kantor cabang' });
+        return;
+      }
+      if (picSource === 'agen' && !selectedAgentId) {
+        setPicValidation({ isValid: false, errorMessage: 'Silakan pilih agen travel' });
+        return;
+      }
+      if (picSource === 'referral' && (!referralCode || referralCode.length < 3)) {
+        setPicValidation({ isValid: false, errorMessage: 'Silakan masukkan kode referral yang valid' });
+        return;
+      }
+
+      setIsValidatingPIC(true);
+      try {
+        const { data, error } = await supabase.rpc('validate_registration_context', {
+          p_pic_source: picSource,
+          p_branch_id: selectedBranchId || null,
+          p_agent_id: selectedAgentId || null,
+          p_referral_code: referralCode || null
+        });
+        if (error) throw error;
+        setPicValidation({ isValid: data.is_valid, errorMessage: data.error_message, metadata: data.metadata });
+      } catch (err) {
+        setPicValidation({ isValid: false, errorMessage: 'Gagal memverifikasi data' });
+      } finally {
+        setIsValidatingPIC(false);
+      }
+    };
+    const timer = setTimeout(validate, 500);
+    return () => clearTimeout(timer);
+  }, [picSource, selectedBranchId, selectedAgentId, referralCode]);
 
   // Fetch departures
   const { data: departures, isLoading: departuresLoading } = useQuery({
@@ -131,7 +173,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
   // Validation for each step
   const isStep1Valid = !!selectedDeparture && hasPricing;
   const isStep2Valid = totalPassengers > 0 && !doubleValidationError;
-  const isStep3Valid = picSource === 'pusat' || (picSource === 'cabang' && !!selectedBranchId) || (picSource === 'agen' && !!selectedAgentId) || (picSource === 'referral' && !!referralCode);
+  const isStep3Valid = picValidation.isValid && !isValidatingPIC;
 
   const canGoNext = () => {
     if (currentStep === 1) return isStep1Valid;
@@ -309,16 +351,18 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
 
         {/* Step 3: Sumber Pendaftaran */}
         {currentStep === 3 && (
-          <PICSelectionStepImproved
-            picSource={picSource}
-            selectedBranchId={selectedBranchId}
-            selectedAgentId={selectedAgentId}
-            referralCode={referralCode}
-            onPICSourceChange={setPicSource}
-            onBranchChange={setSelectedBranchId}
-            onAgentChange={setSelectedAgentId}
-            onReferralChange={setReferralCode}
-          />
+            <PICSelectionStepImproved
+              picSource={picSource}
+              selectedBranchId={selectedBranchId}
+              selectedAgentId={selectedAgentId}
+              referralCode={referralCode}
+              onPICSourceChange={setPicSource}
+              onBranchChange={setSelectedBranchId}
+              onAgentChange={setSelectedAgentId}
+              onReferralChange={setReferralCode}
+              validation={picValidation}
+              isValidating={isValidatingPIC}
+            />
         )}
 
         {/* Step 4: Konfirmasi */}

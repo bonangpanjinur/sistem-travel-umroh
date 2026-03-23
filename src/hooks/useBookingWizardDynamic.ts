@@ -71,6 +71,63 @@ export function useBookingWizardDynamic(
   });
 
   const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
+  const [picValidation, setPicValidation] = useState<{ isValid: boolean; errorMessage?: string; resolvedBranchId?: string; resolvedAgentId?: string; resolvedReferralId?: string; metadata?: any }>({ isValid: true });
+  const [isValidatingPIC, setIsValidatingPIC] = useState(false);
+
+  // Effect for real-time validation
+  useMemo(() => {
+    const validate = async () => {
+      // Don't validate if everything is empty except for pusat
+      if (picState.picSource === 'pusat') {
+        setPicValidation({ isValid: true, metadata: { name: 'Kantor Pusat' } });
+        return;
+      }
+
+      if (picState.picSource === 'cabang' && !picState.branchId) {
+        setPicValidation({ isValid: false, errorMessage: 'Silakan pilih kantor cabang' });
+        return;
+      }
+
+      if (picState.picSource === 'agen' && !picState.agentId) {
+        setPicValidation({ isValid: false, errorMessage: 'Silakan pilih agen travel' });
+        return;
+      }
+
+      if (picState.picSource === 'referral' && (!picState.referralCode || picState.referralCode.length < 3)) {
+        setPicValidation({ isValid: false, errorMessage: 'Silakan masukkan kode referral yang valid' });
+        return;
+      }
+
+      setIsValidatingPIC(true);
+      try {
+        const { data, error } = await supabase.rpc('validate_registration_context', {
+          p_pic_source: picState.picSource,
+          p_branch_id: picState.branchId || null,
+          p_agent_id: picState.agentId || null,
+          p_referral_code: picState.referralCode || null
+        });
+
+        if (error) throw error;
+        
+        setPicValidation({
+          isValid: data.is_valid,
+          errorMessage: data.error_message,
+          resolvedBranchId: data.resolved_branch_id,
+          resolvedAgentId: data.resolved_agent_id,
+          resolvedReferralId: data.resolved_referral_id,
+          metadata: data.metadata
+        });
+      } catch (err) {
+        console.error('Validation error:', err);
+        setPicValidation({ isValid: false, errorMessage: 'Gagal memverifikasi data' });
+      } finally {
+        setIsValidatingPIC(false);
+      }
+    };
+
+    const timer = setTimeout(validate, 500);
+    return () => clearTimeout(timer);
+  }, [picState.picSource, picState.branchId, picState.agentId, picState.referralCode]);
 
   const updateFormData = (updates: Partial<DynamicBookingFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -136,17 +193,20 @@ export function useBookingWizardDynamic(
       const mainRoomType = (Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'quad') as RoomType;
       const basePrice = priceMap[mainRoomType];
 
-      // 4. Determine PIC (branch_id, agent_id) from picState
-      let branchId: string | null = null;
-      let agentId: string | null = null;
+      // 4. Determine PIC (branch_id, agent_id) from picState with strict validation
+      const { data: validation, error: validationError } = await supabase.rpc('validate_registration_context', {
+        p_pic_source: picState.picSource,
+        p_branch_id: picState.branchId || null,
+        p_agent_id: picState.agentId || null,
+        p_referral_code: picState.referralCode || null
+      });
 
-      if (picState) {
-        if (picState.picSource === 'cabang' && picState.branchId) {
-          branchId = picState.branchId;
-        } else if (picState.picSource === 'agen' && picState.agentId) {
-          agentId = picState.agentId;
-        }
-      }
+      if (validationError) throw validationError;
+      if (!validation.is_valid) throw new Error(validation.error_message || 'Data pendaftaran tidak valid');
+
+      const branchId = validation.resolved_branch_id;
+      const agentId = validation.resolved_agent_id;
+      const referralId = validation.resolved_referral_id;
 
       // 5. Create booking
       const { data: booking, error: bookingError } = await supabase
@@ -206,20 +266,28 @@ export function useBookingWizardDynamic(
       }
 
       // 8. Handle referral code if provided
-      if (picState?.picSource === 'referral' && picState.referralCode) {
+      if (referralId) {
         try {
-          const { data: refCode } = await supabase
+          // Get commission rate
+          const { data: refCodeData } = await supabase
             .from('referral_codes')
-            .select('id')
-            .eq('code', picState.referralCode)
-            .eq('is_active', true)
+            .select('commission_rate')
+            .eq('id', referralId)
             .single();
-          
-          if (refCode) {
-            await (supabase as any)
-              .from('referral_usages')
-              .insert({ referral_code_id: refCode.id, used_by_booking_id: booking.id });
-          }
+
+          const commissionRate = refCodeData?.commission_rate || 2.5;
+          const commissionAmount = (totalPrice * Number(commissionRate)) / 100;
+
+          await supabase
+            .from('referral_usages')
+            .insert({ 
+              referral_code_id: referralId, 
+              booking_id: booking.id,
+              referred_customer_id: customer.id,
+              booking_amount: totalPrice,
+              commission_amount: commissionAmount,
+              commission_status: 'pending'
+            });
         } catch (refErr) {
           console.warn('Referral tracking failed:', refErr);
         }
@@ -261,6 +329,8 @@ export function useBookingWizardDynamic(
     submitBooking,
     updateRoomAllocation,
     picState,
-    setPicState
+    setPicState,
+    picValidation,
+    isValidatingPIC
   };
 }
