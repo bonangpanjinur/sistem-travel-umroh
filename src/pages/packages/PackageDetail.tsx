@@ -14,8 +14,9 @@ import { PackageBookingForm } from '@/components/packages/PackageBookingForm';
 
 import { 
   Clock, MapPin, Plane, Building2, Users, 
-  Check, X, Star, ChevronLeft
+  Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon
 } from 'lucide-react';
+import { useState } from 'react';
 
 export default function PackageDetail() {
   const { idSlug } = useParams<{ idSlug: string }>();
@@ -92,6 +93,8 @@ export default function PackageDetail() {
   const upcomingDepartures = (pkg.departures || [])
     .filter((d: any) => new Date(d.departure_date) > new Date() && d.status === 'open')
     .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
+
+  const [openDepartureId, setOpenDepartureId] = useState<string | null>(upcomingDepartures.length > 0 ? upcomingDepartures[0].id : null);
 
   return (
     <DynamicPublicLayout>
@@ -248,62 +251,113 @@ export default function PackageDetail() {
 
               <TabsContent value="departures" className="mt-6">
                 <Card>
-                  <CardHeader><CardTitle>Jadwal Keberangkatan Tersedia</CardTitle></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarIcon className="h-5 w-5 text-primary" />
+                      Jadwal Keberangkatan
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent>
                     {upcomingDepartures.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {upcomingDepartures.slice(0, 6).map((dep: any) => {
+                      <div className="space-y-3">
+                        {upcomingDepartures.map((dep: any) => {
+                          const isOpen = openDepartureId === dep.id;
                           const availableSeats = dep.quota - (dep.booked_count || 0);
-                          const seatPercentage = (availableSeats / dep.quota) * 100;
                           const isAlmostFull = availableSeats < 5;
+                          const duration = dep.return_date 
+                            ? Math.ceil((new Date(dep.return_date).getTime() - new Date(dep.departure_date).getTime()) / (1000 * 60 * 60 * 24))
+                            : pkg.duration_days;
+
                           return (
-                            <div key={dep.id} className="border rounded-xl p-5 hover:shadow-lg hover:border-primary/50 transition-all duration-300 bg-gradient-to-br from-white to-muted/20">
-                              <div className="space-y-4">
-                                {/* Tanggal */}
-                                <div>
-                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tanggal Keberangkatan</p>
-                                  <p className="text-lg font-bold mt-1">{new Date(dep.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                  <p className="text-sm text-muted-foreground">{new Date(dep.departure_date).toLocaleDateString('id-ID', { weekday: 'long' })}</p>
+                            <div 
+                              key={dep.id} 
+                              className={cn(
+                                "border rounded-xl overflow-hidden transition-all duration-300",
+                                isOpen ? "ring-2 ring-primary/20 border-primary" : "hover:border-primary/30"
+                              )}
+                            >
+                              <button
+                                onClick={() => setOpenDepartureId(isOpen ? null : dep.id)}
+                                className="w-full flex items-center justify-between p-4 bg-white hover:bg-muted/30 transition-colors"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary">
+                                    <span className="text-xs font-bold uppercase">{new Date(dep.departure_date).toLocaleDateString('id-ID', { month: 'short' })}</span>
+                                    <span className="text-lg font-black leading-none">{new Date(dep.departure_date).getDate()}</span>
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="font-bold text-base">{new Date(dep.departure_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric' })}</p>
+                                    <div className="flex items-center gap-3 mt-0.5">
+                                      <span className="text-xs flex items-center gap-1 text-muted-foreground">
+                                        <Clock className="h-3 w-3" /> {duration} Hari
+                                      </span>
+                                      <span className={cn(
+                                        "text-xs font-semibold px-2 py-0.5 rounded-full",
+                                        isAlmostFull ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                                      )}>
+                                        {availableSeats} Sisa Kursi
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
+                                <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform duration-300", isOpen && "rotate-180")} />
+                              </button>
 
-                                {/* Tanggal Pulang */}
-                                {dep.return_date && (
-                                  <div className="pt-2 border-t">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tanggal Pulang</p>
-                                    <p className="text-sm font-medium mt-1">{new Date(dep.return_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                              <div className={cn(
+                                "grid transition-all duration-300 ease-in-out",
+                                isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                              )}>
+                                <div className="overflow-hidden">
+                                  <div className="p-4 bg-muted/20 border-t grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Detail Perjalanan</p>
+                                      <div className="space-y-2 mt-2">
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span className="text-muted-foreground">Berangkat:</span>
+                                          <span className="font-semibold">{new Date(dep.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                        </div>
+                                        {dep.return_date && (
+                                          <div className="flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground">Kembali:</span>
+                                            <span className="font-semibold">{new Date(dep.return_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Transportasi</p>
+                                      <div className="mt-2 flex items-center gap-3 p-2 rounded-lg bg-white border">
+                                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                                          <Plane className="h-4 w-4 text-primary" />
+                                        </div>
+                                        <div>
+                                          <p className="text-xs text-muted-foreground">Maskapai</p>
+                                          <p className="text-sm font-bold">{(dep.airline as any)?.name || pkg.airline?.name || '-'}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status Kuota</p>
+                                      <div className="mt-2 space-y-2">
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span className="text-muted-foreground">Terisi: {dep.booked_count || 0}</span>
+                                          <span className="text-muted-foreground">Total: {dep.quota}</span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                          <div 
+                                            className={cn("h-full transition-all duration-500", isAlmostFull ? "bg-destructive" : "bg-primary")}
+                                            style={{ width: `${((dep.booked_count || 0) / dep.quota) * 100}%` }}
+                                          />
+                                        </div>
+                                        {isAlmostFull && (
+                                          <p className="text-[10px] text-destructive font-bold animate-pulse">SEGERA HABIS! Sisa {availableSeats} kursi lagi.</p>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                )}
-
-                                {/* Durasi */}
-                                <div className="pt-2 border-t">
-                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Durasi</p>
-                                  <p className="text-sm font-medium mt-1">{Math.ceil((new Date(dep.return_date).getTime() - new Date(dep.departure_date).getTime()) / (1000 * 60 * 60 * 24))} Hari</p>
                                 </div>
-
-                                {/* Sisa Kursi */}
-                                <div className="pt-2 border-t space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sisa Kursi</p>
-                                    <span className={`text-sm font-bold ${isAlmostFull ? 'text-destructive' : 'text-primary'}`}>{availableSeats} / {dep.quota}</span>
-                                  </div>
-                                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                                    <div
-                                      className={`h-full transition-all duration-300 ${isAlmostFull ? 'bg-destructive' : 'bg-primary'}`}
-                                      style={{ width: `${seatPercentage}%` }}
-                                    />
-                                  </div>
-                                  {isAlmostFull && (
-                                    <p className="text-xs text-destructive font-semibold">⚠️ Kursi terbatas!</p>
-                                  )}
-                                </div>
-
-                                {/* Maskapai */}
-                                {dep.airline && (
-                                  <div className="pt-2 border-t flex items-center gap-2">
-                                    <Plane className="h-4 w-4 text-muted-foreground" />
-                                    <p className="text-sm font-medium">{(dep.airline as any).name}</p>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           );
@@ -311,7 +365,7 @@ export default function PackageDetail() {
                       </div>
                     ) : (
                       <div className="text-center py-12">
-                        <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                        <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-30" />
                         <p className="text-muted-foreground font-medium">Belum ada jadwal keberangkatan tersedia</p>
                         <p className="text-sm text-muted-foreground mt-1">Silakan hubungi kami untuk informasi lebih lanjut</p>
                       </div>
