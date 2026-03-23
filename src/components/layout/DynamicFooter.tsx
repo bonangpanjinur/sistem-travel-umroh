@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube } from 'lucide-react';
 import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { Crown } from 'lucide-react';
 
 interface FooterLink {
   href: string;
@@ -53,6 +54,7 @@ interface DynamicFooterProps {
 export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
   const { data: mainSettings } = useWebsiteSettings();
   const settings = tenantSettings || mainSettings;
+  const isRoyal = settings?.template === 'royal';
   
   const companyName = settings?.company_name || 'UmrohTravel';
   const tagline = settings?.tagline || 'Perjalanan Suci Anda';
@@ -163,7 +165,7 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
           <div className="flex flex-col items-center text-center gap-6">
             <Link to="/" className="flex items-center gap-2">
               {logoUrl ? (
-                <img src={logoUrl} alt={companyName} className="h-10 w-auto object-contain brightness-0 invert" />
+                <img src={logoUrl} alt={companyName} className={`h-10 w-auto object-contain ${isRoyal ? '' : 'brightness-0 invert'}`} />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <span className="font-display text-xl font-bold">{companyName.charAt(0)}</span>
@@ -171,7 +173,7 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
               )}
               <div className="text-left">
                 <h2 className="text-lg font-bold">{companyName}</h2>
-                <p className="text-xs text-sidebar-foreground/70">{tagline}</p>
+                <p className={`text-xs ${isRoyal ? 'text-amber-500/70' : 'text-sidebar-foreground/70'}`}>{tagline}</p>
               </div>
             </Link>
             <p className="max-w-md text-sm text-sidebar-foreground/70">{footerDescription}</p>
@@ -193,14 +195,14 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
 
   // Full layout (default)
   return (
-    <footer className="bg-sidebar text-sidebar-foreground">
+    <footer className={`transition-colors duration-500 ${isRoyal ? 'bg-[#050505] text-white border-t border-amber-500/10' : 'bg-sidebar text-sidebar-foreground'}`}>
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2">
               {logoUrl ? (
-                <img src={logoUrl} alt={companyName} className="h-10 w-auto object-contain brightness-0 invert" />
+                <img src={logoUrl} alt={companyName} className={`h-10 w-auto object-contain ${isRoyal ? '' : 'brightness-0 invert'}`} />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <span className="font-display text-xl font-bold">{companyName.charAt(0)}</span>
@@ -208,10 +210,10 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
               )}
               <div>
                 <h2 className="text-lg font-bold">{companyName}</h2>
-                <p className="text-xs text-sidebar-foreground/70">{tagline}</p>
+                <p className={`text-xs ${isRoyal ? 'text-amber-500/70' : 'text-sidebar-foreground/70'}`}>{tagline}</p>
               </div>
             </Link>
-            <p className="mt-4 max-w-md text-sm text-sidebar-foreground/70">{footerDescription}</p>
+            <p className={`mt-4 max-w-md text-sm ${isRoyal ? 'text-gray-400' : 'text-sidebar-foreground/70'}`}>{footerDescription}</p>
             {renderContactInfo()}
             <div className="mt-6">{renderSocialIcons()}</div>
           </div>
@@ -224,7 +226,7 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
                 <ul className="space-y-2">
                   {footerLinks.layanan?.map((link) => (
                     <li key={link.href}>
-                      <Link to={link.href} className="text-sm text-sidebar-foreground/70 transition-colors hover:text-sidebar-primary">{link.label}</Link>
+                      <Link to={link.href} className={`text-sm transition-colors ${isRoyal ? 'text-gray-400 hover:text-amber-500' : 'text-sidebar-foreground/70 hover:text-sidebar-primary'}`}>{link.label}</Link>
                     </li>
                   ))}
                 </ul>
@@ -234,7 +236,7 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
                 <ul className="space-y-2">
                   {footerLinks.informasi?.map((link) => (
                     <li key={link.href}>
-                      <Link to={link.href} className="text-sm text-sidebar-foreground/70 transition-colors hover:text-sidebar-primary">{link.label}</Link>
+                      <Link to={link.href} className={`text-sm transition-colors ${isRoyal ? 'text-gray-400 hover:text-amber-500' : 'text-sidebar-foreground/70 hover:text-sidebar-primary'}`}>{link.label}</Link>
                     </li>
                   ))}
                 </ul>
@@ -244,7 +246,7 @@ export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
                 <ul className="space-y-2">
                   {footerLinks.panduan?.map((link) => (
                     <li key={link.href}>
-                      <Link to={link.href} className="text-sm text-sidebar-foreground/70 transition-colors hover:text-sidebar-primary">{link.label}</Link>
+                      <Link to={link.href} className={`text-sm transition-colors ${isRoyal ? 'text-gray-400 hover:text-amber-500' : 'text-sidebar-foreground/70 hover:text-sidebar-primary'}`}>{link.label}</Link>
                     </li>
                   ))}
                 </ul>

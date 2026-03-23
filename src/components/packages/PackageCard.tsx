@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils';
 
 interface PackageCardProps {
   pkg: Package;
+  isRoyal?: boolean;
 }
 
-export function PackageCard({ pkg }: PackageCardProps) {
+export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
   const lowestPrice = Math.min(
     pkg.price_quad,
     pkg.price_triple,
@@ -41,7 +42,10 @@ export function PackageCard({ pkg }: PackageCardProps) {
   const isSoldOut = openDepartures.length > 0 && totalAvailableSeats <= 0;
 
   return (
-    <Card className="group card-hover overflow-hidden flex flex-col h-full">
+    <Card className={cn(
+      "group card-hover overflow-hidden flex flex-col h-full transition-all duration-300",
+      isRoyal ? "bg-[#1a1a1a] border-amber-500/10 hover:border-amber-500/30 text-white" : ""
+    )}>
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
@@ -73,26 +77,41 @@ export function PackageCard({ pkg }: PackageCardProps) {
 
       <CardContent className="p-4 flex-1">
         {/* Title */}
-        <h3 className="mb-2 line-clamp-2 text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+        <h3 className={cn(
+          "mb-2 line-clamp-2 text-lg font-bold transition-colors",
+          isRoyal ? "text-white font-serif group-hover:text-amber-500" : "text-foreground group-hover:text-primary"
+        )}>
           {pkg.name}
         </h3>
 
         {/* Description */}
-        <p className="mb-4 line-clamp-2 text-sm text-muted-foreground leading-relaxed">
+        <p className={cn(
+          "mb-4 line-clamp-2 text-sm leading-relaxed",
+          isRoyal ? "text-gray-400" : "text-muted-foreground"
+        )}>
           {pkg.description || 'Perjalanan ibadah yang nyaman dan berkualitas'}
         </p>
 
         {/* Features */}
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+        <div className={cn(
+          "flex flex-wrap gap-3 text-xs",
+          isRoyal ? "text-amber-500/70" : "text-muted-foreground"
+        )}>
           {pkg.airline && (
-            <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded">
-              <Plane className="h-3.5 w-3.5 text-primary" />
+            <div className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded",
+              isRoyal ? "bg-amber-500/10" : "bg-muted/50"
+            )}>
+              <Plane className={cn("h-3.5 w-3.5", isRoyal ? "text-amber-500" : "text-primary")} />
               <span className="font-medium">{pkg.airline.name}</span>
             </div>
           )}
           {pkg.hotel_makkah && (
-            <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded">
-              <MapPin className="h-3.5 w-3.5 text-primary" />
+            <div className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded",
+              isRoyal ? "bg-amber-500/10" : "bg-muted/50"
+            )}>
+              <MapPin className={cn("h-3.5 w-3.5", isRoyal ? "text-amber-500" : "text-primary")} />
               <span className="font-medium">
                 {pkg.hotel_makkah.star_rating}★ Makkah
               </span>
@@ -103,21 +122,24 @@ export function PackageCard({ pkg }: PackageCardProps) {
 
       {/* Remaining Seats Progress Bar */}
       {openDepartures.length > 0 && (
-        <div className="px-4 py-3 bg-muted/30 border-t space-y-2">
+        <div className={cn(
+          "px-4 py-3 border-t space-y-2",
+          isRoyal ? "bg-black/20 border-amber-500/10" : "bg-muted/30"
+        )}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-semibold text-foreground">
+              <Users className={cn("h-4 w-4", isRoyal ? "text-amber-500/50" : "text-muted-foreground")} />
+              <span className={cn("text-xs font-semibold", isRoyal ? "text-white" : "text-foreground")}>
                 {isSoldOut ? 'Habis Terjual' : `Sisa ${totalAvailableSeats} Kursi`}
               </span>
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className={cn("text-xs", isRoyal ? "text-amber-500/50" : "text-muted-foreground")}>
               {totalBooked}/{totalQuota}
             </span>
           </div>
           
           {/* Progress Bar */}
-          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+          <div className={cn("h-2 w-full rounded-full overflow-hidden", isRoyal ? "bg-white/5" : "bg-muted")}>
             <div
               className={cn(
                 "h-full transition-all duration-500 rounded-full",
@@ -133,14 +155,20 @@ export function PackageCard({ pkg }: PackageCardProps) {
         </div>
       )}
 
-      <CardFooter className="flex items-center justify-between border-t p-4">
+      <CardFooter className={cn(
+        "flex items-center justify-between border-t p-4",
+        isRoyal ? "border-amber-500/10" : ""
+      )}>
         <div>
-          <p className="text-xs text-muted-foreground">Mulai dari</p>
-          <p className="text-lg font-bold text-amber-600">
+          <p className={cn("text-xs", isRoyal ? "text-gray-400" : "text-muted-foreground")}>Mulai dari</p>
+          <p className={cn("text-lg font-bold", isRoyal ? "text-amber-500" : "text-amber-600")}>
             {formatCurrency(lowestPrice)}
           </p>
         </div>
-        <Button asChild className="bg-[#D98E27] hover:bg-[#BF7A1D] text-white border-none rounded-lg px-6">
+        <Button asChild className={cn(
+          "border-none rounded-lg px-6",
+          isRoyal ? "bg-amber-600 hover:bg-amber-500 text-black font-bold" : "bg-[#D98E27] hover:bg-[#BF7A1D] text-white"
+        )}>
           <Link to={`/packages/${pkg.id}-${slugify(pkg.name)}`}>Lihat Detail</Link>
         </Button>
       </CardFooter>

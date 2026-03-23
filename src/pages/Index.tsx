@@ -6,6 +6,7 @@ import { LuxuryHeroSection } from '@/components/home/LuxuryHeroSection';
 import { IslamicHeroSection } from '@/components/home/IslamicHeroSection';
 import { FuturisticHeroSection } from '@/components/home/FuturisticHeroSection';
 import { NatureHeroSection } from '@/components/home/NatureHeroSection';
+import { RoyalHeroSection } from '@/components/home/RoyalHeroSection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
@@ -15,6 +16,7 @@ import { LuxuryCTASection } from '@/components/home/LuxuryCTASection';
 import { IslamicCTASection } from '@/components/home/IslamicCTASection';
 import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
 import { NatureCTASection } from '@/components/home/NatureCTASection';
+import { RoyalCTASection } from '@/components/home/RoyalCTASection';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -23,11 +25,11 @@ const Index = () => {
   const template = settings?.template || 'classic';
 
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
-    hero: template === 'luxury' ? LuxuryHeroSection : (template === 'modern' ? ModernHeroSection : (template === 'islamic' ? IslamicHeroSection : (template === 'futuristic' ? FuturisticHeroSection : (template === 'nature' ? NatureHeroSection : DynamicHeroSection)))),
+    hero: template === 'royal' ? RoyalHeroSection : (template === 'luxury' ? LuxuryHeroSection : (template === 'modern' ? ModernHeroSection : (template === 'islamic' ? IslamicHeroSection : (template === 'futuristic' ? FuturisticHeroSection : (template === 'nature' ? NatureHeroSection : DynamicHeroSection))))),
     featured_packages: FeaturedPackages as any,
     why_choose_us: WhyChooseUs as any,
     testimonials: Testimonials as any,
-    cta: template === 'luxury' ? LuxuryCTASection : (template === 'modern' ? ModernCTASection : (template === 'islamic' ? IslamicCTASection : (template === 'futuristic' ? FuturisticCTASection : (template === 'nature' ? NatureCTASection : DynamicCTASection)))),
+    cta: template === 'royal' ? RoyalCTASection : (template === 'luxury' ? LuxuryCTASection : (template === 'modern' ? ModernCTASection : (template === 'islamic' ? IslamicCTASection : (template === 'futuristic' ? FuturisticCTASection : (template === 'nature' ? NatureCTASection : DynamicCTASection))))),
   }), [template]);
 
   const enabledSections = useMemo(() => {

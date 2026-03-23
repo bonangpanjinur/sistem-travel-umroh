@@ -1,8 +1,15 @@
 import { useCompanyFeatures, getIconComponent } from '@/hooks/useCompanyFeatures';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { Crown } from 'lucide-react';
 
-export function WhyChooseUs() {
+interface WhyChooseUsProps {
+  settings?: WebsiteSettings;
+}
+
+export function WhyChooseUs({ settings }: WhyChooseUsProps) {
   const { data: features, isLoading } = useCompanyFeatures();
+  const isRoyal = settings?.template === 'royal';
 
   if (isLoading) {
     return (
@@ -29,17 +36,23 @@ export function WhyChooseUs() {
   }
 
   return (
-    <section className="py-20 bg-background">
+    <section className={`py-20 transition-colors duration-500 ${isRoyal ? 'bg-[#0a0a0a] text-white' : 'bg-background'}`}>
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="text-center mb-12">
-          <span className="text-primary font-semibold text-sm uppercase tracking-wider">
+          {isRoyal && (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold tracking-widest uppercase mb-4">
+              <Crown className="h-3 w-3" />
+              Royal Commitment
+            </div>
+          )}
+          <span className={`${isRoyal ? 'text-amber-500' : 'text-primary'} font-semibold text-sm uppercase tracking-wider block`}>
             Mengapa Memilih Kami
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
+          <h2 className={`text-3xl md:text-4xl font-bold mt-2 mb-4 ${isRoyal ? 'text-white font-serif' : 'text-foreground'}`}>
             Keunggulan Layanan Kami
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className={`${isRoyal ? 'text-gray-400' : 'text-muted-foreground'} max-w-2xl mx-auto`}>
             Kami berkomitmen memberikan pelayanan terbaik untuk perjalanan ibadah Anda
           </p>
         </div>
@@ -52,15 +65,27 @@ export function WhyChooseUs() {
               return (
                 <div
                   key={feature.id}
-                  className="group p-6 rounded-xl border bg-card hover:shadow-lg hover:border-primary/50 transition-all duration-300"
+                  className={`group p-6 rounded-2xl border transition-all duration-300 ${
+                    isRoyal 
+                      ? 'bg-[#1a1a1a] border-amber-500/10 hover:border-amber-500/30 hover:shadow-[0_0_30px_rgba(217,119,6,0.1)]' 
+                      : 'bg-card hover:shadow-lg hover:border-primary/50'
+                  }`}
                 >
-                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:scale-110 transition-all duration-300">
-                    <IconComponent className="h-7 w-7 text-primary group-hover:text-primary-foreground transition-colors" />
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 ${
+                    isRoyal
+                      ? 'bg-amber-500/10 group-hover:bg-amber-500 group-hover:scale-110'
+                      : 'bg-primary/10 group-hover:bg-primary group-hover:scale-110'
+                  }`}>
+                    <IconComponent className={`h-7 w-7 transition-colors ${
+                      isRoyal
+                        ? 'text-amber-500 group-hover:text-black'
+                        : 'text-primary group-hover:text-primary-foreground'
+                    }`} />
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                  <h3 className={`text-lg font-semibold mb-2 ${isRoyal ? 'text-white font-serif' : 'text-foreground'}`}>
                     {feature.title}
                   </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
+                  <p className={`text-sm leading-relaxed ${isRoyal ? 'text-gray-400' : 'text-muted-foreground'}`}>
                     {feature.description}
                   </p>
                 </div>

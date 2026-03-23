@@ -43,6 +43,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const { data: mainSettings } = useWebsiteSettings();
   const settings = tenantSettings || mainSettings;
   const navigate = useNavigate();
+  const isRoyal = settings?.template === 'royal';
 
   const handleSignOut = async () => {
     await signOut();
@@ -81,8 +82,8 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
         return (
           <Link to="/" className="flex items-center gap-2">
             <div>
-              <h1 className="text-lg font-bold text-foreground">{companyName}</h1>
-              <p className="text-xs text-muted-foreground">{tagline}</p>
+              <h1 className={`text-lg font-bold ${isRoyal ? 'text-white font-serif' : 'text-foreground'}`}>{companyName}</h1>
+              <p className={`text-xs ${isRoyal ? 'text-amber-500/70' : 'text-muted-foreground'}`}>{tagline}</p>
             </div>
           </Link>
         );
@@ -98,8 +99,8 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
               </div>
             )}
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-foreground">{companyName}</h1>
-              <p className="text-xs text-muted-foreground">{tagline}</p>
+              <h1 className={`text-lg font-bold ${isRoyal ? 'text-white font-serif' : 'text-foreground'}`}>{companyName}</h1>
+              <p className={`text-xs ${isRoyal ? 'text-amber-500/70' : 'text-muted-foreground'}`}>{tagline}</p>
             </div>
           </Link>
         );
@@ -107,7 +108,11 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 glass border-b">
+    <nav className={`sticky top-0 z-50 border-b transition-all duration-500 ${
+      isRoyal 
+        ? 'bg-[#0a0a0a]/80 backdrop-blur-xl border-amber-500/20' 
+        : 'glass'
+    }`}>
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo / Brand */}
@@ -119,7 +124,11 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
               <Link
                 key={link.href}
                 to={link.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+                className={`text-sm font-medium transition-colors ${
+                  isRoyal 
+                    ? 'text-gray-400 hover:text-amber-500' 
+                    : 'text-muted-foreground hover:text-primary'
+                }`}
               >
                 {link.label}
               </Link>
@@ -131,8 +140,8 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2" aria-label={`Menu pengguna: ${profile?.full_name || 'User'}`} aria-haspopup="true">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden="true">
+                  <Button variant="ghost" className={`flex items-center gap-2 ${isRoyal ? 'text-white hover:bg-white/5' : ''}`} aria-label={`Menu pengguna: ${profile?.full_name || 'User'}`} aria-haspopup="true">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isRoyal ? 'bg-amber-500 text-black' : 'bg-primary text-primary-foreground'}`} aria-hidden="true">
                       <User className="h-4 w-4" />
                     </div>
                     <span>{profile?.full_name || 'User'}</span>
@@ -170,10 +179,10 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
               </DropdownMenu>
             ) : (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" asChild>
+                <Button variant="ghost" asChild className={isRoyal ? 'text-white hover:bg-white/5' : ''}>
                   <Link to="/login">Masuk</Link>
                 </Button>
-                <Button asChild>
+                <Button asChild className={isRoyal ? 'bg-amber-500 hover:bg-amber-400 text-black font-bold' : ''}>
                   <Link to="/register">Daftar</Link>
                 </Button>
               </div>
