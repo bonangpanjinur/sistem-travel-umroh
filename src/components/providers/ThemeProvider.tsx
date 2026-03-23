@@ -124,14 +124,15 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
     updateMetaTag('theme-color', `hsl(${settings.primary_color})`);
   }
 
-  if (settings.favicon_url) {
+  const iconUrl = settings.favicon_url || settings.logo_url;
+  if (iconUrl) {
     let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
     if (!favicon) {
       favicon = document.createElement('link');
       favicon.rel = 'icon';
       document.head.appendChild(favicon);
     }
-    favicon.href = settings.favicon_url;
+    favicon.href = iconUrl;
     
     // Apple Touch Icon
     let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
@@ -140,7 +141,7 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
       appleIcon.rel = 'apple-touch-icon';
       document.head.appendChild(appleIcon);
     }
-    appleIcon.href = settings.favicon_url;
+    appleIcon.href = iconUrl;
   }
 }
 
