@@ -73,8 +73,8 @@ export function BookingWizard() {
         return `Cabang: ${data?.name || '-'}`;
       }
       if (picData.picSource === 'agen' && picData.agentId) {
-        const { data } = await supabase.from('agents').select('company_name').eq('id', picData.agentId).single();
-        return `Agen: ${data?.company_name || '-'}`;
+        const { data } = await supabase.from('agents').select('company_name, agent_code').eq('id', picData.agentId).single();
+        return `Agen: ${data?.company_name || data?.agent_code || '-'}`;
       }
       if (picData.picSource === 'referral' && picData.referralCode) {
         return `Referral: ${picData.referralCode}`;

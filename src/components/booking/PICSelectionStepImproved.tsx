@@ -84,7 +84,8 @@ export function PICSelectionStepImproved({
   ) || [];
 
   const filteredAgents = agents?.filter(a =>
-    a.company_name.toLowerCase().includes(searchAgent.toLowerCase())
+    (a.company_name || '').toLowerCase().includes(searchAgent.toLowerCase()) ||
+    (a.agent_code || '').toLowerCase().includes(searchAgent.toLowerCase())
   ) || [];
 
   const PIC_OPTIONS = [
@@ -312,7 +313,7 @@ export function PICSelectionStepImproved({
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold text-sm">{agent.company_name}</p>
+                            <p className="font-semibold text-sm">{agent.company_name || agent.agent_code}</p>
                             {isAutoSelected && (
                               <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
                                 Terdeteksi Otomatis
