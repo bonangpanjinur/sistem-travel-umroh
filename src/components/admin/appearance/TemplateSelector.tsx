@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Layout, Sparkles, Crown } from "lucide-react";
+import { Check, Layout, Sparkles, Crown, Moon } from "lucide-react";
 import { WebsiteSettings, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 
 interface TemplateSelectorProps {
@@ -80,6 +80,37 @@ const templates = [
         <div className="grid grid-cols-2 gap-2">
           <div className="h-14 bg-white border border-amber-100 rounded shadow-sm" />
           <div className="h-14 bg-white border border-amber-100 rounded shadow-sm" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "islamic",
+    name: "Islamic Contemporary",
+    description: "Desain modern dengan sentuhan ornamen Islami, layout asimetris yang dinamis, dan widget pencarian yang menonjol. Memberikan kesan religius namun tetap kekinian.",
+    icon: Moon,
+    features: ["Ornamen Islami Halus", "Widget Pencarian Menonjol", "Layout Dinamis & Clean"],
+    preview: (
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <div className="flex-1 space-y-1">
+            <div className="h-3 w-1/2 bg-primary/20 rounded" />
+            <div className="h-8 bg-primary/10 rounded" />
+            <div className="h-4 bg-muted rounded" />
+          </div>
+          <div className="w-1/3 h-20 bg-primary/5 rounded-2xl border border-primary/10 flex items-center justify-center">
+            <Moon className="h-4 w-4 text-primary/40" />
+          </div>
+        </div>
+        <div className="h-12 bg-white border border-primary/20 rounded-xl shadow-sm flex items-center px-2 gap-1">
+          <div className="h-6 flex-1 bg-muted/50 rounded" />
+          <div className="h-8 w-8 bg-primary rounded-lg" />
+        </div>
+        <div className="grid grid-cols-4 gap-1">
+          <div className="h-6 bg-muted rounded" />
+          <div className="h-6 bg-muted rounded" />
+          <div className="h-6 bg-muted rounded" />
+          <div className="h-6 bg-muted rounded" />
         </div>
       </div>
     ),

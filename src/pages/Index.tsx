@@ -3,12 +3,14 @@ import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
 import { ModernHeroSection } from '@/components/home/ModernHeroSection';
 import { LuxuryHeroSection } from '@/components/home/LuxuryHeroSection';
+import { IslamicHeroSection } from '@/components/home/IslamicHeroSection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
 import { ModernCTASection } from '@/components/home/ModernCTASection';
 import { LuxuryCTASection } from '@/components/home/LuxuryCTASection';
+import { IslamicCTASection } from '@/components/home/IslamicCTASection';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -17,11 +19,11 @@ const Index = () => {
   const template = settings?.template || 'classic';
 
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
-    hero: template === 'luxury' ? LuxuryHeroSection : (template === 'modern' ? ModernHeroSection : DynamicHeroSection),
+    hero: template === 'luxury' ? LuxuryHeroSection : (template === 'modern' ? ModernHeroSection : (template === 'islamic' ? IslamicHeroSection : DynamicHeroSection)),
     featured_packages: FeaturedPackages as any,
     why_choose_us: WhyChooseUs as any,
     testimonials: Testimonials as any,
-    cta: template === 'luxury' ? LuxuryCTASection : (template === 'modern' ? ModernCTASection : DynamicCTASection),
+    cta: template === 'luxury' ? LuxuryCTASection : (template === 'modern' ? ModernCTASection : (template === 'islamic' ? IslamicCTASection : DynamicCTASection)),
   }), [template]);
 
   const enabledSections = useMemo(() => {
