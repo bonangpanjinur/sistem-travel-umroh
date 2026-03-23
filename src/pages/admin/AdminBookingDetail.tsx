@@ -36,10 +36,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate, getRoomTypeLabel, getBookingStatusLabel, getPaymentStatusLabel } from "@/lib/format";
 import { 
   ArrowLeft, User, Calendar, Plane, CreditCard, FileText, 
@@ -52,9 +49,9 @@ import type { Database } from "@/integrations/supabase/types";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
 import { useAuth } from "@/hooks/useAuth";
+import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
-type PaymentStatus = Database["public"]["Enums"]["payment_status"];
 
 const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
   { value: 'pending', label: 'Pending' },
@@ -76,8 +73,7 @@ export default function AdminBookingDetail() {
   // Payment management state
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [showProofDialog, setShowProofDialog] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showManagePaymentModal, setShowManagePaymentModal] = useState(false);
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['admin-booking', id],
@@ -190,9 +186,7 @@ export default function AdminBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       toast.success('Pembayaran berhasil diperbarui');
       setSelectedPayment(null);
-      setShowRejectDialog(false);
       setShowProofDialog(false);
-      setRejectReason("");
     },
     onError: (error: any) => {
       toast.error(error.message || 'Gagal memperbarui pembayaran');
@@ -201,15 +195,6 @@ export default function AdminBookingDetail() {
 
   const handleApprovePayment = (payment: any) => {
     verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'paid' });
-  };
-
-  const handleRejectPayment = () => {
-    if (!selectedPayment) return;
-    verifyPaymentMutation.mutate({ 
-      paymentId: selectedPayment.id, 
-      status: 'failed',
-      notes: rejectReason 
-    });
   };
 
   // Send WhatsApp notification
@@ -230,7 +215,7 @@ export default function AdminBookingDetail() {
   });
 
   const handlePrintInvoice = () => {
-    if (!booking || !customer) return;
+    if (!booking || !booking.customer) return;
     
     const departure = booking.departure as any;
     const pkg = departure?.package;
@@ -241,10 +226,10 @@ export default function AdminBookingDetail() {
       invoiceDate: new Date(booking.created_at || new Date()),
       dueDate: booking.payment_deadline ? new Date(booking.payment_deadline) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
       customer: {
-        name: customer.full_name || '-',
-        address: [customer.address, customer.city, customer.province].filter(Boolean).join(', ') || '-',
-        phone: customer.phone || '-',
-        email: customer.email || undefined,
+        name: booking.customer.full_name || '-',
+        address: [booking.customer.address, booking.customer.city, booking.customer.province].filter(Boolean).join(', ') || '-',
+        phone: booking.customer.phone || '-',
+        email: booking.customer.email || undefined,
       },
       items: [
         {
@@ -305,9 +290,9 @@ export default function AdminBookingDetail() {
       case 'pending':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
     }
   };
 
@@ -315,9 +300,9 @@ export default function AdminBookingDetail() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Skeleton className="h-64 lg:col-span-2" />
-          <Skeleton className="h-64" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-96 md:col-span-2" />
+          <Skeleton className="h-96" />
         </div>
       </div>
     );
@@ -325,10 +310,11 @@ export default function AdminBookingDetail() {
 
   if (!booking) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Booking tidak ditemukan</p>
+      <div className="flex flex-col items-center justify-center py-12">
+        <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold">Booking tidak ditemukan</h2>
         <Button asChild className="mt-4">
-          <Link to="/admin/bookings">Kembali</Link>
+          <Link to="/admin/bookings">Kembali ke Daftar Booking</Link>
         </Button>
       </div>
     );
@@ -339,7 +325,7 @@ export default function AdminBookingDetail() {
   const pkg = departure?.package;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -350,23 +336,18 @@ export default function AdminBookingDetail() {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold font-mono">{booking.booking_code}</h1>
-              <Badge variant={getStatusBadgeVariant(booking.booking_status || 'pending')}>
-                {getBookingStatusLabel(booking.booking_status || 'pending')}
-              </Badge>
-              <Badge className={getPaymentBadgeClass(booking.payment_status || 'pending')}>
-                {getPaymentStatusLabel(booking.payment_status || 'pending')}
+              <h1 className="text-2xl font-bold">{booking.booking_code}</h1>
+              <Badge variant={getStatusBadgeVariant(booking.booking_status)}>
+                {getBookingStatusLabel(booking.booking_status)}
               </Badge>
             </div>
-            <p className="text-muted-foreground">
-              Dibuat: {formatDate(booking.created_at || '')}
-            </p>
+            <p className="text-muted-foreground">Dibuat pada {formatDate(booking.created_at)}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Select 
-            value={booking.booking_status || 'pending'} 
-            onValueChange={(v) => handleStatusChange(v as BookingStatus)}
+            value={booking.booking_status} 
+            onValueChange={(val) => handleStatusChange(val as BookingStatus)}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Ubah Status" />
@@ -379,46 +360,55 @@ export default function AdminBookingDetail() {
               ))}
             </SelectContent>
           </Select>
+          <EditCustomerDialog customer={customer} />
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Customer Info */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Informasi Pemesan
+                Informasi Jamaah
               </CardTitle>
-              <EditCustomerDialog customer={customer} />
             </CardHeader>
-            <CardContent className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Nama Lengkap</p>
-                <p className="font-medium">{customer?.full_name || '-'}</p>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <User className="h-4 w-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Nama Lengkap</p>
+                    <p className="text-sm">{customer?.full_name || '-'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Phone className="h-4 w-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">No. WhatsApp</p>
+                    <p className="text-sm">{customer?.phone || '-'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-sm">{customer?.email || '-'}</p>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">No. WhatsApp</p>
-                <p className="font-medium flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  {customer?.phone || '-'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  {customer?.email || '-'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Alamat</p>
-                <p className="font-medium flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  {[customer?.address, customer?.city, customer?.province].filter(Boolean).join(', ') || '-'}
-                </p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Alamat</p>
+                    <p className="text-sm">
+                      {[customer?.address, customer?.city, customer?.province].filter(Boolean).join(', ') || '-'}
+                    </p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -431,54 +421,46 @@ export default function AdminBookingDetail() {
                 Detail Paket & Keberangkatan
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Nama Paket</p>
-                  <p className="font-medium">{pkg?.name || '-'}</p>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Nama Paket</p>
+                  <p className="text-sm font-semibold">{pkg?.name || '-'}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Tanggal Keberangkatan</p>
-                  <p className="font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    {departure?.departure_date ? formatDate(departure.departure_date) : '-'}
-                  </p>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Tipe Kamar</p>
+                  <p className="text-sm">{getRoomTypeLabel(booking.room_type)}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Tipe Kamar</p>
-                  <p className="font-medium">{getRoomTypeLabel(booking.room_type)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Jumlah Jamaah</p>
-                  <p className="font-medium flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    {booking.total_pax} Orang
+                <div className="pt-2">
+                  <p className="text-sm font-medium text-muted-foreground">Rute Penerbangan</p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{departure?.departure_airport?.code || '-'}</span>
+                    <Plane className="h-3 w-3 text-muted-foreground" />
+                    <span className="font-bold">{departure?.arrival_airport?.code || '-'}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {departure?.departure_airport?.city || '-'} ke {departure?.arrival_airport?.city || '-'}
                   </p>
                 </div>
               </div>
-
-              <Separator />
-
-              <div className="grid sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Rute Penerbangan</p>
-                  <div className="flex items-center gap-3">
-                    <div className="text-center">
-                      <p className="font-bold">{departure?.departure_airport?.code || '-'}</p>
-                      <p className="text-xs text-muted-foreground">{departure?.departure_airport?.city || '-'}</p>
-                    </div>
-                    <div className="flex-1 border-t-2 border-dashed border-muted relative">
-                      <Plane className="h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-bold">{departure?.arrival_airport?.code || '-'}</p>
-                      <p className="text-xs text-muted-foreground">{departure?.arrival_airport?.city || '-'}</p>
-                    </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Tanggal Keberangkatan</p>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm">{departure?.departure_date ? formatDate(departure.departure_date) : '-'}</p>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Maskapai</p>
-                  <p className="font-medium">{departure?.airline || '-'}</p>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Jumlah Jamaah</p>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm">{booking.total_pax || 1} Orang</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Maskapai</p>
+                  <p className="text-sm">{departure?.package?.airline?.name || '-'}</p>
                 </div>
               </div>
             </CardContent>
@@ -489,12 +471,12 @@ export default function AdminBookingDetail() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Daftar Jamaah
+                Daftar Jamaah (Manifest)
               </CardTitle>
             </CardHeader>
             <CardContent>
               {!passengers || passengers.length === 0 ? (
-                <p className="text-center py-4 text-muted-foreground">Belum ada data jamaah</p>
+                <p className="text-center py-4 text-muted-foreground">Belum ada daftar jamaah</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -531,8 +513,8 @@ export default function AdminBookingDetail() {
                 <CreditCard className="h-5 w-5" />
                 Riwayat Pembayaran
               </CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/admin/payments?booking=${id}`}>Lihat Semua</Link>
+              <Button variant="outline" size="sm" onClick={() => setShowManagePaymentModal(true)}>
+                Kelola Semua
               </Button>
             </CardHeader>
             <CardContent>
@@ -558,7 +540,7 @@ export default function AdminBookingDetail() {
                         <TableRow key={payment.id} className={isPending ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : ''}>
                           <TableCell className="font-mono text-sm">{payment.payment_code}</TableCell>
                           <TableCell>{formatDate(payment.created_at || '')}</TableCell>
-                          <TableCell>{payment.payment_method || '-'}</TableCell>
+                          <TableCell className="capitalize">{payment.payment_method || '-'}</TableCell>
                           <TableCell className="text-right font-medium">
                             {formatCurrency(payment.amount)}
                           </TableCell>
@@ -569,7 +551,7 @@ export default function AdminBookingDetail() {
                                   setSelectedPayment(payment);
                                   setShowProofDialog(true);
                                 }}
-                                className="block w-8 h-8 rounded border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
+                                className="block w-8 h-8 rounded border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer bg-white"
                               >
                                 <img 
                                   src={payment.proof_url} 
@@ -592,41 +574,27 @@ export default function AdminBookingDetail() {
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
                               {isPending && (
-                                <>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="h-8 text-green-600 border-green-300 hover:bg-green-50"
-                                    onClick={() => handleApprovePayment(payment)}
-                                    disabled={verifyPaymentMutation.isPending || !payment.proof_url}
-                                  >
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
-                                    onClick={() => {
-                                      setSelectedPayment(payment);
-                                      setShowRejectDialog(true);
-                                    }}
-                                    disabled={verifyPaymentMutation.isPending}
-                                  >
-                                    <XCircle className="h-3.5 w-3.5" />
-                                  </Button>
-                                </>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-green-600 border-green-300 hover:bg-green-50"
+                                  onClick={() => handleApprovePayment(payment)}
+                                  disabled={verifyPaymentMutation.isPending || !payment.proof_url}
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
                               )}
                               {payment.proof_url && (
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  className="h-8"
+                                  className="h-8 w-8 p-0"
                                   onClick={() => {
                                     setSelectedPayment(payment);
                                     setShowProofDialog(true);
                                   }}
                                 >
-                                  <Eye className="h-3.5 w-3.5" />
+                                  <Eye className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>
@@ -704,11 +672,13 @@ export default function AdminBookingDetail() {
                 <Printer className="h-4 w-4 mr-2" />
                 Cetak Invoice PDF
               </Button>
-              <Button className="w-full" variant="outline" asChild>
-                <Link to={`/admin/payments?booking=${id}`}>
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Kelola Pembayaran
-                </Link>
+              <Button 
+                className="w-full" 
+                variant="outline" 
+                onClick={() => setShowManagePaymentModal(true)}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Kelola Pembayaran
               </Button>
               <Button 
                 className="w-full" 
@@ -742,15 +712,16 @@ export default function AdminBookingDetail() {
               Anda yakin ingin mengubah status booking ini menjadi "{BOOKING_STATUSES.find(s => s.value === newStatus)?.label}"?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setNewStatus(null)}>Batal</AlertDialogCancel>
-            <AlertDialogAction
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowStatusConfirm(false)}>Batal</Button>
+            <Button
               onClick={() => newStatus && updateStatusMutation.mutate(newStatus)}
               disabled={updateStatusMutation.isPending}
             >
+              {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Ya, Ubah Status
-            </AlertDialogAction>
-          </AlertDialogFooter>
+            </Button>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
 
@@ -759,78 +730,46 @@ export default function AdminBookingDetail() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Bukti Pembayaran - {selectedPayment?.payment_code}</DialogTitle>
-            <DialogDescription>
-              {formatCurrency(selectedPayment?.amount || 0)} • {selectedPayment?.payment_method}
-            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex flex-col items-center space-y-4">
             {selectedPayment?.proof_url ? (
-              <div className="relative">
+              <div className="relative w-full overflow-hidden rounded-lg border bg-muted/20">
                 <img 
                   src={selectedPayment.proof_url} 
-                  alt="Bukti Pembayaran"
-                  className="w-full max-h-[60vh] object-contain rounded-lg border"
+                  alt="Bukti Pembayaran" 
+                  className="max-w-full max-h-[60vh] mx-auto object-contain"
                 />
               </div>
             ) : (
-              <div className="h-40 flex flex-col items-center justify-center bg-muted rounded-lg border border-dashed">
-                <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Bukti pembayaran belum diupload</p>
+              <div className="py-12 text-center">
+                <p className="text-muted-foreground">Bukti pembayaran belum diupload</p>
               </div>
             )}
-            
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
             {selectedPayment?.status === 'pending' && (
-              <div className="flex gap-2 justify-end">
-                <Button 
-                  variant="outline" 
-                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                  onClick={() => setShowRejectDialog(true)}
-                >
-                  <XCircle className="h-4 w-4 mr-2" /> Tolak
-                </Button>
-                <Button 
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => handleApprovePayment(selectedPayment)}
-                  disabled={verifyPaymentMutation.isPending || !selectedPayment?.proof_url}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" /> Setujui Pembayaran
-                </Button>
-              </div>
+              <Button 
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => handleApprovePayment(selectedPayment)}
+                disabled={verifyPaymentMutation.isPending}
+              >
+                {verifyPaymentMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Setujui Pembayaran
+              </Button>
             )}
+            <Button variant="outline" onClick={() => setShowProofDialog(false)}>Tutup</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Reject Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tolak Pembayaran</DialogTitle>
-            <DialogDescription>
-              Berikan alasan penolakan pembayaran ini. Alasan ini akan terlihat oleh jamaah.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <Textarea 
-              placeholder="Contoh: Bukti transfer tidak terbaca atau nominal tidak sesuai..."
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              rows={4}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Batal</Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleRejectPayment}
-              disabled={!rejectReason || verifyPaymentMutation.isPending}
-            >
-              {verifyPaymentMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Konfirmasi Tolak
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Manage Payment Modal */}
+      <ManagePaymentModal
+        isOpen={showManagePaymentModal}
+        onOpenChange={setShowManagePaymentModal}
+        bookingId={id!}
+        bookingCode={booking.booking_code}
+        customerName={customer?.full_name || '-'}
+      />
     </div>
   );
 }
