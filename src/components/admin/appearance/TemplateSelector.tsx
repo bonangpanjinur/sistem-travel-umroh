@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Layout, Sparkles, Crown, Moon, Zap, Leaf } from "lucide-react";
+import { Check, Layout, Sparkles, Crown, Moon, Zap, Leaf, Star } from "lucide-react";
 import { WebsiteSettings, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 
 interface TemplateSelectorProps {
@@ -152,6 +152,27 @@ const templates = [
           <div className="w-1/3 h-12 bg-emerald-700 rounded-2xl" />
         </div>
         <div className="h-4 w-1/2 mx-auto bg-emerald-100 rounded-full" />
+      </div>
+    ),
+  },
+  {
+    id: "royal",
+    name: "Royal Gold",
+    description: "Desain mewah dengan aksen emas dan latar belakang gelap. Memberikan kesan eksklusif, premium, dan pelayanan VVIP.",
+    icon: Star,
+    features: ["Premium Gold Accents", "Dark Luxury Theme", "VVIP Experience"],
+    preview: (
+      <div className="space-y-2 bg-[#0a0a0a] p-2 rounded">
+        <div className="h-20 bg-gradient-to-br from-amber-900/40 to-amber-600/20 rounded-2xl border border-amber-500/30 flex flex-col items-center justify-center text-[10px] text-amber-500 font-serif">
+          <Crown className="h-3 w-3 mb-1" />
+          ROYAL GOLD
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="h-10 bg-white/5 border border-amber-500/10 rounded-xl" />
+          <div className="h-10 bg-white/5 border border-amber-500/10 rounded-xl" />
+          <div className="h-10 bg-white/5 border border-amber-500/10 rounded-xl" />
+        </div>
+        <div className="h-8 bg-gradient-to-r from-amber-600 to-amber-400 rounded-full" />
       </div>
     ),
   },

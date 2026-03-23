@@ -2,11 +2,17 @@ import { useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
 import { ModernHeroSection } from '@/components/home/ModernHeroSection';
+import { FuturisticHeroSection } from '@/components/home/FuturisticHeroSection';
+import { NatureHeroSection } from '@/components/home/NatureHeroSection';
+import { RoyalHeroSection } from '@/components/home/RoyalHeroSection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
 import { ModernCTASection } from '@/components/home/ModernCTASection';
+import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
+import { NatureCTASection } from '@/components/home/NatureCTASection';
+import { RoyalCTASection } from '@/components/home/RoyalCTASection';
 import { useTenantWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
@@ -32,11 +38,21 @@ export default function AgentWebsite() {
   }, [settings?.agent_id, settings?.company_name, agentSlug, setTenant]);
 
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
-    hero: template === 'modern' ? ModernHeroSection : DynamicHeroSection,
+    hero: 
+      template === 'modern' ? ModernHeroSection : 
+      template === 'futuristic' ? FuturisticHeroSection :
+      template === 'nature' ? NatureHeroSection :
+      template === 'royal' ? RoyalHeroSection :
+      DynamicHeroSection,
     featured_packages: FeaturedPackages as any,
     why_choose_us: WhyChooseUs as any,
     testimonials: Testimonials as any,
-    cta: template === 'modern' ? ModernCTASection : DynamicCTASection,
+    cta: 
+      template === 'modern' ? ModernCTASection : 
+      template === 'futuristic' ? FuturisticCTASection :
+      template === 'nature' ? NatureCTASection :
+      template === 'royal' ? RoyalCTASection :
+      DynamicCTASection,
   }), [template]);
 
   const enabledSections = useMemo(() => {
