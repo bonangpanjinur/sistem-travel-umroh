@@ -14,7 +14,8 @@ import { PackageBookingForm } from '@/components/packages/PackageBookingForm';
 
 import { 
   Clock, MapPin, Plane, Building2, Users, 
-  Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon
+  Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon,
+  ArrowRight, Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,7 +37,12 @@ export default function PackageDetail() {
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(*),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(*),
           muthawif:muthawifs(*),
-          departures(*)
+          departures(
+            *,
+            airline:airlines(*),
+            departure_airport:airports!departures_departure_airport_id_fkey(*),
+            arrival_airport:airports!departures_arrival_airport_id_fkey(*)
+          )
         `)
         .eq('id', id)
         .single();
@@ -107,8 +113,6 @@ export default function PackageDetail() {
     .filter((d: any) => new Date(d.departure_date) > new Date() && d.status === 'open')
     .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
 
-
-
   return (
     <DynamicPublicLayout>
       <div className="bg-muted/30 border-b">
@@ -138,10 +142,11 @@ export default function PackageDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full justify-start">
+              <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
                 <TabsTrigger value="hotels">Hotel</TabsTrigger>
+                <TabsTrigger value="flight">Penerbangan</TabsTrigger>
                 <TabsTrigger value="departures">Jadwal</TabsTrigger>
               </TabsList>
 
@@ -223,7 +228,13 @@ export default function PackageDetail() {
                       <CardHeader><CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />Hotel Mekkah</CardTitle></CardHeader>
                       <CardContent>
                         <div className="flex gap-4">
-                          <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center"><Building2 className="h-8 w-8 text-muted-foreground" /></div>
+                          <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                            {(pkg.hotel_makkah as any).image_url ? (
+                              <img src={(pkg.hotel_makkah as any).image_url} alt={(pkg.hotel_makkah as any).name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Building2 className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
                           <div>
                             <h4 className="font-semibold">{(pkg.hotel_makkah as any).name}</h4>
                             <div className="flex items-center gap-1 my-1">
@@ -242,7 +253,13 @@ export default function PackageDetail() {
                       <CardHeader><CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />Hotel Madinah</CardTitle></CardHeader>
                       <CardContent>
                         <div className="flex gap-4">
-                          <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center"><Building2 className="h-8 w-8 text-muted-foreground" /></div>
+                          <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                            {(pkg.hotel_madinah as any).image_url ? (
+                              <img src={(pkg.hotel_madinah as any).image_url} alt={(pkg.hotel_madinah as any).name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Building2 className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
                           <div>
                             <h4 className="font-semibold">{(pkg.hotel_madinah as any).name}</h4>
                             <div className="flex items-center gap-1 my-1">
@@ -258,6 +275,98 @@ export default function PackageDetail() {
                   )}
                   {!pkg.hotel_makkah && !pkg.hotel_madinah && (
                     <Card><CardContent className="py-8 text-center text-muted-foreground">Informasi hotel akan diupdate segera.</CardContent></Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="flight" className="mt-6">
+                <div className="grid gap-6">
+                  {upcomingDepartures.length > 0 ? (
+                    <div className="space-y-6">
+                      {upcomingDepartures.map((dep: any, idx: number) => (
+                        <Card key={dep.id} className={cn(idx > 0 && "opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all")}>
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <Plane className="h-5 w-5 text-primary" />
+                                Informasi Penerbangan
+                              </CardTitle>
+                              <Badge variant="outline">
+                                {new Date(dep.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-col md:flex-row gap-6 items-center">
+                              {/* Airline Logo & Name */}
+                              <div className="flex flex-col items-center text-center space-y-2 min-w-[150px]">
+                                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden border p-2">
+                                  {dep.airline?.logo_url ? (
+                                    <img src={dep.airline.logo_url} alt={dep.airline.name} className="w-full h-full object-contain" />
+                                  ) : (
+                                    <Plane className="h-8 w-8 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-sm">{dep.airline?.name || pkg.airline?.name || 'Maskapai'}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">{dep.flight_number || 'TBA'}</p>
+                                </div>
+                              </div>
+
+                              {/* Route Visualization */}
+                              <div className="flex-1 w-full">
+                                <div className="flex items-center justify-between relative px-2">
+                                  <div className="text-center z-10 bg-white px-2">
+                                    <p className="text-2xl font-black text-primary">{dep.departure_airport?.code || 'CGK'}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold">{dep.departure_airport?.city || 'Jakarta'}</p>
+                                  </div>
+                                  
+                                  <div className="flex-1 flex flex-col items-center justify-center relative">
+                                    <div className="w-full h-[2px] bg-dashed border-t-2 border-dashed border-muted-foreground/30 absolute top-1/2 -translate-y-1/2" />
+                                    <div className="bg-white p-1 z-10 rounded-full border shadow-sm">
+                                      <Plane className="h-4 w-4 text-primary rotate-90" />
+                                    </div>
+                                    {dep.departure_time && (
+                                      <span className="text-[10px] font-bold text-muted-foreground mt-6 bg-muted/50 px-2 py-0.5 rounded-full">
+                                        {dep.departure_time}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="text-center z-10 bg-white px-2">
+                                    <p className="text-2xl font-black text-primary">{dep.arrival_airport?.code || 'JED'}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold">{dep.arrival_airport?.city || 'Jeddah'}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="mt-6 grid grid-cols-2 gap-4">
+                                  <div className="bg-muted/30 p-3 rounded-lg border border-dashed">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Keberangkatan</p>
+                                    <p className="text-xs font-semibold">{dep.departure_airport?.name || 'Soekarno-Hatta Intl'}</p>
+                                  </div>
+                                  <div className="bg-muted/30 p-3 rounded-lg border border-dashed">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Kedatangan</p>
+                                    <p className="text-xs font-semibold">{dep.arrival_airport?.name || 'King Abdulaziz Intl'}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-4 pt-4 border-t flex items-center gap-2 text-xs text-muted-foreground">
+                              <Info className="h-3.5 w-3.5 text-primary" />
+                              <span>Informasi penerbangan dapat berubah sewaktu-waktu sesuai kebijakan maskapai.</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <Plane className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-20" />
+                        <p className="text-muted-foreground">Detail penerbangan akan diinformasikan segera.</p>
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
               </TabsContent>
@@ -341,14 +450,21 @@ export default function PackageDetail() {
                                     <div className="space-y-1">
                                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Transportasi</p>
                                       <div className="mt-2 flex items-center gap-3 p-2 rounded-lg bg-white border">
-                                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
-                                          <Plane className="h-4 w-4 text-primary" />
+                                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center overflow-hidden">
+                                          {dep.airline?.logo_url ? (
+                                            <img src={dep.airline.logo_url} alt={dep.airline.name} className="w-full h-full object-contain p-1" />
+                                          ) : (
+                                            <Plane className="h-4 w-4 text-primary" />
+                                          )}
                                         </div>
                                         <div>
                                           <p className="text-xs text-muted-foreground">Maskapai</p>
-                                          <p className="text-sm font-bold">{(dep.airline as any)?.name || pkg.airline?.name || '-'}</p>
+                                          <p className="text-sm font-bold">{dep.airline?.name || pkg.airline?.name || '-'}</p>
                                         </div>
                                       </div>
+                                      {dep.flight_number && (
+                                        <p className="text-[10px] mt-1 text-muted-foreground font-mono px-2">Flight: {dep.flight_number}</p>
+                                      )}
                                     </div>
 
                                     <div className="space-y-1">
@@ -392,7 +508,6 @@ export default function PackageDetail() {
           {/* Sidebar */}
           <div className="space-y-6">
             <PackageBookingForm pkg={pkg} />
-
           </div>
         </div>
       </div>
