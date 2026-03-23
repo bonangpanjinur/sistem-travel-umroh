@@ -1,0 +1,71 @@
+=== PERBAIKAN ALUR PENDAFTARAN JEMAAH ===
+
+RINGKASAN PERUBAHAN:
+- Simplifikasi form di halaman detail paket (hanya 2 input: tanggal & jumlah jamaah)
+- Perluas booking wizard dari 2 langkah menjadi 4 langkah terstruktur
+- Pemisahan yang jelas antara pilihan kamar dan sumber pendaftaran (PIC)
+- Tambah visualisasi alokasi kamar real-time
+- Validasi komprehensif di setiap step
+
+FILE BARU:
+1. src/components/packages/PackageBookingFormSimple.tsx
+   - Form sederhana di sidebar halaman detail paket
+   - Hanya 2 input: tanggal keberangkatan dan jumlah jamaah
+   - Lebih fokus dan mudah dipahami
+
+2. src/components/booking/steps/StepRoomAllocation.tsx
+   - Komponen untuk alokasi kamar di langkah 1 wizard
+   - Input dengan tombol +/- untuk setiap tipe kamar
+   - Visualisasi kamar real-time
+   - Validasi untuk kamar Double (harus genap)
+
+FILE YANG DIMODIFIKASI:
+1. src/components/booking/BookingWizard.tsx
+   - Update untuk mendukung 4 langkah (rooms, passengers, pic, review)
+   - Integrasi StepRoomAllocation
+   - Integrasi PICSelectionStepImproved
+   - Update validasi per-step
+
+2. src/hooks/useBookingWizardDynamic.ts
+   - Tambah parameter initialPax
+   - Tambah method updateRoomAllocation()
+   - Tambah state picState dan setPicState
+   - Update validasi untuk 4 langkah
+
+3. src/pages/packages/PackageDetail.tsx
+   - Ganti PackageBookingForm dengan PackageBookingFormSimple
+   - Sidebar sekarang lebih sederhana
+
+ALUR BARU:
+Halaman Detail Paket
+  ↓
+[Form Sederhana: Tanggal + Jumlah Jamaah]
+  ↓
+Booking Wizard - Langkah 1: Pilih Kamar
+  ↓
+Booking Wizard - Langkah 2: Data Jamaah
+  ↓
+Booking Wizard - Langkah 3: Sumber Pendaftaran (PIC)
+  ↓
+Booking Wizard - Langkah 4: Review & Bayar
+
+KEUNTUNGAN:
+✅ Lebih mudah dipahami (step-by-step)
+✅ Lebih cepat di halaman detail (hanya 2 input)
+✅ Lebih aman (validasi di setiap step)
+✅ Lebih visual (visualisasi kamar)
+✅ Lebih fleksibel (bisa kembali ke step sebelumnya)
+
+KOMPATIBILITAS:
+- Kompatibel dengan existing database schema
+- Backward compatible dengan booking lama
+- Tidak memerlukan migration database
+- Tidak ada penambahan query database yang signifikan
+
+TESTING YANG DIPERLUKAN:
+1. Test alur lengkap dari halaman detail hingga booking success
+2. Test validasi di setiap step
+3. Test responsiveness di mobile
+4. Test dengan berbagai jumlah jamaah dan kombinasi kamar
+5. Test dengan berbagai sumber pendaftaran (pusat, cabang, agen, referral)
+

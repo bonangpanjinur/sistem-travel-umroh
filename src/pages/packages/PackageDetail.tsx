@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatPackageType } from '@/lib/format';
-import { PackageBookingForm } from '@/components/packages/PackageBookingForm';
+import { PackageBookingFormSimple } from '@/components/packages/PackageBookingFormSimple';
 
 import { 
   Clock, MapPin, Plane, Building2, Users, 
@@ -507,7 +507,7 @@ export default function PackageDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <PackageBookingForm pkg={pkg} />
+            <PackageBookingFormSimple pkg={pkg} />
           </div>
         </div>
       </div>

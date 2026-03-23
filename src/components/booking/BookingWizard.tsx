@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { StepIndicator } from "./StepIndicator";
 import { StepPassengersDynamic } from "./steps/StepPassengersDynamic";
 import { StepReviewDynamic } from "./steps/StepReviewDynamic";
+import { StepRoomAllocation } from "./steps/StepRoomAllocation";
+import { PICSelectionStepImproved } from "./PICSelectionStepImproved";
 import { useBookingWizardDynamic, RoomAllocation, PICData } from "@/hooks/useBookingWizardDynamic";
 import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -16,10 +18,12 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
-export type BookingStep = 'passengers' | 'review';
+export type BookingStep = 'rooms' | 'passengers' | 'pic' | 'review';
 
 const STEPS: { id: BookingStep; label: string }[] = [
+  { id: 'rooms', label: 'Pilih Kamar' },
   { id: 'passengers', label: 'Data Jamaah' },
+  { id: 'pic', label: 'Sumber Pendaftaran' },
   { id: 'review', label: 'Review & Bayar' },
 ];
 
@@ -30,6 +34,7 @@ export function BookingWizard() {
   const { user, isLoading: authLoading } = useAuth();
   
   const initialDepartureId = searchParams.get('departure') || '';
+  const initialPax = parseInt(searchParams.get('pax') || '0', 10);
   const initialRoomAllocation: RoomAllocation = {
     quad: parseInt(searchParams.get('quad') || '0', 10),
     triple: parseInt(searchParams.get('triple') || '0', 10),
@@ -86,7 +91,8 @@ export function BookingWizard() {
 
   const {
     currentStep, setCurrentStep, formData, updateFormData, isSubmitting, submitBooking,
-  } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData);
+    updateRoomAllocation, picState, setPicState
+  } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const totalPassengers = formData.passengers.length;
@@ -122,11 +128,11 @@ export function BookingWizard() {
     );
   }
 
-  if (!initialDepartureId || totalPassengers === 0) {
+  if (!initialDepartureId || (initialPax === 0 && totalPassengers === 0)) {
     return (
       <Card className="max-w-lg mx-auto">
         <CardContent className="p-8 text-center">
-          <h2 className="text-xl font-semibold mb-4">Pilih Keberangkatan & Kamar</h2>
+          <h2 className="text-xl font-semibold mb-4">Pilih Keberangkatan & Jumlah Jamaah</h2>
           <p className="text-muted-foreground mb-6">Silakan pilih tanggal keberangkatan dan jumlah jamaah terlebih dahulu di halaman detail paket.</p>
           <Button asChild><Link to={`/packages/${packageId}${packageInfo ? `-${slugify(packageInfo.name)}` : ''}`}>Kembali ke Detail Paket</Link></Button>
         </CardContent>
@@ -186,10 +192,35 @@ export function BookingWizard() {
 
       <Card>
         <CardContent className="p-6">
+          {currentStep === 'rooms' && (
+            <StepRoomAllocation
+              totalPax={initialPax || formData.passengers.length}
+              allocation={formData.roomAllocation}
+              prices={departureInfo ? {
+                quad: departureInfo.price_quad ?? 0,
+                triple: departureInfo.price_triple ?? 0,
+                double: departureInfo.price_double ?? 0,
+                single: departureInfo.price_single ?? 0,
+              } : { quad: 0, triple: 0, double: 0, single: 0 }}
+              onUpdate={updateRoomAllocation}
+            />
+          )}
           {currentStep === 'passengers' && (
             <StepPassengersDynamic
               passengers={formData.passengers}
               onUpdate={(passengers) => updateFormData({ passengers })}
+            />
+          )}
+          {currentStep === 'pic' && (
+            <PICSelectionStepImproved
+              picSource={picState.picSource as any}
+              selectedBranchId={picState.branchId || ''}
+              selectedAgentId={picState.agentId || ''}
+              referralCode={picState.referralCode || ''}
+              onPICSourceChange={(s) => setPicState(prev => ({ ...prev, picSource: s }))}
+              onBranchChange={(id) => setPicState(prev => ({ ...prev, branchId: id }))}
+              onAgentChange={(id) => setPicState(prev => ({ ...prev, agentId: id }))}
+              onReferralChange={(c) => setPicState(prev => ({ ...prev, referralCode: c }))}
             />
           )}
           {currentStep === 'review' && packageInfo && (
@@ -215,20 +246,31 @@ export function BookingWizard() {
             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses...</> : 'Konfirmasi Booking'}
           </Button>
         ) : (
-          <Button onClick={handleNext} disabled={!canProceed(currentStep, formData)}>Selanjutnya</Button>
+          <Button onClick={handleNext} disabled={!canProceed(currentStep, formData, picState)}>Selanjutnya</Button>
         )}
       </div>
     </div>
   );
 }
 
-function canProceed(step: BookingStep, formData: any): boolean {
+function canProceed(step: BookingStep, formData: any, picState?: any): boolean {
   switch (step) {
+    case 'rooms':
+      const allocated = formData.roomAllocation.quad + formData.roomAllocation.triple + formData.roomAllocation.double + formData.roomAllocation.single;
+      const doubleValid = formData.roomAllocation.double % 2 === 0 || formData.roomAllocation.double === 0;
+      return allocated > 0 && doubleValid;
     case 'passengers':
       if (formData.passengers.length === 0) return false;
       const allNamesValid = formData.passengers.every((p: any) => p.fullName?.trim()?.length >= 3);
       const hasAdult = formData.passengers.some((p: any) => p.passengerType === 'adult');
       return allNamesValid && hasAdult;
+    case 'pic':
+      if (!picState) return true;
+      if (picState.picSource === 'pusat') return true;
+      if (picState.picSource === 'cabang' && !!picState.branchId) return true;
+      if (picState.picSource === 'agen' && !!picState.agentId) return true;
+      if (picState.picSource === 'referral' && !!picState.referralCode) return true;
+      return false;
     case 'review':
       return true;
     default:

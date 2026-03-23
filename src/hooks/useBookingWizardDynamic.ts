@@ -52,10 +52,11 @@ export function useBookingWizardDynamic(
   packageId: string, 
   initialDepartureId: string,
   initialRoomAllocation: RoomAllocation,
-  picData?: PICData
+  picData?: PICData,
+  initialPax: number = 0
 ) {
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState<BookingStep>('passengers');
+  const [currentStep, setCurrentStep] = useState<BookingStep>(initialPax > 0 ? 'rooms' : 'passengers');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const initialPassengers = useMemo(() => 
@@ -68,6 +69,8 @@ export function useBookingWizardDynamic(
     roomAllocation: initialRoomAllocation,
     passengers: initialPassengers,
   });
+
+  const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
 
   const updateFormData = (updates: Partial<DynamicBookingFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -133,15 +136,15 @@ export function useBookingWizardDynamic(
       const mainRoomType = (Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'quad') as RoomType;
       const basePrice = priceMap[mainRoomType];
 
-      // 4. Determine PIC (branch_id, agent_id) from picData
+      // 4. Determine PIC (branch_id, agent_id) from picState
       let branchId: string | null = null;
       let agentId: string | null = null;
 
-      if (picData) {
-        if (picData.picSource === 'cabang' && picData.branchId) {
-          branchId = picData.branchId;
-        } else if (picData.picSource === 'agen' && picData.agentId) {
-          agentId = picData.agentId;
+      if (picState) {
+        if (picState.picSource === 'cabang' && picState.branchId) {
+          branchId = picState.branchId;
+        } else if (picState.picSource === 'agen' && picState.agentId) {
+          agentId = picState.agentId;
         }
       }
 
@@ -203,12 +206,12 @@ export function useBookingWizardDynamic(
       }
 
       // 8. Handle referral code if provided
-      if (picData?.picSource === 'referral' && picData.referralCode) {
+      if (picState?.picSource === 'referral' && picState.referralCode) {
         try {
           const { data: refCode } = await supabase
             .from('referral_codes')
             .select('id')
-            .eq('code', picData.referralCode)
+            .eq('code', picState.referralCode)
             .eq('is_active', true)
             .single();
           
@@ -234,5 +237,30 @@ export function useBookingWizardDynamic(
     }
   };
 
-  return { currentStep, setCurrentStep, formData, updateFormData, isSubmitting, submitBooking };
+  const updateRoomAllocation = (allocation: RoomAllocation) => {
+    const newPassengers = createPassengersFromAllocation(allocation);
+    setFormData(prev => ({
+      ...prev,
+      roomAllocation: allocation,
+      passengers: newPassengers.map((newP, idx) => {
+        const oldP = prev.passengers[idx];
+        if (oldP) {
+          return { ...newP, fullName: oldP.fullName, gender: oldP.gender, phone: oldP.phone, passengerType: oldP.passengerType };
+        }
+        return newP;
+      })
+    }));
+  };
+
+  return { 
+    currentStep, 
+    setCurrentStep, 
+    formData, 
+    updateFormData, 
+    isSubmitting, 
+    submitBooking,
+    updateRoomAllocation,
+    picState,
+    setPicState
+  };
 }
