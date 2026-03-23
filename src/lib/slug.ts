@@ -14,10 +14,23 @@ export function slugify(text: string): string {
 }
 
 /**
- * Extracts the ID from an id-slug string (e.g., "123-my-package" -> "123")
+ * Extracts the ID from an id-slug string.
+ * Supports both numeric IDs (e.g., "123-my-package" -> "123")
+ * and UUID format (e.g., "09c4f56d-6f6c-4f29-b186-0946c7968f2a-umroh-plus" -> "09c4f56d-6f6c-4f29-b186-0946c7968f2a")
  */
 export function extractIdFromSlug(idSlug: string): string {
   if (!idSlug) return '';
+  
+  // UUID v4 format: 8-4-4-4-12 hexadecimal digits
+  // Pattern: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  const uuidMatch = idSlug.match(uuidPattern);
+  
+  if (uuidMatch) {
+    return uuidMatch[0];
+  }
+  
+  // Fallback for numeric IDs
   const parts = idSlug.split('-');
   return parts[0];
 }
