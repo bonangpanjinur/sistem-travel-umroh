@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { AdminNotification } from "@/hooks/useAdminNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 interface NotificationBellProps {
   notifications: AdminNotification[];
@@ -26,6 +27,15 @@ export function NotificationBell({
   onMarkAllAsRead,
   onClearAll,
 }: NotificationBellProps) {
+  const navigate = useNavigate();
+
+  const handleNotificationClick = (notification: AdminNotification) => {
+    onMarkAsRead(notification.id);
+    if (notification.link) {
+      navigate(notification.link);
+    }
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -81,7 +91,7 @@ export function NotificationBell({
                     "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
                     !notification.read && "bg-primary/5"
                   )}
-                  onClick={() => onMarkAsRead(notification.id)}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex gap-3">
                     <div className={cn(
