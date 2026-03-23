@@ -343,6 +343,8 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
                 onReferralChange={setReferralCode}
               />
             )}
+          </div>
+        )}
 
         {/* 4. Summary & Action */}
         {totalPassengers > 0 && (
