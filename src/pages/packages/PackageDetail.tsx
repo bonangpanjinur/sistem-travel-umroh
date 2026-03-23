@@ -248,22 +248,73 @@ export default function PackageDetail() {
 
               <TabsContent value="departures" className="mt-6">
                 <Card>
-                  <CardHeader><CardTitle>Jadwal Keberangkatan</CardTitle></CardHeader>
+                  <CardHeader><CardTitle>Jadwal Keberangkatan Tersedia</CardTitle></CardHeader>
                   <CardContent>
                     {upcomingDepartures.length > 0 ? (
-                      <div className="space-y-3">
-                        {upcomingDepartures.slice(0, 5).map((dep: any) => (
-                          <div key={dep.id} className="flex items-center justify-between p-4 border rounded-lg">
-                            <div>
-                              <p className="font-medium">{new Date(dep.departure_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                              <p className="text-sm text-muted-foreground"><Users className="h-3 w-3 inline mr-1" />Sisa kuota: {dep.quota - (dep.booked_count || 0)} seat</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {upcomingDepartures.slice(0, 6).map((dep: any) => {
+                          const availableSeats = dep.quota - (dep.booked_count || 0);
+                          const seatPercentage = (availableSeats / dep.quota) * 100;
+                          const isAlmostFull = availableSeats < 5;
+                          return (
+                            <div key={dep.id} className="border rounded-xl p-5 hover:shadow-lg hover:border-primary/50 transition-all duration-300 bg-gradient-to-br from-white to-muted/20">
+                              <div className="space-y-4">
+                                {/* Tanggal */}
+                                <div>
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tanggal Keberangkatan</p>
+                                  <p className="text-lg font-bold mt-1">{new Date(dep.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                  <p className="text-sm text-muted-foreground">{new Date(dep.departure_date).toLocaleDateString('id-ID', { weekday: 'long' })}</p>
+                                </div>
+
+                                {/* Tanggal Pulang */}
+                                {dep.return_date && (
+                                  <div className="pt-2 border-t">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tanggal Pulang</p>
+                                    <p className="text-sm font-medium mt-1">{new Date(dep.return_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                  </div>
+                                )}
+
+                                {/* Durasi */}
+                                <div className="pt-2 border-t">
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Durasi</p>
+                                  <p className="text-sm font-medium mt-1">{Math.ceil((new Date(dep.return_date).getTime() - new Date(dep.departure_date).getTime()) / (1000 * 60 * 60 * 24))} Hari</p>
+                                </div>
+
+                                {/* Sisa Kursi */}
+                                <div className="pt-2 border-t space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sisa Kursi</p>
+                                    <span className={`text-sm font-bold ${isAlmostFull ? 'text-destructive' : 'text-primary'}`}>{availableSeats} / {dep.quota}</span>
+                                  </div>
+                                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className={`h-full transition-all duration-300 ${isAlmostFull ? 'bg-destructive' : 'bg-primary'}`}
+                                      style={{ width: `${seatPercentage}%` }}
+                                    />
+                                  </div>
+                                  {isAlmostFull && (
+                                    <p className="text-xs text-destructive font-semibold">⚠️ Kursi terbatas!</p>
+                                  )}
+                                </div>
+
+                                {/* Maskapai */}
+                                {dep.airline && (
+                                  <div className="pt-2 border-t flex items-center gap-2">
+                                    <Plane className="h-4 w-4 text-muted-foreground" />
+                                    <p className="text-sm font-medium">{(dep.airline as any).name}</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <Button asChild size="sm"><Link to={`/booking/${pkg.id}?departure=${dep.id}`}>Pilih</Link></Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground text-center py-4">Belum ada jadwal keberangkatan tersedia.</p>
+                      <div className="text-center py-12">
+                        <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                        <p className="text-muted-foreground font-medium">Belum ada jadwal keberangkatan tersedia</p>
+                        <p className="text-sm text-muted-foreground mt-1">Silakan hubungi kami untuk informasi lebih lanjut</p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
