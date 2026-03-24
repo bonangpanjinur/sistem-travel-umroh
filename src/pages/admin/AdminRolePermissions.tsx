@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Shield, Save, Users } from "lucide-react";
+import { Loader2, Shield, Save, Users, RotateCcw, Check } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -33,6 +33,7 @@ const PERMISSION_LABELS: Record<string, { label: string; description: string }> 
   reports: { label: "Laporan", description: "Akses laporan & export" },
   settings: { label: "Pengaturan", description: "Pengaturan sistem" },
   operational: { label: "Operasional", description: "Akses modul operasional" },
+  marketing: { label: "Marketing", description: "Akses modul marketing" },
 };
 
 const ROLE_LABELS: Record<AppRole, { label: string; color: string }> = {
@@ -56,6 +57,180 @@ const CONFIGURABLE_ROLES: AppRole[] = [
   "marketing",
   "equipment",
 ];
+
+// Default permission matrix for new roles
+const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, boolean>> = {
+  branch_manager: {
+    dashboard: true,
+    analytics: true,
+    packages: true,
+    departures: true,
+    bookings: true,
+    payments: true,
+    customers: true,
+    leads: true,
+    master_data: true,
+    users: false,
+    agents: true,
+    reports: true,
+    settings: true,
+    operational: true,
+    marketing: true,
+  },
+  finance: {
+    dashboard: true,
+    analytics: true,
+    packages: false,
+    departures: false,
+    bookings: false,
+    payments: true,
+    customers: false,
+    leads: false,
+    master_data: false,
+    users: false,
+    agents: false,
+    reports: true,
+    settings: false,
+    operational: false,
+    marketing: false,
+  },
+  operational: {
+    dashboard: true,
+    analytics: true,
+    packages: true,
+    departures: true,
+    bookings: true,
+    payments: false,
+    customers: true,
+    leads: false,
+    master_data: true,
+    users: false,
+    agents: false,
+    reports: true,
+    settings: false,
+    operational: true,
+    marketing: false,
+  },
+  sales: {
+    dashboard: true,
+    analytics: true,
+    packages: true,
+    departures: false,
+    bookings: true,
+    payments: false,
+    customers: true,
+    leads: true,
+    master_data: false,
+    users: false,
+    agents: false,
+    reports: true,
+    settings: false,
+    operational: false,
+    marketing: true,
+  },
+  marketing: {
+    dashboard: true,
+    analytics: true,
+    packages: false,
+    departures: false,
+    bookings: false,
+    payments: false,
+    customers: false,
+    leads: true,
+    master_data: false,
+    users: false,
+    agents: false,
+    reports: true,
+    settings: false,
+    operational: false,
+    marketing: true,
+  },
+  equipment: {
+    dashboard: true,
+    analytics: false,
+    packages: false,
+    departures: false,
+    bookings: false,
+    payments: false,
+    customers: false,
+    leads: false,
+    master_data: false,
+    users: false,
+    agents: false,
+    reports: false,
+    settings: false,
+    operational: true,
+    marketing: false,
+  },
+  super_admin: {
+    dashboard: true,
+    analytics: true,
+    packages: true,
+    departures: true,
+    bookings: true,
+    payments: true,
+    customers: true,
+    leads: true,
+    master_data: true,
+    users: true,
+    agents: true,
+    reports: true,
+    settings: true,
+    operational: true,
+    marketing: true,
+  },
+  owner: {
+    dashboard: true,
+    analytics: true,
+    packages: true,
+    departures: true,
+    bookings: true,
+    payments: true,
+    customers: true,
+    leads: true,
+    master_data: true,
+    users: true,
+    agents: true,
+    reports: true,
+    settings: true,
+    operational: true,
+    marketing: true,
+  },
+  agent: {
+    dashboard: false,
+    analytics: false,
+    packages: false,
+    departures: false,
+    bookings: false,
+    payments: false,
+    customers: false,
+    leads: false,
+    master_data: false,
+    users: false,
+    agents: false,
+    reports: false,
+    settings: false,
+    operational: false,
+    marketing: false,
+  },
+  customer: {
+    dashboard: false,
+    analytics: false,
+    packages: false,
+    departures: false,
+    bookings: false,
+    payments: false,
+    customers: false,
+    leads: false,
+    master_data: false,
+    users: false,
+    agents: false,
+    reports: false,
+    settings: false,
+    operational: false,
+    marketing: false,
+  },
+};
 
 export default function AdminRolePermissions() {
   const queryClient = useQueryClient();
@@ -116,6 +291,68 @@ export default function AdminRolePermissions() {
     saveMutation.mutate(pendingChanges);
   };
 
+  const handleReset = () => {
+    setPendingChanges({});
+    toast.info("Perubahan dibatalkan");
+  };
+
+  // Bulk actions for columns (roles)
+  const handleSelectAllRole = (role: AppRole) => {
+    const permissionKeys = Object.keys(PERMISSION_LABELS);
+    const newChanges = { ...pendingChanges };
+    
+    permissionsByRole?.[role]?.forEach((perm) => {
+      newChanges[perm.id] = true;
+    });
+    
+    setPendingChanges(newChanges);
+    toast.success(`Semua akses untuk ${ROLE_LABELS[role].label} diaktifkan`);
+  };
+
+  const handleDeselectAllRole = (role: AppRole) => {
+    const newChanges = { ...pendingChanges };
+    
+    permissionsByRole?.[role]?.forEach((perm) => {
+      newChanges[perm.id] = false;
+    });
+    
+    setPendingChanges(newChanges);
+    toast.success(`Semua akses untuk ${ROLE_LABELS[role].label} dinonaktifkan`);
+  };
+
+  // Bulk actions for rows (permissions)
+  const handleSelectAllPermission = (permissionKey: string) => {
+    const newChanges = { ...pendingChanges };
+    
+    CONFIGURABLE_ROLES.forEach((role) => {
+      const perm = permissionsByRole?.[role]?.find(
+        (p) => p.permission_key === permissionKey
+      );
+      if (perm) {
+        newChanges[perm.id] = true;
+      }
+    });
+    
+    setPendingChanges(newChanges);
+    toast.success(`Akses untuk ${PERMISSION_LABELS[permissionKey].label} diaktifkan untuk semua role`);
+  };
+
+  const handleDeselectAllPermission = (permissionKey: string) => {
+    const newChanges = { ...pendingChanges };
+    
+    CONFIGURABLE_ROLES.forEach((role) => {
+      const perm = permissionsByRole?.[role]?.find(
+        (p) => p.permission_key === permissionKey
+      );
+      if (perm) {
+        newChanges[perm.id] = false;
+      }
+    });
+    
+    setPendingChanges(newChanges);
+    toast.success(`Akses untuk ${PERMISSION_LABELS[permissionKey].label} dinonaktifkan untuk semua role`);
+  };
+
   // Group permissions by role
   const permissionsByRole = permissions?.reduce((acc, perm) => {
     if (!acc[perm.role]) acc[perm.role] = [];
@@ -135,7 +372,7 @@ export default function AdminRolePermissions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Shield className="h-6 w-6" />
@@ -145,22 +382,32 @@ export default function AdminRolePermissions() {
             Konfigurasi menu dan fitur yang dapat diakses setiap role
           </p>
         </div>
-        <Button 
-          onClick={handleSave} 
-          disabled={Object.keys(pendingChanges).length === 0 || saveMutation.isPending}
-        >
-          {saveMutation.isPending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          Simpan Perubahan
-          {Object.keys(pendingChanges).length > 0 && (
-            <Badge variant="secondary" className="ml-2">
-              {Object.keys(pendingChanges).length}
-            </Badge>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleReset}
+            disabled={Object.keys(pendingChanges).length === 0 || saveMutation.isPending}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
+          </Button>
+          <Button 
+            onClick={handleSave} 
+            disabled={Object.keys(pendingChanges).length === 0 || saveMutation.isPending}
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Simpan Perubahan
+            {Object.keys(pendingChanges).length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {Object.keys(pendingChanges).length}
+              </Badge>
+            )}
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -170,7 +417,7 @@ export default function AdminRolePermissions() {
             Matrix Hak Akses
           </CardTitle>
           <CardDescription>
-            Super Admin dan Owner memiliki akses penuh. Centang untuk mengaktifkan akses menu.
+            Super Admin dan Owner memiliki akses penuh. Centang untuk mengaktifkan akses menu. Gunakan tombol di header/footer untuk bulk action.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -182,13 +429,35 @@ export default function AdminRolePermissions() {
                     Menu / Fitur
                   </th>
                   {CONFIGURABLE_ROLES.map((role) => (
-                    <th key={role} className="text-center py-3 px-2 min-w-[100px]">
-                      <Badge 
-                        variant="outline" 
-                        className={`${ROLE_LABELS[role].color} text-white border-0`}
-                      >
-                        {ROLE_LABELS[role].label}
-                      </Badge>
+                    <th key={role} className="text-center py-3 px-2 min-w-[120px]">
+                      <div className="flex flex-col gap-2 items-center">
+                        <Badge 
+                          variant="outline" 
+                          className={`${ROLE_LABELS[role].color} text-white border-0`}
+                        >
+                          {ROLE_LABELS[role].label}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            className="h-6 px-1.5 text-xs"
+                            onClick={() => handleSelectAllRole(role)}
+                            title="Aktifkan semua"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            className="h-6 px-1.5 text-xs"
+                            onClick={() => handleDeselectAllRole(role)}
+                            title="Nonaktifkan semua"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
                     </th>
                   ))}
                 </tr>
@@ -197,11 +466,33 @@ export default function AdminRolePermissions() {
                 {permissionKeys.map((key) => (
                   <tr key={key} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-2 sticky left-0 bg-background">
-                      <div>
-                        <p className="font-medium">{PERMISSION_LABELS[key].label}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {PERMISSION_LABELS[key].description}
-                        </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{PERMISSION_LABELS[key].label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {PERMISSION_LABELS[key].description}
+                          </p>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            className="h-6 px-1.5 text-xs"
+                            onClick={() => handleSelectAllPermission(key)}
+                            title="Aktifkan untuk semua role"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            className="h-6 px-1.5 text-xs"
+                            onClick={() => handleDeselectAllPermission(key)}
+                            title="Nonaktifkan untuk semua role"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </td>
                     {CONFIGURABLE_ROLES.map((role) => {
@@ -218,11 +509,12 @@ export default function AdminRolePermissions() {
                       return (
                         <td key={role} className="text-center py-3 px-2">
                           <div className="flex justify-center">
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={() => handleToggle(perm.id, isChecked)}
-                              className={hasChange ? "ring-2 ring-primary ring-offset-2" : ""}
-                            />
+                            <div className={`p-1 rounded-md transition-all ${hasChange ? 'bg-primary/10 ring-2 ring-primary ring-offset-2' : ''}`}>
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={() => handleToggle(perm.id, isChecked)}
+                              />
+                            </div>
                           </div>
                         </td>
                       );
@@ -253,6 +545,22 @@ export default function AdminRolePermissions() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-blue-900">💡 Tips Penggunaan</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-blue-800 space-y-2">
+          <p>• Gunakan tombol <strong>✓</strong> dan <strong>✕</strong> di header kolom untuk mengaktifkan/menonaktifkan semua akses untuk satu role</p>
+          <p>• Gunakan tombol <strong>✓</strong> dan <strong>✕</strong> di akhir baris untuk mengaktifkan/menonaktifkan satu fitur untuk semua role</p>
+          <p>• Perubahan akan ditandai dengan highlight warna biru</p>
+          <p>• Klik "Simpan Perubahan" untuk menyimpan semua perubahan ke database</p>
+          <p>• Sidebar pengguna akan otomatis diperbarui sesuai permissions yang baru</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+// Import X icon
+import { X } from "lucide-react";
