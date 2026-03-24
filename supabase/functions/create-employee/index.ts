@@ -63,52 +63,86 @@ Deno.serve(async (req) => {
       salary,
       hireDate,
       branchId,
-      role = "operational" // Default role for employee
+      role = "operational", // Default role for employee
+      existingUserId = null, // Optional existing user ID
     } = body;
 
-    if (!fullName || !email || !password) {
+    if (!fullName || (!existingUserId && (!email || !password))) {
       return new Response(
         JSON.stringify({ error: "Nama, email, dan password wajib diisi" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 1. Create user in Supabase Auth
-    // Note: handle_new_user() trigger will run AFTER this and insert:
-    // - profile (with full_name)
-    // - user_role (with 'customer' role)
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: fullName },
-    });
+    let targetUserId = existingUserId;
+    let isNewUser = !existingUserId;
 
-    if (createError) {
-      return new Response(
-        JSON.stringify({ error: "Gagal membuat akun: " + createError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (isNewUser) {
+      // 1. Create user in Supabase Auth
+      const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (createError) {
+        return new Response(
+          JSON.stringify({ error: "Gagal membuat akun: " + createError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      targetUserId = newUser.user.id;
+    } else {
+      // Check if user already has an employee record
+      const { data: existingEmployee } = await adminClient
+        .from("employees")
+        .select("id")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      
+      if (existingEmployee) {
+        return new Response(
+          JSON.stringify({ error: "User ini sudah terdaftar sebagai karyawan" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    const newUserId = newUser.user.id;
-
     try {
-      // 2. Update role (Change 'customer' to the requested role)
-      // The trigger inserts 'customer', we want to change it to the actual employee role
-      const { error: roleError } = await adminClient
-        .from("user_roles")
-        .update({ role, branch_id: branchId || null })
-        .eq("user_id", newUserId)
-        .eq("role", "customer");
-      
-      if (roleError) throw new Error("Gagal memperbarui role: " + roleError.message);
+      // 2. Update/Assign role
+      if (isNewUser) {
+        // The trigger inserts 'customer', we want to change it to the actual employee role
+        const { error: roleError } = await adminClient
+          .from("user_roles")
+          .update({ role, branch_id: branchId || null })
+          .eq("user_id", targetUserId)
+          .eq("role", "customer");
+        
+        if (roleError) throw new Error("Gagal memperbarui role: " + roleError.message);
+      } else {
+        // For existing user, check if they already have the role or add it
+        const { data: existingRole } = await adminClient
+          .from("user_roles")
+          .select("id")
+          .eq("user_id", targetUserId)
+          .eq("role", role)
+          .maybeSingle();
+        
+        if (!existingRole) {
+          const { error: roleError } = await adminClient
+            .from("user_roles")
+            .insert({ user_id: targetUserId, role, branch_id: branchId || null });
+          
+          if (roleError) throw new Error("Gagal menambahkan role: " + roleError.message);
+        }
+      }
 
       // 3. Update profile with phone
-      // The trigger already created the profile with full_name
       const { error: profileError } = await adminClient.from("profiles").update({
         phone: phone || null,
-      }).eq("user_id", newUserId);
+        full_name: fullName, // Ensure profile name matches employee name
+      }).eq("user_id", targetUserId);
 
       if (profileError) throw new Error("Gagal memperbarui profil: " + profileError.message);
 
@@ -119,9 +153,9 @@ Deno.serve(async (req) => {
 
       // 5. Create employee record
       const { data: employeeRecord, error: employeeError } = await adminClient.from("employees").insert({
-        user_id: newUserId,
+        user_id: targetUserId,
         full_name: fullName,
-        email,
+        email: email || null,
         phone: phone || null,
         position: position || null,
         department: department || null,
@@ -135,15 +169,14 @@ Deno.serve(async (req) => {
 
       if (employeeError) throw new Error("Gagal membuat data karyawan: " + employeeError.message);
 
-      // 6. Log Audit Action (using RPC if possible, or direct insert)
-      // Since we are in Edge Function with service role, we can insert directly to audit_logs
+      // 6. Log Audit Action
       await adminClient.from("audit_logs").insert({
         user_id: callerUser.id,
         table_name: "employees",
         record_id: employeeRecord.id,
         action: "CREATE_EMPLOYEE",
         action_type: "CREATE",
-        new_data: { fullName, email, role, employeeCode },
+        new_data: { fullName, email, role, employeeCode, isExistingUser: !isNewUser },
         severity: "info",
         branch_id: branchId || null,
         metadata: { source: "edge-function:create-employee" }
@@ -153,16 +186,18 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           employeeCode,
-          userId: newUserId,
+          userId: targetUserId,
           message: `Karyawan ${fullName} (${employeeCode}) berhasil didaftarkan`,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
 
     } catch (innerError: any) {
-      // Cleanup on failure: Delete the auth user (cascades to profile/roles)
-      console.error("Error in create-employee steps, rolling back user creation:", innerError);
-      await adminClient.auth.admin.deleteUser(newUserId);
+      // Cleanup on failure ONLY if it was a new user
+      if (isNewUser) {
+        console.error("Error in create-employee steps, rolling back user creation:", innerError);
+        await adminClient.auth.admin.deleteUser(targetUserId);
+      }
       
       return new Response(
         JSON.stringify({ error: innerError.message || "Gagal memproses data karyawan" }),
