@@ -74,6 +74,9 @@ Deno.serve(async (req) => {
     }
 
     // 1. Create user in Supabase Auth
+    // Note: handle_new_user() trigger will run AFTER this and insert:
+    // - profile (with full_name)
+    // - user_role (with 'customer' role)
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
@@ -90,18 +93,19 @@ Deno.serve(async (req) => {
 
     const newUserId = newUser.user.id;
 
-    // 2. Add role
+    // 2. Update role (Change 'customer' to the requested role)
+    // The trigger inserts 'customer', we want to change it to the actual employee role
     await adminClient
       .from("user_roles")
-      .insert({ user_id: newUserId, role, branch_id: branchId || null });
+      .update({ role, branch_id: branchId || null })
+      .eq("user_id", newUserId)
+      .eq("role", "customer");
 
-    // 3. Create profile
-    await adminClient.from("profiles").upsert({
-      id: newUserId,
-      user_id: newUserId,
-      full_name: fullName,
+    // 3. Update profile with phone
+    // The trigger already created the profile with full_name
+    await adminClient.from("profiles").update({
       phone: phone || null,
-    }, { onConflict: "user_id" });
+    }).eq("user_id", newUserId);
 
     // 4. Generate employee code (RPC call)
     const { data: codeData } = await adminClient.rpc("generate_employee_code");

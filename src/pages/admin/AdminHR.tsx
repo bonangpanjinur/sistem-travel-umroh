@@ -442,7 +442,14 @@ export default function AdminHR() {
                               <AvatarImage src={employee.photo_url || undefined} />
                               <AvatarFallback>{employee.full_name.charAt(0)}</AvatarFallback>
                             </Avatar>
-                            <div className="font-medium">{employee.full_name}</div>
+                            <div>
+                              <div className="font-medium flex items-center gap-2">
+                                {employee.full_name}
+                                {!employee.user_id && (
+                                  <Badge variant="destructive" className="text-[10px] h-4 px-1">No User</Badge>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm">{employee.employee_code}</TableCell>
