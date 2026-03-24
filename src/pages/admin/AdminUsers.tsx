@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
-  Search, Users, Shield, UserPlus, Trash2, Edit2
+  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2
 } from "lucide-react";
 import { AppRole } from "@/types/database";
 
@@ -62,6 +62,8 @@ interface UserWithRoles {
   phone: string | null;
   created_at: string;
   roles: { id: string; role: AppRole; branch_id: string | null }[];
+  hasEmployeeRecord?: boolean;
+  employeeCode?: string;
 }
 
 export default function AdminUsers() {
@@ -91,6 +93,16 @@ export default function AdminUsers() {
 
       if (rolesError) throw rolesError;
 
+      // Then get all employees to check linkage
+      const { data: employees, error: employeesError } = await supabase
+        .from('employees')
+        .select('user_id, employee_code');
+
+      if (employeesError) throw employeesError;
+
+      // Create a map of user_id -> employee_code for quick lookup
+      const employeeMap = new Map((employees || []).map(e => [e.user_id, e.employee_code]));
+
       // Combine the data
       const usersWithRoles: UserWithRoles[] = (profiles || []).map(profile => ({
         ...profile,
@@ -99,6 +111,8 @@ export default function AdminUsers() {
           role: r.role as AppRole,
           branch_id: r.branch_id,
         })),
+        hasEmployeeRecord: employeeMap.has(profile.user_id),
+        employeeCode: employeeMap.get(profile.user_id),
       }));
 
       return usersWithRoles;
@@ -281,7 +295,19 @@ export default function AdminUsers() {
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
-                        {user.full_name || 'N/A'}
+                        <div className="flex items-center gap-2">
+                          <span>{user.full_name || 'N/A'}</span>
+                          {user.hasEmployeeRecord ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <Link2 className="h-3 w-3 mr-1" />
+                              {user.employeeCode}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                              No Employee
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{user.phone || '-'}</TableCell>
                       <TableCell>

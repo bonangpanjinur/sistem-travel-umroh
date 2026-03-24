@@ -143,6 +143,15 @@ export default function AdminHR() {
     },
   });
 
+  const { data: syncIssues = [], refetch: refetchSyncIssues } = useQuery({
+    queryKey: ["employee-sync-issues"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("validate_employee_user_sync");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: workSchedules = [] } = useQuery({
     queryKey: ["work-schedules", scheduleEmployeeId],
     enabled: !!scheduleEmployeeId,
@@ -171,6 +180,30 @@ export default function AdminHR() {
   });
 
   // === MUTATIONS ===
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (employee: Employee) => {
+      // Call the delete-employee edge function which handles:
+      // 1. Deletion of employee record
+      // 2. Deletion of associated auth user (if exists)
+      // 3. Cascading deletions (work_schedules, devices, etc.)
+      // 4. Audit logging
+      const { data, error } = await supabase.functions.invoke("delete-employee", {
+        body: {
+          employeeId: employee.id,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-sync-issues"] });
+      toast.success("Karyawan berhasil dihapus");
+    },
+    onError: (error: Error) => toast.error("Gagal menghapus: " + error.message),
+  });
 
   const saveEmployeeMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -220,6 +253,7 @@ export default function AdminHR() {
 
         if (error) throw error;
         if (data.error) throw new Error(data.error);
+        if (!data.success) throw new Error(data.message || "Gagal membuat karyawan");
       }
     },
     onSuccess: () => {
@@ -381,6 +415,14 @@ export default function AdminHR() {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="employees">Karyawan</TabsTrigger>
+          <TabsTrigger value="sync" className="relative">
+            Sinkronisasi
+            {syncIssues.length > 0 && (
+              <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                {syncIssues.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="attendance">Absensi</TabsTrigger>
           <TabsTrigger value="departments">Departemen</TabsTrigger>
           <TabsTrigger value="positions">Posisi</TabsTrigger>
@@ -388,6 +430,69 @@ export default function AdminHR() {
           <TabsTrigger value="devices">Perangkat</TabsTrigger>
           <TabsTrigger value="settings">Pengaturan HR</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="sync" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Validasi Sinkronisasi</CardTitle>
+                  <CardDescription>Deteksi ketidaksinkronan antara data karyawan dan user login</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => refetchSyncIssues()}>
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {syncIssues.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <ShieldCheck className="h-12 w-12 text-green-500 mb-4" />
+                  <h3 className="text-lg font-medium">Data Sinkron</h3>
+                  <p className="text-muted-foreground">Tidak ditemukan masalah sinkronisasi saat ini.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3">
+                    <ShieldX className="h-5 w-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-amber-800">Ditemukan {syncIssues.length} Masalah</h4>
+                      <p className="text-sm text-amber-700">Beberapa data memerlukan perhatian untuk menjaga integritas sistem.</p>
+                    </div>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipe Masalah</TableHead>
+                        <TableHead>Nama/Entitas</TableHead>
+                        <TableHead>Detail</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {syncIssues.map((issue, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono text-[10px]">
+                              {issue.issue_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">{issue.entity_name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{issue.details}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" className="text-primary">
+                              Perbaiki <ExternalLink className="ml-2 h-3 w-3" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="employees" className="space-y-4">
           <Card>
@@ -474,13 +579,13 @@ export default function AdminHR() {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
-                              if (confirm("Apakah Anda yakin ingin menghapus karyawan ini?")) {
-                                // deleteEmployeeMutation.mutate(employee.id);
-                                toast.info("Fitur hapus karyawan belum diimplementasikan.");
+                              if (confirm(`Apakah Anda yakin ingin menghapus karyawan ${employee.full_name}? Tindakan ini juga akan menghapus data terkait.`)) {
+                                deleteEmployeeMutation.mutate(employee);
                               }
                             }}
+                            disabled={deleteEmployeeMutation.isPending}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
                       </TableRow>
