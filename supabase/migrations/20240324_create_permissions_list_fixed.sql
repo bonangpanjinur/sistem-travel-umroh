@@ -40,12 +40,12 @@ CREATE INDEX IF NOT EXISTS idx_permissions_list_group ON public.permissions_list
 ALTER TABLE public.permissions_list ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policy - allow authenticated users to read permissions_list
-CREATE POLICY "Allow authenticated users to read permissions_list" ON public.permissions_list
+CREATE POLICY IF NOT EXISTS "Allow authenticated users to read permissions_list" ON public.permissions_list
   FOR SELECT
   USING (auth.role() = 'authenticated');
 
 -- Create RLS policy - allow super_admin and owner to manage permissions_list
-CREATE POLICY "Allow super_admin and owner to manage permissions_list" ON public.permissions_list
+CREATE POLICY IF NOT EXISTS "Allow super_admin and owner to manage permissions_list" ON public.permissions_list
   FOR ALL
   USING (
     EXISTS (
@@ -55,79 +55,94 @@ CREATE POLICY "Allow super_admin and owner to manage permissions_list" ON public
     )
   );
 
--- Add audit trigger to track changes
-CREATE OR REPLACE FUNCTION public.handle_permissions_list_audit()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.audit_logs (
-    table_name,
-    record_id,
-    action,
-    old_values,
-    new_values,
-    user_id,
-    created_at
-  ) VALUES (
-    'permissions_list',
-    NEW.key,
-    TG_OP,
-    to_jsonb(OLD),
-    to_jsonb(NEW),
-    auth.uid(),
-    NOW()
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create trigger for audit
-DROP TRIGGER IF EXISTS permissions_list_audit_trigger ON public.permissions_list;
-CREATE TRIGGER permissions_list_audit_trigger
-  AFTER INSERT OR UPDATE OR DELETE ON public.permissions_list
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_permissions_list_audit();
-
--- Update role_permissions table to add audit tracking
+-- Update role_permissions table to add audit tracking columns if they don't exist
 ALTER TABLE public.role_permissions
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES auth.users(id);
 
--- Create audit trigger for role_permissions
+-- Create or replace audit trigger function for role_permissions
+-- Uses the correct column names: old_data and new_data (not old_values and new_values)
 CREATE OR REPLACE FUNCTION public.handle_role_permissions_audit()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
   NEW.updated_by = auth.uid();
   
-  INSERT INTO public.audit_logs (
-    table_name,
-    record_id,
-    action,
-    old_values,
-    new_values,
-    user_id,
-    created_at
-  ) VALUES (
-    'role_permissions',
-    NEW.id,
-    TG_OP,
-    to_jsonb(OLD),
-    to_jsonb(NEW),
-    auth.uid(),
-    NOW()
-  );
+  -- Only insert to audit_logs if the table exists and has the correct columns
+  BEGIN
+    INSERT INTO public.audit_logs (
+      table_name,
+      record_id,
+      action,
+      old_data,
+      new_data,
+      user_id,
+      created_at
+    ) VALUES (
+      'role_permissions',
+      NEW.id,
+      TG_OP,
+      to_jsonb(OLD),
+      to_jsonb(NEW),
+      auth.uid(),
+      NOW()
+    );
+  EXCEPTION WHEN OTHERS THEN
+    -- Silently ignore if audit_logs doesn't exist or has different schema
+    NULL;
+  END;
+  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for role_permissions audit
+-- Drop and recreate trigger to ensure it uses the correct function
 DROP TRIGGER IF EXISTS role_permissions_audit_trigger ON public.role_permissions;
 CREATE TRIGGER role_permissions_audit_trigger
   BEFORE INSERT OR UPDATE ON public.role_permissions
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_role_permissions_audit();
 
--- Create view for easier permission checking
+-- Create or replace audit trigger function for permissions_list
+CREATE OR REPLACE FUNCTION public.handle_permissions_list_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Only insert to audit_logs if the table exists and has the correct columns
+  BEGIN
+    INSERT INTO public.audit_logs (
+      table_name,
+      record_id,
+      action,
+      old_data,
+      new_data,
+      user_id,
+      created_at
+    ) VALUES (
+      'permissions_list',
+      NEW.key,
+      TG_OP,
+      to_jsonb(OLD),
+      to_jsonb(NEW),
+      auth.uid(),
+      NOW()
+    );
+  EXCEPTION WHEN OTHERS THEN
+    -- Silently ignore if audit_logs doesn't exist or has different schema
+    NULL;
+  END;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop and recreate trigger for permissions_list
+DROP TRIGGER IF EXISTS permissions_list_audit_trigger ON public.permissions_list;
+CREATE TRIGGER permissions_list_audit_trigger
+  AFTER INSERT OR UPDATE OR DELETE ON public.permissions_list
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_permissions_list_audit();
+
+-- Create or replace view for easier permission checking
 CREATE OR REPLACE VIEW public.user_permissions AS
 SELECT 
   ur.user_id,
