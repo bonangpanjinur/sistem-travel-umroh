@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Save, Smartphone } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
+import { useUpdateHRSettings } from "@/hooks/useHRSettings";
 
 type HRSettings = Database["public"]["Tables"]["hr_settings"]["Row"];
 type HRSettingsUpdate = Database["public"]["Tables"]["hr_settings"]["Update"];
@@ -17,6 +19,7 @@ interface Props {
 
 export function HRSettingsForm({ initialData, onSuccess }: Props) {
   const [settings, setSettings] = useState<HRSettingsUpdate>(initialData);
+  const updateMutation = useUpdateHRSettings();
 
   useEffect(() => {
     setSettings(initialData);
@@ -28,9 +31,11 @@ export function HRSettingsForm({ initialData, onSuccess }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically call a mutation to save the settings
-    console.log("Saving HR Settings:", settings);
-    if (onSuccess) onSuccess();
+    updateMutation.mutate(settings, {
+      onSuccess: () => {
+        if (onSuccess) onSuccess();
+      },
+    });
   };
 
   return (
@@ -47,6 +52,25 @@ export function HRSettingsForm({ initialData, onSuccess }: Props) {
         <div className="space-y-2">
           <Label>Toleransi Terlambat (menit)</Label>
           <Input type="number" value={settings.late_threshold_minutes || 15} onChange={e => handleChange("late_threshold_minutes", parseInt(e.target.value))} />
+        </div>
+      </div>
+
+      <Separator />
+
+      <h4 className="font-semibold text-sm">Keamanan Perangkat</h4>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 dark:bg-blue-950">
+          <div className="flex items-center gap-3">
+            <Smartphone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div>
+              <Label className="text-base font-semibold">Wajibkan Pendaftaran Perangkat</Label>
+              <p className="text-sm text-muted-foreground mt-1">Karyawan harus mendaftarkan perangkat mereka sebelum dapat melakukan absensi. Ini meningkatkan keamanan dengan membatasi absensi hanya dari perangkat yang sudah disetujui.</p>
+            </div>
+          </div>
+          <Switch
+            checked={settings.require_device_registration || false}
+            onCheckedChange={value => handleChange("require_device_registration", value)}
+          />
         </div>
       </div>
 
@@ -112,10 +136,9 @@ export function HRSettingsForm({ initialData, onSuccess }: Props) {
 
       <p className="text-xs text-muted-foreground">💡 Aturan ini berlaku global. Untuk override per karyawan, aktifkan "Aturan Potongan Khusus" di form edit karyawan.</p>
 
-      <Button type="submit" /* disabled={isPending} */>
+      <Button type="submit" disabled={updateMutation.isPending}>
         <Save className="h-4 w-4 mr-2" />
-        {/* {isPending ? "Menyimpan..." : "Simpan Pengaturan"} */}
-        Simpan Pengaturan
+        {updateMutation.isPending ? "Menyimpan..." : "Simpan Pengaturan"}
       </Button>
     </form>
   );

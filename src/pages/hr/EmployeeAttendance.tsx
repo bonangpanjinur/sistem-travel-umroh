@@ -167,10 +167,12 @@ export default function EmployeeAttendance() {
       if (error) throw error;
       return data;
     },
-    enabled: !!activeEmployeeId && requireDevice,
+    enabled: !!activeEmployeeId,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch new registrations
   });
 
   const isDeviceAllowed = !requireDevice || isHR || (deviceStatus?.is_active === true);
+  const deviceNeedsRegistration = requireDevice && !isHR && !deviceStatus && !loadingDevice;
 
   // Fetch today's attendance
   const { data: todayAttendance } = useQuery({
@@ -312,11 +314,17 @@ export default function EmployeeAttendance() {
         is_active: true,
       };
       const { error } = await supabase.from("employee_devices").insert(payload);
-      if (error) throw error;
+      if (error) {
+        // Handle unique constraint error
+        if (error.code === '23505') {
+          throw new Error("Perangkat ini sudah terdaftar untuk akun Anda.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["device-check", activeEmployeeId, deviceFingerprint] });
-      toast.success("Perangkat berhasil didaftarkan!");
+      toast.success("✓ Perangkat berhasil didaftarkan! Anda sekarang dapat melakukan absensi.");
     },
     onError: (error: Error) => {
       toast.error("Gagal mendaftarkan perangkat: " + error.message);
@@ -338,8 +346,8 @@ export default function EmployeeAttendance() {
         toast.error("Foto tidak diambil.");
         return;
       }
-      if (!isDeviceAllowed) {
-        toast.error("Perangkat tidak terdaftar atau tidak aktif.");
+      if (!isDeviceAllowed && !isHR) {
+        toast.error("Perangkat tidak terdaftar atau tidak aktif. Silakan daftarkan perangkat terlebih dahulu.");
         return;
       }
       if (!faceVerification?.verified && !isHR) {
@@ -393,6 +401,13 @@ export default function EmployeeAttendance() {
     getLocation();
   }, []);
 
+  // Show warning if device registration is required but not done
+  useEffect(() => {
+    if (deviceNeedsRegistration && !isHR) {
+      console.warn("Device registration required but not completed");
+    }
+  }, [deviceNeedsRegistration, isHR]);
+
   const isCheckedIn = !!todayAttendance?.check_in_time;
   const isCheckedOut = !!todayAttendance?.check_out_time;
 
@@ -436,6 +451,12 @@ export default function EmployeeAttendance() {
               <div>
                 <h3 className="text-lg font-semibold">{activeEmployee.full_name}</h3>
                 <p className="text-muted-foreground">{activeEmployee.employee_code}</p>
+                {deviceNeedsRegistration && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    Perangkat perlu didaftarkan
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -496,10 +517,24 @@ export default function EmployeeAttendance() {
                     Perangkat: {getDeviceName()} ({deviceFingerprint.substring(0, 8)}...)
                   </span>
                 </div>
+                {requireDevice && loadingDevice && (
+                  <div className="text-sm text-muted-foreground">Memeriksa status perangkat...</div>
+                )}
                 {requireDevice && !deviceStatus?.is_active && !loadingDevice && (
-                  <Button size="sm" onClick={() => registerDeviceMutation.mutate()} disabled={registerDeviceMutation.isPending}>
-                    {registerDeviceMutation.isPending ? "Mendaftarkan..." : "Daftarkan Perangkat Ini"}
-                  </Button>
+                  <div className="space-y-2">
+                    <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-800 dark:text-yellow-200">
+                      ⚠️ Perangkat ini belum terdaftar. Anda harus mendaftarkan perangkat sebelum dapat melakukan absensi.
+                    </div>
+                    <Button size="sm" onClick={() => registerDeviceMutation.mutate()} disabled={registerDeviceMutation.isPending} className="w-full">
+                      <Smartphone className="h-4 w-4 mr-2" />
+                      {registerDeviceMutation.isPending ? "Mendaftarkan..." : "Daftarkan Perangkat Ini"}
+                    </Button>
+                  </div>
+                )}
+                {requireDevice && deviceStatus?.is_active && !loadingDevice && (
+                  <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded text-sm text-green-800 dark:text-green-200">
+                    ✓ Perangkat terdaftar dan aktif. Anda dapat melakukan absensi.
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -564,22 +599,31 @@ export default function EmployeeAttendance() {
             </div>
           )}
 
-          <div className="flex gap-2 pt-4 border-t">
-            <Button
-              onClick={() => saveAttendanceMutation.mutate("check_in")}
-              disabled={!activeEmployeeId || !location || !capturedPhoto || isCheckedIn || saveAttendanceMutation.isPending || (requireDevice && !isDeviceAllowed) || (!isHR && !faceVerification?.verified)}
-            >
-              {saveAttendanceMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}
-              Check-in
-            </Button>
-            <Button
-              onClick={() => saveAttendanceMutation.mutate("check_out")}
-              disabled={!activeEmployeeId || !location || !capturedPhoto || !isCheckedIn || isCheckedOut || saveAttendanceMutation.isPending || (requireDevice && !isDeviceAllowed) || (!isHR && !faceVerification?.verified)}
-              variant="outline"
-            >
-              {saveAttendanceMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogOut className="h-4 w-4 mr-2" />}
-              Check-out
-            </Button>
+          <div className="space-y-2">
+            {requireDevice && !isDeviceAllowed && !isHR && (
+              <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-200">
+                🔒 Absensi terkunci: Perangkat Anda belum terdaftar atau tidak aktif. Silakan daftarkan perangkat terlebih dahulu.
+              </div>
+            )}
+            <div className="flex gap-2 pt-4 border-t">
+              <Button
+                onClick={() => saveAttendanceMutation.mutate("check_in")}
+                disabled={!activeEmployeeId || !location || !capturedPhoto || isCheckedIn || saveAttendanceMutation.isPending || (requireDevice && !isDeviceAllowed && !isHR) || (!isHR && !faceVerification?.verified)}
+                className="flex-1"
+              >
+                {saveAttendanceMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}
+                Check-in
+              </Button>
+              <Button
+                onClick={() => saveAttendanceMutation.mutate("check_out")}
+                disabled={!activeEmployeeId || !location || !capturedPhoto || !isCheckedIn || isCheckedOut || saveAttendanceMutation.isPending || (requireDevice && !isDeviceAllowed && !isHR) || (!isHR && !faceVerification?.verified)}
+                variant="outline"
+                className="flex-1"
+              >
+                {saveAttendanceMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogOut className="h-4 w-4 mr-2" />}
+                Check-out
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

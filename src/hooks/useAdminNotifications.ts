@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 export interface AdminNotification {
   id: string;
-  type: 'booking' | 'payment';
+  type: 'booking' | 'payment' | 'device_registration';
   title: string;
   message: string;
   createdAt: Date;
@@ -18,6 +18,7 @@ export interface AdminNotification {
 
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
 type PaymentRow = Database['public']['Tables']['payments']['Row'];
+type EmployeeDevice = Database['public']['Tables']['employee_devices']['Row'];
 
 export function useAdminNotifications() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -162,10 +163,42 @@ export function useAdminNotifications() {
       )
       .subscribe();
 
+    // Subscribe to new device registrations
+    const deviceRegistrationChannel = supabase
+      .channel('admin-device-registrations')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'employee_devices',
+        },
+        async (payload) => {
+          const device = payload.new as EmployeeDevice;
+          
+          // Fetch employee details
+          const { data: employee } = await supabase
+            .from('employees')
+            .select('id, full_name, employee_code')
+            .eq('id', device.employee_id)
+            .single();
+
+          addNotification({
+            type: 'device_registration',
+            title: '📱 Perangkat Baru Terdaftar',
+            message: `${employee?.full_name || 'Karyawan'} (${employee?.employee_code || ''}) telah mendaftarkan perangkat: ${device.device_name}`,
+            link: '/admin/hr?tab=devices',
+            data: device,
+          });
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(bookingsChannel);
       supabase.removeChannel(paymentsChannel);
       supabase.removeChannel(paymentUpdatesChannel);
+      supabase.removeChannel(deviceRegistrationChannel);
     };
   }, [addNotification]);
 
