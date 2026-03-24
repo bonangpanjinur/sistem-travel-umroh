@@ -51,6 +51,13 @@ type WorkScheduleUpdate = Database["public"]["Tables"]["work_schedules"]["Update
 
 const dayLabels = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
+// Helper function to generate employee code
+const generateEmployeeCode = (): string => {
+  const year = new Date().getFullYear();
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
+  return `EMP${year}${random}`;
+};
+
 export default function AdminHR() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -258,31 +265,112 @@ export default function AdminHR() {
         const { error } = await supabase.from("employees").update(updatePayload).eq("id", editingEmployee.id);
         if (error) throw error;
       } else {
-        const password = formData.get("password") as string;
-        
-        const payload = {
-          fullName: employeeData.full_name,
-          email: employeeData.email,
-          password: password,
-          phone: employeeData.phone,
-          position: employeeData.position,
-          department: employeeData.department,
-          gender: employeeData.gender,
-          salary: employeeData.salary,
-          hireDate: employeeData.hire_date,
-          existingUserId: isExistingUser ? selectedUserId : null,
-        };
+        if (isExistingUser) {
+          // Link existing user to employee
+          if (!selectedUserId) throw new Error("Pilih user yang akan dikaitkan");
+          
+          // Check if user already has an employee record
+          const { data: existingEmployee } = await supabase
+            .from("employees")
+            .select("id")
+            .eq("user_id", selectedUserId)
+            .maybeSingle();
+          
+          if (existingEmployee) {
+            throw new Error("User ini sudah terdaftar sebagai karyawan");
+          }
 
-        const { data, error } = await supabase.functions.invoke("create-employee", {
-          body: payload,
-        });
+          // Generate employee code
+          const employeeCode = generateEmployeeCode();
 
-        if (error) throw error;
-        if (data.error) throw new Error(data.error);
+          // Create employee record with existing user
+          const { error: employeeError } = await supabase.from("employees").insert({
+            user_id: selectedUserId,
+            full_name: employeeData.full_name,
+            email: employeeData.email,
+            phone: employeeData.phone,
+            position: employeeData.position,
+            department: employeeData.department,
+            gender: employeeData.gender,
+            salary: employeeData.salary,
+            hire_date: employeeData.hire_date,
+            employee_code: employeeCode,
+            is_active: true,
+          });
+
+          if (employeeError) throw new Error("Gagal membuat data karyawan: " + employeeError.message);
+        } else {
+          // Create new user and employee
+          const password = formData.get("password") as string;
+          const email = employeeData.email as string;
+
+          if (!password) throw new Error("Password wajib diisi untuk karyawan baru");
+          if (!email) throw new Error("Email wajib diisi untuk karyawan baru");
+
+          // Try to use Edge Function first, fallback to direct creation
+          try {
+            const { data, error } = await supabase.functions.invoke("create-employee", {
+              body: {
+                fullName: employeeData.full_name,
+                email: email,
+                password: password,
+                phone: employeeData.phone,
+                position: employeeData.position,
+                department: employeeData.department,
+                gender: employeeData.gender,
+                salary: employeeData.salary,
+                hireDate: employeeData.hire_date,
+                existingUserId: null,
+              },
+            });
+
+            if (error) throw error;
+            if (data.error) throw new Error(data.error);
+          } catch (edgeFunctionError) {
+            // Fallback: Create user directly via Supabase Auth
+            console.warn("Edge Function failed, using fallback method:", edgeFunctionError);
+            
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+              email: email,
+              password: password,
+              options: {
+                data: {
+                  full_name: employeeData.full_name,
+                }
+              }
+            });
+
+            if (authError) throw new Error("Gagal membuat akun: " + authError.message);
+            if (!authData.user) throw new Error("Gagal membuat akun pengguna");
+
+            const newUserId = authData.user.id;
+
+            // Generate employee code
+            const employeeCode = generateEmployeeCode();
+
+            // Create employee record
+            const { error: employeeError } = await supabase.from("employees").insert({
+              user_id: newUserId,
+              full_name: employeeData.full_name,
+              email: email,
+              phone: employeeData.phone,
+              position: employeeData.position,
+              department: employeeData.department,
+              gender: employeeData.gender,
+              salary: employeeData.salary,
+              hire_date: employeeData.hire_date,
+              employee_code: employeeCode,
+              is_active: true,
+            });
+
+            if (employeeError) throw new Error("Gagal membuat data karyawan: " + employeeError.message);
+          }
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["available-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["employee-sync-issues"] });
       toast.success(editingEmployee ? "Karyawan berhasil diperbarui" : "Karyawan berhasil ditambahkan");
       handleEmployeeDialogClose();
