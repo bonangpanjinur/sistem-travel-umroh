@@ -136,7 +136,7 @@ function AdminLayout() {
   const { hasPermission, isLoading: permsLoading } = usePermissions();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Overview', 'Sales & CRM', 'Produk & Operasional']));
   
@@ -155,13 +155,17 @@ function AdminLayout() {
     const handleResize = () => {
       const isLargeScreen = window.innerWidth >= 1024;
       setIsDesktop(isLargeScreen);
-      // On mobile, close sidebar; on desktop, keep current state
-      if (!isLargeScreen) {
-        setSidebarOpen(false);
-      } else {
+      
+      // Auto-open sidebar on desktop, auto-close on mobile
+      if (isLargeScreen) {
         setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
       }
     };
+
+    // Set initial state
+    handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -292,8 +296,9 @@ function AdminLayout() {
         {/* Sidebar Navigation */}
         <aside 
           className={cn(
-            "fixed inset-y-0 left-0 z-30 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-0 pt-14 sm:pt-16 lg:pt-0",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:static lg:inset-0 pt-14 sm:pt-16 lg:pt-0",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full",
+            !isDesktop && "shadow-xl"
           )}
         >
           <div className="h-full flex flex-col">
@@ -357,11 +362,14 @@ function AdminLayout() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col min-w-0 bg-muted/10 relative">
+        <main className={cn(
+          "flex-1 flex flex-col min-w-0 bg-muted/10 relative transition-all duration-200",
+          isDesktop && !sidebarOpen && "lg:-ml-64"
+        )}>
           {/* Overlay for mobile sidebar */}
           {sidebarOpen && !isDesktop && (
             <div 
-              className="fixed inset-0 bg-black/50 z-20 transition-opacity duration-200"
+              className="fixed inset-0 bg-black/60 z-40 transition-opacity duration-200 backdrop-blur-sm"
               onClick={() => setSidebarOpen(false)}
             />
           )}
