@@ -200,10 +200,26 @@ export default function AdminHR() {
         const { error } = await supabase.from("employees").update(updatePayload).eq("id", editingEmployee.id);
         if (error) throw error;
       } else {
-        const { data: codeData } = await supabase.rpc("generate_employee_code");
-        const code = codeData || `EMP${format(new Date(), "yyMM")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-        const { error } = await supabase.from("employees").insert([{ ...employeeData, employee_code: code }]);
+        const password = formData.get("password") as string;
+        if (!password) throw new Error("Password wajib diisi untuk karyawan baru");
+
+        const { data, error } = await supabase.functions.invoke("create-employee", {
+          body: {
+            fullName: employeeData.full_name,
+            email: employeeData.email,
+            password: password,
+            phone: employeeData.phone,
+            position: employeeData.position,
+            department: employeeData.department,
+            gender: employeeData.gender,
+            salary: employeeData.salary,
+            hireDate: employeeData.hire_date,
+            branchId: filterBranch,
+          }
+        });
+
         if (error) throw error;
+        if (data.error) throw new Error(data.error);
       }
     },
     onSuccess: () => {
@@ -809,10 +825,17 @@ export default function AdminHR() {
                 <Input id="full_name" name="full_name" defaultValue={editingEmployee?.full_name || ""} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" defaultValue={editingEmployee?.email || ""} />
+                <Label htmlFor="email">Email *</Label>
+                <Input id="email" name="email" type="email" defaultValue={editingEmployee?.email || ""} required />
               </div>
             </div>
+            {!editingEmployee && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password Login *</Label>
+                <Input id="password" name="password" type="password" placeholder="Minimal 6 karakter" required />
+                <p className="text-[10px] text-muted-foreground">Password ini akan digunakan karyawan untuk login pertama kali.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">Telepon</Label>
