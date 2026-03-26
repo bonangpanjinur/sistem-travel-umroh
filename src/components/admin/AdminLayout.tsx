@@ -26,107 +26,107 @@ const NAV_GROUPS = [
   {
     label: 'Overview',
     items: [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '/admin', permission: 'dashboard' },
-      { label: 'Analytics', icon: BarChart3, path: '/admin/analytics', permission: 'analytics' },
+      { label: 'Dashboard', icon: LayoutDashboard, path: '/admin', permission: 'dashboard.view' },
+      { label: 'Analytics', icon: BarChart3, path: '/admin/analytics', permission: 'analytics.view' },
     ]
   },
   {
     label: 'Sales & CRM',
     items: [
-      { label: 'CRM Leads', icon: Target, path: '/admin/leads', permission: 'leads' },
-      { label: 'Kupon', icon: Gift, path: '/admin/coupons', permission: 'marketing' },
+      { label: 'CRM Leads', icon: Target, path: '/admin/leads', permission: 'leads.view' },
+      { label: 'Kupon', icon: Gift, path: '/admin/coupons', permission: 'marketing.view' },
     ]
   },
   {
     label: 'Produk & Operasional',
     items: [
-      { label: 'Paket', icon: Package, path: '/admin/packages', permission: 'packages' },
-      { label: 'Keberangkatan', icon: Plane, path: '/admin/departures', permission: 'departures' },
-      { label: 'Booking', icon: Calendar, path: '/admin/bookings', permission: 'bookings' },
-      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment', permission: 'operational' },
-      { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates', permission: 'packages' },
-      { label: 'Tabungan', icon: Wallet, path: '/admin/savings', permission: 'packages' },
-      { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments', permission: 'operational' },
+      { label: 'Paket', icon: Package, path: '/admin/packages', permission: 'packages.view' },
+      { label: 'Keberangkatan', icon: Plane, path: '/admin/departures', permission: 'departures.view' },
+      { label: 'Booking', icon: Calendar, path: '/admin/bookings', permission: 'bookings.view_own' },
+      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment', permission: 'equipment.inventory' },
+      { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates', permission: 'packages.view' },
+      { label: 'Tabungan', icon: Wallet, path: '/admin/savings', permission: 'packages.view' },
+      { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments', permission: 'operational.manage' },
     ]
   },
   {
     label: 'Keuangan & Akuntansi',
     items: [
-      { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments', permission: 'payments' },
-      { label: 'Kas & Bank', icon: Wallet, path: '/admin/finance-cash', permission: 'payments' },
-      { label: 'Piutang Jamaah', icon: FileText, path: '/admin/finance/ar', permission: 'payments' },
-      { label: 'Hutang Vendor', icon: Truck, path: '/admin/finance/ap', permission: 'payments' },
-      { label: 'Laporan Laba Rugi', icon: DollarSign, path: '/admin/finance', permission: 'payments' },
+      { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments', permission: 'payments.view_own' },
+      { label: 'Kas & Bank', icon: Wallet, path: '/admin/finance-cash', permission: 'payments.view_own' },
+      { label: 'Piutang Jamaah', icon: FileText, path: '/admin/finance/ar', permission: 'payments.view_all' },
+      { label: 'Hutang Vendor', icon: Truck, path: '/admin/finance/ap', permission: 'payments.view_all' },
+      { label: 'Laporan Laba Rugi', icon: DollarSign, path: '/admin/finance', permission: 'finance.reports' },
     ]
   },
   {
     label: 'Jamaah & Agent',
     items: [
-      { label: 'Jamaah', icon: Users, path: '/admin/customers', permission: 'customers' },
-      { label: 'Agent', icon: UserCheck, path: '/admin/agents', permission: 'agents' },
-      { label: 'Cabang', icon: Building2, path: '/admin/branches', permission: 'settings' },
-      { label: 'Loyalty', icon: Gift, path: '/admin/loyalty', permission: 'marketing' },
-      { label: 'Referral', icon: Share2, path: '/admin/referrals', permission: 'marketing' },
-      { label: 'Haji', icon: BookOpen, path: '/admin/haji', permission: 'operational' },
-      { label: 'Manasik', icon: Calendar, path: '/admin/manasik', permission: 'operational' },
-      { label: 'Visa', icon: FileCheck, path: '/admin/visa', permission: 'operational' },
+      { label: 'Jamaah', icon: Users, path: '/admin/customers', permission: 'customers.view' },
+      { label: 'Agent', icon: UserCheck, path: '/admin/agents', permission: 'agents.view' },
+      { label: 'Cabang', icon: Building2, path: '/admin/branches', permission: 'settings.view' },
+      { label: 'Loyalty', icon: Gift, path: '/admin/loyalty', permission: 'marketing.view' },
+      { label: 'Referral', icon: Share2, path: '/admin/referrals', permission: 'marketing.view' },
+      { label: 'Haji', icon: BookOpen, path: '/admin/haji', permission: 'operational.view' },
+      { label: 'Manasik', icon: Calendar, path: '/admin/manasik', permission: 'operational.view' },
+      { label: 'Visa', icon: FileCheck, path: '/admin/visa', permission: 'operational.visa' },
     ]
   },
   {
     label: 'SDM (HR)',
     items: [
-      { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr?tab=employees', permission: 'settings' },
-      { label: 'Absensi', icon: Clock, path: '/admin/hr?tab=attendance', permission: 'operational' },
-      { label: 'Penggajian / Payroll', icon: Banknote, path: '/admin/hr/payroll', permission: 'payments' },
-      { label: 'Slip Gaji', icon: FileText, path: '/admin/finance-cash?tab=salary', permission: 'payments' },
-      { label: 'Departemen', icon: Building2, path: '/admin/hr?tab=departments', permission: 'settings' },
-      { label: 'Posisi', icon: Briefcase, path: '/admin/hr?tab=positions', permission: 'settings' },
-      { label: 'Jadwal Kerja', icon: Calendar, path: '/admin/hr?tab=schedules', permission: 'operational' },
-      { label: 'Perangkat', icon: Smartphone, path: '/admin/hr?tab=devices', permission: 'settings' },
-      { label: 'Pengaturan HR', icon: Settings, path: '/admin/hr?tab=settings', permission: 'settings' },
+      { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr?tab=employees', permission: 'hr.employees.view' },
+      { label: 'Absensi', icon: Clock, path: '/admin/hr?tab=attendance', permission: 'hr.attendance.view' },
+      { label: 'Penggajian / Payroll', icon: Banknote, path: '/admin/hr/payroll', permission: 'hr.payroll.view' },
+      { label: 'Slip Gaji', icon: FileText, path: '/admin/finance-cash?tab=salary', permission: 'hr.payroll.view' },
+      { label: 'Departemen', icon: Building2, path: '/admin/hr?tab=departments', permission: 'hr.departments.view' },
+      { label: 'Posisi', icon: Briefcase, path: '/admin/hr?tab=positions', permission: 'hr.positions.view' },
+      { label: 'Jadwal Kerja', icon: Calendar, path: '/admin/hr?tab=schedules', permission: 'hr.schedules.view' },
+      { label: 'Perangkat', icon: Smartphone, path: '/admin/hr?tab=devices', permission: 'hr.devices.view' },
+      { label: 'Pengaturan HR', icon: Settings, path: '/admin/hr?tab=settings', permission: 'hr.settings.view' },
     ]
   },
   {
     label: 'Support & Komunikasi',
     items: [
-      { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support', permission: 'settings' },
-      { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp', permission: 'settings' },
-      { label: 'Materi Promosi', icon: FileText, path: '/admin/marketing-materials', permission: 'marketing' },
+      { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support', permission: 'support.tickets.view' },
+      { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp', permission: 'whatsapp.view' },
+      { label: 'Materi Promosi', icon: FileText, path: '/admin/marketing-materials', permission: 'marketing_materials.view' },
     ]
   },
   {
     label: 'Master Data',
     items: [
-      { label: 'Master Data', icon: Settings, path: '/admin/master-data', permission: 'master_data' },
+      { label: 'Master Data', icon: Settings, path: '/admin/master-data', permission: 'master_data.view' },
     ]
   },
   {
     label: 'Dokumen & Surat',
     items: [
-      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', permission: 'operational' },
-      { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator', permission: 'operational' },
-      { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', permission: 'operational' },
+      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', permission: 'documents.verification.view' },
+      { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator', permission: 'documents.generator.view' },
+      { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', permission: 'offline_content.view' },
     ]
   },
   {
     label: 'Laporan',
     items: [
-      { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', permission: 'reports' },
-      { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports', permission: 'reports' },
-      { label: 'Laporan Terjadwal', icon: Calendar, path: '/admin/scheduled-reports', permission: 'reports' },
+      { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', permission: 'reports.view' },
+      { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports', permission: 'reports.view' },
+      { label: 'Laporan Terjadwal', icon: Calendar, path: '/admin/scheduled-reports', permission: 'reports.view' },
     ]
   },
   {
     label: 'Pengaturan',
     items: [
-      { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users' },
-      { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions', permission: 'users' },
-      { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security', permission: 'settings' },
-      { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings' },
-      { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings' },
-      { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages', permission: 'settings' },
-      { label: 'Testimoni', icon: Star, path: '/admin/testimonials', permission: 'settings' },
-      { label: 'Pengaturan', icon: Settings, path: '/admin/settings', permission: 'settings' },
+      { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users.view' },
+      { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions', permission: 'users.view' },
+      { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security', permission: 'settings.manage' },
+      { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings.manage' },
+      { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
+      { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages', permission: 'settings.manage' },
+      { label: 'Testimoni', icon: Star, path: '/admin/testimonials', permission: 'settings.manage' },
+      { label: 'Pengaturan', icon: Settings, path: '/admin/settings', permission: 'settings.manage' },
     ]
   },
 ];

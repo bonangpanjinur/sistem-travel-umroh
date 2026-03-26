@@ -1,24 +1,30 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { AppRole } from '@/types/database';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedRoles?: AppRole[];
+  permission?: string;
   requireAuth?: boolean;
 }
 
 export default function ProtectedRoute({ 
   children, 
   allowedRoles,
+  permission,
   requireAuth = true 
 }: ProtectedRouteProps) {
-  const { user, roles, isLoading, isAdmin } = useAuth();
+  const { user, roles, isLoading: authLoading, isAdmin } = useAuth();
+  const { hasPermission, isLoading: permsLoading } = usePermissions();
   const location = useLocation();
 
-  // Show loading state while checking auth
+  const isLoading = authLoading || permsLoading;
+
+  // Show loading state while checking auth and permissions
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -35,8 +41,17 @@ export default function ProtectedRoute({
     return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  // Check role-based access
-  if (allowedRoles && allowedRoles.length > 0) {
+  // Check permission-based access if specified
+  if (permission && !hasPermission(permission)) {
+    // Redirect unauthorized users
+    if (isAdmin()) {
+      return <Navigate to="/admin" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+
+  // Check role-based access (fallback if no permission specified)
+  if (allowedRoles && allowedRoles.length > 0 && !permission) {
     const hasAllowedRole = allowedRoles.some(role => roles.includes(role));
     
     // Special case: check if user is admin (super_admin, owner, branch_manager)
