@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -109,7 +109,8 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
     actions: [
       { key: "users.view", label: "Users", description: "Kelola pengguna sistem" },
       { key: "master_data.view", label: "Master Data", description: "Kelola data master" },
-      { key: "settings.manage", label: "Settings", description: "Pengaturan sistem" },
+      { key: "settings.view", label: "Lihat Settings", description: "Melihat pengaturan cabang & agen" },
+      { key: "settings.manage", label: "Kelola Settings", description: "Pengaturan sistem lengkap" },
     ]
   }
 ];
@@ -151,254 +152,238 @@ export default function AdminRolePermissions() {
       const { data, error } = await supabase
         .from("role_permissions")
         .select("*")
-        .order("role")
-        .order("permission_key");
+        .eq("role", selectedRole);
 
       if (error) throw error;
       return data as Permission[];
     },
   });
 
-  const saveMutation = useMutation({
-    mutationFn: async (changes: Record<string, boolean>) => {
-      const updates = Object.entries(changes).map(([id, is_enabled]) => ({
-        id,
-        is_enabled,
-      }));
-
+  const updatePermissionMutation = useMutation({
+    mutationFn: async (updates: Array<{ permission_key: string; is_enabled: boolean }>) => {
       for (const update of updates) {
         const { error } = await supabase
           .from("role_permissions")
           .update({ is_enabled: update.is_enabled })
-          .eq("id", update.id);
+          .eq("role", selectedRole)
+          .eq("permission_key", update.permission_key);
 
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      toast.success("Hak akses berhasil disimpan");
-      setPendingChanges({});
       queryClient.invalidateQueries({ queryKey: ["role-permissions-matrix"] });
+      setPendingChanges({});
+      toast.success("Izin berhasil diperbarui");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Gagal menyimpan perubahan");
+      toast.error(`Gagal memperbarui izin: ${error.message}`);
     },
   });
 
-  const currentRolePermissions = useMemo(() => {
-    return permissions.filter(p => p.role === selectedRole);
-  }, [permissions, selectedRole]);
-
-  const handleToggle = (permissionId: string, currentValue: boolean) => {
+  const handlePermissionChange = (permissionKey: string, isEnabled: boolean) => {
     setPendingChanges((prev) => ({
       ...prev,
-      [permissionId]: !currentValue,
+      [permissionKey]: isEnabled,
     }));
   };
 
-  const isEnabled = (permissionKey: string) => {
-    const perm = currentRolePermissions.find(p => p.permission_key === permissionKey);
-    if (!perm) return false;
-    
-    if (pendingChanges[perm.id] !== undefined) {
-      return pendingChanges[perm.id];
-    }
-    return perm.is_enabled;
+  const handleSaveChanges = () => {
+    const updates = Object.entries(pendingChanges).map(([key, value]) => ({
+      permission_key: key,
+      is_enabled: value,
+    }));
+
+    updatePermissionMutation.mutate(updates);
   };
 
-  const getPermissionId = (permissionKey: string) => {
-    return currentRolePermissions.find(p => p.permission_key === permissionKey)?.id;
-  };
-
-  const handleSave = () => {
-    if (Object.keys(pendingChanges).length === 0) {
-      toast.info("Tidak ada perubahan");
-      return;
-    }
-    saveMutation.mutate(pendingChanges);
-  };
-
-  const handleReset = () => {
+  const handleResetChanges = () => {
     setPendingChanges({});
-    toast.info("Perubahan dibatalkan");
   };
 
-  const toggleModule = (moduleId: string) => {
-    setExpandedModules(prev => ({ ...prev, [moduleId]: !prev[moduleId] }));
+  const getPermissionStatus = (permissionKey: string): boolean => {
+    if (permissionKey in pendingChanges) {
+      return pendingChanges[permissionKey];
+    }
+    const permission = permissions.find((p) => p.permission_key === permissionKey);
+    return permission?.is_enabled ?? false;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const hasChanges = Object.keys(pendingChanges).length > 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pengaturan Hak Akses</h1>
-          <p className="text-muted-foreground">
-            Konfigurasi izin granular (Lihat, Tambah, Edit, Hapus) untuk setiap role pengguna.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleReset} disabled={Object.keys(pendingChanges).length === 0}>
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Reset
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={Object.keys(pendingChanges).length === 0 || saveMutation.isPending}>
-            {saveMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Simpan Perubahan
-          </Button>
-        </div>
+    <div className="space-y-6 max-w-6xl">
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Shield className="h-6 w-6" />
+          Manajemen Izin Akses
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Kelola izin akses untuk setiap peran pengguna dalam sistem
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Role Selection */}
+        {/* Role Selector */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Pilih Role
+              Pilih Peran
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="flex flex-col">
-              {CONFIGURABLE_ROLES.map((role) => (
-                <button
-                  key={role}
-                  onClick={() => {
-                    if (Object.keys(pendingChanges).length > 0) {
-                      if (confirm("Ada perubahan yang belum disimpan. Pindah role tetap?")) {
-                        setPendingChanges({});
-                        setSelectedRole(role);
-                      }
-                    } else {
-                      setSelectedRole(role);
-                    }
-                  }}
-                  className={cn(
-                    "flex flex-col items-start px-4 py-3 text-left transition-colors hover:bg-muted/50 border-l-4",
-                    selectedRole === role 
-                      ? "bg-muted border-primary" 
-                      : "border-transparent"
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-sm">{ROLE_LABELS[role].label}</span>
-                    <Badge variant="secondary" className={cn("text-[10px] h-4 px-1 text-white", ROLE_LABELS[role].color)}>
-                      Active
-                    </Badge>
-                  </div>
-                  <span className="text-xs text-muted-foreground line-clamp-1">
-                    {ROLE_LABELS[role].description}
-                  </span>
-                </button>
-              ))}
-              <div className="p-4 bg-muted/30 mt-2">
-                <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <Shield className="h-4 w-4 mt-0.5 text-primary" />
-                  <span>
-                    <strong>Super Admin</strong> & <strong>Owner</strong> memiliki akses penuh ke semua fitur dan tidak dapat dikonfigurasi.
-                  </span>
+          <CardContent className="space-y-2">
+            {CONFIGURABLE_ROLES.map((role) => (
+              <button
+                key={role}
+                onClick={() => {
+                  setSelectedRole(role);
+                  setPendingChanges({});
+                }}
+                className={cn(
+                  "w-full text-left px-3 py-2 rounded-lg transition-colors text-sm font-medium",
+                  selectedRole === role
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      ROLE_LABELS[role].color
+                    )}
+                  />
+                  {ROLE_LABELS[role].label}
                 </div>
-              </div>
-            </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {ROLE_LABELS[role].description}
+                </p>
+              </button>
+            ))}
           </CardContent>
         </Card>
 
-        {/* Permissions Matrix */}
+        {/* Permissions Grid */}
         <div className="lg:col-span-3 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">Matriks Izin: {ROLE_LABELS[selectedRole].label}</CardTitle>
-                  <CardDescription>Aktifkan atau nonaktifkan fitur spesifik untuk role ini.</CardDescription>
-                </div>
-                {Object.keys(pendingChanges).length > 0 && (
-                  <Badge variant="warning" className="animate-pulse">Ada Perubahan</Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="border-t">
-                {MODULE_DEFINITIONS.map((module) => (
-                  <div key={module.id} className="border-b last:border-0">
+          {isLoading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {MODULE_DEFINITIONS.map((module) => (
+                <Card key={module.id}>
+                  <CardHeader className="pb-3">
                     <button
-                      onClick={() => toggleModule(module.id)}
-                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors"
+                      onClick={() =>
+                        setExpandedModules((prev) => ({
+                          ...prev,
+                          [module.id]: !prev[module.id],
+                        }))
+                      }
+                      className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         {expandedModules[module.id] ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          <ChevronDown className="h-4 w-4" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <ChevronRight className="h-4 w-4" />
                         )}
                         <div className="text-left">
-                          <h3 className="font-semibold text-sm">{module.label}</h3>
-                          <p className="text-xs text-muted-foreground">{module.description}</p>
+                          <CardTitle className="text-base">{module.label}</CardTitle>
+                          <CardDescription className="text-xs">
+                            {module.description}
+                          </CardDescription>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                         {/* Module Summary Badge */}
-                         <Badge variant="outline" className="text-[10px]">
-                           {module.actions.filter(a => isEnabled(a.key)).length} / {module.actions.length} Aktif
-                         </Badge>
-                      </div>
                     </button>
-                    
-                    {expandedModules[module.id] && (
-                      <div className="px-6 pb-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-                        {module.actions.map((action) => {
-                          const permId = getPermissionId(action.key);
-                          const active = isEnabled(action.key);
-                          
-                          return (
-                            <div 
-                              key={action.key} 
-                              className={cn(
-                                "flex items-center justify-between p-2 rounded-md transition-colors",
-                                active ? "bg-primary/5" : "hover:bg-muted/50"
-                              )}
+                  </CardHeader>
+
+                  {expandedModules[module.id] && (
+                    <>
+                      <Separator />
+                      <CardContent className="pt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {module.actions.map((action) => (
+                            <label
+                              key={action.key}
+                              className="flex items-start gap-3 p-3 rounded-lg border border-transparent hover:border-border hover:bg-muted/50 cursor-pointer transition-colors"
                             >
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium">{action.label}</span>
-                                <span className="text-[10px] text-muted-foreground">{action.description}</span>
-                              </div>
                               <Checkbox
-                                checked={active}
-                                disabled={!permId}
-                                onCheckedChange={() => permId && handleToggle(permId, active)}
-                                className="h-5 w-5"
+                                checked={getPermissionStatus(action.key)}
+                                onCheckedChange={(checked) =>
+                                  handlePermissionChange(action.key, checked as boolean)
+                                }
+                                className="mt-1"
                               />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
-            <div className="text-sm text-blue-700">
-              <p className="font-semibold mb-1">Informasi Penting</p>
-              <p>
-                Perubahan hak akses akan langsung berdampak pada menu navigasi dan akses halaman bagi pengguna dengan role tersebut setelah mereka melakukan refresh halaman.
-              </p>
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{action.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {action.description}
+                                </p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </>
+                  )}
+                </Card>
+              ))}
+            </>
+          )}
+
+          {/* Action Buttons */}
+          {!isLoading && (
+            <div className="flex gap-2 justify-end sticky bottom-4">
+              <Button
+                variant="outline"
+                onClick={handleResetChanges}
+                disabled={!hasChanges || updatePermissionMutation.isPending}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
+              <Button
+                onClick={handleSaveChanges}
+                disabled={!hasChanges || updatePermissionMutation.isPending}
+              >
+                {updatePermissionMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Simpan Perubahan
+                  </>
+                )}
+              </Button>
             </div>
-          </div>
+          )}
+
+          {/* Change Summary */}
+          {hasChanges && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-sm text-blue-900">
+                      {Object.keys(pendingChanges).length} izin telah diubah
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Klik "Simpan Perubahan" untuk menerapkan perubahan ke database
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

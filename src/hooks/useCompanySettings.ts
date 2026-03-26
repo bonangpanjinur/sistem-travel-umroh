@@ -30,7 +30,7 @@ export function useCompanySettings() {
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
       const { error } = await supabase
         .from("company_settings")
-        .update({ setting_value: value })
+        .update({ setting_value: value, updated_at: new Date().toISOString() })
         .eq("setting_key", key);
       if (error) throw error;
     },
@@ -38,24 +38,32 @@ export function useCompanySettings() {
       queryClient.invalidateQueries({ queryKey: ["company-settings"] });
       toast.success("Pengaturan berhasil disimpan");
     },
-    onError: (error: Error) => toast.error("Gagal: " + error.message),
+    onError: (error: any) => {
+      console.error("Update setting error:", error);
+      toast.error(`Gagal menyimpan pengaturan: ${error.message || "Terjadi kesalahan sistem"}`);
+    },
   });
 
   const updateMultipleSettings = useMutation({
     mutationFn: async (updates: { key: string; value: any }[]) => {
+      // Use a single request if possible, but the current schema uses key-value rows
+      // We'll stick to individual updates for now as per original logic but with better error handling
       for (const { key, value } of updates) {
         const { error } = await supabase
           .from("company_settings")
-          .update({ setting_value: value })
+          .update({ setting_value: value, updated_at: new Date().toISOString() })
           .eq("setting_key", key);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-settings"] });
-      toast.success("Pengaturan berhasil disimpan");
+      toast.success("Semua pengaturan berhasil diperbarui");
     },
-    onError: (error: Error) => toast.error("Gagal: " + error.message),
+    onError: (error: any) => {
+      console.error("Update multiple settings error:", error);
+      toast.error(`Gagal memperbarui pengaturan: ${error.message || "Terjadi kesalahan sistem"}`);
+    },
   });
 
   return {
@@ -65,13 +73,19 @@ export function useCompanySettings() {
     updateSetting: updateSettingMutation.mutate,
     updateMultipleSettings: updateMultipleSettings.mutate,
     resetDatabase: async (confirmText: string) => {
+      if (confirmText !== "RESET DATABASE SEKARANG") {
+        toast.error("Teks konfirmasi tidak sesuai");
+        return;
+      }
+
       const { data, error } = await supabase.rpc('reset_database', { confirm_text: confirmText });
       if (error) {
-        toast.error("Gagal reset database: " + error.message);
+        console.error("Reset database error:", error);
+        toast.error(`Gagal reset database: ${error.message}`);
         throw error;
       }
       queryClient.invalidateQueries();
-      toast.success("Database berhasil direset");
+      toast.success("Database berhasil direset. Semua data transaksi telah dihapus.");
       return data;
     },
     isUpdating: updateSettingMutation.isPending || updateMultipleSettings.isPending,
@@ -100,24 +114,30 @@ export function useBankAccounts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
-      toast.success("Rekening berhasil ditambahkan");
+      toast.success("Rekening bank berhasil ditambahkan");
     },
-    onError: (error: Error) => toast.error("Gagal: " + error.message),
+    onError: (error: any) => {
+      console.error("Create bank account error:", error);
+      toast.error(`Gagal menambahkan rekening: ${error.message}`);
+    },
   });
 
   const updateAccountMutation = useMutation({
     mutationFn: async ({ id, ...data }: Database['public']['Tables']['bank_accounts']['Update'] & { id: string }) => {
       const { error } = await supabase
         .from("bank_accounts")
-        .update(data)
+        .update({ ...data, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
-      toast.success("Rekening berhasil diperbarui");
+      toast.success("Data rekening berhasil diperbarui");
     },
-    onError: (error: Error) => toast.error("Gagal: " + error.message),
+    onError: (error: any) => {
+      console.error("Update bank account error:", error);
+      toast.error(`Gagal memperbarui rekening: ${error.message}`);
+    },
   });
 
   const deleteAccountMutation = useMutation({
@@ -129,7 +149,10 @@ export function useBankAccounts() {
       queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
       toast.success("Rekening berhasil dihapus");
     },
-    onError: (error: Error) => toast.error("Gagal: " + error.message),
+    onError: (error: any) => {
+      console.error("Delete bank account error:", error);
+      toast.error(`Gagal menghapus rekening: ${error.message}`);
+    },
   });
 
   return {

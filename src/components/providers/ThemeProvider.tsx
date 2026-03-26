@@ -7,6 +7,8 @@ interface ThemeProviderProps {
 }
 
 const THEME_CACHE_KEY = 'website-theme-cache';
+const THEME_VERSION_KEY = 'website-theme-version';
+const CURRENT_THEME_VERSION = '2'; // Increment this when cache structure changes
 
 // Generate CSS variables from website settings
 function generateCSSVariables(settings: WebsiteSettings | null | undefined): Record<string, string> {
@@ -145,26 +147,71 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   }
 }
 
-// NOTE: Theme caching is now handled by the inline script in index.html
-// This ensures the theme is applied before React renders, preventing FOUC
+/**
+ * Generate a hash of the settings to detect changes
+ * This helps invalidate cache when settings structure changes
+ */
+function generateSettingsHash(settings: WebsiteSettings | null | undefined): string {
+  if (!settings) return '';
+  
+  const hashableData = {
+    colors: {
+      primary: settings.primary_color,
+      secondary: settings.secondary_color,
+      accent: settings.accent_color,
+      background: settings.background_color,
+      foreground: settings.foreground_color,
+    },
+    fonts: {
+      heading: settings.heading_font,
+      body: settings.body_font,
+    },
+    template: settings.template,
+    updated_at: settings.updated_at,
+  };
+  
+  // Simple hash function - in production, consider using a proper hashing library
+  return btoa(JSON.stringify(hashableData)).substring(0, 16);
+}
 
+/**
+ * ThemeProvider component that applies website settings to the document
+ * Includes improved caching with version control to prevent stale styles
+ */
 export function ThemeProvider({ children, settings: propSettings }: ThemeProviderProps) {
   const { data: fetchedSettings } = useWebsiteSettings();
   const settings = propSettings !== undefined ? propSettings : fetchedSettings;
 
   const cssVariables = useMemo(() => generateCSSVariables(settings), [settings]);
+  const settingsHash = useMemo(() => generateSettingsHash(settings), [settings]);
 
   useEffect(() => {
     if (!settings) return;
 
+    // Check if cached version is still valid
+    try {
+      const cachedVersion = localStorage.getItem(THEME_VERSION_KEY);
+      const cachedHash = localStorage.getItem(`${THEME_CACHE_KEY}-hash`);
+      
+      // Clear cache if version mismatch or hash mismatch (settings changed)
+      if (cachedVersion !== CURRENT_THEME_VERSION || cachedHash !== settingsHash) {
+        localStorage.removeItem(THEME_CACHE_KEY);
+        localStorage.removeItem(`${THEME_CACHE_KEY}-hash`);
+      }
+    } catch {
+      // Ignore quota errors
+    }
+
     // Apply CSS variables
     applyCSSVariables(cssVariables, settings);
 
-    // Cache to localStorage for instant apply on next reload
+    // Cache CSS variables and metadata for instant apply on next reload
     try {
       localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(cssVariables));
+      localStorage.setItem(THEME_VERSION_KEY, CURRENT_THEME_VERSION);
+      localStorage.setItem(`${THEME_CACHE_KEY}-hash`, settingsHash);
     } catch {
-      // Ignore quota errors
+      // Ignore quota errors (localStorage full)
     }
 
     // Load Google Fonts
@@ -172,7 +219,7 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
 
     // Apply meta tags
     applyMetaTags(settings);
-  }, [settings, cssVariables]);
+  }, [settings, cssVariables, settingsHash]);
 
   return <>{children}</>;
 }

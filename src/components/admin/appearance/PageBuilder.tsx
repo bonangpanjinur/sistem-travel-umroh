@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { WebsiteSettings, HomepageSection, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
-import { Layout, Save, GripVertical, Eye, EyeOff, Upload, Loader2, ExternalLink } from "lucide-react";
+import { Layout, Save, GripVertical, Eye, EyeOff, Upload, Loader2, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,20 @@ interface PageBuilderProps {
   settings: WebsiteSettings;
 }
 
+/**
+ * PageBuilder Component
+ * 
+ * Manages the homepage layout and section ordering.
+ * 
+ * Current Implementation:
+ * - Section reordering uses arrow buttons (up/down) for changing order
+ * - Each section can be toggled on/off via switch
+ * - Hero section content (title, subtitle, image, CTA) can be customized
+ * 
+ * Future Enhancement:
+ * - Implement real drag-and-drop using dnd-kit or react-beautiful-dnd library
+ * - This would provide better UX with visual feedback during dragging
+ */
 export function PageBuilder({ settings }: PageBuilderProps) {
   const updateSettings = useUpdateWebsiteSettings();
   const [uploading, setUploading] = useState(false);
@@ -55,6 +69,10 @@ export function PageBuilder({ settings }: PageBuilderProps) {
     );
   };
 
+  /**
+   * Move section up or down in the order
+   * Updates the order field for all sections
+   */
   const moveSection = (id: string, direction: "up" | "down") => {
     const index = sections.findIndex((s) => s.id === id);
     if (
@@ -71,7 +89,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       newSections[index],
     ];
 
-    // Update order values
+    // Update order values to reflect new sequence
     newSections.forEach((s, i) => {
       s.order = i + 1;
     });
@@ -143,6 +161,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
                 </a>
               </Button>
               <Button size="sm" onClick={handleSave} disabled={updateSettings.isPending}>
+                {updateSettings.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Save className="h-4 w-4 mr-2" />
                 Simpan
               </Button>
@@ -157,7 +176,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
           <CardHeader>
             <CardTitle className="text-base">Urutan Section</CardTitle>
             <CardDescription>
-              Drag untuk mengubah urutan, toggle untuk show/hide
+              Gunakan tombol panah untuk mengubah urutan, toggle untuk show/hide
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -170,31 +189,33 @@ export function PageBuilder({ settings }: PageBuilderProps) {
                     className={cn(
                       "flex items-center gap-3 p-3 rounded-lg border transition-colors",
                       section.enabled
-                        ? "bg-background"
+                        ? "bg-background hover:bg-muted/50"
                         : "bg-muted/50 opacity-60"
                     )}
                   >
                     <div className="flex flex-col gap-1">
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="h-5 w-5"
+                        size="sm"
+                        className="h-8 w-8 p-0"
                         disabled={index === 0}
                         onClick={() => moveSection(section.id, "up")}
+                        title="Pindahkan ke atas"
                       >
-                        ▲
+                        <ArrowUp className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="h-5 w-5"
+                        size="sm"
+                        className="h-8 w-8 p-0"
                         disabled={index === sections.length - 1}
                         onClick={() => moveSection(section.id, "down")}
+                        title="Pindahkan ke bawah"
                       >
-                        ▼
+                        <ArrowDown className="h-4 w-4" />
                       </Button>
                     </div>
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-xl">{getSectionIcon(section.id)}</span>
                     <div className="flex-1">
                       <p className="font-medium text-sm">{section.title}</p>
@@ -205,9 +226,14 @@ export function PageBuilder({ settings }: PageBuilderProps) {
                     <Switch
                       checked={section.enabled}
                       onCheckedChange={() => toggleSection(section.id)}
+                      aria-label={`Toggle ${section.title}`}
                     />
                   </div>
                 ))}
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+              <p className="font-medium mb-1">💡 Tips:</p>
+              <p>Gunakan tombol panah untuk mengubah urutan section. Perubahan akan disimpan saat Anda klik tombol "Simpan".</p>
             </div>
           </CardContent>
         </Card>
@@ -222,8 +248,9 @@ export function PageBuilder({ settings }: PageBuilderProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Judul Hero</Label>
+              <Label htmlFor="hero_title">Judul Hero</Label>
               <Input
+                id="hero_title"
                 value={heroContent.hero_title}
                 onChange={(e) =>
                   setHeroContent((prev) => ({ ...prev, hero_title: e.target.value }))
@@ -233,8 +260,9 @@ export function PageBuilder({ settings }: PageBuilderProps) {
             </div>
 
             <div className="space-y-2">
-              <Label>Subtitle</Label>
+              <Label htmlFor="hero_subtitle">Subtitle</Label>
               <Textarea
+                id="hero_subtitle"
                 value={heroContent.hero_subtitle}
                 onChange={(e) =>
                   setHeroContent((prev) => ({ ...prev, hero_subtitle: e.target.value }))
@@ -248,92 +276,71 @@ export function PageBuilder({ settings }: PageBuilderProps) {
               <Label>Background Image</Label>
               <div className="flex items-start gap-4">
                 {heroContent.hero_image_url ? (
-                  <img
-                    src={heroContent.hero_image_url}
-                    alt="Hero"
-                    className="h-20 w-32 object-cover rounded bg-muted"
-                  />
-                ) : (
-                  <div className="h-20 w-32 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
-                    No Image
+                  <div className="relative w-24 h-24 rounded-lg overflow-hidden border">
+                    <img
+                      src={heroContent.hero_image_url}
+                      alt="Hero"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                )}
-                <label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleHeroImageUpload(file);
-                    }}
-                  />
-                  <Button variant="outline" size="sm" asChild disabled={uploading}>
-                    <span className="cursor-pointer">
+                ) : null}
+                <div className="flex-1">
+                  <label className="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="text-center">
                       {uploading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <>
+                          <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Uploading...</p>
+                        </>
                       ) : (
-                        <Upload className="h-4 w-4 mr-2" />
+                        <>
+                          <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm font-medium">Klik untuk upload</p>
+                          <p className="text-xs text-muted-foreground">PNG, JPG, WebP (Max 5MB)</p>
+                        </>
                       )}
-                      Upload
-                    </span>
-                  </Button>
-                </label>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleHeroImageUpload(file);
+                      }}
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Rekomendasi: 1920x1080 pixel, format JPG/PNG
-              </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Teks Tombol CTA</Label>
-                <Input
-                  value={heroContent.hero_cta_text}
-                  onChange={(e) =>
-                    setHeroContent((prev) => ({ ...prev, hero_cta_text: e.target.value }))
-                  }
-                  placeholder="Lihat Paket"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Link CTA</Label>
-                <Input
-                  value={heroContent.hero_cta_link}
-                  onChange={(e) =>
-                    setHeroContent((prev) => ({ ...prev, hero_cta_link: e.target.value }))
-                  }
-                  placeholder="/packages"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="hero_cta_text">CTA Button Text</Label>
+              <Input
+                id="hero_cta_text"
+                value={heroContent.hero_cta_text}
+                onChange={(e) =>
+                  setHeroContent((prev) => ({ ...prev, hero_cta_text: e.target.value }))
+                }
+                placeholder="Mulai Booking Sekarang"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hero_cta_link">CTA Button Link</Label>
+              <Input
+                id="hero_cta_link"
+                value={heroContent.hero_cta_link}
+                onChange={(e) =>
+                  setHeroContent((prev) => ({ ...prev, hero_cta_link: e.target.value }))
+                }
+                placeholder="/packages"
+              />
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Section Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Preview Urutan Halaman</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {sections
-              .filter((s) => s.enabled)
-              .sort((a, b) => a.order - b.order)
-              .map((section, index) => (
-                <div
-                  key={section.id}
-                  className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg"
-                >
-                  <span className="text-xs text-muted-foreground">{index + 1}.</span>
-                  <span className="text-sm">{getSectionIcon(section.id)}</span>
-                  <span className="text-sm font-medium">{section.title}</span>
-                </div>
-              ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

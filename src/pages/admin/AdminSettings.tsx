@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +9,36 @@ import { Label } from "@/components/ui/label";
 import { Building2, CreditCard, Bell, Plus, Trash2, Loader2, Database, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
+
+const companySchema = z.object({
+  company_name: z.string().min(3, "Nama perusahaan minimal 3 karakter"),
+  company_phone: z.string().min(10, "Nomor telepon minimal 10 digit").regex(/^[0-9+]+$/, "Nomor telepon tidak valid"),
+  company_email: z.string().email("Format email tidak valid"),
+  company_address: z.string().min(5, "Alamat minimal 5 karakter"),
+});
+
+type CompanyFormData = z.infer<typeof companySchema>;
+
+const bankSchema = z.object({
+  bank_name: z.string().min(2, "Nama bank minimal 2 karakter"),
+  account_number: z.string().min(5, "Nomor rekening minimal 5 karakter").regex(/^[0-9]+$/, "Nomor rekening hanya boleh berisi angka"),
+  account_name: z.string().min(3, "Nama pemilik rekening minimal 3 karakter"),
+  branch_name: z.string().optional().or(z.literal("")),
+  is_primary: z.boolean().default(false),
+});
+
+type BankFormData = z.infer<typeof bankSchema>;
 
 export default function AdminSettings() {
   const { getSetting, updateMultipleSettings, resetDatabase, isLoading, isUpdating } = useCompanySettings();
@@ -17,53 +47,83 @@ export default function AdminSettings() {
   const [resetConfirm, setResetConfirm] = useState("");
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-
-  const [companyForm, setCompanyForm] = useState({
-    company_name: "",
-    company_phone: "",
-    company_email: "",
-    company_address: "",
-  });
-  const [formInitialized, setFormInitialized] = useState(false);
   const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null);
 
-  // Initialize form when settings load
-  if (!isLoading && !formInitialized) {
-    setCompanyForm({
-      company_name: getSetting("company_name") || "",
-      company_phone: getSetting("company_phone") || "",
-      company_email: getSetting("company_email") || "",
-      company_address: getSetting("company_address") || "",
-    });
-    setFormInitialized(true);
-  }
+  const companyForm = useForm<CompanyFormData>({
+    resolver: zodResolver(companySchema),
+    defaultValues: {
+      company_name: "",
+      company_phone: "",
+      company_email: "",
+      company_address: "",
+    },
+  });
 
-  const handleSaveCompany = () => {
+  const bankForm = useForm<BankFormData>({
+    resolver: zodResolver(bankSchema),
+    defaultValues: {
+      bank_name: "",
+      account_number: "",
+      account_name: "",
+      branch_name: "",
+      is_primary: false,
+    },
+  });
+
+  // Initialize company form when settings load
+  useEffect(() => {
+    if (!isLoading) {
+      companyForm.reset({
+        company_name: getSetting("company_name") || "",
+        company_phone: getSetting("company_phone") || "",
+        company_email: getSetting("company_email") || "",
+        company_address: getSetting("company_address") || "",
+      });
+    }
+  }, [isLoading, getSetting, companyForm]);
+
+  // Initialize bank form when editing
+  useEffect(() => {
+    if (editingBank) {
+      bankForm.reset({
+        bank_name: editingBank.bank_name,
+        account_number: editingBank.account_number,
+        account_name: editingBank.account_name,
+        branch_name: editingBank.branch_name || "",
+        is_primary: editingBank.is_primary || false,
+      });
+    } else {
+      bankForm.reset({
+        bank_name: "",
+        account_number: "",
+        account_name: "",
+        branch_name: "",
+        is_primary: false,
+      });
+    }
+  }, [editingBank, bankForm]);
+
+  const onSaveCompany = (data: CompanyFormData) => {
     updateMultipleSettings([
-      { key: "company_name", value: companyForm.company_name },
-      { key: "company_phone", value: companyForm.company_phone },
-      { key: "company_email", value: companyForm.company_email },
-      { key: "company_address", value: companyForm.company_address },
+      { key: "company_name", value: data.company_name },
+      { key: "company_phone", value: data.company_phone },
+      { key: "company_email", value: data.company_email },
+      { key: "company_address", value: data.company_address },
     ]);
   };
 
-  const handleSaveBank = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      bank_name: formData.get("bank_name") as string,
-      account_number: formData.get("account_number") as string,
-      account_name: formData.get("account_name") as string,
-      branch_name: (formData.get("branch_name") as string) || null,
+  const onSaveBank = (data: BankFormData) => {
+    const bankData = {
+      ...data,
+      branch_name: data.branch_name || null,
       is_active: true,
-      is_primary: formData.get("is_primary") === "on",
     };
 
     if (editingBank) {
-      updateAccount({ id: editingBank.id, ...data });
+      updateAccount({ id: editingBank.id, ...bankData });
     } else {
-      createAccount(data);
+      createAccount(bankData);
     }
     setIsBankDialogOpen(false);
     setEditingBank(null);
@@ -105,52 +165,73 @@ export default function AdminSettings() {
             Informasi Perusahaan
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           {isLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex items-center gap-2 text-muted-foreground py-4">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Memuat...
+              Memuat pengaturan...
             </div>
           ) : (
-            <>
-              <div>
-                <Label htmlFor="company_name">Nama Perusahaan</Label>
-                <Input
-                  id="company_name"
-                  value={companyForm.company_name}
-                  onChange={(e) => setCompanyForm((f) => ({ ...f, company_name: e.target.value }))}
+            <Form {...companyForm}>
+              <form onSubmit={companyForm.handleSubmit(onSaveCompany)} className="space-y-4">
+                <FormField
+                  control={companyForm.control}
+                  name="company_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama Perusahaan</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nama perusahaan" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div>
-                <Label htmlFor="company_phone">No. Telepon</Label>
-                <Input
-                  id="company_phone"
-                  value={companyForm.company_phone}
-                  onChange={(e) => setCompanyForm((f) => ({ ...f, company_phone: e.target.value }))}
+                <FormField
+                  control={companyForm.control}
+                  name="company_phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>No. Telepon</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Contoh: 0211234567" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div>
-                <Label htmlFor="company_email">Email</Label>
-                <Input
-                  id="company_email"
-                  type="email"
-                  value={companyForm.company_email}
-                  onChange={(e) => setCompanyForm((f) => ({ ...f, company_email: e.target.value }))}
+                <FormField
+                  control={companyForm.control}
+                  name="company_email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="email@perusahaan.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div>
-                <Label htmlFor="company_address">Alamat</Label>
-                <Input
-                  id="company_address"
-                  value={companyForm.company_address}
-                  onChange={(e) => setCompanyForm((f) => ({ ...f, company_address: e.target.value }))}
+                <FormField
+                  control={companyForm.control}
+                  name="company_address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Alamat</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Alamat lengkap perusahaan" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <Button onClick={handleSaveCompany} disabled={isUpdating}>
-                {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Simpan Perubahan
-              </Button>
-            </>
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Simpan Perubahan
+                </Button>
+              </form>
+            </Form>
           )}
         </CardContent>
       </Card>
@@ -178,31 +259,31 @@ export default function AdminSettings() {
         </CardHeader>
         <CardContent className="space-y-3">
           {loadingAccounts ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex items-center gap-2 text-muted-foreground py-2">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Memuat...
+              Memuat data bank...
             </div>
           ) : accounts.length === 0 ? (
-            <p className="text-muted-foreground">Belum ada rekening bank</p>
+            <p className="text-muted-foreground py-2">Belum ada rekening bank yang terdaftar.</p>
           ) : (
             accounts.map((acc) => (
               <div
                 key={acc.id}
-                className="p-4 border rounded-lg flex items-start justify-between"
+                className="p-4 border rounded-lg flex items-start justify-between hover:bg-muted/30 transition-colors"
               >
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-medium">{acc.bank_name}</p>
                     {acc.is_primary && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase tracking-wider">
                         Utama
                       </span>
                     )}
                   </div>
-                  <p className="text-lg font-mono">{acc.account_number}</p>
+                  <p className="text-lg font-mono font-semibold tracking-tight">{acc.account_number}</p>
                   <p className="text-sm text-muted-foreground">a.n. {acc.account_name}</p>
                   {acc.branch_name && (
-                    <p className="text-xs text-muted-foreground">Cabang: {acc.branch_name}</p>
+                    <p className="text-xs text-muted-foreground mt-1 italic">Cabang: {acc.branch_name}</p>
                   )}
                 </div>
                 <div className="flex gap-1">
@@ -219,8 +300,12 @@ export default function AdminSettings() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => deleteAccount(acc.id)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      if (confirm("Apakah Anda yakin ingin menghapus rekening ini?")) {
+                        deleteAccount(acc.id);
+                      }
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -240,24 +325,29 @@ export default function AdminSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">
-            Pengaturan notifikasi email dan WhatsApp akan tersedia segera.
-          </p>
+          <div className="p-4 bg-muted rounded-lg border border-dashed">
+            <p className="text-sm text-muted-foreground text-center">
+              Pengaturan notifikasi email dan WhatsApp akan tersedia segera.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Database Reset - Super Admin Only UI */}
+      {/* Database Reset */}
       <Card className="border-destructive/20 bg-destructive/5">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2 text-destructive">
             <Database className="h-5 w-5" />
-            Zona Bahaya: Reset Database
+            Zona Bahaya
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Fitur ini akan menghapus **semua data transaksi** termasuk semua booking, pembayaran, data jamaah per booking, dan leads. Data master seperti paket, hotel, dan maskapai tetap aman.
-          </p>
+          <div className="space-y-1">
+            <p className="font-medium text-destructive">Reset Database</p>
+            <p className="text-sm text-muted-foreground">
+              Fitur ini akan menghapus **semua data transaksi** termasuk semua booking, pembayaran, data jamaah per booking, dan leads. Data master seperti paket, hotel, dan maskapai tetap aman.
+            </p>
+          </div>
           <Button 
             variant="destructive" 
             onClick={() => setIsResetDialogOpen(true)}
@@ -266,6 +356,99 @@ export default function AdminSettings() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Bank Account Dialog */}
+      <Dialog open={isBankDialogOpen} onOpenChange={setIsBankDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingBank ? "Edit Rekening Bank" : "Tambah Rekening Bank"}</DialogTitle>
+          </DialogHeader>
+          <Form {...bankForm}>
+            <form onSubmit={bankForm.handleSubmit(onSaveBank)} className="space-y-4">
+              <FormField
+                control={bankForm.control}
+                name="bank_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nama Bank</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Contoh: BCA, Mandiri, BSI" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={bankForm.control}
+                name="account_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nomor Rekening</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Masukkan nomor rekening" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={bankForm.control}
+                name="account_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nama Pemilik Rekening</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nama sesuai di buku tabungan" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={bankForm.control}
+                name="branch_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cabang (Opsional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nama kantor cabang" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={bankForm.control}
+                name="is_primary"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Rekening Utama</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Tampilkan rekening ini sebagai pilihan utama pembayaran
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsBankDialogOpen(false)}>
+                  Batal
+                </Button>
+                <Button type="submit">
+                  {editingBank ? "Simpan Perubahan" : "Tambah Rekening"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset Database Dialog */}
       <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
@@ -300,69 +483,9 @@ export default function AdminSettings() {
               disabled={resetConfirm !== "RESET DATABASE SEKARANG" || isResetting}
             >
               {isResetting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Reset Database
+              Hapus Semua Data
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bank Account Dialog */}
-      <Dialog open={isBankDialogOpen} onOpenChange={setIsBankDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingBank ? "Edit Rekening" : "Tambah Rekening"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSaveBank} className="space-y-4">
-            <div>
-              <Label htmlFor="bank_name">Nama Bank *</Label>
-              <Input
-                id="bank_name"
-                name="bank_name"
-                defaultValue={editingBank?.bank_name || ""}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="account_number">No. Rekening *</Label>
-              <Input
-                id="account_number"
-                name="account_number"
-                defaultValue={editingBank?.account_number || ""}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="account_name">Atas Nama *</Label>
-              <Input
-                id="account_name"
-                name="account_name"
-                defaultValue={editingBank?.account_name || ""}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="branch_name">Cabang (Opsional)</Label>
-              <Input
-                id="branch_name"
-                name="branch_name"
-                defaultValue={editingBank?.branch_name || ""}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="is_primary"
-                name="is_primary"
-                defaultChecked={editingBank?.is_primary || false}
-              />
-              <Label htmlFor="is_primary">Jadikan rekening utama</Label>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsBankDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button type="submit">Simpan</Button>
-            </DialogFooter>
-          </form>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,7 +1,9 @@
-import { useMemo, useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
 import { ModernHeroSection } from '@/components/home/ModernHeroSection';
+import { LuxuryHeroSection } from '@/components/home/LuxuryHeroSection';
+import { IslamicHeroSection } from '@/components/home/IslamicHeroSection';
 import { FuturisticHeroSection } from '@/components/home/FuturisticHeroSection';
 import { NatureHeroSection } from '@/components/home/NatureHeroSection';
 import { RoyalHeroSection } from '@/components/home/RoyalHeroSection';
@@ -10,6 +12,8 @@ import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { DynamicCTASection } from '@/components/home/DynamicCTASection';
 import { ModernCTASection } from '@/components/home/ModernCTASection';
+import { LuxuryCTASection } from '@/components/home/LuxuryCTASection';
+import { IslamicCTASection } from '@/components/home/IslamicCTASection';
 import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
 import { NatureCTASection } from '@/components/home/NatureCTASection';
 import { RoyalCTASection } from '@/components/home/RoyalCTASection';
@@ -37,22 +41,30 @@ export default function AgentWebsite() {
     }
   }, [settings?.agent_id, settings?.company_name, agentSlug, setTenant]);
 
+  /**
+   * Map template names to their corresponding Hero and CTA components
+   * All templates are now fully implemented
+   */
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
     hero: 
       template === 'modern' ? ModernHeroSection : 
+      template === 'luxury' ? LuxuryHeroSection :
+      template === 'islamic' ? IslamicHeroSection :
       template === 'futuristic' ? FuturisticHeroSection :
       template === 'nature' ? NatureHeroSection :
       template === 'royal' ? RoyalHeroSection :
-      DynamicHeroSection,
+      DynamicHeroSection, // fallback for 'classic' and unknown templates
     featured_packages: FeaturedPackages as any,
     why_choose_us: WhyChooseUs as any,
     testimonials: Testimonials as any,
     cta: 
       template === 'modern' ? ModernCTASection : 
+      template === 'luxury' ? LuxuryCTASection :
+      template === 'islamic' ? IslamicCTASection :
       template === 'futuristic' ? FuturisticCTASection :
       template === 'nature' ? NatureCTASection :
       template === 'royal' ? RoyalCTASection :
-      DynamicCTASection,
+      DynamicCTASection, // fallback for 'classic' and unknown templates
   }), [template]);
 
   const enabledSections = useMemo(() => {

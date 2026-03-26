@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
+import { z } from "zod";
 
 export interface HomepageSection {
   id: string;
@@ -90,6 +91,17 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     footer_links: data.footer_links as unknown as WebsiteSettings['footer_links'],
   };
 };
+
+// Validation schema for website settings
+const websiteSettingsSchema = z.object({
+  company_name: z.string().min(2, "Nama perusahaan minimal 2 karakter").nullable().optional(),
+  footer_email: z.string().email("Format email tidak valid").nullable().optional().or(z.literal("")),
+  footer_phone: z.string().min(10, "Nomor telepon minimal 10 digit").nullable().optional().or(z.literal("")),
+  footer_whatsapp: z.string().min(10, "Nomor WhatsApp minimal 10 digit").nullable().optional().or(z.literal("")),
+  logo_url: z.string().url("URL logo tidak valid").nullable().optional().or(z.literal("")),
+  favicon_url: z.string().url("URL favicon tidak valid").nullable().optional().or(z.literal("")),
+  hero_image_url: z.string().url("URL gambar hero tidak valid").nullable().optional().or(z.literal("")),
+});
 
 export function useWebsiteSettings() {
   return useQuery({
@@ -205,6 +217,16 @@ export function useUpdateWebsiteSettings() {
 
   return useMutation({
     mutationFn: async (updates: Partial<WebsiteSettings>) => {
+      // Validate inputs before sending to database
+      try {
+        websiteSettingsSchema.partial().parse(updates);
+      } catch (validationError) {
+        if (validationError instanceof z.ZodError) {
+          throw new Error(validationError.errors[0].message);
+        }
+        throw validationError;
+      }
+
       // Convert JSON fields to JSON-compatible format if they exist
       const dbUpdates: any = { ...updates };
       
@@ -233,10 +255,11 @@ export function useUpdateWebsiteSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["website-settings"] });
-      toast.success("Pengaturan berhasil disimpan");
+      toast.success("Pengaturan tampilan berhasil disimpan");
     },
     onError: (error: any) => {
       toast.error(`Gagal menyimpan: ${error.message}`);
+      console.error("Website settings update error:", error);
     },
   });
 }
@@ -271,6 +294,7 @@ export function useApplyThemePreset() {
     },
     onError: (error: any) => {
       toast.error(`Gagal menerapkan tema: ${error.message}`);
+      console.error("Theme preset application error:", error);
     },
   });
 }

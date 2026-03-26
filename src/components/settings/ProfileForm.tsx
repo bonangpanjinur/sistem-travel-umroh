@@ -21,11 +21,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 const profileSchema = z.object({
-  full_name: z.string().min(2, "Nama minimal 2 karakter"),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  province: z.string().optional(),
+  full_name: z.string().min(2, "Nama minimal 2 karakter").max(100, "Nama maksimal 100 karakter"),
+  phone: z.string()
+    .min(10, "Nomor telepon minimal 10 digit")
+    .max(15, "Nomor telepon maksimal 15 digit")
+    .regex(/^[0-9]+$/, "Nomor telepon hanya boleh berisi angka")
+    .optional()
+    .or(z.literal("")),
+  address: z.string().max(500, "Alamat maksimal 500 karakter").optional().or(z.literal("")),
+  city: z.string().max(100, "Kota maksimal 100 karakter").optional().or(z.literal("")),
+  province: z.string().max(100, "Provinsi maksimal 100 karakter").optional().or(z.literal("")),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -61,7 +66,7 @@ export default function ProfileForm() {
     if (!file.type.startsWith("image/")) {
       toast({
         title: "Error",
-        description: "File harus berupa gambar",
+        description: "File harus berupa gambar (JPG, PNG, WebP)",
         variant: "destructive",
       });
       return;
@@ -71,7 +76,7 @@ export default function ProfileForm() {
     if (file.size > 2 * 1024 * 1024) {
       toast({
         title: "Error",
-        description: "Ukuran file maksimal 2MB",
+        description: "Ukuran file terlalu besar. Maksimal 2MB.",
         variant: "destructive",
       });
       return;
@@ -81,7 +86,7 @@ export default function ProfileForm() {
 
     try {
       const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/avatar.${fileExt}`;
+      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -108,13 +113,13 @@ export default function ProfileForm() {
       setAvatarUrl(newAvatarUrl);
       toast({
         title: "Berhasil",
-        description: "Avatar berhasil diperbarui",
+        description: "Foto profil berhasil diperbarui",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Avatar upload error:", error);
       toast({
-        title: "Error",
-        description: "Gagal mengupload avatar. Pastikan storage bucket sudah dikonfigurasi.",
+        title: "Gagal Mengunggah",
+        description: error.message || "Terjadi kesalahan saat mengunggah foto. Pastikan koneksi internet stabil.",
         variant: "destructive",
       });
     } finally {
@@ -140,13 +145,13 @@ export default function ProfileForm() {
 
       toast({
         title: "Berhasil",
-        description: "Profil berhasil diperbarui",
+        description: "Profil Anda telah diperbarui",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Profile update error:", error);
       toast({
-        title: "Error",
-        description: "Gagal memperbarui profil",
+        title: "Gagal Memperbarui",
+        description: error.message || "Tidak dapat menyimpan perubahan profil. Silakan coba lagi nanti.",
         variant: "destructive",
       });
     } finally {
@@ -157,6 +162,7 @@ export default function ProfileForm() {
   const getInitials = (name: string) => {
     return name
       .split(" ")
+      .filter(n => n.length > 0)
       .map((n) => n[0])
       .join("")
       .toUpperCase()
@@ -187,7 +193,8 @@ export default function ProfileForm() {
                   type="button"
                   onClick={handleAvatarClick}
                   disabled={isUploadingAvatar}
-                  className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                  title="Ubah foto profil"
                 >
                   {isUploadingAvatar ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -207,7 +214,7 @@ export default function ProfileForm() {
                 <p className="font-medium">{profile?.full_name || "Pengguna"}</p>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Klik avatar untuk mengubah foto
+                  Format: JPG, PNG, WebP (Maks. 2MB)
                 </p>
               </div>
             </div>
@@ -235,7 +242,7 @@ export default function ProfileForm() {
                   <FormItem>
                     <FormLabel>No. Telepon</FormLabel>
                     <FormControl>
-                      <Input placeholder="08xxx" {...field} />
+                      <Input placeholder="Contoh: 08123456789" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -289,7 +296,7 @@ export default function ProfileForm() {
               />
             </div>
 
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Simpan Profil
             </Button>
