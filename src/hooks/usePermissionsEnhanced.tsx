@@ -30,34 +30,61 @@ export function usePermissionsEnhanced() {
   const { roles, user, branch_id } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch granular permissions from role_permissions
+  // Fetch granular permissions from both role_permissions and user_permissions
   const { data: permissions = [], isLoading } = useQuery({
-    queryKey: ["user-permissions-enhanced", roles],
+    queryKey: ["user-permissions-enhanced", roles, user?.id],
     queryFn: async () => {
-      if (!roles || roles.length === 0) return [];
+      if (!user?.id) return [];
 
-      const { data, error } = await supabase
-        .from("role_permissions")
-        .select("permission_key, is_enabled, role")
-        .in("role", roles)
-        .eq("is_enabled", true);
+      try {
+        // Use the RPC function that combines both role and user-level permissions
+        const { data, error } = await supabase.rpc(
+          'get_user_all_permissions',
+          { _user_id: user.id }
+        );
 
-      if (error) {
+        if (error) {
+          console.error("Error fetching permissions:", error);
+          throw error;
+        }
+
+        // Convert the response to Permission format (only enabled permissions)
+        return (data || [])
+          .filter((p: any) => p.is_enabled)
+          .map((p: any) => ({
+            permission_key: p.permission_key,
+            is_enabled: true,
+            role: 'mixed' // Indicates this comes from role or user-level
+          })) as Permission[];
+      } catch (error) {
         console.error("Error fetching permissions:", error);
-        throw error;
+        // Fallback to role-based permissions only
+        if (!roles || roles.length === 0) return [];
+
+        const { data, error: roleError } = await supabase
+          .from("role_permissions")
+          .select("permission_key, is_enabled, role")
+          .in("role", roles)
+          .eq("is_enabled", true);
+
+        if (roleError) {
+          console.error("Error fetching role permissions:", roleError);
+          throw roleError;
+        }
+        return data as Permission[];
       }
-      return data as Permission[];
     },
-    enabled: !!user && roles.length > 0,
+    enabled: !!user && !!user.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Real-time subscription to role_permissions changes
+  // Real-time subscription to both role_permissions and user_permissions changes
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel("schema-db-changes-enhanced")
+    // Subscribe to role_permissions changes
+    const roleChannel = supabase
+      .channel("schema-db-changes-enhanced-roles")
       .on(
         "postgres_changes",
         {
@@ -71,8 +98,26 @@ export function usePermissionsEnhanced() {
       )
       .subscribe();
 
+    // Subscribe to user_permissions changes
+    const userChannel = supabase
+      .channel("schema-db-changes-enhanced-user")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_permissions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["user-permissions-enhanced"] });
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(roleChannel);
+      supabase.removeChannel(userChannel);
     };
   }, [user, queryClient]);
 
@@ -269,6 +314,20 @@ export function usePermissionsEnhanced() {
     }
   };
 
+  /**
+   * Get the effective permission status for a specific permission
+   * Returns the source (user-level override or role-based)
+   */
+  const getPermissionSource = (permissionKey: string): 'user' | 'role' | null => {
+    if (roles.includes("super_admin") || roles.includes("owner")) {
+      return 'user'; // Super admin/owner always have permissions
+    }
+
+    // Find the permission in the list
+    const perm = permissions.find(p => p.permission_key === permissionKey);
+    return perm ? 'role' : null; // Note: we can't distinguish user vs role from this data
+  };
+
   return {
     permissions,
     isLoading,
@@ -284,6 +343,7 @@ export function usePermissionsEnhanced() {
     isRestrictedToOwn,
     logAuditAction,
     performSensitiveAction,
+    getPermissionSource,
     userBranchId: branch_id,
   };
 }
