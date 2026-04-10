@@ -61,7 +61,7 @@ export function usePermissions() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient];
+  }, [user, queryClient]);
 
   /**
    * Check if the user has a specific permission
