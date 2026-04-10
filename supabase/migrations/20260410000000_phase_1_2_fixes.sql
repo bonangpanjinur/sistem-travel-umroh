@@ -71,5 +71,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 -- Phase 4: Perbaikan Prioritas Sedang & Rendah - Optimalisasi UI & Dokumentasi
 
 -- Bug #8: Klarifikasi RLS policy
--- Tambahkan komentar pada kebijakan RLS Users can view own bookings.
-COMMENT ON POLICY "Users can view own bookings" ON public.bookings IS 'Hanya penanggung jawab (customer yang membuat booking) yang dapat melihat data booking ini. Ini adalah desain yang disengaja untuk group booking.';
+-- Tambahkan komentar pada kebijakan RLS Users can view bookings based on permissions.
+COMMENT ON POLICY "Users can view bookings based on permissions" ON public.bookings IS 'Hanya penanggung jawab (customer yang membuat booking) yang dapat melihat data booking ini. Ini adalah desain yang disengaja untuk group booking.';

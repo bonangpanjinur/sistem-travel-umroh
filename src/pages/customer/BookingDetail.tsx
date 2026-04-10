@@ -176,26 +176,26 @@ export default function BookingDetail() {
 
   if (isLoading) {
     return (
-      <PublicLayout>
+      <DynamicPublicLayout>
         <div className="container py-8 max-w-4xl">
           <Skeleton className="h-8 w-48 mb-6" />
           <Skeleton className="h-64 w-full mb-4" />
           <Skeleton className="h-48 w-full" />
         </div>
-      </PublicLayout>
+      </DynamicPublicLayout>
     );
   }
 
   if (!booking) {
     return (
-      <PublicLayout>
+      <DynamicPublicLayout>
         <div className="container py-12 text-center">
           <h1 className="text-2xl font-bold mb-4">Booking Tidak Ditemukan</h1>
           <Button asChild>
             <Link to="/my-bookings">Kembali</Link>
           </Button>
         </div>
-      </PublicLayout>
+      </DynamicPublicLayout>
     );
   }
 
@@ -379,42 +379,7 @@ export default function BookingDetail() {
               </CardContent>
             </Card>
 
-            {/* Payment History */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Riwayat Pembayaran
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!payments || payments.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">
-                    Belum ada pembayaran.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {payments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-mono text-sm">{payment.payment_code}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(payment.created_at), "d MMM yyyy, HH:mm", { locale: id })}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold">{formatCurrency(payment.amount)}</p>
-                          <Badge variant={payment.status === 'paid' ? 'default' : 'secondary'}>
-                            {payment.status === 'paid' ? 'Terverifikasi' : 
-                             payment.status === 'pending' ? 'Menunggu Verifikasi' : payment.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+
           </div>
 
           {/* Sidebar */}
@@ -564,6 +529,43 @@ export default function BookingDetail() {
                 </Link>
               </Button>
             )}
+
+            {/* Payment History */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Riwayat Pembayaran
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!payments || payments.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    Belum ada pembayaran.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {payments.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-mono text-sm">{payment.payment_code}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(payment.created_at), "d MMM yyyy, HH:mm", { locale: id })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{formatCurrency(payment.amount)}</p>
+                          <Badge variant={payment.status === 'paid' ? 'default' : 'secondary'}>
+                            {payment.status === 'paid' ? 'Terverifikasi' : 
+                             payment.status === 'pending' ? 'Menunggu Verifikasi' : payment.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Bank Info */}
             {bankAccount && (
