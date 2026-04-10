@@ -37,6 +37,30 @@ export default function AdminCustomers() {
         query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,nik.ilike.%${searchTerm}%,passport_number.ilike.%${searchTerm}%`);
       }
 
+      // Apply package and departure filters via booking subquery
+      if (packageFilter !== "all" || departureFilter !== "all") {
+        let bookingQuery = supabase
+          .from('bookings')
+          .select('customer_id');
+        
+        if (packageFilter !== "all") {
+          bookingQuery = bookingQuery.eq('departure.package_id', packageFilter);
+        }
+        if (departureFilter !== "all") {
+          bookingQuery = bookingQuery.eq('departure_id', departureFilter);
+        }
+        
+        const { data: bookingData, error: bookingError } = await bookingQuery;
+        if (bookingError) throw bookingError;
+        
+        const customerIds = Array.from(new Set((bookingData || []).map(b => b.customer_id)));
+        if (customerIds.length > 0) {
+          query = query.in('id', customerIds);
+        } else {
+          return { customers: [], count: 0 };
+        }
+      }
+
       const { data, error, count } = await query
         .order('created_at', { ascending: false })
         .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
@@ -134,13 +158,26 @@ export default function AdminCustomers() {
       const { count: total } = await supabase.from('customers').select('*', { count: 'exact', head: true });
       const { count: tourLeaders } = await supabase.from('customers').select('*', { count: 'exact', head: true }).eq('is_tour_leader', true);
       
-      // For more complex stats like 'withBookings', we might need a RPC or a simplified estimation
-      // for now let's use the total and tourLeaders
+      // Count customers with at least one booking
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('customer_id');
+      if (bookingsError) throw bookingsError;
+      const customersWithBookings = new Set((bookingsData || []).map(b => b.customer_id)).size;
+      
+      // Count customers with at least one verified document
+      const { data: docsData, error: docsError } = await supabase
+        .from('customer_documents')
+        .select('customer_id')
+        .eq('status', 'verified');
+      if (docsError) throw docsError;
+      const customersWithDocuments = new Set((docsData || []).map(d => d.customer_id)).size;
+      
       return {
         total: total || 0,
         tourLeaders: tourLeaders || 0,
-        withBookings: '-', // Requires more complex query or RPC
-        withDocuments: '-', // Requires more complex query or RPC
+        withBookings: customersWithBookings,
+        withDocuments: customersWithDocuments,
       };
     },
     staleTime: 1000 * 60 * 30, // 30 minutes

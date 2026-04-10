@@ -145,9 +145,20 @@ export function useUpcomingDepartures(branchId?: string | null) {
         .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date', { ascending: true })
         .limit(5);
-      // Note: departures table has no branch_id column, so branch filtering
-      // is not directly possible here without a subquery via bookings.
-      const { data, error } = await query;
+      let { data, error } = await query;
+      
+      // Filter departures by branch if branchId is provided
+      if (branchId && data) {
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from('bookings')
+          .select('departure_id')
+          .eq('branch_id', branchId);
+        
+        if (bookingsError) throw bookingsError;
+        
+        const departureIdsInBranch = new Set((bookingsData || []).map(b => b.departure_id));
+        data = data.filter(d => departureIdsInBranch.has(d.id));
+      }
       if (error) throw error;
       
       return data as (Pick<Departure, 'id' | 'departure_date' | 'quota' | 'booked_count'> & {

@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { 
   DollarSign, Users, Calendar, CreditCard, 
-  TrendingUp, ArrowRight, Package, ShoppingCart, FileText
+  TrendingUp, ArrowRight, Package, ShoppingCart, FileText,
+  AlertTriangle, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -14,8 +15,11 @@ import {
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useDashboardStats, useRecentBookings, useUpcomingDepartures } from "@/hooks/useDashboardStats";
-import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useRealtimeSubscription, useMultipleRealtimeSubscriptions } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -26,14 +30,46 @@ export default function AdminDashboard() {
   const { data: recentBookings } = useRecentBookings(effectiveBranchId);
   const { data: upcomingDepartures } = useUpcomingDepartures(effectiveBranchId);
 
-  // Auto-refresh dashboard when bookings or payments change
-  useRealtimeSubscription('bookings', [
-    ['admin-dashboard-stats'],
-    ['admin-recent-bookings'],
-  ]);
-  useRealtimeSubscription('payments', [
-    ['admin-dashboard-stats'],
-  ]);
+  // Fetch inventory stock alerts
+  const { data: stockAlerts } = useQuery({
+    queryKey: ['dashboard-stock-alerts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment_items')
+        .select('id, name, quantity')
+        .lte('quantity', 5);
+      if (error) throw error;
+      const critical = (data || []).filter(item => item.quantity === 0);
+      const low = (data || []).filter(item => item.quantity > 0 && item.quantity <= 5);
+      return { critical: critical.length, low: low.length, total: (data || []).length };
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch pending document verification count
+  const { data: pendingDocuments } = useQuery({
+    queryKey: ['dashboard-pending-documents'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('customer_documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (error) throw error;
+      return count || 0;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Auto-refresh dashboard when bookings, payments, equipment, or documents change
+  useMultipleRealtimeSubscriptions(
+    ['bookings', 'payments', 'equipment_items', 'customer_documents'],
+    [
+      ['admin-dashboard-stats'],
+      ['admin-recent-bookings'],
+      ['dashboard-stock-alerts'],
+      ['dashboard-pending-documents'],
+    ]
+  );
 
   return (
     <div className="space-y-6">
@@ -115,6 +151,64 @@ export default function AdminDashboard() {
           loading={isLoading}
           highlight
         />
+      </div>
+
+      {/* Alert Widgets */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Stock Alert Widget */}
+        {(stockAlerts?.critical || 0) > 0 || (stockAlerts?.low || 0) > 0 ? (
+          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-medium flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                <AlertTriangle className="h-5 w-5" />
+                Peringatan Stok Perlengkapan
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {(stockAlerts?.critical || 0) > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-amber-900 dark:text-amber-200">Status Habis:</span>
+                    <Badge variant="destructive">{stockAlerts.critical} item</Badge>
+                  </div>
+                )}
+                {(stockAlerts?.low || 0) > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-amber-900 dark:text-amber-200">Status Kritis (≤5):</span>
+                    <Badge variant="outline" className="border-amber-300 text-amber-900 dark:text-amber-200">{stockAlerts.low} item</Badge>
+                  </div>
+                )}
+                <Button variant="outline" size="sm" className="w-full mt-2" asChild>
+                  <Link to="/admin/equipment">Kelola Stok</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {/* Pending Documents Widget */}
+        {(pendingDocuments || 0) > 0 ? (
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-medium flex items-center gap-2 text-blue-900 dark:text-blue-200">
+                <AlertCircle className="h-5 w-5" />
+                Dokumen Menunggu Verifikasi
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-blue-900 dark:text-blue-200">Total Pending:</span>
+                  <Badge className="bg-blue-600 dark:bg-blue-700">{pendingDocuments} dokumen</Badge>
+                </div>
+                <p className="text-xs text-blue-800 dark:text-blue-300">Segera periksa dan verifikasi dokumen jamaah</p>
+                <Button variant="outline" size="sm" className="w-full mt-2" asChild>
+                  <Link to="/admin/documents-verification">Verifikasi Dokumen</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {/* Charts Row */}

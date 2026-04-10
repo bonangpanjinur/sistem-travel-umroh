@@ -104,6 +104,8 @@ export default function AdminBookings() {
       if (statusFilter !== "all") query = query.eq('booking_status', statusFilter as any);
       if (paymentFilter !== "all") query = query.eq('payment_status', paymentFilter as any);
       if (branchFilter !== "all") query = query.eq('branch_id', branchFilter);
+      if (packageFilter !== "all") query = query.eq('departure.package_id', packageFilter);
+      if (departureFilter !== "all") query = query.eq('departure_id', departureFilter);
       if (dateFrom) query = query.gte('created_at', dateFrom);
       if (dateTo) query = query.lte('created_at', dateTo + 'T23:59:59');
 

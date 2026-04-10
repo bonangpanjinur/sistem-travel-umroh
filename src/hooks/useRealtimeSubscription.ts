@@ -32,3 +32,33 @@ export function useRealtimeSubscription(
     };
   }, [table, queryClient]); // queryKeys intentionally omitted to avoid re-subscribing
 }
+
+export function useMultipleRealtimeSubscriptions(
+  tables: string[],
+  queryKeys: string[][]
+) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channels = tables.map((table) => {
+      return supabase
+        .channel(`realtime-${table}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table },
+          () => {
+            queryKeys.forEach((key) => {
+              queryClient.invalidateQueries({ queryKey: key });
+            });
+          }
+        )
+        .subscribe();
+    });
+
+    return () => {
+      channels.forEach((channel) => {
+        supabase.removeChannel(channel);
+      });
+    };
+  }, [tables.join(','), queryClient]);
+}
