@@ -63,16 +63,18 @@ export function usePermissionsRealtime() {
           
           console.log(`Permission ${action}: ${permissionKey}`);
         }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log("Subscribed to permission changes");
-          setIsSubscribed(true);
-        } else if (status === "CLOSED") {
-          console.log("Unsubscribed from permission changes");
-          setIsSubscribed(false);
-        }
-      });
+      );
+    
+    // Subscribe AFTER all .on() callbacks are registered
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log("Subscribed to permission changes");
+        setIsSubscribed(true);
+      } else if (status === "CLOSED") {
+        console.log("Unsubscribed from permission changes");
+        setIsSubscribed(false);
+      }
+    });
 
     // Cleanup subscription on unmount
     return () => {
@@ -112,10 +114,12 @@ export function usePermissionAuditLog() {
           console.log("Audit log created:", payload);
           setAuditLogs((prev) => [payload.new, ...prev].slice(0, 50)); // Keep last 50 logs
         }
-      )
-      .subscribe((status) => {
-        setIsSubscribed(status === "SUBSCRIBED");
-      });
+      );
+    
+    // Subscribe AFTER all .on() callbacks are registered
+    channel.subscribe((status) => {
+      setIsSubscribed(status === "SUBSCRIBED");
+    });
 
     return () => {
       supabase.removeChannel(channel);

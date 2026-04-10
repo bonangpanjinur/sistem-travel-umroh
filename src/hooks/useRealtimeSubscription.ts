@@ -24,8 +24,10 @@ export function useRealtimeSubscription(
             queryClient.invalidateQueries({ queryKey: key });
           });
         }
-      )
-      .subscribe();
+      );
+    
+    // Subscribe AFTER all .on() callbacks are registered
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
