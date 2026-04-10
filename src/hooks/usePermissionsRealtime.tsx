@@ -33,9 +33,9 @@ export function usePermissionsRealtime() {
       return;
     }
 
-    // Subscribe to role_permissions table changes
+    // Use unique channel names to avoid collisions between multiple hook instances
     const channel = supabase
-      .channel("role_permissions_changes")
+      .channel(`role-permissions-changes-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -65,7 +65,6 @@ export function usePermissionsRealtime() {
         }
       );
     
-    // Subscribe AFTER all .on() callbacks are registered
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         console.log("Subscribed to permission changes");
@@ -100,8 +99,9 @@ export function usePermissionAuditLog() {
   useEffect(() => {
     if (!user) return;
 
+    // Use unique channel names to avoid collisions
     const channel = supabase
-      .channel("audit_logs_changes")
+      .channel(`audit-logs-changes-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -116,7 +116,6 @@ export function usePermissionAuditLog() {
         }
       );
     
-    // Subscribe AFTER all .on() callbacks are registered
     channel.subscribe((status) => {
       setIsSubscribed(status === "SUBSCRIBED");
     });

@@ -41,8 +41,10 @@ export function usePermissions() {
   useEffect(() => {
     if (!user) return;
 
+    // Using a unique channel name to avoid "cannot add postgres_changes after subscribe" errors
+    // which happen when multiple hooks try to use the same channel name.
     const channel = supabase
-      .channel("schema-db-changes")
+      .channel(`role-permissions-sync-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -55,7 +57,6 @@ export function usePermissions() {
         }
       );
     
-    // Subscribe AFTER all .on() callbacks are registered
     channel.subscribe();
 
     return () => {

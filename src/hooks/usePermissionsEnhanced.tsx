@@ -82,9 +82,9 @@ export function usePermissionsEnhanced() {
   useEffect(() => {
     if (!user) return;
 
-    // Subscribe to role_permissions changes
+    // Use unique channel names for each subscription to avoid "cannot add postgres_changes after subscribe" errors.
     const roleChannel = supabase
-      .channel("schema-db-changes-enhanced-roles")
+      .channel(`role-perms-enhanced-sync-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -97,12 +97,10 @@ export function usePermissionsEnhanced() {
         }
       );
     
-    // Subscribe AFTER all .on() callbacks are registered
     roleChannel.subscribe();
 
-    // Subscribe to user_permissions changes
     const userChannel = supabase
-      .channel("schema-db-changes-enhanced-user")
+      .channel(`user-perms-enhanced-sync-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -116,7 +114,6 @@ export function usePermissionsEnhanced() {
         }
       );
     
-    // Subscribe AFTER all .on() callbacks are registered
     userChannel.subscribe();
 
     return () => {
