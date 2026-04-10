@@ -353,6 +353,6 @@ export default function PaymentUpload() {
           </div>
         </div>
       </div>
-    </PublicLayout>
+    </DynamicPublicLayout>
   );
 }
