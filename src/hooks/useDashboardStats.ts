@@ -14,7 +14,7 @@ export function useDashboardStats(branchId?: string | null) {
     queryFn: async () => {
       let bookingsQuery = supabase
         .from('bookings')
-        .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax');
+        .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id, agent:agents(company_name)');
       if (branchId) bookingsQuery = bookingsQuery.eq('branch_id', branchId);
       const { data: bookings } = await bookingsQuery;
 
@@ -31,12 +31,64 @@ export function useDashboardStats(branchId?: string | null) {
       if (branchId) pendingQuery = pendingQuery.eq('booking.branch_id', branchId);
       const { data: pendingPayments } = await pendingQuery;
 
+      let leadsQuery = supabase
+        .from('leads')
+        .select('id, status, created_at');
+      if (branchId) leadsQuery = leadsQuery.eq('branch_id', branchId);
+      const { data: leads } = await leadsQuery;
+
       const totalRevenue = bookings?.reduce((sum, b) => sum + (b.paid_amount || 0), 0) || 0;
       const totalBookings = bookings?.length || 0;
       const pendingBookings = bookings?.filter(b => b.booking_status === 'pending').length || 0;
       const pendingPaymentAmount = pendingPayments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
       const pendingPaymentCount = pendingPayments?.length || 0;
       const totalPax = bookings?.reduce((sum, b) => sum + (b.total_pax || 0), 0) || 0;
+
+      // Lead Conversion Data
+      const totalLeads = leads?.length || 0;
+      const wonLeads = leads?.filter(l => l.status === 'won').length || 0;
+      const conversionRate = totalLeads > 0 ? (wonLeads / totalLeads) * 100 : 0;
+
+      const FUNNEL_STAGES = ['new', 'contacted', 'follow_up', 'negotiation', 'closing', 'won'];
+      const FUNNEL_LABELS: Record<string, string> = {
+        new: 'Baru',
+        contacted: 'Dihubungi',
+        follow_up: 'Follow Up',
+        negotiation: 'Negosiasi',
+        closing: 'Closing',
+        won: 'Won'
+      };
+
+      const funnelData = FUNNEL_STAGES.map((status, index) => {
+        const count = leads?.filter(l => {
+          const statusIndex = FUNNEL_STAGES.indexOf(l.status as string);
+          return statusIndex >= index;
+        }).length || 0;
+        return { name: FUNNEL_LABELS[status], value: count };
+      });
+
+      // Agent Leaderboard (Top 5)
+      const agentStats: Record<string, { name: string; bookings: number; revenue: number }> = {};
+      bookings?.forEach(b => {
+        if (!b.agent_id) return;
+        const agentName = (b.agent as any)?.company_name || 'Unknown Agent';
+        if (!agentStats[b.agent_id]) {
+          agentStats[b.agent_id] = { name: agentName, bookings: 0, revenue: 0 };
+        }
+        agentStats[b.agent_id].bookings += 1;
+        agentStats[b.agent_id].revenue += b.total_price || 0;
+      });
+
+      const topAgents = Object.values(agentStats)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
+
+      // AR Aging (Receivables)
+      const totalOutstanding = bookings?.reduce((sum, b) => sum + ((b.total_price || 0) - (b.paid_amount || 0)), 0) || 0;
+      const arData = [
+        { name: 'Terbayar', value: totalRevenue },
+        { name: 'Piutang', value: totalOutstanding }
+      ];
 
       const months = eachMonthOfInterval({
         start: subMonths(new Date(), 5),
@@ -104,6 +156,13 @@ export function useDashboardStats(branchId?: string | null) {
         monthlyRevenue,
         statusData,
         paymentData,
+        totalLeads,
+        wonLeads,
+        conversionRate,
+        funnelData,
+        topAgents,
+        totalOutstanding,
+        arData
       };
     },
   });
