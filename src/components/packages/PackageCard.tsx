@@ -15,14 +15,50 @@ interface PackageCardProps {
 
 export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
   const isTabungan = pkg.package_type === 'tabungan';
-  const lowestPrice = isTabungan 
-    ? (pkg.savings_target || 0)
-    : Math.min(
-        pkg.price_quad,
-        pkg.price_triple,
-        pkg.price_double,
-        pkg.price_single
-      );
+  
+  // Get the lowest price from departures if available, otherwise use package price
+  const getLowestPrice = () => {
+    if (isTabungan) {
+      return pkg.savings_target || 0;
+    }
+    
+    // Filter open departures with future dates
+    const openFutureDepartures = (pkg.departures || []).filter(
+      (d: any) => d.status === 'open' && new Date(d.departure_date) > new Date()
+    );
+    
+    if (openFutureDepartures.length > 0) {
+      // Find the minimum price from departures
+      let minPrice = Infinity;
+      openFutureDepartures.forEach((d: any) => {
+        const prices = [
+          d.price_quad || 0,
+          d.price_triple || 0,
+          d.price_double || 0,
+          d.price_single || 0,
+        ].filter(p => p > 0);
+        
+        if (prices.length > 0) {
+          minPrice = Math.min(minPrice, ...prices);
+        }
+      });
+      
+      // If we found a price in departures, use it; otherwise fall back to package price
+      if (minPrice !== Infinity) {
+        return minPrice;
+      }
+    }
+    
+    // Fallback to package prices
+    return Math.min(
+      pkg.price_quad || 0,
+      pkg.price_triple || 0,
+      pkg.price_double || 0,
+      pkg.price_single || 0
+    );
+  };
+  
+  const lowestPrice = getLowestPrice();
 
   // Calculate total available seats from all open departures
   const openDepartures = (pkg.departures || []).filter(
