@@ -148,17 +148,13 @@ export default function BookingDetail() {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('customer-documents')
-        .getPublicUrl(filePath);
-
-      // Upsert document record
+      // Upsert document record - store path instead of public URL for private bucket
       const { error: dbError } = await supabase
         .from('customer_documents')
         .insert({
           customer_id: customerId,
           document_type_id: docType.id,
-          file_url: publicUrl,
+          file_url: filePath, // Store path
           file_name: file.name,
           status: 'pending',
         });
