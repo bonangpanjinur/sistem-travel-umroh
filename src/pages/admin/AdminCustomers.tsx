@@ -398,12 +398,14 @@ export default function AdminCustomers() {
                           <p className="text-muted-foreground">Terdaftar</p>
                           <p>{format(new Date(customer.created_at), 'd MMM yyyy', { locale: id })}</p>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/admin/customers/${customer.id}`}>
-                            <Eye className="h-4 w-4 mr-1" />
-                            Detail
-                          </Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/admin/customers/${customer.id}`}>
+                              <Eye className="h-4 w-4 mr-1" />
+                              Detail
+                            </Link>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

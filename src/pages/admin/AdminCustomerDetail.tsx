@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,12 +28,13 @@ import {
   ArrowLeft, User, Phone, Mail, MapPin, Calendar,
   FileText, CreditCard, Eye, ExternalLink, CheckCircle,
   Clock, XCircle, AlertCircle, ShieldCheck, ShieldX, Loader2, Star, Pencil,
-  Download, FileDown
+  Download, FileDown, Trash2
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
+import { usePermissionsEnhanced } from "@/hooks/usePermissionsEnhanced";
 import {
   generateJamaahLeaveLetter, generatePassportLetter,
   type JamaahLeaveLetterData, type PassportLetterData
@@ -59,6 +60,8 @@ const BOOKING_STATUS_CONFIG: Record<string, { label: string; color: string }> = 
 export default function AdminCustomerDetail() {
   const { id: customerId } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { canPerformAction } = usePermissionsEnhanced();
   
   // State for document verification
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -66,6 +69,7 @@ export default function AdminCustomerDetail() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [leaveLetterOpen, setLeaveLetterOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leaveForm, setLeaveForm] = useState({
     employerName: "", employerPosition: "", employerInstitution: "", employerAddress: "",
     startDate: "", endDate: "", purpose: "Umrah"
@@ -124,6 +128,31 @@ export default function AdminCustomerDetail() {
       console.error(err);
     }
   };
+
+  // Mutation for deleting customer
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async () => {
+      if (!canPerformAction('customers', 'delete')) {
+        throw new Error('Anda tidak memiliki izin untuk menghapus jamaah');
+      }
+      
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
+      toast.success('Data jamaah berhasil dihapus');
+      setDeleteDialogOpen(false);
+      navigate('/admin/customers');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Gagal menghapus data jamaah');
+    },
+  });
 
   // Mutation for toggling tour leader status
   const toggleTourLeaderMutation = useMutation({
@@ -416,6 +445,19 @@ export default function AdminCustomerDetail() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Delete Button */}
+          {canPerformAction('customers', 'delete') && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={deleteCustomerMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Hapus Jamaah
+            </Button>
+          )}
 
           {/* Tour Leader Toggle */}
           <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
@@ -1049,6 +1091,44 @@ export default function AdminCustomerDetail() {
             <Button onClick={handleGenerateLeaveLetterConfirm} disabled={!leaveForm.employerName || !leaveForm.employerInstitution}>
               <Download className="h-4 w-4 mr-2" />
               Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Customer Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Data Jamaah</DialogTitle>
+            <DialogDescription>
+              Anda akan menghapus data jamaah <strong>{customer?.full_name}</strong>. Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-700 dark:text-red-300">
+                <strong>Perhatian:</strong> Menghapus data jamaah akan menghapus semua informasi terkait termasuk booking, dokumen, dan riwayat pembayaran.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteCustomerMutation.mutate()}
+              disabled={deleteCustomerMutation.isPending}
+            >
+              {deleteCustomerMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Hapus Selamanya
             </Button>
           </DialogFooter>
         </DialogContent>
