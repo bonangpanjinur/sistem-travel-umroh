@@ -49,13 +49,16 @@ export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
       }
     }
     
-    // Fallback to package prices
-    return Math.min(
+    // Fallback to package prices - only consider prices > 0
+    const packagePrices = [
       pkg.price_quad || 0,
       pkg.price_triple || 0,
       pkg.price_double || 0,
-      pkg.price_single || 0
-    );
+      pkg.price_single || 0,
+    ].filter(p => p > 0);
+    
+    // Return the minimum price > 0, or 0 if no valid prices found
+    return packagePrices.length > 0 ? Math.min(...packagePrices) : 0;
   };
   
   const lowestPrice = getLowestPrice();
