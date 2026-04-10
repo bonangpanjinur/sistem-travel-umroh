@@ -41,18 +41,23 @@ export function useMultipleRealtimeSubscriptions(
 
   useEffect(() => {
     const channels = tables.map((table) => {
-      return supabase
-        .channel(`realtime-${table}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table },
-          () => {
-            queryKeys.forEach((key) => {
-              queryClient.invalidateQueries({ queryKey: key });
-            });
-          }
-        )
-        .subscribe();
+      const channel = supabase.channel(`realtime-${table}`);
+      
+      // Add listener BEFORE subscribing to avoid postgres_changes error
+      channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table },
+        () => {
+          queryKeys.forEach((key) => {
+            queryClient.invalidateQueries({ queryKey: key });
+          });
+        }
+      );
+      
+      // Subscribe after all listeners are attached
+      channel.subscribe();
+      
+      return channel;
     });
 
     return () => {
