@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { PublicLayout } from "@/components/layout/PublicLayout";
+import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,10 +103,6 @@ export default function PaymentUpload() {
         throw new Error(`Gagal mengunggah file: ${uploadError.message}`);
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('payment-proofs')
-        .getPublicUrl(filePath);
-
       // 2. Generate payment code server-side
       const { data: paymentCode, error: rpcError } = await supabase.rpc('generate_payment_code');
       if (rpcError || !paymentCode) {
@@ -122,7 +118,7 @@ export default function PaymentUpload() {
           payment_method: paymentMethod,
           bank_name: bankName,
           account_name: accountName,
-          proof_url: publicUrl,
+          proof_url: filePath, // Store path instead of public URL
           notes: notes,
           status: 'pending',
         });
@@ -145,32 +141,32 @@ export default function PaymentUpload() {
 
   if (isLoading) {
     return (
-      <PublicLayout>
+      <DynamicPublicLayout>
         <div className="container py-8 max-w-2xl">
           <Skeleton className="h-8 w-48 mb-6" />
           <Skeleton className="h-96 w-full" />
         </div>
-      </PublicLayout>
+      </DynamicPublicLayout>
     );
   }
 
   if (!booking) {
     return (
-      <PublicLayout>
+      <DynamicPublicLayout>
         <div className="container py-12 text-center">
           <h1 className="text-2xl font-bold mb-4">Booking Tidak Ditemukan</h1>
           <Button asChild>
             <Link to="/my-bookings">Kembali</Link>
           </Button>
         </div>
-      </PublicLayout>
+      </DynamicPublicLayout>
     );
   }
 
   const departure = booking.departure as any;
 
   return (
-    <PublicLayout>
+    <DynamicPublicLayout>
       <div className="container py-8 max-w-2xl">
         {/* Header */}
         <Button variant="ghost" size="sm" asChild className="mb-4">

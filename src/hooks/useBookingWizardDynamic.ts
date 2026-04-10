@@ -29,12 +29,12 @@ export interface DynamicBookingFormData {
 }
 
 export interface PICData {
-  picSource: string;
+  pi  notes?: string;
   branchId?: string;
   agentId?: string;
   referralCode?: string;
+  couponCode?: string;
 }
-
 const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 function createPassengersFromAllocation(allocation: RoomAllocation): DynamicPassengerData[] {
@@ -68,6 +68,7 @@ export function useBookingWizardDynamic(
     departureId: initialDepartureId,
     roomAllocation: initialRoomAllocation,
     passengers: initialPassengers,
+    couponCode: undefined,
   });
 
   const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
@@ -230,6 +231,18 @@ export function useBookingWizardDynamic(
         .single();
 
       if (bookingError) throw bookingError;
+
+      // 5.1 Handle coupon usage atomically if provided
+      if (formData.couponCode) {
+        try {
+          const { error: couponError } = await supabase.rpc('increment_coupon_used', { 
+            p_code: formData.couponCode 
+          });
+          if (couponError) console.warn('Failed to increment coupon count:', couponError);
+        } catch (couponErr) {
+          console.warn('Coupon increment error:', couponErr);
+        }
+      }
 
       // 6. Create passengers
       for (let i = 0; i < formData.passengers.length; i++) {
