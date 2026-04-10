@@ -95,8 +95,10 @@ export function usePermissionsEnhanced() {
         () => {
           queryClient.invalidateQueries({ queryKey: ["user-permissions-enhanced"] });
         }
-      )
-      .subscribe();
+      );
+    
+    // Subscribe AFTER all .on() callbacks are registered
+    roleChannel.subscribe();
 
     // Subscribe to user_permissions changes
     const userChannel = supabase
@@ -112,8 +114,10 @@ export function usePermissionsEnhanced() {
         () => {
           queryClient.invalidateQueries({ queryKey: ["user-permissions-enhanced"] });
         }
-      )
-      .subscribe();
+      );
+    
+    // Subscribe AFTER all .on() callbacks are registered
+    userChannel.subscribe();
 
     return () => {
       supabase.removeChannel(roleChannel);

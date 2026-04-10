@@ -53,13 +53,15 @@ export function usePermissions() {
         () => {
           queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
         }
-      )
-      .subscribe();
+      );
+    
+    // Subscribe AFTER all .on() callbacks are registered
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [user, queryClient];
 
   /**
    * Check if the user has a specific permission
