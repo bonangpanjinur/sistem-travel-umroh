@@ -57,7 +57,7 @@ export default function AdminPackages() {
           airline:airlines(name),
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name),
-          departures(id, departure_date, quota, booked_count, status)
+          departures(id, departure_date, quota, booked_count, status, price_quad, price_triple, price_double, price_single)
         `)
         .order('created_at', { ascending: false });
 
@@ -120,6 +120,20 @@ export default function AdminPackages() {
     if (!departures) return 0;
     const today = new Date().toISOString().split('T')[0];
     return departures.filter(d => d.departure_date >= today && d.status === 'open').length;
+  };
+
+  const getLowestPrice = (pkg: any) => {
+    const today = new Date().toISOString().split('T')[0];
+    const openDeps = (pkg.departures as any[])?.filter(
+      (d: any) => d.departure_date >= today && d.status === 'open'
+    ) || [];
+    const depPrices = openDeps.flatMap((d: any) =>
+      [d.price_quad, d.price_triple, d.price_double, d.price_single].filter((p: number) => p && p > 0)
+    );
+    if (depPrices.length > 0) return Math.min(...depPrices);
+    const pkgPrices = [pkg.price_quad, pkg.price_triple, pkg.price_double, pkg.price_single]
+      .filter((p: number) => p && p > 0);
+    return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
   };
 
   // Show permission denied message if user cannot view packages
@@ -235,7 +249,9 @@ export default function AdminPackages() {
 
                 <div>
                   <p className="text-xs text-muted-foreground">Mulai dari</p>
-                  <p className="font-bold text-primary">{formatCurrency(pkg.price_quad)}</p>
+                  <p className="font-bold text-primary">
+                    {getLowestPrice(pkg) > 0 ? formatCurrency(getLowestPrice(pkg)) : 'Hubungi Kami'}
+                  </p>
                 </div>
 
                 <div className="flex gap-2">
