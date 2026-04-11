@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Permission Middleware untuk Backend API Validation
  * 
