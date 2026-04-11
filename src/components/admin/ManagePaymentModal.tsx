@@ -95,7 +95,7 @@ export function ManagePaymentModal({
   });
 
   const handleApprovePayment = (payment: any) => {
-    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'verified' });
+    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'paid' });
   };
 
   const handleRejectPayment = () => {

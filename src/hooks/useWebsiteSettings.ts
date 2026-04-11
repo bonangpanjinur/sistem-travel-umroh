@@ -57,6 +57,11 @@ export interface WebsiteSettings {
   footer_links: Record<string, Array<{href: string; label: string}>> | null;
   footer_description: string | null;
   footer_bottom_text: string | null;
+  cta_title: string | null;
+  cta_subtitle: string | null;
+  cta_image_url: string | null;
+  cta_button_text: string | null;
+  cta_button_link: string | null;
   created_at: string | null;
   updated_at: string | null;
 }

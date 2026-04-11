@@ -69,7 +69,6 @@ export function useBookingWizardDynamic(
     departureId: initialDepartureId,
     roomAllocation: initialRoomAllocation,
     passengers: initialPassengers,
-    couponCode: undefined,
   });
 
   const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
@@ -102,7 +101,7 @@ export function useBookingWizardDynamic(
 
       setIsValidatingPIC(true);
       try {
-        const { data, error } = await supabase.rpc('validate_registration_context', {
+        const { data, error } = await supabase.rpc('validate_registration_context' as any, {
           p_pic_source: picState.picSource,
           p_branch_id: picState.branchId || null,
           p_agent_id: picState.agentId || null,
@@ -111,13 +110,14 @@ export function useBookingWizardDynamic(
 
         if (error) throw error;
         
+        const result = data as any;
         setPicValidation({
-          isValid: data.is_valid,
-          errorMessage: data.error_message,
-          resolvedBranchId: data.resolved_branch_id,
-          resolvedAgentId: data.resolved_agent_id,
-          resolvedReferralId: data.resolved_referral_id,
-          metadata: data.metadata
+          isValid: result?.is_valid,
+          errorMessage: result?.error_message,
+          resolvedBranchId: result?.resolved_branch_id,
+          resolvedAgentId: result?.resolved_agent_id,
+          resolvedReferralId: result?.resolved_referral_id,
+          metadata: result?.metadata
         });
       } catch (err) {
         console.error('Validation error:', err);

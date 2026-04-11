@@ -236,7 +236,7 @@ export function BookingWizard() {
                 price_double: departureInfo.price_double ?? 0,
                 price_single: departureInfo.price_single ?? 0,
               } : undefined}
-              onCouponApplied={(discount, code) => updateFormData({ couponCode: code })}
+              onCouponApplied={(discount, code) => updateFormData({ notes: `coupon:${code}` })}
             />
           )}
         </CardContent>

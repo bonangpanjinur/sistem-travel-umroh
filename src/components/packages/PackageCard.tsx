@@ -14,12 +14,12 @@ interface PackageCardProps {
 }
 
 export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
-  const isTabungan = pkg.package_type === 'tabungan';
+  const isTabungan = (pkg.package_type as string) === 'tabungan';
   
   // Get the lowest price from departures if available, otherwise use package price
   const getLowestPrice = () => {
     if (isTabungan) {
-      return pkg.savings_target || 0;
+      return (pkg as any).savings_target || 0;
     }
     
     // Filter open departures with future dates
