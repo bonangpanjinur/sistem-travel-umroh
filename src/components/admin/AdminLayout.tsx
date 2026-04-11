@@ -121,7 +121,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users.view' },
       { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions', permission: 'users.view' },
-      { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security', permission: 'settings.manage' },
+      { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', permission: 'settings.manage' },
       { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings.manage' },
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
       { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages', permission: 'settings.manage' },

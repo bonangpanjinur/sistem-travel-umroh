@@ -113,7 +113,7 @@ export default function AdminRoutes() {
       <Route path="itinerary-templates" element={<ProtectedRoute permission="packages.view"><LazyPage><AdminItineraryTemplates /></LazyPage></ProtectedRoute>} />
       <Route path="offline-content" element={<ProtectedRoute permission="offline_content.view"><LazyPage><AdminOfflineContent /></LazyPage></ProtectedRoute>} />
       <Route path="documents-generator" element={<ProtectedRoute permission="documents.generator.view"><LazyPage><AdminDocumentGenerator /></LazyPage></ProtectedRoute>} />
-      <Route path="security" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminSecurityAudit /></LazyPage></ProtectedRoute>} />
+      <Route path="security-audit" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminSecurityAudit /></LazyPage></ProtectedRoute>} />
       <Route path="2fa" element={<ProtectedRoute permission="settings.manage"><LazyPage><Admin2FASettings /></LazyPage></ProtectedRoute>} />
       <Route path="whatsapp" element={<ProtectedRoute permission="whatsapp.view"><LazyPage><AdminWhatsApp /></LazyPage></ProtectedRoute>} />
       <Route path="marketing-materials" element={<ProtectedRoute permission="marketing_materials.view"><LazyPage><AdminMarketingMaterials /></LazyPage></ProtectedRoute>} />
