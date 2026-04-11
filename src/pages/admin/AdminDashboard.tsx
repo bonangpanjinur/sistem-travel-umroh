@@ -37,11 +37,11 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('equipment_items')
-        .select('id, name, quantity')
-        .lte('quantity', 5);
+        .select('id, name, stock_quantity')
+        .lte('stock_quantity', 5);
       if (error) throw error;
-      const critical = (data || []).filter(item => item.quantity === 0);
-      const low = (data || []).filter(item => item.quantity > 0 && item.quantity <= 5);
+      const critical = (data || []).filter((item: any) => item.stock_quantity === 0);
+      const low = (data || []).filter((item: any) => item.stock_quantity > 0 && item.stock_quantity <= 5);
       return { critical: critical.length, low: low.length, total: (data || []).length };
     },
     staleTime: 1000 * 60 * 5,

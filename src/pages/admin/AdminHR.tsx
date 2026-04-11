@@ -183,7 +183,7 @@ export default function AdminHR() {
   const { data: syncIssues = [], refetch: refetchSyncIssues } = useQuery({
     queryKey: ["employee-sync-issues"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("validate_employee_user_sync");
+      const { data, error } = await supabase.rpc("validate_employee_user_sync" as any);
       if (error) throw error;
       return data;
     },

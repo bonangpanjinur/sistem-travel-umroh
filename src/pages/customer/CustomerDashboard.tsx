@@ -21,7 +21,6 @@ import { id as idLocale } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const DEFAULT_CHECKLIST = [
   { key: "passport", label: "Paspor (min. 6 bulan berlaku)", category: "document" },

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Example API Endpoints dengan Permission Middleware
  * 

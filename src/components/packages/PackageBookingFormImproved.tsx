@@ -90,14 +90,15 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
 
       setIsValidatingPIC(true);
       try {
-        const { data, error } = await supabase.rpc('validate_registration_context', {
+        const { data, error } = await supabase.rpc('validate_registration_context' as any, {
           p_pic_source: picSource,
           p_branch_id: selectedBranchId || null,
           p_agent_id: selectedAgentId || null,
           p_referral_code: referralCode || null
         });
         if (error) throw error;
-        setPicValidation({ isValid: data.is_valid, errorMessage: data.error_message, metadata: data.metadata });
+        const result = data as any;
+        setPicValidation({ isValid: result?.is_valid, errorMessage: result?.error_message, metadata: result?.metadata });
       } catch (err) {
         setPicValidation({ isValid: false, errorMessage: 'Gagal memverifikasi data' });
       } finally {

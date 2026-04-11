@@ -57,6 +57,11 @@ export interface WebsiteSettings {
   footer_links: Record<string, Array<{href: string; label: string}>> | null;
   footer_description: string | null;
   footer_bottom_text: string | null;
+  cta_title: string | null;
+  cta_subtitle: string | null;
+  cta_image_url: string | null;
+  cta_button_text: string | null;
+  cta_button_link: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -83,12 +88,18 @@ const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 type WebsiteSettingsRow = Database['public']['Tables']['website_settings']['Row'];
 
 const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
+  const raw = data as any;
   return {
     ...data,
     homepage_sections: data.homepage_sections as unknown as HomepageSection[] | null,
     custom_sections: data.custom_sections as unknown as CustomSection[] | null,
     nav_links: data.nav_links as unknown as WebsiteSettings['nav_links'],
     footer_links: data.footer_links as unknown as WebsiteSettings['footer_links'],
+    cta_title: raw.cta_title ?? null,
+    cta_subtitle: raw.cta_subtitle ?? null,
+    cta_image_url: raw.cta_image_url ?? null,
+    cta_button_text: raw.cta_button_text ?? null,
+    cta_button_link: raw.cta_button_link ?? null,
   };
 };
 

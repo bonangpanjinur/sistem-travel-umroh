@@ -78,7 +78,7 @@ export function useCompanySettings() {
         return;
       }
 
-      const { data, error } = await supabase.rpc('reset_database', { confirm_text: confirmText });
+      const { data, error } = await supabase.rpc('reset_database' as any, { confirm_text: confirmText });
       if (error) {
         console.error("Reset database error:", error);
         toast.error(`Gagal reset database: ${error.message}`);

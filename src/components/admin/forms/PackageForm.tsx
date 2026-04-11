@@ -96,10 +96,10 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
       is_featured: packageData?.is_featured || false,
       is_active: packageData?.is_active ?? true,
 
-      fee_branch: packageData?.fee_branch || 0,
-      fee_agent: packageData?.fee_agent || 0,
-      fee_sub_agent: packageData?.fee_sub_agent || 0,
-      fee_referral: packageData?.fee_referral || 0,
+      fee_branch: (packageData as any)?.fee_branch || 0,
+      fee_agent: (packageData as any)?.fee_agent || 0,
+      fee_sub_agent: (packageData as any)?.fee_sub_agent || 0,
+      fee_referral: (packageData as any)?.fee_referral || 0,
     },
   });
 

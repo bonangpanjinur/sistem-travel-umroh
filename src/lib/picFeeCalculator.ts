@@ -7,7 +7,12 @@
 
 import type { Database } from "@/integrations/supabase/types";
 
-type Package = Database["public"]["Tables"]["packages"]["Row"];
+type Package = Database["public"]["Tables"]["packages"]["Row"] & {
+  fee_branch?: number;
+  fee_agent?: number;
+  fee_sub_agent?: number;
+  fee_referral?: number;
+};
 
 export type PICType = "cabang" | "agen" | "sub_agen" | "referral";
 

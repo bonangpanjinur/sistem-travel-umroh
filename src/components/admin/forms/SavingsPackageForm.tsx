@@ -88,12 +88,12 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
       is_featured: packageData?.is_featured || false,
       is_active: packageData?.is_active ?? true,
       savings_target: packageData?.savings_target || 0,
-      is_tenor_flexible: packageData?.is_tenor_flexible ?? true,
-      fixed_tenor_months: packageData?.fixed_tenor_months || 12,
-      fee_branch: packageData?.fee_branch || 0,
-      fee_agent: packageData?.fee_agent || 0,
-      fee_sub_agent: packageData?.fee_sub_agent || 0,
-      fee_referral: packageData?.fee_referral || 0,
+      is_tenor_flexible: (packageData as any)?.is_tenor_flexible ?? true,
+      fixed_tenor_months: (packageData as any)?.fixed_tenor_months || 12,
+      fee_branch: (packageData as any)?.fee_branch || 0,
+      fee_agent: (packageData as any)?.fee_agent || 0,
+      fee_sub_agent: (packageData as any)?.fee_sub_agent || 0,
+      fee_referral: (packageData as any)?.fee_referral || 0,
     },
   });
 

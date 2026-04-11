@@ -69,7 +69,6 @@ export function useBookingWizardDynamic(
     departureId: initialDepartureId,
     roomAllocation: initialRoomAllocation,
     passengers: initialPassengers,
-    couponCode: undefined,
   });
 
   const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
@@ -102,7 +101,7 @@ export function useBookingWizardDynamic(
 
       setIsValidatingPIC(true);
       try {
-        const { data, error } = await supabase.rpc('validate_registration_context', {
+        const { data, error } = await supabase.rpc('validate_registration_context' as any, {
           p_pic_source: picState.picSource,
           p_branch_id: picState.branchId || null,
           p_agent_id: picState.agentId || null,
@@ -111,13 +110,14 @@ export function useBookingWizardDynamic(
 
         if (error) throw error;
         
+        const result = data as any;
         setPicValidation({
-          isValid: data.is_valid,
-          errorMessage: data.error_message,
-          resolvedBranchId: data.resolved_branch_id,
-          resolvedAgentId: data.resolved_agent_id,
-          resolvedReferralId: data.resolved_referral_id,
-          metadata: data.metadata
+          isValid: result?.is_valid,
+          errorMessage: result?.error_message,
+          resolvedBranchId: result?.resolved_branch_id,
+          resolvedAgentId: result?.resolved_agent_id,
+          resolvedReferralId: result?.resolved_referral_id,
+          metadata: result?.metadata
         });
       } catch (err) {
         console.error('Validation error:', err);
@@ -196,7 +196,7 @@ export function useBookingWizardDynamic(
       const basePrice = priceMap[mainRoomType];
 
       // 4. Determine PIC (branch_id, agent_id) from picState with strict validation
-      const { data: validation, error: validationError } = await supabase.rpc('validate_registration_context', {
+      const { data: validation, error: validationError } = await supabase.rpc('validate_registration_context' as any, {
         p_pic_source: picState.picSource,
         p_branch_id: picState.branchId || null,
         p_agent_id: picState.agentId || null,
@@ -204,11 +204,12 @@ export function useBookingWizardDynamic(
       });
 
       if (validationError) throw validationError;
-      if (!validation.is_valid) throw new Error(validation.error_message || 'Data pendaftaran tidak valid');
+      const validationResult = validation as any;
+      if (!validationResult?.is_valid) throw new Error(validationResult?.error_message || 'Data pendaftaran tidak valid');
 
-      const branchId = validation.resolved_branch_id;
-      const agentId = validation.resolved_agent_id;
-      const referralId = validation.resolved_referral_id;
+      const branchId = validationResult?.resolved_branch_id;
+      const agentId = validationResult?.resolved_agent_id;
+      const referralId = validationResult?.resolved_referral_id;
 
       // 5. Create booking
       const { data: booking, error: bookingError } = await supabase
@@ -234,10 +235,10 @@ export function useBookingWizardDynamic(
       if (bookingError) throw bookingError;
 
       // 5.1 Handle coupon usage atomically if provided
-      if (formData.couponCode) {
+      if (picState.couponCode) {
         try {
-          const { error: couponError } = await supabase.rpc('increment_coupon_used', { 
-            p_code: formData.couponCode 
+          const { error: couponError } = await supabase.rpc('increment_coupon_used' as any, { 
+            p_code: picState.couponCode 
           });
           if (couponError) console.warn('Failed to increment coupon count:', couponError);
         } catch (couponErr) {

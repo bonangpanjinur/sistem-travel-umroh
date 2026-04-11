@@ -194,7 +194,7 @@ export default function AdminBookingDetail() {
   });
 
   const handleApprovePayment = (payment: any) => {
-    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'verified' });
+    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'paid' });
   };
 
   // Send WhatsApp notification
@@ -492,7 +492,7 @@ export default function AdminBookingDetail() {
                     {passengers.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
-                        <TableCell className="capitalize">{p.relationship || 'Diri Sendiri'}</TableCell>
+                        <TableCell className="capitalize">{(p as any).relationship || 'Diri Sendiri'}</TableCell>
                         <TableCell>{p.customer?.passport_number || '-'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">
