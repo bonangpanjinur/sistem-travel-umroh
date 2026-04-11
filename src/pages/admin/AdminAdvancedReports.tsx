@@ -98,14 +98,26 @@ export default function AdminAdvancedReports() {
   const { data: bookingData = [] } = useQuery({
     queryKey: ["booking-report", dateRange],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: rawData, error } = await supabase
         .from("bookings")
-        .select("*, customer:customers(*), agent:agents(*)")
+        .select("*, customer:customers(*)")
         .gte("created_at", dateRange.start)
         .lte("created_at", dateRange.end + "T23:59:59")
         .order("created_at", { ascending: false });
+      
       if (error) throw error;
-      return data || [];
+
+      // Fetch agents separately to avoid join issues
+      const { data: agents } = await supabase
+        .from("agents")
+        .select("*");
+
+      const data = rawData?.map(b => ({
+        ...b,
+        agent: agents?.find(a => a.id === b.agent_id) || null
+      })) || [];
+      
+      return data;
     },
   });
 

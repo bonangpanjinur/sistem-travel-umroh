@@ -14,9 +14,19 @@ export function useDashboardStats(branchId?: string | null) {
     queryFn: async () => {
       let bookingsQuery = supabase
         .from('bookings')
-        .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id, agent:agents(company_name)');
+        .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id');
       if (branchId) bookingsQuery = bookingsQuery.eq('branch_id', branchId);
-      const { data: bookings } = await bookingsQuery;
+      const { data: rawBookings } = await bookingsQuery;
+
+      // Fetch agents separately to avoid join issues
+      const { data: agents } = await supabase
+        .from('agents')
+        .select('id, company_name');
+
+      const bookings = rawBookings?.map(b => ({
+        ...b,
+        agent: agents?.find(a => a.id === b.agent_id) || null
+      })) || [];
 
       let customerQuery = supabase
         .from('customers')
