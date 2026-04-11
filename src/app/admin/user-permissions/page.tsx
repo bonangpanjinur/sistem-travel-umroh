@@ -76,14 +76,14 @@ export default function UserPermissionsPage() {
       }
 
       // Map users with their roles
-      const usersWithRoles: UserWithRole[] = (authUsers || []).map((user) => ({
+      const usersWithRoles = (authUsers || []).map((user) => ({
         ...user,
         roles: userRoles
           ?.filter((ur) => ur.user_id === user.id)
           .map((ur) => ur.role) || [],
       }));
 
-      setUsers(usersWithRoles);
+      setUsers(usersWithRoles as any);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -105,7 +105,7 @@ export default function UserPermissionsPage() {
   );
 
   return (
-    <AdminLayout>
+    <div>
       <div className="space-y-6">
         {/* Header */}
         <div>

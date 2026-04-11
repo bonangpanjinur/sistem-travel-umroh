@@ -27,7 +27,8 @@ interface PermissionCheckResult {
  * - Audit logging for sensitive actions
  */
 export function usePermissionsEnhanced() {
-  const { roles, user, branch_id } = useAuth();
+  const { roles, user } = useAuth();
+  const branch_id = (useAuth() as any).branch_id;
   const queryClient = useQueryClient();
 
   // Fetch granular permissions from both role_permissions and user_permissions
@@ -39,7 +40,7 @@ export function usePermissionsEnhanced() {
       try {
         // Use the RPC function that combines both role and user-level permissions
         const { data, error } = await supabase.rpc(
-          'get_user_all_permissions',
+          'get_user_all_permissions' as any,
           { _user_id: user.id }
         );
 
@@ -49,7 +50,7 @@ export function usePermissionsEnhanced() {
         }
 
         // Convert the response to Permission format (only enabled permissions)
-        return (data || [])
+        return ((data as any) || [])
           .filter((p: any) => p.is_enabled)
           .map((p: any) => ({
             permission_key: p.permission_key,
@@ -263,13 +264,13 @@ export function usePermissionsEnhanced() {
   ) => {
     try {
       const { error } = await supabase
-        .rpc('log_audit_action', {
+        .rpc('log_audit_action' as any, {
           _action: action,
           _resource_type: resourceType,
           _resource_id: resourceId,
           _old_values: oldValues ? JSON.stringify(oldValues) : null,
           _new_values: newValues ? JSON.stringify(newValues) : null
-        });
+        } as any);
 
       if (error) {
         console.error("Error logging audit action:", error);
