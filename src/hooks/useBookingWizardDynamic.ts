@@ -29,7 +29,8 @@ export interface DynamicBookingFormData {
 }
 
 export interface PICData {
-  pi  notes?: string;
+  picSource?: string;
+  notes?: string;
   branchId?: string;
   agentId?: string;
   referralCode?: string;
