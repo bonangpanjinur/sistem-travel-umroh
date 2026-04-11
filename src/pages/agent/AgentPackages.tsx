@@ -30,7 +30,11 @@ export default function AgentPackages() {
             departure_date,
             quota,
             booked_count,
-            status
+            status,
+            price_quad,
+            price_triple,
+            price_double,
+            price_single
           )
         `)
         .eq('is_active', true)
@@ -40,6 +44,27 @@ export default function AgentPackages() {
       return data;
     },
   });
+
+  const getLowestPrice = (pkg: any) => {
+    const openDepartures = (pkg.departures as any[])?.filter(
+      (d: any) => d.status === 'open' && d.quota > d.booked_count
+    ) || [];
+
+    // Collect all non-zero prices from open departures
+    const depPrices = openDepartures.flatMap((d: any) =>
+      [d.price_quad, d.price_triple, d.price_double, d.price_single].filter((p: number) => p && p > 0)
+    );
+
+    if (depPrices.length > 0) {
+      return Math.min(...depPrices);
+    }
+
+    // Fallback to package prices
+    const pkgPrices = [pkg.price_quad, pkg.price_triple, pkg.price_double, pkg.price_single]
+      .filter((p: number) => p && p > 0);
+
+    return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
+  };
 
   return (
     <div className="space-y-6">
@@ -66,6 +91,7 @@ export default function AgentPackages() {
               d => d.status === 'open' && d.quota > d.booked_count
             ) || [];
             const nextDeparture = openDepartures[0];
+            const lowestPrice = getLowestPrice(pkg);
 
             return (
               <Card key={pkg.id} className="overflow-hidden">
@@ -94,24 +120,16 @@ export default function AgentPackages() {
                     </p>
                   )}
 
-                  {/* Pricing */}
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Quad:</span>
-                      <span className="font-semibold">{formatCurrency(pkg.price_quad)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Triple:</span>
-                      <span className="font-semibold">{formatCurrency(pkg.price_triple)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Double:</span>
-                      <span className="font-semibold">{formatCurrency(pkg.price_double)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Single:</span>
-                      <span className="font-semibold">{formatCurrency(pkg.price_single)}</span>
-                    </div>
+                  {/* Pricing - show lowest price */}
+                  <div className="text-center py-2">
+                    {lowestPrice > 0 ? (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Mulai dari</p>
+                        <p className="text-xl font-bold text-primary">{formatCurrency(lowestPrice)}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Hubungi Kami</p>
+                    )}
                   </div>
 
                   {/* Next Departure */}
