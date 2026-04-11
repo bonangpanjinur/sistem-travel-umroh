@@ -272,6 +272,6 @@ export default function UserPermissionsPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
