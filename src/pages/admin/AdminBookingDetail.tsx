@@ -194,7 +194,7 @@ export default function AdminBookingDetail() {
   });
 
   const handleApprovePayment = (payment: any) => {
-    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'verified' });
+    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'paid' });
   };
 
   // Send WhatsApp notification
