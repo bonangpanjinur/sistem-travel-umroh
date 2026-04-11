@@ -123,7 +123,7 @@ export default function AdminSettings() {
     if (editingBank) {
       updateAccount({ id: editingBank.id, ...bankData });
     } else {
-      createAccount(bankData);
+      createAccount(bankData as any);
     }
     setIsBankDialogOpen(false);
     setEditingBank(null);
