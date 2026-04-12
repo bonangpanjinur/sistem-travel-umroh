@@ -1,5 +1,6 @@
 -- Enable pgcrypto for crypt() and gen_salt()
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- In Supabase, extensions are typically in the extensions schema
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- Function to reset user password by admin
 -- This requires super_admin or owner role
@@ -8,7 +9,7 @@ CREATE OR REPLACE FUNCTION public.reset_user_password_by_admin(target_user_id UU
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = public, auth, extensions
 AS $$
 DECLARE
     caller_role TEXT;
@@ -61,7 +62,7 @@ CREATE OR REPLACE FUNCTION public.set_user_password_by_admin(new_password TEXT, 
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = public, auth, extensions
 AS $$
 DECLARE
     caller_role TEXT;
@@ -88,8 +89,10 @@ BEGIN
     END IF;
 
     -- Update the user's password
+    -- We use explicit type casting to avoid "function does not exist" errors
+    -- and include extensions in the search_path
     UPDATE auth.users
-    SET encrypted_password = crypt(new_password, gen_salt('bf'))
+    SET encrypted_password = extensions.crypt(new_password::text, extensions.gen_salt('bf'::text))
     WHERE id = target_user_id;
 
     RETURN jsonb_build_object(
