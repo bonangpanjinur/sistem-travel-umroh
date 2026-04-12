@@ -1,3 +1,6 @@
+-- Enable pgcrypto for crypt() and gen_salt()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Function to reset user password by admin
 -- This requires super_admin or owner role
 -- This function sends a password reset email to the user
@@ -54,7 +57,7 @@ GRANT EXECUTE ON FUNCTION public.reset_user_password_by_admin(UUID) TO authentic
 
 -- Alternative function: directly update password (more direct but requires password input)
 -- Use this if you want super admin to set a temporary password directly
-CREATE OR REPLACE FUNCTION public.set_user_password_by_admin(target_user_id UUID, new_password TEXT)
+CREATE OR REPLACE FUNCTION public.set_user_password_by_admin(new_password TEXT, target_user_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -97,4 +100,4 @@ END;
 $$;
 
 -- Grant access to authenticated users (the function itself checks for roles)
-GRANT EXECUTE ON FUNCTION public.set_user_password_by_admin(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.set_user_password_by_admin(TEXT, UUID) TO authenticated;
