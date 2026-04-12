@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Search, Users, Shield, UserPlus, Trash2, Edit2, Link2
 } from "lucide-react";
@@ -73,6 +74,9 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<UserWithRoles | null>(null);
   const [newRole, setNewRole] = useState<AppRole | "">("");
   const [roleToDelete, setRoleToDelete] = useState<{ userId: string; roleId: string; role: AppRole } | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
 
   // Fetch users with their roles
   const { data: users, isLoading } = useQuery({
@@ -157,6 +161,25 @@ export default function AdminUsers() {
     },
     onError: (error) => {
       toast.error("Gagal menghapus role: " + error.message);
+    },
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc('delete_user_by_admin', {
+        target_user_id: userId
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success("User berhasil dihapus");
+      setUserToDelete(null);
+    },
+    onError: (error) => {
+      toast.error("Gagal menghapus user: " + error.message);
     },
   });
 
@@ -338,19 +361,33 @@ export default function AdminUsers() {
                       <TableCell>
                         {format(new Date(user.created_at), 'd MMM yyyy', { locale: id })}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setShowAddRoleDialog(true);
-                          }}
-                        >
-                          <UserPlus className="h-4 w-4 mr-1" />
-                          Tambah Role
-                        </Button>
-                      </TableCell>
+	                      <TableCell className="text-right">
+	                        <div className="flex justify-end gap-2">
+	                          <Button
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => {
+	                              setSelectedUser(user);
+	                              setShowAddRoleDialog(true);
+	                            }}
+	                          >
+	                            <UserPlus className="h-4 w-4 mr-1" />
+	                            Tambah Role
+	                          </Button>
+	                          
+	                          {isSuperAdmin && (
+	                            <Button
+	                              variant="outline"
+	                              size="sm"
+	                              className="text-destructive hover:bg-destructive/10"
+	                              onClick={() => setUserToDelete(user)}
+	                            >
+	                              <Trash2 className="h-4 w-4 mr-1" />
+	                              Hapus User
+	                            </Button>
+	                          )}
+	                        </div>
+	                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -418,6 +455,29 @@ export default function AdminUsers() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteRoleMutation.isPending ? "Menghapus..." : "Hapus"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus User Permanen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus user <strong>{userToDelete?.full_name}</strong> secara permanen?
+              Semua data terkait user ini akan dihapus dan user tidak akan bisa login lagi.
+              Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && deleteUserMutation.mutate(userToDelete.user_id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteUserMutation.isPending ? "Menghapus..." : "Hapus User"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
