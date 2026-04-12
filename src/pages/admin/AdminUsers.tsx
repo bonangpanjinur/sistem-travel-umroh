@@ -26,7 +26,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2
+  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key
 } from "lucide-react";
 import { AppRole } from "@/types/database";
 
@@ -75,6 +75,9 @@ export default function AdminUsers() {
   const [newRole, setNewRole] = useState<AppRole | "">("");
   const [roleToDelete, setRoleToDelete] = useState<{ userId: string; roleId: string; role: AppRole } | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
+  const [userToResetPassword, setUserToResetPassword] = useState<UserWithRoles | null>(null);
+  const [resetPasswordMethod, setResetPasswordMethod] = useState<'email' | 'direct'>('email');
+  const [newPassword, setNewPassword] = useState('');
   const { hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
 
@@ -180,6 +183,49 @@ export default function AdminUsers() {
     },
     onError: (error) => {
       toast.error("Gagal menghapus user: " + error.message);
+    },
+  });
+
+  // Reset password via email mutation
+  const resetPasswordEmailMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc('reset_user_password_by_admin', {
+        target_user_id: userId
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Email reset password telah dikirim ke user");
+      setUserToResetPassword(null);
+      setResetPasswordMethod('email');
+    },
+    onError: (error) => {
+      toast.error("Gagal mengirim email reset: " + error.message);
+    },
+  });
+
+  // Set password directly mutation
+  const setPasswordDirectMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!newPassword || newPassword.length < 8) {
+        throw new Error('Password harus minimal 8 karakter');
+      }
+      const { error } = await supabase.rpc('set_user_password_by_admin', {
+        target_user_id: userId,
+        new_password: newPassword
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Password user berhasil diperbarui");
+      setUserToResetPassword(null);
+      setNewPassword('');
+      setResetPasswordMethod('email');
+    },
+    onError: (error) => {
+      toast.error("Gagal memperbarui password: " + error.message);
     },
   });
 
@@ -376,6 +422,19 @@ export default function AdminUsers() {
 	                          </Button>
 	                          
 	                          {isSuperAdmin && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                  setUserToResetPassword(user);
+                                  setResetPasswordMethod("email");
+                                }}
+                              >
+                                <Key className="h-4 w-4 mr-1" />
+                                Reset Password
+                              </Button>
 	                            <Button
 	                              variant="outline"
 	                              size="sm"
@@ -385,6 +444,7 @@ export default function AdminUsers() {
 	                              <Trash2 className="h-4 w-4 mr-1" />
 	                              Hapus User
 	                            </Button>
+	                            </>
 	                          )}
 	                        </div>
 	                      </TableCell>
@@ -482,6 +542,99 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!userToResetPassword} onOpenChange={() => {
+        setUserToResetPassword(null);
+        setNewPassword('');
+        setResetPasswordMethod('email');
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password User</DialogTitle>
+            <DialogDescription>
+              Pilih metode untuk reset password {userToResetPassword?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Metode Reset</label>
+              <div className="flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="email-method"
+                    checked={resetPasswordMethod === 'email'}
+                    onChange={() => setResetPasswordMethod('email')}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="email-method" className="text-sm cursor-pointer">
+                    Kirim Email Reset
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="direct-method"
+                    checked={resetPasswordMethod === 'direct'}
+                    onChange={() => setResetPasswordMethod('direct')}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="direct-method" className="text-sm cursor-pointer">
+                    Set Password Langsung
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {resetPasswordMethod === 'direct' && (
+              <div className="space-y-2">
+                <label htmlFor="new-password" className="text-sm font-medium">Password Baru</label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="Minimal 8 karakter"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                {newPassword && newPassword.length < 8 && (
+                  <p className="text-xs text-destructive">Password harus minimal 8 karakter</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUserToResetPassword(null);
+                setNewPassword('');
+                setResetPasswordMethod('email');
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (userToResetPassword) {
+                  if (resetPasswordMethod === 'email') {
+                    resetPasswordEmailMutation.mutate(userToResetPassword.user_id);
+                  } else {
+                    setPasswordDirectMutation.mutate(userToResetPassword.user_id);
+                  }
+                }
+              }}
+              disabled={resetPasswordMethod === 'direct' && newPassword.length < 8}
+            >
+              {resetPasswordEmailMutation.isPending || setPasswordDirectMutation.isPending
+                ? 'Memproses...'
+                : resetPasswordMethod === 'email'
+                ? 'Kirim Email'
+                : 'Set Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
