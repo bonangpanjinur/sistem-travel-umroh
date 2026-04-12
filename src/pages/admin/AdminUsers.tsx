@@ -94,10 +94,25 @@ export default function AdminUsers() {
 
       if (profilesError) throw profilesError;
 
-      // Get all auth users to fetch emails
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+      // Get all auth users via RPC to fetch emails securely
+      const { data: authUsers, error: authError } = await supabase.rpc('list_users_with_emails');
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('Error fetching auth users via RPC:', authError);
+        // Fallback to empty map if RPC fails (e.g. migration not yet applied)
+        const emailMap = new Map();
+        return (profiles || []).map(profile => ({
+          ...profile,
+          email: null,
+          roles: (roles || []).filter(r => r.user_id === profile.user_id).map(r => ({
+            id: r.id,
+            role: r.role as AppRole,
+            branch_id: r.branch_id,
+          })),
+          hasEmployeeRecord: employeeMap.has(profile.user_id),
+          employeeCode: employeeMap.get(profile.user_id),
+        }));
+      }
 
       // Create a map of user_id -> email for quick lookup
       const emailMap = new Map((authUsers || []).map(u => [u.id, u.email]));

@@ -58,11 +58,12 @@ export default function UserPermissionsPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch all users from auth.users
-      const { data: { users: authUsers }, error: authError } =
-        await supabase.auth.admin.listUsers();
+      // Fetch all users from auth.users via RPC for security
+      const { data: authUsers, error: authError } =
+        await supabase.rpc('list_users_with_emails');
 
       if (authError) {
+        console.error('Error fetching auth users via RPC:', authError);
         throw authError;
       }
 
