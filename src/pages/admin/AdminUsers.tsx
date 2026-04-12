@@ -196,6 +196,7 @@ export default function AdminUsers() {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success("Email reset password telah dikirim ke user");
       setUserToResetPassword(null);
       setResetPasswordMethod('email');
@@ -219,6 +220,7 @@ export default function AdminUsers() {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success("Password user berhasil diperbarui");
       setUserToResetPassword(null);
       setNewPassword('');
