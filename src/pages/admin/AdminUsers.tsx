@@ -61,6 +61,7 @@ interface UserWithRoles {
   user_id: string;
   full_name: string | null;
   phone: string | null;
+  email: string | null;
   created_at: string;
   roles: { id: string; role: AppRole; branch_id: string | null }[];
   hasEmployeeRecord?: boolean;
@@ -93,6 +94,14 @@ export default function AdminUsers() {
 
       if (profilesError) throw profilesError;
 
+      // Get all auth users to fetch emails
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+
+      if (authError) throw authError;
+
+      // Create a map of user_id -> email for quick lookup
+      const emailMap = new Map((authUsers || []).map(u => [u.id, u.email]));
+
       // Then get all roles
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
@@ -113,6 +122,7 @@ export default function AdminUsers() {
       // Combine the data
       const usersWithRoles: UserWithRoles[] = (profiles || []).map(profile => ({
         ...profile,
+        email: emailMap.get(profile.user_id) || null,
         roles: (roles || []).filter(r => r.user_id === profile.user_id).map(r => ({
           id: r.id,
           role: r.role as AppRole,
@@ -237,6 +247,7 @@ export default function AdminUsers() {
     return (
       user.full_name?.toLowerCase().includes(search) ||
       user.phone?.includes(search) ||
+      user.email?.toLowerCase().includes(search) ||
       user.roles.some(r => ROLE_LABELS[r.role].toLowerCase().includes(search))
     );
   });
@@ -356,6 +367,7 @@ export default function AdminUsers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nama</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Telepon</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Bergabung</TableHead>
@@ -380,6 +392,7 @@ export default function AdminUsers() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell className="text-sm">{user.email || '-'}</TableCell>
                       <TableCell>{user.phone || '-'}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
