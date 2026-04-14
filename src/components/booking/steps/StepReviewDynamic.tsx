@@ -38,6 +38,7 @@ interface StepReviewDynamicProps {
   };
   onCouponApplied?: (discount: number, code: string) => void;
   onReferralApplied?: (code: string) => void;
+  onUpdatePassengers?: (passengers: any[]) => void;
 }
 
 const ROOM_LABELS: Record<RoomType, string> = {
@@ -47,7 +48,7 @@ const ROOM_LABELS: Record<RoomType, string> = {
   single: 'Single',
 };
 
-export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied }: StepReviewDynamicProps) {
+export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied, onUpdatePassengers }: StepReviewDynamicProps) {
   const { user } = useAuth();
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
@@ -185,7 +186,7 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
                       const updated = [...formData.passengers];
                       if (updated[0]) {
                         updated[0] = { ...updated[0], email: e.target.value };
-                        onCouponApplied?.(discountAmount, couponCode); // Trigger update
+                        onUpdatePassengers?.(updated);
                       }
                     }}
                   />
@@ -207,6 +208,7 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
                       const updated = [...formData.passengers];
                       if (updated[0]) {
                         updated[0] = { ...updated[0], phone: e.target.value };
+                        onUpdatePassengers?.(updated);
                       }
                     }}
                   />

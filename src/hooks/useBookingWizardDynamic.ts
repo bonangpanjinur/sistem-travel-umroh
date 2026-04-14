@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { RoomType } from "@/types/database";
 import { BookingStep } from "@/components/booking/BookingWizard";
+import { createGuestAccount, linkGuestCustomerToUser } from "@/services/guestCheckoutService";
 
 export interface RoomAllocation {
   quad: number;
@@ -170,16 +171,18 @@ export function useBookingWizardDynamic(
           customerId = customer.id;
         }
       } else {
-        // Guest Checkout: Create a customer record without user_id
+        // Guest Checkout: Create a customer record without user_id initially
         // We'll use the main passenger's data
         const mainPassenger = formData.passengers[0];
+        userEmail = mainPassenger.email || null;
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
           .insert({ 
             full_name: mainPassenger.fullName, 
             gender: mainPassenger.gender, 
             phone: mainPassenger.phone || null,
-            notes: 'Guest Checkout'
+            email: mainPassenger.email || null,
+            notes: 'Guest Checkout - Pending Account Creation'
           })
           .select('id')
           .single();
@@ -335,7 +338,34 @@ export function useBookingWizardDynamic(
         }
       }
 
-      toast.success(`Booking berhasil dibuat! Kode: ${booking.booking_code}`);
+      // 9. For guest checkout, create auto-account
+      if (!user && userEmail && customerId) {
+        try {
+          const mainPassenger = formData.passengers[0];
+          const accountResult = await createGuestAccount(
+            userEmail,
+            mainPassenger.fullName,
+            mainPassenger.phone
+          );
+
+          if (accountResult.success && accountResult.userId) {
+            // Link the customer to the newly created user
+            await linkGuestCustomerToUser(customerId, accountResult.userId);
+            toast.success(`Booking berhasil! Akun Anda telah dibuat. Cek email untuk mengatur kata sandi.`);
+          } else {
+            // Booking succeeded but account creation failed - still show success
+            toast.success(`Booking berhasil dibuat! Kode: ${booking.booking_code}`);
+            console.warn('Guest account creation failed:', accountResult.message);
+          }
+        } catch (accountErr) {
+          console.warn('Guest account creation error:', accountErr);
+          // Don't fail the booking if account creation fails
+          toast.success(`Booking berhasil dibuat! Kode: ${booking.booking_code}`);
+        }
+      } else {
+        toast.success(`Booking berhasil dibuat! Kode: ${booking.booking_code}`);
+      }
+
       return { bookingId: booking.id, bookingCode: booking.booking_code };
 
     } catch (error: any) {

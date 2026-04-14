@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { slugify } from "@/lib/slug";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { LoginSuggestionDialog } from "./LoginSuggestionDialog";
 
 const MONTHS = [
   { value: "01", label: "Januari" },
@@ -47,6 +48,8 @@ export function BookingWizard() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
+  const [showLoginSuggestion, setShowLoginSuggestion] = useState(false);
+  const [loginSuggestionShown, setLoginSuggestionShown] = useState(false);
   
   const initialDepartureId = searchParams.get('departure') || '';
   const initialPax = parseInt(searchParams.get('pax') || '0', 10);
@@ -111,6 +114,14 @@ export function BookingWizard() {
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const totalPassengers = formData.passengers.length;
+
+  // Show login suggestion when moving from passengers to pic step (for guests)
+  useEffect(() => {
+    if (!user && currentStep === 'pic' && !loginSuggestionShown) {
+      setShowLoginSuggestion(true);
+      setLoginSuggestionShown(true);
+    }
+  }, [currentStep, user, loginSuggestionShown]);
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
@@ -252,6 +263,7 @@ export function BookingWizard() {
                 price_single: departureInfo.price_single ?? 0,
               } : undefined}
               onCouponApplied={(discount, code) => updateFormData({ notes: `coupon:${code}` })}
+              onUpdatePassengers={(passengers) => updateFormData({ passengers })}
             />
           )}
         </CardContent>
@@ -272,6 +284,12 @@ export function BookingWizard() {
           </Button>
         )}
       </div>
+
+      <LoginSuggestionDialog
+        open={showLoginSuggestion}
+        onOpenChange={setShowLoginSuggestion}
+        currentStep={currentStep}
+      />
     </div>
   );
 }
