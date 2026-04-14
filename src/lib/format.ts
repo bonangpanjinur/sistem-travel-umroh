@@ -81,7 +81,14 @@ export function getPackageTypeLabel(packageType: string): string {
     umroh_plus: 'Umroh Plus',
     tabungan: 'Tabungan Umroh',
   };
-  return labels[packageType] || packageType;
+  
+  if (labels[packageType]) return labels[packageType];
+  
+  // For dynamic types, convert snake_case to Title Case
+  return packageType
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 // Alias for formatPackageType

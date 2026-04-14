@@ -15,7 +15,8 @@ import {
   Banknote, Clock, Briefcase, Smartphone,
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
-  FileType, Star, ExternalLink, ChevronDown, Hotel, Plane as PlaneIcon
+  FileType, Star, ExternalLink, ChevronDown, Hotel, Plane as PlaneIcon,
+  Settings2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -126,6 +127,7 @@ const NAV_GROUPS = [
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
       { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages', permission: 'settings.manage' },
       { label: 'Testimoni', icon: Star, path: '/admin/testimonials', permission: 'settings.manage' },
+      { label: 'Pengaturan Paket', icon: Settings2, path: '/admin/package-settings', permission: 'settings.manage' },
       { label: 'Pengaturan', icon: Settings, path: '/admin/settings', permission: 'settings.manage' },
     ]
   },

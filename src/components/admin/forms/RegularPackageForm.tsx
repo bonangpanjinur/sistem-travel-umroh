@@ -39,7 +39,7 @@ const generatePackageCode = (type: string) => {
     haji: "HAJ",
     haji_plus: "HJP",
   };
-  const prefix = prefixMap[type] || "PKG";
+  const prefix = prefixMap[type] || type.substring(0, 3).toUpperCase();
   const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
   const random = Math.random().toString(36).toUpperCase().slice(2, 5);
   return `${prefix}-${timestamp}${random}`;
@@ -48,7 +48,7 @@ const generatePackageCode = (type: string) => {
 const regularPackageSchema = z.object({
   code: z.string().optional(),
   name: z.string().min(1, "Nama paket harus diisi"),
-  package_type: z.enum(["umroh", "haji", "haji_plus", "umroh_plus"]),
+  package_type: z.string().min(1, "Tipe paket harus diisi"),
   description: z.string().optional(),
   duration_days: z.coerce.number().min(1, "Durasi minimal 1 hari"),
   featured_image: z.string().optional().nullable(),
@@ -77,6 +77,19 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(packageData?.featured_image || null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const { data: packageTypes } = useQuery({
+    queryKey: ["package-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("package_types")
+        .select("*")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const form = useForm<RegularPackageFormValues>({
     resolver: zodResolver(regularPackageSchema),
@@ -245,10 +258,11 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="umroh">Umroh</SelectItem>
-                      <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
-                      <SelectItem value="haji">Haji</SelectItem>
-                      <SelectItem value="haji_plus">Haji Plus</SelectItem>
+                      {packageTypes?.map((type) => (
+                        <SelectItem key={type.id} value={type.code}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
