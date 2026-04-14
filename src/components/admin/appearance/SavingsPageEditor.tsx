@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,7 @@ interface SavingsPageContent {
   cta_subtitle: string | null;
 }
 
-export default function SavingsPageEditor() {
+export function SavingsPageEditor() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<Partial<SavingsPageContent>>({
@@ -49,7 +49,7 @@ export default function SavingsPageEditor() {
   });
 
   // Initialize form when content loads
-  useState(() => {
+  useEffect(() => {
     if (content) {
       setFormData(content);
     }
