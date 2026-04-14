@@ -170,7 +170,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       const payload: any = {
         ...rest,
         code: isEditing ? rest.code : generatePackageCode(typeCode),
-        package_type: typeCode, // Keep legacy field in sync for now
+        // package_type: typeCode, // Removed legacy field to support dynamic types like 'tour'
         includes: rest.includes ? rest.includes.split("\n").filter(Boolean) : [],
         excludes: rest.excludes ? rest.excludes.split("\n").filter(Boolean) : [],
         // Set price/hotel/airline to null - these are managed on departures

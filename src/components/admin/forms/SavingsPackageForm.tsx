@@ -174,7 +174,7 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
 
       const payload: any = {
         ...rest,
-        package_type: "tabungan",
+        // package_type: "tabungan", // Removed legacy field to support dynamic types
         package_type_id: tabunganType?.id || null,
         code: isEditing ? rest.code : generatePackageCode(),
         includes: rest.includes ? rest.includes.split("\n").filter(Boolean) : [],

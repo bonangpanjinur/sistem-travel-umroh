@@ -81,7 +81,10 @@ export default function AdminPackageDetail() {
           *,
           departure_airport:airports!departures_departure_airport_id_fkey(code, city),
           arrival_airport:airports!departures_arrival_airport_id_fkey(code, city),
-          bookings(
+          airline:airlines(id, name, code),
+          hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id, name, star_rating),
+          hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, star_rating),
+          bookings(`}],path:
             id,
             booking_code,
             booking_status,
@@ -120,6 +123,39 @@ export default function AdminPackageDetail() {
   });
 
   const linkedDepartureIds = departures?.map(d => d.id) || [];
+
+  // Logic to get dynamic data from departures
+  const getDynamicData = () => {
+    if (!departures || departures.length === 0) return null;
+
+    // 1. Get lowest prices from all departures
+    const prices = departures.flatMap(d => [
+      d.price_quad, d.price_triple, d.price_double, d.price_single
+    ]).filter(p => p && p > 0);
+    
+    const lowestPrices = {
+      quad: Math.min(...departures.map(d => d.price_quad).filter(p => p > 0)) || 0,
+      triple: Math.min(...departures.map(d => d.price_triple).filter(p => p > 0)) || 0,
+      double: Math.min(...departures.map(d => d.price_double).filter(p => p > 0)) || 0,
+      single: Math.min(...departures.map(d => d.price_single).filter(p => p > 0)) || 0,
+    };
+
+    // 2. Get hotel/airline from the departure with the highest price (highest tier)
+    const sortedByPrice = [...departures].sort((a, b) => {
+      const maxA = Math.max(a.price_quad, a.price_triple, a.price_double, a.price_single);
+      const maxB = Math.max(b.price_quad, b.price_triple, b.price_double, b.price_single);
+      return maxB - maxA;
+    });
+
+    const highestTierDeparture = sortedByPrice[0];
+
+    return {
+      lowestPrices,
+      highestTierDeparture
+    };
+  };
+
+  const dynamicData = getDynamicData();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -248,20 +284,24 @@ export default function AdminPackageDetail() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Maskapai</p>
-                <p className="font-medium">{packageData.airline?.name || '-'}</p>
+                <p className="font-medium">
+                  {dynamicData?.highestTierDeparture?.airline?.name || packageData.airline?.name || '-'}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Hotel Makkah</p>
                 <p className="font-medium">
-                  {packageData.hotel_makkah?.name || '-'}
-                  {packageData.hotel_makkah?.star_rating && ` (${packageData.hotel_makkah.star_rating}⭐)`}
+                  {dynamicData?.highestTierDeparture?.hotel_makkah?.name || packageData.hotel_makkah?.name || '-'}
+                  {(dynamicData?.highestTierDeparture?.hotel_makkah?.star_rating || packageData.hotel_makkah?.star_rating) && 
+                    ` (${dynamicData?.highestTierDeparture?.hotel_makkah?.star_rating || packageData.hotel_makkah?.star_rating}⭐)`}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Hotel Madinah</p>
                 <p className="font-medium">
-                  {packageData.hotel_madinah?.name || '-'}
-                  {packageData.hotel_madinah?.star_rating && ` (${packageData.hotel_madinah.star_rating}⭐)`}
+                  {dynamicData?.highestTierDeparture?.hotel_madinah?.name || packageData.hotel_madinah?.name || '-'}
+                  {(dynamicData?.highestTierDeparture?.hotel_madinah?.star_rating || packageData.hotel_madinah?.star_rating) && 
+                    ` (${dynamicData?.highestTierDeparture?.hotel_madinah?.star_rating || packageData.hotel_madinah?.star_rating}⭐)`}
                 </p>
               </div>
               <div>
@@ -286,20 +326,33 @@ export default function AdminPackageDetail() {
           <CardContent className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Quad (4 orang)</span>
-              <span className="font-medium">{formatCurrency(packageData.price_quad)}</span>
+              <span className="font-medium">
+                {formatCurrency(dynamicData?.lowestPrices.quad || packageData.price_quad)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Triple (3 orang)</span>
-              <span className="font-medium">{formatCurrency(packageData.price_triple)}</span>
+              <span className="font-medium">
+                {formatCurrency(dynamicData?.lowestPrices.triple || packageData.price_triple)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Double (2 orang)</span>
-              <span className="font-medium">{formatCurrency(packageData.price_double)}</span>
+              <span className="font-medium">
+                {formatCurrency(dynamicData?.lowestPrices.double || packageData.price_double)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Single (1 orang)</span>
-              <span className="font-medium">{formatCurrency(packageData.price_single)}</span>
+              <span className="font-medium">
+                {formatCurrency(dynamicData?.lowestPrices.single || packageData.price_single)}
+              </span>
             </div>
+            {dynamicData && (
+              <p className="text-[10px] text-muted-foreground mt-2 italic">
+                * Menampilkan harga terendah dari jadwal yang tersedia
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
