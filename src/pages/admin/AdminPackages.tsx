@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -296,6 +297,9 @@ export default function AdminPackages() {
                 : (packageTypeFilter === 'tabungan' ? 'Tambah Paket Tabungan' : 'Tambah Paket Reguler')
               }
             </DialogTitle>
+            <DialogDescription>
+              Silakan isi formulir di bawah ini untuk {editingPackage ? 'memperbarui' : 'menambahkan'} informasi paket.
+            </DialogDescription>
           </DialogHeader>
           {packageTypeFilter === 'tabungan' || editingPackage?.package_type === 'tabungan' ? (
             <SavingsPackageForm
