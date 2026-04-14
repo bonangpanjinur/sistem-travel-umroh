@@ -139,6 +139,13 @@ export function SEOSettings({ settings }: SEOSettingsProps) {
 
       await updateSettings.mutateAsync(updates);
       
+      // Update local cache for instant restoration
+      if (googleVerification) {
+        localStorage.setItem('website-seo-verification', googleVerification);
+      } else {
+        localStorage.removeItem('website-seo-verification');
+      }
+      
       toast.success("Pengaturan SEO berhasil disimpan");
     } catch (error) {
       toast.error("Gagal menyimpan pengaturan SEO");

@@ -210,11 +210,18 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
     // Apply CSS variables
     applyCSSVariables(cssVariables, settings);
 
-    // Cache CSS variables and metadata for instant apply on next reload
+      // Cache CSS variables and metadata for instant apply on next reload
     try {
       localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(cssVariables));
       localStorage.setItem(THEME_VERSION_KEY, CURRENT_THEME_VERSION);
       localStorage.setItem(`${THEME_CACHE_KEY}-hash`, settingsHash);
+      
+      // Cache SEO settings for instant head tag injection
+      if (settings.google_console_verification) {
+        localStorage.setItem('website-seo-verification', settings.google_console_verification);
+      } else {
+        localStorage.removeItem('website-seo-verification');
+      }
     } catch {
       // Ignore quota errors (localStorage full)
     }

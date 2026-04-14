@@ -29,14 +29,14 @@
     <meta name="twitter:card" content="summary_large_image" />
 
     <!-- 
-      THEME RESTORATION SCRIPT
-      Menerapkan tema yang disimpan dari sesi sebelumnya sebelum React merender.
-      Ini mencegah "Flash of Unstyled Content (FOUC)" dengan mengembalikan variabel CSS tema
-      dari localStorage sebelum browser mulai merender elemen body.
+      SEO & THEME RESTORATION SCRIPT
+      Menerapkan tema dan meta tag SEO yang disimpan dari sesi sebelumnya sebelum React merender.
+      Ini memastikan Google Search Console dapat memverifikasi situs meskipun ini adalah aplikasi Client-Side Rendering (SPA).
     -->
     <script>
       (function() {
         try {
+          // Restore Theme
           const cachedTheme = localStorage.getItem('website-theme-cache');
           if (cachedTheme) {
             const cssVars = JSON.parse(cachedTheme);
@@ -45,9 +45,20 @@
               root.style.setProperty(key, cssVars[key]);
             });
           }
+
+          // Restore Google Search Console Verification
+          const cachedVerification = localStorage.getItem('website-seo-verification');
+          if (cachedVerification) {
+            let meta = document.querySelector('meta[name="google-site-verification"]');
+            if (!meta) {
+              meta = document.createElement('meta');
+              meta.setAttribute('name', 'google-site-verification');
+              document.head.appendChild(meta);
+            }
+            meta.setAttribute('content', cachedVerification);
+          }
         } catch (e) {
-          // Abaikan jika ada error parsing atau localStorage tidak tersedia
-          console.warn('Theme restoration failed:', e);
+          console.warn('Restoration failed:', e);
         }
       })();
     </script>
