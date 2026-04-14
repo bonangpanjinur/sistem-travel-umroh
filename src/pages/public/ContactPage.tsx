@@ -10,10 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { extractIframeUrl } from '@/lib/utils';
+import { extractIframeUrl, getGoogleMapsDirectionsUrl } from '@/lib/utils';
 import { 
   MapPin, Phone, Mail, Clock, Send, MessageCircle,
-  Facebook, Instagram, Youtube, MessageSquare
+  Facebook, Instagram, Youtube, MessageSquare, ExternalLink
 } from 'lucide-react';
 
 export default function ContactPage() {
@@ -313,16 +313,48 @@ export default function ContactPage() {
       {contactContent?.map_url && (
         <section className="py-8 bg-secondary/30">
           <div className="container mx-auto px-4">
-            <div className="max-w-6xl mx-auto">
-              <iframe
-                src={extractIframeUrl(contactContent.map_url)}
-                width="100%"
-                height="400"
-                style={{ border: 0, borderRadius: '0.5rem' }}
-                allowFullScreen={true}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
+            <div className="max-w-6xl mx-auto space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Lokasi Kami
+                </h2>
+                <Button asChild variant="outline" size="sm">
+                  <a 
+                    href={getGoogleMapsDirectionsUrl(contactContent.map_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Petunjuk Arah (Buka Maps)
+                  </a>
+                </Button>
+              </div>
+              <div className="relative group">
+                <iframe
+                  src={extractIframeUrl(contactContent.map_url)}
+                  width="100%"
+                  height="400"
+                  style={{ border: 0, borderRadius: '0.5rem' }}
+                  allowFullScreen={true}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="shadow-sm"
+                />
+                <a 
+                  href={getGoogleMapsDirectionsUrl(contactContent.map_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center"
+                  title="Klik untuk membuka di Google Maps"
+                >
+                  <div className="bg-white/90 px-4 py-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 text-sm font-medium text-primary">
+                    <MapPin className="h-4 w-4" />
+                    Buka di Google Maps
+                  </div>
+                </a>
+              </div>
             </div>
           </div>
         </section>
