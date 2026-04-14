@@ -36,10 +36,12 @@ export default function ProtectedRoute({
     );
   }
 
-  // Check if authentication is required
-  if (requireAuth && !user) {
+  // If loading finished but no user, and it's required, redirect to login
+  if (!isLoading && requireAuth && !user) {
     return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
+
+
 
   // Check permission-based access if specified
   if (permission && !hasPermission(permission)) {

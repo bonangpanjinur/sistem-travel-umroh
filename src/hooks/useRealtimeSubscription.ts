@@ -14,8 +14,10 @@ export function useRealtimeSubscription(
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // Add a unique but stable suffix to avoid collisions between multiple instances
+    const instanceId = Math.random().toString(36).substring(2, 9);
     const channel = supabase
-      .channel(`realtime-${table}`)
+      .channel(`realtime-${table}-${instanceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table },
@@ -42,8 +44,9 @@ export function useMultipleRealtimeSubscriptions(
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    const instanceId = Math.random().toString(36).substring(2, 9);
     const channels = tables.map((table) => {
-      const channel = supabase.channel(`realtime-${table}`);
+      const channel = supabase.channel(`realtime-${table}-${instanceId}`);
       
       // Add listener BEFORE subscribing to avoid postgres_changes error
       channel.on(

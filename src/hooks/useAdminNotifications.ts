@@ -67,9 +67,11 @@ export function useAdminNotifications() {
   }, []);
 
   useEffect(() => {
+    const channelId = crypto.randomUUID().slice(0, 8);
+    
     // Subscribe to new bookings
     const bookingsChannel = supabase
-      .channel('admin-bookings')
+      .channel(`admin-bookings-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -96,11 +98,13 @@ export function useAdminNotifications() {
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED') console.warn('Admin bookings channel closed');
+      });
 
     // Subscribe to new payments
     const paymentsChannel = supabase
-      .channel('admin-payments')
+      .channel(`admin-payments-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -127,11 +131,13 @@ export function useAdminNotifications() {
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED') console.warn('Admin payments channel closed');
+      });
 
     // Subscribe to payment status updates (for verification)
     const paymentUpdatesChannel = supabase
-      .channel('admin-payment-updates')
+      .channel(`admin-payment-updates-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -161,11 +167,13 @@ export function useAdminNotifications() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED') console.warn('Admin payment updates channel closed');
+      });
 
     // Subscribe to new device registrations
     const deviceRegistrationChannel = supabase
-      .channel('admin-device-registrations')
+      .channel(`admin-device-registrations-${channelId}`)
       .on(
         'postgres_changes',
         {
@@ -192,7 +200,9 @@ export function useAdminNotifications() {
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED') console.warn('Admin device registration channel closed');
+      });
 
     return () => {
       supabase.removeChannel(bookingsChannel);

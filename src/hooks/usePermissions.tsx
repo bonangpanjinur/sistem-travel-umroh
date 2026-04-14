@@ -39,12 +39,14 @@ export function usePermissions() {
 
   // Real-time subscription to role_permissions changes
   useEffect(() => {
-    if (!user) return;
+    if (!user || roles.length === 0) return;
 
-    // Using a unique channel name to avoid "cannot add postgres_changes after subscribe" errors
-    // which happen when multiple hooks try to use the same channel name.
+    // Using a stable channel name to prevent creating multiple connections
+    // The previous use of crypto.randomUUID() caused a new channel on every re-render
+    const channelName = `role-permissions-sync-${user.id}`;
+    
     const channel = supabase
-      .channel(`role-permissions-sync-${crypto.randomUUID()}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -55,14 +57,17 @@ export function usePermissions() {
         () => {
           queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
         }
-      );
-    
-    channel.subscribe();
+      )
+      .subscribe((status) => {
+        if (status === 'CLOSED') {
+          console.warn('Realtime channel closed, attempting to reconnect...');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [user?.id, roles.join(','), queryClient]);
 
   /**
    * Check if the user has a specific permission
