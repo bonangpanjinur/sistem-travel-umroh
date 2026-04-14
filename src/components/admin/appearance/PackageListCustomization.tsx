@@ -19,4 +19,331 @@ interface PackageListCustomizationProps {
   settings: WebsiteSettings;
 }
 
-interface PackageBadge {\n  id: string;\n  name: string;\n  color: string;\n  condition: string;\n}\n\ninterface PackageListSettings {\n  filter_price_enabled: boolean;\n  filter_month_enabled: boolean;\n  filter_airline_enabled: boolean;\n  sort_enabled: boolean;\n  badges_enabled: boolean;\n  price_display: "show_all" | "show_from" | "contact_for_price";\n  custom_badges: PackageBadge[];\n}\n\nconst DEFAULT_BADGES: PackageBadge[] = [\n  {\n    id: "1",\n    name: "Promo",\n    color: "#ef4444",\n    condition: "Paket dengan harga khusus",\n  },\n  {\n    id: "2",\n    name: "Terlaris",\n    color: "#f59e0b",\n    condition: "Paket paling banyak dipesan",\n  },\n  {\n    id: "3",\n    name: "Terbatas",\n    color: "#8b5cf6",\n    condition: "Paket dengan seat terbatas",\n  },\n];\n\nexport function PackageListCustomization({ settings }: PackageListCustomizationProps) {\n  const updateSettings = useUpdateWebsiteSettings();\n  const [packageSettings, setPackageSettings] = useState<PackageListSettings>({\n    filter_price_enabled: true,\n    filter_month_enabled: true,\n    filter_airline_enabled: true,\n    sort_enabled: true,\n    badges_enabled: true,\n    price_display: \"show_all\",\n    custom_badges: DEFAULT_BADGES,\n  });\n  const [isSaving, setIsSaving] = useState(false);\n\n  // Load settings from localStorage\n  useEffect(() => {\n    const stored = localStorage.getItem(\"package_list_settings\");\n    if (stored) {\n      setPackageSettings(JSON.parse(stored));\n    }\n  }, []);\n\n  const handleSave = async () => {\n    setIsSaving(true);\n    try {\n      localStorage.setItem(\"package_list_settings\", JSON.stringify(packageSettings));\n\n      // Update website settings\n      updateSettings.mutate({\n        // Store in custom field if needed\n      });\n\n      toast.success(\"Pengaturan daftar paket berhasil disimpan\");\n    } catch (error) {\n      toast.error(\"Gagal menyimpan pengaturan\");\n    } finally {\n      setIsSaving(false);\n    }\n  };\n\n  const handleToggleFilter = (filter: keyof Omit<PackageListSettings, \"badges_enabled\" | \"price_display\" | \"custom_badges\">) => {\n    setPackageSettings((prev) => ({\n      ...prev,\n      [filter]: !prev[filter],\n    }));\n  };\n\n  const handleToggleBadges = () => {\n    setPackageSettings((prev) => ({\n      ...prev,\n      badges_enabled: !prev.badges_enabled,\n    }));\n  };\n\n  const handleUpdateBadge = (id: string, field: keyof PackageBadge, value: string) => {\n    setPackageSettings((prev) => ({\n      ...prev,\n      custom_badges: prev.custom_badges.map((badge) =>\n        badge.id === id ? { ...badge, [field]: value } : badge\n      ),\n    }));\n  };\n\n  const handleAddBadge = () => {\n    const newBadge: PackageBadge = {\n      id: Math.random().toString(36).substr(2, 9),\n      name: \"Badge Baru\",\n      color: \"#3b82f6\",\n      condition: \"\",\n    };\n    setPackageSettings((prev) => ({\n      ...prev,\n      custom_badges: [...prev.custom_badges, newBadge],\n    }));\n  };\n\n  const handleRemoveBadge = (id: string) => {\n    setPackageSettings((prev) => ({\n      ...prev,\n      custom_badges: prev.custom_badges.filter((badge) => badge.id !== id),\n    }));\n  };\n\n  return (\n    <div className=\"space-y-6\">\n      <Alert>\n        <AlertCircle className=\"h-4 w-4\" />\n        <AlertDescription>\n          Kustomisasi tampilan dan fitur daftar paket untuk meningkatkan pengalaman pengunjung dan konversi.\n        </AlertDescription>\n      </Alert>\n\n      {/* Filter Settings */}\n      <Card>\n        <CardHeader>\n          <CardTitle>Pengaturan Filter & Sort</CardTitle>\n          <CardDescription>Aktifkan atau nonaktifkan opsi filter dan pengurutan pada halaman paket</CardDescription>\n        </CardHeader>\n        <CardContent className=\"space-y-4\">\n          <div className=\"space-y-3\">\n            <label className=\"flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer\">\n              <input\n                type=\"checkbox\"\n                checked={packageSettings.filter_price_enabled}\n                onChange={() => handleToggleFilter(\"filter_price_enabled\")}\n                className=\"rounded border-gray-300\"\n              />\n              <div>\n                <p className=\"font-medium text-sm\">Filter Harga</p>\n                <p className=\"text-xs text-muted-foreground\">Izinkan pengunjung memfilter paket berdasarkan harga</p>\n              </div>\n            </label>\n\n            <label className=\"flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer\">\n              <input\n                type=\"checkbox\"\n                checked={packageSettings.filter_month_enabled}\n                onChange={() => handleToggleFilter(\"filter_month_enabled\")}\n                className=\"rounded border-gray-300\"\n              />\n              <div>\n                <p className=\"font-medium text-sm\">Filter Bulan Keberangkatan</p>\n                <p className=\"text-xs text-muted-foreground\">Izinkan pengunjung memfilter paket berdasarkan bulan keberangkatan</p>\n              </div>\n            </label>\n\n            <label className=\"flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer\">\n              <input\n                type=\"checkbox\"\n                checked={packageSettings.filter_airline_enabled}\n                onChange={() => handleToggleFilter(\"filter_airline_enabled\")}\n                className=\"rounded border-gray-300\"\n              />\n              <div>\n                <p className=\"font-medium text-sm\">Filter Maskapai</p>\n                <p className=\"text-xs text-muted-foreground\">Izinkan pengunjung memfilter paket berdasarkan maskapai penerbangan</p>\n              </div>\n            </label>\n\n            <label className=\"flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer\">\n              <input\n                type=\"checkbox\"\n                checked={packageSettings.sort_enabled}\n                onChange={() => handleToggleFilter(\"sort_enabled\")}\n                className=\"rounded border-gray-300\"\n              />\n              <div>\n                <p className=\"font-medium text-sm\">Opsi Pengurutan</p>\n                <p className=\"text-xs text-muted-foreground\">Izinkan pengunjung mengurutkan paket (harga, durasi, rating)</p>\n              </div>\n            </label>\n          </div>\n        </CardContent>\n      </Card>\n\n      {/* Price Display Settings */}\n      <Card>\n        <CardHeader>\n          <CardTitle>Pengaturan Tampilan Harga</CardTitle>\n          <CardDescription>Pilih bagaimana harga paket ditampilkan kepada pengunjung</CardDescription>\n        </CardHeader>\n        <CardContent className=\"space-y-4\">\n          <Select value={packageSettings.price_display} onValueChange={(value: any) => {\n            setPackageSettings((prev) => ({\n              ...prev,\n              price_display: value,\n            }));\n          }}>\n            <SelectTrigger>\n              <SelectValue />\n            </SelectTrigger>\n            <SelectContent>\n              <SelectItem value=\"show_all\">Tampilkan Semua Harga</SelectItem>\n              <SelectItem value=\"show_from\">Tampilkan \"Mulai dari\" Harga</SelectItem>\n              <SelectItem value=\"contact_for_price\">Hubungi untuk Harga</SelectItem>\n            </SelectContent>\n          </Select>\n\n          <div className=\"p-3 border rounded-lg bg-muted/30 text-sm\">\n            {packageSettings.price_display === \"show_all\" && (\n              <p>Semua harga paket akan ditampilkan secara lengkap kepada pengunjung.</p>\n            )}\n            {packageSettings.price_display === \"show_from\" && (\n              <p>Hanya harga terendah yang ditampilkan dengan label \"Mulai dari\". Pengunjung dapat melihat harga lengkap setelah membuka detail paket.</p>\n            )}\n            {packageSettings.price_display === \"contact_for_price\" && (\n              <p>Harga tidak ditampilkan. Pengunjung diminta menghubungi untuk mendapatkan informasi harga.</p>\n            )}\n          </div>\n        </CardContent>\n      </Card>\n\n      {/* Badge Settings */}\n      <Card>\n        <CardHeader className=\"flex flex-row items-center justify-between\">\n          <div>\n            <CardTitle>Pengaturan Lencana Paket</CardTitle>\n            <CardDescription>Kustomisasi lencana yang ditampilkan pada kartu paket</CardDescription>\n          </div>\n          <label className=\"flex items-center gap-2\">\n            <input\n              type=\"checkbox\"\n              checked={packageSettings.badges_enabled}\n              onChange={handleToggleBadges}\n              className=\"rounded border-gray-300\"\n            />\n            <span className=\"text-sm font-medium\">Aktifkan Lencana</span>\n          </label>\n        </CardHeader>\n        <CardContent className=\"space-y-4\">\n          {packageSettings.badges_enabled && (\n            <>\n              <div className=\"space-y-3\">\n                {packageSettings.custom_badges.map((badge) => (\n                  <div key={badge.id} className=\"border rounded-lg p-4 space-y-3\">\n                    <div className=\"flex items-center justify-between\">\n                      <div className=\"flex items-center gap-3 flex-1\">\n                        <div\n                          className=\"w-8 h-8 rounded flex items-center justify-center text-white text-xs font-bold\"\n                          style={{ backgroundColor: badge.color }}\n                        >\n                          {badge.name.charAt(0)}\n                        </div>\n                        <div className=\"flex-1\">\n                          <Input\n                            value={badge.name}\n                            onChange={(e) => handleUpdateBadge(badge.id, \"name\", e.target.value)}\n                            placeholder=\"Nama lencana\"\n                            className=\"text-sm\"\n                          />\n                        </div>\n                      </div>\n                      <Button\n                        variant=\"ghost\"\n                        size=\"sm\"\n                        onClick={() => handleRemoveBadge(badge.id)}\n                      >\n                        Hapus\n                      </Button>\n                    </div>\n\n                    <div className=\"grid grid-cols-2 gap-3\">\n                      <div className=\"space-y-1\">\n                        <Label className=\"text-xs\">Warna</Label>\n                        <div className=\"flex gap-2\">\n                          <input\n                            type=\"color\"\n                            value={badge.color}\n                            onChange={(e) => handleUpdateBadge(badge.id, \"color\", e.target.value)}\n                            className=\"h-8 w-12 rounded border cursor-pointer\"\n                          />\n                          <Input\n                            type=\"text\"\n                            value={badge.color}\n                            onChange={(e) => handleUpdateBadge(badge.id, \"color\", e.target.value)}\n                            placeholder=\"#3b82f6\"\n                            className=\"text-xs\"\n                          />\n                        </div>\n                      </div>\n\n                      <div className=\"space-y-1\">\n                        <Label className=\"text-xs\">Kondisi/Deskripsi</Label>\n                        <Input\n                          value={badge.condition}\n                          onChange={(e) => handleUpdateBadge(badge.id, \"condition\", e.target.value)}\n                          placeholder=\"Kapan lencana ini ditampilkan?\"\n                          className=\"text-xs\"\n                        />\n                      </div>\n                    </div>\n                  </div>\n                ))}\n              </div>\n\n              <Button onClick={handleAddBadge} variant=\"outline\" className=\"w-full\">\n                + Tambah Lencana Baru\n              </Button>\n            </>\n          )}\n        </CardContent>\n      </Card>\n\n      {/* Save Button */}\n      <Button onClick={handleSave} disabled={isSaving} className=\"w-full\">\n        <Save className=\"h-4 w-4 mr-2\" />\n        {isSaving ? \"Menyimpan...\" : \"Simpan Semua Pengaturan\"}\n      </Button>\n    </div>\n  );\n}\n
+interface PackageBadge {
+  id: string;
+  name: string;
+  color: string;
+  condition: string;
+}
+
+interface PackageListSettings {
+  filter_price_enabled: boolean;
+  filter_month_enabled: boolean;
+  filter_airline_enabled: boolean;
+  sort_enabled: boolean;
+  badges_enabled: boolean;
+  price_display: "show_all" | "show_from" | "contact_for_price";
+  custom_badges: PackageBadge[];
+}
+
+const DEFAULT_BADGES: PackageBadge[] = [
+  {
+    id: "1",
+    name: "Promo",
+    color: "#ef4444",
+    condition: "Paket dengan harga khusus",
+  },
+  {
+    id: "2",
+    name: "Terlaris",
+    color: "#f59e0b",
+    condition: "Paket paling banyak dipesan",
+  },
+  {
+    id: "3",
+    name: "Terbatas",
+    color: "#8b5cf6",
+    condition: "Paket dengan seat terbatas",
+  },
+];
+
+export function PackageListCustomization({ settings }: PackageListCustomizationProps) {
+  const updateSettings = useUpdateWebsiteSettings();
+  const [packageSettings, setPackageSettings] = useState<PackageListSettings>({
+    filter_price_enabled: true,
+    filter_month_enabled: true,
+    filter_airline_enabled: true,
+    sort_enabled: true,
+    badges_enabled: true,
+    price_display: "show_all",
+    custom_badges: DEFAULT_BADGES,
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem("package_list_settings");
+    if (stored) {
+      setPackageSettings(JSON.parse(stored));
+    }
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      localStorage.setItem("package_list_settings", JSON.stringify(packageSettings));
+
+      // Update website settings
+      updateSettings.mutate({
+        // Store in custom field if needed
+      });
+
+      toast.success("Pengaturan daftar paket berhasil disimpan");
+    } catch (error) {
+      toast.error("Gagal menyimpan pengaturan");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggleFilter = (filter: keyof Omit<PackageListSettings, "badges_enabled" | "price_display" | "custom_badges">) => {
+    setPackageSettings((prev) => ({
+      ...prev,
+      [filter]: !prev[filter],
+    }));
+  };
+
+  const handleToggleBadges = () => {
+    setPackageSettings((prev) => ({
+      ...prev,
+      badges_enabled: !prev.badges_enabled,
+    }));
+  };
+
+  const handleUpdateBadge = (id: string, field: keyof PackageBadge, value: string) => {
+    setPackageSettings((prev) => ({
+      ...prev,
+      custom_badges: prev.custom_badges.map((badge) =>
+        badge.id === id ? { ...badge, [field]: value } : badge
+      ),
+    }));
+  };
+
+  const handleAddBadge = () => {
+    const newBadge: PackageBadge = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: "Badge Baru",
+      color: "#3b82f6",
+      condition: "",
+    };
+    setPackageSettings((prev) => ({
+      ...prev,
+      custom_badges: [...prev.custom_badges, newBadge],
+    }));
+  };
+
+  const handleRemoveBadge = (id: string) => {
+    setPackageSettings((prev) => ({
+      ...prev,
+      custom_badges: prev.custom_badges.filter((badge) => badge.id !== id),
+    }));
+  };
+
+  return (
+    <div className="space-y-6">
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Kustomisasi tampilan dan fitur daftar paket untuk meningkatkan pengalaman pengunjung dan konversi.
+        </AlertDescription>
+      </Alert>
+
+      {/* Filter Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pengaturan Filter & Sort</CardTitle>
+          <CardDescription>Aktifkan atau nonaktifkan opsi filter dan pengurutan pada halaman paket</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={packageSettings.filter_price_enabled}
+                onChange={() => handleToggleFilter("filter_price_enabled")}
+                className="rounded border-gray-300"
+              />
+              <div>
+                <p className="font-medium text-sm">Filter Harga</p>
+                <p className="text-xs text-muted-foreground">Izinkan pengunjung memfilter paket berdasarkan harga</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={packageSettings.filter_month_enabled}
+                onChange={() => handleToggleFilter("filter_month_enabled")}
+                className="rounded border-gray-300"
+              />
+              <div>
+                <p className="font-medium text-sm">Filter Bulan Keberangkatan</p>
+                <p className="text-xs text-muted-foreground">Izinkan pengunjung memfilter paket berdasarkan bulan keberangkatan</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={packageSettings.filter_airline_enabled}
+                onChange={() => handleToggleFilter("filter_airline_enabled")}
+                className="rounded border-gray-300"
+              />
+              <div>
+                <p className="font-medium text-sm">Filter Maskapai</p>
+                <p className="text-xs text-muted-foreground">Izinkan pengunjung memfilter paket berdasarkan maskapai penerbangan</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={packageSettings.sort_enabled}
+                onChange={() => handleToggleFilter("sort_enabled")}
+                className="rounded border-gray-300"
+              />
+              <div>
+                <p className="font-medium text-sm">Opsi Pengurutan</p>
+                <p className="text-xs text-muted-foreground">Izinkan pengunjung mengurutkan paket (harga, durasi, rating)</p>
+              </div>
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Price Display Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pengaturan Tampilan Harga</CardTitle>
+          <CardDescription>Pilih bagaimana harga paket ditampilkan kepada pengunjung</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Select value={packageSettings.price_display} onValueChange={(value: any) => {
+            setPackageSettings((prev) => ({
+              ...prev,
+              price_display: value,
+            }));
+          }}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="show_all">Tampilkan Semua Harga</SelectItem>
+              <SelectItem value="show_from">Tampilkan "Mulai dari" Harga</SelectItem>
+              <SelectItem value="contact_for_price">Hubungi untuk Harga</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="p-3 border rounded-lg bg-muted/30 text-sm">
+            {packageSettings.price_display === "show_all" && (
+              <p>Semua harga paket akan ditampilkan secara lengkap kepada pengunjung.</p>
+            )}
+            {packageSettings.price_display === "show_from" && (
+              <p>Hanya harga terendah yang ditampilkan dengan label "Mulai dari". Pengunjung dapat melihat harga lengkap setelah membuka detail paket.</p>
+            )}
+            {packageSettings.price_display === "contact_for_price" && (
+              <p>Harga tidak ditampilkan. Pengunjung diminta menghubungi untuk mendapatkan informasi harga.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Badge Settings */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Pengaturan Lencana Paket</CardTitle>
+            <CardDescription>Kustomisasi lencana yang ditampilkan pada kartu paket</CardDescription>
+          </div>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={packageSettings.badges_enabled}
+              onChange={handleToggleBadges}
+              className="rounded border-gray-300"
+            />
+            <span className="text-sm font-medium">Aktifkan Lencana</span>
+          </label>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {packageSettings.badges_enabled && (
+            <>
+              <div className="space-y-3">
+                {packageSettings.custom_badges.map((badge) => (
+                  <div key={badge.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div
+                          className="w-8 h-8 rounded flex items-center justify-center text-white text-xs font-bold"
+                          style={{ backgroundColor: badge.color }}
+                        >
+                          {badge.name.charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            value={badge.name}
+                            onChange={(e) => handleUpdateBadge(badge.id, "name", e.target.value)}
+                            placeholder="Nama lencana"
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveBadge(badge.id)}
+                      >
+                        Hapus
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Warna</Label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={badge.color}
+                            onChange={(e) => handleUpdateBadge(badge.id, "color", e.target.value)}
+                            className="h-8 w-12 rounded border cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={badge.color}
+                            onChange={(e) => handleUpdateBadge(badge.id, "color", e.target.value)}
+                            placeholder="#3b82f6"
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">Kondisi/Deskripsi</Label>
+                        <Input
+                          value={badge.condition}
+                          onChange={(e) => handleUpdateBadge(badge.id, "condition", e.target.value)}
+                          placeholder="Kapan lencana ini ditampilkan?"
+                          className="text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button onClick={handleAddBadge} variant="outline" className="w-full">
+                + Tambah Lencana Baru
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Save Button */}
+      <Button onClick={handleSave} disabled={isSaving} className="w-full">
+        <Save className="h-4 w-4 mr-2" />
+        {isSaving ? "Menyimpan..." : "Simpan Semua Pengaturan"}
+      </Button>
+    </div>
+  );
+}
