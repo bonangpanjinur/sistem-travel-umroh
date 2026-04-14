@@ -24,6 +24,10 @@ export default function PackageList() {
   // Design settings from database
   const cardLayout = settings?.package_card_layout || 'modern';
   const imageRatio = settings?.package_card_image_ratio || '16/10';
+  const showAirline = settings?.package_card_show_airline ?? true;
+  const showHotel = settings?.package_card_show_hotel ?? true;
+  const showDuration = settings?.package_card_show_duration ?? true;
+  const showDeparture = settings?.package_card_show_departure ?? true;
 
   // Filter from URL params
   const q = searchParams.get('q')?.toLowerCase() || '';
@@ -223,6 +227,10 @@ export default function PackageList() {
                       layout={cardLayout as any}
                       imageRatio={imageRatio as any}
                       viewMode={viewMode}
+                      showAirline={showAirline}
+                      showHotel={showHotel}
+                      showDuration={showDuration}
+                      showDeparture={showDeparture}
                     />
                   ))}
                 </div>

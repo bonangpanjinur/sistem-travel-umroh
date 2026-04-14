@@ -14,6 +14,10 @@ interface PackageCardProps {
   layout?: 'modern' | 'classic' | 'minimal';
   imageRatio?: '16/10' | '1/1' | '3/4' | '9/6';
   viewMode?: 'grid' | 'list';
+  showAirline?: boolean;
+  showHotel?: boolean;
+  showDuration?: boolean;
+  showDeparture?: boolean;
 }
 
 const MONTHS = [
@@ -36,7 +40,11 @@ export function PackageCard({
   isRoyal, 
   layout = 'modern', 
   imageRatio = '16/10',
-  viewMode = 'grid'
+  viewMode = 'grid',
+  showAirline = true,
+  showHotel = true,
+  showDuration = true,
+  showDeparture = true
 }: PackageCardProps) {
   const isTabungan = (pkg.package_type as string) === 'tabungan';
   
@@ -166,10 +174,12 @@ export function PackageCard({
                 {formatCurrency(lowestPrice)}
               </p>
             </div>
-            <div className="flex items-center gap-1.5 text-white bg-white/10 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10">
-              <Clock className="h-3.5 w-3.5 text-amber-400" />
-              <span className="text-xs font-bold">{formatDuration(pkg.duration_days)}</span>
-            </div>
+            {showDuration && (
+              <div className="flex items-center gap-1.5 text-white bg-white/10 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10">
+                <Clock className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-xs font-bold">{formatDuration(pkg.duration_days)}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -184,54 +194,64 @@ export function PackageCard({
             {pkg.name}
           </h3>
 
-          <div className={cn(
-            "grid gap-y-4 gap-x-2 mb-6",
-            isList ? "grid-cols-4" : "grid-cols-2"
-          )}>
-            <div className="flex items-start gap-2.5">
-              <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
-                <Calendar className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Keberangkatan</p>
-                <p className="text-xs font-semibold line-clamp-1">{renderDepartureDate()}</p>
-              </div>
-            </div>
+          {(showDeparture || showAirline || showHotel) && (
+            <div className={cn(
+              "grid gap-y-4 gap-x-2 mb-6",
+              isList ? "grid-cols-4" : "grid-cols-2"
+            )}>
+              {showDeparture && (
+                <div className="flex items-start gap-2.5">
+                  <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
+                    <Calendar className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Keberangkatan</p>
+                    <p className="text-xs font-semibold line-clamp-1">{renderDepartureDate()}</p>
+                  </div>
+                </div>
+              )}
 
-            <div className="flex items-start gap-2.5">
-              <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
-                <Plane className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Maskapai</p>
-                <p className="text-xs font-semibold line-clamp-1">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</p>
-              </div>
-            </div>
+              {showAirline && (
+                <div className="flex items-start gap-2.5">
+                  <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
+                    <Plane className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Maskapai</p>
+                    <p className="text-xs font-semibold line-clamp-1">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</p>
+                  </div>
+                </div>
+              )}
 
-            <div className="flex items-start gap-2.5">
-              <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
-                <Building2 className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Hotel Makkah</p>
-                <p className="text-xs font-semibold line-clamp-1">
-                  {nearestDeparture?.hotel_makkah?.name || pkg.hotel_makkah?.name || "TBA"}
-                </p>
-              </div>
-            </div>
+              {showHotel && (
+                <>
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
+                      <Building2 className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Hotel Makkah</p>
+                      <p className="text-xs font-semibold line-clamp-1">
+                        {nearestDeparture?.hotel_makkah?.name || pkg.hotel_makkah?.name || "TBA"}
+                      </p>
+                    </div>
+                  </div>
 
-            <div className="flex items-start gap-2.5">
-              <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
-                <Hotel className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Hotel Madinah</p>
-                <p className="text-xs font-semibold line-clamp-1">
-                  {nearestDeparture?.hotel_madinah?.name || pkg.hotel_madinah?.name || "TBA"}
-                </p>
-              </div>
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn("p-2 rounded-lg", isRoyal ? "bg-amber-500/10" : "bg-slate-100")}>
+                      <Hotel className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Hotel Madinah</p>
+                      <p className="text-xs font-semibold line-clamp-1">
+                        {nearestDeparture?.hotel_madinah?.name || pkg.hotel_madinah?.name || "TBA"}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="mt-auto">
             <Button asChild className={cn(
@@ -281,21 +301,29 @@ export function PackageCard({
             </div>
           </div>
           
-          <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {pkg.duration_days} Hari</span>
-            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Makkah & Madinah</span>
-          </div>
+          {(showDuration || showDeparture) && (
+            <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
+              {showDuration && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {formatDuration(pkg.duration_days)}</span>}
+              {showDeparture && <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {renderDepartureDate()}</span>}
+            </div>
+          )}
 
-          <div className="space-y-2 mb-6">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Pesawat</span>
-              <span className="font-medium">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
+          {(showAirline || showHotel) && (
+            <div className="space-y-2 mb-6">
+              {showAirline && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Pesawat</span>
+                  <span className="font-medium">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
+                </div>
+              )}
+              {showHotel && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Hotel</span>
+                  <span className="font-medium">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Hotel</span>
-              <span className="font-medium">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
-            </div>
-          </div>
+          )}
 
           <div className="mt-auto pt-4 border-t flex items-center justify-between">
             <div>
@@ -326,11 +354,13 @@ export function PackageCard({
           alt={pkg.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute bottom-2 left-2">
-          <Badge className="bg-black/60 backdrop-blur-md border-none text-white text-[10px]">
-            {formatDuration(pkg.duration_days)}
-          </Badge>
-        </div>
+        {showDuration && (
+          <div className="absolute bottom-2 left-2">
+            <Badge className="bg-black/60 backdrop-blur-md border-none text-white text-[10px]">
+              {formatDuration(pkg.duration_days)}
+            </Badge>
+          </div>
+        )}
       </div>
       <CardContent className="p-4 flex-1 flex flex-col">
         <h3 className="font-bold text-slate-800 mb-1 group-hover:text-primary transition-colors line-clamp-1">

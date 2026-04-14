@@ -65,6 +65,10 @@ export interface WebsiteSettings {
   featured_packages_count: number | null;
   package_card_layout: 'modern' | 'classic' | 'minimal' | null;
   package_card_image_ratio: '16/10' | '1/1' | '3/4' | '9/6' | null;
+  package_card_show_airline: boolean | null;
+  package_card_show_hotel: boolean | null;
+  package_card_show_duration: boolean | null;
+  package_card_show_departure: boolean | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -106,6 +110,10 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     featured_packages_count: raw.featured_packages_count ?? null,
     package_card_layout: raw.package_card_layout ?? 'modern',
     package_card_image_ratio: raw.package_card_image_ratio ?? '16/10',
+    package_card_show_airline: raw.package_card_show_airline ?? true,
+    package_card_show_hotel: raw.package_card_show_hotel ?? true,
+    package_card_show_duration: raw.package_card_show_duration ?? true,
+    package_card_show_departure: raw.package_card_show_departure ?? true,
   };
 };
 

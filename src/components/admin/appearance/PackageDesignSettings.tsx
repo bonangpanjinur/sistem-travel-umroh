@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { WebsiteSettings, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
-import { Save, Loader2, Square, RectangleHorizontal } from "lucide-react";
+import { Save, Loader2, Square, RectangleHorizontal, Plane, Hotel, Clock, Calendar } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 
 interface PackageDesignSettingsProps {
   settings: WebsiteSettings;
@@ -19,16 +20,28 @@ export function PackageDesignSettings({ settings }: PackageDesignSettingsProps) 
   const [imageRatio, setImageRatio] = useState<'16/10' | '1/1' | '3/4' | '9/6'>(
     settings.package_card_image_ratio || '16/10'
   );
+  const [showAirline, setShowAirline] = useState(settings.package_card_show_airline ?? true);
+  const [showHotel, setShowHotel] = useState(settings.package_card_show_hotel ?? true);
+  const [showDuration, setShowDuration] = useState(settings.package_card_show_duration ?? true);
+  const [showDeparture, setShowDeparture] = useState(settings.package_card_show_departure ?? true);
 
   useEffect(() => {
     setCardLayout(settings.package_card_layout || 'modern');
     setImageRatio(settings.package_card_image_ratio || '16/10');
+    setShowAirline(settings.package_card_show_airline ?? true);
+    setShowHotel(settings.package_card_show_hotel ?? true);
+    setShowDuration(settings.package_card_show_duration ?? true);
+    setShowDeparture(settings.package_card_show_departure ?? true);
   }, [settings]);
 
   const handleSave = () => {
     updateSettings.mutate({
       package_card_layout: cardLayout,
       package_card_image_ratio: imageRatio,
+      package_card_show_airline: showAirline,
+      package_card_show_hotel: showHotel,
+      package_card_show_duration: showDuration,
+      package_card_show_departure: showDeparture,
     });
   };
 
@@ -108,6 +121,66 @@ export function PackageDesignSettings({ settings }: PackageDesignSettingsProps) 
               </Button>
             </div>
           </div>
+
+          <div className="space-y-4">
+            <Label className="text-base">Tampilkan Ikon & Informasi</Label>
+            <p className="text-sm text-muted-foreground mb-4">
+              Pilih informasi apa saja yang ingin ditampilkan pada card paket
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-md">
+                    <Clock className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Durasi Paket</p>
+                    <p className="text-xs text-muted-foreground">Tampilkan jumlah hari</p>
+                  </div>
+                </div>
+                <Switch checked={showDuration} onCheckedChange={setShowDuration} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-md">
+                    <Calendar className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Tanggal Keberangkatan</p>
+                    <p className="text-xs text-muted-foreground">Tampilkan estimasi tanggal</p>
+                  </div>
+                </div>
+                <Switch checked={showDeparture} onCheckedChange={setShowDeparture} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-md">
+                    <Plane className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Maskapai</p>
+                    <p className="text-xs text-muted-foreground">Tampilkan logo/nama maskapai</p>
+                  </div>
+                </div>
+                <Switch checked={showAirline} onCheckedChange={setShowAirline} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-md">
+                    <Hotel className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Hotel</p>
+                    <p className="text-xs text-muted-foreground">Tampilkan info hotel Makkah/Madinah</p>
+                  </div>
+                </div>
+                <Switch checked={showHotel} onCheckedChange={setShowHotel} />
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -126,20 +199,51 @@ export function PackageDesignSettings({ settings }: PackageDesignSettingsProps) 
               ${cardLayout === 'minimal' ? 'border-muted' : ''}
             `}>
               <div className={`
-                bg-muted flex items-center justify-center text-muted-foreground
+                relative bg-muted flex items-center justify-center text-muted-foreground
                 ${imageRatio === '1/1' ? 'aspect-square' : ''}
                 ${imageRatio === '3/4' ? 'aspect-[3/4]' : ''}
                 ${imageRatio === '9/6' ? 'aspect-[9/6]' : ''}
                 ${imageRatio === '16/10' ? 'aspect-[16/10]' : ''}
               `}>
                 <span className="text-xs font-medium">Foto Paket ({imageRatio})</span>
+                {showDuration && (
+                  <div className="absolute bottom-3 right-3 bg-black/50 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">
+                    9 Hari
+                  </div>
+                )}
               </div>
-              <div className="p-5 space-y-3">
+              <div className="p-5 space-y-4">
                 <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
-                <div className="space-y-2">
-                  <div className="h-3 w-full bg-muted/60 rounded animate-pulse" />
-                  <div className="h-3 w-5/6 bg-muted/60 rounded animate-pulse" />
-                </div>
+                
+                {(showDeparture || showAirline || showHotel) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {showDeparture && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 bg-muted rounded" />
+                        <div className="h-3 w-16 bg-muted/60 rounded" />
+                      </div>
+                    )}
+                    {showAirline && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 bg-muted rounded" />
+                        <div className="h-3 w-16 bg-muted/60 rounded" />
+                      </div>
+                    )}
+                    {showHotel && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 bg-muted rounded" />
+                          <div className="h-3 w-16 bg-muted/60 rounded" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 bg-muted rounded" />
+                          <div className="h-3 w-16 bg-muted/60 rounded" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <div className="pt-2 flex justify-between items-center">
                   <div className="h-5 w-24 bg-primary/20 rounded animate-pulse" />
                   <div className="h-8 w-24 bg-primary rounded animate-pulse" />
