@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info } from 'lucide-react';
+
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ interface PackageCardProps {
   showHotel?: boolean;
   showDuration?: boolean;
   showDeparture?: boolean;
+  showSeats?: boolean;
 }
 
 const MONTHS = [
@@ -50,7 +52,8 @@ export function PackageCard({
   showAirline = true,
   showHotel = true,
   showDuration = true,
-  showDeparture = true
+  showDeparture = true,
+  showSeats = true
 }: PackageCardProps) {
   const isTabungan = (pkg.package_type as string) === 'tabungan';
   
@@ -102,6 +105,22 @@ export function PackageCard({
   };
   
   const lowestPrice = getLowestPrice();
+
+  // Calculate seat availability
+  const getTotalQuota = () => {
+    if (nearestDeparture?.quota) return nearestDeparture.quota;
+    return pkg.quota || 0;
+  };
+
+  const getBookedCount = () => {
+    if (nearestDeparture?.booked_count) return nearestDeparture.booked_count;
+    return pkg.booked_count || 0;
+  };
+
+  const totalQuota = getTotalQuota();
+  const bookedCount = getBookedCount();
+  const remainingSeats = Math.max(0, totalQuota - bookedCount);
+  const seatPercentage = totalQuota > 0 ? (bookedCount / totalQuota) * 100 : 0;
 
   // Departure Date Display Logic
   const renderDepartureDate = (departure: any = nearestDeparture) => {
@@ -310,28 +329,22 @@ export function PackageCard({
             </div>
           </div>
           
-          <div className="space-y-3 mb-6">
+          <div className="space-y-2.5 mb-6">
             {showDuration && (
-              <div className="flex items-center gap-2.5 text-sm">
-                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24">
-                  <Clock className="h-4 w-4 flex-shrink-0" />
-                  Durasi
-                </span>
-                <span className="font-semibold text-slate-900">{formatDuration(pkg.duration_days)}</span>
+              <div className="flex items-center gap-3">
+                <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="font-semibold text-slate-900 text-sm">{formatDuration(pkg.duration_days)}</span>
               </div>
             )}
 
             {showDeparture && (
-              <div className="flex items-start gap-2.5 text-sm">
-                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24 mt-0.5">
-                  <Calendar className="h-4 w-4 flex-shrink-0" />
-                  Tanggal
-                </span>
+              <div className="flex items-start gap-3">
+                <Calendar className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-1">
                   {openFutureDepartures.length > 0 ? (
                     <>
                       {displayedDepartures.map((d, idx) => (
-                        <span key={idx} className="font-semibold text-slate-900">
+                        <span key={idx} className="font-semibold text-slate-900 text-sm">
                           {renderDepartureDate(d)}
                         </span>
                       ))}
@@ -358,29 +371,41 @@ export function PackageCard({
                       )}
                     </>
                   ) : (
-                    <span className="font-semibold text-slate-900">Segera Hadir</span>
+                    <span className="font-semibold text-slate-900 text-sm">Segera Hadir</span>
                   )}
                 </div>
               </div>
             )}
 
             {showAirline && (
-              <div className="flex items-center gap-2.5 text-sm">
-                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24">
-                  <Plane className="h-4 w-4 flex-shrink-0" />
-                  Pesawat
-                </span>
-                <span className="font-semibold text-slate-900">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
+              <div className="flex items-center gap-3">
+                <Plane className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="font-semibold text-slate-900 text-sm">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
               </div>
             )}
 
             {showHotel && (
-              <div className="flex items-center gap-2.5 text-sm">
-                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24">
-                  <Hotel className="h-4 w-4 flex-shrink-0" />
-                  Hotel
-                </span>
-                <span className="font-semibold text-slate-900">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
+              <div className="flex items-center gap-3">
+                <Hotel className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="font-semibold text-slate-900 text-sm">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
+              </div>
+            )}
+
+            {showSeats && totalQuota > 0 && (
+              <div className="flex items-center gap-3">
+                <Users className="h-4 w-4 text-primary flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-slate-700">Sisa Seat</span>
+                    <span className="text-xs font-bold text-slate-900">{remainingSeats}/{totalQuota}</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className="bg-primary h-full transition-all duration-300" 
+                      style={{ width: `${seatPercentage}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
