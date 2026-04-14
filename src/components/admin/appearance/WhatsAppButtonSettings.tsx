@@ -31,8 +31,8 @@ interface WhatsAppSettings {
 export function WhatsAppButtonSettings({ settings }: WhatsAppButtonSettingsProps) {
   const updateSettings = useUpdateWebsiteSettings();
   const [whatsappSettings, setWhatsappSettings] = useState<WhatsAppSettings>({
-    enabled: false,
-    phone_number: settings.footer_whatsapp || "",
+    enabled: true,
+    phone_number: settings.footer_whatsapp || settings.footer_phone || "",
     message: "Halo! Ada yang bisa saya bantu?",
     position: "bottom-right",
     show_preview: false,
@@ -43,9 +43,19 @@ export function WhatsAppButtonSettings({ settings }: WhatsAppButtonSettingsProps
   useEffect(() => {
     const stored = localStorage.getItem("whatsapp_button_settings");
     if (stored) {
-      setWhatsappSettings(JSON.parse(stored));
+      try {
+        const parsed = JSON.parse(stored);
+        setWhatsappSettings(prev => ({
+          ...prev,
+          ...parsed,
+          // Always prioritize the latest phone number from database if available
+          phone_number: settings.footer_whatsapp || settings.footer_phone || parsed.phone_number || ""
+        }));
+      } catch (e) {
+        console.error("Failed to parse whatsapp settings", e);
+      }
     }
-  }, []);
+  }, [settings.footer_whatsapp, settings.footer_phone]);
 
   const handleSave = async () => {
     if (whatsappSettings.enabled && !whatsappSettings.phone_number.trim()) {
@@ -57,12 +67,10 @@ export function WhatsAppButtonSettings({ settings }: WhatsAppButtonSettingsProps
     try {
       localStorage.setItem("whatsapp_button_settings", JSON.stringify(whatsappSettings));
 
-      // Update website settings with WhatsApp number
-      if (whatsappSettings.phone_number) {
-        updateSettings.mutate({
-          footer_whatsapp: whatsappSettings.phone_number,
-        });
-      }
+      // Update website settings with WhatsApp number in database
+      await updateSettings.mutateAsync({
+        footer_whatsapp: whatsappSettings.phone_number,
+      });
 
       toast.success("Pengaturan WhatsApp button berhasil disimpan");
     } catch (error) {
@@ -77,7 +85,7 @@ export function WhatsAppButtonSettings({ settings }: WhatsAppButtonSettingsProps
     if (cleaned.startsWith("0")) {
       return "62" + cleaned.substring(1);
     }
-    if (!cleaned.startsWith("62")) {
+    if (!cleaned.startsWith("62") && cleaned.length > 0) {
       return "62" + cleaned;
     }
     return cleaned;
@@ -150,7 +158,7 @@ export function WhatsAppButtonSettings({ settings }: WhatsAppButtonSettingsProps
                   placeholder="Contoh: 0812-3456-7890 atau +62812-3456-7890"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Format: 08XX-XXXX-XXXX atau +6281X-XXXX-XXXX
+                  Format: 08XX-XXXX-XXXX atau +6281X-XXXX-XXXX. Nomor ini juga akan tersimpan sebagai kontak WhatsApp utama di website.
                 </p>
               </div>
 
@@ -221,11 +229,8 @@ export function WhatsAppButtonSettings({ settings }: WhatsAppButtonSettingsProps
                           : "justify-start"
                       } p-4`}
                     >
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center justify-center w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg transition-all transform hover:scale-110`}
+                      <div
+                        className={`flex items-center justify-center w-14 h-14 rounded-full bg-green-500 text-white shadow-lg`}
                       >
                         <svg
                           className="w-6 h-6"
@@ -234,7 +239,7 @@ export function WhatsAppButtonSettings({ settings }: WhatsAppButtonSettingsProps
                         >
                           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-4.946 1.347l-.355.192-.368-.06a9.879 9.879 0 00-3.464.608l.564 2.173 1.888-.959a9.877 9.877 0 018.368 1.215l.341-.11a9.876 9.876 0 015.52 5.588l-.424.254a9.87 9.87 0 01-1.141 4.769l2.6-1.298a9.877 9.877 0 001.186-15.864 9.873 9.873 0 00-8.777-3.52z" />
                         </svg>
-                      </a>
+                      </div>
                     </div>
 
                     <div className="bg-green-50 border border-green-200 rounded p-3 space-y-1">
