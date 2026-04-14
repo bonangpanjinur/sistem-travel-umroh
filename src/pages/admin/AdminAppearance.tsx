@@ -11,6 +11,7 @@ import { LivePreview } from "@/components/admin/appearance/LivePreview";
 import { CustomSectionEditor } from "@/components/admin/appearance/CustomSectionEditor";
 import { TemplateSelector } from "@/components/admin/appearance/TemplateSelector";
 import { NavLinksEditor } from "@/components/admin/appearance/NavLinksEditor";
+import { AboutPageEditor } from "@/components/admin/appearance/AboutPageEditor";
 import { SavingsPageEditor } from "@/components/admin/appearance/SavingsPageEditor";
 import { ContactPageEditor } from "@/components/admin/appearance/ContactPageEditor";
 import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
@@ -99,6 +100,10 @@ export default function AdminAppearance() {
             <Menu className="h-4 w-4" />
             <span className="hidden sm:inline">Menu Header</span>
           </TabsTrigger>
+          <TabsTrigger value="about-page" className="gap-2">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Tentang Kami</span>
+          </TabsTrigger>
           <TabsTrigger value="savings-page" className="gap-2">
             <Wallet className="h-4 w-4" />
             <span className="hidden sm:inline">Tabungan</span>
@@ -143,6 +148,10 @@ export default function AdminAppearance() {
         </TabsContent>
         <TabsContent value="nav-menu">
           {settings && <NavLinksEditor settings={settings} />}
+        </TabsContent>
+
+        <TabsContent value="about-page">
+          <AboutPageEditor />
         </TabsContent>
         
         <TabsContent value="savings-page">
