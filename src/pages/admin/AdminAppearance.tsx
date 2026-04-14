@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu } from "lucide-react";
+import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu, Wallet, MessageCircle, Users } from "lucide-react";
 import { ThemeSelector } from "@/components/admin/appearance/ThemeSelector";
 import { ColorSettings } from "@/components/admin/appearance/ColorSettings";
 import { TypographySettings } from "@/components/admin/appearance/TypographySettings";
@@ -11,6 +11,8 @@ import { LivePreview } from "@/components/admin/appearance/LivePreview";
 import { CustomSectionEditor } from "@/components/admin/appearance/CustomSectionEditor";
 import { TemplateSelector } from "@/components/admin/appearance/TemplateSelector";
 import { NavLinksEditor } from "@/components/admin/appearance/NavLinksEditor";
+import { SavingsPageEditor } from "@/components/admin/appearance/SavingsPageEditor";
+import { ContactPageEditor } from "@/components/admin/appearance/ContactPageEditor";
 import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -60,7 +62,7 @@ export default function AdminAppearance() {
       {showPreview && <LivePreview className="mb-6" />}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-11 lg:w-auto lg:inline-grid">
           <TabsTrigger value="template" className="gap-2">
             <LayoutTemplate className="h-4 w-4" />
             <span className="hidden sm:inline">Template</span>
@@ -96,6 +98,14 @@ export default function AdminAppearance() {
           <TabsTrigger value="nav-menu" className="gap-2">
             <Menu className="h-4 w-4" />
             <span className="hidden sm:inline">Menu Header</span>
+          </TabsTrigger>
+          <TabsTrigger value="savings-page" className="gap-2">
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">Tabungan</span>
+          </TabsTrigger>
+          <TabsTrigger value="contact-page" className="gap-2">
+            <MessageCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Hubungi</span>
           </TabsTrigger>
         </TabsList>
 
@@ -133,6 +143,14 @@ export default function AdminAppearance() {
         </TabsContent>
         <TabsContent value="nav-menu">
           {settings && <NavLinksEditor settings={settings} />}
+        </TabsContent>
+        
+        <TabsContent value="savings-page">
+          <SavingsPageEditor />
+        </TabsContent>
+        
+        <TabsContent value="contact-page">
+          <ContactPageEditor />
         </TabsContent>
       </Tabs>
     </div>

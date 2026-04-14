@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useSavingsPageContent } from '@/hooks/useSavingsPageContent';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,22 @@ import {
   Calculator, TrendingUp, Shield, CheckCircle 
 } from 'lucide-react';
 
+// Icon mapping for dynamic values
+const iconMap: Record<string, React.ComponentType<any>> = {
+  'Calculator': Calculator,
+  'TrendingUp': TrendingUp,
+  'Shield': Shield,
+  'CheckCircle': CheckCircle,
+};
+
+function getIconComponent(iconName: string) {
+  return iconMap[iconName] || Calculator;
+}
+
 export default function SavingsPackages() {
+  const { data: savingsContent, isLoading: contentLoading } = useSavingsPageContent();
   // Fetch savings-compatible packages (tabungan type only)
-  const { data: packages = [], isLoading } = useQuery({
+  const { data: packages = [], isLoading: packagesLoading } = useQuery({
     queryKey: ['packages', 'savings'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -32,6 +46,8 @@ export default function SavingsPackages() {
     },
   });
 
+  const isLoading = contentLoading || packagesLoading;
+
   return (
     <DynamicPublicLayout>
       {/* Hero Section */}
@@ -41,58 +57,37 @@ export default function SavingsPackages() {
             <Wallet className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Tabungan Umroh
+            {savingsContent?.hero_title || 'Tabungan Umroh'}
           </h1>
           <p className="text-white/90 max-w-2xl mx-auto text-lg">
-            Wujudkan impian beribadah ke Tanah Suci dengan menabung secara bertahap. 
-            Pilih paket dan tentukan tenor cicilan sesuai kemampuan Anda.
+            {savingsContent?.hero_subtitle || 'Wujudkan impian beribadah ke Tanah Suci dengan menabung secara bertahap. Pilih paket dan tentukan tenor cicilan sesuai kemampuan Anda.'}
           </p>
         </div>
       </section>
 
       {/* Benefits Section */}
-      <section className="py-12 bg-muted/30 border-b">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Calculator className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">Cicilan Fleksibel</h3>
-                <p className="text-sm text-muted-foreground">Tenor 6-36 bulan sesuai kemampuan</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">Harga Terkunci</h3>
-                <p className="text-sm text-muted-foreground">Harga paket tidak berubah selama menabung</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">Dana Aman</h3>
-                <p className="text-sm text-muted-foreground">Tercatat rapi di sistem kami</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">Prioritas Kuota</h3>
-                <p className="text-sm text-muted-foreground">Dapat kuota saat tabungan lunas</p>
-              </div>
+      {savingsContent?.benefits && savingsContent.benefits.length > 0 && (
+        <section className="py-12 bg-muted/30 border-b">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {savingsContent.benefits.map((benefit: any, index: number) => {
+                const IconComponent = getIconComponent(benefit.icon);
+                return (
+                  <div key={index} className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <IconComponent className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">{benefit.title}</h3>
+                      <p className="text-sm text-muted-foreground">{benefit.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Packages Grid */}
       <section className="py-12">
@@ -177,12 +172,12 @@ export default function SavingsPackages() {
       {/* CTA Section */}
       <section className="py-12 bg-muted/50">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold mb-4">Ada Pertanyaan?</h2>
+          <h2 className="text-2xl font-bold mb-4">{savingsContent?.cta_title || 'Ada Pertanyaan?'}</h2>
           <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-            Tim kami siap membantu menjelaskan program tabungan umroh dan membantu Anda memilih paket yang tepat.
+            {savingsContent?.cta_subtitle || 'Tim kami siap membantu menjelaskan program tabungan umroh dan membantu Anda memilih paket yang tepat.'}
           </p>
-          <Button variant="outline" size="lg">
-            Hubungi Kami
+          <Button variant="outline" size="lg" asChild>
+            <Link to="/contact">Hubungi Kami</Link>
           </Button>
         </div>
       </section>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useContactPageContent } from '@/hooks/useContactPageContent';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,10 @@ import {
 } from 'lucide-react';
 
 export default function ContactPage() {
-  const { data: settings, isLoading } = useWebsiteSettings();
+  const { data: settings, isLoading: settingsLoading } = useWebsiteSettings();
+  const { data: contactContent, isLoading: contactLoading } = useContactPageContent('00000000-0000-0000-0000-000000000001');
   const { toast } = useToast();
+  const isLoading = settingsLoading || contactLoading;
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -113,11 +116,10 @@ export default function ContactPage() {
               Hubungi Kami
             </Badge>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Ada Pertanyaan?
+              {contactContent?.hero_title || 'Ada Pertanyaan?'}
             </h1>
             <p className="text-lg text-muted-foreground">
-              Tim {companyName} siap membantu merencanakan perjalanan ibadah Anda. 
-              Hubungi kami melalui form di bawah atau kontak langsung.
+              {contactContent?.hero_subtitle || `Tim ${companyName} siap membantu merencanakan perjalanan ibadah Anda. Hubungi kami melalui form di bawah atau kontak langsung.`}
             </p>
           </div>
         </div>
@@ -133,7 +135,7 @@ export default function ContactPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Send className="h-5 w-5 text-primary" />
-                    Kirim Pesan
+                    {contactContent?.form_title || 'Kirim Pesan'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -239,23 +241,25 @@ export default function ContactPage() {
               ))}
 
               {/* Operating Hours */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-lg bg-primary/10 shrink-0">
-                      <Clock className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm mb-2">Jam Operasional</h3>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <p>Senin - Jumat: 08:00 - 17:00</p>
-                        <p>Sabtu: 09:00 - 14:00</p>
-                        <p>Minggu & Hari Libur: Tutup</p>
+              {contactContent?.operating_hours && contactContent.operating_hours.length > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg bg-primary/10 shrink-0">
+                        <Clock className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-sm mb-2">Jam Operasional</h3>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          {contactContent.operating_hours.map((hour: any, index: number) => (
+                            <p key={index}>{hour.label}: {hour.value}</p>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Social Media */}
               {Object.keys(socialLinks).length > 0 && (
@@ -298,20 +302,38 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Map Section (Placeholder) */}
-      <section className="py-8 bg-secondary/30">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="aspect-[21/9] bg-muted rounded-lg flex items-center justify-center">
-              <div className="text-center text-muted-foreground">
-                <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Peta Lokasi Kantor</p>
-                <p className="text-xs">{address}</p>
+      {/* Map Section */}
+      {contactContent?.map_url ? (
+        <section className="py-8 bg-secondary/30">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <iframe
+                src={contactContent.map_url}
+                width="100%"
+                height="400"
+                style={{ border: 0, borderRadius: '0.5rem' }}
+                allowFullScreen={true}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="py-8 bg-secondary/30">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <div className="aspect-[21/9] bg-muted rounded-lg flex items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Peta Lokasi Kantor</p>
+                  <p className="text-xs">{address}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </DynamicPublicLayout>
   );
 }

@@ -31,7 +31,7 @@ function getIconComponent(iconName: string) {
 
 export default function AboutPage() {
   const { data: settings, isLoading: settingsLoading } = useWebsiteSettings();
-  const { data: aboutContent, isLoading: aboutLoading } = useAboutPageContent();
+  const { data: aboutContent, isLoading: aboutLoading } = useAboutPageContent('00000000-0000-0000-0000-000000000001');
   const { data: heroStats, isLoading: statsLoading } = useHeroStats();
 
   const isLoading = settingsLoading || aboutLoading || statsLoading;
