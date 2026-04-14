@@ -131,7 +131,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
               <div>
                 <CardTitle>Page Builder</CardTitle>
                 <CardDescription>
-                  Atur urutan section dan desain katalog paket
+                  Atur urutan section dan konfigurasi tampilan katalog paket di halaman publik
                 </CardDescription>
               </div>
             </div>
@@ -215,7 +215,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
             <CardHeader>
               <CardTitle className="text-base">📦 Pengaturan Katalog</CardTitle>
               <CardDescription>
-                Atur tampilan katalog paket di halaman publik
+                Konfigurasi jumlah paket unggulan yang ditampilkan di beranda
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

@@ -42,7 +42,7 @@ export function PackageDesignSettings({ settings }: PackageDesignSettingsProps) 
               <div>
                 <CardTitle>Desain Card Paket</CardTitle>
                 <CardDescription>
-                  Atur tampilan card paket dan rasio foto di halaman publik
+                  Konfigurasi tampilan card paket dan rasio foto yang akan diterapkan di halaman publik
                 </CardDescription>
               </div>
             </div>
