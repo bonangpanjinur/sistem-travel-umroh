@@ -84,16 +84,16 @@ export default function AdminPackageDetail() {
           airline:airlines(id, name, code),
           hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id, name, star_rating),
           hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, star_rating),
-          bookings(`}],path:
-            id,
-            booking_code,
-            booking_status,
-            payment_status,
-            total_pax,
-            total_price,
-            paid_amount,
-            customer:customers(id, full_name, phone, email, nik)
-          )
+	          bookings(
+	            id,
+	            booking_code,
+	            booking_status,
+	            payment_status,
+	            total_pax,
+	            total_price,
+	            paid_amount,
+	            customer:customers(id, full_name, phone, email, nik)
+	          )
         `)
         .eq('package_id', id)
         .order('departure_date', { ascending: true });
