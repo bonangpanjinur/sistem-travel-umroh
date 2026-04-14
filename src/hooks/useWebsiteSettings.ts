@@ -108,12 +108,12 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     cta_button_text: raw.cta_button_text ?? null,
     cta_button_link: raw.cta_button_link ?? null,
     featured_packages_count: raw.featured_packages_count ?? null,
-    package_card_layout: raw.package_card_layout ?? 'modern',
-    package_card_image_ratio: raw.package_card_image_ratio ?? '16/10',
-    package_card_show_airline: raw.package_card_show_airline ?? true,
-    package_card_show_hotel: raw.package_card_show_hotel ?? true,
-    package_card_show_duration: raw.package_card_show_duration ?? true,
-    package_card_show_departure: raw.package_card_show_departure ?? true,
+    package_card_layout: raw.package_card_layout || 'modern',
+    package_card_image_ratio: raw.package_card_image_ratio || '16/10',
+    package_card_show_airline: raw.package_card_show_airline !== false,
+    package_card_show_hotel: raw.package_card_show_hotel !== false,
+    package_card_show_duration: raw.package_card_show_duration !== false,
+    package_card_show_departure: raw.package_card_show_departure !== false,
   };
 };
 
