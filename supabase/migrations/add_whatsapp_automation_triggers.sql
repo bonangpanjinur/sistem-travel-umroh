@@ -2,8 +2,9 @@
 DO $$
 BEGIN
     BEGIN
-        CREATE SCHEMA IF NOT EXISTS net;
-        CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net;
+        -- Using dynamic SQL to avoid compilation errors
+        EXECUTE 'CREATE SCHEMA IF NOT EXISTS net';
+        EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net';
     EXCEPTION WHEN OTHERS THEN
         NULL;
     END;
@@ -34,6 +35,7 @@ BEGIN
         'record_id', NEW.id
       );
 
+      -- EXECUTE string prevents the compiler from checking the 'net' schema at creation time
       EXECUTE 'SELECT net.http_post(url := $1, headers := $2, body := $3, timeout_milliseconds := 5000)' 
       USING v_url, v_headers, v_body;
     EXCEPTION WHEN OTHERS THEN

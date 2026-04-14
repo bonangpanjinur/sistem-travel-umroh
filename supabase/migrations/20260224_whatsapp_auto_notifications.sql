@@ -1,13 +1,14 @@
 -- =====================================================
--- 0. ENABLE EXTENSION (NON-BLOCKING)
+-- 0. ATTEMPT TO ENABLE EXTENSION (NON-BLOCKING)
 -- =====================================================
 DO $$
 BEGIN
     BEGIN
-        CREATE SCHEMA IF NOT EXISTS net;
-        CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net;
+        -- We use dynamic SQL here to avoid "schema net does not exist" error during parsing
+        EXECUTE 'CREATE SCHEMA IF NOT EXISTS net';
+        EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net';
     EXCEPTION WHEN OTHERS THEN
-        NULL; -- Ignore if cannot create schema or extension
+        NULL; -- Silently ignore if cannot create schema or extension
     END;
 END $$;
 
@@ -21,7 +22,7 @@ DECLARE
   v_headers jsonb;
   v_body jsonb;
 BEGIN
-  -- Check if net.http_post exists before calling using dynamic SQL
+  -- We check for the existence of net.http_post using system tables to be 100% safe
   IF EXISTS (
     SELECT 1 FROM pg_proc p 
     JOIN pg_namespace n ON p.pronamespace = n.oid 
@@ -38,7 +39,7 @@ BEGIN
         'booking_id', NEW.id
       );
 
-      -- Execute using dynamic SQL to avoid "schema net does not exist" during function parsing
+      -- EXECUTE string prevents the compiler from checking the 'net' schema at creation time
       EXECUTE 'SELECT net.http_post(url := $1, headers := $2, body := $3)' 
       USING v_url, v_headers, v_body;
 
