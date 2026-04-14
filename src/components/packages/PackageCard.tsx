@@ -309,23 +309,23 @@ export function PackageCard({
           )}
 
           {(showAirline || showHotel) && (
-            <div className="space-y-2 mb-6">
+            <div className="space-y-3 mb-6">
               {showAirline && (
-                <div className="flex justify-between items-center text-xs">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Plane className="h-3.5 w-3.5" />
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2.5 text-muted-foreground font-medium">
+                    <Plane className="h-4 w-4 flex-shrink-0" />
                     Pesawat
                   </span>
-                  <span className="font-medium">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
+                  <span className="font-semibold text-slate-900">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
                 </div>
               )}
               {showHotel && (
-                <div className="flex justify-between items-center text-xs">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Hotel className="h-3.5 w-3.5" />
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2.5 text-muted-foreground font-medium">
+                    <Hotel className="h-4 w-4 flex-shrink-0" />
                     Hotel
                   </span>
-                  <span className="font-medium">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
+                  <span className="font-semibold text-slate-900">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
                 </div>
               )}
             </div>
