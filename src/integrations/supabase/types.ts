@@ -4299,6 +4299,12 @@ export type Database = {
           social_youtube: string | null
           tagline: string | null
           template: string
+          package_card_layout: string | null
+          package_card_image_ratio: string | null
+          package_card_show_airline: boolean | null
+          package_card_show_hotel: boolean | null
+          package_card_show_duration: boolean | null
+          package_card_show_departure: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -4340,6 +4346,12 @@ export type Database = {
           social_youtube?: string | null
           tagline?: string | null
           template?: string
+          package_card_layout?: string | null
+          package_card_image_ratio?: string | null
+          package_card_show_airline?: boolean | null
+          package_card_show_hotel?: boolean | null
+          package_card_show_duration?: boolean | null
+          package_card_show_departure?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -4381,6 +4393,12 @@ export type Database = {
           social_youtube?: string | null
           tagline?: string | null
           template?: string
+          package_card_layout?: string | null
+          package_card_image_ratio?: string | null
+          package_card_show_airline?: boolean | null
+          package_card_show_hotel?: boolean | null
+          package_card_show_duration?: boolean | null
+          package_card_show_departure?: boolean | null
           updated_at?: string | null
         }
         Relationships: [
