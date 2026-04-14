@@ -272,15 +272,20 @@ export function useUpdateWebsiteSettings() {
         .from("website_settings")
         .update(dbUpdates)
         .eq("id", SETTINGS_ID)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      
+      if (!data || data.length === 0) {
+        // If no row was updated, it might be because the row doesn't exist yet
+        // In some cases we might want to insert, but for settings we usually expect it to exist
+        throw new Error("Pengaturan tidak ditemukan di database.");
+      }
+      
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["website-settings"] });
-      toast.success("Pengaturan tampilan berhasil disimpan");
     },
     onError: (error: any) => {
       toast.error(`Gagal menyimpan: ${error.message}`);
