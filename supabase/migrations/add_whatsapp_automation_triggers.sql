@@ -1,29 +1,32 @@
 -- Enable extension first
+CREATE SCHEMA IF NOT EXISTS net;
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net;
 
 -- Create function to trigger WhatsApp notification on booking creation
 CREATE OR REPLACE FUNCTION trigger_whatsapp_on_booking_created()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Call the Edge Function to send WhatsApp
-  BEGIN
-    SELECT
-      net.http_post(
-        url:='https://' || current_setting('app.supabase_url') || '/functions/v1/send-whatsapp-trigger',
-        headers:=jsonb_build_object(
-          'Content-Type', 'application/json',
-          'Authorization', 'Bearer ' || current_setting('app.supabase_anon_key')
-        ),
-        body:=jsonb_build_object(
-          'event_type', 'booking_created',
-          'record_id', NEW.id
-        ),
-        timeout_milliseconds:=5000
-      ) INTO NULL;
-  EXCEPTION WHEN OTHERS THEN
-    -- Silently fail to not block the main transaction
-    NULL;
-  END;
+  -- Check if net.http_post exists before calling
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'http_post' AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'net')) THEN
+    BEGIN
+      SELECT
+        net.http_post(
+          url:='https://' || current_setting('app.supabase_url') || '/functions/v1/send-whatsapp-trigger',
+          headers:=jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer ' || current_setting('app.supabase_anon_key')
+          ),
+          body:=jsonb_build_object(
+            'event_type', 'booking_created',
+            'record_id', NEW.id
+          ),
+          timeout_milliseconds:=5000
+        ) INTO NULL;
+    EXCEPTION WHEN OTHERS THEN
+      -- Silently fail to not block the main transaction
+      NULL;
+    END;
+  END IF;
 
   RETURN NEW;
 END;
