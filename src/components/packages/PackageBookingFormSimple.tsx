@@ -79,12 +79,6 @@ export function PackageBookingFormSimple({ pkg }: PackageBookingFormSimpleProps)
   }, [departures, pkg]);
 
   const handleProceed = () => {
-    if (!user) {
-      const packageSlug = `${packageId}-${slugify(pkg.name)}`;
-      navigate(`/auth/login?redirect=${encodeURIComponent(`/packages/${packageSlug}`)}`);
-      return;
-    }
-
     const params = new URLSearchParams({
       departure: selectedDeparture,
       pax: totalPax.toString(),

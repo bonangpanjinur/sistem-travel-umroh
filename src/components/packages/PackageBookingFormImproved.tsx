@@ -184,12 +184,6 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
   };
 
   const handleProceed = () => {
-    if (!user) {
-      const packageSlug = `${packageId}-${slugify(pkg.name)}`;
-      navigate(`/auth/login?redirect=${encodeURIComponent(`/packages/${packageSlug}`)}`);
-      return;
-    }
-
     const params = new URLSearchParams({
       departure: selectedDeparture,
       quad: roomAllocation.quad.toString(),

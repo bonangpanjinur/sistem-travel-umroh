@@ -42,8 +42,8 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/documents" element={<ProtectedRoute><LazyPage><JamaahDocuments /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/payment-history" element={<ProtectedRoute><LazyPage><JamaahPaymentHistory /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/feedback/:bookingId" element={<ProtectedRoute><LazyPage><JamaahFeedback /></LazyPage></ProtectedRoute>} />
-      <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />
-      <Route path="/booking/success/:bookingId" element={<ProtectedRoute><LazyPage><BookingSuccess /></LazyPage></ProtectedRoute>} />
+      <Route path="/booking/:packageId" element={<LazyPage><BookingPage /></LazyPage>} />
+      <Route path="/booking/success/:bookingId" element={<LazyPage><BookingSuccess /></LazyPage>} />
       <Route path="/my-bookings" element={<ProtectedRoute><LazyPage><MyBookings /></LazyPage></ProtectedRoute>} />
       <Route path="/my-bookings/:bookingId" element={<ProtectedRoute><LazyPage><BookingDetail /></LazyPage></ProtectedRoute>} />
       <Route path="/my-bookings/:bookingId/payment" element={<ProtectedRoute><LazyPage><PaymentUpload /></LazyPage></ProtectedRoute>} />
