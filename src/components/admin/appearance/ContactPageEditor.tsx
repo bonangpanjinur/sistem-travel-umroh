@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,23 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw } from 'lucide-react';
+import { useContactPageContent, ContactPageContent } from '@/hooks/useContactPageContent';
 
 const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
-
-interface ContactPageContent {
-  id: string;
-  settings_id: string;
-  hero_title: string | null;
-  hero_subtitle: string | null;
-  form_title: string | null;
-  operating_hours: any;
-  map_url: string | null;
-}
 
 export function ContactPageEditor() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: content, isLoading } = useContactPageContent(SETTINGS_ID);
+  
   const [formData, setFormData] = useState<Partial<ContactPageContent>>({
     hero_title: '',
     hero_subtitle: '',
@@ -33,25 +26,16 @@ export function ContactPageEditor() {
     map_url: '',
   });
 
-  // Fetch existing content
-  const { data: content, isLoading } = useQuery({
-    queryKey: ['contact-page-content', SETTINGS_ID],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contact_page_content')
-        .select('*')
-        .eq('settings_id', SETTINGS_ID)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    },
-  });
-
   // Initialize form when content loads
   useEffect(() => {
     if (content) {
-      setFormData(content);
+      setFormData({
+        hero_title: content.hero_title || '',
+        hero_subtitle: content.hero_subtitle || '',
+        form_title: content.form_title || '',
+        operating_hours: content.operating_hours || [],
+        map_url: content.map_url || '',
+      });
     }
   }, [content]);
 
@@ -67,11 +51,18 @@ export function ContactPageEditor() {
         map_url: data.map_url,
       };
 
-      if (content?.id) {
+      // Check if record exists in DB
+      const { data: existing } = await supabase
+        .from('contact_page_content')
+        .select('id')
+        .eq('settings_id', SETTINGS_ID)
+        .maybeSingle();
+
+      if (existing?.id) {
         const { error } = await supabase
           .from('contact_page_content')
           .update(payload)
-          .eq('id', content.id);
+          .eq('id', existing.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -84,7 +75,7 @@ export function ContactPageEditor() {
       queryClient.invalidateQueries({ queryKey: ['contact-page-content'] });
       toast({
         title: 'Berhasil',
-        description: 'Konten halaman hubungi kami berhasil disimpan',
+        description: 'Konten halaman kontak berhasil disimpan',
       });
     },
     onError: (error: any) => {
@@ -113,7 +104,7 @@ export function ContactPageEditor() {
   };
 
   const updateOperatingHour = (index: number, field: string, value: string) => {
-    const hours = formData.operating_hours || [];
+    const hours = [...(formData.operating_hours || [])];
     hours[index] = { ...hours[index], [field]: value };
     setFormData({ ...formData, operating_hours: hours });
   };
@@ -122,12 +113,45 @@ export function ContactPageEditor() {
     saveMutation.mutate(formData);
   };
 
+  const handleReset = () => {
+    if (content) {
+      setFormData({
+        hero_title: content.hero_title || '',
+        hero_subtitle: content.hero_subtitle || '',
+        form_title: content.form_title || '',
+        operating_hours: content.operating_hours || [],
+        map_url: content.map_url || '',
+      });
+      toast({
+        description: 'Formulir telah direset ke data tersimpan',
+      });
+    }
+  };
+
   if (isLoading) {
     return <div className="text-center py-8">Memuat...</div>;
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold tracking-tight">Editor Halaman Kontak</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleReset}>
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
+          </Button>
+          <Button 
+            size="sm" 
+            onClick={handleSave} 
+            disabled={saveMutation.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <Card>
         <CardHeader>

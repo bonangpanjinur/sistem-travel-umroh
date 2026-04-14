@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,22 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw } from 'lucide-react';
+import { useAboutPageContent, AboutPageContent } from '@/hooks/useAboutPageContent';
 
 const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
-
-interface AboutPageContent {
-  id: string;
-  settings_id: string;
-  mission_text: string | null;
-  vision_text: string | null;
-  values: any;
-  milestones: any;
-}
 
 export function AboutPageEditor() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: content, isLoading } = useAboutPageContent(SETTINGS_ID);
+  
   const [formData, setFormData] = useState<Partial<AboutPageContent>>({
     mission_text: '',
     vision_text: '',
@@ -31,25 +25,15 @@ export function AboutPageEditor() {
     milestones: [],
   });
 
-  // Fetch existing content
-  const { data: content, isLoading } = useQuery({
-    queryKey: ['about-page-content', SETTINGS_ID],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('about_page_content')
-        .select('*')
-        .eq('settings_id', SETTINGS_ID)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    },
-  });
-
   // Initialize form when content loads
   useEffect(() => {
     if (content) {
-      setFormData(content);
+      setFormData({
+        mission_text: content.mission_text || '',
+        vision_text: content.vision_text || '',
+        values: content.values || [],
+        milestones: content.milestones || [],
+      });
     }
   }, [content]);
 
@@ -64,11 +48,18 @@ export function AboutPageEditor() {
         milestones: data.milestones,
       };
 
-      if (content?.id) {
+      // Check if record exists in DB (not the 'default' id from hook)
+      const { data: existing } = await supabase
+        .from('about_page_content')
+        .select('id')
+        .eq('settings_id', SETTINGS_ID)
+        .maybeSingle();
+
+      if (existing?.id) {
         const { error } = await supabase
           .from('about_page_content')
           .update(payload)
-          .eq('id', content.id);
+          .eq('id', existing.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -141,12 +132,44 @@ export function AboutPageEditor() {
     saveMutation.mutate(formData);
   };
 
+  const handleReset = () => {
+    if (content) {
+      setFormData({
+        mission_text: content.mission_text || '',
+        vision_text: content.vision_text || '',
+        values: content.values || [],
+        milestones: content.milestones || [],
+      });
+      toast({
+        description: 'Formulir telah direset ke data tersimpan',
+      });
+    }
+  };
+
   if (isLoading) {
     return <div className="text-center py-8">Memuat...</div>;
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold tracking-tight">Editor Halaman Tentang Kami</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleReset}>
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
+          </Button>
+          <Button 
+            size="sm" 
+            onClick={handleSave} 
+            disabled={saveMutation.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </div>
+      </div>
+
       {/* Vision & Mission */}
       <Card>
         <CardHeader>
