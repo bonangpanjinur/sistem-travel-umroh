@@ -126,6 +126,11 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
     updateMetaTag('theme-color', `hsl(${settings.primary_color})`);
   }
 
+  // Google Search Console Verification
+  if (settings.google_console_verification) {
+    updateMetaTag('google-site-verification', settings.google_console_verification);
+  }
+
   const iconUrl = settings.favicon_url || settings.logo_url;
   if (iconUrl) {
     let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;

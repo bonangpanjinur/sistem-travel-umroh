@@ -4290,6 +4290,7 @@ export type Database = {
           logo_url: string | null
           meta_description: string | null
           meta_title: string | null
+          google_console_verification: string | null
           nav_links: Json | null
           primary_color: string | null
           secondary_color: string | null
@@ -4337,6 +4338,7 @@ export type Database = {
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
+          google_console_verification?: string | null
           nav_links?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
@@ -4384,6 +4386,7 @@ export type Database = {
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
+          google_console_verification?: string | null
           nav_links?: Json | null
           primary_color?: string | null
           secondary_color?: string | null

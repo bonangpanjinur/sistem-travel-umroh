@@ -92,6 +92,7 @@ export function SEOSettings({ settings }: SEOSettingsProps) {
   const updateSettings = useUpdateWebsiteSettings();
   const [selectedPage, setSelectedPage] = useState<string>("home");
   const [pageSEOSettings, setPageSEOSettings] = useState<Record<string, PageSEOSettings>>({});
+  const [googleVerification, setGoogleVerification] = useState(settings.google_console_verification || "");
   const [isSaving, setIsSaving] = useState(false);
 
   // Initialize page SEO settings from localStorage or defaults
@@ -126,13 +127,17 @@ export function SEOSettings({ settings }: SEOSettingsProps) {
       // Save to localStorage for now (in production, this would be saved to database)
       localStorage.setItem("page_seo_settings", JSON.stringify(pageSEOSettings));
       
-      // Update main website settings with home page SEO
+      // Update main website settings with home page SEO and Google Verification
+      const updates: Partial<WebsiteSettings> = {
+        google_console_verification: googleVerification,
+      };
+
       if (pageSEOSettings["home"]) {
-        updateSettings.mutate({
-          meta_title: pageSEOSettings["home"].meta_title,
-          meta_description: pageSEOSettings["home"].meta_description,
-        });
+        updates.meta_title = pageSEOSettings["home"].meta_title;
+        updates.meta_description = pageSEOSettings["home"].meta_description;
       }
+
+      await updateSettings.mutateAsync(updates);
       
       toast.success("Pengaturan SEO berhasil disimpan");
     } catch (error) {
@@ -293,6 +298,39 @@ export function SEOSettings({ settings }: SEOSettingsProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Google Search Console Verification */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Google Search Console</CardTitle>
+          <CardDescription>Verifikasi kepemilikan situs Anda di Google Search Console</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="google_verification">Google Site Verification Code</Label>
+            <Input
+              id="google_verification"
+              value={googleVerification}
+              onChange={(e) => setGoogleVerification(e.target.value)}
+              placeholder="Contoh: SrBzGpm9hZ7L3E..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Masukkan kode verifikasi dari meta tag Google Search Console. 
+              Hanya kodenya saja (isi dari atribut <code>content</code>).
+            </p>
+          </div>
+          <div className="bg-muted/50 p-3 rounded-md text-xs space-y-2">
+            <p className="font-semibold">Cara mendapatkan kode:</p>
+            <ol className="list-decimal ml-4 space-y-1">
+              <li>Buka <a href="https://search.google.com/search-console" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google Search Console</a></li>
+              <li>Tambahkan Properti baru (URL Prefix)</li>
+              <li>Pilih metode verifikasi <strong>"HTML Tag"</strong></li>
+              <li>Salin kode yang ada di dalam tanda kutip <code>content="..."</code></li>
+              <li>Tempelkan kode tersebut di atas dan klik Simpan</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Robots.txt dan Sitemap Info */}
       <Card>

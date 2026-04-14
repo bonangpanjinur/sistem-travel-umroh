@@ -53,6 +53,7 @@ export interface WebsiteSettings {
   social_tiktok: string | null;
   meta_title: string | null;
   meta_description: string | null;
+  google_console_verification: string | null;
   nav_links: Array<{href: string; label: string}> | null;
   footer_links: Record<string, Array<{href: string; label: string}>> | null;
   footer_description: string | null;
@@ -126,6 +127,7 @@ const websiteSettingsSchema = z.object({
   logo_url: z.string().url("URL logo tidak valid").nullable().optional().or(z.literal("")),
   favicon_url: z.string().url("URL favicon tidak valid").nullable().optional().or(z.literal("")),
   hero_image_url: z.string().url("URL gambar hero tidak valid").nullable().optional().or(z.literal("")),
+  google_console_verification: z.string().nullable().optional().or(z.literal("")),
 });
 
 export function useWebsiteSettings() {
