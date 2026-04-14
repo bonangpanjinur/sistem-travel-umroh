@@ -1307,7 +1307,8 @@ export type Database = {
           booked_count: number | null
           created_at: string | null
           departure_airport_id: string | null
-          departure_date: string
+          departure_date: string | null
+          month: string | null
           departure_time: string | null
           flight_number: string | null
           hotel_madinah_id: string | null
@@ -1320,7 +1321,7 @@ export type Database = {
           price_single: number | null
           price_triple: number | null
           quota: number
-          return_date: string
+          return_date: string | null
           status: string | null
           team_leader_id: string | null
           updated_at: string | null
@@ -1331,7 +1332,8 @@ export type Database = {
           booked_count?: number | null
           created_at?: string | null
           departure_airport_id?: string | null
-          departure_date: string
+          departure_date?: string | null
+          month?: string | null
           departure_time?: string | null
           flight_number?: string | null
           hotel_madinah_id?: string | null
@@ -1344,7 +1346,7 @@ export type Database = {
           price_single?: number | null
           price_triple?: number | null
           quota?: number
-          return_date: string
+          return_date?: string | null
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null
@@ -1355,7 +1357,8 @@ export type Database = {
           booked_count?: number | null
           created_at?: string | null
           departure_airport_id?: string | null
-          departure_date?: string
+          departure_date?: string | null
+          month?: string | null
           departure_time?: string | null
           flight_number?: string | null
           hotel_madinah_id?: string | null
@@ -1368,7 +1371,7 @@ export type Database = {
           price_single?: number | null
           price_triple?: number | null
           quota?: number
-          return_date?: string
+          return_date?: string | null
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null

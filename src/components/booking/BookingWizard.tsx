@@ -18,6 +18,21 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
+const MONTHS = [
+  { value: "01", label: "Januari" },
+  { value: "02", label: "Februari" },
+  { value: "03", label: "Maret" },
+  { value: "04", label: "April" },
+  { value: "05", label: "Mei" },
+  { value: "06", label: "Juni" },
+  { value: "07", label: "Juli" },
+  { value: "08", label: "Agustus" },
+  { value: "09", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+];
+
 export type BookingStep = 'rooms' | 'passengers' | 'pic' | 'review';
 
 const STEPS: { id: BookingStep; label: string }[] = [
@@ -63,7 +78,7 @@ export function BookingWizard() {
   const { data: departureInfo } = useQuery({
     queryKey: ['departure-info', initialDepartureId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single').eq('id', initialDepartureId).single();
+      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, month, flight_number, price_quad, price_triple, price_double, price_single').eq('id', initialDepartureId).single();
       if (error) throw error;
       return data;
     },
@@ -157,7 +172,16 @@ export function BookingWizard() {
             <h1 className="text-2xl font-bold">Booking: {packageInfo.name}</h1>
             <p className="text-muted-foreground">
               {packageInfo.duration_days} Hari • {packageInfo.package_type?.toUpperCase()}
-              {departureInfo && <> • Berangkat {format(new Date(departureInfo.departure_date), "d MMMM yyyy", { locale: idLocale })}</>}
+              {departureInfo && (
+                <>
+                  {" "}•{" "}
+                  {departureInfo.departure_date 
+                    ? `Berangkat ${format(new Date(departureInfo.departure_date), "d MMMM yyyy", { locale: idLocale })}`
+                    : departureInfo.month 
+                      ? `Bulan ${MONTHS.find(m => m.value === departureInfo.month)?.label || departureInfo.month}`
+                      : 'Tanggal Belum Ditentukan'}
+                </>
+              )}
             </p>
           </div>
         )}

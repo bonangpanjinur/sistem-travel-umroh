@@ -15,6 +15,21 @@ interface LinkDepartureFormProps {
   onCancel: () => void;
 }
 
+const MONTHS = [
+  { value: "01", label: "Januari" },
+  { value: "02", label: "Februari" },
+  { value: "03", label: "Maret" },
+  { value: "04", label: "April" },
+  { value: "05", label: "Mei" },
+  { value: "06", label: "Juni" },
+  { value: "07", label: "Juli" },
+  { value: "08", label: "Agustus" },
+  { value: "09", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+];
+
 export function LinkDepartureForm({
   packageId,
   linkedDepartureIds,
@@ -40,7 +55,6 @@ export function LinkDepartureForm({
           package:packages(id, name)
         `)
         .or(`package_id.is.null,package_id.eq.${packageId}`)
-        .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date', { ascending: true });
 
       if (error) throw error;
@@ -206,7 +220,13 @@ function DepartureItem({
       />
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium">{formatDate(departure.departure_date)}</span>
+          <span className="font-medium">
+            {departure.departure_date 
+              ? formatDate(departure.departure_date) 
+              : departure.month 
+                ? `Bulan ${MONTHS.find(m => m.value === departure.month)?.label || departure.month}`
+                : 'Tanggal Belum Ditentukan'}
+          </span>
           {getStatusBadge(departure.status)}
         </div>
         
