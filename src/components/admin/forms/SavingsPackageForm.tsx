@@ -152,12 +152,30 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const { data: packageTypes } = useQuery({
+    queryKey: ["package-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("package_types")
+        .select("*")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const mutation = useMutation({
     mutationFn: async (values: SavingsPackageFormValues) => {
       const { fee_branch, fee_agent, fee_sub_agent, fee_referral, savings_target, is_tenor_flexible, fixed_tenor_months, ...rest } = values;
+      
+      // Find the 'tabungan' package type ID
+      const tabunganType = packageTypes?.find(t => t.code === 'tabungan');
+
       const payload: any = {
         ...rest,
         package_type: "tabungan",
+        package_type_id: tabunganType?.id || null,
         code: isEditing ? rest.code : generatePackageCode(),
         includes: rest.includes ? rest.includes.split("\n").filter(Boolean) : [],
         excludes: rest.excludes ? rest.excludes.split("\n").filter(Boolean) : [],
