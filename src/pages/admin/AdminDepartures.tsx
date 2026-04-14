@@ -29,6 +29,21 @@ import {
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
+const MONTHS = [
+  { value: "01", label: "Januari" },
+  { value: "02", label: "Februari" },
+  { value: "03", label: "Maret" },
+  { value: "04", label: "April" },
+  { value: "05", label: "Mei" },
+  { value: "06", label: "Juni" },
+  { value: "07", label: "Juli" },
+  { value: "08", label: "Agustus" },
+  { value: "09", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+];
+
 export default function AdminDepartures() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -95,9 +110,16 @@ export default function AdminDepartures() {
   });
 
   const months = departures 
-    ? [...new Set(departures.map(d => d.departure_date.substring(0, 7)))]
+    ? [...new Set(departures.map(d => d.departure_date ? d.departure_date.substring(0, 7) : (d.month ? `MONTH-${d.month}` : null)).filter(Boolean))]
         .sort()
-        .map(m => ({ value: m, label: new Date(m + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) }))
+        .map(m => {
+          if (m?.startsWith('MONTH-')) {
+            const monthVal = m.replace('MONTH-', '');
+            const label = MONTHS.find(mon => mon.value === monthVal)?.label || monthVal;
+            return { value: m, label: `Bulan ${label}` };
+          }
+          return { value: m, label: new Date(m + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) };
+        })
     : [];
 
   const filteredDepartures = departures?.filter(dep => {
@@ -111,7 +133,13 @@ export default function AdminDepartures() {
       if (!matchesSearch) return false;
     }
     if (statusFilter !== "all" && dep.status !== statusFilter) return false;
-    if (monthFilter !== "all" && !dep.departure_date.startsWith(monthFilter)) return false;
+    if (monthFilter !== "all") {
+      if (monthFilter.startsWith('MONTH-')) {
+        if (dep.month !== monthFilter.replace('MONTH-', '')) return false;
+      } else {
+        if (!dep.departure_date || !dep.departure_date.startsWith(monthFilter)) return false;
+      }
+    }
     if (linkedFilter === "linked" && !dep.package_id) return false;
     if (linkedFilter === "unlinked" && dep.package_id) return false;
     return true;
@@ -155,6 +183,29 @@ export default function AdminDepartures() {
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace('.0', '')}jt`;
     if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
     return formatCurrency(value);
+  };
+
+  const getDepartureLabel = (dep: any) => {
+    if (dep.departure_date) {
+      return (
+        <>
+          <p className="font-medium text-sm">{formatDate(dep.departure_date)}</p>
+          <p className="text-xs text-muted-foreground">
+            s/d {formatDate(dep.return_date)}
+          </p>
+        </>
+      );
+    }
+    if (dep.month) {
+      const monthLabel = MONTHS.find(m => m.value === dep.month)?.label || dep.month;
+      return (
+        <>
+          <p className="font-medium text-sm">Bulan {monthLabel}</p>
+          <p className="text-xs text-muted-foreground">Tanggal belum ditentukan</p>
+        </>
+      );
+    }
+    return <p className="font-medium text-sm text-muted-foreground italic">Tanggal belum ditentukan</p>;
   };
 
   return (
@@ -253,7 +304,7 @@ export default function AdminDepartures() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40">
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -316,10 +367,7 @@ export default function AdminDepartures() {
                       <TableRow key={dep.id}>
                         {/* Tanggal */}
                         <TableCell className="whitespace-nowrap">
-                          <p className="font-medium text-sm">{formatDate(dep.departure_date)}</p>
-                          <p className="text-xs text-muted-foreground">
-                            s/d {formatDate(dep.return_date)}
-                          </p>
+                          {getDepartureLabel(dep)}
                         </TableCell>
 
                         {/* Paket */}
@@ -476,7 +524,7 @@ export default function AdminDepartures() {
                                 onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'departure_reminder' })}
                               >
                                 <Bell className="h-4 w-4 mr-2" />
-                                Reminder H-3
+                                Pengingat Berangkat
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'welcome_umrah' })}
@@ -527,7 +575,7 @@ export default function AdminDepartures() {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Keberangkatan?</AlertDialogTitle>
             <AlertDialogDescription>
-              Anda yakin ingin menghapus jadwal keberangkatan tanggal {deleteDeparture && formatDate(deleteDeparture.departure_date)}? 
+              Anda yakin ingin menghapus jadwal keberangkatan {deleteDeparture && (deleteDeparture.departure_date ? `tanggal ${formatDate(deleteDeparture.departure_date)}` : (deleteDeparture.month ? `bulan ${MONTHS.find(m => m.value === deleteDeparture.month)?.label}` : 'ini'))}? 
               Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -37,7 +37,7 @@ interface DepartureItinerary {
 
 interface LinkItineraryFormProps {
   departureId: string;
-  departureDate: string;
+  departureDate: string | null;
   onSuccess?: () => void;
 }
 
@@ -118,6 +118,7 @@ export function LinkItineraryForm({ departureId, departureDate, onSuccess }: Lin
   const currentTemplate = linkedItinerary?.template;
 
   const getActualDate = (dayNumber: number) => {
+    if (!departureDate) return `Hari ${dayNumber}`;
     const date = new Date(departureDate);
     date.setDate(date.getDate() + dayNumber - 1);
     return formatDate(date.toISOString());

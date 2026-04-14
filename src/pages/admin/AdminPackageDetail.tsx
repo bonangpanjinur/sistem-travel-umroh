@@ -41,6 +41,21 @@ import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
 import { PackageForm } from "@/components/admin/forms/PackageForm";
 import { toast } from "sonner";
 
+const MONTHS = [
+  { value: "01", label: "Januari" },
+  { value: "02", label: "Februari" },
+  { value: "03", label: "Maret" },
+  { value: "04", label: "April" },
+  { value: "05", label: "Mei" },
+  { value: "06", label: "Juni" },
+  { value: "07", label: "Juli" },
+  { value: "08", label: "Agustus" },
+  { value: "09", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+];
+
 export default function AdminPackageDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -84,16 +99,16 @@ export default function AdminPackageDetail() {
           airline:airlines(id, name, code),
           hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id, name, star_rating),
           hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, star_rating),
-	          bookings(
-	            id,
-	            booking_code,
-	            booking_status,
-	            payment_status,
-	            total_pax,
-	            total_price,
-	            paid_amount,
-	            customer:customers(id, full_name, phone, email, nik)
-	          )
+          bookings(
+            id,
+            booking_code,
+            booking_status,
+            payment_status,
+            total_pax,
+            total_price,
+            paid_amount,
+            customer:customers(id, full_name, phone, email, nik)
+          )
         `)
         .eq('package_id', id)
         .order('departure_date', { ascending: true });
@@ -430,10 +445,19 @@ export default function AdminPackageDetail() {
                           <div className="flex-1 text-left">
                             <div className="flex items-center gap-4 flex-wrap">
                               <div>
-                                <p className="font-medium">{formatDate(departure.departure_date)}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  s/d {formatDate(departure.return_date)}
-                                </p>
+                                {departure.departure_date ? (
+                                  <>
+                                    <p className="font-medium">{formatDate(departure.departure_date)}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      s/d {formatDate(departure.return_date)}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="font-medium">Bulan {MONTHS.find(m => m.value === departure.month)?.label || departure.month}</p>
+                                    <p className="text-xs text-muted-foreground italic">Tanggal belum ditentukan</p>
+                                  </>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 text-sm">
                                 <span>{departure.departure_airport?.code || '-'}</span>
@@ -521,12 +545,7 @@ export default function AdminPackageDetail() {
                                         {formatCurrency(booking.paid_amount)}
                                       </TableCell>
                                       <TableCell className="text-center">
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon"
-                                          asChild
-                                          title="Lihat detail booking"
-                                        >
+                                        <Button variant="ghost" size="icon" asChild>
                                           <Link to={`/admin/bookings/${booking.id}`}>
                                             <Eye className="h-4 w-4" />
                                           </Link>
@@ -549,54 +568,43 @@ export default function AdminPackageDetail() {
         </CardContent>
       </Card>
 
-      {/* Package Form Dialog */}
+      {/* Forms */}
       <Dialog open={isPackageFormOpen} onOpenChange={setIsPackageFormOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Paket</DialogTitle>
           </DialogHeader>
-          <PackageForm
-            packageData={packageData}
-            onSuccess={() => {
-              setIsPackageFormOpen(false);
-              queryClient.invalidateQueries({ queryKey: ['admin-package', id] });
-            }}
-            onCancel={() => setIsPackageFormOpen(false)}
+          <PackageForm 
+            packageData={packageData} 
+            onSuccess={() => setIsPackageFormOpen(false)} 
           />
         </DialogContent>
       </Dialog>
 
-      {/* Link Departure Dialog */}
       <Dialog open={isLinkDepartureOpen} onOpenChange={setIsLinkDepartureOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Hubungkan Keberangkatan</DialogTitle>
           </DialogHeader>
-          <LinkDepartureForm
-            packageId={id!}
+          <LinkDepartureForm 
+            packageId={id!} 
             linkedDepartureIds={linkedDepartureIds}
-            onSuccess={() => setIsLinkDepartureOpen(false)}
-            onCancel={() => setIsLinkDepartureOpen(false)}
+            onSuccess={() => setIsLinkDepartureOpen(false)} 
           />
         </DialogContent>
       </Dialog>
 
-      {/* Unlink Departure Confirmation */}
       <AlertDialog open={!!unlinkDeparture} onOpenChange={() => setUnlinkDeparture(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Lepas Keberangkatan?</AlertDialogTitle>
             <AlertDialogDescription>
-              Anda yakin ingin melepas jadwal keberangkatan tanggal {unlinkDeparture && formatDate(unlinkDeparture.departure_date)} dari paket ini? 
-              Jadwal tidak akan dihapus, hanya dilepas dari paket.
+              Apakah Anda yakin ingin melepas keberangkatan {unlinkDeparture && (unlinkDeparture.departure_date ? `tanggal ${formatDate(unlinkDeparture.departure_date)}` : `bulan ${MONTHS.find(m => m.value === unlinkDeparture.month)?.label}`)} dari paket ini?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => unlinkDeparture && unlinkDepartureMutation.mutate(unlinkDeparture.id)}
-            >
+            <AlertDialogAction onClick={() => unlinkDeparture && unlinkDepartureMutation.mutate(unlinkDeparture.id)}>
               Lepas
             </AlertDialogAction>
           </AlertDialogFooter>
