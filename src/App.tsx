@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { TenantProvider } from "@/contexts/TenantContext";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import NotFound from "./pages/NotFound";
 
 // Route modules
@@ -28,6 +29,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter>
+                <ScrollToTop />
                 <Routes>
                   {PublicRoutes()}
                   {CustomerRoutes()}
