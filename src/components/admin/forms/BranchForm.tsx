@@ -143,8 +143,9 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[85vh]">
+        <div className="flex-1 overflow-y-auto pr-2 space-y-4 min-h-0">
+          <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="code"
@@ -283,20 +284,21 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="is_active"
-          render={({ field }) => (
-            <FormItem className="flex items-center gap-2">
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">Aktif</FormLabel>
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="is_active"
+            render={({ field }) => (
+              <FormItem className="flex items-center gap-2">
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+                <FormLabel className="!mt-0">Aktif</FormLabel>
+              </FormItem>
+            )}
+          />
+        </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        <div className="flex justify-end gap-3 pt-4 mt-4 border-t flex-shrink-0">
           <Button type="button" variant="outline" onClick={onCancel}>
             Batal
           </Button>

@@ -256,61 +256,65 @@ function BranchWebsiteDialog({ branch, open, onOpenChange }: { branch: any; open
           </DialogTitle>
         </DialogHeader>
 
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              URL: <span className="font-mono text-primary">{window.location.origin}/b/{branch.slug}</span>
-            </p>
+        <div className="flex flex-col max-h-[85vh]">
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 overflow-y-auto pr-2 space-y-4 min-h-0 pb-4">
+                <p className="text-sm text-muted-foreground">
+                  URL: <span className="font-mono text-primary">{window.location.origin}/b/{branch.slug}</span>
+                </p>
 
-            <div className="space-y-2">
-              <Label>Nama Perusahaan / Cabang</Label>
-              <Input
-                value={currentSettings.company_name}
-                onChange={e => updateField("company_name", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Tagline</Label>
-              <Input
-                value={currentSettings.tagline}
-                onChange={e => updateField("tagline", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>URL Logo</Label>
-              <Input
-                value={currentSettings.logo_url}
-                onChange={e => updateField("logo_url", e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Judul Hero</Label>
-              <Input
-                value={currentSettings.hero_title}
-                onChange={e => updateField("hero_title", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Subtitle Hero</Label>
-              <Input
-                value={currentSettings.hero_subtitle}
-                onChange={e => updateField("hero_subtitle", e.target.value)}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Nama Perusahaan / Cabang</Label>
+                  <Input
+                    value={currentSettings.company_name}
+                    onChange={e => updateField("company_name", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tagline</Label>
+                  <Input
+                    value={currentSettings.tagline}
+                    onChange={e => updateField("tagline", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>URL Logo</Label>
+                  <Input
+                    value={currentSettings.logo_url}
+                    onChange={e => updateField("logo_url", e.target.value)}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Judul Hero</Label>
+                  <Input
+                    value={currentSettings.hero_title}
+                    onChange={e => updateField("hero_title", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subtitle Hero</Label>
+                  <Input
+                    value={currentSettings.hero_subtitle}
+                    onChange={e => updateField("hero_subtitle", e.target.value)}
+                  />
+                </div>
+              </div>
 
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </div>
-          </div>
-        )}
+              <div className="flex justify-end gap-2 pt-4 mt-4 border-t flex-shrink-0">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+                <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+                  {saveMutation.isPending ? "Menyimpan..." : "Simpan"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
