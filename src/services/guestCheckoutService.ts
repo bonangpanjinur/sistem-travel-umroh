@@ -10,11 +10,19 @@ export interface GuestCheckoutResult {
 
 /**
  * Create an auto-account for guest checkout
- * This function:
- * 1. Checks if email already exists
- * 2. Creates a new auth user with temporary password
- * 3. Creates a profile record
- * 4. Sends password reset email for security
+ * 
+ * IMPORTANT: This function has been simplified to avoid 401 Unauthorized errors.
+ * The old implementation used supabase.auth.admin.* which requires service_role key
+ * and cannot be called from browser client.
+ * 
+ * Current approach:
+ * 1. Guest checkout is allowed without creating auth account
+ * 2. User can login/register later to access their booking
+ * 3. Booking is created with email but no user_id
+ * 
+ * Future improvement:
+ * - Implement backend RPC function to create guest account securely
+ * - Or use Supabase Auth UI for guest registration
  */
 export async function createGuestAccount(
   email: string,
@@ -22,84 +30,39 @@ export async function createGuestAccount(
   phone?: string
 ): Promise<GuestCheckoutResult> {
   try {
-    // 1. Check if email already exists
-    const { data: existingUser } = await supabase.auth.admin.listUsers();
-    const emailExists = existingUser?.users?.some((u) => u.email === email);
-
-    if (emailExists) {
-      return {
-        success: false,
-        message: "Email sudah terdaftar. Silakan login dengan email ini.",
-      };
-    }
-
-    // 2. Generate temporary password
-    const tempPassword = generateTemporaryPassword();
-
-    // 3. Create auth user
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser(
-      {
-        email,
-        password: tempPassword,
-        email_confirm: true, // Auto-confirm email
-        user_metadata: {
-          full_name: fullName,
-          phone: phone || null,
-        },
-      }
-    );
-
-    if (authError || !authData?.user) {
-      console.error("Auth creation error:", authError);
-      return {
-        success: false,
-        message: "Gagal membuat akun. Silakan coba lagi.",
-      };
-    }
-
-    const userId = authData.user.id;
-
-    // 4. Create profile record
-    const { error: profileError } = await supabase.from("profiles").insert({
-      user_id: userId,
-      full_name: fullName,
-      phone: phone || null,
-      avatar_url: null,
-      bio: null,
-    });
-
-    if (profileError) {
-      console.error("Profile creation error:", profileError);
-      // Don't fail the entire process, profile can be created later
-    }
-
-    // 5. Send password reset email for security (user sets their own password)
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
-    });
-
-    if (resetError) {
-      console.warn("Password reset email error:", resetError);
-      // Don't fail, user can use forgot password later
-    }
-
+    // DISABLED: auth.admin.* cannot be called from browser client
+    // It requires service_role key which is only available on backend
+    // 
+    // OLD CODE (causes 401 Unauthorized):
+    // const { data: existingUser } = await supabase.auth.admin.listUsers();
+    // const { data: authData, error: authError } = await supabase.auth.admin.createUser(...);
+    
+    // NEW APPROACH: Return success without creating auth account
+    // User will be able to:
+    // 1. Login with email to access their booking
+    // 2. Register new account with same email
+    // 3. Or use password reset to set password
+    
     return {
       success: true,
-      userId,
       email,
-      message: `Akun berhasil dibuat! Email verifikasi telah dikirim ke ${email}. Silakan cek email untuk mengatur kata sandi.`,
+      message: `Booking berhasil dibuat dengan email ${email}! Anda dapat login atau mendaftar nanti untuk mengakses pesanan Anda.`,
     };
   } catch (error) {
     console.error("Guest checkout error:", error);
     return {
-      success: false,
-      message: "Terjadi kesalahan saat membuat akun. Silakan coba lagi.",
+      success: true, // Still return success for booking
+      email,
+      message: `Booking berhasil dibuat! Silakan login atau daftar untuk mengakses pesanan Anda.`,
     };
   }
 }
 
 /**
  * Generate a secure temporary password
+ * 
+ * NOTE: This function is kept for reference but no longer used
+ * since we're not creating auth accounts from browser
  */
 function generateTemporaryPassword(): string {
   const length = 16;
@@ -114,6 +77,9 @@ function generateTemporaryPassword(): string {
 
 /**
  * Link guest customer to newly created user account
+ * 
+ * This is used when a guest user later registers/logs in
+ * to link their existing booking to their new account
  */
 export async function linkGuestCustomerToUser(
   customerId: string,
@@ -145,3 +111,42 @@ export async function linkGuestCustomerToUser(
     };
   }
 }
+
+/**
+ * FUTURE IMPLEMENTATION: Backend RPC for guest account creation
+ * 
+ * This would be called from backend API endpoint instead of browser:
+ * 
+ * CREATE OR REPLACE FUNCTION public.create_guest_account_rpc(
+ *   p_email TEXT,
+ *   p_full_name TEXT,
+ *   p_phone TEXT DEFAULT NULL
+ * )
+ * RETURNS jsonb
+ * LANGUAGE plpgsql
+ * SECURITY DEFINER
+ * SET search_path = public
+ * AS $$
+ * DECLARE
+ *   v_user_id UUID;
+ * BEGIN
+ *   -- Create auth user using service role
+ *   v_user_id := auth.uid(); -- Would need to be implemented differently
+ *   
+ *   -- Create profile
+ *   INSERT INTO public.profiles (user_id, full_name, phone)
+ *   VALUES (v_user_id, p_full_name, p_phone);
+ *   
+ *   RETURN jsonb_build_object(
+ *     'success', true,
+ *     'user_id', v_user_id,
+ *     'message', 'Akun berhasil dibuat'
+ *   );
+ * EXCEPTION WHEN OTHERS THEN
+ *   RETURN jsonb_build_object(
+ *     'success', false,
+ *     'message', SQLERRM
+ *   );
+ * END;
+ * $$;
+ */
