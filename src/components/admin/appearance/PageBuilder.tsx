@@ -7,11 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WebsiteSettings, HomepageSection, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
-import { Layout, Save, GripVertical, Eye, EyeOff, Upload, Loader2, ExternalLink, ArrowUp, ArrowDown, Square, RectangleHorizontal } from "lucide-react";
+import { Layout, Save, GripVertical, Upload, Loader2, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PageBuilderProps {
   settings: WebsiteSettings;
@@ -37,13 +36,6 @@ export function PageBuilder({ settings }: PageBuilderProps) {
     settings.featured_packages_count || 3
   );
 
-  const [cardLayout, setCardLayout] = useState<'modern' | 'classic' | 'minimal'>(
-    settings.package_card_layout || 'modern'
-  );
-  const [imageRatio, setImageRatio] = useState<'16/10' | '1/1' | '3/4' | '9/6'>(
-    settings.package_card_image_ratio || '16/10'
-  );
-
   useEffect(() => {
     setSections(settings.homepage_sections || []);
     setHeroContent({
@@ -54,8 +46,6 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       hero_cta_link: settings.hero_cta_link || "",
     });
     setPackageCount(settings.featured_packages_count || 3);
-    setCardLayout(settings.package_card_layout || 'modern');
-    setImageRatio(settings.package_card_image_ratio || '16/10');
   }, [settings]);
 
   const handleSave = () => {
@@ -63,8 +53,6 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       homepage_sections: sections,
       ...heroContent,
       featured_packages_count: packageCount,
-      package_card_layout: cardLayout,
-      package_card_image_ratio: imageRatio,
     });
   };
 
@@ -225,61 +213,12 @@ export function PageBuilder({ settings }: PageBuilderProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">📦 Desain Katalog Paket</CardTitle>
+              <CardTitle className="text-base">📦 Pengaturan Katalog</CardTitle>
               <CardDescription>
-                Atur tampilan card paket di halaman publik
+                Atur tampilan katalog paket di halaman publik
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label>Layout Card</Label>
-                <Tabs value={cardLayout} onValueChange={(v: any) => setCardLayout(v)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="modern">Modern</TabsTrigger>
-                    <TabsTrigger value="classic">Classic</TabsTrigger>
-                    <TabsTrigger value="minimal">Minimal</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              <div className="space-y-3">
-                <Label>Rasio Foto</Label>
-                <div className="flex items-center gap-2 p-1 border rounded-md bg-muted/20">
-                  <Button 
-                    variant={imageRatio === '16/10' ? 'secondary' : 'ghost'} 
-                    className="flex-1 gap-2"
-                    onClick={() => setImageRatio('16/10')}
-                  >
-                    <RectangleHorizontal className="h-4 w-4" />
-                    16:10
-                  </Button>
-                  <Button 
-                    variant={imageRatio === '1/1' ? 'secondary' : 'ghost'} 
-                    className="flex-1 gap-2"
-                    onClick={() => setImageRatio('1/1')}
-                  >
-                    <Square className="h-4 w-4" />
-                    1:1
-                  </Button>
-                  <Button 
-                    variant={imageRatio === '3/4' ? 'secondary' : 'ghost'} 
-                    className="flex-1 gap-2"
-                    onClick={() => setImageRatio('3/4')}
-                  >
-                    <div className="w-3 h-4 border-2 border-current rounded-[1px]" />
-                    3:4
-                  </Button>
-                  <Button 
-                    variant={imageRatio === '9/6' ? 'secondary' : 'ghost'} 
-                    className="flex-1 gap-2"
-                    onClick={() => setImageRatio('9/6')}
-                  >
-                    <div className="w-4 h-3 border-2 border-current rounded-[1px]" />
-                    9:6
-                  </Button>
-                </div>
-              </div>
-
               <div className="space-y-3">
                 <Label>Jumlah Paket di Beranda</Label>
                 <Select 

@@ -13,6 +13,8 @@ interface FeaturedPackagesProps {
 export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
   const { data: packages = [], isLoading } = usePackages();
   const isRoyal = settings?.template === 'royal';
+  const layout = settings?.package_card_layout || 'modern';
+  const imageRatio = settings?.package_card_image_ratio || '16/10';
   
   const packageCount = settings?.featured_packages_count || 3;
   
@@ -69,7 +71,7 @@ export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
         ) : displayPackages.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {displayPackages.map((pkg) => (
-              <PackageCard key={pkg.id} pkg={pkg} isRoyal={isRoyal} />
+              <PackageCard key={pkg.id} pkg={pkg} isRoyal={isRoyal} layout={layout} imageRatio={imageRatio} />
             ))}
           </div>
         ) : (
