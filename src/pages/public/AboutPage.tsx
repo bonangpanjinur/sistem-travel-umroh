@@ -48,11 +48,11 @@ export default function AboutPage() {
     );
   }
 
-  const companyName = settings?.company_name || 'UmrohTravel';
-  const tagline = settings?.tagline || 'Perjalanan Suci Anda';
-  const phone = settings?.footer_phone || '+62 21 1234 5678';
-  const email = settings?.footer_email || 'info@umrohtravel.com';
-  const address = settings?.footer_address || 'Jakarta, Indonesia';
+  const companyName = settings?.company_name || '';
+  const tagline = settings?.tagline || '';
+  const phone = settings?.footer_phone || '';
+  const email = settings?.footer_email || '';
+  const address = settings?.footer_address || '';
 
   // Use dynamic values from aboutContent
   const values = aboutContent?.values || [];
@@ -79,10 +79,11 @@ export default function AboutPage() {
             <p className="text-xl text-muted-foreground mb-4">
               {tagline}
             </p>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Kami adalah biro perjalanan umroh dan haji terpercaya yang berkomitmen 
-              memberikan layanan terbaik untuk perjalanan ibadah Anda ke Tanah Suci.
-            </p>
+            {aboutContent?.mission_text && (
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                {aboutContent.mission_text}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -104,39 +105,45 @@ export default function AboutPage() {
       )}
 
       {/* Vision & Mission */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <Card className="border-primary/20">
-              <CardContent className="p-8">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 rounded-lg bg-primary/10">
-                    <Target className="h-6 w-6 text-primary" />
-                  </div>
-                  <h2 className="text-2xl font-bold">Visi</h2>
-                </div>
-                <p className="text-muted-foreground leading-relaxed">
-                  {aboutContent?.vision_text || 'Menjadi biro perjalanan umroh dan haji terdepan di Indonesia yang memberikan pelayanan terbaik dengan standar internasional, serta menjadi mitra terpercaya umat Islam dalam menunaikan ibadah ke Tanah Suci.'}
-                </p>
-              </CardContent>
-            </Card>
+      {(aboutContent?.vision_text || aboutContent?.mission_text) && (
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {aboutContent?.vision_text && (
+                <Card className="border-primary/20">
+                  <CardContent className="p-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-3 rounded-lg bg-primary/10">
+                        <Target className="h-6 w-6 text-primary" />
+                      </div>
+                      <h2 className="text-2xl font-bold">Visi</h2>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {aboutContent.vision_text}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
-            <Card className="border-primary/20">
-              <CardContent className="p-8">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 rounded-lg bg-primary/10">
-                    <Award className="h-6 w-6 text-primary" />
-                  </div>
-                  <h2 className="text-2xl font-bold">Misi</h2>
-                </div>
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {aboutContent?.mission_text || 'Memberikan layanan umroh dan haji berkualitas tinggi, menyediakan pembimbing ibadah yang kompeten, mengutamakan kenyamanan dan keamanan jamaah, dan inovasi teknologi untuk kemudahan jamaah.'}
-                </p>
-              </CardContent>
-            </Card>
+              {aboutContent?.mission_text && (
+                <Card className="border-primary/20">
+                  <CardContent className="p-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-3 rounded-lg bg-primary/10">
+                        <Award className="h-6 w-6 text-primary" />
+                      </div>
+                      <h2 className="text-2xl font-bold">Misi</h2>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {aboutContent.mission_text}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Values */}
       {values.length > 0 && (
@@ -216,27 +223,33 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <MapPin className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold mb-2">Alamat</h3>
-                <p className="text-sm text-muted-foreground">{address}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Phone className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold mb-2">Telepon</h3>
-                <p className="text-sm text-muted-foreground">{phone}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Mail className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-semibold mb-2">Email</h3>
-                <p className="text-sm text-muted-foreground">{email}</p>
-              </CardContent>
-            </Card>
+            {address && (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <MapPin className="h-8 w-8 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold mb-2">Alamat</h3>
+                  <p className="text-sm text-muted-foreground">{address}</p>
+                </CardContent>
+              </Card>
+            )}
+            {phone && (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Phone className="h-8 w-8 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold mb-2">Telepon</h3>
+                  <p className="text-sm text-muted-foreground">{phone}</p>
+                </CardContent>
+              </Card>
+            )}
+            {email && (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Mail className="h-8 w-8 text-primary mx-auto mb-3" />
+                  <h3 className="font-semibold mb-2">Email</h3>
+                  <p className="text-sm text-muted-foreground">{email}</p>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardContent className="p-6 text-center">
                 <Clock className="h-8 w-8 text-primary mx-auto mb-3" />

@@ -13,27 +13,10 @@ export interface SavingsPageContent {
   updated_at: string;
 }
 
-const DEFAULT_SAVINGS_PAGE_CONTENT: SavingsPageContent = {
-  id: 'default',
-  settings_id: 'default',
-  hero_title: 'Tabungan Umroh',
-  hero_subtitle: 'Wujudkan impian beribadah ke Tanah Suci dengan menabung secara bertahap. Pilih paket dan tentukan tenor cicilan sesuai kemampuan Anda.',
-  benefits: [
-    { icon: 'Calculator', title: 'Cicilan Fleksibel', description: 'Tenor 6-36 bulan sesuai kemampuan' },
-    { icon: 'TrendingUp', title: 'Harga Terkunci', description: 'Harga paket tidak berubah selama menabung' },
-    { icon: 'Shield', title: 'Dana Aman', description: 'Tercatat rapi di sistem kami' },
-    { icon: 'CheckCircle', title: 'Prioritas Kuota', description: 'Dapat kuota saat tabungan lunas' },
-  ],
-  cta_title: 'Ada Pertanyaan?',
-  cta_subtitle: 'Tim kami siap membantu menjelaskan program tabungan umroh dan membantu Anda memilih paket yang tepat.',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
 export function useSavingsPageContent(settingsId: string = '00000000-0000-0000-0000-000000000001') {
-  return useQuery<SavingsPageContent, Error>({
+  return useQuery<SavingsPageContent | null, Error>({
     queryKey: ['savings-page-content', settingsId],
-    queryFn: async (): Promise<SavingsPageContent> => {
+    queryFn: async (): Promise<SavingsPageContent | null> => {
       try {
         const { data, error } = await (supabase as any)
           .from('savings_page_content')
@@ -43,13 +26,13 @@ export function useSavingsPageContent(settingsId: string = '00000000-0000-0000-0
 
         if (error) {
           console.warn('Error fetching savings page content:', error);
-          return DEFAULT_SAVINGS_PAGE_CONTENT;
+          return null;
         }
         
-        return data || DEFAULT_SAVINGS_PAGE_CONTENT;
+        return data || null;
       } catch (err) {
         console.warn('Exception fetching savings page content:', err);
-        return DEFAULT_SAVINGS_PAGE_CONTENT;
+        return null;
       }
     },
     staleTime: 1000 * 60 * 60,

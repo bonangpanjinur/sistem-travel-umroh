@@ -12,49 +12,26 @@ export interface AboutPageContent {
   updated_at: string;
 }
 
-const DEFAULT_ABOUT_PAGE_CONTENT: AboutPageContent = {
-  id: 'default',
-  settings_id: 'default',
-  vision_text: 'Menjadi biro perjalanan umroh dan haji terdepan di Indonesia yang memberikan pelayanan terbaik dengan standar internasional, serta menjadi mitra terpercaya umat Islam dalam menunaikan ibadah ke Tanah Suci.',
-  mission_text: 'Memberikan layanan umroh dan haji berkualitas tinggi, menyediakan pembimbing ibadah yang kompeten, mengutamakan kenyamanan dan keamanan jamaah, dan inovasi teknologi untuk kemudahan jamaah.',
-  values: [
-    { icon: 'Heart', title: 'Amanah', description: 'Kami menjalankan setiap perjalanan dengan penuh tanggung jawab dan kejujuran.' },
-    { icon: 'Shield', title: 'Terpercaya', description: 'Puluhan tahun pengalaman melayani jamaah dengan standar kualitas terbaik.' },
-    { icon: 'Users', title: 'Profesional', description: 'Tim berpengalaman yang siap melayani dengan sepenuh hati.' },
-    { icon: 'Star', title: 'Berkualitas', description: 'Layanan premium dengan fasilitas terbaik untuk kenyamanan ibadah Anda.' },
-  ],
-  milestones: [
-    { year: '2009', event: 'Didirikan sebagai biro perjalanan umroh' },
-    { year: '2012', event: 'Mendapatkan izin resmi Kemenag RI' },
-    { year: '2015', event: 'Melayani 10.000 jamaah pertama' },
-    { year: '2018', event: 'Ekspansi ke 10 cabang di seluruh Indonesia' },
-    { year: '2021', event: 'Meluncurkan sistem digital booking' },
-    { year: '2024', event: 'Mencapai 50.000+ jamaah terlayani' },
-  ],
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
 export function useAboutPageContent(settingsId: string = '00000000-0000-0000-0000-000000000001') {
-  return useQuery<AboutPageContent, Error>({
+  return useQuery<AboutPageContent | null, Error>({
     queryKey: ['about-page-content', settingsId],
-    queryFn: async (): Promise<AboutPageContent> => {
+    queryFn: async (): Promise<AboutPageContent | null> => {
       try {
         const { data, error } = await (supabase as any)
           .from('about_page_content')
           .select('*')
           .eq('settings_id', settingsId)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
           console.warn('Error fetching about page content:', error);
-          return DEFAULT_ABOUT_PAGE_CONTENT;
+          return null;
         }
         
-        return data || DEFAULT_ABOUT_PAGE_CONTENT;
+        return data || null;
       } catch (err) {
         console.warn('Exception fetching about page content:', err);
-        return DEFAULT_ABOUT_PAGE_CONTENT;
+        return null;
       }
     },
     staleTime: 1000 * 60 * 60,

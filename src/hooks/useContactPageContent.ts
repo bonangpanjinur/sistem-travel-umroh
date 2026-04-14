@@ -13,26 +13,10 @@ export interface ContactPageContent {
   updated_at: string;
 }
 
-const DEFAULT_CONTACT_PAGE_CONTENT: ContactPageContent = {
-  id: 'default',
-  settings_id: 'default',
-  hero_title: 'Ada Pertanyaan?',
-  hero_subtitle: 'Tim kami siap membantu merencanakan perjalanan ibadah Anda. Hubungi kami melalui form di bawah atau kontak langsung.',
-  form_title: 'Kirim Pesan',
-  operating_hours: [
-    { label: 'Senin - Jumat', value: '08:00 - 17:00' },
-    { label: 'Sabtu', value: '09:00 - 14:00' },
-    { label: 'Minggu & Hari Libur', value: 'Tutup' },
-  ],
-  map_url: null,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
 export function useContactPageContent(settingsId: string = '00000000-0000-0000-0000-000000000001') {
-  return useQuery<ContactPageContent, Error>({
+  return useQuery<ContactPageContent | null, Error>({
     queryKey: ['contact-page-content', settingsId],
-    queryFn: async (): Promise<ContactPageContent> => {
+    queryFn: async (): Promise<ContactPageContent | null> => {
       try {
         const { data, error } = await (supabase as any)
           .from('contact_page_content')
@@ -42,13 +26,13 @@ export function useContactPageContent(settingsId: string = '00000000-0000-0000-0
 
         if (error) {
           console.warn('Error fetching contact page content:', error);
-          return DEFAULT_CONTACT_PAGE_CONTENT;
+          return null;
         }
         
-        return data || DEFAULT_CONTACT_PAGE_CONTENT;
+        return data || null;
       } catch (err) {
         console.warn('Exception fetching contact page content:', err);
-        return DEFAULT_CONTACT_PAGE_CONTENT;
+        return null;
       }
     },
     staleTime: 1000 * 60 * 60,

@@ -57,10 +57,10 @@ export default function SavingsPackages() {
             <Wallet className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            {savingsContent?.hero_title || 'Tabungan Umroh'}
+            {savingsContent?.hero_title || ''}
           </h1>
           <p className="text-white/90 max-w-2xl mx-auto text-lg">
-            {savingsContent?.hero_subtitle || 'Wujudkan impian beribadah ke Tanah Suci dengan menabung secara bertahap. Pilih paket dan tentukan tenor cicilan sesuai kemampuan Anda.'}
+            {savingsContent?.hero_subtitle || ''}
           </p>
         </div>
       </section>
@@ -172,9 +172,9 @@ export default function SavingsPackages() {
       {/* CTA Section */}
       <section className="py-12 bg-muted/50">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold mb-4">{savingsContent?.cta_title || 'Ada Pertanyaan?'}</h2>
+          <h2 className="text-2xl font-bold mb-4">{savingsContent?.cta_title || ''}</h2>
           <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-            {savingsContent?.cta_subtitle || 'Tim kami siap membantu menjelaskan program tabungan umroh dan membantu Anda memilih paket yang tepat.'}
+            {savingsContent?.cta_subtitle || ''}
           </p>
           <Button variant="outline" size="lg" asChild>
             <Link to="/contact">Hubungi Kami</Link>

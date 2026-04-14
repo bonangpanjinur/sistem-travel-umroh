@@ -59,10 +59,10 @@ export default function ContactPage() {
     );
   }
 
-  const companyName = settings?.company_name || 'UmrohTravel';
-  const phone = settings?.footer_phone || '+62 21 1234 5678';
-  const email = settings?.footer_email || 'info@umrohtravel.com';
-  const address = settings?.footer_address || 'Jakarta, Indonesia';
+  const companyName = settings?.company_name || '';
+  const phone = settings?.footer_phone || '';
+  const email = settings?.footer_email || '';
+  const address = settings?.footer_address || '';
   const whatsapp = settings?.footer_whatsapp || phone;
   const socialLinks = {
     facebook: settings?.social_facebook,
@@ -77,26 +77,30 @@ export default function ContactPage() {
       title: 'Alamat Kantor',
       content: address,
       action: null,
+      show: !!address
     },
     {
       icon: Phone,
       title: 'Telepon',
       content: phone,
-      action: `tel:${phone.replace(/\s/g, '')}`,
+      action: phone ? `tel:${phone.replace(/\s/g, '')}` : null,
+      show: !!phone
     },
     {
       icon: Mail,
       title: 'Email',
       content: email,
-      action: `mailto:${email}`,
+      action: email ? `mailto:${email}` : null,
+      show: !!email
     },
     {
       icon: MessageCircle,
       title: 'WhatsApp',
       content: whatsapp,
-      action: `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}`,
+      action: whatsapp ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}` : null,
+      show: !!whatsapp
     },
-  ];
+  ].filter(info => info.show);
 
   const socialIcons: Record<string, typeof Facebook> = {
     facebook: Facebook,
@@ -116,10 +120,10 @@ export default function ContactPage() {
               Hubungi Kami
             </Badge>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              {contactContent?.hero_title || 'Ada Pertanyaan?'}
+              {contactContent?.hero_title || ''}
             </h1>
             <p className="text-lg text-muted-foreground">
-              {contactContent?.hero_subtitle || `Tim ${companyName} siap membantu merencanakan perjalanan ibadah Anda. Hubungi kami melalui form di bawah atau kontak langsung.`}
+              {contactContent?.hero_subtitle || ''}
             </p>
           </div>
         </div>
@@ -135,7 +139,7 @@ export default function ContactPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Send className="h-5 w-5 text-primary" />
-                    {contactContent?.form_title || 'Kirim Pesan'}
+                    {contactContent?.form_title || ''}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -262,7 +266,7 @@ export default function ContactPage() {
               )}
 
               {/* Social Media */}
-              {Object.keys(socialLinks).length > 0 && (
+              {Object.values(socialLinks).some(link => !!link) && (
                 <Card>
                   <CardContent className="p-4">
                     <h3 className="font-semibold text-sm mb-3">Ikuti Kami</h3>
@@ -287,23 +291,25 @@ export default function ContactPage() {
               )}
 
               {/* WhatsApp CTA */}
-              <Button asChild className="w-full" size="lg">
-                <a 
-                  href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo, saya ingin bertanya tentang paket umroh`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <MessageCircle className="h-5 w-5 mr-2" />
-                  Chat via WhatsApp
-                </a>
-              </Button>
+              {whatsapp && (
+                <Button asChild className="w-full" size="lg">
+                  <a 
+                    href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo, saya ingin bertanya tentang paket umroh`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="h-5 w-5 mr-2" />
+                    Chat via WhatsApp
+                  </a>
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </section>
 
       {/* Map Section */}
-      {contactContent?.map_url ? (
+      {contactContent?.map_url && (
         <section className="py-8 bg-secondary/30">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
@@ -316,20 +322,6 @@ export default function ContactPage() {
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="py-8 bg-secondary/30">
-          <div className="container mx-auto px-4">
-            <div className="max-w-6xl mx-auto">
-              <div className="aspect-[21/9] bg-muted rounded-lg flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Peta Lokasi Kantor</p>
-                  <p className="text-xs">{address}</p>
-                </div>
-              </div>
             </div>
           </div>
         </section>

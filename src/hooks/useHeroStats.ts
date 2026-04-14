@@ -11,13 +11,6 @@ export interface HeroStat {
   updated_at: string;
 }
 
-const DEFAULT_HERO_STATS: HeroStat[] = [
-  { id: '1', settings_id: 'default', stat_value: '15+', stat_label: 'Tahun Pengalaman', display_order: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '2', settings_id: 'default', stat_value: '50K+', stat_label: 'Jamaah Terlayani', display_order: 2, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '3', settings_id: 'default', stat_value: '100+', stat_label: 'Keberangkatan/Tahun', display_order: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '4', settings_id: 'default', stat_value: '4.9', stat_label: 'Rating Kepuasan', display_order: 4, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-];
-
 export function useHeroStats() {
   return useQuery({
     queryKey: ['hero-stats'],
@@ -30,13 +23,13 @@ export function useHeroStats() {
         
         if (error) {
           console.warn('Error fetching hero stats:', error);
-          return DEFAULT_HERO_STATS;
+          return [];
         }
         
-        return data && data.length > 0 ? data : DEFAULT_HERO_STATS;
+        return data || [];
       } catch (err) {
         console.warn('Exception fetching hero stats:', err);
-        return DEFAULT_HERO_STATS;
+        return [];
       }
     },
     staleTime: 1000 * 60 * 5,
