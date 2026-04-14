@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,7 @@ interface MasterDataTabProps {
 }
 
 export function MasterDataTab({ items }: MasterDataTabProps) {
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const navigate = useNavigate();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
@@ -49,13 +50,7 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
   });
 
   const handleAddNew = () => {
-    setFormData({
-      name: "",
-      description: "",
-      category: "accessories",
-      lowStockThreshold: "10",
-    });
-    setAddDialogOpen(true);
+    navigate("/admin/master-data?tab=equipment");
   };
 
   const handleEdit = (item: EquipmentItem) => {
@@ -72,15 +67,6 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
   const handleDelete = (item: EquipmentItem) => {
     setSelectedItem(item);
     setDeleteAlertOpen(true);
-  };
-
-  const handleSaveNew = () => {
-    if (!formData.name.trim()) {
-      toast.error("Nama item tidak boleh kosong");
-      return;
-    }
-    toast.success("✅ Item baru berhasil ditambahkan");
-    setAddDialogOpen(false);
   };
 
   const handleSaveEdit = () => {
@@ -221,84 +207,6 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
         )}
       </div>
 
-      {/* Add Item Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tambah Item Perlengkapan Baru</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nama Item *</Label>
-              <Input
-                id="name"
-                placeholder="Contoh: Koper Besar, Kain Ihram, Seragam Batik"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Deskripsi</Label>
-              <Input
-                id="description"
-                placeholder="Deskripsi singkat item"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Kategori</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, category: value })
-                }
-              >
-                <SelectTrigger id="category">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="luggage">Tas & Koper</SelectItem>
-                  <SelectItem value="clothing">Pakaian</SelectItem>
-                  <SelectItem value="accessories">Aksesoris</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="threshold">Batas Stok Minimal</Label>
-              <Input
-                id="threshold"
-                type="number"
-                min="1"
-                value={formData.lowStockThreshold}
-                onChange={(e) =>
-                  setFormData({ ...formData, lowStockThreshold: e.target.value })
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Sistem akan memberi alert jika stok di bawah angka ini
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setAddDialogOpen(false)}
-            >
-              Batal
-            </Button>
-            <Button onClick={handleSaveNew}>
-              <Plus className="h-4 w-4 mr-2" />
-              Tambah Item
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Edit Item Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
@@ -365,31 +273,30 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
               Batal
             </Button>
             <Button onClick={handleSaveEdit}>
-              <Edit2 className="h-4 w-4 mr-2" />
               Simpan Perubahan
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Alert */}
       <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Item?</AlertDialogTitle>
+            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              Anda akan menghapus item <strong>{selectedItem?.name}</strong>.
-              Tindakan ini tidak dapat dibatalkan.
+              Tindakan ini tidak dapat dibatalkan. Item "{selectedItem?.name}" akan dihapus permanen dari sistem.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogCancel>Batal</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleConfirmDelete}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Hapus
-          </AlertDialogAction>
+          <DialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus Item
+            </AlertDialogAction>
+          </DialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

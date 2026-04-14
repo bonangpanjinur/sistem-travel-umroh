@@ -1,5 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Hotel, Plane, MapPin, User, Ticket, Bus, Store, Package } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import AdminHotels from "./AdminHotels";
 import AdminAirlines from "./AdminAirlines";
 import AdminAirports from "./AdminAirports";
@@ -10,6 +11,13 @@ import AdminVendors from "./AdminVendors";
 import AdminEquipmentMaster from "./AdminEquipmentMaster";
 
 export default function AdminMasterData() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "hotels";
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -17,7 +25,7 @@ export default function AdminMasterData() {
         <p className="text-muted-foreground">Kelola data referensi sistem</p>
       </div>
 
-      <Tabs defaultValue="hotels" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="hotels" className="gap-2">
             <Hotel className="h-4 w-4" />
