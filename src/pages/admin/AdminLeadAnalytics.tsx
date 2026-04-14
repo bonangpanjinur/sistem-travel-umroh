@@ -353,7 +353,7 @@ export default function AdminLeadAnalytics() {
                     <YAxis className="text-xs" unit="%" />
                     <ChartTooltip 
                       content={({ active, payload }) => {
-                        if (active && payload?.length) {
+                        if (active && payload && payload.length > 0 && payload[0].payload) {
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{payload[0].payload.fullMonth}</p>
@@ -460,7 +460,7 @@ export default function AdminLeadAnalytics() {
                     </Pie>
                     <Tooltip 
                       content={({ active, payload }) => {
-                        if (active && payload?.length) {
+                        if (active && payload && payload.length > 0) {
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{payload[0].name}</p>
@@ -559,7 +559,7 @@ export default function AdminLeadAnalytics() {
                     </Pie>
                     <Tooltip 
                       content={({ active, payload }) => {
-                        if (active && payload?.length) {
+                        if (active && payload && payload.length > 0) {
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{payload[0].name}</p>
@@ -588,7 +588,7 @@ export default function AdminLeadAnalytics() {
                     <YAxis dataKey="name" type="category" width={100} className="text-xs" />
                     <ChartTooltip 
                       content={({ active, payload }) => {
-                        if (active && payload?.length) {
+                        if (active && payload && payload.length > 0 && payload[0].payload) {
                           const data = payload[0].payload;
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
