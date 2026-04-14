@@ -17,6 +17,7 @@ export default function PackageList() {
   const { data: packages = [], isLoading } = usePackages();
   const [sortBy, setSortBy] = useState('price_asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
   // Card Design Options
   const [cardLayout, setCardLayout] = useState<'modern' | 'classic' | 'minimal'>('modern');
@@ -37,7 +38,7 @@ export default function PackageList() {
     if (q) {
       result = result.filter(p => 
         p.name.toLowerCase().includes(q) || 
-        p.description?.toLowerCase().includes(q)
+        (p.description?.toLowerCase() || '').includes(q)
       );
     }
 
@@ -82,6 +83,10 @@ export default function PackageList() {
     return result;
   }, [packages, q, typeFilter, minPrice, maxPrice, durationFilter, sortBy]);
 
+  const handleFilterApplied = () => {
+    setIsSheetOpen(false);
+  };
+
   return (
     <DynamicPublicLayout>
       {/* Header */}
@@ -102,7 +107,7 @@ export default function PackageList() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               {/* Mobile Filter */}
-              <Sheet>
+              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="md:hidden gap-2">
                     <SlidersHorizontal className="h-4 w-4" />
@@ -114,7 +119,7 @@ export default function PackageList() {
                     <SheetTitle>Filter Paket</SheetTitle>
                   </SheetHeader>
                   <div className="mt-6 overflow-y-auto max-h-[calc(100vh-100px)] pr-2">
-                    <PackageSearch />
+                    <PackageSearch onFilterApplied={handleFilterApplied} />
                   </div>
                 </SheetContent>
               </Sheet>

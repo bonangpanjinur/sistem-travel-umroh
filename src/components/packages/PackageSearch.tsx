@@ -17,9 +17,10 @@ import { formatCurrency } from '@/lib/format';
 
 interface PackageSearchProps {
   onSearch?: (filters: any) => void;
+  onFilterApplied?: () => void;
 }
 
-export function PackageSearch({ onSearch }: PackageSearchProps) {
+export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
@@ -45,21 +46,18 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
   }, [searchParams]);
 
   const handleSearch = () => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams();
     
-    if (searchTerm) params.set('q', searchTerm);
-    else params.delete('q');
-    
+    if (searchTerm.trim()) params.set('q', searchTerm.trim());
     if (packageType && packageType !== 'all') params.set('type', packageType);
-    else params.delete('type');
     
     params.set('minPrice', priceRange[0].toString());
     params.set('maxPrice', priceRange[1].toString());
     
     if (duration.length > 0) params.set('duration', duration.join(','));
-    else params.delete('duration');
 
-    navigate(`/packages?${params.toString()}`);
+    const queryString = params.toString();
+    navigate(`/packages${queryString ? '?' + queryString : ''}`);
     
     if (onSearch) {
       onSearch({
@@ -70,6 +68,11 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
         duration
       });
     }
+
+    // Callback untuk menutup Sheet/Drawer pada mobile
+    if (onFilterApplied) {
+      onFilterApplied();
+    }
   };
 
   const handleReset = () => {
@@ -78,7 +81,9 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
     setPriceRange([10000000, 150000000]);
     setDuration([]);
     navigate('/packages');
+    
     if (onSearch) onSearch({});
+    if (onFilterApplied) onFilterApplied();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
