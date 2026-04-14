@@ -63,54 +63,54 @@ export default function AdminAppearance() {
       {showPreview && <LivePreview className="mb-6" />}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-11 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="template" className="gap-2">
+        <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="template" className="gap-2 py-2">
             <LayoutTemplate className="h-4 w-4" />
-            <span className="hidden sm:inline">Template</span>
+            <span>Template</span>
           </TabsTrigger>
-          <TabsTrigger value="themes" className="gap-2">
+          <TabsTrigger value="themes" className="gap-2 py-2">
             <Palette className="h-4 w-4" />
-            <span className="hidden sm:inline">Tema</span>
+            <span>Tema</span>
           </TabsTrigger>
-          <TabsTrigger value="colors" className="gap-2">
+          <TabsTrigger value="colors" className="gap-2 py-2">
             <Settings2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Warna</span>
+            <span>Warna</span>
           </TabsTrigger>
-          <TabsTrigger value="typography" className="gap-2">
+          <TabsTrigger value="typography" className="gap-2 py-2">
             <Type className="h-4 w-4" />
-            <span className="hidden sm:inline">Font</span>
+            <span>Font</span>
           </TabsTrigger>
-          <TabsTrigger value="branding" className="gap-2">
+          <TabsTrigger value="branding" className="gap-2 py-2">
             <Image className="h-4 w-4" />
-            <span className="hidden sm:inline">Branding</span>
+            <span>Branding</span>
           </TabsTrigger>
-          <TabsTrigger value="layout" className="gap-2">
+          <TabsTrigger value="layout" className="gap-2 py-2">
             <Layout className="h-4 w-4" />
-            <span className="hidden sm:inline">Layout</span>
+            <span>Layout</span>
           </TabsTrigger>
-          <TabsTrigger value="sections" className="gap-2">
+          <TabsTrigger value="sections" className="gap-2 py-2">
             <Sliders className="h-4 w-4" />
-            <span className="hidden sm:inline">Sections</span>
+            <span>Sections</span>
           </TabsTrigger>
-          <TabsTrigger value="package-design" className="gap-2">
+          <TabsTrigger value="package-design" className="gap-2 py-2">
             <Square className="h-4 w-4" />
-            <span className="hidden sm:inline">Card Paket</span>
+            <span>Card Paket</span>
           </TabsTrigger>
-          <TabsTrigger value="nav-menu" className="gap-2">
+          <TabsTrigger value="nav-menu" className="gap-2 py-2">
             <Menu className="h-4 w-4" />
-            <span className="hidden sm:inline">Menu Header</span>
+            <span>Menu Header</span>
           </TabsTrigger>
-          <TabsTrigger value="about-page" className="gap-2">
+          <TabsTrigger value="about-page" className="gap-2 py-2">
             <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Tentang Kami</span>
+            <span>Tentang Kami</span>
           </TabsTrigger>
-          <TabsTrigger value="savings-page" className="gap-2">
+          <TabsTrigger value="savings-page" className="gap-2 py-2">
             <Wallet className="h-4 w-4" />
-            <span className="hidden sm:inline">Tabungan</span>
+            <span>Tabungan</span>
           </TabsTrigger>
-          <TabsTrigger value="contact-page" className="gap-2">
+          <TabsTrigger value="contact-page" className="gap-2 py-2">
             <MessageCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Hubungi</span>
+            <span>Hubungi</span>
           </TabsTrigger>
         </TabsList>
 
