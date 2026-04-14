@@ -41,12 +41,10 @@ export function usePermissions() {
   useEffect(() => {
     if (!user || roles.length === 0) return;
 
-    // Using a stable channel name to prevent creating multiple connections
-    // The previous use of crypto.randomUUID() caused a new channel on every re-render
-    const channelName = `role-permissions-sync-${user.id}`;
-    
+    // Use a unique channel name for each hook instance to avoid "cannot add postgres_changes after subscribe" errors.
+    // This happens when multiple components use this hook and try to attach listeners to the same channel name.
     const channel = supabase
-      .channel(channelName)
+      .channel(`role-permissions-sync-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -57,12 +55,9 @@ export function usePermissions() {
         () => {
           queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
         }
-      )
-      .subscribe((status) => {
-        if (status === 'CLOSED') {
-          console.warn('Realtime channel closed, attempting to reconnect...');
-        }
-      });
+      );
+    
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
