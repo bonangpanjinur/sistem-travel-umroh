@@ -10,6 +10,8 @@ type LeadStatus = Database['public']['Enums']['lead_status'];
 export function useLeads(filters?: { status?: LeadStatus; assignedTo?: string }) {
   return useQuery({
     queryKey: ['leads', filters],
+    retry: 2,
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
     queryFn: async () => {
       let query = supabase.from('leads').select(`
         *, 

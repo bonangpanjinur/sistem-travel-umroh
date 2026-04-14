@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { ErrorState } from "@/components/shared/ErrorState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,7 +70,7 @@ export default function AdminLeads() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const { toast } = useToast();
 
-  const { data: leads, isLoading } = useLeads();
+  const { data: leads, isLoading, isError, refetch } = useLeads();
 
   const { data: packages } = useQuery({
     queryKey: ['packages-for-leads'],
@@ -321,6 +322,8 @@ export default function AdminLeads() {
         <TabsContent value="kanban">
           {isLoading ? (
             <LoadingState message="Memuat leads..." />
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} />
           ) : (
             <div className="grid gap-4 lg:grid-cols-5 overflow-x-auto">
               {KANBAN_COLUMNS.map(status => {
@@ -363,9 +366,14 @@ export default function AdminLeads() {
         </TabsContent>
 
         <TabsContent value="list">
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
+          {isLoading ? (
+            <LoadingState message="Memuat leads..." />
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} />
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
@@ -451,9 +459,10 @@ export default function AdminLeads() {
                     })}
                   </tbody>
                 </table>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
