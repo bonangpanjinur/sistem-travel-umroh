@@ -113,6 +113,33 @@ export default function PackageDetail() {
     .filter((d: any) => new Date(d.departure_date) > new Date() && d.status === 'open')
     .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
 
+  // Logic to get dynamic data from departures
+  const getDynamicData = () => {
+    if (!upcomingDepartures || upcomingDepartures.length === 0) return null;
+
+    // 1. Get lowest prices from all departures
+    const lowestPrices = {
+      quad: Math.min(...upcomingDepartures.map((d: any) => d.price_quad).filter((p: number) => p > 0)) || 0,
+      triple: Math.min(...upcomingDepartures.map((d: any) => d.price_triple).filter((p: number) => p > 0)) || 0,
+      double: Math.min(...upcomingDepartures.map((d: any) => d.price_double).filter((p: number) => p > 0)) || 0,
+      single: Math.min(...upcomingDepartures.map((d: any) => d.price_single).filter((p: number) => p > 0)) || 0,
+    };
+
+    // 2. Get hotel/airline from the departure with the highest price (highest tier)
+    const highestTierDeparture = [...upcomingDepartures].reduce((prev: any, current: any) => {
+      const maxPrev = Math.max(prev.price_quad || 0, prev.price_triple || 0, prev.price_double || 0, prev.price_single || 0);
+      const maxCurrent = Math.max(current.price_quad || 0, current.price_triple || 0, current.price_double || 0, current.price_single || 0);
+      return (maxCurrent > maxPrev) ? current : prev;
+    }, upcomingDepartures[0]);
+
+    return {
+      lowestPrices,
+      highestTierDeparture
+    };
+  };
+
+  const dynamicData = getDynamicData();
+
   return (
     <DynamicPublicLayout>
       <div className="bg-muted/30 border-b">
@@ -132,7 +159,12 @@ export default function PackageDetail() {
             <h1 className="text-2xl md:text-4xl font-bold mb-2">{pkg.name}</h1>
             <div className="flex flex-wrap gap-4 text-sm">
               <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{pkg.duration_days} Hari</span>
-              {pkg.airline && <span className="flex items-center gap-1"><Plane className="h-4 w-4" />{(pkg.airline as any).name}</span>}
+              {(dynamicData?.highestTierDeparture?.airline || pkg.airline) && (
+                <span className="flex items-center gap-1">
+                  <Plane className="h-4 w-4" />
+                  {(dynamicData?.highestTierDeparture?.airline as any)?.name || (pkg.airline as any).name}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -223,50 +255,50 @@ export default function PackageDetail() {
 
               <TabsContent value="hotels" className="mt-6">
                 <div className="grid gap-6">
-                  {pkg.hotel_makkah && (
+                  {(dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) && (
                     <Card>
                       <CardHeader><CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />Hotel Mekkah</CardTitle></CardHeader>
                       <CardContent>
                         <div className="flex gap-4">
                           <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                            {(pkg.hotel_makkah as any).image_url ? (
-                              <img src={(pkg.hotel_makkah as any).image_url} alt={(pkg.hotel_makkah as any).name} className="w-full h-full object-cover" />
+                            {((dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) as any).image_url ? (
+                              <img src={((dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) as any).image_url} alt={((dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) as any).name} className="w-full h-full object-cover" />
                             ) : (
                               <Building2 className="h-8 w-8 text-muted-foreground" />
                             )}
                           </div>
                           <div>
-                            <h4 className="font-semibold">{(pkg.hotel_makkah as any).name}</h4>
+                            <h4 className="font-semibold">{((dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) as any).name}</h4>
                             <div className="flex items-center gap-1 my-1">
-                              {Array.from({ length: (pkg.hotel_makkah as any).star_rating || 4 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-accent text-accent" />)}
+                              {Array.from({ length: ((dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) as any).star_rating || 4 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-accent text-accent" />)}
                             </div>
-                            {(pkg.hotel_makkah as any).distance_to_masjid && (
-                              <p className="text-sm text-muted-foreground"><MapPin className="h-3 w-3 inline mr-1" />{(pkg.hotel_makkah as any).distance_to_masjid} dari Masjidil Haram</p>
+                            {((dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) as any).distance_to_masjid && (
+                              <p className="text-sm text-muted-foreground"><MapPin className="h-3 w-3 inline mr-1" />{((dynamicData?.highestTierDeparture?.hotel_makkah || pkg.hotel_makkah) as any).distance_to_masjid} dari Masjidil Haram</p>
                             )}
                           </div>
                         </div>
                       </CardContent>
                     </Card>
                   )}
-                  {pkg.hotel_madinah && (
+                  {(dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) && (
                     <Card>
                       <CardHeader><CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />Hotel Madinah</CardTitle></CardHeader>
                       <CardContent>
                         <div className="flex gap-4">
                           <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                            {(pkg.hotel_madinah as any).image_url ? (
-                              <img src={(pkg.hotel_madinah as any).image_url} alt={(pkg.hotel_madinah as any).name} className="w-full h-full object-cover" />
+                            {((dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) as any).image_url ? (
+                              <img src={((dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) as any).image_url} alt={((dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) as any).name} className="w-full h-full object-cover" />
                             ) : (
                               <Building2 className="h-8 w-8 text-muted-foreground" />
                             )}
                           </div>
                           <div>
-                            <h4 className="font-semibold">{(pkg.hotel_madinah as any).name}</h4>
+                            <h4 className="font-semibold">{((dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) as any).name}</h4>
                             <div className="flex items-center gap-1 my-1">
-                              {Array.from({ length: (pkg.hotel_madinah as any).star_rating || 4 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-accent text-accent" />)}
+                              {Array.from({ length: ((dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) as any).star_rating || 4 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-accent text-accent" />)}
                             </div>
-                            {(pkg.hotel_madinah as any).distance_to_masjid && (
-                              <p className="text-sm text-muted-foreground"><MapPin className="h-3 w-3 inline mr-1" />{(pkg.hotel_madinah as any).distance_to_masjid} dari Masjid Nabawi</p>
+                            {((dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) as any).distance_to_masjid && (
+                              <p className="text-sm text-muted-foreground"><MapPin className="h-3 w-3 inline mr-1" />{((dynamicData?.highestTierDeparture?.hotel_madinah || pkg.hotel_madinah) as any).distance_to_masjid} dari Masjid Nabawi</p>
                             )}
                           </div>
                         </div>

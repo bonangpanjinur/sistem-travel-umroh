@@ -48,6 +48,36 @@ export function PackageBookingFormSimple({ pkg }: PackageBookingFormSimpleProps)
   const selectedDepartureData = departures?.find(d => d.id === selectedDeparture);
   const availableSeats = selectedDepartureData ? selectedDepartureData.quota - (selectedDepartureData.booked_count || 0) : 99;
 
+  // Get the lowest price from all available departures
+  const lowestPrice = useMemo(() => {
+    if (!departures || departures.length === 0) {
+      // Fallback to package prices if no departures
+      const packagePrices = [
+        pkg.price_quad || 0,
+        pkg.price_triple || 0,
+        pkg.price_double || 0,
+        pkg.price_single || 0,
+      ].filter(p => p > 0);
+      return packagePrices.length > 0 ? Math.min(...packagePrices) : 0;
+    }
+
+    let minPrice = Infinity;
+    departures.forEach((d: any) => {
+      const prices = [
+        d.price_quad || 0,
+        d.price_triple || 0,
+        d.price_double || 0,
+        d.price_single || 0,
+      ].filter(p => p > 0);
+      
+      if (prices.length > 0) {
+        minPrice = Math.min(minPrice, ...prices);
+      }
+    });
+
+    return minPrice === Infinity ? 0 : minPrice;
+  }, [departures, pkg]);
+
   const handleProceed = () => {
     if (!user) {
       const packageSlug = `${packageId}-${slugify(pkg.name)}`;
@@ -75,7 +105,15 @@ export function PackageBookingFormSimple({ pkg }: PackageBookingFormSimpleProps)
   return (
     <Card className="sticky top-24 z-10">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg">Pesan Sekarang</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Pesan Sekarang</CardTitle>
+          <div className="text-right">
+            <p className="text-[10px] text-muted-foreground uppercase font-bold">Mulai Dari</p>
+            <p className="text-lg font-bold text-amber-600">
+              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(lowestPrice)}
+            </p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">

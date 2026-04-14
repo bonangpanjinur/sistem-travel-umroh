@@ -141,13 +141,12 @@ export default function AdminPackageDetail() {
     };
 
     // 2. Get hotel/airline from the departure with the highest price (highest tier)
-    const sortedByPrice = [...departures].sort((a, b) => {
-      const maxA = Math.max(a.price_quad, a.price_triple, a.price_double, a.price_single);
-      const maxB = Math.max(b.price_quad, b.price_triple, b.price_double, b.price_single);
-      return maxB - maxA;
-    });
-
-    const highestTierDeparture = sortedByPrice[0];
+    // We look for the departure that has the highest price among all room types
+    const highestTierDeparture = [...departures].reduce((prev, current) => {
+      const maxPrev = Math.max(prev.price_quad || 0, prev.price_triple || 0, prev.price_double || 0, prev.price_single || 0);
+      const maxCurrent = Math.max(current.price_quad || 0, current.price_triple || 0, current.price_double || 0, current.price_single || 0);
+      return (maxCurrent > maxPrev) ? current : prev;
+    }, departures[0]);
 
     return {
       lowestPrices,
