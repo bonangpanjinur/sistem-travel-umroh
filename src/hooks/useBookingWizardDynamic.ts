@@ -181,8 +181,7 @@ export function useBookingWizardDynamic(
             full_name: mainPassenger.fullName, 
             gender: mainPassenger.gender, 
             phone: mainPassenger.phone || null,
-            email: mainPassenger.email || null,
-            notes: 'Guest Checkout - Pending Account Creation'
+            email: mainPassenger.email || null
           })
           .select('id')
           .single();
