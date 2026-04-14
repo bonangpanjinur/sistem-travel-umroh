@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu, Wallet, MessageCircle, Users } from "lucide-react";
+import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu, Wallet, MessageCircle, Users, Search, MessageSquare, HelpCircle, Bell, Settings, FileText, MessageCircleMore, Package } from "lucide-react";
 import { ThemeSelector } from "@/components/admin/appearance/ThemeSelector";
 import { ColorSettings } from "@/components/admin/appearance/ColorSettings";
 import { TypographySettings } from "@/components/admin/appearance/TypographySettings";
@@ -14,6 +14,14 @@ import { NavLinksEditor } from "@/components/admin/appearance/NavLinksEditor";
 import { AboutPageEditor } from "@/components/admin/appearance/AboutPageEditor";
 import { SavingsPageEditor } from "@/components/admin/appearance/SavingsPageEditor";
 import { ContactPageEditor } from "@/components/admin/appearance/ContactPageEditor";
+import { SEOSettings } from "@/components/admin/appearance/SEOSettings";
+import { TestimonialEditor } from "@/components/admin/appearance/TestimonialEditor";
+import { FAQEditor } from "@/components/admin/appearance/FAQEditor";
+import { AnnouncementBarEditor } from "@/components/admin/appearance/AnnouncementBarEditor";
+import { HeaderFooterSettings } from "@/components/admin/appearance/HeaderFooterSettings";
+import { LegalPagesGenerator } from "@/components/admin/appearance/LegalPagesGenerator";
+import { WhatsAppButtonSettings } from "@/components/admin/appearance/WhatsAppButtonSettings";
+import { PackageListCustomization } from "@/components/admin/appearance/PackageListCustomization";
 import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -112,6 +120,38 @@ export default function AdminAppearance() {
             <MessageCircle className="h-4 w-4" />
             <span>Hubungi</span>
           </TabsTrigger>
+          <TabsTrigger value="seo" className="gap-2 py-2">
+            <Search className="h-4 w-4" />
+            <span>SEO</span>
+          </TabsTrigger>
+          <TabsTrigger value="testimonials" className="gap-2 py-2">
+            <MessageSquare className="h-4 w-4" />
+            <span>Testimonial</span>
+          </TabsTrigger>
+          <TabsTrigger value="faq" className="gap-2 py-2">
+            <HelpCircle className="h-4 w-4" />
+            <span>FAQ</span>
+          </TabsTrigger>
+          <TabsTrigger value="announcement" className="gap-2 py-2">
+            <Bell className="h-4 w-4" />
+            <span>Pengumuman</span>
+          </TabsTrigger>
+          <TabsTrigger value="header-footer" className="gap-2 py-2">
+            <Settings className="h-4 w-4" />
+            <span>Header & Footer</span>
+          </TabsTrigger>
+          <TabsTrigger value="legal-pages" className="gap-2 py-2">
+            <FileText className="h-4 w-4" />
+            <span>Halaman Legal</span>
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="gap-2 py-2">
+            <MessageCircleMore className="h-4 w-4" />
+            <span>WhatsApp</span>
+          </TabsTrigger>
+          <TabsTrigger value="package-list" className="gap-2 py-2">
+            <Package className="h-4 w-4" />
+            <span>Daftar Paket</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="template">
@@ -160,6 +200,38 @@ export default function AdminAppearance() {
         
         <TabsContent value="contact-page">
           <ContactPageEditor />
+        </TabsContent>
+
+        <TabsContent value="seo">
+          {settings && <SEOSettings settings={settings} />}
+        </TabsContent>
+
+        <TabsContent value="testimonials">
+          <TestimonialEditor />
+        </TabsContent>
+
+        <TabsContent value="faq">
+          <FAQEditor />
+        </TabsContent>
+
+        <TabsContent value="announcement">
+          {settings && <AnnouncementBarEditor settings={settings} />}
+        </TabsContent>
+
+        <TabsContent value="header-footer">
+          {settings && <HeaderFooterSettings settings={settings} />}
+        </TabsContent>
+
+        <TabsContent value="legal-pages">
+          <LegalPagesGenerator />
+        </TabsContent>
+
+        <TabsContent value="whatsapp">
+          {settings && <WhatsAppButtonSettings settings={settings} />}
+        </TabsContent>
+
+        <TabsContent value="package-list">
+          {settings && <PackageListCustomization settings={settings} />}
         </TabsContent>
       </Tabs>
     </div>
