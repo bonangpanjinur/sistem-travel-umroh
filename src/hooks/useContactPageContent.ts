@@ -22,14 +22,15 @@ export function useContactPageContent(settingsId: string = '00000000-0000-0000-0
           .from('contact_page_content')
           .select('*')
           .eq('settings_id', settingsId)
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1);
 
         if (error) {
           console.warn('Error fetching contact page content:', error);
           return null;
         }
         
-        return data || null;
+        return (data && data.length > 0) ? data[0] : null;
       } catch (err) {
         console.warn('Exception fetching contact page content:', err);
         return null;

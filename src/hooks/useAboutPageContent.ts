@@ -21,14 +21,15 @@ export function useAboutPageContent(settingsId: string = '00000000-0000-0000-000
           .from('about_page_content')
           .select('*')
           .eq('settings_id', settingsId)
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1);
 
         if (error) {
           console.warn('Error fetching about page content:', error);
           return null;
         }
         
-        return data || null;
+        return (data && data.length > 0) ? data[0] : null;
       } catch (err) {
         console.warn('Exception fetching about page content:', err);
         return null;

@@ -74,11 +74,15 @@ export function ContactPageEditor() {
       };
 
       // Check if record exists in DB
-      const { data: existing } = await supabase
+      const { data: existingData, error: checkError } = await supabase
         .from('contact_page_content')
         .select('id')
         .eq('settings_id', SETTINGS_ID)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (checkError) throw checkError;
+      const existing = (existingData && existingData.length > 0) ? existingData[0] : null;
 
       if (existing?.id) {
         const { error } = await supabase
