@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { PackageSearch } from '@/components/packages/PackageSearch';
@@ -86,6 +86,11 @@ export default function PackageList() {
   const handleFilterApplied = () => {
     setIsSheetOpen(false);
   };
+
+  // Scroll to top when search params change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [searchParams]);
 
   return (
     <DynamicPublicLayout>
@@ -185,7 +190,10 @@ export default function PackageList() {
               {/* Sort */}
               <div className="flex flex-col gap-1">
                 <Label className="text-[10px] uppercase text-muted-foreground font-bold lg:hidden">Urutkan</Label>
-                <Select value={sortBy} onValueChange={setSortBy}>
+                <Select value={sortBy} onValueChange={(value) => {
+                  setSortBy(value);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}>
                   <SelectTrigger className="w-[160px] h-9">
                     <SelectValue placeholder="Urutkan" />
                   </SelectTrigger>

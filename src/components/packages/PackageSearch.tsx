@@ -73,6 +73,9 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
     if (onFilterApplied) {
       onFilterApplied();
     }
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleReset = () => {
@@ -84,6 +87,9 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
     
     if (onSearch) onSearch({});
     if (onFilterApplied) onFilterApplied();
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
