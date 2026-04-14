@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { PackageSearch } from '@/components/packages/PackageSearch';
@@ -6,43 +6,81 @@ import { PackageCard } from '@/components/packages/PackageCard';
 import { usePackages } from '@/hooks/usePackages';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Grid3X3, List, SlidersHorizontal } from 'lucide-react';
+import { Grid3X3, List, SlidersHorizontal, LayoutGrid, Square, RectangleHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 
 export default function PackageList() {
   const [searchParams] = useSearchParams();
   const { data: packages = [], isLoading } = usePackages();
   const [sortBy, setSortBy] = useState('price_asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // Card Design Options
+  const [cardLayout, setCardLayout] = useState<'modern' | 'classic' | 'minimal'>('modern');
+  const [imageRatio, setImageRatio] = useState<'16/10' | '1/1' | '3/4' | '9/6'>('16/10');
 
   // Filter from URL params
+  const q = searchParams.get('q')?.toLowerCase() || '';
   const typeFilter = searchParams.get('type');
+  const minPrice = Number(searchParams.get('minPrice')) || 0;
+  const maxPrice = Number(searchParams.get('maxPrice')) || Infinity;
+  const durationFilter = searchParams.get('duration')?.split(',').filter(Boolean) || [];
 
-  // Apply filters
-  let filteredPackages = [...packages];
-  
-  if (typeFilter && typeFilter !== 'all') {
-    filteredPackages = filteredPackages.filter(p => p.package_type === typeFilter);
-  }
-
-  // Sort packages
-  filteredPackages.sort((a, b) => {
-    switch (sortBy) {
-      case 'price_asc':
-        return a.price_quad - b.price_quad;
-      case 'price_desc':
-        return b.price_quad - a.price_quad;
-      case 'duration_asc':
-        return a.duration_days - b.duration_days;
-      case 'duration_desc':
-        return b.duration_days - a.duration_days;
-      case 'name_asc':
-        return a.name.localeCompare(b.name);
-      default:
-        return 0;
+  // Apply filters using useMemo for performance
+  const filteredPackages = useMemo(() => {
+    let result = [...packages];
+    
+    // Search keyword
+    if (q) {
+      result = result.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.description?.toLowerCase().includes(q)
+      );
     }
-  });
+
+    // Package type
+    if (typeFilter && typeFilter !== 'all') {
+      result = result.filter(p => p.package_type === typeFilter);
+    }
+
+    // Price range
+    result = result.filter(p => {
+      const price = p.price_quad || 0;
+      return price >= minPrice && price <= maxPrice;
+    });
+
+    // Duration
+    if (durationFilter.length > 0) {
+      result = result.filter(p => {
+        const d = p.duration_days.toString();
+        if (durationFilter.includes('21') && p.duration_days >= 21) return true;
+        return durationFilter.includes(d);
+      });
+    }
+
+    // Sort packages
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'price_asc':
+          return (a.price_quad || 0) - (b.price_quad || 0);
+        case 'price_desc':
+          return (b.price_quad || 0) - (a.price_quad || 0);
+        case 'duration_asc':
+          return a.duration_days - b.duration_days;
+        case 'duration_desc':
+          return b.duration_days - a.duration_days;
+        case 'name_asc':
+          return a.name.localeCompare(b.name);
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [packages, q, typeFilter, minPrice, maxPrice, durationFilter, sortBy]);
 
   return (
     <DynamicPublicLayout>
@@ -59,9 +97,9 @@ export default function PackageList() {
       </section>
 
       {/* Filter Bar */}
-      <section className="border-b bg-background sticky top-16 z-40">
+      <section className="border-b bg-background sticky top-16 z-40 shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               {/* Mobile Filter */}
               <Sheet>
@@ -71,54 +109,112 @@ export default function PackageList() {
                     Filter
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left">
+                <SheetContent side="left" className="w-[300px] sm:w-[400px]">
                   <SheetHeader>
                     <SheetTitle>Filter Paket</SheetTitle>
                   </SheetHeader>
-                  <div className="mt-6">
+                  <div className="mt-6 overflow-y-auto max-h-[calc(100vh-100px)] pr-2">
                     <PackageSearch />
                   </div>
                 </SheetContent>
               </Sheet>
 
-              <p className="text-sm text-muted-foreground hidden sm:block">
+              <p className="text-sm text-muted-foreground">
                 Menampilkan <span className="font-medium text-foreground">{filteredPackages.length}</span> paket
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Card Customizer - Desktop */}
+              <div className="hidden lg:flex items-center gap-4 mr-4 border-r pr-4">
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] uppercase text-muted-foreground font-bold">Desain Card</Label>
+                  <Tabs value={cardLayout} onValueChange={(v: any) => setCardLayout(v)} className="h-8">
+                    <TabsList className="h-8 p-0.5">
+                      <TabsTrigger value="modern" className="text-[10px] px-2 h-7">Modern</TabsTrigger>
+                      <TabsTrigger value="classic" className="text-[10px] px-2 h-7">Classic</TabsTrigger>
+                      <TabsTrigger value="minimal" className="text-[10px] px-2 h-7">Minimal</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+                
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] uppercase text-muted-foreground font-bold">Rasio Foto</Label>
+                  <div className="flex items-center border rounded-md h-8 p-0.5 bg-muted/50">
+                    <Button 
+                      variant={imageRatio === '16/10' ? 'secondary' : 'ghost'} 
+                      size="icon" className="h-7 w-7" 
+                      onClick={() => setImageRatio('16/10')}
+                      title="16:10"
+                    >
+                      <RectangleHorizontal className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button 
+                      variant={imageRatio === '1/1' ? 'secondary' : 'ghost'} 
+                      size="icon" className="h-7 w-7" 
+                      onClick={() => setImageRatio('1/1')}
+                      title="1:1"
+                    >
+                      <Square className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button 
+                      variant={imageRatio === '3/4' ? 'secondary' : 'ghost'} 
+                      size="icon" className="h-7 w-7" 
+                      onClick={() => setImageRatio('3/4')}
+                      title="3:4"
+                    >
+                      <div className="w-2.5 h-3.5 border-2 border-current rounded-[1px]" />
+                    </Button>
+                    <Button 
+                      variant={imageRatio === '9/6' ? 'secondary' : 'ghost'} 
+                      size="icon" className="h-7 w-7" 
+                      onClick={() => setImageRatio('9/6')}
+                      title="9:6"
+                    >
+                      <div className="w-3.5 h-2.5 border-2 border-current rounded-[1px]" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               {/* Sort */}
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Urutkan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="price_asc">Harga: Terendah</SelectItem>
-                  <SelectItem value="price_desc">Harga: Tertinggi</SelectItem>
-                  <SelectItem value="duration_asc">Durasi: Terpendek</SelectItem>
-                  <SelectItem value="duration_desc">Durasi: Terlama</SelectItem>
-                  <SelectItem value="name_asc">Nama: A-Z</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold lg:hidden">Urutkan</Label>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[160px] h-9">
+                    <SelectValue placeholder="Urutkan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="price_asc">Harga: Terendah</SelectItem>
+                    <SelectItem value="price_desc">Harga: Tertinggi</SelectItem>
+                    <SelectItem value="duration_asc">Durasi: Terpendek</SelectItem>
+                    <SelectItem value="duration_desc">Durasi: Terlama</SelectItem>
+                    <SelectItem value="name_asc">Nama: A-Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* View Toggle */}
-              <div className="hidden md:flex items-center border rounded-md">
-                <Button
-                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="rounded-r-none"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="rounded-l-none"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold lg:hidden">Tampilan</Label>
+                <div className="flex items-center border rounded-md h-9 p-0.5 bg-muted/50">
+                  <Button
+                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -126,16 +222,16 @@ export default function PackageList() {
       </section>
 
       {/* Content */}
-      <section className="py-8">
+      <section className="py-8 bg-slate-50/50 min-h-screen">
         <div className="container mx-auto px-4">
           <div className="flex gap-8">
             {/* Sidebar - Desktop */}
-            <aside className="hidden md:block w-64 flex-shrink-0">
+            <aside className="hidden md:block w-72 flex-shrink-0">
               <div className="sticky top-32">
                 <PackageSearch />
               </div>
             </aside>
-
+            
             {/* Package Grid */}
             <div className="flex-1">
               {isLoading ? (
@@ -158,20 +254,33 @@ export default function PackageList() {
               ) : filteredPackages.length > 0 ? (
                 <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
                   {filteredPackages.map((pkg) => (
-                    <PackageCard key={pkg.id} pkg={pkg} />
+                    <PackageCard 
+                      key={pkg.id} 
+                      pkg={pkg} 
+                      layout={cardLayout}
+                      imageRatio={imageRatio}
+                      viewMode={viewMode}
+                    />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16">
-                  <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-4xl">📦</span>
+                <div className="text-center py-24 bg-white rounded-2xl border border-dashed">
+                  <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+                    <span className="text-5xl">🔍</span>
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                  <h3 className="text-xl font-bold text-foreground mb-2">
                     Tidak Ada Paket Ditemukan
                   </h3>
-                  <p className="text-muted-foreground">
-                    Coba ubah filter pencarian Anda atau hubungi kami untuk paket custom.
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Maaf, kami tidak menemukan paket yang sesuai dengan kriteria filter Anda. Coba ubah filter atau reset pencarian.
                   </p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-6"
+                    onClick={() => window.location.href = '/packages'}
+                  >
+                    Reset Semua Filter
+                  </Button>
                 </div>
               )}
             </div>

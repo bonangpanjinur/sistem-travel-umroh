@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,7 @@ import { Slider } from '@/components/ui/slider';
 import { formatCurrency } from '@/lib/format';
 
 interface PackageSearchProps {
-  onSearch?: (searchTerm: string, packageType: string) => void;
+  onSearch?: (filters: any) => void;
 }
 
 export function PackageSearch({ onSearch }: PackageSearchProps) {
@@ -25,18 +25,60 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
   
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [packageType, setPackageType] = useState(searchParams.get('type') || 'all');
-  const [priceRange, setPriceRange] = useState([15000000, 100000000]);
-  const [duration, setDuration] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState([
+    Number(searchParams.get('minPrice')) || 10000000,
+    Number(searchParams.get('maxPrice')) || 150000000
+  ]);
+  const [duration, setDuration] = useState<string[]>(
+    searchParams.get('duration')?.split(',').filter(Boolean) || []
+  );
+
+  // Update local state when URL params change
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || '');
+    setPackageType(searchParams.get('type') || 'all');
+    setPriceRange([
+      Number(searchParams.get('minPrice')) || 10000000,
+      Number(searchParams.get('maxPrice')) || 150000000
+    ]);
+    setDuration(searchParams.get('duration')?.split(',').filter(Boolean) || []);
+  }, [searchParams]);
 
   const handleSearch = () => {
+    const params = new URLSearchParams(searchParams);
+    
+    if (searchTerm) params.set('q', searchTerm);
+    else params.delete('q');
+    
+    if (packageType && packageType !== 'all') params.set('type', packageType);
+    else params.delete('type');
+    
+    params.set('minPrice', priceRange[0].toString());
+    params.set('maxPrice', priceRange[1].toString());
+    
+    if (duration.length > 0) params.set('duration', duration.join(','));
+    else params.delete('duration');
+
+    navigate(`/packages?${params.toString()}`);
+    
     if (onSearch) {
-      onSearch(searchTerm, packageType);
-    } else {
-      const params = new URLSearchParams();
-      if (searchTerm) params.set('q', searchTerm);
-      if (packageType && packageType !== 'all') params.set('type', packageType);
-      navigate(`/packages?${params.toString()}`);
+      onSearch({
+        q: searchTerm,
+        type: packageType,
+        minPrice: priceRange[0],
+        maxPrice: priceRange[1],
+        duration
+      });
     }
+  };
+
+  const handleReset = () => {
+    setSearchTerm('');
+    setPackageType('all');
+    setPriceRange([10000000, 150000000]);
+    setDuration([]);
+    navigate('/packages');
+    if (onSearch) onSearch({});
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -55,7 +97,18 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
 
   return (
     <div className="rounded-xl bg-card p-5 shadow-sm border space-y-5">
-      <h3 className="font-semibold text-foreground">Filter Paket</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-foreground">Filter Paket</h3>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleReset}
+          className="h-8 px-2 text-muted-foreground hover:text-primary"
+        >
+          <X className="h-3.5 w-3.5 mr-1" />
+          Reset
+        </Button>
+      </div>
       
       {/* Search Input */}
       <div className="space-y-2">
@@ -97,11 +150,11 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
           value={priceRange}
           onValueChange={setPriceRange}
           min={10000000}
-          max={150000000}
-          step={5000000}
+          max={200000000}
+          step={1000000}
           className="mt-2"
         />
-        <div className="flex justify-between text-xs text-muted-foreground">
+        <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
           <span>{formatCurrency(priceRange[0])}</span>
           <span>{formatCurrency(priceRange[1])}</span>
         </div>
@@ -125,7 +178,7 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
               />
               <label
                 htmlFor={`duration-${item.value}`}
-                className="text-sm text-muted-foreground cursor-pointer"
+                className="text-sm text-muted-foreground cursor-pointer select-none"
               >
                 {item.label}
               </label>
@@ -135,7 +188,7 @@ export function PackageSearch({ onSearch }: PackageSearchProps) {
       </div>
 
       {/* Search Button */}
-      <Button onClick={handleSearch} className="w-full gap-2">
+      <Button onClick={handleSearch} className="w-full gap-2 shadow-md">
         <Search className="h-4 w-4" />
         Terapkan Filter
       </Button>
