@@ -1,4 +1,9 @@
 -- =====================================================
+-- 0. ENABLE EXTENSION
+-- =====================================================
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net;
+
+-- =====================================================
 -- 1. FUNCTION: NOTIFY BOOKING CREATED
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.notify_booking_created()
@@ -6,17 +11,32 @@ RETURNS TRIGGER AS $$
 DECLARE
   notification_result json;
 BEGIN
-  PERFORM net.http_post(
-    url := current_setting('app.supabase_url', true) || '/functions/v1/send-whatsapp-notification',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)
-    ),
-    body := jsonb_build_object(
-      'type', 'booking_confirmed',
-      'booking_id', NEW.id
-    )
-  );
+  BEGIN
+    PERFORM net.http_post(
+      url := current_setting('app.supabase_url', true) || '/functions/v1/send-whatsapp-notification',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)
+      ),
+      body := jsonb_build_object(
+        'type', 'booking_confirmed',
+        'booking_id', NEW.id
+      )
+    );
+  EXCEPTION WHEN OTHERS THEN
+    -- Log error but don't fail the booking creation
+    INSERT INTO public.whatsapp_notification_logs (
+      notification_type,
+      booking_id,
+      status,
+      error_message
+    ) VALUES (
+      'booking_confirmed',
+      NEW.id,
+      'failed',
+      SQLERRM
+    );
+  END;
 
   RETURN NEW;
 END;
