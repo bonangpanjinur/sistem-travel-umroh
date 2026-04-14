@@ -124,6 +124,7 @@ export interface Package {
   code: string;
   name: string;
   package_type: PackageType;
+  package_type_id: string | null;
   description: string | null;
   duration_days: number;
   hotel_makkah_id: string | null;
@@ -149,6 +150,11 @@ export interface Package {
   hotel_madinah?: Hotel;
   airline?: Airline;
   departures?: Departure[];
+  package_type_ref?: {
+    id: string;
+    code: string;
+    name: string;
+  };
 }
 
 export interface Departure {

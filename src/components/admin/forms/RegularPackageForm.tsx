@@ -48,7 +48,7 @@ const generatePackageCode = (type: string) => {
 const regularPackageSchema = z.object({
   code: z.string().optional(),
   name: z.string().min(1, "Nama paket harus diisi"),
-  package_type: z.string().min(1, "Tipe paket harus diisi"),
+  package_type_id: z.string().min(1, "Tipe paket harus diisi"),
   description: z.string().optional(),
   duration_days: z.coerce.number().min(1, "Durasi minimal 1 hari"),
   featured_image: z.string().optional().nullable(),
@@ -96,7 +96,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
     defaultValues: {
       code: packageData?.code || "",
       name: packageData?.name || "",
-      package_type: (packageData?.package_type as RegularPackageFormValues["package_type"]) || "umroh",
+      package_type_id: (packageData as any)?.package_type_id || "",
       description: packageData?.description || "",
       duration_days: packageData?.duration_days || 9,
       featured_image: packageData?.featured_image || "",
@@ -162,9 +162,15 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
   const mutation = useMutation({
     mutationFn: async (values: RegularPackageFormValues) => {
       const { fee_branch, fee_agent, fee_sub_agent, fee_referral, ...rest } = values;
+      
+      // Find the selected package type to get its code for the package code generation
+      const selectedType = packageTypes?.find(t => t.id === rest.package_type_id);
+      const typeCode = selectedType?.code || "umroh";
+
       const payload: any = {
         ...rest,
-        code: isEditing ? rest.code : generatePackageCode(rest.package_type),
+        code: isEditing ? rest.code : generatePackageCode(typeCode),
+        package_type: typeCode, // Keep legacy field in sync for now
         includes: rest.includes ? rest.includes.split("\n").filter(Boolean) : [],
         excludes: rest.excludes ? rest.excludes.split("\n").filter(Boolean) : [],
         // Set price/hotel/airline to null - these are managed on departures
@@ -247,7 +253,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
-              name="package_type"
+              name="package_type_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipe Paket</FormLabel>
@@ -259,7 +265,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                     </FormControl>
                     <SelectContent>
                       {packageTypes?.map((type) => (
-                        <SelectItem key={type.id} value={type.code}>
+                        <SelectItem key={type.id} value={type.id}>
                           {type.name}
                         </SelectItem>
                       ))}

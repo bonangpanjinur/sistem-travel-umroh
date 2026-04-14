@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Plus, Edit, Trash2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function AdminPackageSettings() {
+export default function AdminPackageTypes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingType, setEditingType] = useState<any>(null);
@@ -58,7 +58,7 @@ export default function AdminPackageSettings() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Pengaturan Paket</h1>
+          <h1 className="text-2xl font-bold">Tipe Paket</h1>
           <p className="text-muted-foreground">Kelola tipe paket dan konfigurasi dinamis lainnya</p>
         </div>
         <div className="flex gap-2">

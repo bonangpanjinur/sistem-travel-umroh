@@ -57,6 +57,7 @@ export default function AdminPackages() {
           airline:airlines(name),
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name),
+          package_type_ref:package_types(name),
           departures(id, departure_date, quota, booked_count, status, price_quad, price_triple, price_double, price_single)
         `)
         .order('created_at', { ascending: false });
@@ -224,7 +225,7 @@ export default function AdminPackages() {
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-2 left-2 flex gap-1">
-                  <Badge>{formatPackageType(pkg.package_type)}</Badge>
+                  <Badge>{pkg.package_type_ref?.name || formatPackageType(pkg.package_type)}</Badge>
                   {pkg.is_featured && <Badge variant="secondary">Featured</Badge>}
                 </div>
                 {!pkg.is_active && (

@@ -18,7 +18,7 @@ const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
-const AdminPackageSettings = lazy(() => import("@/pages/admin/AdminPackageSettings"));
+const AdminPackageTypes = lazy(() => import("@/pages/admin/AdminPackageTypes"));
 const AdminMasterData = lazy(() => import("@/pages/admin/AdminMasterData"));
 const AdminLeads = lazy(() => import("@/pages/admin/AdminLeads"));
 const AdminLeadDetail = lazy(() => import("@/pages/admin/AdminLeadDetail"));
@@ -122,7 +122,7 @@ export default function AdminRoutes() {
       <Route path="static-pages" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminStaticPages /></LazyPage></ProtectedRoute>} />
       <Route path="testimonials" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminTestimonials /></LazyPage></ProtectedRoute>} />
       <Route path="settings" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminSettings /></LazyPage></ProtectedRoute>} />
-      <Route path="package-settings" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminPackageSettings /></LazyPage></ProtectedRoute>} />
+      <Route path="package-types" element={<ProtectedRoute permission="packages.view"><LazyPage><AdminPackageTypes /></LazyPage></ProtectedRoute>} />
       <Route path="finance/ar" element={<ProtectedRoute permission="payments.view_all"><LazyPage><AdminFinanceAR /></LazyPage></ProtectedRoute>} />
       <Route path="finance/ap" element={<ProtectedRoute permission="payments.view_all"><LazyPage><AdminFinanceAP /></LazyPage></ProtectedRoute>} />
       <Route path="hr/payroll" element={<ProtectedRoute permission="hr.payroll.view"><LazyPage><AdminPayroll /></LazyPage></ProtectedRoute>} />

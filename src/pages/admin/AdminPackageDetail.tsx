@@ -60,7 +60,8 @@ export default function AdminPackageDetail() {
           airline:airlines(id, name, code),
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(id, name, star_rating),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(id, name, star_rating),
-          muthawif:muthawifs(id, name)
+          muthawif:muthawifs(id, name),
+          package_type_ref:package_types(name)
         `)
         .eq('id', id)
         .single();
@@ -216,7 +217,7 @@ export default function AdminPackageDetail() {
               {!packageData.is_active && <Badge variant="destructive">Nonaktif</Badge>}
               {packageData.is_featured && <Badge variant="secondary">Featured</Badge>}
             </div>
-            <p className="text-muted-foreground">{packageData.code} • {formatPackageType(packageData.package_type)}</p>
+            <p className="text-muted-foreground">{packageData.code} • {packageData.package_type_ref?.name || formatPackageType(packageData.package_type)}</p>
           </div>
         </div>
         <Button onClick={() => setIsPackageFormOpen(true)}>

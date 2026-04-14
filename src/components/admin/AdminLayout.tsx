@@ -127,7 +127,7 @@ const NAV_GROUPS = [
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
       { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages', permission: 'settings.manage' },
       { label: 'Testimoni', icon: Star, path: '/admin/testimonials', permission: 'settings.manage' },
-      { label: 'Pengaturan Paket', icon: Settings2, path: '/admin/package-settings', permission: 'settings.manage' },
+      { label: 'Tipe Paket', icon: Settings2, path: '/admin/package-types', permission: 'packages.view' },
       { label: 'Pengaturan', icon: Settings, path: '/admin/settings', permission: 'settings.manage' },
     ]
   },
