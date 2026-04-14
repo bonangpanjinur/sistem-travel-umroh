@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Calendar, Users, BedDouble, Plane, User, Tag, Share2, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Calendar, Users, BedDouble, Plane, User, Tag, Share2, Loader2, CheckCircle, XCircle, Mail, Phone } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { RoomType } from "@/types/database";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -47,6 +48,7 @@ const ROOM_LABELS: Record<RoomType, string> = {
 };
 
 export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied }: StepReviewDynamicProps) {
+  const { user } = useAuth();
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponResult, setCouponResult] = useState<{ valid: boolean; discount: number; name: string } | null>(null);
@@ -155,6 +157,71 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
           Periksa kembali data pesanan Anda sebelum melanjutkan
         </p>
       </div>
+
+      {/* Guest Contact Info */}
+      {!user && (
+        <Card className="border-primary/20 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Mail className="h-4 w-4 text-primary" />
+              Informasi Kontak Pemesan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="guest-email" className="text-sm">
+                  Email <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="guest-email"
+                    type="email"
+                    placeholder="nama@email.com"
+                    className="pl-9"
+                    value={formData.passengers[0]?.email || ''}
+                    onChange={(e) => {
+                      const updated = [...formData.passengers];
+                      if (updated[0]) {
+                        updated[0] = { ...updated[0], email: e.target.value };
+                        onCouponApplied?.(discountAmount, couponCode); // Trigger update
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">Konfirmasi booking akan dikirim ke email ini.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="guest-phone" className="text-sm">
+                  No. WhatsApp <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="guest-phone"
+                    placeholder="08xxxxxxxxxx"
+                    className="pl-9"
+                    value={formData.passengers[0]?.phone || ''}
+                    onChange={(e) => {
+                      const updated = [...formData.passengers];
+                      if (updated[0]) {
+                        updated[0] = { ...updated[0], phone: e.target.value };
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
+              <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-xs text-primary/80">
+                Akun akan dibuatkan otomatis agar Anda dapat melacak status keberangkatan.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Package & Departure Info */}
       <Card>

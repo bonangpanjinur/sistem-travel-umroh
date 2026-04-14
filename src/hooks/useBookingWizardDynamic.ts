@@ -17,6 +17,7 @@ export interface DynamicPassengerData {
   fullName: string;
   gender: 'male' | 'female';
   phone: string;
+  email?: string;
   passengerType: 'adult' | 'child' | 'infant';
   roomType: RoomType;
 }
@@ -136,31 +137,57 @@ export function useBookingWizardDynamic(
   };
 
   const submitBooking = async () => {
-    if (!user) {
-      toast.error('Silakan login terlebih dahulu');
-      return null;
-    }
-
     setIsSubmitting(true);
     
     try {
-      // 1. Get or create customer record
-      let { data: customer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+      let customerId: string | null = null;
+      let userEmail: string | null = user?.email || null;
 
-      if (!customer) {
+      // 1. Handle Customer Record (Guest or Logged In)
+      if (user) {
+        let { data: customer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!customer) {
+          const mainPassenger = formData.passengers[0];
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('customers')
+            .insert({ 
+              user_id: user.id, 
+              full_name: mainPassenger.fullName, 
+              gender: mainPassenger.gender, 
+              phone: mainPassenger.phone || null, 
+              email: user.email 
+            })
+            .select('id')
+            .single();
+          if (customerError) throw customerError;
+          customerId = newCustomer.id;
+        } else {
+          customerId = customer.id;
+        }
+      } else {
+        // Guest Checkout: Create a customer record without user_id
+        // We'll use the main passenger's data
         const mainPassenger = formData.passengers[0];
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
-          .insert({ user_id: user.id, full_name: mainPassenger.fullName, gender: mainPassenger.gender, phone: mainPassenger.phone || null, email: user.email })
+          .insert({ 
+            full_name: mainPassenger.fullName, 
+            gender: mainPassenger.gender, 
+            phone: mainPassenger.phone || null,
+            notes: 'Guest Checkout'
+          })
           .select('id')
           .single();
         if (customerError) throw customerError;
-        customer = newCustomer;
+        customerId = newCustomer.id;
       }
+
+      if (!customerId) throw new Error('Gagal memproses data pelanggan');
 
       // 2. Get departure info
       const { data: departure, error: departureError } = await supabase
@@ -217,7 +244,7 @@ export function useBookingWizardDynamic(
         .insert({
           booking_code: (await supabase.rpc('generate_booking_code', { _package_code: (departure.package as any)?.code || '', _departure_date: departure.departure_date })).data || `TRA${Date.now().toString(36).toUpperCase()}`,
           departure_id: formData.departureId,
-          customer_id: customer.id,
+          customer_id: customerId,
           room_type: mainRoomType,
           total_pax: totalPax,
           adult_count: adultCount,
@@ -249,7 +276,7 @@ export function useBookingWizardDynamic(
       // 6. Create passengers
       for (let i = 0; i < formData.passengers.length; i++) {
         const passenger = formData.passengers[i];
-        let passengerId = customer.id;
+        let passengerId = customerId;
         
         if (i > 0) {
           const { data: passengerCustomer, error: passengerError } = await supabase
@@ -298,7 +325,7 @@ export function useBookingWizardDynamic(
             .insert({ 
               referral_code_id: referralId, 
               booking_id: booking.id,
-              referred_customer_id: customer.id,
+              referred_customer_id: customerId,
               booking_amount: totalPrice,
               commission_amount: commissionAmount,
               commission_status: 'pending'

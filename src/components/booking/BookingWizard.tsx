@@ -131,17 +131,8 @@ export function BookingWizard() {
     return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  if (!user) {
-    return (
-      <Card className="max-w-lg mx-auto">
-        <CardContent className="p-8 text-center">
-          <h2 className="text-xl font-semibold mb-4">Login Diperlukan</h2>
-          <p className="text-muted-foreground mb-6">Silakan login terlebih dahulu untuk melanjutkan pemesanan.</p>
-          <Button onClick={() => navigate(`/auth/login?redirect=${encodeURIComponent(`/booking/${packageId}${window.location.search}`)}`)}>Login Sekarang</Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Guest Checkout: Allow users to proceed without login.
+  // We will suggest login later in the process.
 
   if (!initialDepartureId || (initialPax === 0 && totalPassengers === 0)) {
     return (
@@ -306,7 +297,15 @@ function canProceed(
       if (isValidatingPIC) return false;
       return !!picValidation?.isValid;
     case 'review':
-      return !!picValidation?.isValid;
+      const isPicValid = !!picValidation?.isValid;
+      if (!user) {
+        // For guest, email and phone are required in review step
+        const mainPassenger = formData.passengers[0];
+        const emailValid = mainPassenger?.email?.includes('@') && mainPassenger?.email?.includes('.');
+        const phoneValid = mainPassenger?.phone?.length >= 10;
+        return isPicValid && emailValid && phoneValid;
+      }
+      return isPicValid;
     default:
       return false;
   }
