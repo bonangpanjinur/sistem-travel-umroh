@@ -184,9 +184,19 @@ export default function PackageDetail() {
 
               <TabsContent value="overview" className="mt-6 space-y-6">
                 <Card>
-                  <CardHeader><CardTitle>Deskripsi Paket</CardTitle></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Info className="h-5 w-5 text-primary" />
+                      Deskripsi Paket
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground leading-relaxed">{pkg.description || 'Nikmati perjalanan ibadah yang nyaman dan penuh keberkahan dengan paket ini.'}</p>
+                    <div 
+                      className="text-muted-foreground leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ 
+                        __html: pkg.description?.replace(/\n/g, '<br />') || 'Nikmati perjalanan ibadah yang nyaman dan penuh keberkahan dengan paket ini.' 
+                      }}
+                    />
                   </CardContent>
                 </Card>
 

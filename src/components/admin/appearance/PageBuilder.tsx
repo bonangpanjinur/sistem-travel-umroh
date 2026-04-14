@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WebsiteSettings, HomepageSection, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 import { Layout, Save, GripVertical, Eye, EyeOff, Upload, Loader2, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,10 @@ export function PageBuilder({ settings }: PageBuilderProps) {
     hero_cta_text: settings.hero_cta_text || "",
     hero_cta_link: settings.hero_cta_link || "",
   });
+  
+  const [packageCount, setPackageCount] = useState<number>(
+    settings.featured_packages_count || 3
+  );
 
   useEffect(() => {
     setSections(settings.homepage_sections || []);
@@ -54,12 +59,14 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       hero_cta_text: settings.hero_cta_text || "",
       hero_cta_link: settings.hero_cta_link || "",
     });
+    setPackageCount(settings.featured_packages_count || 3);
   }, [settings]);
 
   const handleSave = () => {
     updateSettings.mutate({
       homepage_sections: sections,
       ...heroContent,
+      featured_packages_count: packageCount,
     });
   };
 
@@ -230,6 +237,32 @@ export function PageBuilder({ settings }: PageBuilderProps) {
                     />
                   </div>
                 ))}
+            </div>
+
+            {/* Featured Packages Count Setting */}
+            <div className="mt-6 pt-6 border-t space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Jumlah Paket Unggulan</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Tentukan berapa banyak paket yang ditampilkan di halaman utama
+                  </p>
+                </div>
+                <Select 
+                  value={packageCount.toString()} 
+                  onValueChange={(val) => setPackageCount(parseInt(val))}
+                >
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Pilih jumlah" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3">3 Paket</SelectItem>
+                    <SelectItem value="6">6 Paket</SelectItem>
+                    <SelectItem value="9">9 Paket</SelectItem>
+                    <SelectItem value="12">12 Paket</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
               <p className="font-medium mb-1">💡 Tips:</p>

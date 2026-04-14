@@ -14,14 +14,16 @@ export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
   const { data: packages = [], isLoading } = usePackages();
   const isRoyal = settings?.template === 'royal';
   
-  // Get featured packages or first 3
+  const packageCount = settings?.featured_packages_count || 3;
+  
+  // Get featured packages or first N
   const featuredPackages = packages
     .filter(p => p.is_featured)
-    .slice(0, 3);
+    .slice(0, packageCount);
   
   const displayPackages = featuredPackages.length > 0 
     ? featuredPackages 
-    : packages.slice(0, 3);
+    : packages.slice(0, packageCount);
 
   return (
     <section className={`py-20 pb-24 transition-colors duration-500 ${isRoyal ? 'bg-[#0a0a0a] text-white' : 'bg-muted/30'}`}>
@@ -49,7 +51,7 @@ export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
         {/* Package Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3].map((i) => (
+            {Array.from({ length: packageCount }).map((_, i) => (
               <div key={i} className="rounded-xl overflow-hidden border bg-card">
                 <Skeleton className="h-48 w-full" />
                 <div className="p-6 space-y-4">

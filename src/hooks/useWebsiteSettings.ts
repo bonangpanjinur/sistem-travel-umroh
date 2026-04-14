@@ -62,6 +62,7 @@ export interface WebsiteSettings {
   cta_image_url: string | null;
   cta_button_text: string | null;
   cta_button_link: string | null;
+  featured_packages_count: number | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -100,6 +101,7 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     cta_image_url: raw.cta_image_url ?? null,
     cta_button_text: raw.cta_button_text ?? null,
     cta_button_link: raw.cta_button_link ?? null,
+    featured_packages_count: raw.featured_packages_count ?? null,
   };
 };
 

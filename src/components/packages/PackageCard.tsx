@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Star, Plane, MapPin, Users } from 'lucide-react';
+import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Package } from '@/types/database';
-import { formatCurrency, getPackageTypeLabel, formatDuration } from '@/lib/format';
+import { formatCurrency, getPackageTypeLabel, formatDuration, formatDate } from '@/lib/format';
 import { slugify } from '@/lib/slug';
 import { cn } from '@/lib/utils';
 
@@ -13,22 +13,42 @@ interface PackageCardProps {
   isRoyal?: boolean;
 }
 
+const MONTHS = [
+  { value: "01", label: "Januari" },
+  { value: "02", label: "Februari" },
+  { value: "03", label: "Maret" },
+  { value: "04", label: "April" },
+  { value: "05", label: "Mei" },
+  { value: "06", label: "Juni" },
+  { value: "07", label: "Juli" },
+  { value: "08", label: "Agustus" },
+  { value: "09", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+];
+
 export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
   const isTabungan = (pkg.package_type as string) === 'tabungan';
   
-  // Get the lowest price from departures if available, otherwise use package price
+  // Get open future departures
+  const openFutureDepartures = (pkg.departures || [])
+    .filter((d: any) => d.status === 'open' && (d.departure_date ? new Date(d.departure_date) > new Date() : true))
+    .sort((a: any, b: any) => {
+      if (!a.departure_date) return 1;
+      if (!b.departure_date) return -1;
+      return new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime();
+    });
+
+  const nearestDeparture = openFutureDepartures[0];
+
+  // Get the lowest price
   const getLowestPrice = () => {
     if (isTabungan) {
       return (pkg as any).savings_target || 0;
     }
     
-    // Filter open departures with future dates
-    const openFutureDepartures = (pkg.departures || []).filter(
-      (d: any) => d.status === 'open' && new Date(d.departure_date) > new Date()
-    );
-    
     if (openFutureDepartures.length > 0) {
-      // Find the minimum price from departures
       let minPrice = Infinity;
       openFutureDepartures.forEach((d: any) => {
         const prices = [
@@ -43,13 +63,11 @@ export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
         }
       });
       
-      // If we found a price in departures, use it; otherwise fall back to package price
       if (minPrice !== Infinity) {
         return minPrice;
       }
     }
     
-    // Fallback to package prices - only consider prices > 0
     const packagePrices = [
       pkg.price_quad || 0,
       pkg.price_triple || 0,
@@ -57,167 +75,169 @@ export function PackageCard({ pkg, isRoyal }: PackageCardProps) {
       pkg.price_single || 0,
     ].filter(p => p > 0);
     
-    // Return the minimum price > 0, or 0 if no valid prices found
     return packagePrices.length > 0 ? Math.min(...packagePrices) : 0;
   };
   
   const lowestPrice = getLowestPrice();
 
-  // Calculate total available seats from all open departures
-  const openDepartures = (pkg.departures || []).filter(
-    (d: any) => d.status === 'open' && new Date(d.departure_date) > new Date()
-  );
-  
-  const totalQuota = openDepartures.reduce(
-    (acc: number, d: any) => acc + (d.quota || 0), 
-    0
-  );
-
-  const totalBooked = openDepartures.reduce(
-    (acc: number, d: any) => acc + (d.booked_count || 0), 
-    0
-  );
-
-  const totalAvailableSeats = totalQuota - totalBooked;
-  const occupancyPercentage = totalQuota > 0 ? (totalBooked / totalQuota) * 100 : 0;
-  const isAlmostFull = totalAvailableSeats > 0 && totalAvailableSeats < 10;
-  const isSoldOut = openDepartures.length > 0 && totalAvailableSeats <= 0;
+  // Departure Date Display Logic
+  const renderDepartureDate = () => {
+    if (!nearestDeparture) return "Segera Hadir";
+    
+    if (nearestDeparture.departure_date) {
+      return formatDate(nearestDeparture.departure_date);
+    }
+    
+    if (nearestDeparture.month) {
+      const monthLabel = MONTHS.find(m => m.value === nearestDeparture.month)?.label || nearestDeparture.month;
+      const year = nearestDeparture.year || new Date().getFullYear();
+      return `${monthLabel} ${year}`;
+    }
+    
+    return "Tanggal Belum Ditentukan";
+  };
 
   return (
     <Card className={cn(
-      "group card-hover overflow-hidden flex flex-col h-full transition-all duration-300",
-      isRoyal ? "bg-[#1a1a1a] border-amber-500/10 hover:border-amber-500/30 text-white" : ""
+      "group overflow-hidden flex flex-col h-full transition-all duration-500 border-none shadow-lg hover:shadow-2xl",
+      isRoyal ? "bg-[#1a1a1a] text-white" : "bg-white text-foreground"
     )}>
-      {/* Image */}
-      <div className="relative aspect-[4/3] overflow-hidden">
+      {/* Image Section */}
+      <div className="relative aspect-[16/10] overflow-hidden">
         <img
           src={pkg.featured_image || 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=800&auto=format&fit=crop'}
           alt={pkg.name}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
-        {/* Badges */}
-        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-          <Badge variant="secondary" className="bg-primary text-primary-foreground border-none shadow-sm">
-            <span>{getPackageTypeLabel(pkg.package_type)}</span>
+        {/* Top Badges */}
+        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+          <Badge className={cn(
+            "border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-lg",
+            isRoyal ? "bg-amber-500 text-black" : "bg-primary text-white"
+          )}>
+            {getPackageTypeLabel(pkg.package_type)}
           </Badge>
           {pkg.is_featured && (
-            <Badge className="bg-amber-500 text-white border-none shadow-sm">
-              <Star className="mr-1 h-3 w-3 fill-current" />
+            <Badge className="bg-white/20 backdrop-blur-md text-white border-white/20 text-[10px] font-bold uppercase tracking-wider">
+              <Star className="mr-1 h-3 w-3 fill-amber-400 text-amber-400" />
               Favorit
             </Badge>
           )}
         </div>
 
-        {/* Duration */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-white bg-black/40 px-2 py-1 rounded-md backdrop-blur-sm">
-          <Clock className="h-3.5 w-3.5" />
-          <span className="text-xs font-bold">{formatDuration(pkg.duration_days)}</span>
+        {/* Price Overlay */}
+        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+          <div className="text-white">
+            <p className="text-[10px] uppercase tracking-widest opacity-80 font-medium">Mulai dari</p>
+            <p className={cn(
+              "text-2xl font-bold leading-none",
+              isRoyal ? "text-amber-400" : "text-white"
+            )}>
+              {formatCurrency(lowestPrice)}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 text-white bg-white/10 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10">
+            <Clock className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-xs font-bold">{formatDuration(pkg.duration_days)}</span>
+          </div>
         </div>
       </div>
 
-      <CardContent className="p-4 flex-1">
+      <CardContent className="p-5 flex-1 flex flex-col">
         {/* Title */}
         <h3 className={cn(
-          "mb-2 line-clamp-2 text-lg font-bold transition-colors",
-          isRoyal ? "text-white font-serif group-hover:text-amber-500" : "text-foreground group-hover:text-primary"
+          "mb-4 line-clamp-2 text-xl font-bold leading-tight transition-colors",
+          isRoyal ? "text-white font-serif group-hover:text-amber-400" : "text-slate-800 group-hover:text-primary"
         )}>
           {pkg.name}
         </h3>
 
-        {/* Description */}
-        <p className={cn(
-          "mb-4 line-clamp-2 text-sm leading-relaxed",
-          isRoyal ? "text-gray-400" : "text-muted-foreground"
-        )}>
-          {pkg.description || 'Perjalanan ibadah yang nyaman dan berkualitas'}
-        </p>
+        {/* Info Grid */}
+        <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-6">
+          {/* Departure Date */}
+          <div className="flex items-start gap-2.5">
+            <div className={cn(
+              "p-2 rounded-lg",
+              isRoyal ? "bg-amber-500/10" : "bg-slate-100"
+            )}>
+              <Calendar className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Keberangkatan</p>
+              <p className="text-xs font-semibold line-clamp-1">{renderDepartureDate()}</p>
+            </div>
+          </div>
 
-        {/* Features */}
-        <div className={cn(
-          "flex flex-wrap gap-3 text-xs",
-          isRoyal ? "text-amber-500/70" : "text-muted-foreground"
-        )}>
-          {pkg.airline && (
+          {/* Airline */}
+          <div className="flex items-start gap-2.5">
             <div className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded",
-              isRoyal ? "bg-amber-500/10" : "bg-muted/50"
+              "p-2 rounded-lg",
+              isRoyal ? "bg-amber-500/10" : "bg-slate-100"
             )}>
-              <Plane className={cn("h-3.5 w-3.5", isRoyal ? "text-amber-500" : "text-primary")} />
-              <span className="font-medium">{pkg.airline.name}</span>
+              <Plane className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
             </div>
-          )}
-          {pkg.hotel_makkah && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Maskapai</p>
+              <p className="text-xs font-semibold line-clamp-1">
+                {nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}
+              </p>
+            </div>
+          </div>
+
+          {/* Hotel Makkah */}
+          <div className="flex items-start gap-2.5">
             <div className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded",
-              isRoyal ? "bg-amber-500/10" : "bg-muted/50"
+              "p-2 rounded-lg",
+              isRoyal ? "bg-amber-500/10" : "bg-slate-100"
             )}>
-              <MapPin className={cn("h-3.5 w-3.5", isRoyal ? "text-amber-500" : "text-primary")} />
-              <span className="font-medium">
-                {pkg.hotel_makkah.star_rating}★ Makkah
-              </span>
+              <Building2 className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
             </div>
-          )}
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Hotel Makkah</p>
+              <p className="text-xs font-semibold line-clamp-1">
+                {nearestDeparture?.hotel_makkah?.name || pkg.hotel_makkah?.name || "TBA"}
+                { (nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating) && 
+                  ` (${nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating}★)`
+                }
+              </p>
+            </div>
+          </div>
+
+          {/* Hotel Madinah */}
+          <div className="flex items-start gap-2.5">
+            <div className={cn(
+              "p-2 rounded-lg",
+              isRoyal ? "bg-amber-500/10" : "bg-slate-100"
+            )}>
+              <Hotel className={cn("h-4 w-4", isRoyal ? "text-amber-500" : "text-primary")} />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Hotel Madinah</p>
+              <p className="text-xs font-semibold line-clamp-1">
+                {nearestDeparture?.hotel_madinah?.name || pkg.hotel_madinah?.name || "TBA"}
+                { (nearestDeparture?.hotel_madinah?.star_rating || pkg.hotel_madinah?.star_rating) && 
+                  ` (${nearestDeparture?.hotel_madinah?.star_rating || pkg.hotel_madinah?.star_rating}★)`
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-auto">
+          <Button asChild className={cn(
+            "w-full py-6 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]",
+            isRoyal 
+              ? "bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black border-none" 
+              : "bg-gradient-to-r from-[#D98E27] to-[#f0a53d] hover:from-[#BF7A1D] hover:to-[#D98E27] text-white border-none"
+          )}>
+            <Link to={isTabungan ? `/savings/register/${pkg.id}` : `/packages/${pkg.id}-${slugify(pkg.name)}`}>
+              {isTabungan ? 'Mulai Menabung' : 'Lihat Detail Paket'}
+            </Link>
+          </Button>
         </div>
       </CardContent>
-
-      {/* Remaining Seats Progress Bar */}
-      {openDepartures.length > 0 && (
-        <div className={cn(
-          "px-4 py-3 border-t space-y-2",
-          isRoyal ? "bg-black/20 border-amber-500/10" : "bg-muted/30"
-        )}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className={cn("h-4 w-4", isRoyal ? "text-amber-500/50" : "text-muted-foreground")} />
-              <span className={cn("text-xs font-semibold", isRoyal ? "text-white" : "text-foreground")}>
-                {isSoldOut ? 'Habis Terjual' : `Sisa ${totalAvailableSeats} Kursi`}
-              </span>
-            </div>
-            <span className={cn("text-xs", isRoyal ? "text-amber-500/50" : "text-muted-foreground")}>
-              {totalBooked}/{totalQuota}
-            </span>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className={cn("h-2 w-full rounded-full overflow-hidden", isRoyal ? "bg-white/5" : "bg-muted")}>
-            <div
-              className={cn(
-                "h-full transition-all duration-500 rounded-full",
-                isSoldOut
-                  ? "bg-destructive"
-                  : isAlmostFull
-                  ? "bg-amber-500"
-                  : "bg-green-500"
-              )}
-              style={{ width: `${Math.min(occupancyPercentage, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      <CardFooter className={cn(
-        "flex items-center justify-between border-t p-4",
-        isRoyal ? "border-amber-500/10" : ""
-      )}>
-        <div>
-          <p className={cn("text-xs", isRoyal ? "text-gray-400" : "text-muted-foreground")}>
-            {isTabungan ? 'Target Tabungan' : 'Mulai dari'}
-          </p>
-          <p className={cn("text-lg font-bold", isRoyal ? "text-amber-500" : "text-amber-600")}>
-            {formatCurrency(lowestPrice)}
-          </p>
-        </div>
-        <Button asChild className={cn(
-          "border-none rounded-lg px-6",
-          isRoyal ? "bg-amber-600 hover:bg-amber-500 text-black font-bold" : "bg-[#D98E27] hover:bg-[#BF7A1D] text-white"
-        )}>
-          <Link to={isTabungan ? `/savings/register/${pkg.id}` : `/packages/${pkg.id}-${slugify(pkg.name)}`}>
-            {isTabungan ? 'Mulai Menabung' : 'Lihat Detail'}
-          </Link>
-        </Button>
-      </CardFooter>
     </Card>
   );
 }
