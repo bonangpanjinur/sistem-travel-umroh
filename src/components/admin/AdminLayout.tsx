@@ -294,16 +294,17 @@ function AdminLayout() {
         </div>
       </header>
 
-      <div className="flex pt-14 sm:pt-16 min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)]">
+      <div className="flex h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-hidden mt-14 sm:mt-16">
         {/* Sidebar Navigation */}
         <aside 
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:static lg:inset-0 pt-14 sm:pt-16 lg:pt-0",
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:relative lg:inset-0 lg:translate-x-0 shrink-0",
             sidebarOpen ? "translate-x-0" : "-translate-x-full",
-            !isDesktop && "shadow-xl"
+            !sidebarOpen && "lg:hidden",
+            !isDesktop && "shadow-xl pt-14 sm:pt-16"
           )}
         >
-          <div className="h-full flex flex-col">
+          <div className="h-full flex flex-col overflow-hidden">
             <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
               {filteredNavGroups.map((group) => (
                 <div key={group.label} className="space-y-1">
@@ -325,20 +326,20 @@ function AdminLayout() {
                           key={item.path}
                           to={item.path}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 group relative",
+                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative",
                             isPathActive(item.path)
-                              ? "bg-primary text-primary-foreground shadow-sm"
+                              ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"
                               : "text-muted-foreground hover:bg-muted hover:text-foreground"
                           )}
                           onClick={() => !isDesktop && setSidebarOpen(false)}
                         >
                           <item.icon className={cn(
                             "h-4 w-4 flex-shrink-0 transition-colors",
-                            isPathActive(item.path) ? "text-primary-foreground" : "group-hover:text-primary"
+                            isPathActive(item.path) ? "text-primary" : "group-hover:text-primary"
                           )} />
                           <span className="truncate">{item.label}</span>
                           {isPathActive(item.path) && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-foreground rounded-r-full" />
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
                           )}
                         </Link>
                       ))}
@@ -365,28 +366,27 @@ function AdminLayout() {
 
         {/* Main Content Area */}
         <main className={cn(
-          "flex-1 flex flex-col min-w-0 bg-muted/10 relative transition-all duration-200",
-          isDesktop && !sidebarOpen && "lg:-ml-64"
+          "flex-1 flex flex-col min-w-0 bg-muted/10 relative transition-all duration-200 overflow-y-auto",
         )}>
           {/* Overlay for mobile sidebar */}
           {sidebarOpen && !isDesktop && (
             <div 
-              className="fixed inset-0 bg-black/60 z-40 transition-opacity duration-200 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 z-50 transition-opacity duration-200 backdrop-blur-sm"
               onClick={() => setSidebarOpen(false)}
             />
           )}
 
-          <div className="p-3 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full">
+          <div className="p-3 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full min-h-full flex flex-col">
             <AdminBreadcrumb />
-            <div className="mt-4 sm:mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mt-4 sm:mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 flex-1">
               <Outlet />
             </div>
+            
+            {/* Footer */}
+            <footer className="mt-8 py-6 border-t bg-transparent text-center text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} Umroh & Haji Magic. All rights reserved.
+            </footer>
           </div>
-
-          {/* Footer */}
-          <footer className="mt-auto py-6 px-8 border-t bg-background/50 text-center text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Umroh & Haji Magic. All rights reserved.
-          </footer>
         </main>
       </div>
     </div>
