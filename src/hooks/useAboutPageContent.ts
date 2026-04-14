@@ -15,8 +15,8 @@ export interface AboutPageContent {
 const DEFAULT_ABOUT_PAGE_CONTENT: AboutPageContent = {
   id: 'default',
   settings_id: 'default',
-  mission_text: 'Menjadi biro perjalanan umroh dan haji terdepan di Indonesia yang memberikan pelayanan terbaik dengan standar internasional, serta menjadi mitra terpercaya umat Islam dalam menunaikan ibadah ke Tanah Suci.',
-  vision_text: 'Memberikan layanan umroh dan haji berkualitas tinggi, menyediakan pembimbing ibadah yang kompeten, mengutamakan kenyamanan dan keamanan jamaah, dan inovasi teknologi untuk kemudahan jamaah.',
+  vision_text: 'Menjadi biro perjalanan umroh dan haji terdepan di Indonesia yang memberikan pelayanan terbaik dengan standar internasional, serta menjadi mitra terpercaya umat Islam dalam menunaikan ibadah ke Tanah Suci.',
+  mission_text: 'Memberikan layanan umroh dan haji berkualitas tinggi, menyediakan pembimbing ibadah yang kompeten, mengutamakan kenyamanan dan keamanan jamaah, dan inovasi teknologi untuk kemudahan jamaah.',
   values: [
     { icon: 'Heart', title: 'Amanah', description: 'Kami menjalankan setiap perjalanan dengan penuh tanggung jawab dan kejujuran.' },
     { icon: 'Shield', title: 'Terpercaya', description: 'Puluhan tahun pengalaman melayani jamaah dengan standar kualitas terbaik.' },
@@ -35,7 +35,7 @@ const DEFAULT_ABOUT_PAGE_CONTENT: AboutPageContent = {
   updated_at: new Date().toISOString(),
 };
 
-export function useAboutPageContent(settingsId: string = 'default') {
+export function useAboutPageContent(settingsId: string = '00000000-0000-0000-0000-000000000001') {
   return useQuery<AboutPageContent, Error>({
     queryKey: ['about-page-content', settingsId],
     queryFn: async (): Promise<AboutPageContent> => {
