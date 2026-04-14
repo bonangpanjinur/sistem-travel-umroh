@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,12 @@ import { Package } from '@/types/database';
 import { formatCurrency, getPackageTypeLabel, formatDuration, formatDate } from '@/lib/format';
 import { slugify } from '@/lib/slug';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PackageCardProps {
   pkg: Package;
@@ -98,16 +104,16 @@ export function PackageCard({
   const lowestPrice = getLowestPrice();
 
   // Departure Date Display Logic
-  const renderDepartureDate = () => {
-    if (!nearestDeparture) return "Segera Hadir";
+  const renderDepartureDate = (departure: any = nearestDeparture) => {
+    if (!departure) return "Segera Hadir";
     
-    if (nearestDeparture.departure_date) {
-      return formatDate(nearestDeparture.departure_date);
+    if (departure.departure_date) {
+      return formatDate(departure.departure_date);
     }
     
-    if (nearestDeparture.month) {
-      const monthLabel = MONTHS.find(m => m.value === nearestDeparture.month)?.label || nearestDeparture.month;
-      const year = nearestDeparture.year || new Date().getFullYear();
+    if (departure.month) {
+      const monthLabel = MONTHS.find(m => m.value === departure.month)?.label || departure.month;
+      const year = departure.year || new Date().getFullYear();
       return `${monthLabel} ${year}`;
     }
     
@@ -272,6 +278,9 @@ export function PackageCard({
 
   // Render Classic Layout
   if (layout === 'classic') {
+    const displayedDepartures = openFutureDepartures.slice(0, 3);
+    const hasMoreDepartures = openFutureDepartures.length > 3;
+
     return (
       <Card className={cn(
         "group overflow-hidden flex flex-col h-full transition-all duration-300 border bg-white hover:border-primary/50",
@@ -301,35 +310,80 @@ export function PackageCard({
             </div>
           </div>
           
-          {(showDuration || showDeparture) && (
-            <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
-              {showDuration && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {formatDuration(pkg.duration_days)}</span>}
-              {showDeparture && <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {renderDepartureDate()}</span>}
-            </div>
-          )}
+          <div className="space-y-3 mb-6">
+            {showDuration && (
+              <div className="flex items-center gap-2.5 text-sm">
+                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24">
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  Durasi
+                </span>
+                <span className="font-semibold text-slate-900">{formatDuration(pkg.duration_days)}</span>
+              </div>
+            )}
 
-          {(showAirline || showHotel) && (
-            <div className="space-y-3 mb-6">
-              {showAirline && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="flex items-center gap-2.5 text-muted-foreground font-medium">
-                    <Plane className="h-4 w-4 flex-shrink-0" />
-                    Pesawat
-                  </span>
-                  <span className="font-semibold text-slate-900">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
+            {showDeparture && (
+              <div className="flex items-start gap-2.5 text-sm">
+                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24 mt-0.5">
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  Tanggal
+                </span>
+                <div className="flex flex-col gap-1">
+                  {openFutureDepartures.length > 0 ? (
+                    <>
+                      {displayedDepartures.map((d, idx) => (
+                        <span key={idx} className="font-semibold text-slate-900">
+                          {renderDepartureDate(d)}
+                        </span>
+                      ))}
+                      {hasMoreDepartures && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mt-1">
+                                Lihat tanggal lainnya <Info className="h-3 w-3" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="p-3 max-w-xs">
+                              <p className="font-bold text-xs mb-2 border-bottom pb-1">Jadwal Keberangkatan Lainnya:</p>
+                              <div className="grid grid-cols-1 gap-1">
+                                {openFutureDepartures.slice(3).map((d, idx) => (
+                                  <div key={idx} className="text-xs py-1 border-b border-slate-100 last:border-0">
+                                    {renderDepartureDate(d)}
+                                  </div>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </>
+                  ) : (
+                    <span className="font-semibold text-slate-900">Segera Hadir</span>
+                  )}
                 </div>
-              )}
-              {showHotel && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="flex items-center gap-2.5 text-muted-foreground font-medium">
-                    <Hotel className="h-4 w-4 flex-shrink-0" />
-                    Hotel
-                  </span>
-                  <span className="font-semibold text-slate-900">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+
+            {showAirline && (
+              <div className="flex items-center gap-2.5 text-sm">
+                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24">
+                  <Plane className="h-4 w-4 flex-shrink-0" />
+                  Pesawat
+                </span>
+                <span className="font-semibold text-slate-900">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
+              </div>
+            )}
+
+            {showHotel && (
+              <div className="flex items-center gap-2.5 text-sm">
+                <span className="flex items-center gap-2.5 text-muted-foreground font-medium w-24">
+                  <Hotel className="h-4 w-4 flex-shrink-0" />
+                  Hotel
+                </span>
+                <span className="font-semibold text-slate-900">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
+              </div>
+            )}
+          </div>
 
           <div className="mt-auto pt-4 border-t flex items-center justify-between">
             <div>
