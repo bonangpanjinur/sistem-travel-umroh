@@ -311,14 +311,20 @@ export function PackageCard({
           {(showAirline || showHotel) && (
             <div className="space-y-2 mb-6">
               {showAirline && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Pesawat</span>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Plane className="h-3.5 w-3.5" />
+                    Pesawat
+                  </span>
                   <span className="font-medium">{nearestDeparture?.airline?.name || pkg.airline?.name || "TBA"}</span>
                 </div>
               )}
               {showHotel && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Hotel</span>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Hotel className="h-3.5 w-3.5" />
+                    Hotel
+                  </span>
                   <span className="font-medium">Bintang {nearestDeparture?.hotel_makkah?.star_rating || pkg.hotel_makkah?.star_rating || "4"}</span>
                 </div>
               )}
