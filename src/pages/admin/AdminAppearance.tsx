@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square } from "lucide-react";
+import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu } from "lucide-react";
 import { ThemeSelector } from "@/components/admin/appearance/ThemeSelector";
 import { ColorSettings } from "@/components/admin/appearance/ColorSettings";
 import { TypographySettings } from "@/components/admin/appearance/TypographySettings";
@@ -10,6 +10,7 @@ import { PageBuilder } from "@/components/admin/appearance/PageBuilder";
 import { LivePreview } from "@/components/admin/appearance/LivePreview";
 import { CustomSectionEditor } from "@/components/admin/appearance/CustomSectionEditor";
 import { TemplateSelector } from "@/components/admin/appearance/TemplateSelector";
+import { NavLinksEditor } from "@/components/admin/appearance/NavLinksEditor";
 import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export default function AdminAppearance() {
       {showPreview && <LivePreview className="mb-6" />}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
           <TabsTrigger value="template" className="gap-2">
             <LayoutTemplate className="h-4 w-4" />
             <span className="hidden sm:inline">Template</span>
@@ -91,6 +92,10 @@ export default function AdminAppearance() {
           <TabsTrigger value="package-design" className="gap-2">
             <Square className="h-4 w-4" />
             <span className="hidden sm:inline">Card Paket</span>
+          </TabsTrigger>
+          <TabsTrigger value="nav-menu" className="gap-2">
+            <Menu className="h-4 w-4" />
+            <span className="hidden sm:inline">Menu Header</span>
           </TabsTrigger>
         </TabsList>
 
@@ -125,6 +130,9 @@ export default function AdminAppearance() {
         </TabsContent>
         <TabsContent value="package-design">
           {settings && <PackageDesignSettings settings={settings} />}
+        </TabsContent>
+        <TabsContent value="nav-menu">
+          {settings && <NavLinksEditor settings={settings} />}
         </TabsContent>
       </Tabs>
     </div>
