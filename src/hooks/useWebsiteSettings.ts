@@ -63,6 +63,8 @@ export interface WebsiteSettings {
   cta_button_text: string | null;
   cta_button_link: string | null;
   featured_packages_count: number | null;
+  package_card_layout: 'modern' | 'classic' | 'minimal' | null;
+  package_card_image_ratio: '16/10' | '1/1' | '3/4' | '9/6' | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -102,6 +104,8 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     cta_button_text: raw.cta_button_text ?? null,
     cta_button_link: raw.cta_button_link ?? null,
     featured_packages_count: raw.featured_packages_count ?? null,
+    package_card_layout: raw.package_card_layout ?? 'modern',
+    package_card_image_ratio: raw.package_card_image_ratio ?? '16/10',
   };
 };
 

@@ -4,24 +4,26 @@ import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { PackageSearch } from '@/components/packages/PackageSearch';
 import { PackageCard } from '@/components/packages/PackageCard';
 import { usePackages } from '@/hooks/usePackages';
+import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Grid3X3, List, SlidersHorizontal, LayoutGrid, Square, RectangleHorizontal } from 'lucide-react';
+import { Grid3X3, List, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 
 export default function PackageList() {
   const [searchParams] = useSearchParams();
   const { data: packages = [], isLoading } = usePackages();
+  const { data: settings } = useWebsiteSettings();
+  
   const [sortBy, setSortBy] = useState('price_asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   
-  // Card Design Options
-  const [cardLayout, setCardLayout] = useState<'modern' | 'classic' | 'minimal'>('modern');
-  const [imageRatio, setImageRatio] = useState<'16/10' | '1/1' | '3/4' | '9/6'>('16/10');
+  // Design settings from database
+  const cardLayout = settings?.package_card_layout || 'modern';
+  const imageRatio = settings?.package_card_image_ratio || '16/10';
 
   // Filter from URL params
   const q = searchParams.get('q')?.toLowerCase() || '';
@@ -135,61 +137,9 @@ export default function PackageList() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Card Customizer - Desktop */}
-              <div className="hidden lg:flex items-center gap-4 mr-4 border-r pr-4">
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] uppercase text-muted-foreground font-bold">Desain Card</Label>
-                  <Tabs value={cardLayout} onValueChange={(v: any) => setCardLayout(v)} className="h-8">
-                    <TabsList className="h-8 p-0.5">
-                      <TabsTrigger value="modern" className="text-[10px] px-2 h-7">Modern</TabsTrigger>
-                      <TabsTrigger value="classic" className="text-[10px] px-2 h-7">Classic</TabsTrigger>
-                      <TabsTrigger value="minimal" className="text-[10px] px-2 h-7">Minimal</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-                
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] uppercase text-muted-foreground font-bold">Rasio Foto</Label>
-                  <div className="flex items-center border rounded-md h-8 p-0.5 bg-muted/50">
-                    <Button 
-                      variant={imageRatio === '16/10' ? 'secondary' : 'ghost'} 
-                      size="icon" className="h-7 w-7" 
-                      onClick={() => setImageRatio('16/10')}
-                      title="16:10"
-                    >
-                      <RectangleHorizontal className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button 
-                      variant={imageRatio === '1/1' ? 'secondary' : 'ghost'} 
-                      size="icon" className="h-7 w-7" 
-                      onClick={() => setImageRatio('1/1')}
-                      title="1:1"
-                    >
-                      <Square className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button 
-                      variant={imageRatio === '3/4' ? 'secondary' : 'ghost'} 
-                      size="icon" className="h-7 w-7" 
-                      onClick={() => setImageRatio('3/4')}
-                      title="3:4"
-                    >
-                      <div className="w-2.5 h-3.5 border-2 border-current rounded-[1px]" />
-                    </Button>
-                    <Button 
-                      variant={imageRatio === '9/6' ? 'secondary' : 'ghost'} 
-                      size="icon" className="h-7 w-7" 
-                      onClick={() => setImageRatio('9/6')}
-                      title="9:6"
-                    >
-                      <div className="w-3.5 h-2.5 border-2 border-current rounded-[1px]" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
               {/* Sort */}
               <div className="flex flex-col gap-1">
-                <Label className="text-[10px] uppercase text-muted-foreground font-bold lg:hidden">Urutkan</Label>
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Urutkan</Label>
                 <Select value={sortBy} onValueChange={(value) => {
                   setSortBy(value);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -209,7 +159,7 @@ export default function PackageList() {
 
               {/* View Toggle */}
               <div className="flex flex-col gap-1">
-                <Label className="text-[10px] uppercase text-muted-foreground font-bold lg:hidden">Tampilan</Label>
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Tampilan</Label>
                 <div className="flex items-center border rounded-md h-9 p-0.5 bg-muted/50">
                   <Button
                     variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -270,8 +220,8 @@ export default function PackageList() {
                     <PackageCard 
                       key={pkg.id} 
                       pkg={pkg} 
-                      layout={cardLayout}
-                      imageRatio={imageRatio}
+                      layout={cardLayout as any}
+                      imageRatio={imageRatio as any}
                       viewMode={viewMode}
                     />
                   ))}

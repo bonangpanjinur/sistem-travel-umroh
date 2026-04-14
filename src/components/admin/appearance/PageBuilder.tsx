@@ -7,29 +7,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WebsiteSettings, HomepageSection, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
-import { Layout, Save, GripVertical, Eye, EyeOff, Upload, Loader2, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
+import { Layout, Save, GripVertical, Eye, EyeOff, Upload, Loader2, ExternalLink, ArrowUp, ArrowDown, Square, RectangleHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PageBuilderProps {
   settings: WebsiteSettings;
 }
 
-/**
- * PageBuilder Component
- * 
- * Manages the homepage layout and section ordering.
- * 
- * Current Implementation:
- * - Section reordering uses arrow buttons (up/down) for changing order
- * - Each section can be toggled on/off via switch
- * - Hero section content (title, subtitle, image, CTA) can be customized
- * 
- * Future Enhancement:
- * - Implement real drag-and-drop using dnd-kit or react-beautiful-dnd library
- * - This would provide better UX with visual feedback during dragging
- */
 export function PageBuilder({ settings }: PageBuilderProps) {
   const updateSettings = useUpdateWebsiteSettings();
   const [uploading, setUploading] = useState(false);
@@ -50,6 +37,13 @@ export function PageBuilder({ settings }: PageBuilderProps) {
     settings.featured_packages_count || 3
   );
 
+  const [cardLayout, setCardLayout] = useState<'modern' | 'classic' | 'minimal'>(
+    settings.package_card_layout || 'modern'
+  );
+  const [imageRatio, setImageRatio] = useState<'16/10' | '1/1' | '3/4' | '9/6'>(
+    settings.package_card_image_ratio || '16/10'
+  );
+
   useEffect(() => {
     setSections(settings.homepage_sections || []);
     setHeroContent({
@@ -60,6 +54,8 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       hero_cta_link: settings.hero_cta_link || "",
     });
     setPackageCount(settings.featured_packages_count || 3);
+    setCardLayout(settings.package_card_layout || 'modern');
+    setImageRatio(settings.package_card_image_ratio || '16/10');
   }, [settings]);
 
   const handleSave = () => {
@@ -67,6 +63,8 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       homepage_sections: sections,
       ...heroContent,
       featured_packages_count: packageCount,
+      package_card_layout: cardLayout,
+      package_card_image_ratio: imageRatio,
     });
   };
 
@@ -76,10 +74,6 @@ export function PageBuilder({ settings }: PageBuilderProps) {
     );
   };
 
-  /**
-   * Move section up or down in the order
-   * Updates the order field for all sections
-   */
   const moveSection = (id: string, direction: "up" | "down") => {
     const index = sections.findIndex((s) => s.id === id);
     if (
@@ -96,7 +90,6 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       newSections[index],
     ];
 
-    // Update order values to reflect new sequence
     newSections.forEach((s, i) => {
       s.order = i + 1;
     });
@@ -131,18 +124,12 @@ export function PageBuilder({ settings }: PageBuilderProps) {
 
   const getSectionIcon = (id: string) => {
     switch (id) {
-      case "hero":
-        return "🖼️";
-      case "featured_packages":
-        return "📦";
-      case "why_choose_us":
-        return "⭐";
-      case "testimonials":
-        return "💬";
-      case "cta":
-        return "🎯";
-      default:
-        return "📄";
+      case "hero": return "🖼️";
+      case "featured_packages": return "📦";
+      case "why_choose_us": return "⭐";
+      case "testimonials": return "💬";
+      case "cta": return "🎯";
+      default: return "📄";
     }
   };
 
@@ -156,7 +143,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
               <div>
                 <CardTitle>Page Builder</CardTitle>
                 <CardDescription>
-                  Atur urutan dan visibilitas section di halaman beranda
+                  Atur urutan section dan desain katalog paket
                 </CardDescription>
               </div>
             </div>
@@ -178,81 +165,128 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Section Order */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Urutan Section</CardTitle>
-            <CardDescription>
-              Gunakan tombol panah untuk mengubah urutan, toggle untuk show/hide
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {sections
-                .sort((a, b) => a.order - b.order)
-                .map((section, index) => (
-                  <div
-                    key={section.id}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg border transition-colors",
-                      section.enabled
-                        ? "bg-background hover:bg-muted/50"
-                        : "bg-muted/50 opacity-60"
-                    )}
-                  >
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        disabled={index === 0}
-                        onClick={() => moveSection(section.id, "up")}
-                        title="Pindahkan ke atas"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        disabled={index === sections.length - 1}
-                        onClick={() => moveSection(section.id, "down")}
-                        title="Pindahkan ke bawah"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
+        {/* Section Order & Package Design */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Urutan Section</CardTitle>
+              <CardDescription>
+                Gunakan tombol panah untuk mengubah urutan, toggle untuk show/hide
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {sections
+                  .sort((a, b) => a.order - b.order)
+                  .map((section, index) => (
+                    <div
+                      key={section.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg border transition-colors",
+                        section.enabled
+                          ? "bg-background hover:bg-muted/50"
+                          : "bg-muted/50 opacity-60"
+                      )}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          disabled={index === 0}
+                          onClick={() => moveSection(section.id, "up")}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          disabled={index === sections.length - 1}
+                          onClick={() => moveSection(section.id, "down")}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-xl">{getSectionIcon(section.id)}</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{section.title}</p>
+                      </div>
+                      <Switch
+                        checked={section.enabled}
+                        onCheckedChange={() => toggleSection(section.id)}
+                      />
                     </div>
-                    <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-xl">{getSectionIcon(section.id)}</span>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{section.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {section.enabled ? "Ditampilkan" : "Disembunyikan"}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={section.enabled}
-                      onCheckedChange={() => toggleSection(section.id)}
-                      aria-label={`Toggle ${section.title}`}
-                    />
-                  </div>
-                ))}
-            </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Featured Packages Count Setting */}
-            <div className="mt-6 pt-6 border-t space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Jumlah Paket Unggulan</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Tentukan berapa banyak paket yang ditampilkan di halaman utama
-                  </p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">📦 Desain Katalog Paket</CardTitle>
+              <CardDescription>
+                Atur tampilan card paket di halaman publik
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <Label>Layout Card</Label>
+                <Tabs value={cardLayout} onValueChange={(v: any) => setCardLayout(v)} className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="modern">Modern</TabsTrigger>
+                    <TabsTrigger value="classic">Classic</TabsTrigger>
+                    <TabsTrigger value="minimal">Minimal</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Rasio Foto</Label>
+                <div className="flex items-center gap-2 p-1 border rounded-md bg-muted/20">
+                  <Button 
+                    variant={imageRatio === '16/10' ? 'secondary' : 'ghost'} 
+                    className="flex-1 gap-2"
+                    onClick={() => setImageRatio('16/10')}
+                  >
+                    <RectangleHorizontal className="h-4 w-4" />
+                    16:10
+                  </Button>
+                  <Button 
+                    variant={imageRatio === '1/1' ? 'secondary' : 'ghost'} 
+                    className="flex-1 gap-2"
+                    onClick={() => setImageRatio('1/1')}
+                  >
+                    <Square className="h-4 w-4" />
+                    1:1
+                  </Button>
+                  <Button 
+                    variant={imageRatio === '3/4' ? 'secondary' : 'ghost'} 
+                    className="flex-1 gap-2"
+                    onClick={() => setImageRatio('3/4')}
+                  >
+                    <div className="w-3 h-4 border-2 border-current rounded-[1px]" />
+                    3:4
+                  </Button>
+                  <Button 
+                    variant={imageRatio === '9/6' ? 'secondary' : 'ghost'} 
+                    className="flex-1 gap-2"
+                    onClick={() => setImageRatio('9/6')}
+                  >
+                    <div className="w-4 h-3 border-2 border-current rounded-[1px]" />
+                    9:6
+                  </Button>
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Jumlah Paket di Beranda</Label>
                 <Select 
                   value={packageCount.toString()} 
                   onValueChange={(val) => setPackageCount(parseInt(val))}
                 >
-                  <SelectTrigger className="w-[120px]">
+                  <SelectTrigger>
                     <SelectValue placeholder="Pilih jumlah" />
                   </SelectTrigger>
                   <SelectContent>
@@ -263,13 +297,9 @@ export function PageBuilder({ settings }: PageBuilderProps) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
-              <p className="font-medium mb-1">💡 Tips:</p>
-              <p>Gunakan tombol panah untuk mengubah urutan section. Perubahan akan disimpan saat Anda klik tombol "Simpan".</p>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Hero Section Editor */}
         <Card>
@@ -288,7 +318,6 @@ export function PageBuilder({ settings }: PageBuilderProps) {
                 onChange={(e) =>
                   setHeroContent((prev) => ({ ...prev, hero_title: e.target.value }))
                 }
-                placeholder="Wujudkan Perjalanan Spiritual Anda"
               />
             </div>
 
@@ -300,76 +329,73 @@ export function PageBuilder({ settings }: PageBuilderProps) {
                 onChange={(e) =>
                   setHeroContent((prev) => ({ ...prev, hero_subtitle: e.target.value }))
                 }
-                placeholder="Pengalaman umroh dan haji terbaik..."
-                rows={2}
+                rows={3}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Background Image</Label>
-              <div className="flex items-start gap-4">
-                {heroContent.hero_image_url ? (
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden border">
+              <Label>Gambar Hero</Label>
+              <div className="flex flex-col gap-4">
+                {heroContent.hero_image_url && (
+                  <div className="relative aspect-video rounded-lg overflow-hidden border">
                     <img
                       src={heroContent.hero_image_url}
-                      alt="Hero"
-                      className="w-full h-full object-cover"
+                      alt="Hero Preview"
+                      className="object-cover w-full h-full"
                     />
                   </div>
-                ) : null}
-                <div className="flex-1">
-                  <label className="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                    <div className="text-center">
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleHeroImageUpload(file);
+                    }}
+                    className="hidden"
+                    id="hero-upload"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    asChild
+                    disabled={uploading}
+                  >
+                    <label htmlFor="hero-upload" className="cursor-pointer">
                       {uploading ? (
-                        <>
-                          <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">Uploading...</p>
-                        </>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
-                        <>
-                          <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm font-medium">Klik untuk upload</p>
-                          <p className="text-xs text-muted-foreground">PNG, JPG, WebP (Max 5MB)</p>
-                        </>
+                        <Upload className="h-4 w-4 mr-2" />
                       )}
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleHeroImageUpload(file);
-                      }}
-                      disabled={uploading}
-                    />
-                  </label>
+                      Upload Gambar
+                    </label>
+                  </Button>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="hero_cta_text">CTA Button Text</Label>
-              <Input
-                id="hero_cta_text"
-                value={heroContent.hero_cta_text}
-                onChange={(e) =>
-                  setHeroContent((prev) => ({ ...prev, hero_cta_text: e.target.value }))
-                }
-                placeholder="Mulai Booking Sekarang"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="hero_cta_link">CTA Button Link</Label>
-              <Input
-                id="hero_cta_link"
-                value={heroContent.hero_cta_link}
-                onChange={(e) =>
-                  setHeroContent((prev) => ({ ...prev, hero_cta_link: e.target.value }))
-                }
-                placeholder="/packages"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="hero_cta_text">Teks Tombol CTA</Label>
+                <Input
+                  id="hero_cta_text"
+                  value={heroContent.hero_cta_text}
+                  onChange={(e) =>
+                    setHeroContent((prev) => ({ ...prev, hero_cta_text: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="hero_cta_link">Link Tombol CTA</Label>
+                <Input
+                  id="hero_cta_link"
+                  value={heroContent.hero_cta_link}
+                  onChange={(e) =>
+                    setHeroContent((prev) => ({ ...prev, hero_cta_link: e.target.value }))
+                  }
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
