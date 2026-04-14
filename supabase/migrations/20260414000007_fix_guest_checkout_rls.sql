@@ -1,6 +1,7 @@
 -- Fix Guest Checkout RLS Policy
 -- This migration resolves the "new row violates row-level security policy for table customers" error
 -- by ensuring a clear, non-conflicting RLS policy that allows guest checkout
+-- Updated: Removed 'admin' from app_role check to match the database enum
 
 -- ============================================================================
 -- 1. CLEANUP: Drop all conflicting policies for customers
@@ -23,10 +24,11 @@ WITH CHECK (
   -- Case 2: Authenticated user - must be their own record
   OR auth.uid() = user_id
   -- Case 3: Admin/staff can insert any record
+  -- Note: Using roles from public.app_role enum (super_admin, owner, branch_manager, etc.)
   OR EXISTS (
     SELECT 1 FROM public.user_roles 
     WHERE user_id = auth.uid() 
-    AND role IN ('super_admin', 'owner', 'branch_manager', 'admin')
+    AND role IN ('super_admin', 'owner', 'branch_manager')
   )
 );
 
