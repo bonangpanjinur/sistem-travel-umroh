@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Save, RotateCcw, MapPin, Phone, Mail, MessageCircle } from 'lucide-react';
 import { useContactPageContent, ContactPageContent } from '@/hooks/useContactPageContent';
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { extractIframeUrl } from '@/lib/utils';
 
 const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -70,7 +71,7 @@ export function ContactPageEditor() {
         hero_subtitle: data.hero_subtitle,
         form_title: data.form_title,
         operating_hours: data.operating_hours,
-        map_url: data.map_url,
+        map_url: extractIframeUrl(data.map_url || ''),
       };
 
       // Check if record exists in DB
@@ -253,7 +254,7 @@ export function ContactPageEditor() {
                 <Textarea
                   id="map_url"
                   value={formData.map_url || ''}
-                  onChange={(e) => setFormData({ ...formData, map_url: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, map_url: extractIframeUrl(e.target.value) })}
                   placeholder="https://www.google.com/maps/embed?pb=..."
                   rows={3}
                 />

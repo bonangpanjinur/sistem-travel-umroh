@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { extractIframeUrl } from '@/lib/utils';
 import { 
   MapPin, Phone, Mail, Clock, Send, MessageCircle,
   Facebook, Instagram, Youtube, MessageSquare
@@ -314,7 +315,7 @@ export default function ContactPage() {
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <iframe
-                src={contactContent.map_url}
+                src={extractIframeUrl(contactContent.map_url)}
                 width="100%"
                 height="400"
                 style={{ border: 0, borderRadius: '0.5rem' }}
