@@ -113,13 +113,13 @@ export default function AdminRoutes() {
       <Route path="leads" element={<ProtectedRoute permission="leads.view"><LazyPage><AdminLeads /></LazyPage></ProtectedRoute>} />
       <Route path="leads/analytics" element={<ProtectedRoute permission="analytics.view"><LazyPage><AdminLeadAnalytics /></LazyPage></ProtectedRoute>} />
       <Route path="leads/:id" element={<ProtectedRoute permission="leads.view"><LazyPage><AdminLeadDetail /></LazyPage></ProtectedRoute>} />
-      <Route path="room-assignments" element={<ProtectedRoute permission="operational.manage"><LazyPage><AdminRoomAssignments /></LazyPage></ProtectedRoute>} />
+      <Route path="room-assignments" element={<ProtectedRoute permission="operational.rooms.view"><LazyPage><AdminRoomAssignments /></LazyPage></ProtectedRoute>} />
       <Route path="reports" element={<ProtectedRoute permission="reports.view"><LazyPage><AdminReports /></LazyPage></ProtectedRoute>} />
       <Route path="advanced-reports" element={<ProtectedRoute permission="reports.view"><LazyPage><AdminAdvancedReports /></LazyPage></ProtectedRoute>} />
       <Route path="scheduled-reports" element={<ProtectedRoute permission="reports.view"><LazyPage><AdminScheduledReports /></LazyPage></ProtectedRoute>} />
       <Route path="hr" element={<ProtectedRoute permission="hr.employees.view"><LazyPage><AdminHR /></LazyPage></ProtectedRoute>} />
       <Route path="haji" element={<ProtectedRoute permission="operational.view"><LazyPage><AdminHajiManagement /></LazyPage></ProtectedRoute>} />
-      <Route path="itinerary-templates" element={<ProtectedRoute permission="packages.view"><LazyPage><AdminItineraryTemplates /></LazyPage></ProtectedRoute>} />
+      <Route path="itinerary-templates" element={<ProtectedRoute permission="itinerary.view"><LazyPage><AdminItineraryTemplates /></LazyPage></ProtectedRoute>} />
       <Route path="offline-content" element={<ProtectedRoute permission="offline_content.view"><LazyPage><AdminOfflineContent /></LazyPage></ProtectedRoute>} />
       <Route path="documents-generator" element={<ProtectedRoute permission="documents.generator.view"><LazyPage><AdminDocumentGenerator /></LazyPage></ProtectedRoute>} />
       <Route path="security-audit" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminSecurityAudit /></LazyPage></ProtectedRoute>} />
@@ -136,8 +136,8 @@ export default function AdminRoutes() {
       <Route path="finance/ar" element={<ProtectedRoute permission="payments.view_all"><LazyPage><AdminFinanceAR /></LazyPage></ProtectedRoute>} />
       <Route path="finance/ap" element={<ProtectedRoute permission="payments.view_all"><LazyPage><AdminFinanceAP /></LazyPage></ProtectedRoute>} />
       <Route path="hr/payroll" element={<ProtectedRoute permission="hr.payroll.view"><LazyPage><AdminPayroll /></LazyPage></ProtectedRoute>} />
-      <Route path="manasik" element={<ProtectedRoute permission="operational.view"><LazyPage><AdminManasik /></LazyPage></ProtectedRoute>} />
-      <Route path="visa" element={<ProtectedRoute permission="operational.visa"><LazyPage><AdminVisaManagement /></LazyPage></ProtectedRoute>} />
+      <Route path="manasik" element={<ProtectedRoute permission="operational.manasik.view"><LazyPage><AdminManasik /></LazyPage></ProtectedRoute>} />
+      <Route path="visa" element={<ProtectedRoute permission="departures.visa.view"><LazyPage><AdminVisaManagement /></LazyPage></ProtectedRoute>} />
     </Route>
   );
 }

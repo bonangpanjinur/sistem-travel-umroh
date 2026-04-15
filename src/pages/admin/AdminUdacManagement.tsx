@@ -11,7 +11,8 @@ import {
   Loader2, Shield, Save, Users, Search, Filter, Settings, 
   Activity, Lock, Unlock, ChevronRight, ChevronDown, 
   RefreshCcw, AlertCircle, CheckCircle2, Info,
-  LayoutGrid, List, ShieldCheck, ShieldAlert, History
+  LayoutGrid, List, ShieldCheck, ShieldAlert, History,
+  CheckSquare, Square
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -149,12 +150,42 @@ export default function AdminUdacManagement() {
     });
   };
 
+  const handleSelectAllInGroup = (group: string, select: boolean) => {
+    const groupPerms = permissionMatrix.filter(p => group === "all" || p.group_name === group);
+    const newPending = { ...pendingChanges };
+    
+    groupPerms.forEach(p => {
+      const rp = rolePermissions.find((rp: any) => rp.permission_key === p.key);
+      const originalValue = rp?.is_enabled ?? false;
+      
+      if (select !== originalValue) {
+        newPending[p.key] = select;
+      } else {
+        delete newPending[p.key];
+      }
+    });
+    
+    setPendingChanges(newPending);
+  };
+
   const handleSave = () => {
     const updates = Object.entries(pendingChanges).map(([key, isEnabled]) => ({ key, isEnabled }));
     saveMutation.mutate(updates);
   };
 
   const hasChanges = Object.keys(pendingChanges).length > 0;
+
+  const groupStats = useMemo(() => {
+    const stats: Record<string, { total: number; enabled: number }> = {};
+    groups.forEach(g => {
+      const perms = permissionMatrix.filter(p => g === "all" || p.group_name === g);
+      stats[g] = {
+        total: perms.length,
+        enabled: perms.filter(p => p.isEnabled).length
+      };
+    });
+    return stats;
+  }, [groups, permissionMatrix]);
 
   return (
     <TooltipProvider>
@@ -169,7 +200,7 @@ export default function AdminUdacManagement() {
               <h1 className="text-2xl font-bold tracking-tight">
                 Universal Dynamic Access Control
               </h1>
-              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">v2.0 Enhanced</Badge>
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">v2.1 Granular</Badge>
             </div>
             <p className="text-sm text-muted-foreground max-w-2xl">
               Konfigurasi hak akses granular untuk setiap peran. Perubahan akan langsung berdampak pada UI dan API secara real-time.
@@ -338,14 +369,42 @@ export default function AdminUdacManagement() {
                     >
                       {group === "all" ? "Semua Grup" : group}
                       <Badge variant="secondary" className="ml-2 h-4 px-1 text-[10px]">
-                        {permissionMatrix.filter(p => group === "all" || p.group_name === group).length}
+                        {groupStats[group]?.total || 0}
                       </Badge>
                     </TabsTrigger>
                   ))}
                 </TabsList>
               </ScrollArea>
 
-              <TabsContent value={activeGroup} className="mt-6">
+              <TabsContent value={activeGroup} className="mt-6 space-y-4">
+                {/* Bulk Actions for Group */}
+                <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border border-dashed">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Mengelola {filteredPermissions.length} izin dalam grup ini
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-7 text-[10px] gap-1.5"
+                      onClick={() => handleSelectAllInGroup(activeGroup, true)}
+                    >
+                      <CheckSquare className="h-3 w-3" /> Pilih Semua
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-7 text-[10px] gap-1.5"
+                      onClick={() => handleSelectAllInGroup(activeGroup, false)}
+                    >
+                      <Square className="h-3 w-3" /> Hapus Semua
+                    </Button>
+                  </div>
+                </div>
+
                 {(isMasterLoading || isRoleLoading) ? (
                   <div className="flex flex-col items-center justify-center py-32 gap-4">
                     <Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" />
