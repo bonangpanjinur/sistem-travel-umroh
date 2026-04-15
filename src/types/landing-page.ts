@@ -23,4 +23,10 @@ export interface LandingPageData {
   is_published: boolean;
   created_at?: string;
   updated_at?: string;
+  agent?: {
+    id: string;
+    company_name: string;
+    user_id: string;
+    profiles?: { phone: string } | { phone: string }[];
+  };
 }
