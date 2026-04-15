@@ -49,6 +49,8 @@ const AdminScheduledReports = lazy(() => import("@/pages/admin/AdminScheduledRep
 const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
 const AdminStaticPages = lazy(() => import("@/pages/admin/AdminStaticPages"));
 const AdminTestimonials = lazy(() => import("@/pages/admin/AdminTestimonials"));
+const AdminLandingPages = lazy(() => import("@/pages/admin/AdminLandingPages"));
+const AdminLandingPageEditor = lazy(() => import("@/pages/admin/AdminLandingPageEditor"));
 const AdminBookingCreate = lazy(() => import("@/pages/admin/AdminBookingCreate"));
 const EquipmentPage = lazy(() => import("@/pages/operational/EquipmentPage"));
 const AdminMarketingMaterials = lazy(() => import("@/pages/admin/AdminMarketingMaterials"));
@@ -121,6 +123,8 @@ export default function AdminRoutes() {
       <Route path="appearance" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminAppearance /></LazyPage></ProtectedRoute>} />
       <Route path="static-pages" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminStaticPages /></LazyPage></ProtectedRoute>} />
       <Route path="testimonials" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminTestimonials /></LazyPage></ProtectedRoute>} />
+      <Route path="landing-pages" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminLandingPages /></LazyPage></ProtectedRoute>} />
+      <Route path="landing-pages/:id" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminLandingPageEditor /></LazyPage></ProtectedRoute>} />
       <Route path="settings" element={<ProtectedRoute permission="settings.manage"><LazyPage><AdminSettings /></LazyPage></ProtectedRoute>} />
       <Route path="package-types" element={<ProtectedRoute permission="packages.view"><LazyPage><AdminPackageTypes /></LazyPage></ProtectedRoute>} />
       <Route path="finance/ar" element={<ProtectedRoute permission="payments.view_all"><LazyPage><AdminFinanceAR /></LazyPage></ProtectedRoute>} />

@@ -1,0 +1,162 @@
+import React, { useState } from 'react';
+import { useLandingPages, useDeleteLandingPage, useCreateLandingPage } from "@/hooks/useLandingPages";
+import { Button } from "@/components/ui/button";
+import { Plus, Edit, Trash2, ExternalLink, Globe, Lock } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Link, useNavigate } from "react-router-dom";
+import { LoadingState } from "@/components/shared/LoadingState";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export default function AdminLandingPages() {
+  const { data: landingPages, isLoading } = useLandingPages();
+  const deleteMutation = useDeleteLandingPage();
+  const createMutation = useCreateLandingPage();
+  const navigate = useNavigate();
+  
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newLP, setNewLP] = useState({ title: '', slug: '' });
+
+  const handleDelete = (id: string) => {
+    if (window.confirm("Apakah Anda yakin ingin menghapus landing page ini?")) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const handleCreate = () => {
+    createMutation.mutate({
+      ...newLP,
+      sections: [],
+      whatsapp_source_type: 'global',
+      is_published: false
+    }, {
+      onSuccess: (data) => {
+        setIsCreateOpen(false);
+        navigate(`/admin/landing-pages/${data.id}`);
+      }
+    });
+  };
+
+  if (isLoading) return <LoadingState />;
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Landing Page Builder</h1>
+          <p className="text-gray-500">Kelola halaman penawaran khusus Anda di sini.</p>
+        </div>
+        
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Buat Landing Page Baru
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Buat Landing Page Baru</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Judul Halaman</Label>
+                <Input 
+                  id="title" 
+                  placeholder="Contoh: Promo Umrah Ramadhan 2024" 
+                  value={newLP.title}
+                  onChange={(e) => setNewLP({...newLP, title: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug URL (tanpa spasi)</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-sm">/lp/</span>
+                  <Input 
+                    id="slug" 
+                    placeholder="promo-umrah-ramadhan" 
+                    value={newLP.slug}
+                    onChange={(e) => setNewLP({...newLP, slug: e.target.value.toLowerCase().replace(/\s+/g, '-')})}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Batal</Button>
+              <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleCreate} disabled={!newLP.title || !newLP.slug}>
+                Lanjutkan ke Editor
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Judul & URL</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>WhatsApp Source</TableHead>
+              <TableHead>Dibuat Pada</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {landingPages?.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                  Belum ada landing page. Klik tombol di atas untuk membuat yang pertama.
+                </TableCell>
+              </TableRow>
+            ) : (
+              landingPages?.map((lp) => (
+                <TableRow key={lp.id}>
+                  <TableCell>
+                    <div className="font-bold text-gray-900">{lp.title}</div>
+                    <div className="text-sm text-gray-500 flex items-center gap-1">
+                      <Globe className="w-3 h-3" />
+                      /lp/{lp.slug}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {lp.is_published ? (
+                      <Badge className="bg-green-100 text-green-700 border-green-200">Published</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-gray-500">Draft</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="capitalize">{lp.whatsapp_source_type}</Badge>
+                  </TableCell>
+                  <TableCell className="text-gray-500 text-sm">
+                    {lp.created_at ? new Date(lp.created_at).toLocaleDateString('id-ID') : '-'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/lp/${lp.slug}`} target="_blank">
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/admin/landing-pages/${lp.id}`}>
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(lp.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}

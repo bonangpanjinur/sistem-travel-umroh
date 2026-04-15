@@ -36,6 +36,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'CRM Leads', icon: Target, path: '/admin/leads', permission: 'leads.view' },
       { label: 'Kupon', icon: Gift, path: '/admin/coupons', permission: 'marketing.view' },
+      { label: 'Landing Page', icon: Layout, path: '/admin/landing-pages', permission: 'settings.manage' },
     ]
   },
   {
