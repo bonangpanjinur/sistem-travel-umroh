@@ -54,17 +54,6 @@ export default defineConfig(({ mode }) => ({
               },
             },
           },
-          {
-            urlPattern: /\/assets\/.+\.js$/,
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "js-chunks",
-              expiration: {
-                maxEntries: 150,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
-              },
-            },
-          },
         ],
         skipWaiting: true,
         clientsClaim: true,

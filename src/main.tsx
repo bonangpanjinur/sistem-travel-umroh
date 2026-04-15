@@ -23,20 +23,34 @@ let reloadAttempts = 0;
 const MAX_RELOAD_ATTEMPTS = 3;
 
 window.addEventListener('error', (event) => {
-  const isChunkError = event.message?.includes('Failed to fetch dynamically imported module') || 
-      (event.target && (event.target as any).tagName === 'SCRIPT' && (event.target as any).src.includes('/assets/'));
+  // Detect chunk loading errors and MIME type errors (loading HTML instead of JS)
+  const isChunkError = 
+    event.message?.includes('Failed to fetch dynamically imported module') || 
+    event.message?.includes('Expected a JavaScript-or-Wasm module script') ||
+    (event.target && (event.target as any).tagName === 'SCRIPT' && (event.target as any).src.includes('/assets/'));
   
   if (isChunkError) {
-    reloadAttempts++;
-    if (reloadAttempts <= MAX_RELOAD_ATTEMPTS) {
-      console.warn(`Chunk load error detected (attempt ${reloadAttempts}/${MAX_RELOAD_ATTEMPTS}), reloading page...`);
-      // Add a small delay before reload to avoid rapid reload loops
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } else {
-      console.error('Max reload attempts reached. Chunk loading failed persistently.');
+    // Check if we've already reloaded recently to prevent infinite loops
+    const lastReload = sessionStorage.getItem('last-chunk-reload');
+    const now = Date.now();
+    
+    // If we reloaded less than 10 seconds ago, don't reload again automatically
+    if (lastReload && (now - parseInt(lastReload)) < 10000) {
+      console.error('Persistent chunk loading error detected. Manual refresh may be required.');
+      return;
     }
+
+    sessionStorage.setItem('last-chunk-reload', now.toString());
+    console.warn('Chunk load error or MIME mismatch detected, reloading page to fetch latest version...');
+    
+    // Clear service worker cache if possible
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   }
 }, true);
 
