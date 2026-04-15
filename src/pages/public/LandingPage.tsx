@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from "react-router-dom";
 import { useLandingPage } from "@/hooks/useLandingPages";
 import { SectionRenderer } from "@/components/landing-builder/SectionRenderer";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { Helmet } from "react-helmet-async";
 
 export default function LandingPage() {
   const { slug } = useParams();
@@ -28,13 +27,16 @@ export default function LandingPage() {
 
   const waNumber = getWANumber();
 
+  useEffect(() => {
+    document.title = lp.meta_title || lp.title;
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', lp.meta_description || '');
+    }
+  }, [lp]);
+
   return (
     <div className="flex flex-col w-full min-h-screen bg-white">
-      <Helmet>
-        <title>{lp.meta_title || lp.title}</title>
-        <meta name="description" content={lp.meta_description} />
-        {lp.og_image_url && <meta property="og:image" content={lp.og_image_url} />}
-      </Helmet>
       
       <main className="flex-grow">
         {lp.sections
