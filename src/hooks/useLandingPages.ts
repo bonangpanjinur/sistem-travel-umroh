@@ -93,9 +93,12 @@ export function useUpdateLandingPage() {
   
   return useMutation({
     mutationFn: async ({ id, ...updateData }: Partial<LandingPageData> & { id: string }) => {
+      // Remove joined data that are not columns in the landing_pages table
+      const { agent, ...cleanData } = updateData as any;
+      
       const { data, error } = await supabase
         .from("landing_pages")
-        .update(updateData)
+        .update(cleanData)
         .eq("id", id)
         .select()
         .single();
