@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { usePermissions } from "@/hooks/usePermissions";
+import { useUdacPermissions } from "@/hooks/useUdacPermissions";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
 import { AppRole } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -123,6 +123,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users.view' },
       { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions', permission: 'users.view' },
+      { label: 'UDAC Management', icon: Shield, path: '/admin/udac', permission: 'users.view' },
       { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', permission: 'settings.manage' },
       { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings.manage' },
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
@@ -136,7 +137,7 @@ const NAV_GROUPS = [
 
 function AdminLayout() {
   const { user, profile, signOut, isAdmin, roles, isLoading: authLoading } = useAuth();
-  const { hasPermission, isLoading: permsLoading } = usePermissions();
+  const { hasPermission, isLoading: permsLoading } = useUdacPermissions();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -209,7 +210,7 @@ function AdminLayout() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Memuat Navigasi...</p>
+          <p className="text-muted-foreground">Memuat Navigasi UDAC...</p>
         </div>
       </div>
     );
