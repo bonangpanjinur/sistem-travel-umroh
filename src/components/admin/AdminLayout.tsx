@@ -21,6 +21,7 @@ import {
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from 'lucide-react';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Grouped navigation for better organization
 interface NavItem {
