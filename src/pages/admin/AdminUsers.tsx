@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { AppRole } from "@/types/database";
 import { UserPermissionsManager } from "@/components/admin/UserPermissionsManager";
+import { sortRoles } from "@/lib/constants";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
@@ -128,12 +129,12 @@ export default function AdminUsers() {
       const usersWithRoles: UserWithRoles[] = (profiles || []).map(profile => ({
         ...profile,
         email: emailMap.get(profile.user_id) || null,
-        roles: (roles || []).filter(r => r.user_id === profile.user_id).map(r => ({
+        roles: sortRoles((roles || []).filter(r => r.user_id === profile.user_id).map(r => ({
           id: r.id,
           role: r.role as AppRole,
           branch_id: r.branch_id,
           branch_name: r.branch_id ? branchMap.get(r.branch_id) : undefined
-        })),
+        }))),
         hasEmployeeRecord: employeeMap.has(profile.user_id),
         employeeCode: employeeMap.get(profile.user_id),
       }));

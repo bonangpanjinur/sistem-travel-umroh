@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, createContext, useContext, ReactNode } fro
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole, Profile } from '@/types/database';
+import { sortRoles } from '@/lib/constants';
 
 interface AuthContextType {
   user: User | null;
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId);
       
       if (rolesData) {
-        setRoles(rolesData.map(r => r.role as AppRole));
+        setRoles(sortRoles(rolesData.map(r => r.role as AppRole)));
         const branchRole = rolesData.find(r => r.branch_id);
         setBranchId(branchRole?.branch_id || null);
       }

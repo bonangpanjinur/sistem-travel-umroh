@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { sortRoles } from '@/lib/constants';
 
 interface User {
   id: string;
@@ -79,9 +80,9 @@ export default function UserPermissionsPage() {
       // Map users with their roles
       const usersWithRoles = (authUsers || []).map((user) => ({
         ...user,
-        roles: userRoles
+        roles: sortRoles(userRoles
           ?.filter((ur) => ur.user_id === user.id)
-          .map((ur) => ur.role) || [],
+          .map((ur) => ur.role) || []),
       }));
 
       setUsers(usersWithRoles as any);

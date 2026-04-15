@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUdacPermissions } from "@/hooks/useUdacPermissions";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
 import { AppRole } from "@/types/database";
+import { sortRoles } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./NotificationBell";
 import { CommandPalette } from "./CommandPalette";
@@ -401,7 +402,7 @@ function AdminLayout() {
             <div className="flex items-center gap-3 pl-1">
               <div className="flex flex-col items-end hidden sm:flex">
                 <span className="text-xs font-bold leading-none">{profile?.full_name || user?.email}</span>
-                <span className="text-[10px] text-muted-foreground capitalize">{roles?.[0]?.replace('_', ' ') || ''}</span>
+                <span className="text-[10px] text-muted-foreground capitalize">{sortRoles(roles || [])?.[0]?.replace('_', ' ') || ''}</span>
               </div>
               <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-bold text-sm border-2 border-background shadow-sm">
                 {profile?.full_name?.charAt(0) || user?.email?.charAt(0)}
