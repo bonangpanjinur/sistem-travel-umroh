@@ -16,7 +16,7 @@ import {
   HeadphonesIcon, Palette, ShieldCheck, Key, MessageSquare,
   UserCog, BookOpen, MapPin, TrendingUp, FileText, Share2, Search,
   FileType, Star, ExternalLink, ChevronDown, Hotel, Plane as PlaneIcon,
-  Settings2
+  Settings2, Layout
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
