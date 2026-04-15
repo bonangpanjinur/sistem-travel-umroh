@@ -327,85 +327,101 @@ export default function AdminBookingDetail() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/admin/bookings">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{booking.booking_code}</h1>
-              <Badge variant={getStatusBadgeVariant(booking.booking_status)}>
-                {getBookingStatusLabel(booking.booking_status)}
-              </Badge>
+      {/* Header & Status Bar */}
+      <div className="bg-white dark:bg-slate-950 border rounded-xl p-4 sm:p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <Button variant="ghost" size="icon" asChild className="mt-1">
+              <Link to="/admin/bookings">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight">{booking.booking_code}</h1>
+                <Badge variant={getStatusBadgeVariant(booking.booking_status)} className="px-3 py-1 text-xs uppercase tracking-wider font-bold">
+                  {getBookingStatusLabel(booking.booking_status)}
+                </Badge>
+              </div>
+              <p className="text-muted-foreground mt-1 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Dibuat pada {formatDate(booking.created_at)}
+              </p>
             </div>
-            <p className="text-muted-foreground">Dibuat pada {formatDate(booking.created_at)}</p>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select 
-            value={booking.booking_status} 
-            onValueChange={(val) => handleStatusChange(val as BookingStatus)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Ubah Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {BOOKING_STATUSES.map((status) => (
-                <SelectItem key={status.value} value={status.value}>
-                  {status.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <EditCustomerDialog customer={customer} />
+          
+          <div className="flex flex-wrap items-center gap-3 bg-muted/30 p-2 rounded-lg border border-dashed">
+            <div className="text-xs font-semibold text-muted-foreground px-2 uppercase tracking-widest">Update Status</div>
+            <Select 
+              value={booking.booking_status} 
+              onValueChange={(val) => handleStatusChange(val as BookingStatus)}
+            >
+              <SelectTrigger className="w-[180px] bg-background">
+                <SelectValue placeholder="Ubah Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {BOOKING_STATUSES.map((status) => (
+                  <SelectItem key={status.value} value={status.value}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
+        {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Customer Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          
+          {/* Section: Customer Info */}
+          <Card className="overflow-hidden border-none shadow-md">
+            <div className="bg-primary/5 px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="font-bold flex items-center gap-2 text-primary">
                 <User className="h-5 w-5" />
-                Informasi Jamaah
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <User className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Nama Lengkap</p>
-                    <p className="text-sm">{customer?.full_name || '-'}</p>
+                Informasi Pemesan
+              </h2>
+              <EditCustomerDialog 
+                customer={customer} 
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-booking', id] })}
+                trigger={
+                  <Button variant="outline" size="sm" className="bg-background shadow-sm hover:bg-primary hover:text-primary-foreground transition-all">
+                    <Pencil className="h-3.5 w-3.5 mr-2" />
+                    Edit Data
+                  </Button>
+                }
+              />
+            </div>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div className="group">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Nama Lengkap</p>
+                    <p className="text-sm font-semibold flex items-center gap-2">
+                      {customer?.full_name || '-'}
+                    </p>
+                  </div>
+                  <div className="group">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">No. WhatsApp</p>
+                    <p className="text-sm flex items-center gap-2 font-medium">
+                      <Phone className="h-3.5 w-3.5 text-primary/60" />
+                      {customer?.phone || '-'}
+                    </p>
+                  </div>
+                  <div className="group">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Email</p>
+                    <p className="text-sm flex items-center gap-2 font-medium">
+                      <Mail className="h-3.5 w-3.5 text-primary/60" />
+                      {customer?.email || '-'}
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Phone className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">No. WhatsApp</p>
-                    <p className="text-sm">{customer?.phone || '-'}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Email</p>
-                    <p className="text-sm">{customer?.email || '-'}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Alamat</p>
-                    <p className="text-sm">
+                <div className="space-y-4">
+                  <div className="group">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Alamat Lengkap</p>
+                    <p className="text-sm leading-relaxed font-medium flex items-start gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-primary/60 mt-0.5" />
                       {[customer?.address, customer?.city, customer?.province].filter(Boolean).join(', ') || '-'}
                     </p>
                   </div>
@@ -414,309 +430,322 @@ export default function AdminBookingDetail() {
             </CardContent>
           </Card>
 
-          {/* Package Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          {/* Section: Package & Departure */}
+          <Card className="overflow-hidden border-none shadow-md">
+            <div className="bg-amber-500/5 px-6 py-4 border-b">
+              <h2 className="font-bold flex items-center gap-2 text-amber-600">
                 <Plane className="h-5 w-5" />
                 Detail Paket & Keberangkatan
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Nama Paket</p>
-                  <p className="text-sm font-semibold">{pkg?.name || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Tipe Kamar</p>
-                  <p className="text-sm">{getRoomTypeLabel(booking.room_type)}</p>
-                </div>
-                <div className="pt-2">
-                  <p className="text-sm font-medium text-muted-foreground">Rute Penerbangan</p>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold">{departure?.departure_airport?.code || '-'}</span>
-                    <Plane className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-bold">{departure?.arrival_airport?.code || '-'}</span>
+              </h2>
+            </div>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div className="p-3 rounded-lg bg-muted/30 border border-dashed">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Nama Paket</p>
+                    <p className="text-base font-bold text-primary">{pkg?.name || '-'}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {departure?.departure_airport?.city || '-'} ke {departure?.arrival_airport?.city || '-'}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Tanggal Keberangkatan</p>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm">{departure?.departure_date ? formatDate(departure.departure_date) : '-'}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Tipe Kamar</p>
+                      <Badge variant="outline" className="font-semibold">{getRoomTypeLabel(booking.room_type)}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Jumlah Jamaah</p>
+                      <p className="text-sm font-bold">{booking.total_pax || 1} Orang</p>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Jumlah Jamaah</p>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm">{booking.total_pax || 1} Orang</p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10">
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Dari</p>
+                      <p className="text-lg font-black">{departure?.departure_airport?.code || '-'}</p>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center px-4">
+                      <div className="w-full border-t-2 border-dashed border-primary/30 relative">
+                        <Plane className="h-4 w-4 text-primary absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-slate-950 rounded-full" />
+                      </div>
+                      <p className="text-[10px] font-medium text-muted-foreground mt-2">{departure?.package?.airline?.name || '-'}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Ke</p>
+                      <p className="text-lg font-black">{departure?.arrival_airport?.code || '-'}</p>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Maskapai</p>
-                  <p className="text-sm">{departure?.package?.airline?.name || '-'}</p>
+                  <div className="flex items-center gap-3 text-sm font-medium">
+                    <Calendar className="h-4 w-4 text-amber-600" />
+                    <span>Berangkat: {departure?.departure_date ? formatDate(departure.departure_date) : '-'}</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Passengers */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          {/* Section: Passengers Manifest */}
+          <Card className="overflow-hidden border-none shadow-md">
+            <div className="bg-indigo-500/5 px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="font-bold flex items-center gap-2 text-indigo-600">
                 <Users className="h-5 w-5" />
                 Daftar Jamaah (Manifest)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h2>
+              <Badge variant="secondary" className="font-bold">{passengers?.length || 0} Terdaftar</Badge>
+            </div>
+            <CardContent className="p-0">
               {!passengers || passengers.length === 0 ? (
-                <p className="text-center py-4 text-muted-foreground">Belum ada daftar jamaah</p>
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground">Belum ada daftar jamaah</p>
+                </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nama</TableHead>
-                      <TableHead>Hubungan</TableHead>
-                      <TableHead>No. Paspor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {passengers.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
-                        <TableCell className="capitalize">{(p as any).relationship || 'Diri Sendiri'}</TableCell>
-                        <TableCell>{p.customer?.passport_number || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {p.customer?.gender || '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <EditCustomerDialog 
-                            customer={p.customer}
-                            onSuccess={() => {
-                              queryClient.invalidateQueries({ queryKey: ['booking-passengers', id] });
-                              queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
-                            }}
-                            trigger={
-                              <Button variant="ghost" size="sm">
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Edit
-                              </Button>
-                            }
-                          />
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Nama Lengkap</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Hubungan</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">No. Paspor</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider text-right">Aksi</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {passengers.map((p) => (
+                        <TableRow key={p.id} className="hover:bg-muted/10 transition-colors">
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm">{p.customer?.full_name}</span>
+                              <span className="text-[10px] text-muted-foreground uppercase font-medium">{p.customer?.gender === 'male' ? 'Laki-laki' : 'Perempuan'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize text-[10px] font-bold bg-muted/50">
+                              {(p as any).relationship || 'Diri Sendiri'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{p.customer?.passport_number || '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <EditCustomerDialog 
+                              customer={p.customer}
+                              onSuccess={() => {
+                                queryClient.invalidateQueries({ queryKey: ['booking-passengers', id] });
+                                queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
+                              }}
+                              trigger={
+                                <Button variant="ghost" size="sm" className="h-8 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
+                                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                                  Edit
+                                </Button>
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Payments */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+          {/* Section: Payments History */}
+          <Card className="overflow-hidden border-none shadow-md">
+            <div className="bg-emerald-500/5 px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="font-bold flex items-center gap-2 text-emerald-600">
                 <CreditCard className="h-5 w-5" />
                 Riwayat Pembayaran
-              </CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setShowManagePaymentModal(true)}>
+              </h2>
+              <Button variant="outline" size="sm" className="bg-background text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => setShowManagePaymentModal(true)}>
                 Kelola Semua
               </Button>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <CardContent className="p-0">
               {!payments || payments.length === 0 ? (
-                <p className="text-center py-4 text-muted-foreground">Belum ada riwayat pembayaran</p>
+                <div className="text-center py-12">
+                  <CreditCard className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground">Belum ada riwayat pembayaran</p>
+                </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Kode</TableHead>
-                      <TableHead>Tanggal</TableHead>
-                      <TableHead>Metode</TableHead>
-                      <TableHead className="text-right">Jumlah</TableHead>
-                      <TableHead>Bukti</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payments.map((payment) => {
-                      const isPending = payment.status === 'pending';
-                      return (
-                        <TableRow key={payment.id} className={isPending ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : ''}>
-                          <TableCell className="font-mono text-sm">{payment.payment_code}</TableCell>
-                          <TableCell>{formatDate(payment.created_at || '')}</TableCell>
-                          <TableCell className="capitalize">{payment.payment_method || '-'}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(payment.amount)}
-                          </TableCell>
-                          <TableCell>
-                            {payment.proof_url ? (
-                              <button 
-                                onClick={() => {
-                                  setSelectedPayment(payment);
-                                  setShowProofDialog(true);
-                                }}
-                                className="block w-8 h-8 rounded border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer bg-white"
-                              >
-                                <img 
-                                  src={payment.proof_url} 
-                                  alt="Bukti" 
-                                  className="w-full h-full object-cover"
-                                />
-                              </button>
-                            ) : (
-                              <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">
-                                <AlertCircle className="h-3 w-3 mr-1" />
-                                Belum
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Kode & Tanggal</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Metode</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider text-right">Jumlah</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider text-center">Status</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payments.map((payment) => {
+                        const isPending = payment.status === 'pending';
+                        return (
+                          <TableRow key={payment.id} className={cn("hover:bg-muted/10 transition-colors", isPending && "bg-amber-50/30")}>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-mono text-xs font-bold">{payment.payment_code}</span>
+                                <span className="text-[10px] text-muted-foreground">{formatDate(payment.created_at || '')}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="capitalize text-xs font-medium">{payment.payment_method || '-'}</TableCell>
+                            <TableCell className="text-right font-bold text-sm">
+                              {formatCurrency(payment.amount)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge className={cn("text-[10px] px-2 py-0.5 font-bold uppercase tracking-tighter", getPaymentBadgeClass(payment.status || 'pending'))}>
+                                {getPaymentStatusLabel(payment.status || 'pending')}
                               </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getPaymentBadgeClass(payment.status || 'pending')}>
-                              {getPaymentStatusLabel(payment.status || 'pending')}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              {isPending && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-green-600 border-green-300 hover:bg-green-50"
-                                  onClick={() => handleApprovePayment(payment)}
-                                  disabled={verifyPaymentMutation.isPending || !payment.proof_url}
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {payment.proof_url && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => {
-                                    setSelectedPayment(payment);
-                                    setShowProofDialog(true);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                {isPending && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="h-7 px-2 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                    onClick={() => handleApprovePayment(payment)}
+                                    disabled={verifyPaymentMutation.isPending || !payment.proof_url}
+                                  >
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                    Verify
+                                  </Button>
+                                )}
+                                {payment.proof_url && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => {
+                                      setSelectedPayment(payment);
+                                      setShowProofDialog(true);
+                                    }}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar - Payment Summary */}
+        {/* Sidebar: Financial Summary & Quick Actions */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ringkasan Pembayaran</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Harga Paket</span>
-                <span>{formatCurrency(booking.base_price)}</span>
-              </div>
-              {(booking.addons_price || 0) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tambahan</span>
-                  <span>{formatCurrency(booking.addons_price || 0)}</span>
+          {/* Payment Summary Card */}
+          <Card className="border-none shadow-lg overflow-hidden">
+            <div className="bg-slate-900 text-white p-6">
+              <h3 className="font-bold text-sm uppercase tracking-widest opacity-70 mb-4">Ringkasan Pembayaran</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="opacity-70">Harga Paket</span>
+                  <span className="font-medium">{formatCurrency(booking.base_price)}</span>
                 </div>
-              )}
-              {(booking.discount_amount || 0) > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Diskon</span>
-                  <span>-{formatCurrency(booking.discount_amount || 0)}</span>
+                {(booking.addons_price || 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="opacity-70">Tambahan</span>
+                    <span className="font-medium">{formatCurrency(booking.addons_price || 0)}</span>
+                  </div>
+                )}
+                {(booking.discount_amount || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-400">
+                    <span>Diskon</span>
+                    <span className="font-medium">-{formatCurrency(booking.discount_amount || 0)}</span>
+                  </div>
+                )}
+                <div className="pt-3 border-t border-white/10 flex justify-between items-end">
+                  <span className="text-xs uppercase font-bold opacity-60">Total Tagihan</span>
+                  <span className="text-xl font-black">{formatCurrency(booking.total_price)}</span>
                 </div>
-              )}
-              <Separator />
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>{formatCurrency(booking.total_price)}</span>
               </div>
-              <Separator />
-              <div className="flex justify-between text-green-600">
-                <span>Dibayar</span>
-                <span>{formatCurrency(booking.paid_amount || 0)}</span>
+            </div>
+            <CardContent className="p-6 bg-white dark:bg-slate-900 space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground font-medium">Telah Dibayar</span>
+                <span className="text-emerald-600 font-bold">{formatCurrency(booking.paid_amount || 0)}</span>
               </div>
-              <div className="flex justify-between text-destructive font-bold">
-                <span>Sisa</span>
-                <span>{formatCurrency(booking.remaining_amount || 0)}</span>
+              <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10 flex justify-between items-center">
+                <span className="text-xs font-bold text-destructive uppercase tracking-tighter">Sisa Tagihan</span>
+                <span className="text-lg font-black text-destructive">{formatCurrency(booking.remaining_amount || 0)}</span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter">
+                  <span>Progress Pelunasan</span>
+                  <span>{Math.round(((booking.paid_amount || 0) / booking.total_price) * 100)}%</span>
+                </div>
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-emerald-500 transition-all duration-500" 
+                    style={{ width: `${Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions Card */}
+          <Card className="border-none shadow-md overflow-hidden">
+            <div className="bg-muted/50 px-6 py-3 border-b">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Aksi Cepat</h3>
+            </div>
+            <CardContent className="p-4 space-y-2">
+              <Button className="w-full justify-start h-10 font-bold text-xs" variant="outline" onClick={handlePrintInvoice}>
+                <Printer className="h-4 w-4 mr-3 text-primary" />
+                CETAK INVOICE PDF
+              </Button>
+              <Button 
+                className="w-full justify-start h-10 font-bold text-xs" 
+                variant="outline" 
+                onClick={() => setShowManagePaymentModal(true)}
+              >
+                <CreditCard className="h-4 w-4 mr-3 text-emerald-600" />
+                KELOLA PEMBAYARAN
+              </Button>
+              <Separator className="my-2" />
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  className="w-full h-9 text-[10px] font-bold" 
+                  variant="secondary"
+                  onClick={() => sendNotificationMutation.mutate('booking_confirmed')}
+                  disabled={sendNotificationMutation.isPending}
+                >
+                  <Send className="h-3.5 w-3.5 mr-2 text-blue-600" />
+                  NOTIF WA
+                </Button>
+                <Button 
+                  className="w-full h-9 text-[10px] font-bold" 
+                  variant="secondary"
+                  onClick={() => sendNotificationMutation.mutate('payment_received')}
+                  disabled={sendNotificationMutation.isPending}
+                >
+                  <Send className="h-3.5 w-3.5 mr-2 text-amber-600" />
+                  REMINDER
+                </Button>
               </div>
             </CardContent>
           </Card>
 
           {booking.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Catatan
+            <Card className="border-none shadow-md bg-amber-50/50 dark:bg-amber-950/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-amber-700">
+                  <FileText className="h-4 w-4" />
+                  Catatan Admin
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm">{booking.notes}</p>
+                <p className="text-xs leading-relaxed italic text-muted-foreground">{booking.notes}</p>
               </CardContent>
             </Card>
           )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Aksi</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button className="w-full" variant="outline" onClick={handlePrintInvoice}>
-                <Printer className="h-4 w-4 mr-2" />
-                Cetak Invoice PDF
-              </Button>
-              <Button 
-                className="w-full" 
-                variant="outline" 
-                onClick={() => setShowManagePaymentModal(true)}
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Kelola Pembayaran
-              </Button>
-              <Button 
-                className="w-full" 
-                variant="outline"
-                onClick={() => sendNotificationMutation.mutate('booking_confirmed')}
-                disabled={sendNotificationMutation.isPending}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Kirim Notifikasi WA
-              </Button>
-              <Button 
-                className="w-full" 
-                variant="outline"
-                onClick={() => sendNotificationMutation.mutate('payment_received')}
-                disabled={sendNotificationMutation.isPending}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Kirim Reminder Bayar
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
