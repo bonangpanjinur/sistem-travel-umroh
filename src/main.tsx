@@ -19,9 +19,6 @@ if ("serviceWorker" in navigator) {
 }
 
 // Handle chunk load errors (failed to fetch dynamically imported module)
-let reloadAttempts = 0;
-const MAX_RELOAD_ATTEMPTS = 3;
-
 window.addEventListener('error', (event) => {
   // Detect chunk loading errors and MIME type errors (loading HTML instead of JS)
   const isChunkError = 
@@ -34,9 +31,19 @@ window.addEventListener('error', (event) => {
     const lastReload = sessionStorage.getItem('last-chunk-reload');
     const now = Date.now();
     
-    // If we reloaded less than 10 seconds ago, don't reload again automatically
-    if (lastReload && (now - parseInt(lastReload)) < 10000) {
-      console.error('Persistent chunk loading error detected. Manual refresh may be required.');
+    // If we reloaded less than 30 seconds ago, don't reload again automatically
+    // This prevents the infinite "looping error" the user reported
+    if (lastReload && (now - parseInt(lastReload)) < 30000) {
+      console.error('Persistent chunk loading error detected. Stopping auto-reload to prevent infinite loop.');
+      
+      // Show a user-friendly message or UI overlay
+      const loader = document.getElementById('initialLoader');
+      if (loader) {
+        const loaderText = loader.querySelector('.loader-text');
+        if (loaderText) {
+          loaderText.innerHTML = 'UPDATE TERDETEKSI<br/><button onclick="sessionStorage.removeItem(\'last-chunk-reload\'); window.location.reload();" style="margin-top:10px;padding:5px 10px;background:#059669;color:white;border:none;border-radius:4px;cursor:pointer;font-size:10px;">MUAT ULANG</button>';
+        }
+      }
       return;
     }
 
