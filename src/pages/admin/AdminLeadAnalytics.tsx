@@ -353,12 +353,12 @@ export default function AdminLeadAnalytics() {
                     <YAxis className="text-xs" unit="%" />
                     <ChartTooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0 && payload[0] && payload[0].payload) {
+                        if (active && payload && payload.length > 0 && payload[0]?.payload) {
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{payload[0].payload.fullMonth}</p>
                               <p className="text-sm text-muted-foreground">
-                                Conversion: <span className="font-medium text-foreground">{payload[0].value}%</span>
+                                Konversi: <span className="font-medium text-foreground">{payload[0].value}%</span>
                               </p>
                             </div>
                           );
@@ -460,7 +460,7 @@ export default function AdminLeadAnalytics() {
                     </Pie>
                     <Tooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0) {
+                        if (active && payload && payload.length > 0 && payload[0]) {
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{payload[0].name}</p>
@@ -559,7 +559,7 @@ export default function AdminLeadAnalytics() {
                     </Pie>
                     <Tooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0) {
+                        if (active && payload && payload.length > 0 && payload[0]) {
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{payload[0].name}</p>
@@ -588,14 +588,14 @@ export default function AdminLeadAnalytics() {
                     <YAxis dataKey="name" type="category" width={100} className="text-xs" />
                     <ChartTooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0 && payload[0] && payload[0].payload) {
+                        if (active && payload && payload.length > 0 && payload[0]?.payload) {
                           const data = payload[0].payload;
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{data.name}</p>
                               <p className="text-sm">Total: {data.total} leads</p>
                               <p className="text-sm">Won: {data.won} leads</p>
-                              <p className="text-sm font-medium text-green-600">Conversion: {data.conversion}%</p>
+                              <p className="text-sm font-medium text-green-600">Konversi: {data.conversion}%</p>
                             </div>
                           );
                         }
