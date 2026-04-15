@@ -299,10 +299,10 @@ function AdminLayout() {
         {/* Sidebar Navigation */}
         <aside 
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:relative lg:inset-0 lg:translate-x-0 shrink-0",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full",
+            "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-all duration-300 ease-in-out lg:relative lg:inset-0 lg:translate-x-0 shrink-0",
+            sidebarOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0",
             !sidebarOpen && "lg:hidden",
-            !isDesktop && "shadow-xl pt-14 sm:pt-16"
+            !isDesktop && "shadow-2xl pt-14 sm:pt-16"
           )}
         >
           <div className="h-full flex flex-col overflow-hidden">
@@ -365,17 +365,19 @@ function AdminLayout() {
           </div>
         </aside>
 
+        {/* Overlay for mobile sidebar */}
+        <div 
+          className={cn(
+            "fixed inset-0 bg-black/60 z-40 transition-all duration-300 backdrop-blur-sm lg:hidden",
+            sidebarOpen && !isDesktop ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
+          onClick={() => setSidebarOpen(false)}
+        />
+
         {/* Main Content Area */}
         <main className={cn(
           "flex-1 flex flex-col min-w-0 bg-muted/10 relative transition-all duration-200 overflow-y-auto",
         )}>
-          {/* Overlay for mobile sidebar */}
-          {sidebarOpen && !isDesktop && (
-            <div 
-              className="fixed inset-0 bg-black/60 z-50 transition-opacity duration-200 backdrop-blur-sm"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
 
           <div className="p-3 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full min-h-full flex flex-col">
             <AdminBreadcrumb />
