@@ -84,7 +84,14 @@ export function PackageBookingFormSimple({ pkg }: PackageBookingFormSimpleProps)
       pax: totalPax.toString(),
     });
 
-    navigate(`/booking/${packageId}?${params.toString()}`);
+    const bookingUrl = `/booking/${packageId}?${params.toString()}`;
+
+    if (!user) {
+      navigate(`/auth/login?redirect=${encodeURIComponent(bookingUrl)}`);
+      return;
+    }
+
+    navigate(bookingUrl);
   };
 
   if (departuresLoading) {

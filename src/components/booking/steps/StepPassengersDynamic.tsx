@@ -60,25 +60,7 @@ export function StepPassengersDynamic({ passengers, onUpdate }: StepPassengersDy
         </p>
       </div>
 
-      {!user && (
-        <Alert className="bg-primary/5 border-primary/20">
-          <Info className="h-4 w-4 text-primary" />
-          <AlertTitle className="text-primary font-semibold">Hemat Waktu!</AlertTitle>
-          <AlertDescription className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <span className="text-sm">
-              Login atau daftar untuk mengisi data Anda secara otomatis dan simpan untuk pemesanan selanjutnya.
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="border-primary text-primary hover:bg-primary hover:text-white shrink-0"
-              onClick={() => navigate(`/auth/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
-            >
-              Login Sekarang
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+
 
       {/* Grouped by Room Type */}
       {(Object.keys(groupedPassengers) as RoomType[]).map((roomType) => (

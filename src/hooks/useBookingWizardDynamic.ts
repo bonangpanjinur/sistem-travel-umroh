@@ -144,49 +144,32 @@ export function useBookingWizardDynamic(
       let customerId: string | null = null;
       let userEmail: string | null = user?.email || null;
 
-      // 1. Handle Customer Record (Guest or Logged In)
-      if (user) {
-        let { data: customer } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
+      // 1. Handle Customer Record (Logged In Required)
+      if (!user) throw new Error('Anda harus login untuk melakukan pemesanan');
 
-        if (!customer) {
-          const mainPassenger = formData.passengers[0];
-          const { data: newCustomer, error: customerError } = await supabase
-            .from('customers')
-            .insert({ 
-              user_id: user.id, 
-              full_name: mainPassenger.fullName, 
-              gender: mainPassenger.gender, 
-              phone: mainPassenger.phone || null, 
-              email: user.email 
-            })
-            .select('id')
-            .single();
-          if (customerError) throw customerError;
-          customerId = newCustomer.id;
-        } else {
-          customerId = customer.id;
-        }
-      } else {
-        // Guest Checkout: Create a customer record without user_id initially
-        // We'll use the main passenger's data
+      let { data: customer } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!customer) {
         const mainPassenger = formData.passengers[0];
-        userEmail = mainPassenger.email || null;
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
           .insert({ 
+            user_id: user.id, 
             full_name: mainPassenger.fullName, 
             gender: mainPassenger.gender, 
-            phone: mainPassenger.phone || null,
-            email: mainPassenger.email || null
+            phone: mainPassenger.phone || null, 
+            email: user.email 
           })
           .select('id')
           .single();
         if (customerError) throw customerError;
         customerId = newCustomer.id;
+      } else {
+        customerId = customer.id;
       }
 
       if (!customerId) throw new Error('Gagal memproses data pelanggan');

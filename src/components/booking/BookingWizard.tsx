@@ -48,8 +48,6 @@ export function BookingWizard() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
-  const [showLoginSuggestion, setShowLoginSuggestion] = useState(false);
-  const [loginSuggestionShown, setLoginSuggestionShown] = useState(false);
   
   const initialDepartureId = searchParams.get('departure') || '';
   const initialPax = parseInt(searchParams.get('pax') || '0', 10);
@@ -114,14 +112,6 @@ export function BookingWizard() {
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const totalPassengers = formData.passengers.length;
-
-  // Show login suggestion when moving from passengers to pic step (for guests)
-  useEffect(() => {
-    if (!user && currentStep === 'pic' && !loginSuggestionShown) {
-      setShowLoginSuggestion(true);
-      setLoginSuggestionShown(true);
-    }
-  }, [currentStep, user, loginSuggestionShown]);
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
@@ -284,12 +274,6 @@ export function BookingWizard() {
           </Button>
         )}
       </div>
-
-      <LoginSuggestionDialog
-        open={showLoginSuggestion}
-        onOpenChange={setShowLoginSuggestion}
-        currentStep={currentStep}
-      />
     </div>
   );
 }
@@ -315,15 +299,7 @@ function canProceed(
       if (isValidatingPIC) return false;
       return !!picValidation?.isValid;
     case 'review':
-      const isPicValid = !!picValidation?.isValid;
-      if (!user) {
-        // For guest, email and phone are required in review step
-        const mainPassenger = formData.passengers[0];
-        const emailValid = mainPassenger?.email?.includes('@') && mainPassenger?.email?.includes('.');
-        const phoneValid = mainPassenger?.phone?.length >= 10;
-        return isPicValid && emailValid && phoneValid;
-      }
-      return isPicValid;
+      return !!picValidation?.isValid;
     default:
       return false;
   }

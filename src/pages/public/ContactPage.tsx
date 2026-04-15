@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { useContactPageContent } from '@/hooks/useContactPageContent';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +21,9 @@ import {
 export default function ContactPage() {
   const { data: settings, isLoading: settingsLoading } = useWebsiteSettings();
   const { data: contactContent, isLoading: contactLoading } = useContactPageContent('00000000-0000-0000-0000-000000000001');
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const isLoading = settingsLoading || contactLoading;
   const [formData, setFormData] = useState({
@@ -32,6 +37,17 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      toast({
+        title: 'Login Diperlukan',
+        description: 'Silakan login terlebih dahulu untuk mengirim pesan.',
+        variant: 'destructive',
+      });
+      navigate(`/auth/login?redirect=${encodeURIComponent(location.pathname)}`);
+      return;
+    }
+
     setIsSubmitting(true);
     
     // Simulate form submission
