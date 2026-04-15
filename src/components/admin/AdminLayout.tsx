@@ -58,10 +58,10 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Paket', icon: Package, path: '/admin/packages', permission: 'packages.view' },
       { label: 'Keberangkatan', icon: Plane, path: '/admin/departures', permission: 'departures.view' },
       { label: 'Booking', icon: Calendar, path: '/admin/bookings', permission: 'bookings.view_own' },
-      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment', permission: 'equipment.inventory' },
-      { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates', permission: 'packages.view' },
+      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment', permission: 'equipment.view' },
+      { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates', permission: 'itinerary.view' },
       { label: 'Tabungan', icon: Wallet, path: '/admin/savings', permission: 'packages.view' },
-      { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments', permission: 'operational.manage' },
+      { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments', permission: 'operational.rooms.view' },
     ]
   },
   {
@@ -83,8 +83,8 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Loyalty', icon: Gift, path: '/admin/loyalty', permission: 'marketing.view' },
       { label: 'Referral', icon: Share2, path: '/admin/referrals', permission: 'marketing.view' },
       { label: 'Haji', icon: BookOpen, path: '/admin/haji', permission: 'operational.view' },
-      { label: 'Manasik', icon: Calendar, path: '/admin/manasik', permission: 'operational.view' },
-      { label: 'Visa', icon: FileCheck, path: '/admin/visa', permission: 'operational.visa' },
+      { label: 'Manasik', icon: Calendar, path: '/admin/manasik', permission: 'operational.manasik.view' },
+      { label: 'Visa', icon: FileCheck, path: '/admin/visa', permission: 'departures.visa.view' },
     ]
   },
   {
@@ -118,7 +118,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Dokumen & Surat',
     items: [
-      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', permission: 'documents.verification.view' },
+      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', permission: 'bookings.document.view' },
       { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator', permission: 'documents.generator.view' },
       { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', permission: 'offline_content.view' },
     ]
@@ -258,163 +258,161 @@ function AdminLayout() {
     <div className="min-h-screen bg-muted/30">
       <CommandPalette />
 
-      {/* Desktop Header - Top Navigation Bar */}
-      <header className="fixed top-0 left-0 right-0 h-14 sm:h-16 bg-background border-b z-40 flex items-center justify-between px-3 sm:px-6">
-        {/* Left side - Logo and Toggle */}
-        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
-            title={sidebarOpen ? "Tutup sidebar" : "Buka sidebar"}
-          >
-            {sidebarOpen ? <X className="h-4 w-4 sm:h-5 sm:w-5" /> : <Menu className="h-4 w-4 sm:h-5 sm:w-5" />}
-          </Button>
-          <Link to="/admin" className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs sm:text-sm flex-shrink-0">
-              U
-            </div>
-            <span className="font-semibold hidden xs:inline text-sm sm:text-base truncate">UmrohTravel</span>
-          </Link>
-        </div>
+      {/* Mobile Sidebar Overlay */}
+      {!isDesktop && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        {/* Right side - Actions */}
-        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 sm:h-10 sm:w-10 hidden sm:flex"
-            onClick={() => {
-              const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true });
-              document.dispatchEvent(event);
-            }}
-            title="Cari halaman (Ctrl+K)"
-          >
-            <Search className="h-4 w-4" />
-          </Button>
-          <NotificationBell
-            notifications={notifications}
-            unreadCount={unreadCount}
-            onMarkAsRead={markAsRead}
-            onMarkAllAsRead={markAllAsRead}
-            onClearAll={clearAll}
-          />
-          <div className="flex items-center gap-2 pl-2 border-l ml-1 sm:ml-2">
-            <div className="hidden sm:flex flex-col items-end text-xs mr-2">
-              <span className="font-medium truncate max-w-[120px]">{profile?.full_name || user.email}</span>
-              <span className="text-muted-foreground capitalize">{roles[0]?.replace('_', ' ')}</span>
+      {/* Sidebar */}
+      <aside className={cn(
+        "fixed top-0 left-0 bottom-0 bg-card border-r z-50 transition-all duration-300 overflow-hidden flex flex-col",
+        sidebarOpen ? "w-72" : "w-0 lg:w-20"
+      )}>
+        {/* Sidebar Header */}
+        <div className="h-16 border-b flex items-center px-6 shrink-0">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
+              <Shield className="h-5 w-5 text-primary-foreground" />
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleLogout}
-              className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-              title="Keluar"
-            >
-              <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Button>
+            {sidebarOpen && (
+              <span className="font-bold text-lg tracking-tight whitespace-nowrap">
+                Magic Admin
+              </span>
+            )}
           </div>
         </div>
-      </header>
 
-      <div className="flex h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-hidden mt-14 sm:mt-16">
-        {/* Sidebar Navigation */}
-        <aside 
-          className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-all duration-300 ease-in-out lg:relative lg:inset-0 lg:translate-x-0 shrink-0",
-            sidebarOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0",
-            !sidebarOpen && "lg:hidden",
-            !isDesktop && "shadow-2xl pt-14 sm:pt-16"
-          )}
-        >
-          <div className="h-full flex flex-col overflow-hidden">
-            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-              {filteredNavGroups.map((group) => (
-                <div key={group.label} className="space-y-1">
-                  <button
+        {/* Navigation Area */}
+        <ScrollArea className="flex-1 px-3 py-4">
+          <div className="space-y-6">
+            {filteredNavGroups.map((group) => (
+              <div key={group.label} className="space-y-1">
+                {sidebarOpen ? (
+                  <button 
                     onClick={() => toggleGroup(group.label)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors group"
+                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 hover:text-primary transition-colors"
                   >
-                    <span>{group.label}</span>
+                    {group.label}
                     <ChevronDown className={cn(
                       "h-3 w-3 transition-transform duration-200",
-                      isGroupExpanded(group.label) ? "transform rotate-0" : "transform -rotate-90"
+                      isGroupExpanded(group.label) ? "" : "-rotate-90"
                     )} />
                   </button>
-                  
-                  {isGroupExpanded(group.label) && (
-                    <div className="space-y-1 mt-1">
-                      {group.items.map((item) => (
+                ) : (
+                  <div className="h-px bg-border my-4 mx-2" />
+                )}
+                
+                {(sidebarOpen ? isGroupExpanded(group.label) : true) && (
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const active = isPathActive(item.path);
+                      return (
                         <Link
                           key={item.path}
                           to={item.path}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative",
-                            isPathActive(item.path)
-                              ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"
+                            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
+                            active 
+                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
                               : "text-muted-foreground hover:bg-muted hover:text-foreground"
                           )}
                           onClick={() => !isDesktop && setSidebarOpen(false)}
                         >
                           <item.icon className={cn(
-                            "h-4 w-4 flex-shrink-0 transition-colors",
-                            isPathActive(item.path) ? "text-primary" : "group-hover:text-primary"
+                            "h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110",
+                            active ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"
                           )} />
-                          <span className="truncate">{item.label}</span>
-                          {isPathActive(item.path) && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                          {sidebarOpen && (
+                            <span className="text-sm font-medium whitespace-nowrap">
+                              {item.label}
+                            </span>
+                          )}
+                          {!sidebarOpen && (
+                            <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border shadow-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
+                              {item.label}
+                            </div>
                           )}
                         </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </nav>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
 
-            {/* Bottom Sidebar Info */}
-            <div className="p-4 border-t bg-muted/20">
-              <div className="flex items-center gap-3 px-2 py-1.5">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                  {profile?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{profile?.full_name || 'User'}</p>
-                  <p className="text-xs text-muted-foreground truncate capitalize">{roles[0]?.replace('_', ' ')}</p>
-                </div>
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t shrink-0">
+          <Button 
+            variant="ghost" 
+            className={cn(
+              "w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+              !sidebarOpen && "px-0 justify-center"
+            )}
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5" />
+            {sidebarOpen && <span>Keluar</span>}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className={cn(
+        "transition-all duration-300 min-h-screen flex flex-col",
+        isDesktop ? (sidebarOpen ? "pl-72" : "pl-20") : "pl-0"
+      )}>
+        {/* Top Header */}
+        <header className="h-16 border-b bg-card/80 backdrop-blur-md sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:flex"
+            >
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+            <div className="hidden md:block">
+              <AdminBreadcrumb />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="hidden sm:flex items-center bg-muted/50 rounded-full px-3 py-1 border border-border/50">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse mr-2" />
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">
+                System Online
+              </span>
+            </div>
+            <NotificationBell />
+            <div className="h-8 w-px bg-border mx-1" />
+            <div className="flex items-center gap-3 pl-1">
+              <div className="flex flex-col items-end hidden sm:flex">
+                <span className="text-xs font-bold leading-none">{profile?.full_name || user?.email}</span>
+                <span className="text-[10px] text-muted-foreground capitalize">{roles[0]?.replace('_', ' ')}</span>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-bold text-sm border-2 border-background shadow-sm">
+                {profile?.full_name?.charAt(0) || user?.email?.charAt(0)}
               </div>
             </div>
           </div>
-        </aside>
+        </header>
 
-        {/* Overlay for mobile sidebar */}
-        <div 
-          className={cn(
-            "fixed inset-0 bg-black/60 z-40 transition-all duration-300 backdrop-blur-sm lg:hidden",
-            sidebarOpen && !isDesktop ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          )}
-          onClick={() => setSidebarOpen(false)}
-        />
+        {/* Page Content */}
+        <div className="flex-1 p-4 md:p-8">
+          <Outlet />
+        </div>
 
-        {/* Main Content Area */}
-        <main className={cn(
-          "flex-1 flex flex-col min-w-0 bg-muted/10 relative transition-all duration-200 overflow-y-auto",
-        )}>
-
-          <div className="p-3 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full min-h-full flex flex-col">
-            <AdminBreadcrumb />
-            <div className="mt-4 sm:mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 flex-1">
-              <Outlet />
-            </div>
-            
-            {/* Footer */}
-            <footer className="mt-8 py-6 border-t bg-transparent text-center text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} Umroh & Haji Magic. All rights reserved.
-            </footer>
-          </div>
-        </main>
-      </div>
+        {/* Footer */}
+        <footer className="py-6 px-8 border-t bg-card/50 text-center text-xs text-muted-foreground">
+          <p>&copy; 2026 Umrah Haji Magic. All rights reserved. Universal Dynamic Access Control v2.1</p>
+        </footer>
+      </main>
     </div>
   );
 }
