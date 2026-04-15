@@ -15,8 +15,10 @@ import { id } from "date-fns/locale";
 import { 
   ArrowLeft, Calendar, CreditCard, Users, User,
   Plane, Hotel, Clock, CheckCircle, Upload,
-  AlertCircle, FileText, CheckCircle2, Circle, Loader2
+  AlertCircle, FileText, CheckCircle2, Circle, Loader2,
+  Pencil
 } from "lucide-react";
+import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { Progress } from "@/components/ui/progress";
 import { 
   Alert, 
@@ -353,7 +355,7 @@ export default function BookingDetail() {
               <CardContent>
                 <div className="space-y-3">
                   {passengers?.map((bp, index) => (
-                    <div key={bp.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <div key={bp.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg group">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <User className="h-5 w-5 text-primary" />
                       </div>
@@ -369,6 +371,15 @@ export default function BookingDetail() {
                           {bp.customer?.passport_number && ` • Paspor: ${bp.customer.passport_number}`}
                         </p>
                       </div>
+                      <EditCustomerDialog 
+                        customer={bp.customer}
+                        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['booking-detail', bookingId] })}
+                        trigger={
+                          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
                     </div>
                   ))}
                 </div>

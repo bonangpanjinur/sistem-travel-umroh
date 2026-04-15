@@ -41,7 +41,7 @@ import { formatCurrency, formatDate, getRoomTypeLabel, getBookingStatusLabel, ge
 import { 
   ArrowLeft, User, Calendar, Plane, CreditCard, FileText, 
   Users, Phone, Mail, MapPin, Printer, Send, CheckCircle, 
-  XCircle, Eye, AlertCircle, Loader2 
+  XCircle, Eye, AlertCircle, Loader2, Pencil 
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -486,6 +486,7 @@ export default function AdminBookingDetail() {
                       <TableHead>Hubungan</TableHead>
                       <TableHead>No. Paspor</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -498,6 +499,21 @@ export default function AdminBookingDetail() {
                           <Badge variant="outline" className="capitalize">
                             {p.customer?.gender || '-'}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <EditCustomerDialog 
+                            customer={p.customer}
+                            onSuccess={() => {
+                              queryClient.invalidateQueries({ queryKey: ['booking-passengers', id] });
+                              queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
+                            }}
+                            trigger={
+                              <Button variant="ghost" size="sm">
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </Button>
+                            }
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
