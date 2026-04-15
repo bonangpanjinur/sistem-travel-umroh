@@ -101,7 +101,7 @@ export default function AdminRoutes() {
       <Route path="customers/:id" element={<ProtectedRoute permission="customers.view"><LazyPage><AdminCustomerDetail /></LazyPage></ProtectedRoute>} />
       <Route path="document-verification" element={<ProtectedRoute permission="documents.verification.view"><LazyPage><AdminDocumentVerification /></LazyPage></ProtectedRoute>} />
       <Route path="users" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUsers /></LazyPage></ProtectedRoute>} />
-      <Route path="permissions" element={<ProtectedRoute permission="users.view"><LazyPage><AdminRolePermissions /></LazyPage></ProtectedRoute>} />
+
       <Route path="udac" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacManagement /></LazyPage></ProtectedRoute>} />
       <Route path="udac/audit" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacAudit /></LazyPage></ProtectedRoute>} />
       <Route path="udac/simulator" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacSimulator /></LazyPage></ProtectedRoute>} />
