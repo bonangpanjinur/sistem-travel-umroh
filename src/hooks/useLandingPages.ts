@@ -24,7 +24,7 @@ export function useLandingPage(slug: string, isPublic = true) {
     queryFn: async () => {
       let query = supabase
         .from("landing_pages")
-        .select(`*, agent:agents(id, phone_number, company_name)`)
+        .select(`*, agent:whatsapp_agent_id(id, phone_number, company_name)`)
         .eq("slug", slug);
       
       if (isPublic) {
