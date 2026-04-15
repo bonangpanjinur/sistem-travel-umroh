@@ -20,7 +20,7 @@ export default function LandingPage() {
   );
 
   const getWANumber = () => {
-    if (lp.whatsapp_source_type === 'agent') return lp.agent?.phone_number || "628123456789";
+    if (lp.whatsapp_source_type === 'agent') return lp.agent?.profiles?.[0]?.phone || lp.agent?.profiles?.phone || "628123456789";
     if (lp.whatsapp_source_type === 'custom') return lp.whatsapp_custom_number;
     return "628123456789"; // Nomor Global Default
   };
