@@ -63,7 +63,7 @@ export function NotificationBell({
                 Baca Semua
               </Button>
             )}
-            {notifications.length > 0 && (
+            {(notifications?.length || 0) > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -77,14 +77,14 @@ export function NotificationBell({
         </div>
         
         <ScrollArea className="h-[300px]">
-          {notifications.length === 0 ? (
+          {(notifications?.length || 0) === 0 ? (
             <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
               <Bell className="h-10 w-10 mb-2 opacity-20" />
               <p className="text-sm">Belum ada notifikasi</p>
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
+              {notifications?.map((notification) => (
                 <div
                   key={notification.id}
                   className={cn(

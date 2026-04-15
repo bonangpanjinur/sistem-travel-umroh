@@ -161,8 +161,8 @@ function AdminLayout() {
   const isLoading = authLoading || permsLoading;
 
   const {
-    notifications,
-    unreadCount,
+    notifications = [],
+    unreadCount = 0,
     markAsRead,
     markAllAsRead,
     clearAll,
@@ -214,7 +214,7 @@ function AdminLayout() {
   };
 
   // Filter NAV_GROUPS based on permissions and super admin requirements
-  const isSuperAdmin = roles.includes('super_admin');
+  const isSuperAdmin = roles?.includes('super_admin') || false;
   
   const filteredNavGroups = NAV_GROUPS.map(group => ({
     ...group,
@@ -390,12 +390,18 @@ function AdminLayout() {
                 System Online
               </span>
             </div>
-            <NotificationBell />
+            <NotificationBell 
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+              onClearAll={clearAll}
+            />
             <div className="h-8 w-px bg-border mx-1" />
             <div className="flex items-center gap-3 pl-1">
               <div className="flex flex-col items-end hidden sm:flex">
                 <span className="text-xs font-bold leading-none">{profile?.full_name || user?.email}</span>
-                <span className="text-[10px] text-muted-foreground capitalize">{roles[0]?.replace('_', ' ')}</span>
+                <span className="text-[10px] text-muted-foreground capitalize">{roles?.[0]?.replace('_', ' ') || ''}</span>
               </div>
               <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-bold text-sm border-2 border-background shadow-sm">
                 {profile?.full_name?.charAt(0) || user?.email?.charAt(0)}
