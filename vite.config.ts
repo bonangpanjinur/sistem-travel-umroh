@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => ({
     react(), 
 
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt", // Changed to prompt for more controlled updates
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
         name: "Umrah Haji - Portal Jamaah",
@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true, // Automatically cleanup old caches
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
