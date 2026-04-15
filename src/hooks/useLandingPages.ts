@@ -22,13 +22,12 @@ export function useLandingPage(identifier: string, isPublic = true) {
   return useQuery({
     queryKey: ["landing-page", identifier],
     queryFn: async () => {
-      // Step 1: Get the landing page and agent info
-      // Determine if identifier is a UUID (ID) or a slug
+      if (!identifier) throw new Error("Identifier is required");
+
+      // Step 1: Get the landing page
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
       
-      let query = supabase
-        .from("landing_pages")
-        .select(`*, agent:whatsapp_agent_id(id, company_name, user_id)`);
+      let query = supabase.from("landing_pages").select("*");
       
       if (isUuid) {
         query = query.eq("id", identifier);
@@ -42,25 +41,46 @@ export function useLandingPage(identifier: string, isPublic = true) {
       
       const { data: lp, error: lpError } = await query.single();
       
-      if (lpError) throw lpError;
+      if (lpError) {
+        console.error("Error fetching landing page:", lpError);
+        throw lpError;
+      }
 
-      // Step 2: Manually fetch the agent's profile phone number if an agent is linked
-      if (lp.agent?.user_id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("phone")
-          .eq("user_id", lp.agent.user_id)
-          .single();
-        
-        // Attach the profile data manually to match the expected structure
-        if (profile) {
-          (lp as any).agent.profiles = [profile]; // Array structure to match original select behavior
+      // Step 2: Fetch agent info separately to avoid 406 error from complex joins
+      if (lp.whatsapp_agent_id) {
+        try {
+          const { data: agent, error: agentError } = await supabase
+            .from("agents")
+            .select("id, company_name, user_id")
+            .eq("id", lp.whatsapp_agent_id)
+            .single();
+          
+          if (!agentError && agent) {
+            (lp as any).agent = agent;
+
+            // Step 3: Fetch agent's profile phone number
+            if (agent.user_id) {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("phone")
+                .eq("user_id", agent.user_id)
+                .single();
+              
+              if (profile) {
+                (lp as any).agent.profiles = [profile];
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Could not fetch agent info:", err);
+          // Don't fail the whole request if agent info fails
         }
       }
       
       return lp as LandingPageData;
     },
     enabled: !!identifier,
+    retry: 1,
   });
 }
 
