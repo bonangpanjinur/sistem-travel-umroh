@@ -218,9 +218,10 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
             <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
               <CheckCircle className="h-4 w-4 text-primary shrink-0" />
               <p className="text-xs text-primary/80">
-                Akun akan dibuatkan otomatis agar Anda dapat melacak status keberangkatan.
+                Anda dapat login atau mendaftar nanti untuk mengakses pesanan Anda.
               </p>
             </div>
+
           </CardContent>
         </Card>
       )}
