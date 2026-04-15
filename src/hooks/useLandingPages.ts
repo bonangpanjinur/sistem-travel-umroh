@@ -93,9 +93,26 @@ export function useUpdateLandingPage() {
   
   return useMutation({
     mutationFn: async ({ id, ...updateData }: Partial<LandingPageData> & { id: string }) => {
-      // Remove joined data that are not columns in the landing_pages table
-      const { agent, ...cleanData } = updateData as any;
+      // Hanya kirim kolom yang benar-benar ada di tabel landing_pages
+      const cleanData = {
+        slug: updateData.slug,
+        title: updateData.title,
+        meta_title: updateData.meta_title,
+        meta_description: updateData.meta_description,
+        og_image_url: updateData.og_image_url,
+        sections: updateData.sections,
+        whatsapp_source_type: updateData.whatsapp_source_type,
+        whatsapp_agent_id: updateData.whatsapp_agent_id,
+        whatsapp_custom_number: updateData.whatsapp_custom_number,
+        is_published: updateData.is_published,
+        updated_at: new Date().toISOString()
+      };
       
+      // Hapus field yang undefined agar tidak menimpa data yang ada jika tidak dikirim
+      Object.keys(cleanData).forEach(key => 
+        (cleanData as any)[key] === undefined && delete (cleanData as any)[key]
+      );
+
       const { data, error } = await supabase
         .from("landing_pages")
         .update(cleanData)
