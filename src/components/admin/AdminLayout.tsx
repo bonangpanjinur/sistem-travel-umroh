@@ -213,14 +213,16 @@ function AdminLayout() {
   };
 
   // Filter NAV_GROUPS based on permissions and super admin requirements
+  const isSuperAdmin = roles.includes('super_admin');
+  
   const filteredNavGroups = NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
       // If item requires super admin, check that first
-      if (item.superAdminOnly && !roles.includes('super_admin')) {
+      if (item.superAdminOnly && !isSuperAdmin) {
         return false;
       }
-      // Then check regular permissions
+      // Then check regular permissions (hasPermission already includes superAdmin bypass)
       return hasPermission(item.permission);
     })
   })).filter(group => group.items.length > 0);

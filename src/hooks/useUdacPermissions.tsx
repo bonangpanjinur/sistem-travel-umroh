@@ -39,9 +39,14 @@ export const useUdacPermissions = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  const { roles } = useAuth();
+  const isSuperAdmin = roles.includes('super_admin');
+
   const hasPermission = (permissionKey: string): boolean => {
-    // Super admin/owner bypass di frontend (untuk responsivitas)
+    // Super admin bypass di frontend (untuk responsivitas)
     // Namun tetap divalidasi di backend (RLS/RPC)
+    if (isSuperAdmin) return true;
+    
     const permission = permissions.find(p => p.key === permissionKey);
     return permission?.is_enabled ?? false;
   };
