@@ -48,10 +48,11 @@ export async function checkPermission(
   permissionKey: string
 ): Promise<PermissionCheckResult> {
   try {
-    // Call Supabase RPC function to check permission
-    const { data, error } = await supabase.rpc('check_permission' as any, {
+    // Call Supabase RPC function to check permission (v2 supports UDAC/ABAC)
+    const { data, error } = await supabase.rpc('check_permission_v2' as any, {
       _user_id: userId,
-      _permission_key: permissionKey
+      _permission_key: permissionKey,
+      _context: {} // Context can be expanded here for ABAC
     });
 
     if (error) {

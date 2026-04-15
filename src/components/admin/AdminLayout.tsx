@@ -23,7 +23,20 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from 'lucide-react';
 
 // Grouped navigation for better organization
-const NAV_GROUPS = [
+interface NavItem {
+  label: string;
+  icon: any;
+  path: string;
+  permission: string;
+  superAdminOnly?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Overview',
     items: [
@@ -122,8 +135,8 @@ const NAV_GROUPS = [
     label: 'Pengaturan',
     items: [
       { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users.view' },
-      { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions', permission: 'users.view' },
-      { label: 'UDAC Management', icon: Shield, path: '/admin/udac', permission: 'users.view' },
+      { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions', permission: 'users.view', superAdminOnly: true },
+      { label: 'UDAC Management', icon: Shield, path: '/admin/udac', permission: 'users.view', superAdminOnly: true },
       { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', permission: 'settings.manage' },
       { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings.manage' },
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
@@ -199,10 +212,17 @@ function AdminLayout() {
       (path !== '/admin' && location.pathname.startsWith(path));
   };
 
-  // Filter NAV_GROUPS based on permissions
+  // Filter NAV_GROUPS based on permissions and super admin requirements
   const filteredNavGroups = NAV_GROUPS.map(group => ({
     ...group,
-    items: group.items.filter(item => hasPermission(item.permission))
+    items: group.items.filter(item => {
+      // If item requires super admin, check that first
+      if (item.superAdminOnly && !roles.includes('super_admin')) {
+        return false;
+      }
+      // Then check regular permissions
+      return hasPermission(item.permission);
+    })
   })).filter(group => group.items.length > 0);
 
   if (isLoading) {
