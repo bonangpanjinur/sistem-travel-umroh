@@ -80,6 +80,7 @@ export function useAdminNotifications() {
           table: 'bookings',
         },
         async (payload) => {
+          if (!payload.new) return;
           const booking = payload.new as BookingRow;
           
           // Fetch customer name
@@ -113,6 +114,7 @@ export function useAdminNotifications() {
           table: 'payments',
         },
         async (payload) => {
+          if (!payload.new) return;
           const payment = payload.new as PaymentRow;
           
           // Fetch booking code
@@ -146,6 +148,7 @@ export function useAdminNotifications() {
           table: 'payments',
         },
         async (payload) => {
+          if (!payload.new || !payload.old) return;
           const payment = payload.new as PaymentRow;
           const oldPayment = payload.old as PaymentRow;
           
@@ -182,6 +185,7 @@ export function useAdminNotifications() {
           table: 'employee_devices',
         },
         async (payload) => {
+          if (!payload.new) return;
           const device = payload.new as EmployeeDevice;
           
           // Fetch employee details
