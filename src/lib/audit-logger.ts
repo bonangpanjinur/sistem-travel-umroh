@@ -74,38 +74,6 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<string | null
   }
 }
 
-/**
- * Log a permission change
- * @param role The role that was modified
- * @param permissionKey The permission key
- * @param oldValue The old enabled status
- * @param newValue The new enabled status
- * @param reason The reason for the change
- * @param metadata Additional metadata
- */
-export async function logPermissionChange(
-  role: string,
-  permissionKey: string,
-  oldValue: boolean,
-  newValue: boolean,
-  reason?: string,
-  metadata?: Record<string, any>
-): Promise<string | null> {
-  return logAuditEvent({
-    table_name: "role_permissions",
-    action: `Permission '${permissionKey}' for role '${role}' changed from ${oldValue} to ${newValue}`,
-    action_type: "PERMISSION_CHANGE",
-    old_data: { is_enabled: oldValue },
-    new_data: { is_enabled: newValue },
-    severity: "warning",
-    metadata: {
-      role,
-      permission_key: permissionKey,
-      reason: reason || "No reason provided",
-      ...metadata,
-    },
-  });
-}
 
 /**
  * Log user permission change
@@ -164,29 +132,3 @@ export async function logDataModification(
   });
 }
 
-/**
- * Batch log multiple permission changes
- * @param changes Array of permission changes
- * @param reason Shared reason for the batch
- */
-export async function logBatchPermissionChanges(
-  changes: Array<{
-    role: string;
-    permissionKey: string;
-    oldValue: boolean;
-    newValue: boolean;
-  }>,
-  reason?: string
-): Promise<(string | null)[]> {
-  return Promise.all(
-    changes.map((change) =>
-      logPermissionChange(
-        change.role,
-        change.permissionKey,
-        change.oldValue,
-        change.newValue,
-        reason
-      )
-    )
-  );
-}

@@ -3202,6 +3202,36 @@ export type Database = {
           },
         ]
       }
+      permissions_list: {
+        Row: {
+          created_at: string
+          description: string | null
+          group_name: string
+          id: string
+          key: string
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          group_name?: string
+          id?: string
+          key: string
+          label: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          group_name?: string
+          id?: string
+          key?: string
+          label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
           created_at: string | null
@@ -3524,33 +3554,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      role_permissions: {
-        Row: {
-          created_at: string | null
-          id: string
-          is_enabled: boolean | null
-          permission_key: string
-          role: Database["public"]["Enums"]["app_role"]
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          is_enabled?: boolean | null
-          permission_key: string
-          role: Database["public"]["Enums"]["app_role"]
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_enabled?: boolean | null
-          permission_key?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       room_assignments: {
         Row: {
@@ -4255,6 +4258,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          permission_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          permission_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          permission_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions_list"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           branch_id: string | null
@@ -4856,6 +4894,10 @@ export type Database = {
       bulk_sync_menu_items: {
         Args: { _menu_items: string }
         Returns: undefined
+      }
+      check_user_permission: {
+        Args: { _permission_key: string; _user_id: string }
+        Returns: boolean
       }
       estimate_haji_departure_year: {
         Args: {
