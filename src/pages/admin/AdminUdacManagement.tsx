@@ -133,8 +133,11 @@ export default function AdminUdacManagement() {
       // 2. PENTING: Invalidate cache yang digunakan oleh Sidebar/Layout
       queryClient.invalidateQueries({ queryKey: ["udac-permissions"] });
       
+      // 3. PENTING: Invalidate legacy permission cache untuk ProtectedRoute
+      queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
+      
       setPendingChanges({});
-      toast.success("Izin berhasil diperbarui secara dinamis!", {
+      toast.success("Izin berhasil diperbarui secara dinamis! Sidebar dan halaman akan refresh otomatis.", {
         icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
       });
     },

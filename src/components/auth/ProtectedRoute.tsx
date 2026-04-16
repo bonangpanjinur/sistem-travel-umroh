@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissionsFixed } from '@/hooks/usePermissionsFixed';
 import { AppRole } from '@/types/database';
 import { Loader2 } from 'lucide-react';
 
@@ -19,7 +19,7 @@ export default function ProtectedRoute({
   requireAuth = true 
 }: ProtectedRouteProps) {
   const { user, roles, isLoading: authLoading, isAdmin } = useAuth();
-  const { hasPermission, isLoading: permsLoading } = usePermissions();
+  const { hasPermission, isLoading: permsLoading } = usePermissionsFixed();
   const location = useLocation();
 
   const isLoading = authLoading || permsLoading;
