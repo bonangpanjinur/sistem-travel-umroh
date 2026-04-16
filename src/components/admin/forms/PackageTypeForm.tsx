@@ -60,7 +60,7 @@ export function PackageTypeForm({ packageTypeData, onSuccess, onCancel }: Packag
       } else {
         const { error } = await supabase
           .from("package_types")
-          .insert(values);
+          .insert([values as any]);
         if (error) throw error;
       }
     },
