@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
-  Shield, ShieldOff, ShieldCheck, Search, ChevronDown, ChevronRight,
+  Search, ChevronDown, ChevronRight,
   ToggleLeft, ToggleRight, CheckCircle2, XCircle, AlertTriangle
 } from "lucide-react";
 import { logUserPermissionChange } from "@/lib/audit-logger";
