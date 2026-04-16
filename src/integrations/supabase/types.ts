@@ -4939,6 +4939,13 @@ export type Database = {
       }
       is_account_locked: { Args: { _email: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      list_users_with_emails: {
+        Args: never
+        Returns: {
+          email: string
+          id: string
+        }[]
+      }
       log_activity: {
         Args: {
           _action: string
