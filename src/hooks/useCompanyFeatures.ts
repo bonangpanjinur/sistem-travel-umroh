@@ -32,23 +32,8 @@ export function useCompanyFeatures() {
   return useQuery({
     queryKey: ['company-features'],
     queryFn: async (): Promise<CompanyFeature[]> => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('company_features')
-          .select('*')
-          .eq('is_active', true)
-          .order('display_order', { ascending: true });
-        
-        if (error) {
-          console.warn('Error fetching company features:', error);
-          return DEFAULT_COMPANY_FEATURES;
-        }
-        
-        return data && data.length > 0 ? data : DEFAULT_COMPANY_FEATURES;
-      } catch (err) {
-        console.warn('Exception fetching company features:', err);
-        return DEFAULT_COMPANY_FEATURES;
-      }
+      // company_features table doesn't exist yet, return defaults
+      return DEFAULT_COMPANY_FEATURES;
     },
     staleTime: 1000 * 60 * 10,
   });
