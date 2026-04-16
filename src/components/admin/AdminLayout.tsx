@@ -5,6 +5,7 @@ import { useAdminNotifications } from "@/hooks/useAdminNotifications";
 import { AppRole } from "@/types/database";
 import { sortRoles } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { NotificationBell } from "./NotificationBell";
 import { CommandPalette } from "./CommandPalette";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
@@ -19,7 +20,7 @@ import {
   FileType, Star, ExternalLink, ChevronDown, Hotel, Plane as PlaneIcon,
   Settings2, Layout
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -137,7 +138,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Pengaturan',
     items: [
       { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users.view' },
-
       { label: 'UDAC Management', icon: Shield, path: '/admin/udac', permission: 'users.view', superAdminOnly: true },
       { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', permission: 'settings.manage' },
       { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings.manage' },
@@ -158,6 +158,7 @@ function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Overview', 'Sales & CRM', 'Produk & Operasional']));
+  const [searchQuery, setSearchQuery] = useState('');
   
   const isLoading = authLoading || permsLoading;
 
@@ -247,6 +248,19 @@ function AdminLayout() {
     })
   })).filter(group => group.items.length > 0);
 
+  // Filter groups based on search query
+  const filteredGroupsWithSearch = useMemo(() => {
+    if (!searchQuery) return filteredNavGroups;
+    
+    return filteredNavGroups.map(group => ({
+      ...group,
+      items: group.items.filter(item => 
+        item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        group.label.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    })).filter(group => group.items.length > 0);
+  }, [filteredNavGroups, searchQuery]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -286,94 +300,144 @@ function AdminLayout() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col",
         !sidebarOpen && "-translate-x-full"
       )}>
         {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-6 border-b">
-          <Link to="/admin" className="flex items-center gap-2 font-bold text-xl">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary-foreground" />
+        <div className="h-16 flex items-center justify-between px-6 border-b border-border/50 bg-gradient-to-r from-card to-card/50 sticky top-0 z-10">
+          <Link to="/admin" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm group-hover:scale-110 transition-transform duration-200 shadow-md">
+              U
             </div>
-            <span>Magic Admin</span>
+            <div className="flex flex-col">
+              <span className="font-bold text-sm leading-none">Umrah</span>
+              <span className="text-[10px] text-muted-foreground font-medium">Magic</span>
+            </div>
           </Link>
           {!isDesktop && (
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
-              <X className="w-5 h-5" />
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="h-8 w-8">
+              <X className="w-4 h-4" />
             </Button>
           )}
         </div>
 
+        {/* Sidebar Search */}
+        <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Input
+              placeholder="Cari menu..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-muted/50 border-muted-foreground/20 h-9 text-sm focus-visible:ring-1 focus-visible:ring-primary/50 transition-all"
+            />
+          </div>
+        </div>
+
         {/* Sidebar Content */}
-        <ScrollArea className="h-[calc(100vh-8rem)]">
-          <nav className="p-4 space-y-6">
-            {filteredNavGroups.map((group) => (
-              <div key={group.label} className="space-y-1">
-                <button
-                  onClick={() => toggleGroup(group.label)}
-                  className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
-                >
-                  {group.label}
-                  <ChevronDown className={cn(
-                    "w-3 h-3 transition-transform",
-                    isGroupExpanded(group.label) ? "rotate-0" : "-rotate-90"
-                  )} />
-                </button>
-                
-                {isGroupExpanded(group.label) && (
-                  <div className="space-y-1">
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => !isDesktop && setSidebarOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                          isPathActive(item.path)
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        )}
-                      >
-                        <item.icon className="w-4 h-4" />
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
+        <ScrollArea className="flex-1">
+          <nav className="p-4 space-y-4">
+            {filteredGroupsWithSearch.length === 0 ? (
+              <div className="text-center py-8 px-4">
+                <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery ? 'Menu tidak ditemukan' : 'Tidak ada menu tersedia'}
+                </p>
               </div>
-            ))}
+            ) : (
+              filteredGroupsWithSearch.map((group) => (
+                <div key={group.label} className="space-y-1.5">
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 rounded-lg group",
+                      isGroupExpanded(group.label)
+                        ? "text-primary bg-primary/5"
+                        : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/50"
+                    )}
+                  >
+                    {group.label}
+                    <ChevronDown className={cn(
+                      "w-3 h-3 transition-transform duration-300",
+                      isGroupExpanded(group.label) ? "rotate-0" : "-rotate-90"
+                    )} />
+                  </button>
+                  
+                  {isGroupExpanded(group.label) && (
+                    <div className="space-y-0.5 ml-0">
+                      {group.items.map((item) => (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => !isDesktop && setSidebarOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
+                            isPathActive(item.path)
+                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                          )}
+                        >
+                          <item.icon className={cn(
+                            "w-4 h-4 flex-shrink-0 transition-all duration-200",
+                            isPathActive(item.path) 
+                              ? "text-primary-foreground" 
+                              : "text-muted-foreground/70 group-hover:text-primary"
+                          )} />
+                          <span className="flex-1 truncate">{item.label}</span>
+                          {isPathActive(item.path) && (
+                            <div className="w-2 h-2 rounded-full bg-primary-foreground/60 animate-pulse" />
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </nav>
         </ScrollArea>
 
         {/* Sidebar Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card space-y-2">
-          {isDesktop && (
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="w-full justify-start gap-3"
-              onClick={() => setSidebarOpen(false)}
-              title="Tutup sidebar"
+        <div className="p-4 border-t border-border/50 bg-gradient-to-t from-muted/20 to-transparent space-y-3">
+          {/* User Info Card */}
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-muted-foreground/10 transition-all hover:bg-muted/60">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
+              {profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold truncate">{profile?.full_name || 'Admin'}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-center gap-2 text-xs h-9 border-muted-foreground/20 hover:bg-muted/80 transition-all"
+              onClick={() => navigate('/admin/settings')}
             >
-              <X className="w-4 h-4" />
-              <span className="text-sm">Tutup Sidebar</span>
+              <Settings className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Pengaturan</span>
             </Button>
-          )}
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
-            onClick={handleLogout}
-          >
-            <LogOut className="w-4 h-4" />
-            Keluar
-          </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="justify-center gap-2 text-xs h-9 shadow-sm hover:shadow-md transition-all"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 border-b bg-card flex items-center justify-between px-4 lg:px-8 shrink-0">
+        <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-8 shrink-0 gap-4 sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -383,7 +447,9 @@ function AdminLayout() {
             >
               <Menu className="w-5 h-5" />
             </Button>
-            <AdminBreadcrumb />
+            <div className="hidden sm:block">
+              <AdminBreadcrumb />
+            </div>
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4">
@@ -397,7 +463,7 @@ function AdminLayout() {
               onMarkAllAsRead={markAllAsRead}
               onClearAll={clearAll}
             />
-            <div className="h-8 w-px bg-border mx-1" />
+            <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
             <div className="flex items-center gap-3">
               <div className="hidden sm:flex flex-col items-end">
                 <span className="text-sm font-medium leading-none">
