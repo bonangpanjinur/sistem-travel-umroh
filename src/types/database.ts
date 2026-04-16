@@ -169,12 +169,19 @@ export interface Departure {
   flight_number: string | null;
   departure_time: string | null;
   status: string;
+  price_quad: number | null;
+  price_triple: number | null;
+  price_double: number | null;
+  price_single: number | null;
   created_at: string;
   updated_at: string;
   // Computed
   available_seats?: number;
   // Relations
   package?: Package;
+  airline?: Airline;
+  hotel_makkah?: Hotel;
+  hotel_madinah?: Hotel;
 }
 
 export interface Customer {

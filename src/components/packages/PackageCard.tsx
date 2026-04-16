@@ -109,12 +109,12 @@ export function PackageCard({
   // Calculate seat availability
   const getTotalQuota = () => {
     if (nearestDeparture?.quota) return nearestDeparture.quota;
-    return pkg.quota || 0;
+    return (pkg as any).quota || 0;
   };
 
   const getBookedCount = () => {
     if (nearestDeparture?.booked_count) return nearestDeparture.booked_count;
-    return pkg.booked_count || 0;
+    return (pkg as any).booked_count || 0;
   };
 
   const totalQuota = getTotalQuota();
