@@ -145,22 +145,22 @@ export default function AdminRoutes() {
 
       {/* Pengaturan */}
       <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} />
-      {/* <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} /> */}
-      {/* <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} /> */}
+      <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
+      <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />
       <Route path="static-pages" element={<LazyPage><AdminStaticPages /></LazyPage>} />
       <Route path="testimonials" element={<LazyPage><AdminTestimonials /></LazyPage>} />
       <Route path="package-types" element={<LazyPage><AdminPackageTypes /></LazyPage>} />
       <Route path="settings" element={<LazyPage><AdminSettings /></LazyPage>} />
 
-      {/* Master Data routes removed as per user request */}
-      {/* <Route path="master-data" element={<LazyPage><AdminMasterData /></LazyPage>} /> */}
-      {/* <Route path="airlines" element={<LazyPage><AdminAirlines /></LazyPage>} /> */}
-      {/* <Route path="airports" element={<LazyPage><AdminAirports /></LazyPage>} /> */}
-      {/* <Route path="hotels" element={<LazyPage><AdminHotels /></LazyPage>} /> */}
-      {/* <Route path="muthawifs" element={<LazyPage><AdminMuthawifs /></LazyPage>} /> */}
-      {/* <Route path="bus-providers" element={<LazyPage><AdminBusProviders /></LazyPage>} /> */}
-      {/* <Route path="vendors" element={<LazyPage><AdminVendors /></LazyPage>} /> */}
+      {/* Master Data */}
+      <Route path="master-data" element={<LazyPage><AdminMasterData /></LazyPage>} />
+      <Route path="airlines" element={<LazyPage><AdminAirlines /></LazyPage>} />
+      <Route path="airports" element={<LazyPage><AdminAirports /></LazyPage>} />
+      <Route path="hotels" element={<LazyPage><AdminHotels /></LazyPage>} />
+      <Route path="muthawifs" element={<LazyPage><AdminMuthawifs /></LazyPage>} />
+      <Route path="bus-providers" element={<LazyPage><AdminBusProviders /></LazyPage>} />
+      <Route path="vendors" element={<LazyPage><AdminVendors /></LazyPage>} />
     </Route>
   );
 }
