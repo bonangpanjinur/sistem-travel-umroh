@@ -225,6 +225,12 @@ function AdminLayout() {
         return false;
       }
       
+      // UDAC Sync Fix: Jika user adalah staff/admin (bukan customer), berikan akses dashboard minimal
+      // Ini memastikan semua role staf bisa melihat menu dasar meskipun permission belum sempurna di DB
+      if (item.permission === 'dashboard.view' && isAdmin()) {
+        return true;
+      }
+      
       // Enhanced permission check:
       // Some roles use granular permissions like view_branch or view_all instead of view_own
       // We check for any of these variants if the base permission is a 'view' permission
