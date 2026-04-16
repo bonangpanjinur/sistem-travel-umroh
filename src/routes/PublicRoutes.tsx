@@ -18,6 +18,7 @@ const SavingsRegister = lazy(() => import("@/pages/savings/SavingsRegister"));
 const BranchWebsite = lazy(() => import("@/pages/public/BranchWebsite"));
 const AgentWebsite = lazy(() => import("@/pages/public/AgentWebsite"));
 const LandingPage = lazy(() => import("@/pages/public/LandingPage"));
+const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -48,6 +49,7 @@ export default function PublicRoutes() {
       <Route path="/b/:branchSlug" element={<LazyPage><BranchWebsite /></LazyPage>} />
       <Route path="/a/:agentSlug" element={<LazyPage><AgentWebsite /></LazyPage>} />
       <Route path="/lp/:slug" element={<LazyPage><LandingPage /></LazyPage>} />
+      <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>
   );

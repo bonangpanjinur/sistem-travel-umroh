@@ -17,6 +17,7 @@ interface AuthContextType {
   hasRole: (role: AppRole) => boolean;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
+  isStaff: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -138,10 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roles.includes(role);
   };
 
+  const isStaff = (): boolean => {
+    // Basic check for any staff role
+    const staffRoles: AppRole[] = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'];
+    return roles.some(role => staffRoles.includes(role));
+  };
+
   const isAdmin = (): boolean => {
-    // All roles except 'customer' and 'jamaah' are considered admin/staff
-    // They all have access to the same menu without restrictions
-    return roles.length > 0 && !roles.every(role => role === 'customer');
+    // Strict admin check
+    const adminRoles: AppRole[] = ['super_admin', 'owner', 'branch_manager'];
+    return roles.some(role => adminRoles.includes(role));
   };
 
   const isSuperAdmin = (): boolean => {
@@ -163,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         isAdmin,
         isSuperAdmin,
+        isStaff,
       }}
     >
       {children}
