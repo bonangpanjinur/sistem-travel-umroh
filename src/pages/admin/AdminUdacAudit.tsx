@@ -103,15 +103,22 @@ export default function AdminUdacAudit() {
 
   const stats = useMemo(() => {
     const total = auditLogs.length;
-    // In the actual schema, we don't have is_granted. 
-    // We'll use action_type or metadata to determine status if available.
-    // For now, we'll just count total and types.
-    const changes = auditLogs.filter(l => l.action_type === "PERMISSION_CHANGE" || l.action?.includes("PERMISSION")).length;
-    const updates = auditLogs.filter(l => l.action_type === "UPDATE").length;
-    const creates = auditLogs.filter(l => l.action_type === "CREATE").length;
-    const deletes = auditLogs.filter(l => l.action_type === "DELETE").length;
     
-    return { total, changes, updates, creates, deletes };
+    // Improved stats calculation
+    const changes = auditLogs.filter(l => l.action_type === "PERMISSION_CHANGE" || l.action?.includes("PERMISSION")).length;
+    
+    // Calculate Granted/Denied from ACCESS_ATTEMPT logs
+    const granted = auditLogs.filter(l => 
+      l.action_type === "ACCESS_ATTEMPT" && 
+      (l.new_data?.is_granted === true || l.action?.toLowerCase().includes("granted"))
+    ).length;
+    
+    const denied = auditLogs.filter(l => 
+      l.action_type === "ACCESS_ATTEMPT" && 
+      (l.new_data?.is_granted === false || l.action?.toLowerCase().includes("denied"))
+    ).length;
+    
+    return { total, changes, granted, denied };
   }, [auditLogs]);
 
   const handleDownloadCSV = () => {
@@ -198,8 +205,20 @@ export default function AdminUdacAudit() {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Perubahan Izin</p>
-                <h3 className="text-2xl font-bold">{stats.changes}</h3>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Akses Diberikan</p>
+                <h3 className="text-2xl font-bold">{stats.granted}</h3>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm bg-gradient-to-br from-red-500/5 to-transparent">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-red-500/10 rounded-xl text-red-600">
+                <XCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Akses Ditolak</p>
+                <h3 className="text-2xl font-bold">{stats.denied}</h3>
               </div>
             </CardContent>
           </Card>
@@ -207,23 +226,11 @@ export default function AdminUdacAudit() {
           <Card className="border-none shadow-sm bg-gradient-to-br from-orange-500/5 to-transparent">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 bg-orange-500/10 rounded-xl text-orange-600">
-                <RefreshCw className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Update Data</p>
-                <h3 className="text-2xl font-bold">{stats.updates}</h3>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm bg-gradient-to-br from-purple-500/5 to-transparent">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="p-3 bg-purple-500/10 rounded-xl text-purple-600">
                 <Shield className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Data Baru</p>
-                <h3 className="text-2xl font-bold">{stats.creates}</h3>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Perubahan Izin</p>
+                <h3 className="text-2xl font-bold">{stats.changes}</h3>
               </div>
             </CardContent>
           </Card>
@@ -392,20 +399,20 @@ export default function AdminUdacAudit() {
                     <div className="space-y-3 w-full">
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs">
-                          <span>Update</span>
-                          <span>{stats.updates}</span>
+                          <span>Akses Diberikan</span>
+                          <span>{stats.granted}</span>
                         </div>
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-orange-500" style={{ width: `${(stats.updates / stats.total) * 100 || 0}%` }} />
+                          <div className="h-full bg-green-500" style={{ width: `${(stats.granted / stats.total) * 100 || 0}%` }} />
                         </div>
                       </div>
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs">
-                          <span>Create</span>
-                          <span>{stats.creates}</span>
+                          <span>Akses Ditolak</span>
+                          <span>{stats.denied}</span>
                         </div>
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500" style={{ width: `${(stats.creates / stats.total) * 100 || 0}%` }} />
+                          <div className="h-full bg-red-500" style={{ width: `${(stats.denied / stats.total) * 100 || 0}%` }} />
                         </div>
                       </div>
                       <div className="space-y-1">

@@ -33,6 +33,13 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<string | null
       return null;
     }
 
+    // Capture context (User Agent, etc.)
+    const context = {
+      user_agent: typeof window !== 'undefined' ? window.navigator.userAgent : 'Server',
+      url: typeof window !== 'undefined' ? window.location.href : 'N/A',
+      ...entry.metadata
+    };
+
     const { data, error } = await supabase
       .from("audit_logs")
       .insert({
@@ -44,7 +51,7 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<string | null
         old_data: entry.old_data || null,
         new_data: entry.new_data || null,
         severity: entry.severity || "info",
-        metadata: entry.metadata || null,
+        metadata: context,
         created_at: new Date().toISOString(),
       })
       .select();
