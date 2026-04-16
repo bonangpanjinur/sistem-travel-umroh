@@ -98,7 +98,17 @@ export const useDynamicMenus = () => {
 
   groupedMenus.forEach(g => g.items.sort((a, b) => a.sort_order - b.sort_order));
 
-  return { menus: filteredMenus, groupedMenus, isLoading, error, refetch };
+  /** Check if a given path is allowed for the current user */
+  const isPathAllowed = (path: string): boolean => {
+    if (isSuperAdmin) return true;
+    if (revokedKeys.length === 0) return true;
+    // Find menu item matching this path
+    const menuItem = menus.find((m: MenuItem) => m.path === path || (m.path !== '/admin' && path.startsWith(m.path)));
+    if (!menuItem) return true; // no matching menu = allow (e.g. detail pages)
+    return !revokedKeys.includes(menuItem.required_permission);
+  };
+
+  return { menus: filteredMenus, groupedMenus, isLoading, error, refetch, revokedKeys, isPathAllowed };
 };
 
 /** @deprecated Always returns true — access is controlled via user_permissions */
