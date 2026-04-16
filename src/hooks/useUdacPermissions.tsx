@@ -6,16 +6,21 @@ import { useAuth } from "@/hooks/useAuth";
 export type PermissionType = 'UI_COMPONENT' | 'API_ENDPOINT' | 'DATA_FIELD' | 'ACTION';
 
 export interface Permission {
-  key: string;
+  permission_key: string;
   label: string;
   group_name: string;
-  description: string;
-  type: PermissionType;
-  resource_identifier: string;
   is_enabled: boolean;
-  source: 'role' | 'user' | 'policy';
+  source: 'user';
 }
 
+/**
+ * Simplified UDAC Permissions Hook
+ * 
+ * Perubahan utama:
+ * - Menggunakan get_user_all_permissions yang hanya membaca dari user_permissions
+ * - Menghilangkan logika bypass super_admin di frontend (sudah ditangani di database)
+ * - Fokus pada user_permissions sebagai sumber kebenaran tunggal
+ */
 export const useUdacPermissions = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -25,7 +30,7 @@ export const useUdacPermissions = () => {
     queryFn: async () => {
       if (!user) return [];
       
-      // Menggunakan RPC function get_user_all_permissions yang sudah diperbarui (Fase 1)
+      // Menggunakan RPC function get_user_all_permissions yang sudah disederhanakan
       const { data, error } = await supabase.rpc('get_user_all_permissions', {
         _user_id: user.id
       });
@@ -41,18 +46,19 @@ export const useUdacPermissions = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Sinkronisasi Real-time: Invalidate cache saat ada perubahan di tabel role_permissions
+  // Sinkronisasi Real-time: Invalidate cache saat ada perubahan di tabel user_permissions
   useEffect(() => {
     if (!user) return;
 
     const channel = supabase
-      .channel('public:role_permissions_changes')
+      .channel('public:user_permissions_changes')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'role_permissions' 
+        table: 'user_permissions',
+        filter: `user_id=eq.${user.id}`
       }, () => {
-        console.log("Permissions changed, invalidating cache...");
+        console.log("User permissions changed, invalidating cache...");
         queryClient.invalidateQueries({ queryKey: ["udac-permissions", user.id] });
       })
       .subscribe();
@@ -62,32 +68,59 @@ export const useUdacPermissions = () => {
     };
   }, [user, queryClient]);
 
-  const { roles } = useAuth();
-  const isSuperAdmin = roles.includes('super_admin');
-
+  /**
+   * Periksa apakah pengguna memiliki izin tertentu
+   * Logika bypass super_admin sudah ditangani di database (get_user_effective_permission)
+   */
   const hasPermission = (permissionKey: string): boolean => {
-    // Super admin bypass di frontend (untuk responsivitas)
-    // Namun tetap divalidasi di backend (RLS/RPC)
-    if (isSuperAdmin) return true;
-    
-    const permission = permissions.find(p => p.key === permissionKey);
+    const permission = permissions.find(p => p.permission_key === permissionKey);
     return permission?.is_enabled ?? false;
   };
 
+  /**
+   * Periksa apakah pengguna memiliki SEMUA izin dari daftar yang diberikan
+   */
+  const hasAllPermissions = (permissionKeys: string[]): boolean => {
+    return permissionKeys.every(key => hasPermission(key));
+  };
+
+  /**
+   * Periksa apakah pengguna memiliki SALAH SATU izin dari daftar yang diberikan
+   */
+  const hasAnyPermission = (permissionKeys: string[]): boolean => {
+    return permissionKeys.some(key => hasPermission(key));
+  };
+
+  /**
+   * Dapatkan izin berdasarkan grup
+   */
   const getPermissionsByGroup = (groupName: string) => {
     return permissions.filter(p => p.group_name === groupName);
   };
 
-  const getPermissionsByResource = (resourceIdentifier: string) => {
-    return permissions.filter(p => p.resource_identifier === resourceIdentifier);
+  /**
+   * Dapatkan semua izin yang diaktifkan
+   */
+  const getEnabledPermissions = () => {
+    return permissions.filter(p => p.is_enabled);
+  };
+
+  /**
+   * Dapatkan semua izin yang dinonaktifkan
+   */
+  const getDisabledPermissions = () => {
+    return permissions.filter(p => !p.is_enabled);
   };
 
   return {
     permissions,
     isLoading,
     hasPermission,
+    hasAllPermissions,
+    hasAnyPermission,
     getPermissionsByGroup,
-    getPermissionsByResource,
+    getEnabledPermissions,
+    getDisabledPermissions,
     refetch
   };
 };
