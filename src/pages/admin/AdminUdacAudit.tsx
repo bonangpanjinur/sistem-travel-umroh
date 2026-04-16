@@ -11,7 +11,7 @@ import {
   Download, Filter, Calendar as CalendarIcon, 
   ArrowLeft, FileText, CheckCircle2, XCircle, 
   AlertTriangle, RefreshCw, ChevronRight, Info,
-  List
+  List, Eye, Terminal
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -19,11 +19,19 @@ import { Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function AdminUdacAudit() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAction, setFilterAction] = useState("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [selectedLog, setSelectedLog] = useState<any>(null);
 
   // Ambil Audit Logs
   const { data: auditLogs = [], isLoading, refetch, isFetching } = useQuery({
@@ -34,7 +42,7 @@ export default function AdminUdacAudit() {
         .from("audit_logs_with_profiles")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
 
       // If view fails (maybe not created yet), fallback to direct table query
       if (error) {
@@ -48,50 +56,43 @@ export default function AdminUdacAudit() {
             )
           `)
           .order("created_at", { ascending: false })
-          .limit(500);
-
-        if (filterAction !== "all") {
-          fallbackQuery = fallbackQuery.eq("action_type", filterAction);
-        }
-
-        if (searchQuery) {
-          fallbackQuery = fallbackQuery.or(`user_id.ilike.%${searchQuery}%,table_name.ilike.%${searchQuery}%,action.ilike.%${searchQuery}%`);
-        }
-
-        if (dateRange.start) {
-          fallbackQuery = fallbackQuery.gte("created_at", dateRange.start);
-        }
-
-        if (dateRange.end) {
-          fallbackQuery = fallbackQuery.lte("created_at", dateRange.end);
-        }
+          .limit(1000);
 
         const result = await fallbackQuery;
         if (result.error) throw result.error;
-        return result.data;
+        data = result.data;
       }
 
-      // Filter logic for the view data (since we fetched all 500 first)
+      // Filter logic for the fetched data
       if (data) {
         let filtered = [...data];
+        
         if (filterAction !== "all") {
           filtered = filtered.filter(l => l.action_type === filterAction);
         }
+        
         if (searchQuery) {
           const lowerQuery = searchQuery.toLowerCase();
           filtered = filtered.filter(l => 
             (l.user_id && l.user_id.toLowerCase().includes(lowerQuery)) ||
             (l.table_name && l.table_name.toLowerCase().includes(lowerQuery)) ||
             (l.action && l.action.toLowerCase().includes(lowerQuery)) ||
-            (l.user_full_name && l.user_full_name.toLowerCase().includes(lowerQuery))
+            (l.user_full_name && l.user_full_name.toLowerCase().includes(lowerQuery)) ||
+            (l.metadata && JSON.stringify(l.metadata).toLowerCase().includes(lowerQuery))
           );
         }
+        
         if (dateRange.start) {
           filtered = filtered.filter(l => l.created_at >= dateRange.start);
         }
+        
         if (dateRange.end) {
-          filtered = filtered.filter(l => l.created_at <= dateRange.end);
+          // Set to end of day
+          const endDate = new Date(dateRange.end);
+          endDate.setHours(23, 59, 59, 999);
+          filtered = filtered.filter(l => l.created_at <= endDate.toISOString());
         }
+        
         return filtered;
       }
 
@@ -99,13 +100,15 @@ export default function AdminUdacAudit() {
     },
   });
 
-
-
   const stats = useMemo(() => {
     const total = auditLogs.length;
     
-    // Improved stats calculation
-    const changes = auditLogs.filter(l => l.action_type === "PERMISSION_CHANGE" || l.action?.includes("PERMISSION")).length;
+    // Calculate Permission Changes
+    const changes = auditLogs.filter(l => 
+      l.action_type === "PERMISSION_CHANGE" || 
+      l.table_name === "role_permissions" || 
+      l.table_name === "user_permissions"
+    ).length;
     
     // Calculate Granted/Denied from ACCESS_ATTEMPT logs
     const granted = auditLogs.filter(l => 
@@ -128,7 +131,7 @@ export default function AdminUdacAudit() {
     }
 
     const csv = [
-      ["Timestamp", "User ID", "User Name", "Table", "Action", "Action Type", "Severity"].join(","),
+      ["Timestamp", "User ID", "User Name", "Table", "Action", "Action Type", "Severity", "Metadata"].join(","),
       ...auditLogs.map(log => [
         log.created_at,
         log.user_id,
@@ -136,7 +139,8 @@ export default function AdminUdacAudit() {
         log.table_name,
         log.action,
         log.action_type,
-        log.severity
+        log.severity,
+        JSON.stringify(log.metadata || {}).replace(/"/g, '""')
       ].map(v => `"${v}"`).join(","))
     ].join("\n");
 
@@ -149,6 +153,17 @@ export default function AdminUdacAudit() {
     toast.success("Audit log berhasil diunduh!", {
       icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
     });
+  };
+
+  const getSeverityBadge = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical':
+        return <Badge variant="destructive" className="bg-red-600">CRITICAL</Badge>;
+      case 'warning':
+        return <Badge variant="outline" className="text-orange-600 border-orange-600">WARNING</Badge>;
+      default:
+        return <Badge variant="secondary">INFO</Badge>;
+    }
   };
 
   return (
@@ -169,7 +184,7 @@ export default function AdminUdacAudit() {
               </h1>
             </div>
             <p className="text-sm text-muted-foreground max-w-2xl">
-              Pantau aktivitas akses real-time dan riwayat perubahan konfigurasi keamanan sistem.
+              Pantau aktivitas akses real-time dan riwayat perubahan konfigurasi keamanan sistem secara akurat.
             </p>
           </div>
           
@@ -237,7 +252,7 @@ export default function AdminUdacAudit() {
         </div>
 
         <Tabs defaultValue="logs" className="w-full space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <TabsList className="bg-muted/50 p-1">
               <TabsTrigger value="logs" className="gap-2">
                 <List className="h-4 w-4" /> Audit Logs
@@ -247,12 +262,12 @@ export default function AdminUdacAudit() {
               </TabsTrigger>
             </TabsList>
 
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              <div className="relative flex-1 min-w-[240px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input 
-                  placeholder="Cari user, tabel, atau aksi..." 
-                  className="pl-10 h-9 w-full rounded-md border bg-card text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                <Input 
+                  placeholder="Cari user, tabel, atau metadata..." 
+                  className="pl-10 h-9 w-full bg-card"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -260,13 +275,14 @@ export default function AdminUdacAudit() {
               <select 
                 value={filterAction} 
                 onChange={(e) => setFilterAction(e.target.value)}
-                className="h-9 px-3 rounded-md border bg-card text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                className="h-9 px-3 rounded-md border bg-card text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary min-w-[140px]"
               >
                 <option value="all">Semua Tipe</option>
                 <option value="CREATE">Create</option>
                 <option value="UPDATE">Update</option>
                 <option value="DELETE">Delete</option>
-                <option value="PERMISSION_CHANGE">Izin</option>
+                <option value="PERMISSION_CHANGE">Perubahan Izin</option>
+                <option value="ACCESS_ATTEMPT">Percobaan Akses</option>
               </select>
               <div className="flex items-center gap-2 bg-card border rounded-md px-2 h-9">
                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
@@ -314,12 +330,13 @@ export default function AdminUdacAudit() {
                         <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tabel / Entitas</th>
                         <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</th>
                         <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tipe</th>
-                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Detail</th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {auditLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
+                        <tr key={log.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => setSelectedLog(log)}>
                           <td className="p-4 whitespace-nowrap">
                             <div className="flex flex-col">
                               <span className="text-sm font-medium">
@@ -354,29 +371,24 @@ export default function AdminUdacAudit() {
                             </div>
                           </td>
                           <td className="p-4">
-                            <span className="text-sm font-medium">{log.action}</span>
+                            <span className="text-sm font-medium line-clamp-1">{log.action}</span>
                           </td>
                           <td className="p-4">
-                            <Badge variant={log.action_type === "DELETE" ? "destructive" : log.action_type === "CREATE" ? "default" : "secondary"} className="text-[10px] font-medium">
+                            <Badge variant={
+                              log.action_type === "DELETE" ? "destructive" : 
+                              log.action_type === "CREATE" ? "default" : 
+                              log.action_type === "ACCESS_ATTEMPT" ? "outline" : "secondary"
+                            } className="text-[10px] font-medium">
                               {log.action_type || 'INFO'}
                             </Badge>
                           </td>
                           <td className="p-4">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" className="max-w-xs">
-                                <div className="space-y-2 p-1">
-                                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Metadata / Changes</p>
-                                  <pre className="text-[10px] font-mono bg-muted p-2 rounded overflow-auto max-h-40">
-                                    {JSON.stringify(log.metadata || log.new_data || {}, null, 2)}
-                                  </pre>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
+                            {getSeverityBadge(log.severity)}
+                          </td>
+                          <td className="p-4">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Eye className="h-4 w-4" />
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -392,36 +404,37 @@ export default function AdminUdacAudit() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Distribusi Aktivitas</CardTitle>
-                  <CardDescription>Perbandingan antara berbagai tipe aksi yang tercatat.</CardDescription>
+                  <CardDescription>Perbandingan antara berbagai tipe aksi yang tercatat dalam log.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px] flex items-center justify-center">
                   <div className="flex flex-col items-center gap-4 w-full max-w-xs">
                     <div className="space-y-3 w-full">
                       <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between text-xs font-medium">
                           <span>Akses Diberikan</span>
                           <span>{stats.granted}</span>
                         </div>
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500" style={{ width: `${(stats.granted / stats.total) * 100 || 0}%` }} />
+                          <div className="h-full bg-green-500" style={{ width: `${(stats.granted / (stats.granted + stats.denied || 1)) * 100}%` }} />
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between text-xs font-medium">
                           <span>Akses Ditolak</span>
                           <span>{stats.denied}</span>
                         </div>
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-red-500" style={{ width: `${(stats.denied / stats.total) * 100 || 0}%` }} />
+                          <div className="h-full bg-red-500" style={{ width: `${(stats.denied / (stats.granted + stats.denied || 1)) * 100}%` }} />
                         </div>
                       </div>
+                      <Separator className="my-2" />
                       <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span>Permission Changes</span>
+                        <div className="flex justify-between text-xs font-medium">
+                          <span>Perubahan Izin</span>
                           <span>{stats.changes}</span>
                         </div>
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500" style={{ width: `${(stats.changes / stats.total) * 100 || 0}%` }} />
+                          <div className="h-full bg-orange-500" style={{ width: `${(stats.changes / stats.total) * 100 || 0}%` }} />
                         </div>
                       </div>
                     </div>
@@ -431,34 +444,133 @@ export default function AdminUdacAudit() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Status Keamanan</CardTitle>
-                  <CardDescription>Ringkasan kondisi keamanan berdasarkan log terbaru.</CardDescription>
+                  <CardTitle className="text-base">Status Keamanan & Monitoring</CardTitle>
+                  <CardDescription>Ringkasan kondisi keamanan berdasarkan pola log terbaru.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {stats.changes > 5 ? (
+                    {stats.denied > 10 ? (
+                      <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+                        <XCircle className="h-5 w-5 text-red-600 shrink-0" />
+                        <div>
+                          <p className="text-sm font-bold text-red-600">Peringatan Akses Ditolak</p>
+                          <p className="text-xs text-muted-foreground">Terdeteksi {stats.denied} percobaan akses yang ditolak. Ini mungkin menandakan upaya akses tidak sah atau konfigurasi izin yang terlalu ketat.</p>
+                        </div>
+                      </div>
+                    ) : stats.changes > 10 ? (
                       <div className="flex items-start gap-3 p-4 bg-orange-500/5 border border-orange-500/20 rounded-lg">
                         <AlertTriangle className="h-5 w-5 text-orange-600 shrink-0" />
                         <div>
-                          <p className="text-sm font-bold text-orange-600">Aktivitas Izin Tinggi</p>
-                          <p className="text-xs text-muted-foreground">Terdeteksi {stats.changes} perubahan izin. Pastikan semua perubahan ini telah disetujui.</p>
+                          <p className="text-sm font-bold text-orange-600">Aktivitas Perubahan Tinggi</p>
+                          <p className="text-xs text-muted-foreground">Terdeteksi {stats.changes} perubahan izin. Pastikan semua perubahan ini telah melalui proses verifikasi yang benar.</p>
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-start gap-3 p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
                         <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
                         <div>
-                          <p className="text-sm font-bold text-green-600">Sistem Normal</p>
-                          <p className="text-xs text-muted-foreground">Aktivitas perubahan konfigurasi dalam batas normal.</p>
+                          <p className="text-sm font-bold text-green-600">Sistem Berjalan Normal</p>
+                          <p className="text-xs text-muted-foreground">Pola aktivitas akses dan perubahan konfigurasi berada dalam batas wajar.</p>
                         </div>
                       </div>
                     )}
+
+                    <div className="pt-4 space-y-2">
+                      <p className="text-xs font-bold uppercase text-muted-foreground">Rekomendasi Tindakan</p>
+                      <ul className="text-xs space-y-1 text-muted-foreground list-disc pl-4">
+                        <li>Lakukan audit berkala setiap 7 hari terhadap log 'CRITICAL'.</li>
+                        <li>Verifikasi ulang alasan (reason) pada setiap perubahan izin.</li>
+                        <li>Pantau lonjakan 'ACCESS_ATTEMPT' pada jam tidak sibuk.</li>
+                      </ul>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Log Detail Dialog */}
+        <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Terminal className="h-5 w-5 text-primary" />
+                Detail Log Audit
+              </DialogTitle>
+              <DialogDescription>
+                Informasi lengkap mengenai aktivitas yang tercatat pada sistem.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Waktu Kejadian</p>
+                    <p className="text-sm font-medium">{selectedLog?.created_at ? new Date(selectedLog.created_at).toLocaleString('id-ID') : '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Tipe Aksi</p>
+                    <div>{getSeverityBadge(selectedLog?.severity)}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Pengguna</p>
+                    <p className="text-sm font-medium">{selectedLog?.user_full_name || 'Unknown User'}</p>
+                    <p className="text-[10px] font-mono text-muted-foreground">{selectedLog?.user_id}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Tabel / Entitas</p>
+                    <code className="text-xs font-mono bg-muted px-1 rounded">{selectedLog?.table_name || selectedLog?.entity_name || '-'}</code>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Deskripsi Aksi</p>
+                  <p className="text-sm bg-muted/30 p-3 rounded-lg border">{selectedLog?.action}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+                      <Activity className="h-3 w-3" /> Metadata & Konteks
+                    </p>
+                    <pre className="text-xs font-mono bg-slate-950 text-slate-50 p-4 rounded-lg overflow-auto border shadow-inner">
+                      {JSON.stringify(selectedLog?.metadata || {}, null, 2)}
+                    </pre>
+                  </div>
+
+                  {(selectedLog?.old_data || selectedLog?.new_data) && (
+                    <div className="grid grid-cols-1 gap-4">
+                      {selectedLog?.old_data && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Data Lama (Old)</p>
+                          <pre className="text-[10px] font-mono bg-muted p-3 rounded-lg overflow-auto border">
+                            {JSON.stringify(selectedLog.old_data, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      {selectedLog?.new_data && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Data Baru (New)</p>
+                          <pre className="text-[10px] font-mono bg-muted p-3 rounded-lg overflow-auto border">
+                            {JSON.stringify(selectedLog.new_data, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ScrollArea>
+            
+            <div className="flex justify-end pt-4 border-t mt-4">
+              <Button onClick={() => setSelectedLog(null)}>Tutup Detail</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

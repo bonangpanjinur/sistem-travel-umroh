@@ -11,7 +11,7 @@ export interface AuditLogEntry {
   table_name: string;
   record_id?: string;
   action: string;
-  action_type: "CREATE" | "UPDATE" | "DELETE" | "PERMISSION_CHANGE" | "VERIFY" | "APPROVE" | "REJECT";
+  action_type: "CREATE" | "UPDATE" | "DELETE" | "PERMISSION_CHANGE" | "VERIFY" | "APPROVE" | "REJECT" | "ACCESS_ATTEMPT";
   old_data?: Record<string, any>;
   new_data?: Record<string, any>;
   severity?: "info" | "warning" | "critical";
@@ -33,10 +33,12 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<string | null
       return null;
     }
 
-    // Capture context (User Agent, etc.)
+    // Capture enriched context (User Agent, IP, etc.)
     const context = {
       user_agent: typeof window !== 'undefined' ? window.navigator.userAgent : 'Server',
       url: typeof window !== 'undefined' ? window.location.href : 'N/A',
+      platform: typeof window !== 'undefined' ? window.navigator.platform : 'N/A',
+      language: typeof window !== 'undefined' ? window.navigator.language : 'N/A',
       ...entry.metadata
     };
 
@@ -78,6 +80,7 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<string | null
  * @param permissionKey The permission key
  * @param oldValue The old enabled status
  * @param newValue The new enabled status
+ * @param reason The reason for the change
  * @param metadata Additional metadata
  */
 export async function logPermissionChange(
@@ -85,6 +88,7 @@ export async function logPermissionChange(
   permissionKey: string,
   oldValue: boolean,
   newValue: boolean,
+  reason?: string,
   metadata?: Record<string, any>
 ): Promise<string | null> {
   return logAuditEvent({
@@ -97,6 +101,7 @@ export async function logPermissionChange(
     metadata: {
       role,
       permission_key: permissionKey,
+      reason: reason || "No reason provided",
       ...metadata,
     },
   });
@@ -108,12 +113,14 @@ export async function logPermissionChange(
  * @param permissionKey The permission key
  * @param oldValue The old enabled status
  * @param newValue The new enabled status
+ * @param reason The reason for the change
  */
 export async function logUserPermissionChange(
   userId: string,
   permissionKey: string,
   oldValue: boolean,
-  newValue: boolean
+  newValue: boolean,
+  reason?: string
 ): Promise<string | null> {
   return logAuditEvent({
     table_name: "user_permissions",
@@ -126,6 +133,7 @@ export async function logUserPermissionChange(
     metadata: {
       user_id: userId,
       permission_key: permissionKey,
+      reason: reason || "No reason provided",
     },
   });
 }
@@ -159,6 +167,7 @@ export async function logDataModification(
 /**
  * Batch log multiple permission changes
  * @param changes Array of permission changes
+ * @param reason Shared reason for the batch
  */
 export async function logBatchPermissionChanges(
   changes: Array<{
@@ -166,7 +175,8 @@ export async function logBatchPermissionChanges(
     permissionKey: string;
     oldValue: boolean;
     newValue: boolean;
-  }>
+  }>,
+  reason?: string
 ): Promise<(string | null)[]> {
   return Promise.all(
     changes.map((change) =>
@@ -174,7 +184,8 @@ export async function logBatchPermissionChanges(
         change.role,
         change.permissionKey,
         change.oldValue,
-        change.newValue
+        change.newValue,
+        reason
       )
     )
   );
