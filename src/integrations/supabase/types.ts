@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      about_page_content: {
+        Row: {
+          created_at: string
+          id: string
+          milestones: Json | null
+          mission_text: string | null
+          settings_id: string
+          updated_at: string
+          values: Json | null
+          vision_text: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          milestones?: Json | null
+          mission_text?: string | null
+          settings_id: string
+          updated_at?: string
+          values?: Json | null
+          vision_text?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          milestones?: Json | null
+          mission_text?: string | null
+          settings_id?: string
+          updated_at?: string
+          values?: Json | null
+          vision_text?: string | null
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           action: string
@@ -1005,6 +1038,42 @@ export type Database = {
           setting_key?: string
           setting_type?: string
           setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contact_page_content: {
+        Row: {
+          created_at: string
+          form_title: string | null
+          hero_subtitle: string | null
+          hero_title: string | null
+          id: string
+          map_url: string | null
+          operating_hours: Json | null
+          settings_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          form_title?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          map_url?: string | null
+          operating_hours?: Json | null
+          settings_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          form_title?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          map_url?: string | null
+          operating_hours?: Json | null
+          settings_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -2131,6 +2200,62 @@ export type Database = {
           },
         ]
       }
+      landing_pages: {
+        Row: {
+          created_at: string
+          id: string
+          is_published: boolean
+          meta_description: string | null
+          meta_title: string | null
+          og_image_url: string | null
+          sections: Json
+          slug: string
+          title: string
+          updated_at: string
+          whatsapp_agent_id: string | null
+          whatsapp_custom_number: string | null
+          whatsapp_source_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          sections?: Json
+          slug: string
+          title: string
+          updated_at?: string
+          whatsapp_agent_id?: string | null
+          whatsapp_custom_number?: string | null
+          whatsapp_source_type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          sections?: Json
+          slug?: string
+          title?: string
+          updated_at?: string
+          whatsapp_agent_id?: string | null
+          whatsapp_custom_number?: string | null
+          whatsapp_source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landing_pages_whatsapp_agent_id_fkey"
+            columns: ["whatsapp_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -2604,6 +2729,45 @@ export type Database = {
           },
         ]
       }
+      menu_items: {
+        Row: {
+          created_at: string
+          group_name: string
+          icon: string | null
+          id: string
+          key: string
+          label: string
+          path: string
+          required_permission: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          group_name?: string
+          icon?: string | null
+          id?: string
+          key: string
+          label: string
+          path: string
+          required_permission?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          group_name?: string
+          icon?: string | null
+          id?: string
+          key?: string
+          label?: string
+          path?: string
+          required_permission?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       muthawifs: {
         Row: {
           created_at: string | null
@@ -2757,6 +2921,39 @@ export type Database = {
           purpose?: string
           used_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      package_types: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3512,6 +3709,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      savings_page_content: {
+        Row: {
+          benefits: Json | null
+          created_at: string
+          cta_subtitle: string | null
+          cta_title: string | null
+          hero_subtitle: string | null
+          hero_title: string | null
+          id: string
+          settings_id: string
+          updated_at: string
+        }
+        Insert: {
+          benefits?: Json | null
+          created_at?: string
+          cta_subtitle?: string | null
+          cta_title?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          settings_id: string
+          updated_at?: string
+        }
+        Update: {
+          benefits?: Json | null
+          created_at?: string
+          cta_subtitle?: string | null
+          cta_title?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          settings_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       savings_payments: {
         Row: {
@@ -4609,6 +4842,10 @@ export type Database = {
       agent_can_access_customer: {
         Args: { _customer_id: string; _user_id: string }
         Returns: boolean
+      }
+      bulk_sync_menu_items: {
+        Args: { _menu_items: string }
+        Returns: undefined
       }
       estimate_haji_departure_year: {
         Args: {
