@@ -1,10 +1,5 @@
 /**
- * Hook untuk mengelola menu dinamis
- * 
- * Fitur:
- * - Fetch semua menu items untuk user yang bukan customer
- * - Grouping menu berdasarkan kategori
- * - Caching dan real-time sync
+ * Hook untuk mengelola menu dinamis dengan user-level permission filtering
  */
 
 import { useEffect } from 'react';
@@ -28,31 +23,39 @@ export interface MenuGroup {
   items: MenuItem[];
 }
 
-/**
- * Hook untuk fetch semua menu items (tanpa filtering permission)
- */
 export const useDynamicMenus = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, hasRole } = useAuth();
   const queryClient = useQueryClient();
+  const isSuperAdmin = hasRole('super_admin');
 
-  // Fetch all menus - no permission filtering
+  // Fetch user's revoked permissions
+  const { data: revokedKeys = [] } = useQuery({
+    queryKey: ['user-permissions-revoked', user?.id],
+    queryFn: async () => {
+      if (!user || isSuperAdmin) return []; // super admin bypasses
+      const { data, error } = await supabase
+        .from('user_permissions')
+        .select('permission_key')
+        .eq('user_id', user.id)
+        .eq('is_enabled', false);
+      if (error) { console.error(error); return []; }
+      return (data || []).map((d: any) => d.permission_key as string);
+    },
+    enabled: !!user && isAdmin && !isSuperAdmin,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch all menus
   const { data: menus = [], isLoading, error, refetch } = useQuery({
     queryKey: ['dynamic-menus', user?.id],
     queryFn: async () => {
       if (!user || !isAdmin()) return [];
-
-      // Get all menu items from database
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
         .order('group_name', { ascending: true })
         .order('sort_order', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching dynamic menus:', error);
-        throw error;
-      }
-
+      if (error) { console.error(error); throw error; }
       return (data || []).map((m: any) => ({
         id: m.id,
         key: m.key,
@@ -65,130 +68,58 @@ export const useDynamicMenus = () => {
       }));
     },
     enabled: !!user && isAdmin,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Real-time sync: Invalidate cache when menu_items change
+  // Realtime sync
   useEffect(() => {
     if (!user) return;
-
-    // Subscribe to menu_items changes
-    const menuChannel = supabase
-      .channel('public:menu_items_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'menu_items'
-      }, () => {
-        console.log('Menu items changed, invalidating cache...');
+    const ch = supabase
+      .channel('menu_items_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, () => {
         queryClient.invalidateQueries({ queryKey: ['dynamic-menus', user.id] });
       })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(menuChannel);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, [user, queryClient]);
 
-  // Group menus by group_name
-  const groupedMenus: MenuGroup[] = menus.reduce((acc: MenuGroup[], menu: MenuItem) => {
-    const existingGroup = acc.find(g => g.name === menu.group_name);
-    if (existingGroup) {
-      existingGroup.items.push(menu);
-    } else {
-      acc.push({
-        name: menu.group_name,
-        items: [menu]
-      });
-    }
+  // Filter out revoked menus (super admin sees all)
+  const filteredMenus = isSuperAdmin
+    ? menus
+    : menus.filter((m: MenuItem) => !revokedKeys.includes(m.required_permission));
+
+  // Group menus
+  const groupedMenus: MenuGroup[] = filteredMenus.reduce((acc: MenuGroup[], menu: MenuItem) => {
+    const existing = acc.find(g => g.name === menu.group_name);
+    if (existing) { existing.items.push(menu); }
+    else { acc.push({ name: menu.group_name, items: [menu] }); }
     return acc;
   }, []);
 
-  // Sort items within each group
-  groupedMenus.forEach(group => {
-    group.items.sort((a, b) => a.sort_order - b.sort_order);
-  });
+  groupedMenus.forEach(g => g.items.sort((a, b) => a.sort_order - b.sort_order));
 
-  return {
-    menus,
-    groupedMenus,
-    isLoading,
-    error,
-    refetch
-  };
+  return { menus: filteredMenus, groupedMenus, isLoading, error, refetch };
 };
 
-/**
- * Hook untuk check akses ke menu tertentu (deprecated - always returns true for non-customer roles)
- */
-export const useMenuAccess = (menuKey: string) => {
-  const { user, isAdmin } = useAuth();
+/** @deprecated Always returns true — access is controlled via user_permissions */
+export const useMenuAccess = (_menuKey: string) => ({ hasAccess: true, isLoading: false });
 
-  const { data: hasAccess = false, isLoading } = useQuery({
-    queryKey: ['menu-access', user?.id, menuKey],
-    queryFn: async () => {
-      if (!user || !isAdmin()) return false;
-      // All non-customer roles have access to all menus
-      return true;
-    },
-    enabled: !!user && isAdmin,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  return { hasAccess, isLoading };
-};
-
-/**
- * Hook untuk check akses ke multiple menu items (deprecated - always returns true for non-customer roles)
- */
+/** @deprecated Always returns true — access is controlled via user_permissions */
 export const useMultipleMenuAccess = (menuKeys: string[]) => {
-  const { user, isAdmin } = useAuth();
-
-  const { data: accessMap = {}, isLoading } = useQuery({
-    queryKey: ['menu-access-multiple', user?.id, menuKeys],
-    queryFn: async () => {
-      if (!user || !isAdmin() || menuKeys.length === 0) return {};
-
-      // All non-customer roles have access to all menus
-      const results: Record<string, boolean> = {};
-      menuKeys.forEach(key => {
-        results[key] = true;
-      });
-      return results;
-    },
-    enabled: !!user && isAdmin && menuKeys.length > 0,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  return { accessMap, isLoading };
+  const map: Record<string, boolean> = {};
+  menuKeys.forEach(k => { map[k] = true; });
+  return { accessMap: map, isLoading: false };
 };
 
-/**
- * Hook untuk sync menu items dari frontend ke database
- * Hanya untuk admin
- */
 export const useSyncMenus = () => {
   const queryClient = useQueryClient();
-
   const syncMenus = async (menus: any[]) => {
-    try {
-      const { data, error } = await supabase.rpc('bulk_sync_menu_items', {
-        _menu_items: JSON.stringify(menus)
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Invalidate cache
-      queryClient.invalidateQueries({ queryKey: ['dynamic-menus'] });
-
-      return data;
-    } catch (error) {
-      console.error('Error syncing menus:', error);
-      throw error;
-    }
+    const { data, error } = await supabase.rpc('bulk_sync_menu_items', {
+      _menu_items: JSON.stringify(menus)
+    });
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ['dynamic-menus'] });
+    return data;
   };
-
   return { syncMenus };
 };
