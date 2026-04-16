@@ -26,6 +26,13 @@ ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
 -- 2. RLS POLICIES FOR USER_PERMISSIONS
 -- =====================================================
 
+-- Drop existing policies if they exist to avoid "already exists" errors during re-migration
+DROP POLICY IF EXISTS "Admins can manage user permissions" ON public.user_permissions;
+DROP POLICY IF EXISTS "Users can view own permissions" ON public.user_permissions;
+DROP POLICY IF EXISTS "Only admins can modify user permissions" ON public.user_permissions;
+DROP POLICY IF EXISTS "Only admins can update user permissions" ON public.user_permissions;
+DROP POLICY IF EXISTS "Only admins can delete user permissions" ON public.user_permissions;
+
 -- Policy: Admins can manage all user permissions
 CREATE POLICY "Admins can manage user permissions" 
 ON public.user_permissions 
@@ -216,6 +223,7 @@ CREATE TABLE IF NOT EXISTS public.user_permissions_audit (
 ALTER TABLE public.user_permissions_audit ENABLE ROW LEVEL SECURITY;
 
 -- Only admins can view audit logs
+DROP POLICY IF EXISTS "Admins can view permission audit logs" ON public.user_permissions_audit;
 CREATE POLICY "Admins can view permission audit logs" 
 ON public.user_permissions_audit 
 FOR SELECT 
