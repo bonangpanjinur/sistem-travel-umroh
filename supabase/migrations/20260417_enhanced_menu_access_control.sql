@@ -341,3 +341,13 @@ INSERT INTO public.menu_items (key, label, path, group_name, sort_order, require
 ('package_types', 'Tipe Paket', '/admin/package-types', 'Pengaturan', 80, 'packages.view'),
 ('settings', 'Pengaturan', '/admin/settings', 'Pengaturan', 90, 'settings.manage')
 ON CONFLICT (key) DO NOTHING;
+
+-- Tambahkan menu manajemen ke dalam menu_items agar muncul di sidebar
+INSERT INTO public.menu_items (key, label, path, group_name, sort_order, required_permission) VALUES
+('role_management', 'Manajemen Role', '/admin/role-permissions', 'Pengaturan', 15, 'settings.manage'),
+('user_permissions', 'Izin Per User', '/admin/user-permissions', 'Pengaturan', 16, 'settings.manage')
+ON CONFLICT (key) DO UPDATE SET
+  label = EXCLUDED.label,
+  path = EXCLUDED.path,
+  group_name = EXCLUDED.group_name,
+  sort_order = EXCLUDED.sort_order;
