@@ -93,15 +93,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'SDM (HR)',
     items: [
-      { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr?tab=employees', permission: 'hr.employees.view' },
-      { label: 'Absensi', icon: Clock, path: '/admin/hr?tab=attendance', permission: 'hr.attendance.view' },
+      { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr', permission: 'hr.employees.view' },
       { label: 'Penggajian / Payroll', icon: Banknote, path: '/admin/hr/payroll', permission: 'hr.payroll.view' },
-      { label: 'Slip Gaji', icon: FileText, path: '/admin/finance-cash?tab=salary', permission: 'hr.payroll.view' },
-      { label: 'Departemen', icon: Building2, path: '/admin/hr?tab=departments', permission: 'hr.departments.view' },
-      { label: 'Posisi', icon: Briefcase, path: '/admin/hr?tab=positions', permission: 'hr.positions.view' },
-      { label: 'Jadwal Kerja', icon: Calendar, path: '/admin/hr?tab=schedules', permission: 'hr.schedules.view' },
-      { label: 'Perangkat', icon: Smartphone, path: '/admin/hr?tab=devices', permission: 'hr.devices.view' },
-      { label: 'Pengaturan HR', icon: Settings, path: '/admin/hr?tab=settings', permission: 'hr.settings.view' },
     ]
   },
   {
@@ -110,12 +103,6 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support', permission: 'support.tickets.view' },
       { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp', permission: 'whatsapp.view' },
       { label: 'Materi Promosi', icon: FileText, path: '/admin/marketing-materials', permission: 'marketing_materials.view' },
-    ]
-  },
-  {
-    label: 'Master Data',
-    items: [
-      { label: 'Master Data', icon: Settings, path: '/admin/master-data', permission: 'master_data.view' },
     ]
   },
   {
@@ -130,15 +117,12 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Laporan',
     items: [
       { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', permission: 'reports.view' },
-      { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports', permission: 'reports.view' },
-      { label: 'Laporan Terjadwal', icon: Calendar, path: '/admin/scheduled-reports', permission: 'reports.view' },
     ]
   },
   {
     label: 'Pengaturan',
     items: [
       { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users.view' },
-      { label: 'UDAC Management', icon: Shield, path: '/admin/udac', permission: 'users.view', superAdminOnly: true },
       { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', permission: 'settings.manage' },
       { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings.manage' },
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
@@ -299,192 +283,141 @@ function AdminLayout() {
       )}
 
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col",
-        !sidebarOpen && "-translate-x-full"
-      )}>
+      <aside 
+        className={cn(
+          "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-300 ease-in-out flex flex-col",
+          !sidebarOpen && "-translate-x-full"
+        )}
+      >
         {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-border/50 bg-gradient-to-r from-card to-card/50 sticky top-0 z-10">
-          <Link to="/admin" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm group-hover:scale-110 transition-transform duration-200 shadow-md">
+        <div className="h-16 flex items-center justify-between px-4 border-b">
+          <Link to="/admin" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold">
               U
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-sm leading-none">Umrah</span>
-              <span className="text-[10px] text-muted-foreground font-medium">Magic</span>
-            </div>
+            <span className="font-bold text-lg">Umrah Magic</span>
           </Link>
           {!isDesktop && (
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="h-8 w-8">
-              <X className="w-4 h-4" />
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
+              <X className="h-5 w-5" />
             </Button>
           )}
         </div>
 
         {/* Sidebar Search */}
-        <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+        <div className="p-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Cari menu..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-muted/50 border-muted-foreground/20 h-9 text-sm focus-visible:ring-1 focus-visible:ring-primary/50 transition-all"
+              className="pl-8 h-9"
             />
           </div>
         </div>
 
         {/* Sidebar Content */}
-        <ScrollArea className="flex-1">
-          <nav className="p-4 space-y-4">
-            {filteredGroupsWithSearch.length === 0 ? (
-              <div className="text-center py-8 px-4">
-                <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {searchQuery ? 'Menu tidak ditemukan' : 'Tidak ada menu tersedia'}
-                </p>
-              </div>
-            ) : (
-              filteredGroupsWithSearch.map((group) => (
-                <div key={group.label} className="space-y-1.5">
-                  <button
-                    onClick={() => toggleGroup(group.label)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 rounded-lg group",
-                      isGroupExpanded(group.label)
-                        ? "text-primary bg-primary/5"
-                        : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    {group.label}
-                    <ChevronDown className={cn(
-                      "w-3 h-3 transition-transform duration-300",
-                      isGroupExpanded(group.label) ? "rotate-0" : "-rotate-90"
-                    )} />
-                  </button>
-                  
-                  {isGroupExpanded(group.label) && (
-                    <div className="space-y-0.5 ml-0">
-                      {group.items.map((item) => (
+        <ScrollArea className="flex-1 py-4">
+          <nav className="px-2 space-y-4">
+            {filteredGroupsWithSearch.map((group) => (
+              <div key={group.label} className="space-y-1">
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+                >
+                  {group.label}
+                  <ChevronDown className={cn(
+                    "h-3 w-3 transition-transform",
+                    isGroupExpanded(group.label) ? "rotate-0" : "-rotate-90"
+                  )} />
+                </button>
+                
+                {isGroupExpanded(group.label) && (
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = isPathActive(item.path);
+                      
+                      return (
                         <Link
                           key={item.path}
                           to={item.path}
                           onClick={() => !isDesktop && setSidebarOpen(false)}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
-                            isPathActive(item.path)
-                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                            active 
+                              ? "bg-primary text-primary-foreground" 
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                           )}
                         >
-                          <item.icon className={cn(
-                            "w-4 h-4 flex-shrink-0 transition-all duration-200",
-                            isPathActive(item.path) 
-                              ? "text-primary-foreground" 
-                              : "text-muted-foreground/70 group-hover:text-primary"
-                          )} />
-                          <span className="flex-1 truncate">{item.label}</span>
-                          {isPathActive(item.path) && (
-                            <div className="w-2 h-2 rounded-full bg-primary-foreground/60 animate-pulse" />
-                          )}
+                          <Icon className="h-4 w-4" />
+                          {item.label}
                         </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
           </nav>
         </ScrollArea>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-border/50 bg-gradient-to-t from-muted/20 to-transparent space-y-3">
-          {/* User Info Card */}
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-muted-foreground/10 transition-all hover:bg-muted/60">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
-              {profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+        <div className="p-4 border-t space-y-2">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-xs font-medium">
+              {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'A'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate">{profile?.full_name || 'Admin'}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+              <p className="text-sm font-medium truncate">
+                {profile?.full_name || 'Admin'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user?.email}
+              </p>
             </div>
           </div>
-          
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="justify-center gap-2 text-xs h-9 border-muted-foreground/20 hover:bg-muted/80 transition-all"
-              onClick={() => navigate('/admin/settings')}
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Pengaturan</span>
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="justify-center gap-2 text-xs h-9 shadow-sm hover:shadow-md transition-all"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Keluar
+          </Button>
         </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-8 shrink-0 gap-4 sticky top-0 z-20 shadow-sm">
+        <header className="h-16 border-b bg-card flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-            <div className="hidden sm:block">
-              <AdminBreadcrumb />
-            </div>
+            {!isDesktop && (
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            <AdminBreadcrumb />
           </div>
-
+          
           <div className="flex items-center gap-2 lg:gap-4">
-            <div className="hidden md:block">
-              <CommandPalette />
-            </div>
-            <NotificationBell 
-              notifications={notifications}
-              unreadCount={unreadCount}
-              onMarkAsRead={markAsRead}
-              onMarkAllAsRead={markAllAsRead}
-              onClearAll={clearAll}
-            />
+            <CommandPalette />
+            <NotificationBell />
             <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-sm font-medium leading-none">
-                  {profile?.full_name || user?.email}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {roles[0]?.replace('_', ' ')}
-                </span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase()}
-              </div>
-            </div>
+            <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
+              <Link to="/" target="_blank" className="gap-2">
+                <ExternalLink className="h-4 w-4" />
+                Lihat Situs
+              </Link>
+            </Button>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-muted/30 p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            <Outlet />
-          </div>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <Outlet />
         </main>
       </div>
     </div>
