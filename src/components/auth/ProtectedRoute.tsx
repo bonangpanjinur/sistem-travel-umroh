@@ -1,18 +1,22 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { AppRole } from '@/types/database';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAuth?: boolean;
+  allowedRoles?: AppRole[];
+  permission?: string; // Deprecated - kept for compatibility but ignored
 }
 
 export default function ProtectedRoute({ 
   children, 
-  requireAuth = true 
+  requireAuth = true,
+  allowedRoles
 }: ProtectedRouteProps) {
-  const { user, isLoading: authLoading, isAdmin } = useAuth();
+  const { user, isLoading: authLoading, isAdmin, roles } = useAuth();
   const location = useLocation();
 
   const isLoading = authLoading;
@@ -37,6 +41,14 @@ export default function ProtectedRoute({
   // If it's an admin route (starts with /admin) and user is not admin, redirect to home
   if (location.pathname.startsWith('/admin') && !isAdmin()) {
     return <Navigate to="/" replace />;
+  }
+
+  // Check if user has allowed role
+  if (allowedRoles && allowedRoles.length > 0) {
+    const hasAllowedRole = roles.some(role => allowedRoles.includes(role));
+    if (!hasAllowedRole) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <>{children}</>;

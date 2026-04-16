@@ -1,11 +1,10 @@
 /**
- * Hook untuk mengelola menu dinamis berdasarkan hak akses user
+ * Hook untuk mengelola menu dinamis
  * 
  * Fitur:
- * - Fetch menu items yang dapat diakses user
+ * - Fetch semua menu items untuk user yang bukan customer
  * - Grouping menu berdasarkan kategori
  * - Caching dan real-time sync
- * - Support untuk menu override per user
  */
 
 import { useEffect } from 'react';
@@ -30,47 +29,46 @@ export interface MenuGroup {
 }
 
 /**
- * Hook untuk fetch menu items yang dapat diakses user
+ * Hook untuk fetch semua menu items (tanpa filtering permission)
  */
 export const useDynamicMenus = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch accessible menus
+  // Fetch all menus - no permission filtering
   const { data: menus = [], isLoading, error, refetch } = useQuery({
     queryKey: ['dynamic-menus', user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !isAdmin()) return [];
 
-      // Call RPC function to get accessible menus
-      const { data, error } = await supabase.rpc('get_user_accessible_menus', {
-        _user_id: user.id
-      });
+      // Get all menu items from database
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .order('group_name', { ascending: true })
+        .order('sort_order', { ascending: true });
 
       if (error) {
         console.error('Error fetching dynamic menus:', error);
         throw error;
       }
 
-      // Filter only accessible menus
-      return (data || [])
-        .filter((m: any) => m.has_access)
-        .map((m: any) => ({
-          id: m.id,
-          key: m.key,
-          label: m.label,
-          path: m.path,
-          icon: m.icon,
-          group_name: m.group_name,
-          sort_order: m.sort_order,
-          required_permission: m.required_permission
-        }));
+      return (data || []).map((m: any) => ({
+        id: m.id,
+        key: m.key,
+        label: m.label,
+        path: m.path,
+        icon: m.icon,
+        group_name: m.group_name,
+        sort_order: m.sort_order,
+        required_permission: m.required_permission
+      }));
     },
-    enabled: !!user,
+    enabled: !!user && isAdmin,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Real-time sync: Invalidate cache when menu_items or permissions change
+  // Real-time sync: Invalidate cache when menu_items change
   useEffect(() => {
     if (!user) return;
 
@@ -87,23 +85,8 @@ export const useDynamicMenus = () => {
       })
       .subscribe();
 
-    // Subscribe to user_permissions changes
-    const permChannel = supabase
-      .channel('public:user_permissions_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_permissions',
-        filter: `user_id=eq.${user.id}`
-      }, () => {
-        console.log('User permissions changed, invalidating cache...');
-        queryClient.invalidateQueries({ queryKey: ['dynamic-menus', user.id] });
-      })
-      .subscribe();
-
     return () => {
       supabase.removeChannel(menuChannel);
-      supabase.removeChannel(permChannel);
     };
   }, [user, queryClient]);
 
@@ -136,45 +119,19 @@ export const useDynamicMenus = () => {
 };
 
 /**
- * Hook untuk check akses ke menu tertentu
+ * Hook untuk check akses ke menu tertentu (deprecated - always returns true for non-customer roles)
  */
 export const useMenuAccess = (menuKey: string) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const { data: hasAccess = false, isLoading } = useQuery({
     queryKey: ['menu-access', user?.id, menuKey],
     queryFn: async () => {
-      if (!user) return false;
-
-      // Get menu item
-      const { data: menu, error: menuError } = await supabase
-        .from('menu_items')
-        .select('required_permission')
-        .eq('key', menuKey)
-        .single();
-
-      if (menuError) {
-        console.error('Error fetching menu:', menuError);
-        return false;
-      }
-
-      // Check permission
-      const { data: hasAccess, error: permError } = await supabase.rpc(
-        'get_user_effective_permission',
-        {
-          _user_id: user.id,
-          _permission_key: menu.required_permission
-        }
-      );
-
-      if (permError) {
-        console.error('Error checking permission:', permError);
-        return false;
-      }
-
-      return hasAccess || false;
+      if (!user || !isAdmin()) return false;
+      // All non-customer roles have access to all menus
+      return true;
     },
-    enabled: !!user && !!menuKey,
+    enabled: !!user && isAdmin,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -182,46 +139,24 @@ export const useMenuAccess = (menuKey: string) => {
 };
 
 /**
- * Hook untuk check akses ke multiple menu items
+ * Hook untuk check akses ke multiple menu items (deprecated - always returns true for non-customer roles)
  */
 export const useMultipleMenuAccess = (menuKeys: string[]) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const { data: accessMap = {}, isLoading } = useQuery({
     queryKey: ['menu-access-multiple', user?.id, menuKeys],
     queryFn: async () => {
-      if (!user || menuKeys.length === 0) return {};
+      if (!user || !isAdmin() || menuKeys.length === 0) return {};
 
-      // Get all menu items
-      const { data: menus, error: menusError } = await supabase
-        .from('menu_items')
-        .select('key, required_permission')
-        .in('key', menuKeys);
-
-      if (menusError) {
-        console.error('Error fetching menus:', menusError);
-        return {};
-      }
-
-      // Check access for each menu
+      // All non-customer roles have access to all menus
       const results: Record<string, boolean> = {};
-      await Promise.all(
-        menus.map(async (menu: any) => {
-          const { data: hasAccess, error } = await supabase.rpc(
-            'get_user_effective_permission',
-            {
-              _user_id: user.id,
-              _permission_key: menu.required_permission
-            }
-          );
-
-          results[menu.key] = (hasAccess || false);
-        })
-      );
-
+      menuKeys.forEach(key => {
+        results[key] = true;
+      });
       return results;
     },
-    enabled: !!user && menuKeys.length > 0,
+    enabled: !!user && isAdmin && menuKeys.length > 0,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

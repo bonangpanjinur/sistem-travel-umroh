@@ -11,7 +11,7 @@ import {
 import {
   LayoutDashboard, Package, Users, Calendar, CreditCard,
   Settings, Shield, UserCheck, FileBarChart, BarChart3,
-  Target, KeyRound, BedDouble, Plane, Wallet, FileCheck,
+  Target, BedDouble, Plane, Wallet, FileCheck,
   Building2, DollarSign, Truck, Gift, HeadphonesIcon,
   Palette, ShieldCheck, Key, MessageSquare, UserCog,
   BookOpen, MapPin, TrendingUp, FileText, Share2
@@ -47,7 +47,7 @@ const ALL_PAGES = [
   { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', keywords: 'report' },
   { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports', keywords: 'advanced report' },
   { label: 'Users', icon: Shield, path: '/admin/users', keywords: 'pengguna akun user' },
-  { label: 'Hak Akses', icon: KeyRound, path: '/admin/permissions', keywords: 'role permission' },
+
   { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security', keywords: 'keamanan log' },
   { label: '2FA Settings', icon: Key, path: '/admin/2fa', keywords: 'two factor authentication' },
   { label: 'Tampilan', icon: Palette, path: '/admin/appearance', keywords: 'tema warna desain' },

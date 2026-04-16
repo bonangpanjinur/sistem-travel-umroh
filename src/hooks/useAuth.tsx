@@ -139,16 +139,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = (): boolean => {
-    // Check for explicit admin roles
-    const hasAdminRole = roles.some(role => 
-      ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment'].includes(role)
-    );
-    
-    if (hasAdminRole) return true;
-
-    // If user has any role that is NOT 'customer', we treat them as staff/admin for layout purposes
-    // The actual menu items will still be filtered by UDAC permissions
-    return roles.length > 0 && !roles.every(role => role === 'customer');
+    // All roles except 'customer' and 'jamaah' are considered admin/staff
+    // They all have access to the same menu without restrictions
+    return roles.length > 0 && !roles.every(role => role === 'customer' || role === 'jamaah');
   };
 
   const isSuperAdmin = (): boolean => {
