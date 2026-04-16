@@ -117,9 +117,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Pengaturan',
     items: [
-      { label: 'Users', icon: Shield, path: '/admin/users' },
-      { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit' },
-      { label: '2FA Settings', icon: Key, path: '/admin/2fa' },
+      // { label: 'Users', icon: Shield, path: '/admin/users' },
+      // { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit' },
+      // { label: '2FA Settings', icon: Key, path: '/admin/2fa' },
       { label: 'Tampilan', icon: Palette, path: '/admin/appearance' },
       { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages' },
       { label: 'Testimoni', icon: Star, path: '/admin/testimonials' },

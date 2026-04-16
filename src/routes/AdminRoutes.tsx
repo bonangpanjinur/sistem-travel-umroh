@@ -14,7 +14,7 @@ const AdminBookingDetail = lazy(() => import("@/pages/admin/AdminBookingDetail")
 const AdminPayments = lazy(() => import("@/pages/admin/AdminPayments"));
 const AdminCustomers = lazy(() => import("@/pages/admin/AdminCustomers"));
 const AdminCustomerDetail = lazy(() => import("@/pages/admin/AdminCustomerDetail"));
-const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+// const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
@@ -39,8 +39,8 @@ const AdminVendors = lazy(() => import("@/pages/admin/AdminVendors"));
 const AdminLoyalty = lazy(() => import("@/pages/admin/AdminLoyalty"));
 const AdminReferrals = lazy(() => import("@/pages/admin/AdminReferrals"));
 const AdminSupportTickets = lazy(() => import("@/pages/admin/AdminSupportTickets"));
-const AdminSecurityAudit = lazy(() => import("@/pages/admin/AdminSecurityAudit"));
-const Admin2FASettings = lazy(() => import("@/pages/admin/Admin2FASettings"));
+// const AdminSecurityAudit = lazy(() => import("@/pages/admin/AdminSecurityAudit"));
+// const Admin2FASettings = lazy(() => import("@/pages/admin/Admin2FASettings"));
 const AdminWhatsApp = lazy(() => import("@/pages/admin/AdminWhatsApp"));
 const AdminAdvancedReports = lazy(() => import("@/pages/admin/AdminAdvancedReports"));
 const AdminHR = lazy(() => import("@/pages/admin/AdminHR"));
@@ -102,7 +102,7 @@ export default function AdminRoutes() {
       <Route path="customers" element={<LazyPage><AdminCustomers /></LazyPage>} />
       <Route path="customers/:id" element={<LazyPage><AdminCustomerDetail /></LazyPage>} />
       <Route path="document-verification" element={<LazyPage><AdminDocumentVerification /></LazyPage>} />
-      <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} />
+      {/* <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} /> */}
 
       {/* UDAC routes disabled due to missing components */}
       {/* <Route path="udac" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacManagement /></LazyPage></ProtectedRoute>} /> */}
@@ -125,8 +125,8 @@ export default function AdminRoutes() {
       <Route path="itinerary-templates" element={<LazyPage><AdminItineraryTemplates /></LazyPage>} />
       <Route path="offline-content" element={<LazyPage><AdminOfflineContent /></LazyPage>} />
       <Route path="documents-generator" element={<LazyPage><AdminDocumentGenerator /></LazyPage>} />
-      <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
-      <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
+      {/* <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} /> */}
+      {/* <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} /> */}
       <Route path="whatsapp" element={<LazyPage><AdminWhatsApp /></LazyPage>} />
       <Route path="marketing-materials" element={<LazyPage><AdminMarketingMaterials /></LazyPage>} />
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />
