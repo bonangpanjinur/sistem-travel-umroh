@@ -31,7 +31,12 @@ export default function AdminUdacAudit() {
     queryFn: async () => {
       let query = supabase
         .from("audit_logs")
-        .select("*, profiles(full_name)")
+        .select(`
+          *,
+          profiles:user_id (
+            full_name
+          )
+        `)
         .order("created_at", { ascending: false })
         .limit(500);
 

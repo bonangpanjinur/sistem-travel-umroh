@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { logPermissionChange } from "@/lib/audit-logger";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -115,15 +116,33 @@ export default function AdminUdacManagement() {
   const saveMutation = useMutation({
     mutationFn: async (updates: any[]) => {
       for (const update of updates) {
-        const { error } = await supabase
+        // 1. Get original value to check if it's really changed
+        const rp = rolePermissions.find((p: any) => p.permission_key === update.key);
+        const originalValue = rp?.is_enabled ?? false;
+        
+        // 2. Perform Upsert
+        const { data: upsertData, error } = await supabase
           .from("role_permissions")
           .upsert({ 
             role: selectedRole, 
             permission_key: update.key, 
             is_enabled: update.isEnabled,
             updated_at: new Date().toISOString()
-          }, { onConflict: 'role,permission_key' });
+          }, { onConflict: 'role,permission_key' })
+          .select();
+          
         if (error) throw error;
+
+        // 3. Explicitly Log to audit_logs using the audit logger
+        if (upsertData && upsertData.length > 0) {
+          await logPermissionChange(
+            selectedRole,
+            update.key,
+            originalValue,
+            update.isEnabled,
+            { record_id: upsertData[0].id }
+          );
+        }
       }
     },
     onSuccess: () => {
