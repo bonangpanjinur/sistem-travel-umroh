@@ -15,4 +15,255 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { Button } from '@/components/ui/button';
-import { NotificationBell } from './NotificationBell';\nimport { CommandPalette } from './CommandPalette';\nimport { AdminBreadcrumb } from './AdminBreadcrumb';\nimport {\n  LayoutDashboard,\n  Settings,\n  LogOut,\n  Menu,\n  X,\n  Shield,\n  ChevronDown,\n  Loader2,\n} from 'lucide-react';\nimport { useState, useEffect } from 'react';\nimport { cn } from '@/lib/utils';\nimport { ScrollArea } from '@/components/ui/scroll-area';\n\nfunction AdminLayoutDynamic() {\n  const { user, profile, signOut, isAdmin, roles } = useAuth();\n  const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();\n  const location = useLocation();\n  const navigate = useNavigate();\n  const [sidebarOpen, setSidebarOpen] = useState(false);\n  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);\n  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());\n\n  const {\n    notifications = [],\n    unreadCount = 0,\n    markAsRead,\n    markAllAsRead,\n    clearAll,\n  } = useAdminNotifications();\n\n  // Handle responsive sidebar behavior\n  useEffect(() => {\n    const handleResize = () => {\n      const isLargeScreen = window.innerWidth >= 1024;\n      setIsDesktop(isLargeScreen);\n\n      if (isLargeScreen) {\n        setSidebarOpen(true);\n      } else {\n        setSidebarOpen(false);\n      }\n    };\n\n    handleResize();\n    window.addEventListener('resize', handleResize);\n    return () => window.removeEventListener('resize', handleResize);\n  }, []);\n\n  // Auto-expand first few groups on load\n  useEffect(() => {\n    if (groupedMenus.length > 0 && expandedGroups.size === 0) {\n      const firstThreeGroups = groupedMenus.slice(0, 3).map(g => g.name);\n      setExpandedGroups(new Set(firstThreeGroups));\n    }\n  }, [groupedMenus]);\n\n  const handleLogout = async () => {\n    await signOut();\n    navigate('/');\n  };\n\n  const toggleGroup = (groupName: string) => {\n    const newExpanded = new Set(expandedGroups);\n    if (newExpanded.has(groupName)) {\n      newExpanded.delete(groupName);\n    } else {\n      newExpanded.add(groupName);\n    }\n    setExpandedGroups(newExpanded);\n  };\n\n  const isGroupExpanded = (groupName: string) => {\n    return expandedGroups.has(groupName);\n  };\n\n  const isPathActive = (path: string) => {\n    return (\n      location.pathname === path ||\n      (path !== '/admin' && location.pathname.startsWith(path))\n    );\n  };\n\n  if (!user || !isAdmin()) {\n    return (\n      <div className=\"min-h-screen flex items-center justify-center bg-background\">\n        <div className=\"text-center space-y-3\">\n          <Shield className=\"w-12 h-12 text-muted-foreground mx-auto\" />\n          <p className=\"text-muted-foreground\">Akses ditolak</p>\n        </div>\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"flex h-screen bg-background\">\n      {/* Mobile Sidebar Overlay */}\n      {sidebarOpen && !isDesktop && (\n        <div\n          className=\"fixed inset-0 z-40 bg-black/50\"\n          onClick={() => setSidebarOpen(false)}\n        />\n      )}\n\n      {/* Sidebar */}\n      <aside\n        className={cn(\n          'fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-200',\n          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'\n        )}\n      >\n        {/* Sidebar Header */}\n        <div className=\"flex items-center justify-between h-16 px-4 border-b border-border\">\n          <Link to=\"/admin\" className=\"font-bold text-lg\">\n            Umrah Magic\n          </Link>\n          <Button\n            variant=\"ghost\"\n            size=\"icon\"\n            onClick={() => !isDesktop && setSidebarOpen(false)}\n            className=\"lg:hidden\"\n          >\n            <X className=\"w-5 h-5\" />\n          </Button>\n        </div>\n\n        {/* Sidebar Content */}\n        <ScrollArea className=\"flex-1\">\n          <nav className=\"space-y-1 p-4\">\n            {menusLoading ? (\n              <div className=\"flex items-center justify-center py-8\">\n                <Loader2 className=\"w-5 h-5 animate-spin text-primary\" />\n              </div>\n            ) : groupedMenus.length === 0 ? (\n              <div className=\"text-center py-8 text-muted-foreground text-sm\">\n                Tidak ada menu tersedia\n              </div>\n            ) : (\n              groupedMenus.map(group => (\n                <div key={group.name} className=\"space-y-1\">\n                  {/* Group Header */}\n                  <button\n                    onClick={() => toggleGroup(group.name)}\n                    className=\"w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors\"\n                  >\n                    <span>{group.name}</span>\n                    <ChevronDown\n                      className={cn(\n                        'w-4 h-4 transition-transform',\n                        isGroupExpanded(group.name) ? 'rotate-180' : ''\n                      )}\n                    />\n                  </button>\n\n                  {/* Group Items */}\n                  {isGroupExpanded(group.name) && (\n                    <div className=\"space-y-1\">\n                      {group.items.map(item => (\n                        <Link\n                          key={item.key}\n                          to={item.path}\n                          onClick={() => !isDesktop && setSidebarOpen(false)}\n                          className={cn(\n                            'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',\n                            isPathActive(item.path)\n                              ? 'bg-primary text-primary-foreground'\n                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'\n                          )}\n                        >\n                          {item.icon && (\n                            <span className=\"w-4 h-4 flex-shrink-0\">\n                              {item.icon}\n                            </span>\n                          )}\n                          <span className=\"flex-1 truncate\">{item.label}</span>\n                        </Link>\n                      ))}\n                    </div>\n                  )}\n                </div>\n              ))\n            )}\n          </nav>\n        </ScrollArea>\n\n        {/* Sidebar Footer */}\n        <div className=\"border-t border-border p-4 space-y-2\">\n          <Button\n            variant=\"outline\"\n            className=\"w-full justify-start gap-2\"\n            onClick={() => setExpandedGroups(new Set())}\n          >\n            <Menu className=\"w-4 h-4\" />\n            Collapse All\n          </Button>\n          <Button\n            variant=\"destructive\"\n            className=\"w-full justify-start gap-2\"\n            onClick={handleLogout}\n          >\n            <LogOut className=\"w-4 h-4\" />\n            Logout\n          </Button>\n        </div>\n      </aside>\n\n      {/* Main Content */}\n      <div className=\"flex-1 flex flex-col overflow-hidden\">\n        {/* Top Bar */}\n        <header className=\"h-16 border-b border-border bg-card flex items-center justify-between px-4 gap-4\">\n          <div className=\"flex items-center gap-4\">\n            <Button\n              variant=\"ghost\"\n              size=\"icon\"\n              onClick={() => setSidebarOpen(!sidebarOpen)}\n              className=\"lg:hidden\"\n            >\n              <Menu className=\"w-5 h-5\" />\n            </Button>\n            <AdminBreadcrumb />\n          </div>\n\n          <div className=\"flex items-center gap-4\">\n            <NotificationBell\n              notifications={notifications}\n              unreadCount={unreadCount}\n              onMarkAsRead={markAsRead}\n              onMarkAllAsRead={markAllAsRead}\n              onClearAll={clearAll}\n            />\n            <CommandPalette />\n            <div className=\"flex items-center gap-2 text-sm\">\n              <span className=\"text-muted-foreground\">\n                {profile?.full_name || user?.email}\n              </span>\n            </div>\n          </div>\n        </header>\n\n        {/* Page Content */}\n        <main className=\"flex-1 overflow-auto\">\n          <Outlet />\n        </main>\n      </div>\n    </div>\n  );\n}\n\nexport default AdminLayoutDynamic;\n
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { AdminBreadcrumb } from './AdminBreadcrumb';
+import {
+  LayoutDashboard,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Shield,
+  ChevronDown,
+  Loader2,
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+function AdminLayoutDynamic() {
+  const { user, profile, signOut, isAdmin, roles } = useAuth();
+  const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const {
+    notifications = [],
+    unreadCount = 0,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+  } = useAdminNotifications();
+
+  // Handle responsive sidebar behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const isLargeScreen = window.innerWidth >= 1024;
+      setIsDesktop(isLargeScreen);
+
+      if (isLargeScreen) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Auto-expand first few groups on load
+  useEffect(() => {
+    if (groupedMenus.length > 0 && expandedGroups.size === 0) {
+      const firstThreeGroups = groupedMenus.slice(0, 3).map(g => g.name);
+      setExpandedGroups(new Set(firstThreeGroups));
+    }
+  }, [groupedMenus]);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const toggleGroup = (groupName: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupName)) {
+      newExpanded.delete(groupName);
+    } else {
+      newExpanded.add(groupName);
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  const isGroupExpanded = (groupName: string) => {
+    return expandedGroups.has(groupName);
+  };
+
+  const isPathActive = (path: string) => {
+    return (
+      location.pathname === path ||
+      (path !== '/admin' && location.pathname.startsWith(path))
+    );
+  };
+
+  if (!user || !isAdmin()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <Shield className="w-12 h-12 text-muted-foreground mx-auto" />
+          <p className="text-muted-foreground">Akses ditolak</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && !isDesktop && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-200',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+      >
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between h-16 px-4 border-b border-border">
+          <Link to="/admin" className="font-bold text-lg">
+            Umrah Magic
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => !isDesktop && setSidebarOpen(false)}
+            className="lg:hidden"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Sidebar Content */}
+        <ScrollArea className="flex-1">
+          <nav className="space-y-1 p-4">
+            {menusLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            ) : groupedMenus.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                Tidak ada menu tersedia
+              </div>
+            ) : (
+              groupedMenus.map(group => (
+                <div key={group.name} className="space-y-1">
+                  {/* Group Header */}
+                  <button
+                    onClick={() => toggleGroup(group.name)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+                  >
+                    <span>{group.name}</span>
+                    <ChevronDown
+                      className={cn(
+                        'w-4 h-4 transition-transform',
+                        isGroupExpanded(group.name) ? 'rotate-180' : ''
+                      )}
+                    />
+                  </button>
+
+                  {/* Group Items */}
+                  {isGroupExpanded(group.name) && (
+                    <div className="space-y-1">
+                      {group.items.map(item => (
+                        <Link
+                          key={item.key}
+                          to={item.path}
+                          onClick={() => !isDesktop && setSidebarOpen(false)}
+                          className={cn(
+                            'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                            isPathActive(item.path)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          )}
+                        >
+                          {item.icon && (
+                            <span className="w-4 h-4 flex-shrink-0">
+                              {item.icon}
+                            </span>
+                          )}
+                          <span className="flex-1 truncate">{item.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </nav>
+        </ScrollArea>
+
+        {/* Sidebar Footer */}
+        <div className="border-t border-border p-4 space-y-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={() => setExpandedGroups(new Set())}
+          >
+            <Menu className="w-4 h-4" />
+            Collapse All
+          </Button>
+          <Button
+            variant="destructive"
+            className="w-full justify-start gap-2"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 gap-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+            <AdminBreadcrumb />
+          </div>
+
+          <div className="flex items-center gap-4">
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+              onClearAll={clearAll}
+            />
+            <CommandPalette />
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">
+                {profile?.full_name || user?.email}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default AdminLayoutDynamic;
