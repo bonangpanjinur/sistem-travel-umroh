@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -17,6 +18,7 @@ export interface Permission {
 
 export const useUdacPermissions = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: permissions = [], isLoading, refetch } = useQuery({
     queryKey: ["udac-permissions", user?.id],
@@ -38,6 +40,27 @@ export const useUdacPermissions = () => {
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  // Sinkronisasi Real-time: Invalidate cache saat ada perubahan di tabel role_permissions
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('public:role_permissions_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'role_permissions' 
+      }, () => {
+        console.log("Permissions changed, invalidating cache...");
+        queryClient.invalidateQueries({ queryKey: ["udac-permissions", user.id] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   const { roles } = useAuth();
   const isSuperAdmin = roles.includes('super_admin');

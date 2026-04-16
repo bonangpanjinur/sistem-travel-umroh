@@ -127,7 +127,12 @@ export default function AdminUdacManagement() {
       }
     },
     onSuccess: () => {
+      // 1. Invalidate cache internal management
       queryClient.invalidateQueries({ queryKey: ["role-permissions"] });
+      
+      // 2. PENTING: Invalidate cache yang digunakan oleh Sidebar/Layout
+      queryClient.invalidateQueries({ queryKey: ["udac-permissions"] });
+      
       setPendingChanges({});
       toast.success("Izin berhasil diperbarui secara dinamis!", {
         icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
