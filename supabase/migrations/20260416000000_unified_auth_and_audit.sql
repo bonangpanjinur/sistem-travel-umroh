@@ -10,8 +10,7 @@ CREATE TABLE IF NOT EXISTS public.permissions_list (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. Create user_permissions_overrides table (to replace the view with manual overrides)
--- This table stores individual user permission overrides (enable/disable)
+-- 2. Create user_permissions_overrides table
 CREATE TABLE IF NOT EXISTS public.user_permissions_overrides (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -22,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.user_permissions_overrides (
     UNIQUE(user_id, permission_key)
 );
 
--- 3. Create menu_access_audit table for tracking access attempts
+-- 3. Create menu_access_audit table
 CREATE TABLE IF NOT EXISTS public.menu_access_audit (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -33,24 +32,41 @@ CREATE TABLE IF NOT EXISTS public.menu_access_audit (
     user_agent TEXT
 );
 
--- Enable RLS for new tables
+-- Enable RLS
 ALTER TABLE public.permissions_list ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_permissions_overrides ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_access_audit ENABLE ROW LEVEL SECURITY;
 
+-- Helper function to check admin status within this migration context
+-- This ensures the migration works even if public.is_admin is not yet visible or has search_path issues
+CREATE OR REPLACE FUNCTION public.check_is_admin(p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.user_roles 
+        WHERE user_id = p_user_id 
+        AND role IN ('super_admin', 'owner', 'branch_manager')
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- RLS Policies
+DROP POLICY IF EXISTS "Everyone can view permissions list" ON public.permissions_list;
 CREATE POLICY "Everyone can view permissions list" ON public.permissions_list FOR SELECT USING (true);
-CREATE POLICY "Admins can manage permissions list" ON public.permissions_list FOR ALL USING (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage permissions list" ON public.permissions_list;
+CREATE POLICY "Admins can manage permissions list" ON public.permissions_list FOR ALL USING (public.check_is_admin(auth.uid()));
+
+DROP POLICY IF EXISTS "Users can view their own overrides" ON public.user_permissions_overrides;
 CREATE POLICY "Users can view their own overrides" ON public.user_permissions_overrides FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Admins can manage all overrides" ON public.user_permissions_overrides FOR ALL USING (public.is_admin(auth.uid()));
 
-CREATE POLICY "Admins can view audit logs" ON public.menu_access_audit FOR SELECT USING (public.is_admin(auth.uid()));
+DROP POLICY IF EXISTS "Admins can manage all overrides" ON public.user_permissions_overrides;
+CREATE POLICY "Admins can manage all overrides" ON public.user_permissions_overrides FOR ALL USING (public.check_is_admin(auth.uid()));
 
--- 4. Unified Authorization Function: get_user_effective_permission
--- This function checks:
--- 1. If there's a manual override for the user (highest priority)
--- 2. If not, checks the role-based permissions
+DROP POLICY IF EXISTS "Admins can view audit logs" ON public.menu_access_audit;
+CREATE POLICY "Admins can view audit logs" ON public.menu_access_audit FOR SELECT USING (public.check_is_admin(auth.uid()));
+
+-- 4. Unified Authorization Function
 CREATE OR REPLACE FUNCTION public.get_user_effective_permission(
     p_user_id UUID,
     p_permission_key VARCHAR(100)
@@ -61,18 +77,14 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_is_enabled BOOLEAN;
-    v_has_override BOOLEAN := FALSE;
 BEGIN
-    -- Check for manual override first
+    -- 1. Check for manual override first
     SELECT is_enabled INTO v_is_enabled
     FROM public.user_permissions_overrides
     WHERE user_id = p_user_id AND permission_key = p_permission_key;
 
-    IF FOUND THEN
-        v_has_override := TRUE;
-    ELSE
-        -- If no override, check role-based permissions
-        -- A user has permission if ANY of their roles has the permission enabled
+    IF NOT FOUND THEN
+        -- 2. Check role-based permissions
         SELECT EXISTS (
             SELECT 1 
             FROM public.user_roles ur
@@ -83,9 +95,7 @@ BEGIN
         ) INTO v_is_enabled;
     END IF;
 
-    -- Audit the access attempt
-    -- Note: In a real Supabase environment, IP and User Agent might need to be passed from frontend
-    -- or extracted from request headers if available in the context.
+    -- 3. Audit the access attempt
     INSERT INTO public.menu_access_audit (user_id, permission_key, access_granted)
     VALUES (p_user_id, p_permission_key, COALESCE(v_is_enabled, FALSE));
 
@@ -93,7 +103,7 @@ BEGIN
 END;
 $$;
 
--- 5. Helper function for bulk checking (useful for frontend initialization)
+-- 5. Helper function for bulk checking
 CREATE OR REPLACE FUNCTION public.get_user_all_effective_permissions(p_user_id UUID)
 RETURNS TABLE (
     permission_key VARCHAR(100),
@@ -106,20 +116,17 @@ AS $$
 BEGIN
     RETURN QUERY
     WITH user_roles_perms AS (
-        -- Permissions from roles
-        SELECT DISTINCT rp.permission_key, true as is_enabled, 'role'::TEXT as source
+        SELECT DISTINCT rp.permission_key, true as is_enabled
         FROM public.user_roles ur
         JOIN public.role_permissions rp ON ur.role = rp.role
         WHERE ur.user_id = p_user_id AND rp.is_enabled = true
     ),
     overrides AS (
-        -- Manual overrides
-        SELECT upo.permission_key, upo.is_enabled, 'override'::TEXT as source
+        SELECT upo.permission_key, upo.is_enabled
         FROM public.user_permissions_overrides upo
         WHERE upo.user_id = p_user_id
     ),
     all_keys AS (
-        -- All unique keys from both sources
         SELECT key FROM public.permissions_list
     )
     SELECT 
@@ -136,7 +143,7 @@ BEGIN
 END;
 $$;
 
--- 6. Cleanup old view if it exists and replace with a more robust one
+-- 6. Context-aware View
 DROP VIEW IF EXISTS public.user_permissions;
 CREATE VIEW public.user_permissions 
 WITH (security_invoker = true)
@@ -148,13 +155,13 @@ SELECT
     pl.label,
     pl.group_name,
     pl.description,
-    auth.uid() as user_id -- This view is context-aware for the logged-in user
+    auth.uid() as user_id
 FROM public.get_user_all_effective_permissions(auth.uid()) p_all
 JOIN public.permissions_list pl ON p_all.permission_key = pl.key;
 
 GRANT SELECT ON public.user_permissions TO authenticated;
 
--- 7. Populate permissions_list with initial data from existing role_permissions
+-- 7. Populate initial data
 INSERT INTO public.permissions_list (key, label, group_name)
 SELECT DISTINCT permission_key, INITCAP(REPLACE(permission_key, '_', ' ')), 'General'
 FROM public.role_permissions
