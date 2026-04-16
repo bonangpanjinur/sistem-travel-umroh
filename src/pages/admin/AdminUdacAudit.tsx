@@ -29,43 +29,77 @@ export default function AdminUdacAudit() {
   const { data: auditLogs = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["udac-audit-logs", searchQuery, filterAction, dateRange],
     queryFn: async () => {
-      let query = supabase
-        .from("audit_logs")
-        .select(`
-          *,
-          profiles:user_id (
-            full_name
-          )
-        `)
+      // First try to query from the view which is more robust
+      let { data, error } = await supabase
+        .from("audit_logs_with_profiles")
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
 
-      if (filterAction !== "all") {
-        query = query.eq("action_type", filterAction);
+      // If view fails (maybe not created yet), fallback to direct table query
+      if (error) {
+        console.warn("View query failed, falling back to direct table query:", error);
+        let fallbackQuery = supabase
+          .from("audit_logs")
+          .select(`
+            *,
+            user_profile:user_id (
+              full_name
+            )
+          `)
+          .order("created_at", { ascending: false })
+          .limit(500);
+
+        if (filterAction !== "all") {
+          fallbackQuery = fallbackQuery.eq("action_type", filterAction);
+        }
+
+        if (searchQuery) {
+          fallbackQuery = fallbackQuery.or(`user_id.ilike.%${searchQuery}%,table_name.ilike.%${searchQuery}%,action.ilike.%${searchQuery}%`);
+        }
+
+        if (dateRange.start) {
+          fallbackQuery = fallbackQuery.gte("created_at", dateRange.start);
+        }
+
+        if (dateRange.end) {
+          fallbackQuery = fallbackQuery.lte("created_at", dateRange.end);
+        }
+
+        const result = await fallbackQuery;
+        if (result.error) throw result.error;
+        return result.data;
       }
 
-      if (searchQuery) {
-        // Since we can't easily ilike on joined profiles in a simple .or() with Supabase JS client 
-        // without complex filters, we'll filter user_id or table_name or action
-        query = query.or(`user_id.ilike.%${searchQuery}%,table_name.ilike.%${searchQuery}%,action.ilike.%${searchQuery}%`);
+      // Filter logic for the view data (since we fetched all 500 first)
+      if (data) {
+        let filtered = [...data];
+        if (filterAction !== "all") {
+          filtered = filtered.filter(l => l.action_type === filterAction);
+        }
+        if (searchQuery) {
+          const lowerQuery = searchQuery.toLowerCase();
+          filtered = filtered.filter(l => 
+            (l.user_id && l.user_id.toLowerCase().includes(lowerQuery)) ||
+            (l.table_name && l.table_name.toLowerCase().includes(lowerQuery)) ||
+            (l.action && l.action.toLowerCase().includes(lowerQuery)) ||
+            (l.user_full_name && l.user_full_name.toLowerCase().includes(lowerQuery))
+          );
+        }
+        if (dateRange.start) {
+          filtered = filtered.filter(l => l.created_at >= dateRange.start);
+        }
+        if (dateRange.end) {
+          filtered = filtered.filter(l => l.created_at <= dateRange.end);
+        }
+        return filtered;
       }
 
-      if (dateRange.start) {
-        query = query.gte("created_at", dateRange.start);
-      }
-
-      if (dateRange.end) {
-        query = query.lte("created_at", dateRange.end);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      // Map data to match the expected UI structure if needed, 
-      // but we'll adapt the UI to the actual schema
-      return data;
+      return [];
     },
   });
+
+
 
   const stats = useMemo(() => {
     const total = auditLogs.length;
@@ -91,7 +125,7 @@ export default function AdminUdacAudit() {
       ...auditLogs.map(log => [
         log.created_at,
         log.user_id,
-        (log.profiles as any)?.full_name || "Unknown",
+        log.user_full_name || (log.user_profile as any)?.full_name || (log.profiles as any)?.full_name || "Unknown",
         log.table_name,
         log.action,
         log.action_type,
@@ -292,10 +326,10 @@ export default function AdminUdacAudit() {
                           <td className="p-4">
                             <div className="flex items-center gap-2">
                               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                {((log.profiles as any)?.full_name || 'U').charAt(0).toUpperCase()}
+                                {(log.user_full_name || (log.user_profile as any)?.full_name || (log.profiles as any)?.full_name || 'U').charAt(0).toUpperCase()}
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-sm font-medium">{(log.profiles as any)?.full_name || 'Unknown'}</span>
+                                <span className="text-sm font-medium">{log.user_full_name || (log.user_profile as any)?.full_name || (log.profiles as any)?.full_name || 'Unknown'}</span>
                                 <span className="text-[10px] font-mono text-muted-foreground">{log.user_id?.slice(0, 8)}...</span>
                               </div>
                             </div>

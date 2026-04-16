@@ -135,3 +135,42 @@ EXCEPTION WHEN OTHERS THEN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6. Explicitly define relationship to profiles via user_id
+-- This helps PostgREST understand the relationship for joins
+-- We'll try to add a foreign key if it doesn't exist, but profiles table uses user_id as the link to auth.users
+-- Since audit_logs.user_id and profiles.user_id both point to auth.users.id, we can join them.
+-- To make it easier for PostgREST, we can ensure the FK is there.
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'audit_logs_user_id_fkey' 
+        AND table_name = 'audit_logs'
+    ) THEN
+        ALTER TABLE public.audit_logs 
+        ADD CONSTRAINT audit_logs_user_id_fkey 
+        FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- 7. Add a helper view for audit logs with profile names
+-- This is a more robust way to get the data if the direct join continues to fail
+CREATE OR REPLACE VIEW public.audit_logs_with_profiles AS
+SELECT 
+    al.*,
+    p.full_name as user_full_name
+FROM 
+    public.audit_logs al
+LEFT JOIN 
+    public.profiles p ON al.user_id = p.user_id;
+
+-- Grant access to the view
+GRANT SELECT ON public.audit_logs_with_profiles TO authenticated;
+
+-- Add RLS to the view (it will inherit from the underlying tables if defined as security invoker, 
+-- but let's be explicit if needed. PostgREST views usually need explicit grants)
+-- Note: Views in Supabase/PostgreSQL don't have RLS themselves, but they respect underlying RLS 
+-- if they are created with "security invoker".
+ALTER VIEW public.audit_logs_with_profiles SET (security_invoker = on);
