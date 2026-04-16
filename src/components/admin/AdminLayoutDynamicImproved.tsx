@@ -16,6 +16,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
+import { ShieldAlert } from 'lucide-react';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
