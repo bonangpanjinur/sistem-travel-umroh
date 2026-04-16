@@ -63,7 +63,9 @@ const AdminPayroll = lazy(() => import("@/pages/admin/AdminPayroll"));
 const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
 const AdminVisaManagement = lazy(() => import("@/pages/admin/AdminVisaManagement"));
 
-const ADMIN_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment'] as const;
+// All roles except 'customer' are allowed to enter the admin layout shell.
+// The specific menus and pages will be further restricted by UDAC permissions.
+const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -74,7 +76,7 @@ export default function AdminRoutes() {
     <Route
       path="/admin"
       element={
-        <ProtectedRoute allowedRoles={[...ADMIN_ROLES]}>
+        <ProtectedRoute allowedRoles={[...ALL_STAFF_ROLES]}>
           <ThemeProvider>
             <AdminLayout />
           </ThemeProvider>

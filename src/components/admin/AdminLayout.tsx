@@ -224,7 +224,19 @@ function AdminLayout() {
       if (item.superAdminOnly && !isSuperAdmin) {
         return false;
       }
-      // Then check regular permissions (hasPermission already includes superAdmin bypass)
+      
+      // Enhanced permission check:
+      // Some roles use granular permissions like view_branch or view_all instead of view_own
+      // We check for any of these variants if the base permission is a 'view' permission
+      if (item.permission.endsWith('.view_own')) {
+        const base = item.permission.replace('.view_own', '');
+        return hasPermission(item.permission) || 
+               hasPermission(`${base}.view_branch`) || 
+               hasPermission(`${base}.view_all`) ||
+               hasPermission(`${base}.view`);
+      }
+
+      // Default check
       return hasPermission(item.permission);
     })
   })).filter(group => group.items.length > 0);
@@ -257,9 +269,7 @@ function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <CommandPalette />
-
+    <div className="min-h-screen bg-background flex">
       {/* Mobile Sidebar Overlay */}
       {!isDesktop && sidebarOpen && (
         <div 
@@ -270,126 +280,97 @@ function AdminLayout() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed top-0 left-0 bottom-0 bg-card border-r z-50 transition-all duration-300 overflow-hidden flex flex-col",
-        sidebarOpen ? "w-72" : "w-0 lg:w-20"
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+        !sidebarOpen && "-translate-x-full"
       )}>
         {/* Sidebar Header */}
-        <div className="h-16 border-b flex items-center px-6 shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
-              <Shield className="h-5 w-5 text-primary-foreground" />
+        <div className="h-16 flex items-center justify-between px-6 border-b">
+          <Link to="/admin" className="flex items-center gap-2 font-bold text-xl">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Shield className="w-5 h-5 text-primary-foreground" />
             </div>
-            {sidebarOpen && (
-              <span className="font-bold text-lg tracking-tight whitespace-nowrap">
-                Magic Admin
-              </span>
-            )}
-          </div>
+            <span>Magic Admin</span>
+          </Link>
+          {!isDesktop && (
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
+              <X className="w-5 h-5" />
+            </Button>
+          )}
         </div>
 
-        {/* Navigation Area */}
-        <ScrollArea className="flex-1 px-3 py-4">
-          <div className="space-y-6">
+        {/* Sidebar Content */}
+        <ScrollArea className="h-[calc(100vh-8rem)]">
+          <nav className="p-4 space-y-6">
             {filteredNavGroups.map((group) => (
               <div key={group.label} className="space-y-1">
-                {sidebarOpen ? (
-                  <button 
-                    onClick={() => toggleGroup(group.label)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 hover:text-primary transition-colors"
-                  >
-                    {group.label}
-                    <ChevronDown className={cn(
-                      "h-3 w-3 transition-transform duration-200",
-                      isGroupExpanded(group.label) ? "" : "-rotate-90"
-                    )} />
-                  </button>
-                ) : (
-                  <div className="h-px bg-border my-4 mx-2" />
-                )}
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+                >
+                  {group.label}
+                  <ChevronDown className={cn(
+                    "w-3 h-3 transition-transform",
+                    isGroupExpanded(group.label) ? "rotate-0" : "-rotate-90"
+                  )} />
+                </button>
                 
-                {(sidebarOpen ? isGroupExpanded(group.label) : true) && (
+                {isGroupExpanded(group.label) && (
                   <div className="space-y-1">
-                    {group.items.map((item) => {
-                      const active = isPathActive(item.path);
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
-                            active 
-                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          )}
-                          onClick={() => !isDesktop && setSidebarOpen(false)}
-                        >
-                          <item.icon className={cn(
-                            "h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110",
-                            active ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"
-                          )} />
-                          {sidebarOpen && (
-                            <span className="text-sm font-medium whitespace-nowrap">
-                              {item.label}
-                            </span>
-                          )}
-                          {!sidebarOpen && (
-                            <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border shadow-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
-                              {item.label}
-                            </div>
-                          )}
-                        </Link>
-                      );
-                    })}
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => !isDesktop && setSidebarOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                          isPathActive(item.path)
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        )}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        {item.label}
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
             ))}
-          </div>
+          </nav>
         </ScrollArea>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t shrink-0">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card">
           <Button 
             variant="ghost" 
-            className={cn(
-              "w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10",
-              !sidebarOpen && "px-0 justify-center"
-            )}
+            className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
             onClick={handleLogout}
           >
-            <LogOut className="h-5 w-5" />
-            {sidebarOpen && <span>Keluar</span>}
+            <LogOut className="w-4 h-4" />
+            Keluar
           </Button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className={cn(
-        "transition-all duration-300 min-h-screen flex flex-col",
-        isDesktop ? (sidebarOpen ? "pl-72" : "pl-20") : "pl-0"
-      )}>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 border-b bg-card/80 backdrop-blur-md sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between">
+        <header className="h-16 border-b bg-card flex items-center justify-between px-4 lg:px-8 shrink-0">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
               size="icon" 
+              className="lg:hidden"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:flex"
             >
-              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <Menu className="w-5 h-5" />
             </Button>
-            <div className="hidden md:block">
-              <AdminBreadcrumb />
-            </div>
+            <AdminBreadcrumb />
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden sm:flex items-center bg-muted/50 rounded-full px-3 py-1 border border-border/50">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse mr-2" />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">
-                System Online
-              </span>
+          <div className="flex items-center gap-2 lg:gap-4">
+            <div className="hidden md:block">
+              <CommandPalette />
             </div>
             <NotificationBell 
               notifications={notifications}
@@ -399,28 +380,29 @@ function AdminLayout() {
               onClearAll={clearAll}
             />
             <div className="h-8 w-px bg-border mx-1" />
-            <div className="flex items-center gap-3 pl-1">
-              <div className="flex flex-col items-end hidden sm:flex">
-                <span className="text-xs font-bold leading-none">{profile?.full_name || user?.email}</span>
-                <span className="text-[10px] text-muted-foreground capitalize">{sortRoles(roles || [])?.[0]?.replace('_', ' ') || ''}</span>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-sm font-medium leading-none">
+                  {profile?.full_name || user?.email}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {roles[0]?.replace('_', ' ')}
+                </span>
               </div>
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-bold text-sm border-2 border-background shadow-sm">
-                {profile?.full_name?.charAt(0) || user?.email?.charAt(0)}
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 p-4 md:p-8">
-          <Outlet />
-        </div>
-
-        {/* Footer */}
-        <footer className="py-6 px-8 border-t bg-card/50 text-center text-xs text-muted-foreground">
-          <p>&copy; 2026 Umrah Haji Magic. All rights reserved. Universal Dynamic Access Control v2.1</p>
-        </footer>
-      </main>
+        <main className="flex-1 overflow-y-auto bg-muted/30 p-4 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
