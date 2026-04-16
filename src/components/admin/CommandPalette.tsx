@@ -46,9 +46,9 @@ const ALL_PAGES = [
   { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', keywords: 'doa panduan manasik' },
   { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', keywords: 'report' },
   { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports', keywords: 'advanced report' },
-  // { label: 'Users', icon: Shield, path: '/admin/users', keywords: 'pengguna akun user' },
-  // { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security', keywords: 'keamanan log' },
-  // { label: '2FA Settings', icon: Key, path: '/admin/2fa', keywords: 'two factor authentication' },
+  { label: 'Users', icon: Shield, path: '/admin/users', keywords: 'pengguna akun user' },
+  { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', keywords: 'keamanan log' },
+  { label: '2FA Settings', icon: Key, path: '/admin/2fa', keywords: 'two factor authentication' },
   { label: 'Tampilan', icon: Palette, path: '/admin/appearance', keywords: 'tema warna desain' },
   { label: 'Pengaturan', icon: Settings, path: '/admin/settings', keywords: 'setting konfigurasi' },
 ];
