@@ -353,12 +353,15 @@ export default function AdminLeadAnalytics() {
                     <YAxis className="text-xs" unit="%" />
                     <ChartTooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0 && payload[0]?.payload) {
+                        if (active && payload && payload.length > 0) {
+                          const item = payload[0];
+                          const data = item?.payload || item;
+                          const fullMonth = data?.fullMonth || data?.month || '';
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{payload[0].payload.fullMonth}</p>
+                              <p className="font-medium">{fullMonth}</p>
                               <p className="text-sm text-muted-foreground">
-                                Konversi: <span className="font-medium text-foreground">{payload[0].value}%</span>
+                                Konversi: <span className="font-medium text-foreground">{item?.value || 0}%</span>
                               </p>
                             </div>
                           );
@@ -460,11 +463,12 @@ export default function AdminLeadAnalytics() {
                     </Pie>
                     <Tooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0 && payload[0]) {
+                        if (active && payload && payload.length > 0) {
+                          const item = payload[0];
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{payload[0].name}</p>
-                              <p className="text-sm">{payload[0].value} leads</p>
+                              <p className="font-medium">{item?.name || 'N/A'}</p>
+                              <p className="text-sm">{item?.value || 0} leads</p>
                             </div>
                           );
                         }
@@ -559,11 +563,12 @@ export default function AdminLeadAnalytics() {
                     </Pie>
                     <Tooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0 && payload[0]) {
+                        if (active && payload && payload.length > 0) {
+                          const item = payload[0];
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{payload[0].name}</p>
-                              <p className="text-sm">{payload[0].value} leads</p>
+                              <p className="font-medium">{item?.name || 'N/A'}</p>
+                              <p className="text-sm">{item?.value || 0} leads</p>
                             </div>
                           );
                         }
@@ -588,14 +593,15 @@ export default function AdminLeadAnalytics() {
                     <YAxis dataKey="name" type="category" width={100} className="text-xs" />
                     <ChartTooltip 
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length > 0 && payload[0]?.payload) {
-                          const data = payload[0].payload;
+                        if (active && payload && payload.length > 0) {
+                          const item = payload[0];
+                          const data = item?.payload || item;
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{data.name}</p>
-                              <p className="text-sm">Total: {data.total} leads</p>
-                              <p className="text-sm">Won: {data.won} leads</p>
-                              <p className="text-sm font-medium text-green-600">Konversi: {data.conversion}%</p>
+                              <p className="font-medium">{data?.name || 'N/A'}</p>
+                              <p className="text-sm">Total: {data?.total || 0} leads</p>
+                              <p className="text-sm">Won: {data?.won || 0} leads</p>
+                              <p className="text-sm font-medium text-green-600">Konversi: {data?.conversion || 0}%</p>
                             </div>
                           );
                         }

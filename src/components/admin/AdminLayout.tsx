@@ -346,7 +346,19 @@ function AdminLayout() {
         </ScrollArea>
 
         {/* Sidebar Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card space-y-2">
+          {isDesktop && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="w-full justify-start gap-3"
+              onClick={() => setSidebarOpen(false)}
+              title="Tutup sidebar"
+            >
+              <X className="w-4 h-4" />
+              <span className="text-sm">Tutup Sidebar</span>
+            </Button>
+          )}
           <Button 
             variant="ghost" 
             className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
