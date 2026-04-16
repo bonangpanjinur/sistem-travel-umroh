@@ -16,6 +16,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
+import { ShieldAlert } from 'lucide-react';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
@@ -49,7 +50,7 @@ const DynamicIcon = ({ name, className }: { name?: string; className?: string })
 
 function AdminLayoutDynamicImproved() {
   const { user, profile, signOut, isAdmin } = useAuth();
-  const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();
+  const { groupedMenus, isLoading: menusLoading, isPathAllowed } = useDynamicMenus();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -397,7 +398,22 @@ function AdminLayoutDynamicImproved() {
         {/* Page Content - Improved */}
         <main className="flex-1 overflow-auto bg-muted/10">
           <div className="container mx-auto p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500">
-            <Outlet />
+            {isPathAllowed(location.pathname) ? (
+              <Outlet />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
+                <div className="rounded-full bg-destructive/10 p-4">
+                  <ShieldAlert className="h-10 w-10 text-destructive" />
+                </div>
+                <h2 className="text-xl font-semibold">Akses Ditolak</h2>
+                <p className="text-muted-foreground max-w-md">
+                  Anda tidak memiliki izin untuk mengakses halaman ini. Hubungi Super Admin untuk mengatur hak akses Anda.
+                </p>
+                <Button variant="outline" onClick={() => navigate('/admin')}>
+                  Kembali ke Dashboard
+                </Button>
+              </div>
+            )}
           </div>
         </main>
       </div>
