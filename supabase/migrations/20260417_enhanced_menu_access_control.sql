@@ -351,3 +351,17 @@ ON CONFLICT (key) DO UPDATE SET
   path = EXCLUDED.path,
   group_name = EXCLUDED.group_name,
   sort_order = EXCLUDED.sort_order;
+
+-- Menonaktifkan menu UDAC lama untuk menghindari redundansi
+UPDATE public.menu_items 
+SET is_visible = FALSE 
+WHERE key = 'udac_management';
+
+-- Memastikan menu baru memiliki label yang lebih jelas dan menggantikan peran UDAC
+UPDATE public.menu_items 
+SET label = 'Manajemen Hak Akses (Role)', sort_order = 15
+WHERE key = 'role_management';
+
+UPDATE public.menu_items 
+SET label = 'Manajemen Hak Akses (User)', sort_order = 16
+WHERE key = 'user_permissions';
