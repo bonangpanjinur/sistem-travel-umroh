@@ -454,8 +454,8 @@ export default function AdminPackageDetail() {
                                   </>
                                 ) : (
                                   <>
-                                    <p className="font-medium">Bulan {MONTHS.find(m => m.value === departure.month)?.label || departure.month}</p>
-                                    <p className="text-xs text-muted-foreground italic">Tanggal belum ditentukan</p>
+                                    <p className="font-medium">Tanggal belum ditentukan</p>
+                                    <p className="text-xs text-muted-foreground italic">Segera diumumkan</p>
                                   </>
                                 )}
                               </div>
@@ -576,7 +576,8 @@ export default function AdminPackageDetail() {
           </DialogHeader>
           <PackageForm 
             packageData={packageData} 
-            onSuccess={() => setIsPackageFormOpen(false)} 
+            onSuccess={() => setIsPackageFormOpen(false)}
+            onCancel={() => setIsPackageFormOpen(false)}
           />
         </DialogContent>
       </Dialog>
@@ -589,7 +590,8 @@ export default function AdminPackageDetail() {
           <LinkDepartureForm 
             packageId={id!} 
             linkedDepartureIds={linkedDepartureIds}
-            onSuccess={() => setIsLinkDepartureOpen(false)} 
+            onSuccess={() => setIsLinkDepartureOpen(false)}
+            onCancel={() => setIsLinkDepartureOpen(false)}
           />
         </DialogContent>
       </Dialog>
