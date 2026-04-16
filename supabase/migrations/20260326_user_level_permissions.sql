@@ -23,43 +23,39 @@ CREATE TABLE IF NOT EXISTS public.user_permissions (
 ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
--- 2. RLS POLICIES FOR USER_PERMISSIONS
+-- 2. RLS POLICIES FOR USER_PERMISSIONS (SAFELY HANDLED)
 -- =====================================================
 
--- Drop existing policies if they exist to avoid "already exists" errors during re-migration
-DROP POLICY IF EXISTS "Admins can manage user permissions" ON public.user_permissions;
-DROP POLICY IF EXISTS "Users can view own permissions" ON public.user_permissions;
-DROP POLICY IF EXISTS "Only admins can modify user permissions" ON public.user_permissions;
-DROP POLICY IF EXISTS "Only admins can update user permissions" ON public.user_permissions;
-DROP POLICY IF EXISTS "Only admins can delete user permissions" ON public.user_permissions;
+DO $$ 
+BEGIN
+    -- Drop existing policies to avoid "already exists" errors
+    DROP POLICY IF EXISTS "Admins can manage user permissions" ON public.user_permissions;
+    DROP POLICY IF EXISTS "Users can view own permissions" ON public.user_permissions;
+    DROP POLICY IF EXISTS "Only admins can modify user permissions" ON public.user_permissions;
+    DROP POLICY IF EXISTS "Only admins can update user permissions" ON public.user_permissions;
+    DROP POLICY IF EXISTS "Only admins can delete user permissions" ON public.user_permissions;
 
--- Policy: Admins can manage all user permissions
-CREATE POLICY "Admins can manage user permissions" 
-ON public.user_permissions 
-FOR ALL 
-USING (public.is_admin(auth.uid()));
+    -- Create policies only if they don't exist (extra safety)
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_permissions' AND policyname = 'Admins can manage user permissions') THEN
+        CREATE POLICY "Admins can manage user permissions" ON public.user_permissions FOR ALL USING (public.is_admin(auth.uid()));
+    END IF;
 
--- Policy: Users can view their own permissions
-CREATE POLICY "Users can view own permissions" 
-ON public.user_permissions 
-FOR SELECT 
-USING (user_id = auth.uid() OR public.is_admin(auth.uid()));
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_permissions' AND policyname = 'Users can view own permissions') THEN
+        CREATE POLICY "Users can view own permissions" ON public.user_permissions FOR SELECT USING (user_id = auth.uid() OR public.is_admin(auth.uid()));
+    END IF;
 
--- Policy: Only admins can insert/update/delete user permissions
-CREATE POLICY "Only admins can modify user permissions" 
-ON public.user_permissions 
-FOR INSERT 
-WITH CHECK (public.is_admin(auth.uid()));
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_permissions' AND policyname = 'Only admins can modify user permissions') THEN
+        CREATE POLICY "Only admins can modify user permissions" ON public.user_permissions FOR INSERT WITH CHECK (public.is_admin(auth.uid()));
+    END IF;
 
-CREATE POLICY "Only admins can update user permissions" 
-ON public.user_permissions 
-FOR UPDATE 
-USING (public.is_admin(auth.uid()));
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_permissions' AND policyname = 'Only admins can update user permissions') THEN
+        CREATE POLICY "Only admins can update user permissions" ON public.user_permissions FOR UPDATE USING (public.is_admin(auth.uid()));
+    END IF;
 
-CREATE POLICY "Only admins can delete user permissions" 
-ON public.user_permissions 
-FOR DELETE 
-USING (public.is_admin(auth.uid()));
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_permissions' AND policyname = 'Only admins can delete user permissions') THEN
+        CREATE POLICY "Only admins can delete user permissions" ON public.user_permissions FOR DELETE USING (public.is_admin(auth.uid()));
+    END IF;
+END $$;
 
 -- =====================================================
 -- 3. CREATE INDEXES FOR PERFORMANCE
@@ -223,11 +219,13 @@ CREATE TABLE IF NOT EXISTS public.user_permissions_audit (
 ALTER TABLE public.user_permissions_audit ENABLE ROW LEVEL SECURITY;
 
 -- Only admins can view audit logs
-DROP POLICY IF EXISTS "Admins can view permission audit logs" ON public.user_permissions_audit;
-CREATE POLICY "Admins can view permission audit logs" 
-ON public.user_permissions_audit 
-FOR SELECT 
-USING (public.is_admin(auth.uid()));
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Admins can view permission audit logs" ON public.user_permissions_audit;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_permissions_audit' AND policyname = 'Admins can view permission audit logs') THEN
+        CREATE POLICY "Admins can view permission audit logs" ON public.user_permissions_audit FOR SELECT USING (public.is_admin(auth.uid()));
+    END IF;
+END $$;
 
 -- Function to audit permission changes
 CREATE OR REPLACE FUNCTION public.audit_user_permission_change()
