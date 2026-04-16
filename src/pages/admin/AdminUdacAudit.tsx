@@ -10,7 +10,8 @@ import {
   Loader2, Activity, Clock, User, Shield, Search, 
   Download, Filter, Calendar as CalendarIcon, 
   ArrowLeft, FileText, CheckCircle2, XCircle, 
-  AlertTriangle, RefreshCw, ChevronRight, Info
+  AlertTriangle, RefreshCw, ChevronRight, Info,
+  List
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";

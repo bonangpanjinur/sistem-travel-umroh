@@ -85,6 +85,7 @@ export function useAgentNotifications(agentId?: string) {
           filter: `agent_id=eq.${agentId}`,
         },
         async (payload) => {
+          if (!payload || !payload.new || !payload.old) return;
           const booking = payload.new as BookingRow;
           const oldBooking = payload.old as BookingRow;
           
@@ -126,6 +127,7 @@ export function useAgentNotifications(agentId?: string) {
           table: 'customer_documents',
         },
         async (payload) => {
+          if (!payload || !payload.new || !payload.old) return;
           const document = payload.new as DocumentRow;
           const oldDocument = payload.old as DocumentRow;
           
@@ -166,6 +168,7 @@ export function useAgentNotifications(agentId?: string) {
           filter: `agent_id=eq.${agentId}`,
         },
         async (payload) => {
+          if (!payload || !payload.new || !payload.old) return;
           const commission = payload.new as CommissionRow;
           const oldCommission = payload.old as CommissionRow;
           
@@ -193,6 +196,7 @@ export function useAgentNotifications(agentId?: string) {
           table: 'payments',
         },
         async (payload) => {
+          if (!payload || !payload.new || !payload.old) return;
           const payment = payload.new as PaymentRow;
           const oldPayment = payload.old as PaymentRow;
           
