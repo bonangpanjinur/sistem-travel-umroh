@@ -168,7 +168,7 @@ BEGIN
   RETURN QUERY
   -- Get user-level permissions first (they override role-based)
   SELECT 
-    pl.key,
+    pl.key as permission_key,
     pl.label,
     pl.group_name,
     up.is_enabled,
@@ -181,7 +181,7 @@ BEGIN
   
   -- Get role-based permissions (only if not already in user-level)
   SELECT 
-    pl.key,
+    pl.key as permission_key,
     pl.label,
     pl.group_name,
     rp.is_enabled,
