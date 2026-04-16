@@ -34,7 +34,6 @@ import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
-import { usePermissionsEnhanced } from "@/hooks/usePermissionsEnhanced";
 import {
   generateJamaahLeaveLetter, generatePassportLetter,
   type JamaahLeaveLetterData, type PassportLetterData
@@ -61,7 +60,6 @@ export default function AdminCustomerDetail() {
   const { id: customerId } = useParams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { canPerformAction } = usePermissionsEnhanced();
   
   // State for document verification
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -132,10 +130,6 @@ export default function AdminCustomerDetail() {
   // Mutation for deleting customer
   const deleteCustomerMutation = useMutation({
     mutationFn: async () => {
-      if (!canPerformAction('customers', 'delete')) {
-        throw new Error('Anda tidak memiliki izin untuk menghapus jamaah');
-      }
-      
       const { error } = await supabase
         .from('customers')
         .delete()
@@ -287,28 +281,14 @@ export default function AdminCustomerDetail() {
     },
   });
 
-  // Fetch payments for this customer's bookings
-  const { data: payments } = useQuery({
-    queryKey: ['admin-customer-payments', customerId],
-    enabled: !!bookings && bookings.length > 0,
-    queryFn: async () => {
-      const bookingIds = bookings!.map(b => b.id);
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*')
-        .in('booking_id', bookingIds)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
   if (customerLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-6 md:grid-cols-3">
+          <Skeleton className="h-64 md:col-span-1" />
+          <Skeleton className="h-64 md:col-span-2" />
+        </div>
       </div>
     );
   }
@@ -316,819 +296,442 @@ export default function AdminCustomerDetail() {
   if (!customer) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">Customer tidak ditemukan</p>
+        <h2 className="text-2xl font-bold">Jamaah tidak ditemukan</h2>
         <Button asChild className="mt-4">
-          <Link to="/admin/customers">Kembali</Link>
+          <Link to="/admin/customers">Kembali ke Daftar</Link>
         </Button>
       </div>
     );
   }
 
-  // Check data completeness
-  const dataCompleteness = {
-    basic: !!(customer.full_name && customer.gender && customer.birth_date && customer.nik),
-    contact: !!(customer.phone && customer.address),
-    passport: !!(customer.passport_number && customer.passport_expiry),
-    family: !!(customer.father_name && customer.mother_name),
-    emergency: !!(customer.emergency_contact_name && customer.emergency_contact_phone),
-  };
-  
-  const completedSections = Object.values(dataCompleteness).filter(Boolean).length;
-  const totalSections = Object.keys(dataCompleteness).length;
-  const isDataComplete = completedSections === totalSections;
-  
-  const missingFields: string[] = [];
-  if (!customer.nik) missingFields.push("NIK");
-  if (!customer.gender) missingFields.push("Jenis Kelamin");
-  if (!customer.birth_date) missingFields.push("Tanggal Lahir");
-  if (!customer.phone) missingFields.push("No. Telepon");
-  if (!customer.address) missingFields.push("Alamat");
-  if (!customer.passport_number) missingFields.push("No. Paspor");
-  if (!customer.passport_expiry) missingFields.push("Masa Berlaku Paspor");
-  if (!customer.father_name) missingFields.push("Nama Ayah");
-  if (!customer.mother_name) missingFields.push("Nama Ibu");
-  if (!customer.emergency_contact_name) missingFields.push("Kontak Darurat");
-
-  const stats = {
-    totalBookings: bookings?.length || 0,
-    totalSpent: bookings?.reduce((sum, b) => sum + Number(b.total_price), 0) || 0,
-    totalPaid: bookings?.reduce((sum, b) => sum + Number(b.paid_amount), 0) || 0,
-    documentsVerified: documents?.filter(d => d.status === 'verified').length || 0,
-    documentsTotal: documents?.length || 0,
-  };
-
   return (
     <div className="space-y-6">
-      {/* Data Completeness Alert */}
-      {!isDataComplete && (
-        <div className="p-4 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="font-semibold text-amber-800 dark:text-amber-200">Data Belum Lengkap</h4>
-                <Badge variant="outline" className="text-amber-700 border-amber-300">
-                  {completedSections}/{totalSections} Terisi
-                </Badge>
-              </div>
-              <p className="text-sm text-amber-700 dark:text-amber-300 mb-2">
-                Lengkapi data berikut agar jamaah dapat diproses untuk keberangkatan:
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {missingFields.map((field) => (
-                  <Badge key={field} variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                    {field}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="outline" size="icon" asChild>
             <Link to="/admin/customers">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{customer.full_name}</h1>
-              {customer.is_tour_leader && (
-                <Badge className="bg-amber-500 hover:bg-amber-600">
-                  <Star className="h-3 w-3 mr-1" />
-                  Tour Leader
-                </Badge>
-              )}
-              {isDataComplete ? (
-                <Badge className="bg-green-500 hover:bg-green-600">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Data Lengkap
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="border-amber-400 text-amber-600">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Belum Lengkap
-                </Badge>
-              )}
-            </div>
-            <p className="text-muted-foreground">Detail informasi jamaah</p>
+            <h1 className="text-2xl font-bold">{customer.full_name}</h1>
+            <p className="text-muted-foreground">Detail profil dan dokumen jamaah</p>
           </div>
         </div>
-        
         <div className="flex items-center gap-2">
-          {/* Generate Surat Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <FileDown className="h-4 w-4 mr-2" />
-                Generate Surat
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleQuickGenerateLeaveLetter()}>
-                <FileText className="h-4 w-4 mr-2" />
-                Surat Cuti Jamaah
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleQuickGeneratePassportLetter()}>
-                <FileText className="h-4 w-4 mr-2" />
-                Surat Permohonan Paspor
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/admin/documents-generator">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Buka Generator Lengkap
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Delete Button */}
-          {canPerformAction('customers', 'delete') && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeleteDialogOpen(true)}
-              disabled={deleteCustomerMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Hapus Jamaah
-            </Button>
-          )}
-
-          {/* Tour Leader Toggle */}
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-            <div className="flex items-center gap-2">
-              <Star className={`h-4 w-4 ${customer.is_tour_leader ? 'text-amber-500' : 'text-muted-foreground'}`} />
-              <span className="text-sm font-medium">Tour Leader</span>
-            </div>
-            <Switch
-              checked={customer.is_tour_leader || false}
-              onCheckedChange={(checked) => toggleTourLeaderMutation.mutate(checked)}
-              disabled={toggleTourLeaderMutation.isPending}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Booking</p>
-                <p className="text-2xl font-bold">{stats.totalBookings}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100">
-                <CreditCard className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Transaksi</p>
-                <p className="text-xl font-bold">{formatCurrency(stats.totalSpent)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100">
-                <CreditCard className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Dibayar</p>
-                <p className="text-xl font-bold">{formatCurrency(stats.totalPaid)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-100">
-                <FileText className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Dokumen</p>
-                <p className="text-2xl font-bold">{stats.documentsVerified}/{stats.documentsTotal}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Customer Info Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Informasi Pribadi
-          </CardTitle>
           <EditCustomerDialog 
             customer={customer} 
             onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-customer', customerId] })}
-            trigger={
-              <Button variant="outline" size="sm">
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit Data
-              </Button>
-            }
           />
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-4">
-              <h4 className="font-semibold text-sm text-muted-foreground">Data Diri</h4>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-muted-foreground">Nama Lengkap</p>
-                  <p className="font-medium">{customer.full_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">NIK</p>
-                  <p className="font-mono">{customer.nik || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Jenis Kelamin</p>
-                  <p>{customer.gender === 'male' ? 'Laki-laki' : customer.gender === 'female' ? 'Perempuan' : '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tempat, Tanggal Lahir</p>
-                  <p>
-                    {customer.birth_place || '-'}, {customer.birth_date 
-                      ? format(new Date(customer.birth_date), 'd MMMM yyyy', { locale: id })
-                      : '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Golongan Darah</p>
-                  <p>{customer.blood_type || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status Pernikahan</p>
-                  <p>{customer.marital_status || '-'}</p>
-                </div>
+          <Button 
+            variant="outline" 
+            className="text-destructive hover:bg-destructive/10"
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Hapus Jamaah
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Profile Card */}
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Profil Jamaah
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col items-center pb-4 border-b">
+              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary text-3xl font-bold mb-2">
+                {customer.full_name.charAt(0)}
               </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="font-semibold text-sm text-muted-foreground">Kontak & Paspor</h4>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <p>{customer.phone || '-'}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <p>{customer.email || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">No. Paspor</p>
-                  <p className="font-mono">{customer.passport_number || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Masa Berlaku Paspor</p>
-                  <p>
-                    {customer.passport_expiry 
-                      ? format(new Date(customer.passport_expiry), 'd MMMM yyyy', { locale: id })
-                      : '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Nama Ayah</p>
-                  <p>{customer.father_name || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Nama Ibu</p>
-                  <p>{customer.mother_name || '-'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="font-semibold text-sm text-muted-foreground">Alamat & Kontak Darurat</h4>
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p>{customer.address || '-'}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {[customer.city, customer.province, customer.postal_code].filter(Boolean).join(', ') || '-'}
-                    </p>
-                  </div>
-                </div>
-                <div className="pt-2 border-t">
-                  <p className="text-sm text-muted-foreground">Kontak Darurat</p>
-                  <p className="font-medium">{customer.emergency_contact_name || '-'}</p>
-                  <p className="text-sm">{customer.emergency_contact_phone || '-'}</p>
-                  <p className="text-sm text-muted-foreground">{customer.emergency_contact_relation || '-'}</p>
-                </div>
-                {customer.mahram_name && (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground">Mahram</p>
-                    <p className="font-medium">{customer.mahram_name}</p>
-                    <p className="text-sm text-muted-foreground">{customer.mahram_relation}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs for Documents and Bookings */}
-      <Tabs defaultValue="bookings">
-        <TabsList>
-          <TabsTrigger value="bookings">Riwayat Booking ({bookings?.length || 0})</TabsTrigger>
-          <TabsTrigger value="documents">Dokumen ({documents?.length || 0})</TabsTrigger>
-          <TabsTrigger value="payments">Pembayaran ({payments?.length || 0})</TabsTrigger>
-        </TabsList>
-
-        {/* Bookings Tab */}
-        <TabsContent value="bookings" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {bookingsLoading ? (
-                <div className="p-4 space-y-3">
-                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-                </div>
-              ) : !bookings || bookings.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Belum ada riwayat booking
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Kode Booking</TableHead>
-                        <TableHead>Paket</TableHead>
-                        <TableHead>Keberangkatan</TableHead>
-                        <TableHead>Pax</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bookings.map((booking) => {
-                        const departure = booking.departure as any;
-                        const pkg = departure?.package;
-                        const statusConfig = BOOKING_STATUS_CONFIG[booking.booking_status || 'pending'];
-                        
-                        return (
-                          <TableRow key={booking.id}>
-                            <TableCell className="font-mono font-semibold">
-                              {booking.booking_code}
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{pkg?.name || '-'}</p>
-                                <p className="text-sm text-muted-foreground">{pkg?.code}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {departure?.departure_date 
-                                ? format(new Date(departure.departure_date), 'd MMM yyyy', { locale: id })
-                                : '-'}
-                            </TableCell>
-                            <TableCell>{booking.total_pax} orang</TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-semibold">{formatCurrency(booking.total_price)}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Dibayar: {formatCurrency(booking.paid_amount)}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={statusConfig?.color}>
-                                {statusConfig?.label || booking.booking_status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="outline" size="sm" asChild>
-                                <Link to={`/admin/bookings/${booking.id}`}>
-                                  <Eye className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Documents Tab */}
-        <TabsContent value="documents" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {documentsLoading ? (
-                <div className="p-4 space-y-3">
-                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-                </div>
-              ) : !documents || documents.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Belum ada dokumen yang diupload
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Jenis Dokumen</TableHead>
-                        <TableHead>Nama File</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Tanggal Upload</TableHead>
-                        <TableHead>Verifikasi</TableHead>
-                        <TableHead className="text-right">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {documents.map((doc) => {
-                        const docType = doc.document_type as any;
-                        const status = doc.status as keyof typeof STATUS_CONFIG;
-                        const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
-                        const StatusIcon = statusConfig.icon;
-                        const canVerify = status === 'uploaded' || status === 'pending';
-                        
-                        return (
-                          <TableRow key={doc.id}>
-                            <TableCell className="font-medium">
-                              {docType?.name || '-'}
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate">
-                              {doc.file_name || 'Document'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={statusConfig.color}>
-                                <StatusIcon className="h-3 w-3 mr-1" />
-                                {statusConfig.label}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {format(new Date(doc.created_at), 'd MMM yyyy HH:mm', { locale: id })}
-                            </TableCell>
-                            <TableCell>
-                              {doc.verified_at ? (
-                                <span className="text-sm text-muted-foreground">
-                                  {format(new Date(doc.verified_at), 'd MMM yyyy', { locale: id })}
-                                </span>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {doc.file_url && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedDoc(doc);
-                                      setVerifyDialogOpen(true);
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {canVerify && (
-                                  <>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      className="bg-green-600 hover:bg-green-700"
-                                      onClick={() => verifyMutation.mutate({ docId: doc.id, status: 'verified' })}
-                                      disabled={verifyMutation.isPending}
-                                    >
-                                      {verifyMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <ShieldCheck className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedDoc(doc);
-                                        setRejectDialogOpen(true);
-                                      }}
-                                      disabled={verifyMutation.isPending}
-                                    >
-                                      <ShieldX className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Payments Tab */}
-        <TabsContent value="payments" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {!payments || payments.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Belum ada riwayat pembayaran
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Kode Pembayaran</TableHead>
-                        <TableHead>Metode</TableHead>
-                        <TableHead>Bank</TableHead>
-                        <TableHead>Jumlah</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Tanggal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payments.map((payment) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="font-mono font-semibold">
-                            {payment.payment_code}
-                          </TableCell>
-                          <TableCell>{payment.payment_method || '-'}</TableCell>
-                          <TableCell>{payment.bank_name || '-'}</TableCell>
-                          <TableCell className="font-semibold">
-                            {formatCurrency(payment.amount)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              payment.status === 'paid' 
-                                ? "bg-green-100 text-green-800"
-                                : payment.status === 'pending'
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-red-100 text-red-800"
-                            }>
-                              {payment.status === 'paid' ? 'Lunas' : payment.status === 'pending' ? 'Pending' : 'Gagal'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(payment.created_at), 'd MMM yyyy HH:mm', { locale: id })}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Document Preview & Verify Dialog */}
-      <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Preview Dokumen</DialogTitle>
-            <DialogDescription>
-              {(selectedDoc?.document_type as any)?.name || 'Dokumen'} - {selectedDoc?.file_name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedDoc?.file_url && (
-            <div className="border rounded-lg overflow-hidden bg-muted">
-              {selectedDoc.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                <img
-                  src={selectedDoc.file_url}
-                  alt="Document preview"
-                  className="w-full h-auto max-h-[500px] object-contain"
-                />
-              ) : selectedDoc.file_url.match(/\.pdf$/i) ? (
-                <iframe
-                  src={selectedDoc.file_url}
-                  className="w-full h-[500px]"
-                  title="PDF Preview"
-                />
-              ) : (
-                <div className="p-8 text-center">
-                  <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-4">Preview tidak tersedia untuk format file ini</p>
-                  <Button onClick={() => window.open(selectedDoc.file_url, '_blank')}>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Buka di Tab Baru
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Status Saat Ini</p>
-              <Badge className={STATUS_CONFIG[selectedDoc?.status as keyof typeof STATUS_CONFIG]?.color || ''}>
-                {STATUS_CONFIG[selectedDoc?.status as keyof typeof STATUS_CONFIG]?.label || selectedDoc?.status}
+              <Badge variant={customer.is_tour_leader ? "default" : "secondary"}>
+                {customer.is_tour_leader ? "Tour Leader" : "Jamaah"}
               </Badge>
             </div>
-            <div>
-              <p className="text-muted-foreground">Tanggal Upload</p>
-              <p className="font-medium">
-                {selectedDoc?.created_at && format(new Date(selectedDoc.created_at), 'd MMMM yyyy HH:mm', { locale: id })}
-              </p>
-            </div>
-            {selectedDoc?.notes && (
-              <div className="col-span-2">
-                <p className="text-muted-foreground">Catatan</p>
-                <p>{selectedDoc.notes}</p>
-              </div>
-            )}
-          </div>
 
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => window.open(selectedDoc?.file_url, '_blank')}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Buka File
-            </Button>
-            {(selectedDoc?.status === 'uploaded' || selectedDoc?.status === 'pending') && (
-              <>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    setVerifyDialogOpen(false);
-                    setRejectDialogOpen(true);
-                  }}
-                >
-                  <ShieldX className="h-4 w-4 mr-2" />
-                  Tolak
-                </Button>
-                <Button
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => verifyMutation.mutate({ docId: selectedDoc.id, status: 'verified' })}
-                  disabled={verifyMutation.isPending}
-                >
-                  {verifyMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <div className="space-y-3 pt-2">
+              <div className="flex items-start gap-3">
+                <Phone className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Nomor Telepon</p>
+                  <p className="text-sm font-medium">{customer.phone || '-'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Mail className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium">{customer.email || '-'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <FileText className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-xs text-muted-foreground">NIK</p>
+                  <p className="text-sm font-medium">{customer.nik || '-'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Calendar className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Tempat, Tgl Lahir</p>
+                  <p className="text-sm font-medium">
+                    {customer.birth_place || '-'}, {customer.birth_date ? format(new Date(customer.birth_date), 'dd MMMM yyyy', { locale: id }) : '-'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Alamat</p>
+                  <p className="text-sm font-medium">{customer.address || '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Status Tour Leader</Label>
+                  <p className="text-xs text-muted-foreground">Aktifkan jika jamaah adalah TL</p>
+                </div>
+                <Switch 
+                  checked={customer.is_tour_leader}
+                  onCheckedChange={(checked) => toggleTourLeaderMutation.mutate(checked)}
+                  disabled={toggleTourLeaderMutation.isPending}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Content Tabs */}
+        <div className="md:col-span-2">
+          <Tabs defaultValue="documents" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="documents">Dokumen</TabsTrigger>
+              <TabsTrigger value="bookings">Riwayat Booking</TabsTrigger>
+              <TabsTrigger value="letters">Generate Surat</TabsTrigger>
+            </TabsList>
+
+            {/* Documents Tab */}
+            <TabsContent value="documents" className="mt-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg">Dokumen Persyaratan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {documentsLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  ) : !documents || documents.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                      <p>Belum ada dokumen yang diunggah</p>
+                    </div>
                   ) : (
-                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Jenis Dokumen</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Tgl Upload</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {documents.map((doc: any) => {
+                          const status = STATUS_CONFIG[doc.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+                          const StatusIcon = status.icon;
+                          
+                          return (
+                            <TableRow key={doc.id}>
+                              <TableCell className="font-medium">
+                                {doc.document_type?.name || 'Dokumen'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={status.color} variant="outline">
+                                  <StatusIcon className="h-3 w-3 mr-1" />
+                                  {status.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm')}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button variant="outline" size="icon" asChild title="Lihat File">
+                                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                                      <Eye className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="outline" size="icon">
+                                        <CheckCircle className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => {
+                                        setSelectedDoc(doc);
+                                        setVerifyDialogOpen(true);
+                                      }}>
+                                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                        Verifikasi
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => {
+                                        setSelectedDoc(doc);
+                                        setRejectDialogOpen(true);
+                                      }}>
+                                        <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                        Tolak
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   )}
-                  Verifikasi
-                </Button>
-              </>
-            )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Bookings Tab */}
+            <TabsContent value="bookings" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Riwayat Booking</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {bookingsLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  ) : !bookings || bookings.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Calendar className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                      <p>Belum ada riwayat booking</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Kode</TableHead>
+                          <TableHead>Paket & Tgl</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bookings.map((booking: any) => {
+                          const status = BOOKING_STATUS_CONFIG[booking.booking_status] || { label: booking.booking_status, color: "bg-gray-100" };
+                          
+                          return (
+                            <TableRow key={booking.id}>
+                              <TableCell className="font-mono text-xs font-bold">
+                                {booking.booking_code}
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm font-medium">
+                                  {booking.departure?.package?.name || 'Paket'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {booking.departure?.departure_date ? format(new Date(booking.departure.departure_date), 'dd MMM yyyy') : '-'}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={status.color} variant="outline">
+                                  {status.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatCurrency(booking.total_price)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" asChild>
+                                  <Link to={`/admin/bookings/${booking.id}`}>
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Letters Tab */}
+            <TabsContent value="letters" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Generate Surat Otomatis</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2">
+                  <Card className="border-dashed">
+                    <CardContent className="pt-6 flex flex-col items-center text-center space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <FileDown className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">Surat Permohonan Paspor</h4>
+                        <p className="text-xs text-muted-foreground">Generate surat rekomendasi pembuatan paspor untuk jamaah</p>
+                      </div>
+                      <Button variant="outline" className="w-full" onClick={handleQuickGeneratePassportLetter}>
+                        Generate PDF
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-dashed">
+                    <CardContent className="pt-6 flex flex-col items-center text-center space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+                        <FileText className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">Surat Izin Cuti</h4>
+                        <p className="text-xs text-muted-foreground">Generate surat permohonan izin cuti kerja untuk jamaah</p>
+                      </div>
+                      <Button variant="outline" className="w-full" onClick={handleQuickGenerateLeaveLetter}>
+                        Isi Data & Generate
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verifikasi Dokumen</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin memverifikasi dokumen <strong>{selectedDoc?.document_type?.name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVerifyDialogOpen(false)}>Batal</Button>
+            <Button 
+              onClick={() => verifyMutation.mutate({ docId: selectedDoc.id, status: 'verified' })}
+              disabled={verifyMutation.isPending}
+            >
+              {verifyMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Ya, Verifikasi
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Reject Document Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Tolak Dokumen</DialogTitle>
             <DialogDescription>
-              Berikan alasan penolakan dokumen {(selectedDoc?.document_type as any)?.name}
+              Berikan alasan penolakan untuk dokumen <strong>{selectedDoc?.document_type?.name}</strong>.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="reject-reason">Alasan Penolakan</Label>
-              <Textarea
-                id="reject-reason"
-                placeholder="Contoh: Foto dokumen tidak jelas, silakan upload ulang dengan kualitas lebih baik"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                rows={4}
-              />
-            </div>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="reason">Alasan Penolakan</Label>
+            <Textarea 
+              id="reason" 
+              placeholder="Contoh: Foto buram, data tidak sesuai..." 
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Batal</Button>
+            <Button 
               variant="destructive"
-              onClick={() => verifyMutation.mutate({ 
-                docId: selectedDoc?.id, 
-                status: 'rejected', 
-                notes: rejectReason 
-              })}
-              disabled={verifyMutation.isPending || !rejectReason.trim()}
+              onClick={() => verifyMutation.mutate({ docId: selectedDoc.id, status: 'rejected', notes: rejectReason })}
+              disabled={verifyMutation.isPending || !rejectReason}
             >
-              {verifyMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ShieldX className="h-4 w-4 mr-2" />
-              )}
+              {verifyMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Tolak Dokumen
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Leave Letter Dialog */}
       <Dialog open={leaveLetterOpen} onOpenChange={setLeaveLetterOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Generate Surat Cuti Jamaah</DialogTitle>
+            <DialogTitle>Data Surat Izin Cuti</DialogTitle>
+            <DialogDescription>Lengkapi data pekerjaan jamaah untuk generate surat cuti.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Data jamaah akan otomatis terisi. Lengkapi data pemberi kerja:</p>
+          <div className="grid gap-4 py-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Nama Atasan / Pimpinan</Label>
-              <Input value={leaveForm.employerName} onChange={e => setLeaveForm(p => ({...p, employerName: e.target.value}))} placeholder="Nama pimpinan perusahaan" />
+              <Label>Nama Atasan / HRD</Label>
+              <Input placeholder="Nama lengkap" value={leaveForm.employerName} onChange={e => setLeaveForm({...leaveForm, employerName: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Jabatan (opsional)</Label>
-              <Input value={leaveForm.employerPosition} onChange={e => setLeaveForm(p => ({...p, employerPosition: e.target.value}))} placeholder="Contoh: HRD Manager" />
+              <Label>Jabatan Atasan</Label>
+              <Input placeholder="Contoh: HR Manager" value={leaveForm.employerPosition} onChange={e => setLeaveForm({...leaveForm, employerPosition: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Nama Perusahaan / Instansi</Label>
-              <Input value={leaveForm.employerInstitution} onChange={e => setLeaveForm(p => ({...p, employerInstitution: e.target.value}))} placeholder="Nama perusahaan" />
+              <Label>Nama Instansi / Perusahaan</Label>
+              <Input placeholder="Nama PT / Instansi" value={leaveForm.employerInstitution} onChange={e => setLeaveForm({...leaveForm, employerInstitution: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Alamat Perusahaan</Label>
-              <Input value={leaveForm.employerAddress} onChange={e => setLeaveForm(p => ({...p, employerAddress: e.target.value}))} placeholder="Alamat perusahaan" />
+              <Label>Alamat Instansi</Label>
+              <Input placeholder="Alamat lengkap kantor" value={leaveForm.employerAddress} onChange={e => setLeaveForm({...leaveForm, employerAddress: e.target.value})} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Tanggal Berangkat</Label>
-                <Input type="date" value={leaveForm.startDate} onChange={e => setLeaveForm(p => ({...p, startDate: e.target.value}))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Tanggal Kembali</Label>
-                <Input type="date" value={leaveForm.endDate} onChange={e => setLeaveForm(p => ({...p, endDate: e.target.value}))} />
-              </div>
+            <div className="space-y-2">
+              <Label>Tanggal Mulai Cuti</Label>
+              <Input type="date" value={leaveForm.startDate} onChange={e => setLeaveForm({...leaveForm, startDate: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tanggal Selesai Cuti</Label>
+              <Input type="date" value={leaveForm.endDate} onChange={e => setLeaveForm({...leaveForm, endDate: e.target.value})} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLeaveLetterOpen(false)}>Batal</Button>
-            <Button onClick={handleGenerateLeaveLetterConfirm} disabled={!leaveForm.employerName || !leaveForm.employerInstitution}>
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
-            </Button>
+            <Button onClick={handleGenerateLeaveLetterConfirm}>Generate PDF</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Customer Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hapus Data Jamaah</DialogTitle>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Hapus Data Jamaah
+            </DialogTitle>
             <DialogDescription>
-              Anda akan menghapus data jamaah <strong>{customer?.full_name}</strong>. Tindakan ini tidak dapat dibatalkan.
+              Tindakan ini tidak dapat dibatalkan. Semua data profil dan dokumen jamaah akan dihapus secara permanen dari sistem.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
-              <p className="text-sm text-red-700 dark:text-red-300">
-                <strong>Perhatian:</strong> Menghapus data jamaah akan menghapus semua informasi terkait termasuk booking, dokumen, dan riwayat pembayaran.
-              </p>
-            </div>
-          </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="destructive"
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Batal</Button>
+            <Button 
+              variant="destructive" 
               onClick={() => deleteCustomerMutation.mutate()}
               disabled={deleteCustomerMutation.isPending}
             >
-              {deleteCustomerMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
-              Hapus Selamanya
+              {deleteCustomerMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Ya, Hapus Permanen
             </Button>
           </DialogFooter>
         </DialogContent>

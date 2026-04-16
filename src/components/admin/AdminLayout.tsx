@@ -1,9 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useUdacPermissions } from "@/hooks/useUdacPermissions";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
-import { AppRole } from "@/types/database";
-import { sortRoles } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificationBell } from "./NotificationBell";
@@ -30,8 +27,6 @@ interface NavItem {
   label: string;
   icon: any;
   path: string;
-  permission: string;
-  superAdminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -43,100 +38,99 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Overview',
     items: [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '/admin', permission: 'dashboard.view' },
-      { label: 'Analytics', icon: BarChart3, path: '/admin/analytics', permission: 'analytics.view' },
+      { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+      { label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
     ]
   },
   {
     label: 'Sales & CRM',
     items: [
-      { label: 'CRM Leads', icon: Target, path: '/admin/leads', permission: 'leads.view' },
-      { label: 'Kupon', icon: Gift, path: '/admin/coupons', permission: 'marketing.view' },
-      { label: 'Landing Page', icon: Layout, path: '/admin/landing-pages', permission: 'settings.manage' },
+      { label: 'CRM Leads', icon: Target, path: '/admin/leads' },
+      { label: 'Kupon', icon: Gift, path: '/admin/coupons' },
+      { label: 'Landing Page', icon: Layout, path: '/admin/landing-pages' },
     ]
   },
   {
     label: 'Produk & Operasional',
     items: [
-      { label: 'Paket', icon: Package, path: '/admin/packages', permission: 'packages.view' },
-      { label: 'Keberangkatan', icon: Plane, path: '/admin/departures', permission: 'departures.view' },
-      { label: 'Booking', icon: Calendar, path: '/admin/bookings', permission: 'bookings.view_own' },
-      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment', permission: 'operational.view' },
-      { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates', permission: 'itinerary.view' },
-      { label: 'Tabungan', icon: Wallet, path: '/admin/savings', permission: 'packages.view' },
-      { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments', permission: 'operational.rooms.view' },
+      { label: 'Paket', icon: Package, path: '/admin/packages' },
+      { label: 'Keberangkatan', icon: Plane, path: '/admin/departures' },
+      { label: 'Booking', icon: Calendar, path: '/admin/bookings' },
+      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment' },
+      { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates' },
+      { label: 'Tabungan', icon: Wallet, path: '/admin/savings' },
+      { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments' },
     ]
   },
   {
     label: 'Keuangan & Akuntansi',
     items: [
-      { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments', permission: 'payments.view_own' },
-      { label: 'Kas & Bank', icon: Wallet, path: '/admin/finance-cash', permission: 'payments.view_own' },
-      { label: 'Piutang Jamaah', icon: FileText, path: '/admin/finance/ar', permission: 'payments.view_all' },
-      { label: 'Hutang Vendor', icon: Truck, path: '/admin/finance/ap', permission: 'payments.view_all' },
-      { label: 'Laporan Laba Rugi', icon: DollarSign, path: '/admin/finance', permission: 'finance.reports' },
+      { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments' },
+      { label: 'Kas & Bank', icon: Wallet, path: '/admin/finance-cash' },
+      { label: 'Piutang Jamaah', icon: FileText, path: '/admin/finance/ar' },
+      { label: 'Hutang Vendor', icon: Truck, path: '/admin/finance/ap' },
+      { label: 'Laporan Laba Rugi', icon: DollarSign, path: '/admin/finance' },
     ]
   },
   {
     label: 'Jamaah & Agent',
     items: [
-      { label: 'Jamaah', icon: Users, path: '/admin/customers', permission: 'customers.view' },
-      { label: 'Agent', icon: UserCheck, path: '/admin/agents', permission: 'agents.view' },
-      { label: 'Cabang', icon: Building2, path: '/admin/branches', permission: 'settings.view' },
-      { label: 'Loyalty', icon: Gift, path: '/admin/loyalty', permission: 'marketing.view' },
-      { label: 'Referral', icon: Share2, path: '/admin/referrals', permission: 'marketing.view' },
-      { label: 'Haji', icon: BookOpen, path: '/admin/haji', permission: 'operational.view' },
-      { label: 'Manasik', icon: Calendar, path: '/admin/manasik', permission: 'operational.manasik.view' },
-      { label: 'Visa', icon: FileCheck, path: '/admin/visa', permission: 'departures.visa.view' },
+      { label: 'Jamaah', icon: Users, path: '/admin/customers' },
+      { label: 'Agent', icon: UserCheck, path: '/admin/agents' },
+      { label: 'Cabang', icon: Building2, path: '/admin/branches' },
+      { label: 'Loyalty', icon: Gift, path: '/admin/loyalty' },
+      { label: 'Referral', icon: Share2, path: '/admin/referrals' },
+      { label: 'Haji', icon: BookOpen, path: '/admin/haji' },
+      { label: 'Manasik', icon: Calendar, path: '/admin/manasik' },
+      { label: 'Visa', icon: FileCheck, path: '/admin/visa' },
     ]
   },
   {
     label: 'SDM (HR)',
     items: [
-      { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr', permission: 'hr.employees.view' },
-      { label: 'Penggajian / Payroll', icon: Banknote, path: '/admin/hr/payroll', permission: 'hr.payroll.view' },
+      { label: 'Data Karyawan', icon: UserCog, path: '/admin/hr' },
+      { label: 'Penggajian / Payroll', icon: Banknote, path: '/admin/hr/payroll' },
     ]
   },
   {
     label: 'Support & Komunikasi',
     items: [
-      { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support', permission: 'support.tickets.view' },
-      { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp', permission: 'whatsapp.view' },
-      { label: 'Materi Promosi', icon: FileText, path: '/admin/marketing-materials', permission: 'marketing_materials.view' },
+      { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support' },
+      { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp' },
+      { label: 'Materi Promosi', icon: FileText, path: '/admin/marketing-materials' },
     ]
   },
   {
     label: 'Dokumen & Surat',
     items: [
-      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', permission: 'documents.verification.view' },
-      { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator', permission: 'documents.generator.view' },
-      { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', permission: 'offline_content.view' },
+      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification' },
+      { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator' },
+      { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content' },
     ]
   },
   {
     label: 'Laporan',
     items: [
-      { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', permission: 'reports.view' },
+      { label: 'Laporan', icon: FileBarChart, path: '/admin/reports' },
     ]
   },
   {
     label: 'Pengaturan',
     items: [
-      { label: 'Users', icon: Shield, path: '/admin/users', permission: 'users.view' },
-      { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', permission: 'settings.manage' },
-      { label: '2FA Settings', icon: Key, path: '/admin/2fa', permission: 'settings.manage' },
-      { label: 'Tampilan', icon: Palette, path: '/admin/appearance', permission: 'settings.manage' },
-      { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages', permission: 'settings.manage' },
-      { label: 'Testimoni', icon: Star, path: '/admin/testimonials', permission: 'settings.manage' },
-      { label: 'Tipe Paket', icon: Settings2, path: '/admin/package-types', permission: 'packages.view' },
-      { label: 'Pengaturan', icon: Settings, path: '/admin/settings', permission: 'settings.manage' },
+      { label: 'Users', icon: Shield, path: '/admin/users' },
+      { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit' },
+      { label: '2FA Settings', icon: Key, path: '/admin/2fa' },
+      { label: 'Tampilan', icon: Palette, path: '/admin/appearance' },
+      { label: 'Halaman Statis', icon: FileType, path: '/admin/static-pages' },
+      { label: 'Testimoni', icon: Star, path: '/admin/testimonials' },
+      { label: 'Tipe Paket', icon: Settings2, path: '/admin/package-types' },
+      { label: 'Pengaturan', icon: Settings, path: '/admin/settings' },
     ]
   },
 ];
 
 function AdminLayout() {
-  const { user, profile, signOut, isAdmin, roles, isLoading: authLoading } = useAuth();
-  const { hasPermission, isLoading: permsLoading } = useUdacPermissions();
+  const { user, profile, signOut, isAdmin, isLoading: authLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -144,7 +138,7 @@ function AdminLayout() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Overview', 'Sales & CRM', 'Produk & Operasional']));
   const [searchQuery, setSearchQuery] = useState('');
   
-  const isLoading = authLoading || permsLoading;
+  const isLoading = authLoading;
 
   const {
     notifications = [],
@@ -160,7 +154,6 @@ function AdminLayout() {
       const isLargeScreen = window.innerWidth >= 1024;
       setIsDesktop(isLargeScreen);
       
-      // Auto-open sidebar on desktop, auto-close on mobile
       if (isLargeScreen) {
         setSidebarOpen(true);
       } else {
@@ -168,9 +161,7 @@ function AdminLayout() {
       }
     };
 
-    // Set initial state
     handleResize();
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -199,58 +190,25 @@ function AdminLayout() {
       (path !== '/admin' && location.pathname.startsWith(path));
   };
 
-  // Filter NAV_GROUPS based on permissions and super admin requirements
-  const isSuperAdmin = roles?.includes('super_admin') || false;
-  
-  const filteredNavGroups = NAV_GROUPS.map(group => ({
-    ...group,
-    items: group.items.filter(item => {
-      // If item requires super admin, check that first
-      if (item.superAdminOnly && !isSuperAdmin) {
-        return false;
-      }
-      
-      // UDAC Sync Fix: Jika user adalah staff/admin (bukan customer), berikan akses dashboard minimal
-      // Ini memastikan semua role staf bisa melihat menu dasar meskipun permission belum sempurna di DB
-      if (item.permission === 'dashboard.view' && isAdmin()) {
-        return true;
-      }
-      
-      // Enhanced permission check:
-      // Some roles use granular permissions like view_branch or view_all instead of view_own
-      // We check for any of these variants if the base permission is a 'view' permission
-      if (item.permission.endsWith('.view_own')) {
-        const base = item.permission.replace('.view_own', '');
-        return hasPermission(item.permission) || 
-               hasPermission(`${base}.view_branch`) || 
-               hasPermission(`${base}.view_all`) ||
-               hasPermission(`${base}.view`);
-      }
-
-      // Default check
-      return hasPermission(item.permission);
-    })
-  })).filter(group => group.items.length > 0);
-
   // Filter groups based on search query
   const filteredGroupsWithSearch = useMemo(() => {
-    if (!searchQuery) return filteredNavGroups;
+    if (!searchQuery) return NAV_GROUPS;
     
-    return filteredNavGroups.map(group => ({
+    return NAV_GROUPS.map(group => ({
       ...group,
       items: group.items.filter(item => 
         item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         group.label.toLowerCase().includes(searchQuery.toLowerCase())
       )
     })).filter(group => group.items.length > 0);
-  }, [filteredNavGroups, searchQuery]);
+  }, [searchQuery]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Memuat Navigasi UDAC...</p>
+          <p className="text-muted-foreground">Memuat...</p>
         </div>
       </div>
     );
@@ -262,11 +220,9 @@ function AdminLayout() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Akses Ditolak</h1>
           <p className="text-muted-foreground mb-4">
-            Anda tidak memiliki akses ke halaman admin.
+            Anda tidak memiliki akses ke halaman ini.
           </p>
-          <Button asChild>
-            <Link to="/">Kembali ke Beranda</Link>
-          </Button>
+          <Button onClick={() => navigate('/')}>Kembali ke Beranda</Button>
         </div>
       </div>
     );
@@ -274,7 +230,7 @@ function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Mobile Sidebar Overlay */}
+      {/* Sidebar Overlay for Mobile */}
       {!isDesktop && sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 transition-opacity"
@@ -283,132 +239,132 @@ function AdminLayout() {
       )}
 
       {/* Sidebar */}
-      <aside 
-        className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-300 ease-in-out flex flex-col",
-          !sidebarOpen && "-translate-x-full"
-        )}
-      >
-        {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b">
-          <Link to="/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold">
-              U
-            </div>
-            <span className="font-bold text-lg">Umrah Magic</span>
-          </Link>
-          {!isDesktop && (
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
-              <X className="h-5 w-5" />
-            </Button>
-          )}
-        </div>
-
-        {/* Sidebar Search */}
-        <div className="p-4 border-b">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari menu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-9"
-            />
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-50 w-72 bg-card border-r transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="h-full flex flex-col">
+          {/* Sidebar Header */}
+          <div className="p-6 border-b flex items-center justify-between">
+            <Link to="/admin" className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Shield className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="font-bold text-xl tracking-tight">Admin Panel</span>
+            </Link>
+            {!isDesktop && (
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            )}
           </div>
-        </div>
 
-        {/* Sidebar Content */}
-        <ScrollArea className="flex-1 py-4">
-          <nav className="px-2 space-y-4">
-            {filteredGroupsWithSearch.map((group) => (
-              <div key={group.label} className="space-y-1">
-                <button
-                  onClick={() => toggleGroup(group.label)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
-                >
-                  {group.label}
-                  <ChevronDown className={cn(
-                    "h-3 w-3 transition-transform",
-                    isGroupExpanded(group.label) ? "rotate-0" : "-rotate-90"
-                  )} />
-                </button>
-                
-                {isGroupExpanded(group.label) && (
-                  <div className="space-y-1">
-                    {group.items.map((item) => {
-                      const Icon = item.icon;
-                      const active = isPathActive(item.path);
-                      
-                      return (
+          {/* Search in Sidebar */}
+          <div className="px-4 py-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Cari menu..." 
+                className="pl-9 bg-muted/50 border-none h-9 text-sm"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <ScrollArea className="flex-1 px-4 pb-6">
+            <nav className="space-y-6">
+              {filteredGroupsWithSearch.map((group) => (
+                <div key={group.label} className="space-y-1">
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+                  >
+                    {group.label}
+                    <ChevronDown className={cn(
+                      "w-3 h-3 transition-transform duration-200",
+                      isGroupExpanded(group.label) ? "rotate-0" : "-rotate-90"
+                    )} />
+                  </button>
+                  
+                  {isGroupExpanded(group.label) && (
+                    <div className="space-y-1 mt-1">
+                      {group.items.map((item) => (
                         <Link
                           key={item.path}
                           to={item.path}
-                          onClick={() => !isDesktop && setSidebarOpen(false)}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                            active 
-                              ? "bg-primary text-primary-foreground" 
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
+                            isPathActive(item.path)
+                              ? "bg-primary text-primary-foreground shadow-md"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
                           )}
+                          onClick={() => !isDesktop && setSidebarOpen(false)}
                         >
-                          <Icon className="h-4 w-4" />
+                          <item.icon className={cn(
+                            "w-4 h-4",
+                            isPathActive(item.path) ? "text-primary-foreground" : "text-muted-foreground"
+                          )} />
                           {item.label}
                         </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-        </ScrollArea>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </nav>
+          </ScrollArea>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t space-y-2">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-xs font-medium">
-              {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'A'}
+          {/* Sidebar Footer */}
+          <div className="p-4 border-t bg-muted/30">
+            <div className="flex items-center gap-3 px-2 py-2 mb-2">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                {profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{profile?.full_name || 'Admin User'}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {profile?.full_name || 'Admin'}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {user?.email}
-              </p>
-            </div>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Keluar
+            </Button>
           </div>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            Keluar
-          </Button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
         <header className="h-16 border-b bg-card flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
           <div className="flex items-center gap-4">
             {!isDesktop && (
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-                <Menu className="h-5 w-5" />
+                <Menu className="w-5 h-5" />
               </Button>
             )}
             <AdminBreadcrumb />
           </div>
-          
+
           <div className="flex items-center gap-2 lg:gap-4">
             <CommandPalette />
-            <NotificationBell />
+            <NotificationBell 
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+              onClearAll={clearAll}
+            />
             <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
-            <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
-              <Link to="/" target="_blank" className="gap-2">
-                <ExternalLink className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="hidden sm:flex gap-2" asChild>
+              <Link to="/" target="_blank">
+                <ExternalLink className="w-4 h-4" />
                 Lihat Situs
               </Link>
             </Button>
@@ -416,10 +372,12 @@ function AdminLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <Outlet />
-        </main>
-      </div>
+        <div className="flex-1 overflow-auto p-4 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

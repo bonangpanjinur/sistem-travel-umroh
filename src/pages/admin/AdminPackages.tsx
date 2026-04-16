@@ -8,14 +8,13 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatPackageType } from "@/lib/format";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, Edit, Eye, Package, Trash2, Calendar, Lock } from "lucide-react";
+import { Search, Plus, Edit, Eye, Package, Trash2, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -30,7 +29,6 @@ import {
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { toast } from "sonner";
-import { usePermissionsEnhanced } from "@/hooks/usePermissionsEnhanced";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,14 +38,7 @@ export default function AdminPackages() {
   const [packageTypeFilter, setPackageTypeFilter] = useState<"all" | "regular" | "tabungan">("all");
   
   const queryClient = useQueryClient();
-  const { canPerformAction } = usePermissionsEnhanced();
   
-  // Check permissions for package operations
-  const canViewPackages = canPerformAction('packages', 'view');
-  const canCreatePackages = canPerformAction('packages', 'create');
-  const canEditPackages = canPerformAction('packages', 'edit');
-  const canDeletePackages = canPerformAction('packages', 'delete');
-
   const { data: packages, isLoading } = useQuery({
     queryKey: ['admin-packages'],
     queryFn: async () => {
@@ -138,29 +129,6 @@ export default function AdminPackages() {
     return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
   };
 
-  // Show permission denied message if user cannot view packages
-  if (!canViewPackages) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Kelola Paket</h1>
-            <p className="text-muted-foreground">Lihat dan kelola paket umroh & haji</p>
-          </div>
-        </div>
-        
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              Anda tidak memiliki akses untuk melihat paket. Hubungi administrator untuk mendapatkan izin.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -178,18 +146,14 @@ export default function AdminPackages() {
                 className="pl-10 w-full sm:w-64"
               />
             </div>
-            {canCreatePackages && (
-              <>
-                <Button onClick={() => handleAddPackage("regular")} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Paket Reguler
-                </Button>
-                <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Paket Tabungan
-                </Button>
-              </>
-            )}
+            <Button onClick={() => handleAddPackage("regular")} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Paket Reguler
+            </Button>
+            <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Paket Tabungan
+            </Button>
           </div>
       </div>
 
@@ -257,29 +221,23 @@ export default function AdminPackages() {
                 </div>
 
                 <div className="flex gap-2">
-                  {canViewPackages && (
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <Link to={`/admin/packages/${pkg.id}`}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        Detail
-                      </Link>
-                    </Button>
-                  )}
-                  {canEditPackages && (
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(pkg)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {canDeletePackages && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeletePackage(pkg)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button variant="outline" size="sm" className="flex-1" asChild>
+                    <Link to={`/admin/packages/${pkg.id}`}>
+                      <Eye className="h-4 w-4 mr-1" />
+                      Detail
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(pkg)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setDeletePackage(pkg)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -289,29 +247,19 @@ export default function AdminPackages() {
 
       {/* Package Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={handleFormClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingPackage ? 
-                (editingPackage.package_type === 'tabungan' ? 'Edit Paket Tabungan' : 'Edit Paket Reguler') 
-                : (packageTypeFilter === 'tabungan' ? 'Tambah Paket Tabungan' : 'Tambah Paket Reguler')
-              }
-            </DialogTitle>
-            <DialogDescription>
-              Silakan isi formulir di bawah ini untuk {editingPackage ? 'memperbarui' : 'menambahkan'} informasi paket.
-            </DialogDescription>
+            <DialogTitle>{editingPackage ? 'Edit Paket' : 'Tambah Paket Baru'}</DialogTitle>
           </DialogHeader>
-          {packageTypeFilter === 'tabungan' || editingPackage?.package_type === 'tabungan' ? (
-            <SavingsPackageForm
-              packageData={editingPackage}
-              onSuccess={handleFormClose}
-              onCancel={handleFormClose}
+          {packageTypeFilter === "tabungan" ? (
+            <SavingsPackageForm 
+              initialData={editingPackage} 
+              onSuccess={handleFormClose} 
             />
           ) : (
-            <RegularPackageForm
-              packageData={editingPackage}
-              onSuccess={handleFormClose}
-              onCancel={handleFormClose}
+            <RegularPackageForm 
+              initialData={editingPackage} 
+              onSuccess={handleFormClose} 
             />
           )}
         </DialogContent>
@@ -321,17 +269,16 @@ export default function AdminPackages() {
       <AlertDialog open={!!deletePackage} onOpenChange={() => setDeletePackage(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Paket?</AlertDialogTitle>
+            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              Anda yakin ingin menghapus paket "{deletePackage?.name}"? 
-              Tindakan ini tidak dapat dibatalkan.
+              Tindakan ini tidak dapat dibatalkan. Paket <strong>{deletePackage?.name}</strong> akan dihapus secara permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogAction 
+              onClick={() => deleteMutation.mutate(deletePackage.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deletePackage && deleteMutation.mutate(deletePackage.id)}
             >
               Hapus
             </AlertDialogAction>
