@@ -2979,6 +2979,7 @@ export type Database = {
           muthawif_id: string | null
           name: string
           package_type: Database["public"]["Enums"]["package_type"]
+          package_type_id: string | null
           price_double: number
           price_quad: number
           price_single: number
@@ -3008,6 +3009,7 @@ export type Database = {
           muthawif_id?: string | null
           name: string
           package_type?: Database["public"]["Enums"]["package_type"]
+          package_type_id?: string | null
           price_double?: number
           price_quad?: number
           price_single?: number
@@ -3037,6 +3039,7 @@ export type Database = {
           muthawif_id?: string | null
           name?: string
           package_type?: Database["public"]["Enums"]["package_type"]
+          package_type_id?: string | null
           price_double?: number
           price_quad?: number
           price_single?: number
@@ -3079,6 +3082,13 @@ export type Database = {
             columns: ["muthawif_id"]
             isOneToOne: false
             referencedRelation: "muthawifs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packages_package_type_id_fkey"
+            columns: ["package_type_id"]
+            isOneToOne: false
+            referencedRelation: "package_types"
             referencedColumns: ["id"]
           },
         ]
