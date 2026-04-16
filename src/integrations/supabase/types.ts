@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1307,8 +1307,7 @@ export type Database = {
           booked_count: number | null
           created_at: string | null
           departure_airport_id: string | null
-          departure_date: string | null
-          month: string | null
+          departure_date: string
           departure_time: string | null
           flight_number: string | null
           hotel_madinah_id: string | null
@@ -1321,7 +1320,7 @@ export type Database = {
           price_single: number | null
           price_triple: number | null
           quota: number
-          return_date: string | null
+          return_date: string
           status: string | null
           team_leader_id: string | null
           updated_at: string | null
@@ -1332,8 +1331,7 @@ export type Database = {
           booked_count?: number | null
           created_at?: string | null
           departure_airport_id?: string | null
-          departure_date?: string | null
-          month?: string | null
+          departure_date: string
           departure_time?: string | null
           flight_number?: string | null
           hotel_madinah_id?: string | null
@@ -1346,7 +1344,7 @@ export type Database = {
           price_single?: number | null
           price_triple?: number | null
           quota?: number
-          return_date?: string | null
+          return_date: string
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null
@@ -1357,8 +1355,7 @@ export type Database = {
           booked_count?: number | null
           created_at?: string | null
           departure_airport_id?: string | null
-          departure_date?: string | null
-          month?: string | null
+          departure_date?: string
           departure_time?: string | null
           flight_number?: string | null
           hotel_madinah_id?: string | null
@@ -1371,7 +1368,7 @@ export type Database = {
           price_single?: number | null
           price_triple?: number | null
           quota?: number
-          return_date?: string | null
+          return_date?: string
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null
@@ -4290,7 +4287,6 @@ export type Database = {
           logo_url: string | null
           meta_description: string | null
           meta_title: string | null
-          google_console_verification: string | null
           nav_links: Json | null
           primary_color: string | null
           secondary_color: string | null
@@ -4300,12 +4296,6 @@ export type Database = {
           social_youtube: string | null
           tagline: string | null
           template: string
-          package_card_layout: string | null
-          package_card_image_ratio: string | null
-          package_card_show_airline: boolean | null
-          package_card_show_hotel: boolean | null
-          package_card_show_duration: boolean | null
-          package_card_show_departure: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -4338,7 +4328,6 @@ export type Database = {
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
-          google_console_verification?: string | null
           nav_links?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
@@ -4348,12 +4337,6 @@ export type Database = {
           social_youtube?: string | null
           tagline?: string | null
           template?: string
-          package_card_layout?: string | null
-          package_card_image_ratio?: string | null
-          package_card_show_airline?: boolean | null
-          package_card_show_hotel?: boolean | null
-          package_card_show_duration?: boolean | null
-          package_card_show_departure?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -4386,7 +4369,6 @@ export type Database = {
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
-          google_console_verification?: string | null
           nav_links?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
@@ -4396,12 +4378,6 @@ export type Database = {
           social_youtube?: string | null
           tagline?: string | null
           template?: string
-          package_card_layout?: string | null
-          package_card_image_ratio?: string | null
-          package_card_show_airline?: boolean | null
-          package_card_show_hotel?: boolean | null
-          package_card_show_duration?: boolean | null
-          package_card_show_departure?: boolean | null
           updated_at?: string | null
         }
         Relationships: [
@@ -4674,15 +4650,6 @@ export type Database = {
       }
       is_account_locked: { Args: { _email: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
-      list_users_with_emails: {
-        Args: never
-        Returns: {
-          id: string
-          email: string
-          full_name: string
-          created_at: string
-        }[]
-      }
       log_activity: {
         Args: {
           _action: string
