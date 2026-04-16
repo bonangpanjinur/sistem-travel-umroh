@@ -50,7 +50,7 @@ const DynamicIcon = ({ name, className }: { name?: string; className?: string })
 
 function AdminLayoutDynamicImproved() {
   const { user, profile, signOut, isAdmin } = useAuth();
-  const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();
+  const { groupedMenus, isLoading: menusLoading, isPathAllowed } = useDynamicMenus();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
