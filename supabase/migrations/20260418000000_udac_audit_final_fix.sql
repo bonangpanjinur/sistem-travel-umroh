@@ -111,7 +111,7 @@ BEGIN
         CASE WHEN _is_granted THEN 'info' ELSE 'warning' END,
         _context,
         NOW()
-    ) RETURNING id INTO _log_id;
+  ) RETURNING id INTO _log_id;
     
     RETURN _log_id;
 EXCEPTION WHEN OTHERS THEN
@@ -136,73 +136,80 @@ DECLARE
   _user_permission_status BOOLEAN;
   _found_user_override BOOLEAN := FALSE;
   _role_permission_status BOOLEAN;
-  _final_result BOOLEAN;
+  _final_result BOOLEAN := FALSE;
+  _finished BOOLEAN := FALSE;
 BEGIN
   -- 1. Super Admin & Owner bypass
   SELECT public.is_admin(_user_id) INTO _is_admin;
   IF _is_admin THEN 
     _final_result := TRUE;
-    GOTO log_and_return;
+    _finished := TRUE;
   END IF;
 
-  -- Get user attributes for ABAC
-  SELECT jsonb_build_object(
-    'id', id,
-    'branch_id', branch_id,
-    'role', (SELECT role FROM public.user_roles WHERE user_id = _user_id LIMIT 1)
-  ) INTO _user_attrs
-  FROM public.profiles
-  WHERE id = _user_id;
-
   -- 2. User-Level Override (Highest Priority)
-  SELECT is_enabled, TRUE INTO _user_permission_status, _found_user_override
-  FROM public.user_permissions
-  WHERE user_id = _user_id AND permission_key = _permission_key;
+  IF NOT _finished THEN
+    SELECT is_enabled, TRUE INTO _user_permission_status, _found_user_override
+    FROM public.user_permissions
+    WHERE user_id = _user_id AND permission_key = _permission_key;
 
-  IF _found_user_override THEN 
-    _final_result := _user_permission_status;
-    GOTO log_and_return;
+    IF _found_user_override THEN 
+      _final_result := _user_permission_status;
+      _finished := TRUE;
+    END IF;
   END IF;
 
   -- 3. ABAC Policies Evaluation
-  FOR _policy IN 
-    SELECT policy_definition 
-    FROM public.access_policies 
-    WHERE is_active = TRUE AND (policy_definition->>'permission_key' = _permission_key OR policy_definition->>'permission_key' = '*')
-  LOOP
-    IF public.evaluate_abac_condition(_policy.policy_definition->'condition', _user_attrs, _resource_attrs) THEN
-      IF _policy.policy_definition->>'effect' = 'deny' THEN
-        _final_result := FALSE;
-        GOTO log_and_return;
-      ELSIF _policy.policy_definition->>'effect' = 'permit' THEN
-        _policy_match := TRUE;
-      END IF;
-    END IF;
-  END LOOP;
+  IF NOT _finished THEN
+    -- Get user attributes for ABAC
+    SELECT jsonb_build_object(
+      'id', id,
+      'branch_id', branch_id,
+      'role', (SELECT role FROM public.user_roles WHERE user_id = _user_id LIMIT 1)
+    ) INTO _user_attrs
+    FROM public.profiles
+    WHERE id = _user_id;
 
-  IF _policy_match THEN 
-    _final_result := TRUE;
-    GOTO log_and_return;
+    FOR _policy IN 
+      SELECT policy_definition 
+      FROM public.access_policies 
+      WHERE is_active = TRUE AND (policy_definition->>'permission_key' = _permission_key OR policy_definition->>'permission_key' = '*')
+    LOOP
+      IF public.evaluate_abac_condition(_policy.policy_definition->'condition', _user_attrs, _resource_attrs) THEN
+        IF _policy.policy_definition->>'effect' = 'deny' THEN
+          _final_result := FALSE;
+          _finished := TRUE;
+          EXIT;
+        ELSIF _policy.policy_definition->>'effect' = 'permit' THEN
+          _policy_match := TRUE;
+        END IF;
+      END IF;
+    END LOOP;
+
+    IF NOT _finished AND _policy_match THEN 
+      _final_result := TRUE;
+      _finished := TRUE;
+    END IF;
   END IF;
 
   -- 4. Role-Based Permissions (including Hierarchy)
-  WITH RECURSIVE user_all_roles AS (
-    SELECT role FROM public.user_roles WHERE user_id = _user_id
-    UNION
-    SELECT rh.child_role
-    FROM public.role_hierarchy rh
-    JOIN user_all_roles uar ON rh.parent_role = uar.role
-  )
-  SELECT EXISTS (
-    SELECT 1 FROM public.role_permissions rp
-    WHERE rp.role IN (SELECT role FROM user_all_roles)
-      AND rp.permission_key = _permission_key
-      AND rp.is_enabled = TRUE
-  ) INTO _role_permission_status;
+  IF NOT _finished THEN
+    WITH RECURSIVE user_all_roles AS (
+      SELECT role FROM public.user_roles WHERE user_id = _user_id
+      UNION
+      SELECT rh.child_role
+      FROM public.role_hierarchy rh
+      JOIN user_all_roles uar ON rh.parent_role = uar.role
+    )
+    SELECT EXISTS (
+      SELECT 1 FROM public.role_permissions rp
+      WHERE rp.role IN (SELECT role FROM user_all_roles)
+        AND rp.permission_key = _permission_key
+        AND rp.is_enabled = TRUE
+    ) INTO _role_permission_status;
 
-  _final_result := _role_permission_status;
+    _final_result := _role_permission_status;
+  END IF;
 
-<<log_and_return>>
   -- Log the attempt (Note: in a real production, you might want to log this asynchronously 
   -- or only for sensitive permissions to avoid bloating the audit_logs table)
   -- For now, we log it to satisfy the requirement of showing metrics.
