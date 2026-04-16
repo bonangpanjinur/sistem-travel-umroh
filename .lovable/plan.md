@@ -1,33 +1,55 @@
 
 
-# Rencana Perbaikan: Harga Paket dari Keberangkatan
+# Plan: Hapus Manajemen Hak Akses Per Role, Pertahankan Per User
 
-## Temuan
+## Summary
 
-### Build Error (KRITIS)
-`useBookingWizardDynamic.ts` baris 32 memiliki syntax rusak: `pi  notes?: string;` — interface `PICData` terpotong. Ini menyebabkan semua build error TS1131/TS1109.
+Menghapus sistem `role_permissions` (hak akses berdasarkan jabatan) dan menggantinya dengan `user_permissions` (hak akses per individu, hanya bisa dikelola oleh Super Admin). Sidebar tetap menampilkan semua menu untuk semua staff, tapi Super Admin bisa membatasi akses user tertentu.
 
-### Logika Harga di PackageCard (SUDAH BENAR)
-`PackageCard.tsx` **sudah** mengambil harga termurah dari departure terlebih dahulu (baris 30-49), lalu fallback ke harga paket. Label "Mulai dari" juga sudah tampil (baris 206).
+## Current State
 
-### AgentPackages Tidak Mengambil Harga Departure
-`AgentPackages.tsx` query departure hanya ambil `id, departure_date, quota, booked_count, status` — **tanpa field harga** (`price_quad`, `price_triple`, `price_double`, `price_single`). Sehingga harga yang ditampilkan hanya dari tabel `packages`, bukan dari departure.
+- Tabel `role_permissions` ada di DB tapi tidak aktif digunakan di frontend (sidebar sudah menampilkan semua menu)
+- Tabel `user_permissions` dan `permissions_list` belum ada di DB
+- `AdminUsers.tsx` sudah punya tombol "Izin" tapi dialog-nya placeholder ("Fitur Belum Tersedia")
+- `audit-logger.ts` punya fungsi `logPermissionChange` (role-based) dan `logUserPermissionChange` (user-based)
 
----
+## Changes
 
-## Rencana Implementasi
+### 1. Database Migration
+- **Drop** tabel `role_permissions`
+- **Create** tabel `permissions_list` (master daftar permission: key, label, group_name, description)
+- **Create** tabel `user_permissions` (user_id, permission_key FK, is_enabled) with RLS (super_admin only)
+- **Create** function `check_user_permission(uuid, text)` — returns true if user has specific permission override enabled, or true by default if no override exists
+- **Seed** `permissions_list` with menu keys extracted from `menu_items` table
 
-| # | Prioritas | Item | File |
-|:--|:----------|:-----|:-----|
-| 1 | KRITIS | Fix syntax rusak `PICData` interface | `useBookingWizardDynamic.ts` |
-| 2 | TINGGI | Tambah field harga di query departure AgentPackages + tampilkan "Mulai dari" harga termurah | `AgentPackages.tsx` |
+### 2. Create `UserPermissionsManager` Component
+- New component shown in dialog when Super Admin clicks "Izin" on a user
+- Displays all permissions grouped by `group_name`
+- Toggle switches for each permission (ON = granted, OFF = revoked)
+- Only shows overrides — default is "all access" for staff roles
 
-### Detail Teknis
+### 3. Update `AdminUsers.tsx`
+- Replace placeholder permissions dialog with actual `UserPermissionsManager`
+- Keep Super Admin-only guard on the "Izin" button
 
-**Fix #1**: Perbaiki interface `PICData` di baris 31-37 — kembalikan field `picSource` yang hilang.
+### 4. Update `useDynamicMenus.ts`
+- Add permission filtering: after fetching menu items, check `user_permissions` for current user
+- If a user has `is_enabled = false` for a menu's `required_permission`, hide that menu item
+- If no override exists, menu is shown (default allow)
 
-**Fix #2**: Di `AgentPackages.tsx`:
-- Tambah `price_quad, price_triple, price_double, price_single` di query departures
-- Ganti grid harga 4-kolom (Quad/Triple/Double/Single) menjadi satu baris "Mulai dari [harga termurah dari departure]"
-- Jika semua harga departure 0, fallback ke harga paket; jika masih 0, tampilkan "Hubungi Kami"
+### 5. Clean Up `audit-logger.ts`
+- Remove `logPermissionChange` and `logBatchPermissionChanges` (role-based)
+- Keep `logUserPermissionChange` (user-based)
+
+### 6. Update Memory
+- Update `mem://auth/dynamic-role-permissions` to reflect user-only permissions
+- Update `mem://auth/sidebar-rbac-filtering-id` accordingly
+
+## Technical Detail
+
+Permission resolution logic (simplified from RBAC+override to user-only):
+1. Super Admin → all access (bypass)
+2. Check `user_permissions` for specific user + permission_key
+3. If found → use `is_enabled` value
+4. If not found → default ALLOW (all staff see everything unless explicitly restricted)
 
