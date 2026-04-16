@@ -253,13 +253,15 @@ export default function AdminPackages() {
           </DialogHeader>
           {packageTypeFilter === "tabungan" ? (
             <SavingsPackageForm 
-              initialData={editingPackage} 
-              onSuccess={handleFormClose} 
+              packageData={editingPackage} 
+              onSuccess={handleFormClose}
+              onCancel={handleFormClose}
             />
           ) : (
             <RegularPackageForm 
-              initialData={editingPackage} 
-              onSuccess={handleFormClose} 
+              packageData={editingPackage} 
+              onSuccess={handleFormClose}
+              onCancel={handleFormClose}
             />
           )}
         </DialogContent>

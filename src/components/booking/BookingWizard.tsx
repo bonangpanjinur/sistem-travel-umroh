@@ -79,7 +79,7 @@ export function BookingWizard() {
   const { data: departureInfo } = useQuery({
     queryKey: ['departure-info', initialDepartureId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, month, flight_number, price_quad, price_triple, price_double, price_single').eq('id', initialDepartureId).single();
+      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single').eq('id', initialDepartureId).single();
       if (error) throw error;
       return data;
     },
@@ -167,11 +167,9 @@ export function BookingWizard() {
               {departureInfo && (
                 <>
                   {" "}•{" "}
-                  {departureInfo.departure_date 
+                   {departureInfo.departure_date 
                     ? `Berangkat ${format(new Date(departureInfo.departure_date), "d MMMM yyyy", { locale: idLocale })}`
-                    : departureInfo.month 
-                      ? `Bulan ${MONTHS.find(m => m.value === departureInfo.month)?.label || departureInfo.month}`
-                      : 'Tanggal Belum Ditentukan'}
+                    : 'Tanggal Belum Ditentukan'}
                 </>
               )}
             </p>

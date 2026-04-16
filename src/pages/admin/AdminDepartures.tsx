@@ -110,7 +110,7 @@ export default function AdminDepartures() {
   });
 
   const months = departures 
-    ? [...new Set(departures.map(d => d.departure_date ? d.departure_date.substring(0, 7) : (d.month ? `MONTH-${d.month}` : null)).filter(Boolean))]
+    ? [...new Set(departures.map(d => d.departure_date ? d.departure_date.substring(0, 7) : null).filter(Boolean))]
         .sort()
         .map(m => {
           if (m?.startsWith('MONTH-')) {
@@ -134,11 +134,7 @@ export default function AdminDepartures() {
     }
     if (statusFilter !== "all" && dep.status !== statusFilter) return false;
     if (monthFilter !== "all") {
-      if (monthFilter.startsWith('MONTH-')) {
-        if (dep.month !== monthFilter.replace('MONTH-', '')) return false;
-      } else {
-        if (!dep.departure_date || !dep.departure_date.startsWith(monthFilter)) return false;
-      }
+      if (!dep.departure_date || !dep.departure_date.startsWith(monthFilter)) return false;
     }
     if (linkedFilter === "linked" && !dep.package_id) return false;
     if (linkedFilter === "unlinked" && dep.package_id) return false;

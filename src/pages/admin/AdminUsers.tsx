@@ -108,8 +108,8 @@ export default function AdminUsers() {
 
       if (profilesError) throw profilesError;
 
-      const { data: authUsers, error: authError } = await supabase.rpc('list_users_with_emails');
-      const emailMap = new Map((authUsers || []).map(u => [u.id, u.email]));
+      const { data: authUsers, error: authError } = await (supabase.rpc as any)('list_users_with_emails');
+      const emailMap = new Map(((authUsers as any[]) || []).map((u: any) => [u.id, u.email]));
 
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
@@ -126,9 +126,9 @@ export default function AdminUsers() {
       const employeeMap = new Map((employees || []).map(e => [e.user_id, e.employee_code]));
       const branchMap = new Map((branches || []).map(b => [b.id, b.name]));
 
-      const usersWithRoles: UserWithRoles[] = (profiles || []).map(profile => ({
+      const usersWithRoles = (profiles || []).map(profile => ({
         ...profile,
-        email: emailMap.get(profile.user_id) || null,
+        email: (emailMap.get(profile.user_id) as string) || null,
         roles: sortRoles((roles || []).filter(r => r.user_id === profile.user_id).map(r => ({
           id: r.id,
           role: r.role as AppRole,
@@ -196,7 +196,7 @@ export default function AdminUsers() {
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc('delete_user_by_admin', {
+      const { error } = await (supabase.rpc as any)('delete_user_by_admin', {
         target_user_id: userId
       });
       if (error) throw error;
@@ -214,7 +214,7 @@ export default function AdminUsers() {
   // Reset password via email mutation
   const resetPasswordEmailMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc('reset_user_password_by_admin', {
+      const { error } = await (supabase.rpc as any)('reset_user_password_by_admin', {
         target_user_id: userId
       });
       if (error) throw error;
@@ -236,7 +236,7 @@ export default function AdminUsers() {
       if (!newPassword || newPassword.length < 8) {
         throw new Error('Password harus minimal 8 karakter');
       }
-      const { error } = await supabase.rpc('set_user_password_by_admin', {
+      const { error } = await (supabase.rpc as any)('set_user_password_by_admin', {
         target_user_id: userId,
         new_password: newPassword
       });

@@ -13,7 +13,7 @@ export function useLandingPages() {
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data as LandingPageData[];
+      return data as unknown as LandingPageData[];
     },
   });
 }
@@ -77,7 +77,7 @@ export function useLandingPage(identifier: string, isPublic = true) {
         }
       }
       
-      return lp as LandingPageData;
+      return lp as unknown as LandingPageData;
     },
     enabled: !!identifier,
     retry: 1,
@@ -91,7 +91,7 @@ export function useCreateLandingPage() {
     mutationFn: async (newData: Partial<LandingPageData>) => {
       const { data, error } = await supabase
         .from("landing_pages")
-        .insert([newData])
+        .insert([newData as any])
         .select()
         .single();
       
@@ -135,7 +135,7 @@ export function useUpdateLandingPage() {
 
       const { data, error } = await supabase
         .from("landing_pages")
-        .update(cleanData)
+        .update(cleanData as any)
         .eq("id", id)
         .select()
         .single();

@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = (): boolean => {
     // All roles except 'customer' and 'jamaah' are considered admin/staff
     // They all have access to the same menu without restrictions
-    return roles.length > 0 && !roles.every(role => role === 'customer' || role === 'jamaah');
+    return roles.length > 0 && !roles.every(role => role === 'customer');
   };
 
   const isSuperAdmin = (): boolean => {

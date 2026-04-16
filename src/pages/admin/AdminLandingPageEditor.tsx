@@ -11,6 +11,7 @@ import { ArrowLeft, Save, Plus, Trash2, MoveUp, MoveDown, Layout, Settings, Eye 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LPSection, SectionType } from "@/types/landing-page";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function AdminLandingPageEditor() {

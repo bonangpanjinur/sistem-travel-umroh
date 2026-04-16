@@ -46,6 +46,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { cn } from "@/lib/utils";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
 import { useAuth } from "@/hooks/useAuth";

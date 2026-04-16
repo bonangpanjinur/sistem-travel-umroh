@@ -99,6 +99,7 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
   const raw = data as any;
   return {
     ...data,
+    google_console_verification: raw.google_console_verification ?? null,
     homepage_sections: data.homepage_sections as unknown as HomepageSection[] | null,
     custom_sections: data.custom_sections as unknown as CustomSection[] | null,
     nav_links: data.nav_links as unknown as WebsiteSettings['nav_links'],
