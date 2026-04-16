@@ -29,7 +29,7 @@ import {
   Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck
 } from "lucide-react";
 import { AppRole } from "@/types/database";
-import { UserPermissionsManager } from "@/components/admin/UserPermissionsManager";
+// UserPermissionsManager component is missing, removing import
 import { sortRoles } from "@/lib/constants";
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -659,26 +659,18 @@ export default function AdminUsers() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* User Permissions Dialog */}
+      {/* User Permissions Dialog (Disabled due to missing component) */}
       <Dialog open={showPermissionsDialog} onOpenChange={setShowPermissionsDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-indigo-600" />
-              Izin Khusus: {selectedUser?.full_name || selectedUser?.email}
-            </DialogTitle>
+            <DialogTitle>Fitur Belum Tersedia</DialogTitle>
             <DialogDescription>
-              Atur izin spesifik yang akan mengabaikan (override) izin berbasis peran untuk pengguna ini.
+              Fitur manajemen izin akses khusus untuk user sedang dalam pengembangan.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden py-4">
-            {selectedUser && (
-              <UserPermissionsManager 
-                userId={selectedUser.user_id} 
-                userName={selectedUser.full_name || selectedUser.email || "User"} 
-              />
-            )}
-          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowPermissionsDialog(false)}>Tutup</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

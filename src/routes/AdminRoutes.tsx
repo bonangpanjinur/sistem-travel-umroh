@@ -24,9 +24,9 @@ const AdminLeads = lazy(() => import("@/pages/admin/AdminLeads"));
 const AdminLeadDetail = lazy(() => import("@/pages/admin/AdminLeadDetail"));
 const AdminLeadAnalytics = lazy(() => import("@/pages/admin/AdminLeadAnalytics"));
 const AdminRolePermissions = lazy(() => import("@/pages/admin/AdminRolePermissions"));
-const AdminUdacManagement = lazy(() => import("@/pages/admin/AdminUdacManagement"));
-const AdminUdacAudit = lazy(() => import("@/pages/admin/AdminUdacAudit"));
-const AdminUdacSimulator = lazy(() => import("@/pages/admin/AdminUdacSimulator"));
+// const AdminUdacManagement = lazy(() => import("@/pages/admin/AdminUdacManagement"));
+// const AdminUdacAudit = lazy(() => import("@/pages/admin/AdminUdacAudit"));
+// const AdminUdacSimulator = lazy(() => import("@/pages/admin/AdminUdacSimulator"));
 const AdminRoomAssignments = lazy(() => import("@/pages/admin/AdminRoomAssignments"));
 const AdminDepartures = lazy(() => import("@/pages/admin/AdminDepartures"));
 const AdminSavingsPlans = lazy(() => import("@/pages/admin/AdminSavingsPlans"));
@@ -104,9 +104,10 @@ export default function AdminRoutes() {
       <Route path="document-verification" element={<ProtectedRoute permission="documents.verification.view"><LazyPage><AdminDocumentVerification /></LazyPage></ProtectedRoute>} />
       <Route path="users" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUsers /></LazyPage></ProtectedRoute>} />
 
-      <Route path="udac" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacManagement /></LazyPage></ProtectedRoute>} />
-      <Route path="udac/audit" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacAudit /></LazyPage></ProtectedRoute>} />
-      <Route path="udac/simulator" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacSimulator /></LazyPage></ProtectedRoute>} />
+      {/* UDAC routes disabled due to missing components */}
+      {/* <Route path="udac" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacManagement /></LazyPage></ProtectedRoute>} /> */}
+      {/* <Route path="udac/audit" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacAudit /></LazyPage></ProtectedRoute>} /> */}
+      {/* <Route path="udac/simulator" element={<ProtectedRoute permission="users.view"><LazyPage><AdminUdacSimulator /></LazyPage></ProtectedRoute>} /> */}
       <Route path="agents" element={<ProtectedRoute permission="agents.view"><LazyPage><AdminAgents /></LazyPage></ProtectedRoute>} />
       <Route path="coupons" element={<ProtectedRoute permission="marketing.view"><LazyPage><AdminCoupons /></LazyPage></ProtectedRoute>} />
       <Route path="loyalty" element={<ProtectedRoute permission="marketing.view"><LazyPage><AdminLoyalty /></LazyPage></ProtectedRoute>} />
