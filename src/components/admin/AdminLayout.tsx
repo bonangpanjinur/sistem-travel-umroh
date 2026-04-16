@@ -60,7 +60,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Paket', icon: Package, path: '/admin/packages', permission: 'packages.view' },
       { label: 'Keberangkatan', icon: Plane, path: '/admin/departures', permission: 'departures.view' },
       { label: 'Booking', icon: Calendar, path: '/admin/bookings', permission: 'bookings.view_own' },
-      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment', permission: 'equipment.view' },
+      { label: 'Perlengkapan', icon: Box, path: '/admin/equipment', permission: 'operational.view' },
       { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates', permission: 'itinerary.view' },
       { label: 'Tabungan', icon: Wallet, path: '/admin/savings', permission: 'packages.view' },
       { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments', permission: 'operational.rooms.view' },
@@ -120,7 +120,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Dokumen & Surat',
     items: [
-      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', permission: 'bookings.document.view' },
+      { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', permission: 'documents.verification.view' },
       { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator', permission: 'documents.generator.view' },
       { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', permission: 'offline_content.view' },
     ]

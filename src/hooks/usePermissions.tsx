@@ -17,23 +17,28 @@ export function usePermissions() {
 
   // Fetch granular permissions from role_permissions
   const { data: permissions = [], isLoading } = useQuery({
-    queryKey: ["user-permissions", roles],
+    queryKey: ["user-permissions", user?.id],
     queryFn: async () => {
-      if (!roles || roles.length === 0) return [];
+      if (!user) return [];
       
-      const { data, error } = await supabase
-        .from("role_permissions")
-        .select("permission_key, is_enabled, role")
-        .in("role", roles)
-        .eq("is_enabled", true);
+      // Use the RPC that handles both multiple roles and user-level overrides
+      const { data, error } = await supabase.rpc('get_user_all_permissions', {
+        _user_id: user.id
+      });
       
       if (error) {
         console.error("Error fetching permissions:", error);
         throw error;
       }
-      return data as Permission[];
+      
+      // Map RPC output to Permission interface for compatibility
+      return (data as any[]).map(p => ({
+        permission_key: p.permission_key,
+        is_enabled: p.is_enabled,
+        role: p.source === 'role' ? 'dynamic' : 'user'
+      })) as Permission[];
     },
-    enabled: !!user && roles.length > 0,
+    enabled: !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

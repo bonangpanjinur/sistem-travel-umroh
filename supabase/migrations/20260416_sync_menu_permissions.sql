@@ -36,7 +36,8 @@ INSERT INTO public.permissions_list (key, label, group_name, description) VALUES
 ('documents.generator.view', 'Generate Surat', 'Sistem & Pengaturan', 'Membuat surat otomatis'),
 ('offline_content.view', 'Konten Offline', 'Sistem & Pengaturan', 'Akses konten offline'),
 ('reports.view', 'Lihat Laporan', 'Sistem & Pengaturan', 'Melihat laporan sistem'),
-('users.view', 'Lihat Pengguna', 'Sistem & Pengaturan', 'Melihat daftar pengguna')
+('users.view', 'Lihat Pengguna', 'Sistem & Pengaturan', 'Melihat daftar pengguna'),
+('documents.verification.view', 'Verifikasi Dokumen', 'Booking & Jamaah', 'Verifikasi dokumen jamaah')
 ON CONFLICT (key) DO UPDATE SET 
   label = EXCLUDED.label, 
   group_name = EXCLUDED.group_name;
