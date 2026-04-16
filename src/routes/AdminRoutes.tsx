@@ -144,8 +144,7 @@ export default function AdminRoutes() {
       <Route path="scheduled-reports" element={<LazyPage><AdminScheduledReports /></LazyPage>} />
 
       {/* Pengaturan */}
-      {/* Root access routes removed as per user request */}
-      {/* <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} /> */}
+      <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} />
       {/* <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} /> */}
       {/* <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} /> */}
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />
