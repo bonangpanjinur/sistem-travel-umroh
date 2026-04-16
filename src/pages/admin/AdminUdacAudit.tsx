@@ -31,8 +31,8 @@ export default function AdminUdacAudit() {
     queryFn: async () => {
       let query = supabase
         .from("audit_logs")
-        .select("*")
-        .order("timestamp", { ascending: false })
+        .select("*, profiles(full_name)")
+        .order("created_at", { ascending: false })
         .limit(500);
 
       if (filterAction !== "all") {
@@ -40,31 +40,39 @@ export default function AdminUdacAudit() {
       }
 
       if (searchQuery) {
-        query = query.or(`user_id.ilike.%${searchQuery}%,permission_key.ilike.%${searchQuery}%`);
+        // Since we can't easily ilike on joined profiles in a simple .or() with Supabase JS client 
+        // without complex filters, we'll filter user_id or table_name or action
+        query = query.or(`user_id.ilike.%${searchQuery}%,table_name.ilike.%${searchQuery}%,action.ilike.%${searchQuery}%`);
       }
 
       if (dateRange.start) {
-        query = query.gte("timestamp", dateRange.start);
+        query = query.gte("created_at", dateRange.start);
       }
 
       if (dateRange.end) {
-        query = query.lte("timestamp", dateRange.end);
+        query = query.lte("created_at", dateRange.end);
       }
 
       const { data, error } = await query;
       if (error) throw error;
+      
+      // Map data to match the expected UI structure if needed, 
+      // but we'll adapt the UI to the actual schema
       return data;
     },
   });
 
   const stats = useMemo(() => {
     const total = auditLogs.length;
-    const granted = auditLogs.filter(l => l.is_granted).length;
-    const denied = total - granted;
-    const changes = auditLogs.filter(l => l.action_type === "PERMISSION_CHANGE").length;
-    const attempts = auditLogs.filter(l => l.action_type === "ACCESS_ATTEMPT").length;
+    // In the actual schema, we don't have is_granted. 
+    // We'll use action_type or metadata to determine status if available.
+    // For now, we'll just count total and types.
+    const changes = auditLogs.filter(l => l.action_type === "PERMISSION_CHANGE" || l.action?.includes("PERMISSION")).length;
+    const updates = auditLogs.filter(l => l.action_type === "UPDATE").length;
+    const creates = auditLogs.filter(l => l.action_type === "CREATE").length;
+    const deletes = auditLogs.filter(l => l.action_type === "DELETE").length;
     
-    return { total, granted, denied, changes, attempts };
+    return { total, changes, updates, creates, deletes };
   }, [auditLogs]);
 
   const handleDownloadCSV = () => {
@@ -74,15 +82,15 @@ export default function AdminUdacAudit() {
     }
 
     const csv = [
-      ["Timestamp", "User ID", "Action", "Permission", "Resource", "Status", "Context"].join(","),
+      ["Timestamp", "User ID", "User Name", "Table", "Action", "Action Type", "Severity"].join(","),
       ...auditLogs.map(log => [
-        log.timestamp,
+        log.created_at,
         log.user_id,
+        (log.profiles as any)?.full_name || "Unknown",
+        log.table_name,
+        log.action,
         log.action_type,
-        log.permission_key,
-        log.resource_id,
-        log.is_granted ? "GRANTED" : "DENIED",
-        JSON.stringify(log.context || {})
+        log.severity
       ].map(v => `"${v}"`).join(","))
     ].join("\n");
 
@@ -151,20 +159,8 @@ export default function AdminUdacAudit() {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Akses Diberikan</p>
-                <h3 className="text-2xl font-bold">{stats.granted}</h3>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm bg-gradient-to-br from-red-500/5 to-transparent">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="p-3 bg-red-500/10 rounded-xl text-red-600">
-                <XCircle className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Akses Ditolak</p>
-                <h3 className="text-2xl font-bold">{stats.denied}</h3>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Perubahan Izin</p>
+                <h3 className="text-2xl font-bold">{stats.changes}</h3>
               </div>
             </CardContent>
           </Card>
@@ -172,11 +168,23 @@ export default function AdminUdacAudit() {
           <Card className="border-none shadow-sm bg-gradient-to-br from-orange-500/5 to-transparent">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="p-3 bg-orange-500/10 rounded-xl text-orange-600">
+                <RefreshCw className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Update Data</p>
+                <h3 className="text-2xl font-bold">{stats.updates}</h3>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm bg-gradient-to-br from-purple-500/5 to-transparent">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-purple-500/10 rounded-xl text-purple-600">
                 <Shield className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Perubahan Izin</p>
-                <h3 className="text-2xl font-bold">{stats.changes}</h3>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Data Baru</p>
+                <h3 className="text-2xl font-bold">{stats.creates}</h3>
               </div>
             </CardContent>
           </Card>
@@ -196,9 +204,9 @@ export default function AdminUdacAudit() {
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
               <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Cari user atau izin..." 
-                  className="pl-10 h-9 bg-card"
+                <input 
+                  placeholder="Cari user, tabel, atau aksi..." 
+                  className="pl-10 h-9 w-full rounded-md border bg-card text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -208,9 +216,11 @@ export default function AdminUdacAudit() {
                 onChange={(e) => setFilterAction(e.target.value)}
                 className="h-9 px-3 rounded-md border bg-card text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="all">Semua Aksi</option>
-                <option value="PERMISSION_CHANGE">Perubahan Izin</option>
-                <option value="ACCESS_ATTEMPT">Percobaan Akses</option>
+                <option value="all">Semua Tipe</option>
+                <option value="CREATE">Create</option>
+                <option value="UPDATE">Update</option>
+                <option value="DELETE">Delete</option>
+                <option value="PERMISSION_CHANGE">Izin</option>
               </select>
               <div className="flex items-center gap-2 bg-card border rounded-md px-2 h-9">
                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
@@ -252,12 +262,12 @@ export default function AdminUdacAudit() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-muted/50 border-bottom">
+                      <tr className="bg-muted/50 border-b">
                         <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Waktu</th>
                         <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Pengguna</th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tabel / Entitas</th>
                         <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</th>
-                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Izin / Fitur</th>
-                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tipe</th>
                         <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Detail</th>
                       </tr>
                     </thead>
@@ -266,49 +276,44 @@ export default function AdminUdacAudit() {
                         <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
                           <td className="p-4 whitespace-nowrap">
                             <div className="flex flex-col">
-                              <span className="text-sm font-medium">{new Date(log.timestamp).toLocaleDateString('id-ID')}</span>
-                              <span className="text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString('id-ID')}</span>
+                              <span className="text-sm font-medium">
+                                {log.created_at ? new Date(log.created_at).toLocaleDateString('id-ID') : '-'}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {log.created_at ? new Date(log.created_at).toLocaleTimeString('id-ID') : '-'}
+                              </span>
                             </div>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
                               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                {log.user_id?.charAt(0).toUpperCase() || 'U'}
+                                {((log.profiles as any)?.full_name || 'U').charAt(0).toUpperCase()}
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-xs font-mono text-muted-foreground">{log.user_id?.slice(0, 8)}...</span>
+                                <span className="text-sm font-medium">{(log.profiles as any)?.full_name || 'Unknown'}</span>
+                                <span className="text-[10px] font-mono text-muted-foreground">{log.user_id?.slice(0, 8)}...</span>
                               </div>
                             </div>
                           </td>
                           <td className="p-4">
-                            <Badge variant={log.action_type === "PERMISSION_CHANGE" ? "secondary" : "outline"} className="text-[10px] font-medium">
-                              {log.action_type === "PERMISSION_CHANGE" ? "PERUBAHAN" : "AKSES"}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
                             <div className="flex flex-col gap-1">
                               <code className="text-[11px] font-mono bg-muted px-2 py-0.5 rounded w-fit">
-                                {log.permission_key}
+                                {log.table_name || log.entity_name || '-'}
                               </code>
-                              {log.resource_id && (
+                              {log.record_id && (
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                  <Info className="h-3 w-3" /> ID: {log.resource_id}
+                                  <Info className="h-3 w-3" /> ID: {log.record_id.slice(0, 8)}...
                                 </span>
                               )}
                             </div>
                           </td>
                           <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              {log.is_granted ? (
-                                <Badge className="bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" /> GRANTED
-                                </Badge>
-                              ) : (
-                                <Badge variant="destructive" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20">
-                                  <XCircle className="h-3 w-3 mr-1" /> DENIED
-                                </Badge>
-                              )}
-                            </div>
+                            <span className="text-sm font-medium">{log.action}</span>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={log.action_type === "DELETE" ? "destructive" : log.action_type === "CREATE" ? "default" : "secondary"} className="text-[10px] font-medium">
+                              {log.action_type || 'INFO'}
+                            </Badge>
                           </td>
                           <td className="p-4">
                             <Tooltip>
@@ -318,7 +323,12 @@ export default function AdminUdacAudit() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent side="left" className="max-w-xs">
-                                <p className="text-xs font-mono">{JSON.stringify(log.context || {}, null, 2)}</p>
+                                <div className="space-y-2 p-1">
+                                  <p className="text-[10px] font-bold uppercase text-muted-foreground">Metadata / Changes</p>
+                                  <pre className="text-[10px] font-mono bg-muted p-2 rounded overflow-auto max-h-40">
+                                    {JSON.stringify(log.metadata || log.new_data || {}, null, 2)}
+                                  </pre>
+                                </div>
                               </TooltipContent>
                             </Tooltip>
                           </td>
@@ -335,22 +345,39 @@ export default function AdminUdacAudit() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Distribusi Akses</CardTitle>
-                  <CardDescription>Perbandingan antara akses yang diberikan dan ditolak.</CardDescription>
+                  <CardTitle className="text-base">Distribusi Aktivitas</CardTitle>
+                  <CardDescription>Perbandingan antara berbagai tipe aksi yang tercatat.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px] flex items-center justify-center">
                   <div className="flex flex-col items-center gap-4 w-full max-w-xs">
-                    <div className="flex justify-between w-full text-sm font-medium">
-                      <span>Granted</span>
-                      <span>{Math.round((stats.granted / stats.total) * 100) || 0}%</span>
-                    </div>
-                    <div className="w-full h-4 bg-muted rounded-full overflow-hidden flex">
-                      <div className="h-full bg-green-500" style={{ width: `${(stats.granted / stats.total) * 100}%` }} />
-                      <div className="h-full bg-red-500" style={{ width: `${(stats.denied / stats.total) * 100}%` }} />
-                    </div>
-                    <div className="flex justify-between w-full text-sm font-medium">
-                      <span>Denied</span>
-                      <span>{Math.round((stats.denied / stats.total) * 100) || 0}%</span>
+                    <div className="space-y-3 w-full">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Update</span>
+                          <span>{stats.updates}</span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-orange-500" style={{ width: `${(stats.updates / stats.total) * 100 || 0}%` }} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Create</span>
+                          <span>{stats.creates}</span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500" style={{ width: `${(stats.creates / stats.total) * 100 || 0}%` }} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Permission Changes</span>
+                          <span>{stats.changes}</span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500" style={{ width: `${(stats.changes / stats.total) * 100 || 0}%` }} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -358,25 +385,25 @@ export default function AdminUdacAudit() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Peringatan Keamanan</CardTitle>
-                  <CardDescription>Deteksi otomatis aktivitas mencurigakan.</CardDescription>
+                  <CardTitle className="text-base">Status Keamanan</CardTitle>
+                  <CardDescription>Ringkasan kondisi keamanan berdasarkan log terbaru.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {stats.denied > 10 ? (
-                      <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
-                        <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+                    {stats.changes > 5 ? (
+                      <div className="flex items-start gap-3 p-4 bg-orange-500/5 border border-orange-500/20 rounded-lg">
+                        <AlertTriangle className="h-5 w-5 text-orange-600 shrink-0" />
                         <div>
-                          <p className="text-sm font-bold text-red-600">Tingkat Penolakan Tinggi</p>
-                          <p className="text-xs text-muted-foreground">Terdeteksi {stats.denied} penolakan akses. Mohon periksa apakah ada percobaan akses ilegal.</p>
+                          <p className="text-sm font-bold text-orange-600">Aktivitas Izin Tinggi</p>
+                          <p className="text-xs text-muted-foreground">Terdeteksi {stats.changes} perubahan izin. Pastikan semua perubahan ini telah disetujui.</p>
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-start gap-3 p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
                         <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
                         <div>
-                          <p className="text-sm font-bold text-green-600">Sistem Aman</p>
-                          <p className="text-xs text-muted-foreground">Tidak ada anomali akses yang signifikan terdeteksi dalam periode ini.</p>
+                          <p className="text-sm font-bold text-green-600">Sistem Normal</p>
+                          <p className="text-xs text-muted-foreground">Aktivitas perubahan konfigurasi dalam batas normal.</p>
                         </div>
                       </div>
                     )}
