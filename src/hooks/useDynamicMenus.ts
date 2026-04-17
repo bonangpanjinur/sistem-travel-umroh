@@ -125,12 +125,11 @@ export const useDynamicMenus = () => {
   // here are appended at the end, preserving their insertion order.
   const GROUP_ORDER = [
     'Overview',
-    'Produk & Operasional',
-    'Jamaah & Agent',
-    'Keuangan & Akuntansi',
     'Sales & CRM',
-    'SDM',
-    'HR',
+    'Produk & Operasional',
+    'Keuangan & Akuntansi',
+    'Jamaah & Agent',
+    'SDM (HR)',
     'Dokumen & Surat',
     'Master Data',
     'Support & Komunikasi',
