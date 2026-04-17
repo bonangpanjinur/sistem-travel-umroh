@@ -90,20 +90,6 @@ export default function AdminUsers() {
   const { hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
 
-  // Handle query param for opening permissions dialog (from redirect)
-  useEffect(() => {
-    const openPermissionsUserId = searchParams.get('open_permissions');
-    if (openPermissionsUserId && users && users.length > 0) {
-      const userToOpenPermissions = users.find(u => u.user_id === openPermissionsUserId);
-      if (userToOpenPermissions) {
-        setSelectedUser(userToOpenPermissions);
-        setShowPermissionsDialog(true);
-        // Clear the query param
-        setSearchParams({});
-      }
-    }
-  }, [searchParams, users, setSearchParams]);
-
   // Fetch branches for role assignment
   const { data: branches } = useQuery({
     queryKey: ['branches'],

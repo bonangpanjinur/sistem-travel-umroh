@@ -74,13 +74,8 @@ export default function ProtectedRoute({
     }
   }
 
-  // Check granular path-based permission (New granular check via isPathAllowed)
+  // Check granular path-based permission (covers both dynamic check and explicit permission prop)
   if (permissionGranted === false) {
-    return <Navigate to="/access-denied" replace />;
-  }
-
-  // Check specific permission (Legacy check)
-  if (permission && permissionGranted === false) {
     return <Navigate to="/access-denied" replace />;
   }
 
