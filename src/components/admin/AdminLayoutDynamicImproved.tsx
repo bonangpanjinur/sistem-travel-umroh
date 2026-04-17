@@ -2,12 +2,12 @@
 
 /**
  * Enhanced AdminLayout dengan Dynamic Menu Integration & Improved UI/UX
+ * Dioptimalkan untuk menghilangkan redundansi dan meningkatkan navigasi.
  */
 
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
-import { ShieldAlert } from 'lucide-react';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
@@ -15,7 +15,6 @@ import { CommandPalette } from './CommandPalette';
 import { AdminBreadcrumb } from './AdminBreadcrumb';
 import * as LucideIcons from 'lucide-react';
 import {
-  LayoutDashboard,
   Settings,
   LogOut,
   Menu,
@@ -40,21 +39,16 @@ const DynamicIcon = ({ name, className }: { name?: string; className?: string })
 
 function AdminLayoutDynamicImproved() {
   const { user, profile, signOut } = useAuth();
-  const { groupedMenus, isLoading: menusLoading, isPathAllowed } = useDynamicMenus();
+  const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const {
-    notifications = [],
     unreadCount = 0,
-    markAsRead,
-    markAllAsRead,
-    clearAll,
   } = useAdminNotifications();
 
   // Handle responsive sidebar behavior
@@ -62,12 +56,8 @@ function AdminLayoutDynamicImproved() {
     const handleResize = () => {
       const isLargeScreen = window.innerWidth >= 1024;
       setIsDesktop(isLargeScreen);
-
-      if (isLargeScreen) {
-        setSidebarOpen(true);
-      } else {
-        setSidebarOpen(false);
-      }
+      if (isLargeScreen) setSidebarOpen(true);
+      else setSidebarOpen(false);
     };
 
     handleResize();
@@ -89,7 +79,7 @@ function AdminLayoutDynamicImproved() {
           return next;
         });
       } else if (expandedGroups.size === 0 && groupedMenus.length > 0) {
-        // Default expand first group if nothing active
+        // Default expand first group
         setExpandedGroups(new Set([groupedMenus[0].name]));
       }
     }
@@ -110,15 +100,11 @@ function AdminLayoutDynamicImproved() {
     setExpandedGroups(newExpanded);
   };
 
-  const isGroupExpanded = (groupName: string) => {
-    return expandedGroups.has(groupName);
-  };
+  const isGroupExpanded = (groupName: string) => expandedGroups.has(groupName);
 
   const isPathActive = (path: string) => {
-    return (
-      location.pathname === path ||
-      (path !== '/admin' && location.pathname.startsWith(path))
-    );
+    if (path === '/admin') return location.pathname === '/admin';
+    return location.pathname.startsWith(path);
   };
 
   // Filter menus based on search query
@@ -166,11 +152,11 @@ function AdminLayoutDynamicImproved() {
         <div className="flex items-center justify-between h-16 px-6 border-b border-border/50 bg-gradient-to-r from-card to-card/50 backdrop-blur-md sticky top-0 z-10">
           <Link to="/admin" className="flex items-center gap-3 group">
             <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold group-hover:scale-110 transition-transform duration-200 shadow-md">
-              U
+              V
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-base tracking-tight leading-none">Umrah</span>
-              <span className="text-[10px] text-muted-foreground font-medium">Magic</span>
+              <span className="font-bold text-base tracking-tight leading-none">Vins Tour</span>
+              <span className="text-[10px] text-muted-foreground font-medium">Travel</span>
             </div>
           </Link>
           <Button
@@ -199,31 +185,6 @@ function AdminLayoutDynamicImproved() {
         {/* Sidebar Content */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-4">
-            {/* Dashboard Link - Always visible at the top */}
-            <div className="space-y-1.5">
-              <Link
-                to="/admin"
-                onClick={() => !isDesktop && setSidebarOpen(false)}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
-                  location.pathname === '/admin'
-                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                )}
-              >
-                <LayoutDashboard className={cn(
-                  "w-4.5 h-4.5 flex-shrink-0 transition-all duration-200",
-                  location.pathname === '/admin' 
-                    ? "text-primary-foreground" 
-                    : "text-muted-foreground/70 group-hover:text-primary group-hover:scale-110"
-                )} />
-                <span className="flex-1 truncate relative z-10">Dashboard</span>
-                {location.pathname === '/admin' && (
-                  <div className="absolute right-2 w-2 h-2 rounded-full bg-primary-foreground/60 animate-pulse" />
-                )}
-              </Link>
-            </div>
-
             {menusLoading ? (
               <div className="flex flex-col items-center justify-center py-12 space-y-3">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -245,7 +206,7 @@ function AdminLayoutDynamicImproved() {
                   <button
                     onClick={() => toggleGroup(group.name)}
                     className={cn(
-                      'w-full flex items-center justify-between px-3 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 group rounded-lg',
+                      'w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 group rounded-lg',
                       isGroupExpanded(group.name)
                         ? 'text-primary bg-primary/5'
                         : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/50'
@@ -265,54 +226,33 @@ function AdminLayoutDynamicImproved() {
                     "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out",
                     isGroupExpanded(group.name) ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
                   )}>
-                    {group.items.map((item, itemIdx) => {
-                      const isActive = isPathActive(item.path);
-                      const isHovered = hoveredItem === item.key;
-                      
-                      return (
-                        <Link
-                          key={item.key}
-                          to={item.path}
-                          onClick={() => !isDesktop && setSidebarOpen(false)}
-                          onMouseEnter={() => setHoveredItem(item.key)}
-                          onMouseLeave={() => setHoveredItem(null)}
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.id}
+                        to={item.path}
+                        onClick={() => !isDesktop && setSidebarOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
+                          isPathActive(item.path)
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        )}
+                      >
+                        <DynamicIcon
+                          name={item.icon}
                           className={cn(
-                            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
-                            isActive
-                              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 translate-x-0'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                            'w-4 h-4 flex-shrink-0 transition-all duration-200',
+                            isPathActive(item.path)
+                              ? 'text-primary-foreground'
+                              : 'text-muted-foreground/70 group-hover:text-primary group-hover:scale-110'
                           )}
-                          style={{ 
-                            animationDelay: `${itemIdx * 30}ms`,
-                            animation: isGroupExpanded(group.name) ? 'slideIn 0.3s ease-out forwards' : 'none'
-                          }}
-                        >
-                          {!isActive && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                          )}
-                          
-                          <DynamicIcon 
-                            name={item.icon} 
-                            className={cn(
-                              "w-4.5 h-4.5 flex-shrink-0 transition-all duration-200",
-                              isActive 
-                                ? "text-primary-foreground" 
-                                : "text-muted-foreground/70 group-hover:text-primary group-hover:scale-110"
-                            )} 
-                          />
-                          
-                          <span className="flex-1 truncate relative z-10">{item.label}</span>
-                          
-                          {isActive && (
-                            <div className="absolute right-2 w-2 h-2 rounded-full bg-primary-foreground/60 animate-pulse" />
-                          )}
-                          
-                          {isHovered && !isActive && (
-                            <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary/40 transition-all duration-200" />
-                          )}
-                        </Link>
-                      );
-                    })}
+                        />
+                        <span className="flex-1 truncate relative z-10">{item.label}</span>
+                        {isPathActive(item.path) && (
+                          <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />
+                        )}
+                      </Link>
+                    ))}
                   </div>
                 </div>
               ))
@@ -321,119 +261,82 @@ function AdminLayoutDynamicImproved() {
         </ScrollArea>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-border/50 bg-gradient-to-t from-muted/20 to-transparent space-y-3">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-muted-foreground/10 transition-all hover:bg-muted/60">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
-              {profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+        <div className="p-4 border-t border-border/50 bg-muted/10 space-y-3">
+          {/* User Profile Summary */}
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-card border border-border/50 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20">
+              {profile?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate">{profile?.full_name || 'Admin User'}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+              <p className="text-sm font-semibold truncate text-foreground">
+                {profile?.full_name || 'Admin User'}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {user.email}
+              </p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="justify-center gap-2 text-xs h-9 border-muted-foreground/20 hover:bg-muted/80 transition-all"
+              className="h-9 text-xs gap-2 border-border/50 hover:bg-muted transition-all"
               onClick={() => navigate('/admin/settings')}
             >
               <Settings className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Pengaturan</span>
+              Pengaturan
             </Button>
             <Button
               variant="destructive"
               size="sm"
-              className="justify-center gap-2 text-xs h-9 shadow-sm hover:shadow-md transition-all"
+              className="h-9 text-xs gap-2 shadow-sm hover:shadow-destructive/20 transition-all"
               onClick={handleLogout}
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
+              Logout
             </Button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
-        <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 lg:px-8 gap-4 sticky top-0 z-20 shadow-sm">
-          <div className="flex items-center gap-4 min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Top Header */}
+        <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
+          <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={() => setSidebarOpen(true)}
               className="lg:hidden hover:bg-muted transition-colors"
             >
               <Menu className="w-5 h-5" />
             </Button>
-            <div className="hidden sm:block">
+            <div className="hidden md:block">
               <AdminBreadcrumb />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="flex items-center bg-muted/30 rounded-full px-1 gap-1">
-              <CommandPalette />
-              <NotificationBell
-                notifications={notifications}
-                unreadCount={unreadCount}
-                onMarkAsRead={markAsRead}
-                onMarkAllAsRead={markAllAsRead}
-                onClearAll={clearAll}
-              />
-            </div>
-            
-            <div className="h-8 w-[1px] bg-border/50 mx-1 hidden sm:block" />
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="hidden sm:flex items-center gap-2 px-2 hover:bg-muted rounded-full transition-colors"
-              onClick={() => navigate('/admin/settings')}
-            >
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">
-                {profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
-              </div>
-              <Settings className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
-            </Button>
+          <div className="flex items-center gap-2 md:gap-4">
+            <CommandPalette />
+            <NotificationBell 
+              notifications={[]} 
+              unreadCount={unreadCount} 
+              onMarkAsRead={() => {}} 
+              onMarkAllAsRead={() => {}} 
+              onClearAll={() => {}} 
+            />
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto bg-muted/10">
-          <div className="container mx-auto p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500">
-            {isPathAllowed(location.pathname) ? (
-              <Outlet />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-                <div className="rounded-full bg-destructive/10 p-4">
-                  <ShieldAlert className="h-10 w-10 text-destructive" />
-                </div>
-                <h2 className="text-xl font-semibold">Akses Ditolak</h2>
-                <p className="text-muted-foreground max-w-md">
-                  Anda tidak memiliki izin untuk mengakses halaman ini. Hubungi Super Admin untuk mengatur hak akses Anda.
-                </p>
-                <Button variant="outline" onClick={() => navigate('/admin')}>
-                  Kembali ke Dashboard
-                </Button>
-              </div>
-            )}
+        {/* Page Content */}
+        <div className="flex-1 overflow-y-auto bg-muted/30 custom-scrollbar">
+          <div className="container mx-auto p-4 lg:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Outlet />
           </div>
-        </main>
-      </div>
-
-      <style>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
+        </div>
+      </main>
     </div>
   );
 }

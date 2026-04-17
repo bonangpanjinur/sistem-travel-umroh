@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole, Profile } from '@/types/database';
 import { sortRoles } from '@/lib/constants';
+import { RECOMMENDED_MENUS } from './useSyncMenusFixed';
 
 interface AuthContextType {
   user: User | null;
@@ -85,9 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId);
       
       if (rolesData) {
-        setRoles(sortRoles(rolesData.map(r => r.role as AppRole)));
+        const userRoles = sortRoles(rolesData.map(r => r.role as AppRole));
+        setRoles(userRoles);
         const branchRole = rolesData.find(r => r.branch_id);
         setBranchId(branchRole?.branch_id || null);
+
+        // Auto-sync menus for admin/staff on login to ensure sidebar is clean
+        const isAdminOrStaff = userRoles.some(role => 
+          ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'].includes(role)
+        );
+        
+        if (isAdminOrStaff) {
+          supabase.rpc('bulk_sync_menu_items', {
+            _menu_items: JSON.stringify(RECOMMENDED_MENUS)
+          }).catch(err => console.error('Menu sync failed:', err));
+        }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
