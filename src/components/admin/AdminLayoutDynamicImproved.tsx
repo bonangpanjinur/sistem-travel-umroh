@@ -11,7 +11,7 @@ import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { AdminBreadcrumb } from './AdminBreadcrumb';
-import * as LucideIcons from 'lucide-react';
+import { getMenuIcon } from '@/lib/admin-menu-icons';
 import {
   Settings,
   LogOut,
@@ -29,11 +29,9 @@ import { Input } from '@/components/ui/input';
 
 const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
 
-// Helper to render Lucide icon by name
+// Helper to render Lucide icon by name (uses tree-shaken registry)
 const DynamicIcon = ({ name, className }: { name?: string; className?: string }) => {
-  if (!name) return <LucideIcons.Circle className={className} />;
-  const IconComponent = (LucideIcons as any)[name];
-  if (!IconComponent) return <LucideIcons.Circle className={className} />;
+  const IconComponent = getMenuIcon(name);
   return <IconComponent className={className} />;
 };
 

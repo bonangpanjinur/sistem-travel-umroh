@@ -14,9 +14,8 @@ export function useRealtimeSubscription(
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const instanceId = Math.random().toString(36).substring(2, 9);
     const channel = supabase
-      .channel(`realtime-${table}-${instanceId}`)
+      .channel(`realtime-${table}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table },
@@ -48,11 +47,10 @@ export function useMultipleRealtimeSubscriptions(
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const instanceId = Math.random().toString(36).substring(2, 9);
-    
-    // Create a single channel for multiple tables if possible, 
-    // but Supabase JS client usually recommends one per table or one channel with multiple .on()
-    const channel = supabase.channel(`realtime-multi-${instanceId}`);
+    // Stable channel ID derived from sorted tables list — Supabase JS client
+    // dedupes channels by name, preventing repeated WS reconnects on re-render.
+    const channelKey = [...tables].sort().join('+');
+    const channel = supabase.channel(`realtime-multi-${channelKey}`);
     
     tables.forEach((table) => {
       channel.on(

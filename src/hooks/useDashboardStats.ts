@@ -12,6 +12,11 @@ export function useDashboardStats(branchId?: string | null) {
   return useQuery({
     queryKey: ['admin-dashboard-stats', branchId],
     queryFn: async () => {
+      // Limit dashboard window to last 6 months + 500 rows max — sufficient for
+      // KPI cards & 6-month chart, prevents loading thousands of rows on tenants
+      // with long history.
+      const sixMonthsAgo = subMonths(new Date(), 6).toISOString();
+
       // Use Promise.all to fetch all dashboard data in parallel
       const [
         { data: rawBookings },
@@ -20,9 +25,14 @@ export function useDashboardStats(branchId?: string | null) {
         { data: pendingPayments },
         { data: leads }
       ] = await Promise.all([
-        // Query 1: Bookings
+        // Query 1: Bookings (capped to 500 rows, last 6 months)
         (() => {
-          let q = supabase.from('bookings').select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id');
+          let q = supabase
+            .from('bookings')
+            .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id')
+            .gte('created_at', sixMonthsAgo)
+            .order('created_at', { ascending: false })
+            .limit(500);
           if (branchId) q = q.eq('branch_id', branchId);
           return q;
         })(),
@@ -181,7 +191,8 @@ export function useDashboardStats(branchId?: string | null) {
         arData
       };
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes stale time for dashboard
+    staleTime: 1000 * 60 * 10, // 10 minutes — dashboard does not need per-second freshness
+    gcTime: 1000 * 60 * 30,
   });
 }
 
