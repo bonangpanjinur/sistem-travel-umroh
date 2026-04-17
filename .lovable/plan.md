@@ -1,100 +1,77 @@
 
 
-## Akar masalah
+## Akar masalah loading lambat (data konkret)
 
-**1. Duplikasi Dashboard di sidebar**
-Sidebar punya "Dashboard Quick Access" hardcoded (baris 182-206 `AdminLayoutDynamicImproved.tsx`), tapi DB juga punya menu Dashboard di group "Overview". Hasilnya: Dashboard tampil 2× — sekali di atas, sekali di group Overview.
+Dari network logs + DB inspection saya temukan **3 penyebab utama** yang masih membandel:
 
-**2. Drift antara `permissions_list`, `menu_items`, dan `AdminRoutes`**
-- `permissions_list` (51 entries) punya `static-pages`, `testimonials` → tapi `menu_items` (48) tidak punya, dan `AdminRoutes` tidak punya route-nya.
-- `menu_items` punya `master-data` (Master Data Hub) → tapi sudah redundan karena sub-menu Master Data (airlines/airports/hotels/dst) sudah lengkap.
-- Group "Pengaturan" di DB tidak menampilkan `static-pages` & `testimonials` walau ada di permissions.
-- Path `/admin/finance-cash` di group Keuangan, tapi semua finance lain pakai `/admin/finance/*`. Inconsistent path scheme (kosmetik, tidak fatal).
+**1. `profiles` table = 0 rows + trigger `handle_new_user` TIDAK terpasang**
+- Network log: `GET /profiles?...user_id=eq.560... → 406 (PGRST116, 0 rows)` berulang ≥6 kali per page load
+- DB: `SELECT FROM pg_trigger WHERE tgname ILIKE '%new_user%'` → kosong
+- Akibat: `useAuth.fetchUserData()` pakai `.single()` → throw error → catch block → tapi `Promise.all` short-circuit, jadi `setIsLoading(false)` tetap jalan TAPI `setProfile` tidak pernah ter-set, dan setiap re-render via `onAuthStateChange` (TOKEN_REFRESHED, dll) memicu fetch ulang yang gagal lagi.
 
-**3. Performa lambat**
-- Public homepage spam request error: `hero_stats` (404, table tidak ada), `website_settings` ID hardcoded 0000... (406, row tidak ada), `departures.packages.category` (400, kolom tidak ada). Tiap error retry → bandwidth & CPU client habis.
-- Auth state-change listener tidak dibatasi, tiap navigation/refocus bisa memicu re-fetch profile + roles.
-- Realtime channel `menu_items_changes_persistent` di-mount untuk semua staff walau menu jarang berubah.
-- React Query default retry = 3 → 1 query gagal jadi 4 request.
+**2. `useAuth` re-fetch setiap auth event**
+- `onAuthStateChange` dipicu oleh: SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION → setiap event memanggil `fetchUserData()` ulang.
+- Network log menunjukkan request `user_roles` & `profiles` 3-5× dalam 2 menit untuk user yang sama.
+- Tidak ada caching di level React Query, semua state lokal.
 
-**4. Permission system rapi tapi fallback registry bisa "membocorkan" menu**
-`useDynamicMenus` fallback ke `RECOMMENDED_MENUS` bila DB kosong. DB sekarang TIDAK kosong, jadi fallback tidak aktif — tapi `RECOMMENDED_MENUS` di registry punya entries `static-pages` & `testimonials` yang tidak ada route-nya. Bila DB sempat kosong, sidebar bisa render menu yang 404.
+**3. `useAdminNotifications` hook = realtime channel berat tapi datanya tidak dipakai**
+- File `AdminLayoutDynamicImproved.tsx` kirim `notifications={[]}` hardcoded ke `<NotificationBell>` → hook tidak dipanggil di sini (✓ sudah benar).
+- TAPI `AdminLayout.tsx` & `AdminLayoutDynamic.tsx` (file lama yang masih ada) MASIH memanggil `useAdminNotifications`. Bila ada route lain yang masih ref ke layout lama → channel realtime ke 4 tabel (bookings/payments/payments-update/employee_devices) ikut subscribe.
 
-**5. Bug minor**
-- `useRoles`/`profiles` kosong di DB (0 rows) → setiap user baru harus pakai trigger `handle_new_user`. Pastikan trigger aktif. (Saat ini tabel `profiles` memang 0, kemungkinan test env.)
-- `console.debug` di realtime channel masih nyala di production build kalau `process.env.NODE_ENV` tidak ter-set Vite (Vite pakai `import.meta.env`).
+**4. Bug minor tapi mengganggu**
+- `AdminDashboard` punya 4× realtime subscription (`useMultipleRealtimeSubscriptions` ke 6 tabel) → setiap UPDATE di tabel-tabel ini me-refetch 5 query.
+- `AdminCustomers` query: `bookingQuery.eq('departure.package_id', ...)` — sintaks ini invalid di PostgREST (tidak bisa filter via dot di nested), kemungkinan mengembalikan error 400 saat filter aktif.
+- Vite production: `process.env.NODE_ENV` di `useAdminNotifications.ts` bukan `import.meta.env.DEV` → log debug bisa nyala salah konteks.
 
 ---
 
-## Rencana perbaikan
+## Rencana perbaikan (fokus, tidak menambah file baru)
 
-### A. Hilangkan duplikasi Dashboard
-Hapus blok "Dashboard Quick Access" hardcoded di `AdminLayoutDynamicImproved.tsx`. Dashboard tetap muncul lewat group Overview dari DB. Konsistensi: semua menu satu sumber.
+### A. Perbaiki root cause profiles 406 (paling penting)
+1. **Migration**: pasang ulang trigger `handle_new_user` ke `auth.users` (saat ini hilang setelah remix). Trigger akan auto-create row di `profiles` + `user_roles` saat signup.
+2. **Backfill**: `INSERT INTO profiles (user_id, full_name) SELECT id, raw_user_meta_data->>'full_name' FROM auth.users WHERE id NOT IN (SELECT user_id FROM profiles);` — supaya user existing (anjaypai) dapat profile.
+3. **`useAuth.fetchUserData`**: ganti `.single()` → `.maybeSingle()` agar 0 row tidak jadi 406 + error.
 
-### B. Sinkronisasi DB ↔ Routes ↔ Registry (single source of truth)
-Buat satu migration SQL yang:
-1. Hapus dari `permissions_list`: `static-pages`, `testimonials` (tidak ada route).
-2. Hapus dari `menu_items`: `master-data` (redundan dengan sub-menu).
-3. Hapus dari `RECOMMENDED_MENUS` registry: `static-pages`, `testimonials`, `master-data`.
-4. Pastikan tidak ada `user_permissions` yang merefer key yang dihapus (delete cascade/orphan cleanup).
+### B. Stop re-fetch berulang di useAuth
+- Tambahkan guard: simpan `userId` terakhir yang sudah di-fetch di ref. Bila `onAuthStateChange` dipicu ulang dengan user yang sama (TOKEN_REFRESHED), skip fetchUserData.
+- Pada `INITIAL_SESSION` event, setIsLoading(false) langsung tanpa fetch ulang bila data sudah ada.
 
-Hasil: 47 menu, 47 permission, 47 route — **1:1 mapping**.
+### C. Bersihkan layout lama yang masih load notifications hook
+- Pastikan tidak ada route yang masih pakai `AdminLayout.tsx` atau `AdminLayoutDynamic.tsx` (yang lama). Bila ada, redirect ke `AdminLayoutDynamicImproved`.
+- Bila kedua file lama tidak dipakai sama sekali, hapus untuk eliminasi kebingungan.
 
-### C. Bersihkan public-page errors yang membebani jaringan
-- `useHeroStats`: stop query bila table tidak ada; tangkap error PGRST205 dan disable retry.
-- `useWebsiteSettings` (id=`0000…0001`): ganti `.single()` jadi `.maybeSingle()` agar 0 row tidak jadi 406, dan cache dengan `staleTime: Infinity`.
-- `useDepartures` public: hapus `packages(category)` dari select karena kolom `category` tidak ada di tabel `packages`. Ganti pakai kolom yang valid (mis. `name` saja, atau join `package_types`).
-- Set React Query global default: `retry: 1`, `refetchOnWindowFocus: false`.
+### D. Optimasi AdminDashboard realtime
+- Realtime ke 6 tabel berlebihan untuk dashboard. Kurangi ke `bookings` + `payments` saja (2 tabel paling sering update). Sisanya pakai `staleTime: 5min` saja → cukup refresh manual.
 
-### D. Optimasi loading admin
-- `useDynamicMenus`: tambah cek `process.env.NODE_ENV` → ganti `import.meta.env.DEV`. Hapus realtime channel atau jadikan opt-in (pakai `staleTime: Infinity` sudah cukup).
-- `useAuth`: profile + roles sudah paralel; tambah `staleTime` pada query terkait user supaya tidak re-fetch saat fokus jendela.
-- Lazy-load `CommandPalette` (komponen berat dengan banyak ikon).
-- Tambah `Suspense` boundary di layout supaya skeleton tampil selama lazy import.
+### E. Bug fix kecil
+- `AdminCustomers`: hapus filter `bookingQuery.eq('departure.package_id', ...)` (invalid syntax) atau ganti ke RPC.
+- `useAdminNotifications`: ganti `process.env.NODE_ENV` → `import.meta.env.DEV`.
 
-### E. Permission flow konsisten
-- `ProtectedRoute`: super admin sudah bypass `menusLoading`. Untuk non-super-admin, tampilkan skeleton sidebar (bukan spinner full-screen) supaya perceived performance lebih baik.
-- `UserPermissionsManager`: pastikan key yang ditampilkan = key dari `permissions_list` aktif (setelah cleanup).
-
-### F. Best practice tambahan (akan diterapkan)
-- **Indeks DB**: tambah index `user_permissions(user_id, permission_key)` untuk lookup cepat.
-- **Naming menu**: standar "Indonesian Title Case" (sudah konsisten — pertahankan).
-- **Path scheme**: konsisten `/admin/{kebab-case}`. Migrasi `/admin/finance/ar` → tetap karena AR/AP secara nested logis di bawah finance; tidak ubah path agar tidak break bookmark.
+### F. Tambah index yang masih kurang
+- `CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);` — query `profiles?user_id=eq.X` tanpa index = full table scan.
+- `CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);` — sama.
 
 ---
 
 ## File yang akan diubah
 
-**Migration baru (data cleanup):**
-- `supabase/migrations/<ts>_cleanup_menu_permission_drift.sql` — DELETE 3 entri redundan + cascade orphan `user_permissions`.
+**Migration baru:**
+- `supabase/migrations/<ts>_fix_profile_trigger_and_indexes.sql` — pasang trigger handle_new_user, backfill profiles, tambah 2 index.
 
 **Diedit:**
-- `src/components/admin/AdminLayoutDynamicImproved.tsx` — hapus Dashboard Quick Access, lazy-load CommandPalette, skeleton loader.
-- `src/hooks/useDynamicMenus.ts` — pakai `import.meta.env.DEV`, opsional realtime, perketat fallback.
-- `src/lib/admin-menu-registry.ts` — hapus 3 entri redundan, samakan persis dengan DB final.
-- `src/hooks/useHeroStats.ts` — handle table-missing gracefully, retry 0.
-- `src/hooks/useWebsiteSettings.ts` — `.maybeSingle()`, staleTime Infinity.
-- `src/hooks/useDepartures.ts` (atau pemanggil di public) — buang select `packages.category` yang invalid.
-- `src/main.tsx` atau setup QueryClient — set default `retry: 1`, `refetchOnWindowFocus: false`, `staleTime: 5min`.
+- `src/hooks/useAuth.tsx` — `.maybeSingle()`, dedupe fetch via ref `lastFetchedUserId`.
+- `src/hooks/useAdminNotifications.ts` — `import.meta.env.DEV`.
+- `src/pages/admin/AdminDashboard.tsx` — kurangi realtime tabel.
+- `src/pages/admin/AdminCustomers.tsx` — perbaiki filter package/departure (drop atau pakai RPC).
+- `src/components/admin/AdminLayout.tsx` & `AdminLayoutDynamic.tsx` — bila tidak dipakai → hapus; bila masih dipakai → hapus pemanggilan `useAdminNotifications`.
 
 ---
 
 ## Hasil yang ditargetkan
-- **0 duplikasi menu** di sidebar (Dashboard hanya 1×).
-- **47 permission ↔ 47 menu ↔ 47 route**, 1:1 tanpa drift.
-- **Public homepage**: 0 request error berulang, loading turun signifikan.
-- **Admin dashboard**: render < 1s untuk super admin.
-- **Console bersih** dari error 400/404/406.
-- **Permission super admin** tetap bypass total; role lain mengikuti override DB.
-- **Struktur scalable**: tambah menu baru = 1 INSERT ke `menu_items` + 1 INSERT ke `permissions_list` + 1 Route. Selesai.
-
----
-
-## Best practice (rekomendasi pasca-implementasi)
-1. **Source of truth tunggal**: semua menu admin lewat `menu_items`. Hindari hardcoded link di layout.
-2. **Naming convention**: `key` = kebab-case, sama dengan `required_permission`, sama dengan path tail. Mudah di-grep.
-3. **Add-menu workflow**: 1 SQL migration berisi `INSERT menu_items` + `INSERT permissions_list` + commit `AdminRoutes.tsx`. Buat helper script bila perlu.
-4. **Caching**: gunakan `staleTime: Infinity` untuk data referensi (menus, permissions, settings). Invalidasi manual saat user/admin ubah data.
-5. **Indexing**: index pada `(user_id, permission_key)` di `user_permissions`; index pada `(group_name, sort_order)` di `menu_items`.
-6. **Avoid `.single()` di public**: pakai `.maybeSingle()` untuk fetch yang boleh 0 row.
+- **0 error 406 berulang** di console.
+- **Auth fetch hanya sekali** per session (bukan 3-5×).
+- **Realtime channel turun** dari 6 tabel → 2 tabel di dashboard.
+- **Loading dashboard** turun signifikan (perkiraan 2-3 detik → < 1 detik untuk super admin).
+- **Trigger profile aktif** lagi → user baru otomatis punya profile + role.
+- **Index baru** mempercepat lookup user_id berkali lipat.
 
