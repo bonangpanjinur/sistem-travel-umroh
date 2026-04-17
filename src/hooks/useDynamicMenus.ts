@@ -3,8 +3,8 @@
  * Single source of truth: `menu_items` + `user_permissions` (revocations only).
  */
 
-import { useEffect, useMemo, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { RECOMMENDED_MENUS } from '@/lib/admin-menu-registry';
