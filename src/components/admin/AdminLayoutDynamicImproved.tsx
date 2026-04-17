@@ -8,7 +8,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
-import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { CommandPalette } from './CommandPalette';
@@ -44,13 +43,9 @@ function AdminLayoutDynamicImproved() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-
-  const {
-    unreadCount = 0,
-  } = useAdminNotifications();
 
   // Handle responsive sidebar behavior
   useEffect(() => {
@@ -350,7 +345,7 @@ function AdminLayoutDynamicImproved() {
             <CommandPalette />
             <NotificationBell 
               notifications={[]} 
-              unreadCount={unreadCount} 
+              unreadCount={0} 
               onMarkAsRead={() => {}} 
               onMarkAllAsRead={() => {}} 
               onClearAll={() => {}} 

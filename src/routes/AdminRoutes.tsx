@@ -15,7 +15,6 @@ const AdminPayments = lazy(() => import("@/pages/admin/AdminPayments"));
 const AdminCustomers = lazy(() => import("@/pages/admin/AdminCustomers"));
 const AdminCustomerDetail = lazy(() => import("@/pages/admin/AdminCustomerDetail"));
 const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
-const AdminUserPermissions = lazy(() => import("@/pages/admin/AdminUserPermissions"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
@@ -146,7 +145,6 @@ export default function AdminRoutes() {
 
       {/* Pengaturan */}
       <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} />
-      <Route path="user-permissions" element={<LazyPage><AdminUserPermissions /></LazyPage>} />
       <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
       <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />

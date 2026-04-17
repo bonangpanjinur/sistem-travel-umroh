@@ -1,11 +1,13 @@
 /**
- * Hook untuk mengelola menu dinamis dengan user-level permission filtering
+ * Hook untuk mengelola menu dinamis dengan user-level permission filtering.
+ * Single source of truth: `menu_items` + `user_permissions` (revocations only).
  */
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { RECOMMENDED_MENUS } from '@/lib/admin-menu-registry';
 
 export interface MenuItem {
   id: string;
@@ -53,11 +55,25 @@ export const useDynamicMenus = () => {
     gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
 
-  // Fetch all menus
-  const { data: menus = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['dynamic-menus', user?.id],
+  // Registry fallback (used when DB is empty / unreachable) — keeps sidebar usable.
+  const fallbackMenus: MenuItem[] = useMemo(
+    () => RECOMMENDED_MENUS.map((m, idx) => ({
+      id: `fallback-${m.key}`,
+      key: m.key,
+      label: m.label,
+      path: m.path,
+      icon: m.icon,
+      group_name: m.group_name,
+      sort_order: m.sort_order,
+      required_permission: m.required_permission,
+    })),
+    []
+  );
+
+  // Fetch all menus (DB)
+  const { data: dbMenus = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['dynamic-menus'],
     queryFn: async () => {
-      if (!user || !isStaffUser) return [];
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
@@ -73,12 +89,19 @@ export const useDynamicMenus = () => {
         group_name: m.group_name,
         sort_order: m.sort_order,
         required_permission: m.required_permission
-      }));
+      })) as MenuItem[];
     },
     enabled: !!user && isStaffUser,
-    staleTime: 1000 * 60 * 30, // Increase staleTime to 30 mins
-    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60,
   });
+
+  // If DB returned empty (or query disabled), fall back to the static registry
+  // so the sidebar always has menus to render.
+  const menus: MenuItem[] = useMemo(
+    () => (dbMenus && dbMenus.length > 0 ? dbMenus : fallbackMenus),
+    [dbMenus, fallbackMenus]
+  );
 
   // Realtime sync dengan persistent channel management
   useEffect(() => {
@@ -167,27 +190,3 @@ export const useDynamicMenus = () => {
   return { menus: filteredMenus, groupedMenus, isLoading, error, refetch, revokedKeys, isPathAllowed };
 };
 
-/** @deprecated Always returns true — access is controlled via user_permissions */
-export const useMenuAccess = (_menuKey: string) => ({ hasAccess: true, isLoading: false });
-
-/** @deprecated Always returns true — access is controlled via user_permissions */
-export const useMultipleMenuAccess = (menuKeys: string[]) => {
-  const map: Record<string, boolean> = {};
-  menuKeys.forEach(k => { map[k] = true; });
-  return { accessMap: map, isLoading: false };
-};
-
-export const useSyncMenus = () => {
-  const queryClient = useQueryClient();
-  const syncMenus = async (menus: any[]) => {
-    // Backend signature is bulk_sync_menu_items(_menu_items JSONB)
-    // Sends JSON stringified array of menu items
-    const { data, error } = await supabase.rpc('bulk_sync_menu_items', {
-      _menu_items: JSON.stringify(menus),
-    });
-    if (error) throw error;
-    queryClient.invalidateQueries({ queryKey: ['dynamic-menus'] });
-    return data;
-  };
-  return { syncMenus };
-};
