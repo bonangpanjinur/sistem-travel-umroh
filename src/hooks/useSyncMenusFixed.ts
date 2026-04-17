@@ -38,6 +38,11 @@ export const RECOMMENDED_MENUS = [
   // Laporan
   { key: 'reports', label: 'Laporan', path: '/admin/reports', icon: 'FileBarChart', group_name: 'Laporan', sort_order: 10, required_permission: 'reports' },
   
+  // Dokumen & Surat
+  { key: 'document_verification', label: 'Verifikasi Dokumen', path: '/admin/document-verification', icon: 'FileCheck', group_name: 'Dokumen & Surat', sort_order: 10, required_permission: 'operational' },
+  { key: 'documents_generator', label: 'Generate Surat', path: '/admin/documents-generator', icon: 'FileText', group_name: 'Dokumen & Surat', sort_order: 20, required_permission: 'operational' },
+  { key: 'offline_content', label: 'Konten Offline', path: '/admin/offline-content', icon: 'BookOpen', group_name: 'Dokumen & Surat', sort_order: 30, required_permission: 'operational' },
+  
   // Sistem
   { key: 'users', label: 'Manajemen User', path: '/admin/users', icon: 'UserCog', group_name: 'Sistem', sort_order: 10, required_permission: 'users' },
   { key: 'user_permissions', label: 'Hak Akses User', path: '/admin/user-permissions', icon: 'ShieldCheck', group_name: 'Sistem', sort_order: 20, required_permission: 'users' },
