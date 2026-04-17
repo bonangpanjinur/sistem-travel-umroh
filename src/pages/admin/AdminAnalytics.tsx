@@ -40,11 +40,13 @@ export default function AdminAnalytics() {
           branch_id,
           branch:branches(name)
         `)
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .limit(1000);
       
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: payments, isLoading: loadingPayments } = useQuery({
@@ -54,11 +56,13 @@ export default function AdminAnalytics() {
       const { data, error } = await supabase
         .from('payments')
         .select('amount, status, created_at')
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .limit(1000);
       
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: branches } = useQuery({
@@ -72,6 +76,7 @@ export default function AdminAnalytics() {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 10,
   });
 
   // Calculate monthly revenue data

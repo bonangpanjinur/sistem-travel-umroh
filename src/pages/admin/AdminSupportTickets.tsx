@@ -83,11 +83,13 @@ export default function AdminSupportTickets() {
       const { data, error } = await supabase
         .from('support_tickets')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
       
       if (error) throw error;
       return data as SupportTicket[];
     },
+    staleTime: 1000 * 60 * 2,
   });
 
   const { data: responses } = useQuery({
@@ -104,6 +106,7 @@ export default function AdminSupportTickets() {
       return data as TicketResponse[];
     },
     enabled: !!selectedTicket,
+    staleTime: 1000 * 60 * 2,
   });
 
   const updateStatusMutation = useMutation({

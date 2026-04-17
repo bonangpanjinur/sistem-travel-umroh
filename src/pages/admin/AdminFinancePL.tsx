@@ -91,16 +91,21 @@ export default function AdminFinancePL() {
       
       if (depError) throw depError;
       const typedDeps: DepartureQueryResult[] = deps;
+      const depIds = typedDeps.map(d => d.id);
 
-      // Get bookings revenue per departure
+      // Short-circuit if there are no relevant departures
+      if (depIds.length === 0) return [];
+
+      // Get bookings revenue per departure — limited to relevant departures only
       const { data: bookings, error: bookError } = await supabase
         .from("bookings")
-        .select("departure_id, total_price, paid_amount");
+        .select("departure_id, total_price, paid_amount")
+        .in("departure_id", depIds);
       
       if (bookError) throw bookError;
       const typedBookings: BookingQueryResult[] = bookings;
 
-      // Get vendor costs per departure
+      // Get vendor costs per departure — limited to relevant departures only
       const { data: costs, error: costError } = await supabase
         .from("vendor_costs")
         .select(`
@@ -114,7 +119,8 @@ export default function AdminFinancePL() {
           due_date,
           paid_amount,
           status
-        `);
+        `)
+        .in("departure_id", depIds);
       
       if (costError) throw costError;
       const typedCosts: VendorCostQueryResult[] = costs;
@@ -139,6 +145,7 @@ export default function AdminFinancePL() {
         };
       }) || [];
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: vendors } = useQuery({

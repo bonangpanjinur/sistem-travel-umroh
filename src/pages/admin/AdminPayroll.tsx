@@ -60,6 +60,7 @@ export default function AdminPayroll() {
       if (error) throw error;
       return data || [];
     },
+    staleTime: 1000 * 60 * 10,
   });
 
   // Fetch attendance records for the selected month
@@ -78,6 +79,7 @@ export default function AdminPayroll() {
       if (error) throw error;
       return data || [];
     },
+    staleTime: 1000 * 60 * 10,
   });
 
   // Calculate payroll data

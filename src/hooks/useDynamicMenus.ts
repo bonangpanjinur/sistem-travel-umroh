@@ -121,6 +121,31 @@ export const useDynamicMenus = () => {
 
   groupedMenus.forEach(g => g.items.sort((a, b) => a.sort_order - b.sort_order));
 
+  // Manual group order (DB has no group_sort_order column). Groups not listed
+  // here are appended at the end, preserving their insertion order.
+  const GROUP_ORDER = [
+    'Overview',
+    'Produk & Operasional',
+    'Jamaah & Agent',
+    'Keuangan & Akuntansi',
+    'Sales & CRM',
+    'SDM',
+    'HR',
+    'Dokumen & Surat',
+    'Master Data',
+    'Support & Komunikasi',
+    'Laporan',
+    'Pengaturan',
+  ];
+  groupedMenus.sort((a, b) => {
+    const ia = GROUP_ORDER.indexOf(a.name);
+    const ib = GROUP_ORDER.indexOf(b.name);
+    if (ia === -1 && ib === -1) return 0;
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+
   /** Check if a given path is allowed for the current user.
    * Super admin → always allowed. Other staff → blocked if matching menu's
    * required_permission is in revokedKeys. Unknown paths default to allowed.
