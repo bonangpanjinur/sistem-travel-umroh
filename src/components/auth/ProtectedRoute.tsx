@@ -19,21 +19,35 @@ export default function ProtectedRoute({
   allowedRoles,
   permission
 }: ProtectedRouteProps) {
-  const { user, isLoading: authLoading, isAdmin, roles } = useAuth();
+  const { user, isLoading: authLoading, isAdmin, roles, isStaff } = useAuth();
   const location = useLocation();
+  
+  // Only use dynamic menus for admin/staff paths to speed up customer/public access
+  const isStaffPath = location.pathname.startsWith('/admin') || 
+                     location.pathname.startsWith('/operational') || 
+                     location.pathname.startsWith('/hr');
+  
+  const shouldCheckDynamicMenus = !!user && isStaffPath && isStaff();
+  
   const { isPathAllowed, isLoading: menusLoading } = useDynamicMenus();
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
-  const [checkingPermission, setCheckingPermission] = useState(false);
 
   useEffect(() => {
+    // Skip dynamic check for non-staff paths or non-staff users
+    if (!shouldCheckDynamicMenus) {
+      setPermissionGranted(true);
+      return;
+    }
+
     // Check granular path-based access using dynamic menus
     if (user && !menusLoading) {
       const pathAllowed = isPathAllowed(location.pathname);
       setPermissionGranted(pathAllowed);
     }
-  }, [user, location.pathname, menusLoading, isPathAllowed]);
+  }, [user, location.pathname, menusLoading, isPathAllowed, shouldCheckDynamicMenus]);
 
-  const isLoading = authLoading || menusLoading || checkingPermission;
+  // Only wait for menus if we actually need to check them
+  const isLoading = authLoading || (shouldCheckDynamicMenus && menusLoading);
 
   // Show loading state while checking auth and permissions
   if (isLoading) {

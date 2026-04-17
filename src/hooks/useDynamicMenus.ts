@@ -28,16 +28,18 @@ let menuChannelInstance: ReturnType<typeof supabase.channel> | null = null;
 let menuChannelSubscriberCount = 0;
 
 export const useDynamicMenus = () => {
-  const { user, isAdmin, hasRole } = useAuth();
+  const { user, isAdmin, hasRole, isStaff } = useAuth();
   const queryClient = useQueryClient();
   const isSuperAdmin = hasRole('super_admin');
   const isSubscribedRef = useRef(false);
+
+  const isStaffUser = isStaff();
 
   // Fetch user's revoked permissions (only relevant for staff users)
   const { data: revokedKeys = [] } = useQuery({
     queryKey: ['user-permissions-revoked', user?.id],
     queryFn: async () => {
-      if (!user || isSuperAdmin) return [];
+      if (!user || isSuperAdmin || !isStaffUser) return [];
       const { data, error } = await supabase
         .from('user_permissions')
         .select('permission_key')
@@ -46,15 +48,16 @@ export const useDynamicMenus = () => {
       if (error) { console.error(error); return []; }
       return (data || []).map((d: any) => d.permission_key as string);
     },
-    enabled: !!user && !isSuperAdmin,
-    staleTime: 1000 * 60 * 5,
+    enabled: !!user && !isSuperAdmin && isStaffUser,
+    staleTime: 1000 * 60 * 30, // Increase staleTime to 30 mins
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
 
   // Fetch all menus
   const { data: menus = [], isLoading, error, refetch } = useQuery({
     queryKey: ['dynamic-menus', user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !isStaffUser) return [];
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
@@ -72,8 +75,9 @@ export const useDynamicMenus = () => {
         required_permission: m.required_permission
       }));
     },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
+    enabled: !!user && isStaffUser,
+    staleTime: 1000 * 60 * 30, // Increase staleTime to 30 mins
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
 
   // Realtime sync dengan persistent channel management
