@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
@@ -20,11 +20,16 @@ type BookingRow = Database['public']['Tables']['bookings']['Row'];
 type PaymentRow = Database['public']['Tables']['payments']['Row'];
 type EmployeeDevice = Database['public']['Tables']['employee_devices']['Row'];
 
+// Singleton instance untuk menyimpan channel yang persistent
+let adminChannelInstance: ReturnType<typeof supabase.channel> | null = null;
+let channelSubscriberCount = 0;
+
 export function useAdminNotifications() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isSubscribedRef = useRef(false);
 
   const addNotification = useCallback((notification: Omit<AdminNotification, 'id' | 'createdAt' | 'read'>) => {
     const newNotification: AdminNotification = {
@@ -67,65 +72,52 @@ export function useAdminNotifications() {
   }, []);
 
   useEffect(() => {
-    const channelId = crypto.randomUUID().slice(0, 8);
-    
-    // Combined channel for all admin notifications to reduce overhead
-    const adminChannel = supabase
-      .channel(`admin-notifications-${channelId}`)
-      // 1. New Bookings
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'bookings' },
-        async (payload) => {
-          if (!payload || !payload.new) return;
-          const booking = payload.new as BookingRow;
-          const { data: customer } = await supabase
-            .from('customers')
-            .select('full_name')
-            .eq('id', booking.customer_id)
-            .single();
-
-          addNotification({
-            type: 'booking',
-            title: '🎉 Booking Baru!',
-            message: `${customer?.full_name || 'Customer'} membuat booking ${booking.booking_code} senilai ${formatCurrency(booking.total_price)}`,
-            link: `/admin/bookings/${booking.id}`,
-            data: booking,
-          });
+    // Jika channel sudah ada dan sudah disubscribe, jangan buat yang baru
+    if (adminChannelInstance && isSubscribedRef.current) {
+      channelSubscriberCount++;
+      return () => {
+        channelSubscriberCount--;
+        // Hanya hapus channel jika tidak ada subscriber lagi
+        if (channelSubscriberCount === 0 && adminChannelInstance) {
+          supabase.removeChannel(adminChannelInstance);
+          adminChannelInstance = null;
         }
-      )
-      // 2. New Payments
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'payments' },
-        async (payload) => {
-          if (!payload || !payload.new) return;
-          const payment = payload.new as PaymentRow;
-          const { data: booking } = await supabase
-            .from('bookings')
-            .select('id, booking_code')
-            .eq('id', payment.booking_id)
-            .single();
+      };
+    }
 
-          addNotification({
-            type: 'payment',
-            title: '💰 Pembayaran Masuk!',
-            message: `Pembayaran ${payment.payment_code} untuk booking ${booking?.booking_code || ''} senilai ${formatCurrency(payment.amount)}`,
-            link: booking ? `/admin/bookings/${booking.id}` : '/admin/payments',
-            data: payment,
-          });
-        }
-      )
-      // 3. Payment Verification Updates
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'payments' },
-        async (payload) => {
-          if (!payload || !payload.new || !payload.old) return;
-          const payment = payload.new as PaymentRow;
-          const oldPayment = payload.old as PaymentRow;
-          
-          if (oldPayment.status !== 'pending' && payment.status === 'pending' && payment.proof_url) {
+    // Buat channel baru hanya jika belum ada
+    if (!adminChannelInstance) {
+      adminChannelInstance = supabase
+        .channel('admin-notifications-persistent')
+        // 1. New Bookings
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'bookings' },
+          async (payload) => {
+            if (!payload || !payload.new) return;
+            const booking = payload.new as BookingRow;
+            const { data: customer } = await supabase
+              .from('customers')
+              .select('full_name')
+              .eq('id', booking.customer_id)
+              .single();
+
+            addNotification({
+              type: 'booking',
+              title: '🎉 Booking Baru!',
+              message: `${customer?.full_name || 'Customer'} membuat booking ${booking.booking_code} senilai ${formatCurrency(booking.total_price)}`,
+              link: `/admin/bookings/${booking.id}`,
+              data: booking,
+            });
+          }
+        )
+        // 2. New Payments
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'payments' },
+          async (payload) => {
+            if (!payload || !payload.new) return;
+            const payment = payload.new as PaymentRow;
             const { data: booking } = await supabase
               .from('bookings')
               .select('id, booking_code')
@@ -134,43 +126,85 @@ export function useAdminNotifications() {
 
             addNotification({
               type: 'payment',
-              title: '📄 Bukti Pembayaran Diunggah',
-              message: `Pembayaran ${payment.payment_code} untuk booking ${booking?.booking_code || ''} menunggu verifikasi`,
+              title: '💰 Pembayaran Masuk!',
+              message: `Pembayaran ${payment.payment_code} untuk booking ${booking?.booking_code || ''} senilai ${formatCurrency(payment.amount)}`,
               link: booking ? `/admin/bookings/${booking.id}` : '/admin/payments',
               data: payment,
             });
           }
-        }
-      )
-      // 4. Device Registrations
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'employee_devices' },
-        async (payload) => {
-          if (!payload || !payload.new) return;
-          const device = payload.new as EmployeeDevice;
-          const { data: employee } = await supabase
-            .from('employees')
-            .select('id, full_name, employee_code')
-            .eq('id', device.employee_id)
-            .single();
+        )
+        // 3. Payment Verification Updates
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'payments' },
+          async (payload) => {
+            if (!payload || !payload.new || !payload.old) return;
+            const payment = payload.new as PaymentRow;
+            const oldPayment = payload.old as PaymentRow;
+            
+            if (oldPayment.status !== 'pending' && payment.status === 'pending' && payment.proof_url) {
+              const { data: booking } = await supabase
+                .from('bookings')
+                .select('id, booking_code')
+                .eq('id', payment.booking_id)
+                .single();
 
-          addNotification({
-            type: 'device_registration',
-            title: '📱 Perangkat Baru Terdaftar',
-            message: `${employee?.full_name || 'Karyawan'} (${employee?.employee_code || ''}) telah mendaftarkan perangkat: ${device.device_name}`,
-            link: '/admin/hr?tab=devices',
-            data: device,
-          });
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'CLOSED') console.warn('Admin notifications channel closed');
-        if (status === 'CHANNEL_ERROR') console.error('Admin notifications channel error');
-      });
+              addNotification({
+                type: 'payment',
+                title: '📄 Bukti Pembayaran Diunggah',
+                message: `Pembayaran ${payment.payment_code} untuk booking ${booking?.booking_code || ''} menunggu verifikasi`,
+                link: booking ? `/admin/bookings/${booking.id}` : '/admin/payments',
+                data: payment,
+              });
+            }
+          }
+        )
+        // 4. Device Registrations
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'employee_devices' },
+          async (payload) => {
+            if (!payload || !payload.new) return;
+            const device = payload.new as EmployeeDevice;
+            const { data: employee } = await supabase
+              .from('employees')
+              .select('id, full_name, employee_code')
+              .eq('id', device.employee_id)
+              .single();
+
+            addNotification({
+              type: 'device_registration',
+              title: '📱 Perangkat Baru Terdaftar',
+              message: `${employee?.full_name || 'Karyawan'} (${employee?.employee_code || ''}) telah mendaftarkan perangkat: ${device.device_name}`,
+              link: '/admin/hr?tab=devices',
+              data: device,
+            });
+          }
+        )
+        .subscribe((status) => {
+          // Ubah console.warn menjadi console.debug yang hanya aktif di development
+          if (status === 'CLOSED') {
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('[Admin Notifications] Channel closed (expected behavior)');
+            }
+          }
+          if (status === 'CHANNEL_ERROR') {
+            console.error('[Admin Notifications] Channel error:', status);
+          }
+        });
+    }
+
+    isSubscribedRef.current = true;
+    channelSubscriberCount++;
 
     return () => {
-      supabase.removeChannel(adminChannel);
+      channelSubscriberCount--;
+      // Hanya hapus channel jika tidak ada subscriber lagi
+      if (channelSubscriberCount === 0 && adminChannelInstance) {
+        supabase.removeChannel(adminChannelInstance);
+        adminChannelInstance = null;
+        isSubscribedRef.current = false;
+      }
     };
   }, [addNotification]);
 

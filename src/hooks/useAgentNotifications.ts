@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
@@ -30,10 +30,20 @@ type DocumentRow = Database['public']['Tables']['customer_documents']['Row'];
 type CommissionRow = Database['public']['Tables']['agent_commissions']['Row'];
 type PaymentRow = Database['public']['Tables']['payments']['Row'];
 
+// Singleton instances untuk menyimpan channels yang persistent per agent
+const agentChannelsMap = new Map<string, {
+  bookingStatusChannel: ReturnType<typeof supabase.channel> | null;
+  documentChannel: ReturnType<typeof supabase.channel> | null;
+  commissionChannel: ReturnType<typeof supabase.channel> | null;
+  paymentChannel: ReturnType<typeof supabase.channel> | null;
+  subscriberCount: number;
+}>();
+
 export function useAgentNotifications(agentId?: string) {
   const [notifications, setNotifications] = useState<AgentNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { toast } = useToast();
+  const isSubscribedRef = useRef(false);
 
   const addNotification = useCallback((notification: Omit<AgentNotification, 'id' | 'createdAt' | 'read'>) => {
     const newNotification: AgentNotification = {
@@ -73,8 +83,41 @@ export function useAgentNotifications(agentId?: string) {
   useEffect(() => {
     if (!agentId) return;
 
+    // Cek apakah channels untuk agent ini sudah ada
+    let agentChannels = agentChannelsMap.get(agentId);
+    
+    if (agentChannels && isSubscribedRef.current) {
+      // Channels sudah ada dan sudah disubscribe, hanya increment subscriber count
+      agentChannels.subscriberCount++;
+      return () => {
+        if (agentChannels) {
+          agentChannels.subscriberCount--;
+          // Hanya hapus channels jika tidak ada subscriber lagi
+          if (agentChannels.subscriberCount === 0) {
+            if (agentChannels.bookingStatusChannel) supabase.removeChannel(agentChannels.bookingStatusChannel);
+            if (agentChannels.documentChannel) supabase.removeChannel(agentChannels.documentChannel);
+            if (agentChannels.commissionChannel) supabase.removeChannel(agentChannels.commissionChannel);
+            if (agentChannels.paymentChannel) supabase.removeChannel(agentChannels.paymentChannel);
+            agentChannelsMap.delete(agentId);
+          }
+        }
+      };
+    }
+
+    // Buat channels baru hanya jika belum ada
+    if (!agentChannels) {
+      agentChannels = {
+        bookingStatusChannel: null,
+        documentChannel: null,
+        commissionChannel: null,
+        paymentChannel: null,
+        subscriberCount: 0,
+      };
+      agentChannelsMap.set(agentId, agentChannels);
+    }
+
     // Subscribe to booking status changes for this agent
-    const bookingStatusChannel = supabase
+    agentChannels.bookingStatusChannel = supabase
       .channel(`agent-booking-status-${agentId}`)
       .on(
         'postgres_changes',
@@ -114,10 +157,17 @@ export function useAgentNotifications(agentId?: string) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+          console.debug(`[Agent Booking Status] Channel closed for agent ${agentId} (expected behavior)`);
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error(`[Agent Booking Status] Channel error for agent ${agentId}:`, status);
+        }
+      });
 
     // Subscribe to document rejection for this agent's customers
-    const documentChannel = supabase
+    agentChannels.documentChannel = supabase
       .channel(`agent-documents-${agentId}`)
       .on(
         'postgres_changes',
@@ -154,10 +204,17 @@ export function useAgentNotifications(agentId?: string) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+          console.debug(`[Agent Documents] Channel closed for agent ${agentId} (expected behavior)`);
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error(`[Agent Documents] Channel error for agent ${agentId}:`, status);
+        }
+      });
 
     // Subscribe to commission status changes
-    const commissionChannel = supabase
+    agentChannels.commissionChannel = supabase
       .channel(`agent-commissions-${agentId}`)
       .on(
         'postgres_changes',
@@ -183,10 +240,17 @@ export function useAgentNotifications(agentId?: string) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+          console.debug(`[Agent Commissions] Channel closed for agent ${agentId} (expected behavior)`);
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error(`[Agent Commissions] Channel error for agent ${agentId}:`, status);
+        }
+      });
 
     // Subscribe to payment verification for this agent's bookings
-    const paymentChannel = supabase
+    agentChannels.paymentChannel = supabase
       .channel(`agent-payments-${agentId}`)
       .on(
         'postgres_changes',
@@ -232,13 +296,31 @@ export function useAgentNotifications(agentId?: string) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+          console.debug(`[Agent Payments] Channel closed for agent ${agentId} (expected behavior)`);
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error(`[Agent Payments] Channel error for agent ${agentId}:`, status);
+        }
+      });
+
+    isSubscribedRef.current = true;
+    agentChannels.subscriberCount++;
 
     return () => {
-      supabase.removeChannel(bookingStatusChannel);
-      supabase.removeChannel(documentChannel);
-      supabase.removeChannel(commissionChannel);
-      supabase.removeChannel(paymentChannel);
+      const channels = agentChannelsMap.get(agentId);
+      if (channels) {
+        channels.subscriberCount--;
+        // Hanya hapus channels jika tidak ada subscriber lagi
+        if (channels.subscriberCount === 0) {
+          if (channels.bookingStatusChannel) supabase.removeChannel(channels.bookingStatusChannel);
+          if (channels.documentChannel) supabase.removeChannel(channels.documentChannel);
+          if (channels.commissionChannel) supabase.removeChannel(channels.commissionChannel);
+          if (channels.paymentChannel) supabase.removeChannel(channels.paymentChannel);
+          agentChannelsMap.delete(agentId);
+        }
+      }
     };
   }, [agentId, addNotification]);
 

@@ -2,7 +2,7 @@
  * Hook untuk mengelola menu dinamis dengan user-level permission filtering
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,10 +23,15 @@ export interface MenuGroup {
   items: MenuItem[];
 }
 
+// Singleton instance untuk menyimpan channel yang persistent
+let menuChannelInstance: ReturnType<typeof supabase.channel> | null = null;
+let menuChannelSubscriberCount = 0;
+
 export const useDynamicMenus = () => {
   const { user, isAdmin, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const isSuperAdmin = hasRole('super_admin');
+  const isSubscribedRef = useRef(false);
 
   // Fetch user's revoked permissions
   const { data: revokedKeys = [] } = useQuery({
@@ -71,16 +76,53 @@ export const useDynamicMenus = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Realtime sync
+  // Realtime sync dengan persistent channel management
   useEffect(() => {
     if (!user) return;
-    const ch = supabase
-      .channel('menu_items_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['dynamic-menus', user.id] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+
+    // Jika channel sudah ada dan sudah disubscribe, jangan buat yang baru
+    if (menuChannelInstance && isSubscribedRef.current) {
+      menuChannelSubscriberCount++;
+      return () => {
+        menuChannelSubscriberCount--;
+        // Hanya hapus channel jika tidak ada subscriber lagi
+        if (menuChannelSubscriberCount === 0 && menuChannelInstance) {
+          supabase.removeChannel(menuChannelInstance);
+          menuChannelInstance = null;
+        }
+      };
+    }
+
+    // Buat channel baru hanya jika belum ada
+    if (!menuChannelInstance) {
+      menuChannelInstance = supabase
+        .channel('menu_items_changes_persistent')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['dynamic-menus', user.id] });
+        })
+        .subscribe((status) => {
+          // Ubah console behavior untuk CLOSED status
+          if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+            console.debug('[Dynamic Menus] Channel closed (expected behavior)');
+          }
+          if (status === 'CHANNEL_ERROR') {
+            console.error('[Dynamic Menus] Channel error:', status);
+          }
+        });
+    }
+
+    isSubscribedRef.current = true;
+    menuChannelSubscriberCount++;
+
+    return () => {
+      menuChannelSubscriberCount--;
+      // Hanya hapus channel jika tidak ada subscriber lagi
+      if (menuChannelSubscriberCount === 0 && menuChannelInstance) {
+        supabase.removeChannel(menuChannelInstance);
+        menuChannelInstance = null;
+        isSubscribedRef.current = false;
+      }
+    };
   }, [user, queryClient]);
 
   // All roles get the same menu as requested
