@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatPackageType } from "@/lib/format";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, Edit, Eye, Package, Trash2, Calendar, TrendingUp, ShoppingCart, Star, BarChart3 } from "lucide-react";
+import { Search, Plus, Edit, Eye, Package, Trash2, Calendar, TrendingUp, ShoppingCart, Star, BarChart3, Filter, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -29,7 +29,8 @@ import {
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { toast } from "sonner";
-import { usePackageStats } from "@/hooks/usePackageStats";
+import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
+import { format, subDays } from "date-fns";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,9 +38,15 @@ export default function AdminPackages() {
   const [editingPackage, setEditingPackage] = useState<any>(null);
   const [deletePackage, setDeletePackage] = useState<any>(null);
   const [packageTypeFilter, setPackageTypeFilter] = useState<"all" | "regular" | "tabungan">("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [statsFilters, setStatsFilters] = useState<PackageStatsFilters>({});
+  const [selectedDateRange, setSelectedDateRange] = useState<"7days" | "30days" | "90days" | "custom">("30days");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [activeStatsTab, setActiveStatsTab] = useState("overview");
   
   const queryClient = useQueryClient();
-  const { data: stats, isLoading: isStatsLoading } = usePackageStats();
+  const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
   
   const { data: packages, isLoading } = useQuery({
     queryKey: ['admin-packages'],
@@ -111,6 +118,50 @@ export default function AdminPackages() {
     setEditingPackage(null);
   };
 
+  const handleApplyDateFilter = () => {
+    if (selectedDateRange === "custom") {
+      if (!customStartDate || !customEndDate) {
+        toast.error("Silakan isi tanggal awal dan akhir");
+        return;
+      }
+      setStatsFilters({
+        ...statsFilters,
+        startDate: new Date(customStartDate),
+        endDate: new Date(customEndDate)
+      });
+    } else {
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (selectedDateRange) {
+        case "7days":
+          startDate = subDays(now, 7);
+          break;
+        case "90days":
+          startDate = subDays(now, 90);
+          break;
+        case "30days":
+        default:
+          startDate = subDays(now, 30);
+          break;
+      }
+      
+      setStatsFilters({
+        ...statsFilters,
+        startDate,
+        endDate: now
+      });
+    }
+    setShowFilters(false);
+  };
+
+  const handleClearFilters = () => {
+    setStatsFilters({});
+    setSelectedDateRange("30days");
+    setCustomStartDate("");
+    setCustomEndDate("");
+  };
+
   const getUpcomingDepartures = (departures: any[]) => {
     if (!departures) return 0;
     const today = new Date().toISOString().split('T')[0];
@@ -159,77 +210,321 @@ export default function AdminPackages() {
           </div>
       </div>
 
-      {/* Realization Statistics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Terjual</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isStatsLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{stats?.totalSold || 0}</div>
-                <p className="text-xs text-muted-foreground">Pax dari semua paket</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bulan Ini</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isStatsLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{stats?.soldThisMonth || 0}</div>
-                <p className="text-xs text-muted-foreground">Pax terjual bulan ini</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tahun Ini</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isStatsLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{stats?.soldThisYear || 0}</div>
-                <p className="text-xs text-muted-foreground">Pax terjual tahun ini</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paket Paling Laku</CardTitle>
-            <Star className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            {isStatsLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <>
-                <div className="text-lg font-bold truncate" title={stats?.mostPopular?.name}>
-                  {stats?.mostPopular?.name || '-'}
+      {/* Statistics Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle>Realisasi Paket</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Filter
+            </Button>
+          </div>
+        </CardHeader>
+        
+        {/* Filter Panel */}
+        {showFilters && (
+          <CardContent className="border-t pt-4 pb-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Rentang Tanggal</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      value="7days" 
+                      checked={selectedDateRange === "7days"}
+                      onChange={(e) => setSelectedDateRange(e.target.value as any)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">7 Hari Terakhir</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      value="30days" 
+                      checked={selectedDateRange === "30days"}
+                      onChange={(e) => setSelectedDateRange(e.target.value as any)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">30 Hari Terakhir</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      value="90days" 
+                      checked={selectedDateRange === "90days"}
+                      onChange={(e) => setSelectedDateRange(e.target.value as any)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">90 Hari Terakhir</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      value="custom" 
+                      checked={selectedDateRange === "custom"}
+                      onChange={(e) => setSelectedDateRange(e.target.value as any)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Kustom</span>
+                  </label>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.mostPopular ? `${stats.mostPopular.count} Pax terjual` : 'Belum ada data'}
-                </p>
-              </>
-            )}
+              </div>
+              
+              {selectedDateRange === "custom" && (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Tanggal Awal</label>
+                    <input 
+                      type="date" 
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Tanggal Akhir</label>
+                    <input 
+                      type="date" 
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={handleClearFilters} className="gap-2">
+                <X className="h-4 w-4" />
+                Hapus Filter
+              </Button>
+              <Button onClick={handleApplyDateFilter}>Terapkan Filter</Button>
+            </div>
           </CardContent>
-        </Card>
-      </div>
+        )}
+
+        {/* Statistics Tabs */}
+        <CardContent className="pt-4">
+          <Tabs value={activeStatsTab} onValueChange={setActiveStatsTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">Ringkasan</TabsTrigger>
+              <TabsTrigger value="packages">Per Paket</TabsTrigger>
+              <TabsTrigger value="breakdown">Kategori</TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Terjual</CardTitle>
+                    <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {isStatsLoading ? (
+                      <Skeleton className="h-8 w-20" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold">{stats?.totalSold || 0}</div>
+                        <p className="text-xs text-muted-foreground">Pax dari semua paket</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Bulan Ini</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {isStatsLoading ? (
+                      <Skeleton className="h-8 w-20" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold">{stats?.soldThisMonth || 0}</div>
+                        <p className="text-xs text-muted-foreground">Pax terjual bulan ini</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Tahun Ini</CardTitle>
+                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {isStatsLoading ? (
+                      <Skeleton className="h-8 w-20" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold">{stats?.soldThisYear || 0}</div>
+                        <p className="text-xs text-muted-foreground">Pax terjual tahun ini</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Paket Paling Laku</CardTitle>
+                    <Star className="h-4 w-4 text-yellow-500" />
+                  </CardHeader>
+                  <CardContent>
+                    {isStatsLoading ? (
+                      <Skeleton className="h-8 w-20" />
+                    ) : (
+                      <>
+                        <div className="text-lg font-bold truncate" title={stats?.mostPopular?.name}>
+                          {stats?.mostPopular?.name || '-'}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {stats?.mostPopular ? `${stats.mostPopular.count} Pax` : 'Belum ada data'}
+                        </p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Additional Metrics */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Total Pendapatan</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isStatsLoading ? (
+                      <Skeleton className="h-8 w-24" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</div>
+                        <p className="text-xs text-muted-foreground">Dari semua paket</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Nilai Rata-rata Booking</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isStatsLoading ? (
+                      <Skeleton className="h-8 w-24" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold">{formatCurrency(stats?.averageBookingValue || 0)}</div>
+                        <p className="text-xs text-muted-foreground">Per transaksi</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Tingkat Konversi</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isStatsLoading ? (
+                      <Skeleton className="h-8 w-24" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold">{(stats?.conversionRate || 0).toFixed(1)}%</div>
+                        <p className="text-xs text-muted-foreground">Booking terkonfirmasi</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Per Package Tab */}
+            <TabsContent value="packages" className="space-y-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 font-semibold">Nama Paket</th>
+                      <th className="text-right py-2 px-2 font-semibold">Pax Terjual</th>
+                      <th className="text-right py-2 px-2 font-semibold">Jumlah Booking</th>
+                      <th className="text-right py-2 px-2 font-semibold">Total Pendapatan</th>
+                      <th className="text-right py-2 px-2 font-semibold">Rata-rata</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isStatsLoading ? (
+                      <tr><td colSpan={5} className="py-4"><Skeleton className="h-6" /></td></tr>
+                    ) : stats?.topPackages && stats.topPackages.length > 0 ? (
+                      stats.topPackages.map((pkg: any, idx: number) => (
+                        <tr key={idx} className="border-b hover:bg-muted/50">
+                          <td className="py-3 px-2">
+                            <div>
+                              <p className="font-medium">{pkg.name}</p>
+                              <p className="text-xs text-muted-foreground">{pkg.code}</p>
+                            </div>
+                          </td>
+                          <td className="text-right py-3 px-2 font-semibold">{pkg.count}</td>
+                          <td className="text-right py-3 px-2">{pkg.bookingCount}</td>
+                          <td className="text-right py-3 px-2">{formatCurrency(pkg.revenue)}</td>
+                          <td className="text-right py-3 px-2">{formatCurrency(pkg.revenue / pkg.bookingCount)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">Tidak ada data</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+
+            {/* Breakdown Tab */}
+            <TabsContent value="breakdown" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {isStatsLoading ? (
+                  <>
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                  </>
+                ) : stats?.packageTypeBreakdown && stats.packageTypeBreakdown.length > 0 ? (
+                  stats.packageTypeBreakdown.map((breakdown: any, idx: number) => (
+                    <Card key={idx}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium capitalize">{formatPackageType(breakdown.type)}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Total Pax</span>
+                          <span className="font-semibold">{breakdown.count}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Total Pendapatan</span>
+                          <span className="font-semibold">{formatCurrency(breakdown.revenue)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Persentase</span>
+                          <span className="font-semibold">{((breakdown.count / (stats?.totalSold || 1)) * 100).toFixed(1)}%</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-2 py-8 text-center text-muted-foreground">Tidak ada data</div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Package Type Tabs */}
       <Tabs value={packageTypeFilter} onValueChange={(v: any) => setPackageTypeFilter(v)} className="w-full">
