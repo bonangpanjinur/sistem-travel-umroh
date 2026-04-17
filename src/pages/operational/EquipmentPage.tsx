@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { EquipmentDistributionDialog } from "@/components/operational/equipment/EquipmentDistributionDrawer";
 import { AddStockDialog } from "@/components/operational/equipment/AddStockDialog";
 import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab";
+import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 
 export interface EquipmentItem {
   id: string;
@@ -63,6 +64,7 @@ export default function EquipmentPage() {
   const [isAddStockOpen, setIsAddStockOpen] = useState(false);
   const [addStockPreselect, setAddStockPreselect] = useState<string | undefined>();
   const [showMasterData, setShowMasterData] = useState(false);
+  const [showRealization, setShowRealization] = useState(false);
 
   // Fetch packages
   const { data: packages } = useQuery({
@@ -261,6 +263,9 @@ export default function EquipmentPage() {
           <p className="text-sm text-muted-foreground">Kelola & distribusi perlengkapan jamaah</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowRealization(true)}>
+            <BarChart3 className="h-4 w-4 mr-1.5" /> Realisasi
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowMasterData(true)}>
             <Database className="h-4 w-4 mr-1.5" /> Kelola Item
           </Button>
@@ -615,6 +620,21 @@ export default function EquipmentPage() {
           preselectedItemId={addStockPreselect}
         />
       )}
+
+      {/* Realization Dialog */}
+      <Dialog open={showRealization} onOpenChange={setShowRealization}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" /> Realisasi Perlengkapan
+            </DialogTitle>
+          </DialogHeader>
+          <EquipmentRealizationTab
+            selectedPackage={selectedPackage}
+            selectedDeparture={selectedDeparture}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Master Data Dialog */}
       <Dialog open={showMasterData} onOpenChange={setShowMasterData}>
