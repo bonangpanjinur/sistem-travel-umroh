@@ -147,6 +147,19 @@ export default function AdminUsers() {
     enabled: !!branches, // Wait for branches to map names
   });
 
+  // Handle query param for opening permissions dialog (from redirect)
+  useEffect(() => {
+    const openPermissionsUserId = searchParams.get('open_permissions');
+    if (openPermissionsUserId && users && users.length > 0) {
+      const userToOpenPermissions = users.find(u => u.user_id === openPermissionsUserId);
+      if (userToOpenPermissions) {
+        setSelectedUser(userToOpenPermissions);
+        setShowPermissionsDialog(true);
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, users, setSearchParams]);
+
   // Add/Update role mutation
   const upsertRoleMutation = useMutation({
     mutationFn: async ({ userId, role, branchId, roleId }: { userId: string; role: AppRole; branchId: string | null; roleId?: string }) => {
