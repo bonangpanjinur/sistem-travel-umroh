@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatPackageType } from "@/lib/format";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, Edit, Eye, Package, Trash2, Calendar } from "lucide-react";
+import { Search, Plus, Edit, Eye, Package, Trash2, Calendar, TrendingUp, ShoppingCart, Star, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -29,6 +29,7 @@ import {
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { toast } from "sonner";
+import { usePackageStats } from "@/hooks/usePackageStats";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,6 +39,7 @@ export default function AdminPackages() {
   const [packageTypeFilter, setPackageTypeFilter] = useState<"all" | "regular" | "tabungan">("all");
   
   const queryClient = useQueryClient();
+  const { data: stats, isLoading: isStatsLoading } = usePackageStats();
   
   const { data: packages, isLoading } = useQuery({
     queryKey: ['admin-packages'],
@@ -155,6 +157,78 @@ export default function AdminPackages() {
               Paket Tabungan
             </Button>
           </div>
+      </div>
+
+      {/* Realization Statistics */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Terjual</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.totalSold || 0}</div>
+                <p className="text-xs text-muted-foreground">Pax dari semua paket</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bulan Ini</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.soldThisMonth || 0}</div>
+                <p className="text-xs text-muted-foreground">Pax terjual bulan ini</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tahun Ini</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.soldThisYear || 0}</div>
+                <p className="text-xs text-muted-foreground">Pax terjual tahun ini</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Paket Paling Laku</CardTitle>
+            <Star className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-lg font-bold truncate" title={stats?.mostPopular?.name}>
+                  {stats?.mostPopular?.name || '-'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.mostPopular ? `${stats.mostPopular.count} Pax terjual` : 'Belum ada data'}
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Package Type Tabs */}
