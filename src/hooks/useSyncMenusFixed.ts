@@ -18,7 +18,12 @@ export const RECOMMENDED_MENUS = [
   { key: 'equipment', label: 'Perlengkapan', path: '/admin/equipment', icon: 'Backpack', group_name: 'Operasional', sort_order: 40, required_permission: 'menu_equipment' },
   { key: 'room_assignments', label: 'Kamar', path: '/admin/room-assignments', icon: 'Bed', group_name: 'Operasional', sort_order: 50, required_permission: 'menu_room_assignments' },
   { key: 'itinerary_templates', label: 'Itinerary', path: '/admin/itinerary-templates', icon: 'Map', group_name: 'Operasional', sort_order: 60, required_permission: 'menu_itinerary_templates' },
-  
+  { key: 'haji', label: 'Manajemen Haji', path: '/admin/haji', icon: 'Mosque', group_name: 'Operasional', sort_order: 70, required_permission: 'menu_haji' },
+  { key: 'manasik', label: 'Manasik', path: '/admin/manasik', icon: 'BookText', group_name: 'Operasional', sort_order: 80, required_permission: 'menu_manasik' },
+  { key: 'visa', label: 'Manajemen Visa', path: '/admin/visa', icon: 'CreditCard', group_name: 'Operasional', sort_order: 90, required_permission: 'menu_visa' },
+  { key: 'document_verification', label: 'Verifikasi Dokumen', path: '/admin/document-verification', icon: 'FileCheck', group_name: 'Operasional', sort_order: 100, required_permission: 'menu_document_verification' },
+  { key: 'documents_generator', label: 'Generator Dokumen', path: '/admin/documents-generator', icon: 'FileText', group_name: 'Operasional', sort_order: 110, required_permission: 'menu_documents_generator' },
+
   // Keuangan
   { key: 'payments', label: 'Pembayaran', path: '/admin/payments', icon: 'CreditCard', group_name: 'Keuangan', sort_order: 10, required_permission: 'menu_payments' },
   { key: 'finance_cash', label: 'Kas & Bank', path: '/admin/finance-cash', icon: 'Wallet', group_name: 'Keuangan', sort_order: 20, required_permission: 'menu_finance_cash' },
@@ -30,26 +35,28 @@ export const RECOMMENDED_MENUS = [
   { key: 'customers', label: 'Jamaah', path: '/admin/customers', icon: 'Users', group_name: 'Database', sort_order: 10, required_permission: 'menu_customers' },
   { key: 'agents', label: 'Agent', path: '/admin/agents', icon: 'UserSquare2', group_name: 'Database', sort_order: 20, required_permission: 'menu_agents' },
   { key: 'branches', label: 'Cabang', path: '/admin/branches', icon: 'Network', group_name: 'Database', sort_order: 30, required_permission: 'menu_branches' },
-  { key: 'muthawifs', label: 'Muthawif', path: '/admin/muthawifs', icon: 'UserCheck', group_name: 'Database', sort_order: 40, required_permission: 'menu_muthawifs' },
-  { key: 'hotels', label: 'Hotel', path: '/admin/hotels', icon: 'Hotel', group_name: 'Database', sort_order: 50, required_permission: 'menu_hotels' },
-  { key: 'airlines', label: 'Maskapai', path: '/admin/airlines', icon: 'Plane', group_name: 'Database', sort_order: 60, required_permission: 'menu_airlines' },
-  { key: 'airports', label: 'Bandara', path: '/admin/airports', icon: 'Navigation', group_name: 'Database', sort_order: 70, required_permission: 'menu_airports' },
+  { key: 'master_data', label: 'Master Data', path: '/admin/master-data', icon: 'Database', group_name: 'Database', sort_order: 40, required_permission: 'menu_master_data' },
   
   // SDM (HR)
   { key: 'hr_employees', label: 'Data Karyawan', path: '/admin/hr', icon: 'Contact2', group_name: 'SDM (HR)', sort_order: 10, required_permission: 'menu_hr' },
   { key: 'hr_payroll', label: 'Payroll', path: '/admin/hr/payroll', icon: 'Banknote', group_name: 'SDM (HR)', sort_order: 20, required_permission: 'menu_hr_payroll' },
-  { key: 'hr_attendance', label: 'Absensi', path: '/admin/hr/attendance', icon: 'ClipboardCheck', group_name: 'SDM (HR)', sort_order: 30, required_permission: 'menu_hr_attendance' },
   
   // Komunikasi
   { key: 'whatsapp', label: 'WhatsApp', path: '/admin/whatsapp', icon: 'MessageSquare', group_name: 'Komunikasi', sort_order: 10, required_permission: 'menu_whatsapp' },
   { key: 'support_tickets', label: 'Support Ticket', path: '/admin/support', icon: 'LifeBuoy', group_name: 'Komunikasi', sort_order: 20, required_permission: 'menu_support' },
   { key: 'marketing_materials', label: 'Materi Marketing', path: '/admin/marketing-materials', icon: 'Image', group_name: 'Komunikasi', sort_order: 30, required_permission: 'menu_marketing_materials' },
+
+  // Laporan
+  { key: 'reports', label: 'Laporan Standar', path: '/admin/reports', icon: 'FileBarChart', group_name: 'Laporan', sort_order: 10, required_permission: 'menu_reports' },
+  { key: 'advanced_reports', label: 'Laporan Lanjutan', path: '/admin/advanced-reports', icon: 'TrendingUp', group_name: 'Laporan', sort_order: 20, required_permission: 'menu_advanced_reports' },
+  { key: 'scheduled_reports', label: 'Laporan Terjadwal', path: '/admin/scheduled-reports', icon: 'Clock', group_name: 'Laporan', sort_order: 30, required_permission: 'menu_scheduled_reports' },
   
   // Sistem
   { key: 'users', label: 'Manajemen User', path: '/admin/users', icon: 'UserCog', group_name: 'Sistem', sort_order: 10, required_permission: 'menu_users' },
   { key: 'security_audit', label: 'Audit Log', path: '/admin/security-audit', icon: 'ShieldCheck', group_name: 'Sistem', sort_order: 20, required_permission: 'menu_security_audit' },
   { key: '2fa', label: 'Keamanan (2FA)', path: '/admin/2fa', icon: 'Lock', group_name: 'Sistem', sort_order: 30, required_permission: 'menu_2fa' },
   { key: 'settings', label: 'Pengaturan', path: '/admin/settings', icon: 'Settings', group_name: 'Sistem', sort_order: 40, required_permission: 'menu_settings' },
+  { key: 'appearance', label: 'Tampilan', path: '/admin/appearance', icon: 'Palette', group_name: 'Sistem', sort_order: 50, required_permission: 'menu_appearance' },
 ];
 
 export const useSyncMenusFixed = () => {

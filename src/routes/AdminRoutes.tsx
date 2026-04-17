@@ -46,8 +46,8 @@ const AdminOfflineContent = lazy(() => import("@/pages/admin/AdminOfflineContent
 const AdminDocumentGenerator = lazy(() => import("@/pages/admin/AdminDocumentGenerator"));
 const AdminScheduledReports = lazy(() => import("@/pages/admin/AdminScheduledReports"));
 const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
-const AdminStaticPages = lazy(() => import("@/pages/admin/AdminStaticPages"));
-const AdminTestimonials = lazy(() => import("@/pages/admin/AdminTestimonials"));
+
+
 const AdminLandingPages = lazy(() => import("@/pages/admin/AdminLandingPages"));
 const AdminLandingPageEditor = lazy(() => import("@/pages/admin/AdminLandingPageEditor"));
 const AdminBookingCreate = lazy(() => import("@/pages/admin/AdminBookingCreate"));
@@ -148,8 +148,8 @@ export default function AdminRoutes() {
       <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
       <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />
-      <Route path="static-pages" element={<LazyPage><AdminStaticPages /></LazyPage>} />
-      <Route path="testimonials" element={<LazyPage><AdminTestimonials /></LazyPage>} />
+
+
       <Route path="package-types" element={<LazyPage><AdminPackageTypes /></LazyPage>} />
       <Route path="settings" element={<LazyPage><AdminSettings /></LazyPage>} />
 

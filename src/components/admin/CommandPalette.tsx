@@ -31,7 +31,7 @@ const ALL_PAGES = [
   { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance', keywords: 'keuangan profit loss' },
   { label: 'Vendor', icon: Truck, path: '/admin/vendors', keywords: 'supplier pemasok' },
   { label: 'Jamaah', icon: Users, path: '/admin/customers', keywords: 'pelanggan customer' },
-  { label: 'Dokumen', icon: FileCheck, path: '/admin/documents', keywords: 'verifikasi paspor' },
+
   { label: 'Agent', icon: UserCheck, path: '/admin/agents', keywords: 'agen mitra' },
   { label: 'Kupon', icon: Gift, path: '/admin/coupons', keywords: 'diskon promo' },
   { label: 'Loyalty', icon: Gift, path: '/admin/loyalty', keywords: 'poin reward' },
@@ -42,6 +42,8 @@ const ALL_PAGES = [
   { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp', keywords: 'wa pesan notifikasi' },
   { label: 'Master Data', icon: Settings, path: '/admin/master-data', keywords: 'hotel airline airport' },
   { label: 'Cabang', icon: Building2, path: '/admin/branches', keywords: 'branch kantor' },
+
+  { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', keywords: 'verifikasi paspor' },
   { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator', keywords: 'cetak surat dokumen' },
   { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', keywords: 'doa panduan manasik' },
   { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', keywords: 'report' },

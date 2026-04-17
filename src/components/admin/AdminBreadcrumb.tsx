@@ -22,7 +22,7 @@ const PATH_LABELS: Record<string, string> = {
   finance: "Laba/Rugi",
   vendors: "Vendor",
   customers: "Jamaah",
-  documents: "Dokumen",
+
   // users: "Users",
   // permissions: "Hak Akses",
   agents: "Agent",
@@ -39,6 +39,7 @@ const PATH_LABELS: Record<string, string> = {
   haji: "Haji",
   "itinerary-templates": "Template Itinerary",
   "offline-content": "Konten Offline",
+  "document-verification": "Verifikasi Dokumen",
   "documents-generator": "Generate Surat",
   // security: "Security Audit",
   // "2fa": "2FA",
