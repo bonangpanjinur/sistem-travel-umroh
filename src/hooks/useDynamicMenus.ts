@@ -2,7 +2,7 @@
  * Hook untuk mengelola menu dinamis dengan user-level permission filtering
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,11 +33,11 @@ export const useDynamicMenus = () => {
   const isSuperAdmin = hasRole('super_admin');
   const isSubscribedRef = useRef(false);
 
-  // Fetch user's revoked permissions
+  // Fetch user's revoked permissions (only relevant for staff users)
   const { data: revokedKeys = [] } = useQuery({
     queryKey: ['user-permissions-revoked', user?.id],
     queryFn: async () => {
-      if (!user || isSuperAdmin) return []; // super admin bypasses
+      if (!user || isSuperAdmin) return [];
       const { data, error } = await supabase
         .from('user_permissions')
         .select('permission_key')
@@ -46,7 +46,7 @@ export const useDynamicMenus = () => {
       if (error) { console.error(error); return []; }
       return (data || []).map((d: any) => d.permission_key as string);
     },
-    enabled: !!user && isAdmin && !isSuperAdmin,
+    enabled: !!user && !isSuperAdmin,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -125,8 +125,14 @@ export const useDynamicMenus = () => {
     };
   }, [user, queryClient]);
 
-  // All roles get the same menu as requested
-  const filteredMenus = menus;
+  // Super admin → all menus. Other staff → hide menus whose required_permission
+  // appears in revokedKeys (user has explicit is_enabled=false override).
+  const filteredMenus = useMemo(() => {
+    if (isSuperAdmin) return menus;
+    if (!revokedKeys || revokedKeys.length === 0) return menus;
+    const revokedSet = new Set(revokedKeys);
+    return menus.filter(m => !m.required_permission || !revokedSet.has(m.required_permission));
+  }, [menus, revokedKeys, isSuperAdmin]);
 
   // Group menus
   const groupedMenus: MenuGroup[] = filteredMenus.reduce((acc: MenuGroup[], menu: MenuItem) => {
@@ -138,10 +144,20 @@ export const useDynamicMenus = () => {
 
   groupedMenus.forEach(g => g.items.sort((a, b) => a.sort_order - b.sort_order));
 
-  /** Check if a given path is allowed for the current user */
-  const isPathAllowed = (_path: string): boolean => {
-    // All paths are allowed as requested
-    return true;
+  /** Check if a given path is allowed for the current user.
+   * Super admin → always allowed. Other staff → blocked if matching menu's
+   * required_permission is in revokedKeys. Unknown paths default to allowed.
+   */
+  const isPathAllowed = (path: string): boolean => {
+    if (isSuperAdmin) return true;
+    if (!revokedKeys || revokedKeys.length === 0) return true;
+    const revokedSet = new Set(revokedKeys);
+    // Find the most-specific menu match (longest matching path)
+    const match = menus
+      .filter(m => path === m.path || (m.path !== '/admin' && path.startsWith(m.path)))
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    if (!match || !match.required_permission) return true;
+    return !revokedSet.has(match.required_permission);
   };
 
   return { menus: filteredMenus, groupedMenus, isLoading, error, refetch, revokedKeys, isPathAllowed };
