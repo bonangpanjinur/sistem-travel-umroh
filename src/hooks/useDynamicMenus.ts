@@ -103,54 +103,10 @@ export const useDynamicMenus = () => {
     [dbMenus, fallbackMenus]
   );
 
-  // Realtime sync dengan persistent channel management
-  useEffect(() => {
-    if (!user) return;
-
-    // Jika channel sudah ada dan sudah disubscribe, jangan buat yang baru
-    if (menuChannelInstance && isSubscribedRef.current) {
-      menuChannelSubscriberCount++;
-      return () => {
-        menuChannelSubscriberCount--;
-        // Hanya hapus channel jika tidak ada subscriber lagi
-        if (menuChannelSubscriberCount === 0 && menuChannelInstance) {
-          supabase.removeChannel(menuChannelInstance);
-          menuChannelInstance = null;
-        }
-      };
-    }
-
-    // Buat channel baru hanya jika belum ada
-    if (!menuChannelInstance) {
-      menuChannelInstance = supabase
-        .channel('menu_items_changes_persistent')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, () => {
-          queryClient.invalidateQueries({ queryKey: ['dynamic-menus', user.id] });
-        })
-        .subscribe((status) => {
-          // Ubah console behavior untuk CLOSED status
-          if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
-            console.debug('[Dynamic Menus] Channel closed (expected behavior)');
-          }
-          if (status === 'CHANNEL_ERROR') {
-            console.error('[Dynamic Menus] Channel error:', status);
-          }
-        });
-    }
-
-    isSubscribedRef.current = true;
-    menuChannelSubscriberCount++;
-
-    return () => {
-      menuChannelSubscriberCount--;
-      // Hanya hapus channel jika tidak ada subscriber lagi
-      if (menuChannelSubscriberCount === 0 && menuChannelInstance) {
-        supabase.removeChannel(menuChannelInstance);
-        menuChannelInstance = null;
-        isSubscribedRef.current = false;
-      }
-    };
-  }, [user, queryClient]);
+  // Realtime menu sync removed: menus rarely change and `staleTime: Infinity`
+  // keeps the cache warm. Admins can manually refetch via React Query devtools or
+  // by reloading after a permission/menu mutation. This eliminates an unused
+  // websocket channel that was mounted for every staff session.
 
   // Super admin → all menus. Other staff → hide menus whose required_permission
   // appears in revokedKeys (user has explicit is_enabled=false override).
