@@ -10,7 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
-import { CommandPalette } from './CommandPalette';
 import { AdminBreadcrumb } from './AdminBreadcrumb';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -20,14 +19,15 @@ import {
   X,
   Shield,
   ChevronDown,
-  Loader2,
   Search,
-  LayoutDashboard,
 } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+
+const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
 
 // Helper to render Lucide icon by name
 const DynamicIcon = ({ name, className }: { name?: string; className?: string }) => {
