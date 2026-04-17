@@ -24,35 +24,8 @@ export default function ProtectedRoute({
   const [checkingPermission, setCheckingPermission] = useState(false);
 
   useEffect(() => {
-    async function checkPermission() {
-      if (user && permission) {
-        setCheckingPermission(true);
-        try {
-          const { data, error } = await supabase.rpc('get_user_effective_permission', {
-            p_user_id: user.id,
-            p_permission_key: permission
-          });
-          
-          if (error) {
-            console.error('Permission check error:', error);
-            setPermissionGranted(false);
-          } else {
-            setPermissionGranted(!!data);
-          }
-        } catch (err) {
-          console.error('Unexpected error during permission check:', err);
-          setPermissionGranted(false);
-        } finally {
-          setCheckingPermission(false);
-        }
-      } else {
-        setPermissionGranted(true);
-      }
-    }
-
-    if (!authLoading && user) {
-      checkPermission();
-    }
+    // All roles get the same access as requested
+    setPermissionGranted(true);
   }, [user, permission, authLoading]);
 
   const isLoading = authLoading || checkingPermission;
@@ -74,10 +47,10 @@ export default function ProtectedRoute({
     return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  // If it's an admin route (starts with /admin) and user is not admin, redirect to home
-  if (location.pathname.startsWith('/admin') && !isAdmin()) {
-    return <Navigate to="/" replace />;
-  }
+  // All roles can access admin routes as requested
+  // if (location.pathname.startsWith('/admin') && !isAdmin()) {
+  //   return <Navigate to="/" replace />;
+  // }
 
   // Check if user has allowed role (Legacy check)
   if (allowedRoles && allowedRoles.length > 0) {

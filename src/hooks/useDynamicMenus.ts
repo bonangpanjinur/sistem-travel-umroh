@@ -49,7 +49,7 @@ export const useDynamicMenus = () => {
   const { data: menus = [], isLoading, error, refetch } = useQuery({
     queryKey: ['dynamic-menus', user?.id],
     queryFn: async () => {
-      if (!user || !isAdmin()) return [];
+      if (!user) return [];
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
@@ -67,7 +67,7 @@ export const useDynamicMenus = () => {
         required_permission: m.required_permission
       }));
     },
-    enabled: !!user && isAdmin,
+    enabled: !!user,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -83,10 +83,8 @@ export const useDynamicMenus = () => {
     return () => { supabase.removeChannel(ch); };
   }, [user, queryClient]);
 
-  // Filter out revoked menus (super admin sees all)
-  const filteredMenus = isSuperAdmin
-    ? menus
-    : menus.filter((m: MenuItem) => !revokedKeys.includes(m.required_permission));
+  // All roles get the same menu as requested
+  const filteredMenus = menus;
 
   // Group menus
   const groupedMenus: MenuGroup[] = filteredMenus.reduce((acc: MenuGroup[], menu: MenuItem) => {
@@ -99,13 +97,9 @@ export const useDynamicMenus = () => {
   groupedMenus.forEach(g => g.items.sort((a, b) => a.sort_order - b.sort_order));
 
   /** Check if a given path is allowed for the current user */
-  const isPathAllowed = (path: string): boolean => {
-    if (isSuperAdmin) return true;
-    if (revokedKeys.length === 0) return true;
-    // Find menu item matching this path
-    const menuItem = menus.find((m: MenuItem) => m.path === path || (m.path !== '/admin' && path.startsWith(m.path)));
-    if (!menuItem) return true; // no matching menu = allow (e.g. detail pages)
-    return !revokedKeys.includes(menuItem.required_permission);
+  const isPathAllowed = (_path: string): boolean => {
+    // All paths are allowed as requested
+    return true;
   };
 
   return { menus: filteredMenus, groupedMenus, isLoading, error, refetch, revokedKeys, isPathAllowed };

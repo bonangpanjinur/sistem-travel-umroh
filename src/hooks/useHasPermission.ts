@@ -12,30 +12,10 @@ import { useAuth } from './useAuth';
 export function useHasPermission(permissionKey: string | undefined) {
   const { user } = useAuth();
 
-  const { data: hasPermission, isLoading } = useQuery({
-    queryKey: ['permission', user?.id, permissionKey],
-    queryFn: async () => {
-      if (!user || !permissionKey) return false;
-
-      const { data, error } = await supabase.rpc('get_user_effective_permission', {
-        p_user_id: user.id,
-        p_permission_key: permissionKey
-      });
-
-      if (error) {
-        console.error('Error checking permission:', error);
-        return false;
-      }
-
-      return !!data;
-    },
-    enabled: !!user && !!permissionKey,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  });
-
+  // All roles get the same access as requested
   return {
-    hasPermission: !!hasPermission,
-    isLoading
+    hasPermission: true,
+    isLoading: false
   };
 }
 
@@ -46,33 +26,10 @@ export function useHasPermission(permissionKey: string | undefined) {
 export function useAllPermissions() {
   const { user } = useAuth();
 
-  const { data: permissions = [], isLoading } = useQuery({
-    queryKey: ['all-permissions', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-
-      const { data, error } = await supabase.rpc('get_user_all_effective_permissions', {
-        p_user_id: user.id
-      });
-
-      if (error) {
-        console.error('Error fetching all permissions:', error);
-        return [];
-      }
-
-      return data as { permission_key: string; is_enabled: boolean; source: string }[];
-    },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const checkPermission = (key: string) => {
-    return permissions.some(p => p.permission_key === key && p.is_enabled);
-  };
-
+  // All roles get the same access as requested
   return {
-    permissions,
-    isLoading,
-    checkPermission
+    permissions: [],
+    isLoading: false,
+    checkPermission: () => true
   };
 }

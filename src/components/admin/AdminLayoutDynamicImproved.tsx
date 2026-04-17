@@ -144,12 +144,12 @@ function AdminLayoutDynamicImproved() {
     })).filter(group => group.items.length > 0);
   }, [groupedMenus, searchQuery]);
 
-  if (!user || !isAdmin()) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-3">
           <Shield className="w-12 h-12 text-muted-foreground mx-auto" />
-          <p className="text-muted-foreground">Akses ditolak</p>
+          <p className="text-muted-foreground">Silakan login terlebih dahulu</p>
         </div>
       </div>
     );

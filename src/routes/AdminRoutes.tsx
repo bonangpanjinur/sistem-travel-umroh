@@ -75,7 +75,7 @@ export default function AdminRoutes() {
     <Route
       path="/admin"
       element={
-        <ProtectedRoute allowedRoles={[...ALL_STAFF_ROLES]}>
+        <ProtectedRoute>
           <ThemeProvider>
             <AdminLayout />
           </ThemeProvider>
