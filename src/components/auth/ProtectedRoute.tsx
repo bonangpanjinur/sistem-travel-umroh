@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { AppRole } from '@/types/database';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,15 +21,19 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, isLoading: authLoading, isAdmin, roles } = useAuth();
   const location = useLocation();
+  const { isPathAllowed, isLoading: menusLoading } = useDynamicMenus();
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [checkingPermission, setCheckingPermission] = useState(false);
 
   useEffect(() => {
-    // All roles get the same access as requested
-    setPermissionGranted(true);
-  }, [user, permission, authLoading]);
+    // Check granular path-based access using dynamic menus
+    if (user && !menusLoading) {
+      const pathAllowed = isPathAllowed(location.pathname);
+      setPermissionGranted(pathAllowed);
+    }
+  }, [user, location.pathname, menusLoading, isPathAllowed]);
 
-  const isLoading = authLoading || checkingPermission;
+  const isLoading = authLoading || menusLoading || checkingPermission;
 
   // Show loading state while checking auth and permissions
   if (isLoading) {
@@ -47,11 +52,6 @@ export default function ProtectedRoute({
     return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  // All roles can access admin routes as requested
-  // if (location.pathname.startsWith('/admin') && !isAdmin()) {
-  //   return <Navigate to="/" replace />;
-  // }
-
   // Check if user has allowed role (Legacy check)
   if (allowedRoles && allowedRoles.length > 0) {
     const hasAllowedRole = roles.some(role => allowedRoles.includes(role));
@@ -60,7 +60,12 @@ export default function ProtectedRoute({
     }
   }
 
-  // Check specific permission (New granular check)
+  // Check granular path-based permission (New granular check via isPathAllowed)
+  if (permissionGranted === false) {
+    return <Navigate to="/access-denied" replace />;
+  }
+
+  // Check specific permission (Legacy check)
   if (permission && permissionGranted === false) {
     return <Navigate to="/access-denied" replace />;
   }

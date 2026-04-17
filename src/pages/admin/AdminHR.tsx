@@ -180,13 +180,17 @@ export default function AdminHR() {
     },
   });
 
-  const { data: syncIssues = [], refetch: refetchSyncIssues } = useQuery({
+  const { data: syncIssues = [], refetch: refetchSyncIssues, error: syncError } = useQuery({
     queryKey: ["employee-sync-issues"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("validate_employee_user_sync" as any);
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.warn('[AdminHR] validate_employee_user_sync error:', error);
+        return [];
+      }
+      return data || [];
     },
+    retry: 1,
   });
 
   const { data: workSchedules = [] } = useQuery({

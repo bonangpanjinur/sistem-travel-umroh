@@ -176,7 +176,8 @@ export const useMultipleMenuAccess = (menuKeys: string[]) => {
 export const useSyncMenus = () => {
   const queryClient = useQueryClient();
   const syncMenus = async (menus: any[]) => {
-    // Backend signature is bulk_sync_menu_items(_menu_items text)
+    // Backend signature is bulk_sync_menu_items(_menu_items JSONB)
+    // Sends JSON stringified array of menu items
     const { data, error } = await supabase.rpc('bulk_sync_menu_items', {
       _menu_items: JSON.stringify(menus),
     });

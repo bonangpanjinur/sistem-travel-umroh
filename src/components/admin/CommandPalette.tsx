@@ -8,56 +8,124 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  LayoutDashboard, Package, Users, Calendar, CreditCard,
-  Settings, Shield, UserCheck, FileBarChart, BarChart3,
-  Target, BedDouble, Plane, Wallet, FileCheck,
-  Building2, DollarSign, Truck, Gift, HeadphonesIcon,
-  Palette, ShieldCheck, Key, MessageSquare, UserCog,
-  BookOpen, MapPin, TrendingUp, FileText, Share2
-} from "lucide-react";
+import { RECOMMENDED_MENUS } from "@/lib/admin-menu-registry";
+import * as Icons from "lucide-react";
 
-const ALL_PAGES = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/admin', keywords: 'beranda home overview' },
-  { label: 'Analytics', icon: BarChart3, path: '/admin/analytics', keywords: 'statistik grafik chart' },
-  { label: 'CRM Leads', icon: Target, path: '/admin/leads', keywords: 'prospek calon pelanggan' },
-  { label: 'Booking', icon: Calendar, path: '/admin/bookings', keywords: 'reservasi pesanan' },
-  { label: 'Pembayaran', icon: CreditCard, path: '/admin/payments', keywords: 'bayar payment transfer' },
-  { label: 'Paket', icon: Package, path: '/admin/packages', keywords: 'produk umroh haji' },
-  { label: 'Keberangkatan', icon: Plane, path: '/admin/departures', keywords: 'departure jadwal' },
-  { label: 'Template Itinerary', icon: MapPin, path: '/admin/itinerary-templates', keywords: 'jadwal perjalanan' },
-  { label: 'Tabungan', icon: Wallet, path: '/admin/savings', keywords: 'savings cicilan' },
-  { label: 'Kamar', icon: BedDouble, path: '/admin/room-assignments', keywords: 'room hotel' },
-  { label: 'Laba/Rugi', icon: DollarSign, path: '/admin/finance', keywords: 'keuangan profit loss' },
-  { label: 'Vendor', icon: Truck, path: '/admin/vendors', keywords: 'supplier pemasok' },
-  { label: 'Jamaah', icon: Users, path: '/admin/customers', keywords: 'pelanggan customer' },
+// Map icon names to lucide-react components
+const iconMap: Record<string, React.ComponentType<any>> = {
+  LayoutDashboard: Icons.LayoutDashboard,
+  BarChart3: Icons.BarChart3,
+  Package: Icons.Package,
+  CalendarDays: Icons.CalendarDays,
+  BookOpen: Icons.BookOpen,
+  Backpack: Icons.Backpack,
+  Map: Icons.Map,
+  Wallet: Icons.Wallet,
+  BedDouble: Icons.BedDouble,
+  Users: Icons.Users,
+  UserSquare2: Icons.UserSquare2,
+  Network: Icons.Network,
+  Gift: Icons.Gift,
+  Share2: Icons.Share2,
+  Star: Icons.Star,
+  GraduationCap: Icons.GraduationCap,
+  StickyNote: Icons.StickyNote,
+  CreditCard: Icons.CreditCard,
+  Coins: Icons.Coins,
+  TrendingUp: Icons.TrendingUp,
+  TrendingDown: Icons.TrendingDown,
+  PieChart: Icons.PieChart,
+  UserPlus: Icons.UserPlus,
+  Ticket: Icons.Ticket,
+  Globe: Icons.Globe,
+  Contact2: Icons.Contact2,
+  Banknote: Icons.Banknote,
+  FileCheck: Icons.FileCheck,
+  FileText: Icons.FileText,
+  Plane: Icons.Plane,
+  Building: Icons.Building,
+  Hotel: Icons.Hotel,
+  UserCheck: Icons.UserCheck,
+  Bus: Icons.Bus,
+  Store: Icons.Store,
+  LifeBuoy: Icons.LifeBuoy,
+  MessageSquare: Icons.MessageSquare,
+  Megaphone: Icons.Megaphone,
+  FileBarChart: Icons.FileBarChart,
+  UserCog: Icons.UserCog,
+  ShieldAlert: Icons.ShieldAlert,
+  KeyRound: Icons.KeyRound,
+  Palette: Icons.Palette,
+  MessageCircle: Icons.MessageCircle,
+  Layers: Icons.Layers,
+  Settings: Icons.Settings,
+};
 
-  { label: 'Agent', icon: UserCheck, path: '/admin/agents', keywords: 'agen mitra' },
-  { label: 'Kupon', icon: Gift, path: '/admin/coupons', keywords: 'diskon promo' },
-  { label: 'Loyalty', icon: Gift, path: '/admin/loyalty', keywords: 'poin reward' },
-  { label: 'Referral', icon: Share2, path: '/admin/referrals', keywords: 'rujukan ajak' },
-  { label: 'Haji', icon: BookOpen, path: '/admin/haji', keywords: 'haji reguler plus furoda' },
-  { label: 'Karyawan', icon: UserCog, path: '/admin/hr', keywords: 'sdm pegawai employee' },
-  { label: 'Tiket Support', icon: HeadphonesIcon, path: '/admin/support', keywords: 'bantuan keluhan' },
-  { label: 'WhatsApp', icon: MessageSquare, path: '/admin/whatsapp', keywords: 'wa pesan notifikasi' },
-  { label: 'Master Data', icon: Settings, path: '/admin/master-data', keywords: 'hotel airline airport' },
-  { label: 'Cabang', icon: Building2, path: '/admin/branches', keywords: 'branch kantor' },
-
-  { label: 'Verifikasi Dokumen', icon: FileCheck, path: '/admin/document-verification', keywords: 'verifikasi paspor' },
-  { label: 'Generate Surat', icon: FileText, path: '/admin/documents-generator', keywords: 'cetak surat dokumen' },
-  { label: 'Konten Offline', icon: BookOpen, path: '/admin/offline-content', keywords: 'doa panduan manasik' },
-  { label: 'Laporan', icon: FileBarChart, path: '/admin/reports', keywords: 'report' },
-  { label: 'Laporan Lanjutan', icon: TrendingUp, path: '/admin/advanced-reports', keywords: 'advanced report' },
-  { label: 'Users', icon: Shield, path: '/admin/users', keywords: 'pengguna akun user' },
-  { label: 'Security Audit', icon: ShieldCheck, path: '/admin/security-audit', keywords: 'keamanan log' },
-  { label: '2FA Settings', icon: Key, path: '/admin/2fa', keywords: 'two factor authentication' },
-  { label: 'Tampilan', icon: Palette, path: '/admin/appearance', keywords: 'tema warna desain' },
-  { label: 'Pengaturan', icon: Settings, path: '/admin/settings', keywords: 'setting konfigurasi' },
-];
+// Keyword mappings for better search
+const keywordMap: Record<string, string> = {
+  'dashboard': 'beranda home overview',
+  'analytics': 'statistik grafik chart',
+  'packages': 'produk umroh haji paket',
+  'departures': 'departure jadwal keberangkatan',
+  'bookings': 'reservasi pesanan booking',
+  'equipment': 'perlengkapan alat',
+  'itinerary-templates': 'jadwal perjalanan template',
+  'savings': 'savings cicilan tabungan',
+  'room-assignments': 'room hotel kamar',
+  'customers': 'pelanggan customer jamaah',
+  'agents': 'agen mitra agent',
+  'branches': 'branch kantor cabang',
+  'loyalty': 'poin reward loyalty',
+  'referrals': 'rujukan ajak referral',
+  'haji': 'haji reguler plus furoda',
+  'manasik': 'manasik pembelajaran',
+  'visa': 'visa dokumen',
+  'payments': 'bayar payment transfer pembayaran',
+  'finance-cash': 'kas bank keuangan',
+  'finance-ar': 'piutang ar receivable',
+  'finance-ap': 'hutang ap payable',
+  'finance-pl': 'laba rugi profit loss',
+  'leads': 'prospek calon pelanggan crm',
+  'coupons': 'diskon promo kupon',
+  'landing-pages': 'landing page website',
+  'hr': 'sdm pegawai employee karyawan',
+  'payroll': 'penggajian payroll gaji',
+  'document-verification': 'verifikasi dokumen paspor',
+  'documents-generator': 'cetak surat dokumen generate',
+  'offline-content': 'doa panduan manasik konten',
+  'airlines': 'maskapai airline',
+  'airports': 'bandara airport',
+  'hotels': 'hotel',
+  'muthawifs': 'muthawif guide',
+  'bus-providers': 'bus provider transportasi',
+  'vendors': 'vendor supplier pemasok',
+  'support': 'tiket support bantuan keluhan',
+  'whatsapp': 'wa pesan notifikasi whatsapp',
+  'marketing-materials': 'materi promosi marketing',
+  'reports': 'laporan report',
+  'users': 'pengguna akun user manajemen',
+  'security-audit': 'keamanan log security audit',
+  '2fa-settings': 'two factor authentication 2fa',
+  'appearance': 'tema warna desain tampilan',
+  'static-pages': 'halaman statis pages',
+  'testimonials': 'testimoni review',
+  'package-types': 'tipe paket types',
+  'settings': 'setting konfigurasi pengaturan',
+};
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Convert RECOMMENDED_MENUS to command palette format
+  const commandItems = useMemo(() => {
+    return RECOMMENDED_MENUS.map(menu => ({
+      label: menu.label,
+      icon: iconMap[menu.icon] || Icons.Settings,
+      path: menu.path,
+      keywords: keywordMap[menu.key] || menu.label.toLowerCase(),
+    }));
+  }, []);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -81,14 +149,14 @@ export function CommandPalette() {
       <CommandList>
         <CommandEmpty>Tidak ditemukan.</CommandEmpty>
         <CommandGroup heading="Navigasi Admin">
-          {ALL_PAGES.map((page) => (
+          {commandItems.map((item) => (
             <CommandItem
-              key={page.path}
-              value={`${page.label} ${page.keywords}`}
-              onSelect={() => handleSelect(page.path)}
+              key={item.path}
+              value={`${item.label} ${item.keywords}`}
+              onSelect={() => handleSelect(item.path)}
             >
-              <page.icon className="mr-2 h-4 w-4" />
-              <span>{page.label}</span>
+              <item.icon className="mr-2 h-4 w-4" />
+              <span>{item.label}</span>
             </CommandItem>
           ))}
         </CommandGroup>

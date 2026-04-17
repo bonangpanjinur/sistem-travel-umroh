@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,11 +74,12 @@ interface UserWithRoles {
 
 export default function AdminUsers() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRoles | null>(null);
   const [editingRole, setEditingRole] = useState<{ id: string; role: AppRole; branch_id: string | null } | null>(null);
-  const [newRole, setNewRole] = useState<AppRole | "">("");
+  const [newRole, setNewRole] = useState<AppRole | "">("")
   const [selectedBranchId, setSelectedBranchId] = useState<string | "all">("all");
   const [roleToDelete, setRoleToDelete] = useState<{ userId: string; roleId: string; role: AppRole } | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
@@ -86,6 +89,20 @@ export default function AdminUsers() {
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const { hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
+
+  // Handle query param for opening permissions dialog (from redirect)
+  useEffect(() => {
+    const openPermissionsUserId = searchParams.get('open_permissions');
+    if (openPermissionsUserId && users && users.length > 0) {
+      const userToOpenPermissions = users.find(u => u.user_id === openPermissionsUserId);
+      if (userToOpenPermissions) {
+        setSelectedUser(userToOpenPermissions);
+        setShowPermissionsDialog(true);
+        // Clear the query param
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, users, setSearchParams]);
 
   // Fetch branches for role assignment
   const { data: branches } = useQuery({
