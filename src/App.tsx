@@ -17,7 +17,15 @@ import AdminRoutes from "@/routes/AdminRoutes";
 import OperationalRoutes from "@/routes/OperationalRoutes";
 import AgentRoutes from "@/routes/AgentRoutes";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5,
+    },
+  },
+});
 
 const App = () => (
   <ErrorBoundary>
