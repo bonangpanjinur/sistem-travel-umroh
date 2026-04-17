@@ -77,6 +77,7 @@ export default function AdminAdvancedReports() {
       if (error) throw error;
       return (data || []) as unknown as FinancialSummaryRow[];
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   // Fetch operational summary
@@ -92,6 +93,7 @@ export default function AdminAdvancedReports() {
       if (error) throw error;
       return (data || []) as OperationalSummaryRow[];
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   // Fetch booking data for marketing reports
@@ -103,7 +105,8 @@ export default function AdminAdvancedReports() {
         .select("*, customer:customers(*)")
         .gte("created_at", dateRange.start)
         .lte("created_at", dateRange.end + "T23:59:59")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(1000);
       
       if (error) throw error;
 
@@ -119,6 +122,7 @@ export default function AdminAdvancedReports() {
       
       return data;
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   // Fetch lead data
@@ -129,10 +133,12 @@ export default function AdminAdvancedReports() {
         .from("leads")
         .select("*")
         .gte("created_at", dateRange.start)
-        .lte("created_at", dateRange.end + "T23:59:59");
+        .lte("created_at", dateRange.end + "T23:59:59")
+        .limit(2000);
       if (error) throw error;
       return data || [];
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   // Calculate financial totals

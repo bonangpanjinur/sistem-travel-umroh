@@ -41,7 +41,7 @@ export default function AdminFinanceAR() {
   const { data: arData = [], isLoading } = useQuery({
     queryKey: ["admin-ar"],
     queryFn: async () => {
-      // Get bookings with customer info
+      // Get bookings with customer info — limit to most recent 200 for UI responsiveness
       const { data, error } = await supabase
         .from("bookings")
         .select(`
@@ -53,7 +53,8 @@ export default function AdminFinanceAR() {
           created_at,
           customer:customers(full_name, phone, email)
         `)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       
       if (error) throw error;
       
@@ -74,6 +75,7 @@ export default function AdminFinanceAR() {
         };
       }) || [];
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   // Calculate summary

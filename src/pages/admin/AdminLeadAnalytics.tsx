@@ -59,16 +59,23 @@ export default function AdminLeadAnalytics() {
   const [period, setPeriod] = useState("6months");
 
   const { data: leads, isLoading } = useQuery({
-    queryKey: ['admin-leads-analytics'],
+    queryKey: ['admin-leads-analytics', period],
     queryFn: async () => {
+      // Filter at SQL level — fetch 2× the period (for prev-period comparison),
+      // not the entire history. Hard cap at 2000 rows.
+      const monthsToFetch = (parseInt(period.replace('months', '').replace('month', '')) || 6) * 2;
+      const startDate = subMonths(new Date(), monthsToFetch);
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .order('created_at', { ascending: false });
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(2000);
       
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   // Calculate date range based on period

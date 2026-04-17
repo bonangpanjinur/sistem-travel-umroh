@@ -47,7 +47,7 @@ export default function AdminFinanceAP() {
     due_date: "",
   });
 
-  // Fetch AP data (vendor costs)
+  // Fetch AP data (vendor costs) — limited to most recent 200 for UI responsiveness
   const { data: apData = [], isLoading } = useQuery({
     queryKey: ["admin-ap"],
     queryFn: async () => {
@@ -57,11 +57,13 @@ export default function AdminFinanceAP() {
           *,
           vendor:vendors(id, name, vendor_type)
         `)
-        .order("due_date", { ascending: true });
+        .order("due_date", { ascending: true })
+        .limit(200);
       
       if (error) throw error;
       return data || [];
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   // Fetch vendors
@@ -76,6 +78,7 @@ export default function AdminFinanceAP() {
       if (error) throw error;
       return data || [];
     },
+    staleTime: 1000 * 60 * 10,
   });
 
   // Calculate summary
