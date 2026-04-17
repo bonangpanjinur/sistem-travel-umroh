@@ -25,15 +25,9 @@ export interface MenuGroup {
   items: MenuItem[];
 }
 
-// Singleton instance untuk menyimpan channel yang persistent
-let menuChannelInstance: ReturnType<typeof supabase.channel> | null = null;
-let menuChannelSubscriberCount = 0;
-
 export const useDynamicMenus = () => {
-  const { user, isAdmin, hasRole, isStaff } = useAuth();
-  const queryClient = useQueryClient();
+  const { user, hasRole, isStaff } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
-  const isSubscribedRef = useRef(false);
 
   const isStaffUser = isStaff();
 
