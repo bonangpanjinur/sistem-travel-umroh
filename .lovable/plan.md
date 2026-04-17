@@ -1,77 +1,88 @@
 
 
-## Akar masalah loading lambat (data konkret)
+## Akar masalah loading lambat (yang sebenarnya)
 
-Dari network logs + DB inspection saya temukan **3 penyebab utama** yang masih membandel:
+Network requests sebenarnya cepat (`profiles`, `user_roles`, `menu_items` semua < 1s, status 200). Auth dedupe sudah jalan. Tapi user tetap merasa lambat karena **parse + execute JavaScript di browser yang lama**, bukan jaringan.
 
-**1. `profiles` table = 0 rows + trigger `handle_new_user` TIDAK terpasang**
-- Network log: `GET /profiles?...user_id=eq.560... → 406 (PGRST116, 0 rows)` berulang ≥6 kali per page load
-- DB: `SELECT FROM pg_trigger WHERE tgname ILIKE '%new_user%'` → kosong
-- Akibat: `useAuth.fetchUserData()` pakai `.single()` → throw error → catch block → tapi `Promise.all` short-circuit, jadi `setIsLoading(false)` tetap jalan TAPI `setProfile` tidak pernah ter-set, dan setiap re-render via `onAuthStateChange` (TOKEN_REFRESHED, dll) memicu fetch ulang yang gagal lagi.
+### Penyebab #1 — `import * as LucideIcons from 'lucide-react'` (KRITIS)
 
-**2. `useAuth` re-fetch setiap auth event**
-- `onAuthStateChange` dipicu oleh: SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION → setiap event memanggil `fetchUserData()` ulang.
-- Network log menunjukkan request `user_roles` & `profiles` 3-5× dalam 2 menit untuk user yang sama.
-- Tidak ada caching di level React Query, semua state lokal.
+Di `src/components/admin/AdminLayoutDynamicImproved.tsx` baris 14 dan `src/components/admin/CommandPalette.tsx` baris 12:
 
-**3. `useAdminNotifications` hook = realtime channel berat tapi datanya tidak dipakai**
-- File `AdminLayoutDynamicImproved.tsx` kirim `notifications={[]}` hardcoded ke `<NotificationBell>` → hook tidak dipanggil di sini (✓ sudah benar).
-- TAPI `AdminLayout.tsx` & `AdminLayoutDynamic.tsx` (file lama yang masih ada) MASIH memanggil `useAdminNotifications`. Bila ada route lain yang masih ref ke layout lama → channel realtime ke 4 tabel (bookings/payments/payments-update/employee_devices) ikut subscribe.
+```ts
+import * as LucideIcons from 'lucide-react';  // ⚠️ memuat ~1500 ikon
+```
 
-**4. Bug minor tapi mengganggu**
-- `AdminDashboard` punya 4× realtime subscription (`useMultipleRealtimeSubscriptions` ke 6 tabel) → setiap UPDATE di tabel-tabel ini me-refetch 5 query.
-- `AdminCustomers` query: `bookingQuery.eq('departure.package_id', ...)` — sintaks ini invalid di PostgREST (tidak bisa filter via dot di nested), kemungkinan mengembalikan error 400 saat filter aktif.
-- Vite production: `process.env.NODE_ENV` di `useAdminNotifications.ts` bukan `import.meta.env.DEV` → log debug bisa nyala salah konteks.
+**Dampak:** `lucide-react` punya ribuan ikon. Wildcard import membuat **setiap ikon** di-bundle ke layout admin (file yang dimuat eager, bukan lazy). Estimasi: **+2-5 MB JS** yang harus diunduh, di-parse, dan dieksekusi browser sebelum sidebar muncul. Ini sebabnya layout terasa "berat" walaupun network selesai cepat.
+
+Kita sebenarnya hanya butuh **47 ikon** (sesuai `RECOMMENDED_MENUS`).
+
+### Penyebab #2 — `useDashboardStats` mengirim 5 query paralel besar
+
+`bookings` di-fetch tanpa `.limit()`, tanpa pagination → bisa ratusan/ribuan baris di-load lalu di-loop 6× di JS untuk hitung statistik (revenue, status, payment, agen, AR aging, monthly trend). Ini bottleneck CPU client untuk tenant dengan banyak data.
+
+### Penyebab #3 — `recharts` di-eager-load di Dashboard
+
+Dashboard import `AreaChart, BarChart, PieChart, ResponsiveContainer` dari `recharts` (~200KB gzip) langsung di top-level. Walaupun `AdminDashboard` sudah `React.lazy`, recharts tetap masuk ke chunk dashboard yang besar.
+
+### Penyebab #4 — `AdminLayoutDynamicImproved` BUKAN lazy
+
+`AdminRoutes.tsx` baris 4: `import AdminLayout from "@/components/admin/AdminLayoutDynamicImproved";` — eager. Berarti seluruh layout (+ wildcard lucide + CommandPalette) di-load bersama route shell, sebelum apa pun di-render.
+
+### Penyebab #5 — Realtime subscription instance baru tiap mount
+
+`useMultipleRealtimeSubscriptions` di Dashboard pakai `Math.random()` untuk channel ID → setiap mount = channel WebSocket baru. Untuk Strict Mode dev / re-render = membuat & menutup WS berkali-kali.
 
 ---
 
-## Rencana perbaikan (fokus, tidak menambah file baru)
+## Rencana perbaikan (fokus pada bundle & CPU)
 
-### A. Perbaiki root cause profiles 406 (paling penting)
-1. **Migration**: pasang ulang trigger `handle_new_user` ke `auth.users` (saat ini hilang setelah remix). Trigger akan auto-create row di `profiles` + `user_roles` saat signup.
-2. **Backfill**: `INSERT INTO profiles (user_id, full_name) SELECT id, raw_user_meta_data->>'full_name' FROM auth.users WHERE id NOT IN (SELECT user_id FROM profiles);` — supaya user existing (anjaypai) dapat profile.
-3. **`useAuth.fetchUserData`**: ganti `.single()` → `.maybeSingle()` agar 0 row tidak jadi 406 + error.
+### A. Hilangkan wildcard `lucide-react` (dampak terbesar)
+- Di `AdminLayoutDynamicImproved.tsx`: ganti `import * as LucideIcons` dengan **icon registry kecil** — Map dari nama ikon → komponen, hanya untuk 47 ikon yang dipakai di `RECOMMENDED_MENUS`. File: `src/lib/admin-menu-icons.ts` (baru).
+- Di `CommandPalette.tsx`: pakai registry yang sama.
+- Hasil: bundle layout turun **2-5 MB → ~50 KB** untuk ikon. Parse JS turun drastis.
 
-### B. Stop re-fetch berulang di useAuth
-- Tambahkan guard: simpan `userId` terakhir yang sudah di-fetch di ref. Bila `onAuthStateChange` dipicu ulang dengan user yang sama (TOKEN_REFRESHED), skip fetchUserData.
-- Pada `INITIAL_SESSION` event, setIsLoading(false) langsung tanpa fetch ulang bila data sudah ada.
+### B. Lazy-load `AdminLayoutDynamicImproved`
+- Ubah `import AdminLayout from "..."` di `AdminRoutes.tsx` jadi `lazy(() => import("..."))`, bungkus dalam `Suspense`.
+- Dampak: shell admin di-split keluar dari main bundle.
 
-### C. Bersihkan layout lama yang masih load notifications hook
-- Pastikan tidak ada route yang masih pakai `AdminLayout.tsx` atau `AdminLayoutDynamic.tsx` (yang lama). Bila ada, redirect ke `AdminLayoutDynamicImproved`.
-- Bila kedua file lama tidak dipakai sama sekali, hapus untuk eliminasi kebingungan.
+### C. Optimasi `useDashboardStats`
+- Tambahkan `.limit(500)` dan filter `created_at >= 6 bulan terakhir` pada query bookings (cukup untuk dashboard).
+- Pisahkan query AR aging ke RPC ringan (atau tetap, karena sudah parallel).
+- Tambah `staleTime: 1000 * 60 * 10` (10 menit) — dashboard tidak perlu fresh per detik.
 
-### D. Optimasi AdminDashboard realtime
-- Realtime ke 6 tabel berlebihan untuk dashboard. Kurangi ke `bookings` + `payments` saja (2 tabel paling sering update). Sisanya pakai `staleTime: 5min` saja → cukup refresh manual.
+### D. Lazy-load chart-chart berat di Dashboard
+- Ekstrak komponen chart (Funnel, Top Agents, AR Pie, Status Pie, Monthly Area) jadi `React.lazy` per komponen, atau pisah ke 1 file `DashboardCharts.tsx` yang di-lazy. Recharts tidak perlu blocking initial paint.
 
-### E. Bug fix kecil
-- `AdminCustomers`: hapus filter `bookingQuery.eq('departure.package_id', ...)` (invalid syntax) atau ganti ke RPC.
-- `useAdminNotifications`: ganti `process.env.NODE_ENV` → `import.meta.env.DEV`.
+### E. Stabilkan realtime channel ID
+- Hapus `Math.random()` di `useRealtimeSubscription.ts`, pakai `table` saja sebagai ID (Supabase JS klien sudah dedupe channel).
+- Bonus: kurangi WS reconnect saat re-render.
 
-### F. Tambah index yang masih kurang
-- `CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);` — query `profiles?user_id=eq.X` tanpa index = full table scan.
-- `CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);` — sama.
+### F. Optimasi kecil tambahan
+- `AdminAirlines.tsx` & halaman master data lain: tambah `staleTime: 1000 * 60 * 5` (data master jarang berubah).
+- `useDynamicMenus`: query `menu_items` sudah `staleTime: Infinity` ✓ — tapi tambah `select('id,key,label,path,icon,group_name,sort_order,required_permission')` eksplisit (drop kolom `created_at/updated_at` yang tidak dipakai → response lebih kecil).
 
 ---
 
 ## File yang akan diubah
 
-**Migration baru:**
-- `supabase/migrations/<ts>_fix_profile_trigger_and_indexes.sql` — pasang trigger handle_new_user, backfill profiles, tambah 2 index.
+**Baru:**
+- `src/lib/admin-menu-icons.ts` — registry 47 ikon eksplisit (named import dari lucide-react).
 
 **Diedit:**
-- `src/hooks/useAuth.tsx` — `.maybeSingle()`, dedupe fetch via ref `lastFetchedUserId`.
-- `src/hooks/useAdminNotifications.ts` — `import.meta.env.DEV`.
-- `src/pages/admin/AdminDashboard.tsx` — kurangi realtime tabel.
-- `src/pages/admin/AdminCustomers.tsx` — perbaiki filter package/departure (drop atau pakai RPC).
-- `src/components/admin/AdminLayout.tsx` & `AdminLayoutDynamic.tsx` — bila tidak dipakai → hapus; bila masih dipakai → hapus pemanggilan `useAdminNotifications`.
+- `src/components/admin/AdminLayoutDynamicImproved.tsx` — hapus wildcard import, pakai `getMenuIcon(name)` dari registry baru.
+- `src/components/admin/CommandPalette.tsx` — sama.
+- `src/routes/AdminRoutes.tsx` — `AdminLayout` jadi lazy.
+- `src/hooks/useDashboardStats.ts` — limit 500 + filter 6 bulan + staleTime 10 menit.
+- `src/pages/admin/AdminDashboard.tsx` — pisah/lazy chart components, atau bungkus chart dalam `Suspense` + `lazy(() => import("./DashboardCharts"))`.
+- `src/hooks/useRealtimeSubscription.ts` — channel ID stabil (tanpa Math.random).
+- `src/hooks/useDynamicMenus.ts` — select kolom eksplisit.
 
 ---
 
 ## Hasil yang ditargetkan
-- **0 error 406 berulang** di console.
-- **Auth fetch hanya sekali** per session (bukan 3-5×).
-- **Realtime channel turun** dari 6 tabel → 2 tabel di dashboard.
-- **Loading dashboard** turun signifikan (perkiraan 2-3 detik → < 1 detik untuk super admin).
-- **Trigger profile aktif** lagi → user baru otomatis punya profile + role.
-- **Index baru** mempercepat lookup user_id berkali lipat.
+- **Initial JS bundle layout admin** turun ~70% (dari ~5 MB → ~1-1.5 MB).
+- **Time-to-interactive** dashboard: dari ~3-5 detik → < 1.5 detik.
+- **Tidak ada perubahan fungsional** — semua menu, ikon, chart tetap tampil sama.
+- **WebSocket lebih stabil** (tidak buka/tutup berkali-kali).
+- **Master data pages** terasa instan saat navigasi ulang (cache 5 menit).
 
