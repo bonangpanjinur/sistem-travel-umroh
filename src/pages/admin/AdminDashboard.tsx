@@ -76,15 +76,13 @@ export default function AdminDashboard() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Auto-refresh dashboard when bookings, payments, equipment, or documents change
+  // Realtime hanya untuk bookings & payments (paling sering update). 
+  // Sisanya pakai staleTime 5min — cukup hemat bandwidth.
   useMultipleRealtimeSubscriptions(
-    ['bookings', 'payments', 'equipment_items', 'customer_documents', 'leads', 'audit_logs'],
+    ['bookings', 'payments'],
     [
       ['admin-dashboard-stats'],
       ['admin-recent-bookings'],
-      ['dashboard-stock-alerts'],
-      ['dashboard-pending-documents'],
-      ['dashboard-recent-audits'],
     ]
   );
 

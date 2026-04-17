@@ -39,20 +39,28 @@ export default function AdminCustomers() {
 
       // Apply package and departure filters via booking subquery
       if (packageFilter !== "all" || departureFilter !== "all") {
-        let bookingQuery = supabase
-          .from('bookings')
-          .select('customer_id');
-        
+        // Resolve departure IDs first if filtering by package (PostgREST tidak bisa filter nested via dot)
+        let departureIds: string[] | null = null;
         if (packageFilter !== "all") {
-          bookingQuery = bookingQuery.eq('departure.package_id', packageFilter);
+          const { data: deps, error: depsErr } = await supabase
+            .from('departures')
+            .select('id')
+            .eq('package_id', packageFilter);
+          if (depsErr) throw depsErr;
+          departureIds = (deps || []).map(d => d.id);
+          if (departureIds.length === 0) return { customers: [], count: 0 };
         }
+
+        let bookingQuery = supabase.from('bookings').select('customer_id');
         if (departureFilter !== "all") {
           bookingQuery = bookingQuery.eq('departure_id', departureFilter);
+        } else if (departureIds) {
+          bookingQuery = bookingQuery.in('departure_id', departureIds);
         }
-        
+
         const { data: bookingData, error: bookingError } = await bookingQuery;
         if (bookingError) throw bookingError;
-        
+
         const customerIds = Array.from(new Set((bookingData || []).map(b => b.customer_id)));
         if (customerIds.length > 0) {
           query = query.in('id', customerIds);
