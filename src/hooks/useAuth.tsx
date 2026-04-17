@@ -97,8 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         
         if (isAdminOrStaff) {
+          // Send array directly as JSONB - Supabase will handle JSON serialization
           supabase.rpc('bulk_sync_menu_items', {
-            _menu_items: JSON.stringify(RECOMMENDED_MENUS)
+            _menu_items: RECOMMENDED_MENUS
           })
             .then(() => console.log('Menu sync completed'))
             .catch((err: any) => console.error('Menu sync failed:', err));

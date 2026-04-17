@@ -160,8 +160,9 @@ export const useMultipleMenuAccess = (menuKeys: string[]) => {
 export const useSyncMenus = () => {
   const queryClient = useQueryClient();
   const syncMenus = async (menus: any[]) => {
+    // Send array directly as JSONB - Supabase will handle JSON serialization
     const { data, error } = await supabase.rpc('bulk_sync_menu_items', {
-      _menu_items: JSON.stringify(menus)
+      _menu_items: menus
     });
     if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ['dynamic-menus'] });
