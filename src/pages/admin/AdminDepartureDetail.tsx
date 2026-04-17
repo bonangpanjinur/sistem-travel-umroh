@@ -692,13 +692,14 @@ export default function AdminDepartureDetail() {
             <DialogTitle>Edit Keberangkatan</DialogTitle>
           </DialogHeader>
           <DepartureForm
-            departure={departure}
+            departureData={departure}
             onSuccess={() => {
               setIsFormOpen(false);
               queryClient.invalidateQueries({
                 queryKey: ["admin-departure-detail", id],
               });
             }}
+            onCancel={() => setIsFormOpen(false)}
           />
         </DialogContent>
       </Dialog>
