@@ -14,6 +14,7 @@ const PATH_LABELS: Record<string, string> = {
   analytics: "Analytics",
   packages: "Paket",
   departures: "Keberangkatan",
+  "departure-detail": "Detail Keberangkatan",
   savings: "Tabungan",
   "master-data": "Master Data",
   branches: "Cabang",
@@ -55,12 +56,17 @@ export function AdminBreadcrumb() {
   // Don't show breadcrumb on dashboard (just /admin)
   if (segments.length <= 1) return null;
 
-  const crumbs = segments.map((seg, i) => ({
-    label: PATH_LABELS[seg] || seg,
-    path: "/" + segments.slice(0, i + 1).join("/"),
-    isLast: i === segments.length - 1,
-    isUuid: /^[0-9a-f]{8}-/.test(seg),
-  }));
+  const crumbs = segments.map((seg, i) => {
+    // Check if this is a UUID (departure ID)
+    const isUuid = /^[0-9a-f]{8}-/.test(seg);
+    const label = isUuid ? "Detail Keberangkatan" : (PATH_LABELS[seg] || seg);
+    return {
+      label,
+      path: "/" + segments.slice(0, i + 1).join("/"),
+      isLast: i === segments.length - 1,
+      isUuid,
+    };
+  });
 
   return (
     <Breadcrumb className="mb-4">
@@ -70,7 +76,7 @@ export function AdminBreadcrumb() {
             {i > 0 && <BreadcrumbSeparator />}
             <BreadcrumbItem>
               {crumb.isLast ? (
-                <BreadcrumbPage>{crumb.isUuid ? "Detail" : crumb.label}</BreadcrumbPage>
+                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink href={crumb.path}>
                   {crumb.label}

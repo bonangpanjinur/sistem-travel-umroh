@@ -21,12 +21,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Eye
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
@@ -49,6 +49,7 @@ const ITEMS_PER_PAGE = 20;
 
 export default function AdminDepartures() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
@@ -369,15 +370,24 @@ export default function AdminDepartures() {
                   </TableRow>
                 ) : (
                   departures.map((dep) => (
-                    <TableRow key={dep.id}>
+                    <TableRow 
+                      key={dep.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => navigate(`/admin/departures/${dep.id}`)}
+                    >
                       <TableCell>
                         <div className="space-y-1">
                           {getDepartureLabel(dep)}
                           {dep.package ? (
-                            <Link to={`/admin/packages/${dep.package.id}`} className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                            <div 
+                              className="text-xs font-medium text-primary flex items-center gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                            >
                               <Building2 className="h-3 w-3" />
                               {dep.package.name} ({dep.package.code})
-                            </Link>
+                            </div>
                           ) : (
                             <Badge variant="outline" className="text-[10px] text-orange-500 border-orange-200 bg-orange-50">
                               Belum Terhubung Paket
@@ -428,7 +438,7 @@ export default function AdminDepartures() {
                       <TableCell className="text-center">
                         {getStatusBadge(dep.status)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -436,6 +446,9 @@ export default function AdminDepartures() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => navigate(`/admin/departures/${dep.id}`)}>
+                              <Eye className="h-4 w-4 mr-2" /> Lihat Detail
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleEdit(dep)}>
                               <Edit className="h-4 w-4 mr-2" /> Edit
                             </DropdownMenuItem>

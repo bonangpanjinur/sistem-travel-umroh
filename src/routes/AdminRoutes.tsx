@@ -26,6 +26,7 @@ const AdminLeadDetail = lazy(() => import("@/pages/admin/AdminLeadDetail"));
 const AdminLeadAnalytics = lazy(() => import("@/pages/admin/AdminLeadAnalytics"));
 const AdminRoomAssignments = lazy(() => import("@/pages/admin/AdminRoomAssignments"));
 const AdminDepartures = lazy(() => import("@/pages/admin/AdminDepartures"));
+const AdminDepartureDetail = lazy(() => import("@/pages/admin/AdminDepartureDetail"));
 const AdminSavingsPlans = lazy(() => import("@/pages/admin/AdminSavingsPlans"));
 const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocumentVerification"));
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
@@ -99,6 +100,7 @@ export default function AdminRoutes() {
       <Route path="packages" element={<LazyPage><AdminPackages /></LazyPage>} />
       <Route path="packages/:id" element={<LazyPage><AdminPackageDetail /></LazyPage>} />
       <Route path="departures" element={<LazyPage><AdminDepartures /></LazyPage>} />
+      <Route path="departures/:id" element={<LazyPage><AdminDepartureDetail /></LazyPage>} />
       <Route path="bookings" element={<LazyPage><AdminBookings /></LazyPage>} />
       <Route path="bookings/create" element={<LazyPage><AdminBookingCreate /></LazyPage>} />
       <Route path="bookings/:id" element={<LazyPage><AdminBookingDetail /></LazyPage>} />
