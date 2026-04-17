@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Loader2,
   Search,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
@@ -180,6 +181,33 @@ function AdminLayoutDynamicImproved() {
               className="pl-9 bg-muted/50 border-muted-foreground/20 h-9 text-sm focus-visible:ring-1 focus-visible:ring-primary/50 transition-all"
             />
           </div>
+        </div>
+
+        {/* Dashboard Quick Access */}
+        <div className="px-3 py-2">
+          <Link
+            to="/admin"
+            onClick={() => !isDesktop && setSidebarOpen(false)}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
+              location.pathname === '/admin'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+            )}
+          >
+            <LayoutDashboard
+              className={cn(
+                'w-4 h-4 flex-shrink-0 transition-all duration-200',
+                location.pathname === '/admin'
+                  ? 'text-primary-foreground'
+                  : 'text-muted-foreground/70 group-hover:text-primary group-hover:scale-110'
+              )}
+            />
+            <span className="flex-1 truncate relative z-10 font-semibold">Dashboard</span>
+            {location.pathname === '/admin' && (
+              <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />
+            )}
+          </Link>
         </div>
 
         {/* Sidebar Content */}
