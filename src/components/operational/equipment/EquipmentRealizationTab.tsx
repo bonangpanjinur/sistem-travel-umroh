@@ -6,13 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Package, Users, Box, TrendingUp } from "lucide-react";
-import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
+import { Loader2, Package, Users, Box, TrendingUp, Info } from "lucide-react";
 
 interface EquipmentRealizationTabProps {
-  selectedPackage: string;
-  selectedDeparture: string;
+  selectedPackage?: string;
+  selectedDeparture?: string;
 }
 
 interface EquipmentRealizationData {
@@ -34,10 +32,8 @@ export function EquipmentRealizationTab({
 
   // Fetch realization data
   const { data: realizationData, isLoading } = useQuery({
-    queryKey: ["equipment-realization", selectedDeparture],
+    queryKey: ["equipment-realization-global", selectedPackage, selectedDeparture],
     queryFn: async () => {
-      if (!selectedDeparture) return [];
-
       // Get all equipment items
       const { data: items, error: itemsError } = await supabase
         .from("equipment_items")
@@ -46,13 +42,33 @@ export function EquipmentRealizationTab({
 
       if (itemsError) throw itemsError;
 
-      // Get all distributions for this departure
-      const { data: distributions, error: distError } = await supabase
+      // Build distribution query
+      let distQuery = supabase
         .from("equipment_distributions")
-        .select("equipment_id, customer_id, quantity, status")
-        .eq("departure_id", selectedDeparture)
+        .select("equipment_id, customer_id, quantity, status, departure_id")
         .eq("status", "distributed");
 
+      // Filter by departure if selected, otherwise show global
+      if (selectedDeparture) {
+        distQuery = distQuery.eq("departure_id", selectedDeparture);
+      } else if (selectedPackage) {
+        // If only package selected, we might want to filter by departures of that package
+        // But the user said "langsung aja" (just show it), so we'll show global or by package if needed.
+        // To filter by package, we'd need to join with departures table.
+        // For now, let's keep it global unless a specific departure is picked, 
+        // OR we can fetch departures for this package and filter by those IDs.
+        const { data: pkgDepartures } = await supabase
+          .from("departures")
+          .select("id")
+          .eq("package_id", selectedPackage);
+        
+        if (pkgDepartures && pkgDepartures.length > 0) {
+          const depIds = pkgDepartures.map(d => d.id);
+          distQuery = distQuery.in("departure_id", depIds);
+        }
+      }
+
+      const { data: distributions, error: distError } = await distQuery;
       if (distError) throw distError;
 
       // Process data
@@ -90,7 +106,6 @@ export function EquipmentRealizationTab({
 
       return Array.from(realizationMap.values());
     },
-    enabled: !!selectedDeparture,
   });
 
   // Get unique categories
@@ -146,24 +161,23 @@ export function EquipmentRealizationTab({
     return { label: "Tersedia", color: "bg-green-100 text-green-800 border-green-200" };
   };
 
-  if (!selectedDeparture) {
-    return (
-      <Card>
-        <CardContent className="py-16">
-          <div className="text-center">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-            <h3 className="font-semibold text-lg mb-1">Pilih Keberangkatan</h3>
-            <p className="text-sm text-muted-foreground">
-              Pilih paket dan tanggal keberangkatan untuk melihat ringkasan realisasi perlengkapan.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {/* Scope Info */}
+      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-3 text-blue-800 dark:bg-blue-950/30 dark:border-blue-900 dark:text-blue-300">
+        <Info className="h-5 w-5 mt-0.5 shrink-0" />
+        <div className="text-sm">
+          <p className="font-semibold">Cakupan Realisasi:</p>
+          <p>
+            {selectedDeparture 
+              ? "Menampilkan data untuk keberangkatan terpilih." 
+              : selectedPackage 
+                ? "Menampilkan data akumulasi untuk semua keberangkatan dalam paket terpilih." 
+                : "Menampilkan data akumulasi global untuk seluruh keberangkatan."}
+          </p>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <Card>
