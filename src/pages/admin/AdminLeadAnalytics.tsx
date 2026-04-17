@@ -355,7 +355,7 @@ export default function AdminLeadAnalytics() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length > 0) {
                           const item = payload[0];
-                          const data = item?.payload || item;
+                          const data = item?.payload || item || {};
                           const fullMonth = data?.fullMonth || data?.month || '';
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
@@ -595,7 +595,7 @@ export default function AdminLeadAnalytics() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length > 0) {
                           const item = payload[0];
-                          const data = item?.payload || item;
+                          const data = item?.payload || item || {};
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
                               <p className="font-medium">{data?.name || 'N/A'}</p>
