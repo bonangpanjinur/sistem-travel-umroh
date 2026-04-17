@@ -10,7 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
-import { CommandPalette } from './CommandPalette';
 import { AdminBreadcrumb } from './AdminBreadcrumb';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -20,14 +19,15 @@ import {
   X,
   Shield,
   ChevronDown,
-  Loader2,
   Search,
-  LayoutDashboard,
 } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+
+const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
 
 // Helper to render Lucide icon by name
 const DynamicIcon = ({ name, className }: { name?: string; className?: string }) => {
@@ -178,40 +178,18 @@ function AdminLayoutDynamicImproved() {
           </div>
         </div>
 
-        {/* Dashboard Quick Access */}
-        <div className="px-3 py-2">
-          <Link
-            to="/admin"
-            onClick={() => !isDesktop && setSidebarOpen(false)}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
-              location.pathname === '/admin'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-            )}
-          >
-            <LayoutDashboard
-              className={cn(
-                'w-4 h-4 flex-shrink-0 transition-all duration-200',
-                location.pathname === '/admin'
-                  ? 'text-primary-foreground'
-                  : 'text-muted-foreground/70 group-hover:text-primary group-hover:scale-110'
-              )}
-            />
-            <span className="flex-1 truncate relative z-10 font-semibold">Dashboard</span>
-            {location.pathname === '/admin' && (
-              <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />
-            )}
-          </Link>
-        </div>
-
         {/* Sidebar Content */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-4">
             {menusLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 space-y-3">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <p className="text-xs text-muted-foreground animate-pulse">Memuat menu...</p>
+              <div className="space-y-3 px-1 py-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ))}
               </div>
             ) : filteredGroupedMenus.length === 0 ? (
               <div className="text-center py-12 px-4">
@@ -342,7 +320,9 @@ function AdminLayoutDynamicImproved() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <CommandPalette />
+            <Suspense fallback={<Skeleton className="h-9 w-9 rounded-md" />}>
+              <CommandPalette />
+            </Suspense>
             <NotificationBell 
               notifications={[]} 
               unreadCount={0} 

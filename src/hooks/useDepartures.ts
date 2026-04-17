@@ -16,7 +16,7 @@ export function useDepartures(filters?: { status?: string; packageId?: string })
     queryFn: async () => {
       let query = supabase
         .from('departures')
-        .select('*, packages(name, category), airlines(name, code), hotels:hotel_makkah_id(name, city)')
+        .select('*, packages(name), airlines(name, code), hotels:hotel_makkah_id(name, city)')
         .order('departure_date', { ascending: true });
       if (filters?.status) query = query.eq('status', filters.status);
       if (filters?.packageId) query = query.eq('package_id', filters.packageId);

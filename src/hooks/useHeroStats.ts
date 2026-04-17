@@ -14,6 +14,9 @@ export interface HeroStat {
 export function useHeroStats() {
   return useQuery({
     queryKey: ['hero-stats'],
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60,
+    retry: 0,
     queryFn: async (): Promise<HeroStat[]> => {
       try {
         const { data, error } = await (supabase as any)
@@ -22,16 +25,14 @@ export function useHeroStats() {
           .order('display_order', { ascending: true });
         
         if (error) {
-          console.warn('Error fetching hero stats:', error);
+          // Table missing or other error — silently return empty list
           return [];
         }
         
         return data || [];
-      } catch (err) {
-        console.warn('Exception fetching hero stats:', err);
+      } catch {
         return [];
       }
     },
-    staleTime: 1000 * 60 * 5,
   });
 }
