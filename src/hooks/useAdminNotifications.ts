@@ -184,7 +184,7 @@ export function useAdminNotifications() {
         .subscribe((status) => {
           // Ubah console.warn menjadi console.debug yang hanya aktif di development
           if (status === 'CLOSED') {
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.DEV) {
               console.debug('[Admin Notifications] Channel closed (expected behavior)');
             }
           }

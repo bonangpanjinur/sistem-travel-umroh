@@ -104,8 +104,19 @@ export default function AdminBookings() {
       if (statusFilter !== "all") query = query.eq('booking_status', statusFilter as any);
       if (paymentFilter !== "all") query = query.eq('payment_status', paymentFilter as any);
       if (branchFilter !== "all") query = query.eq('branch_id', branchFilter);
-      if (packageFilter !== "all") query = query.eq('departure.package_id', packageFilter);
-      if (departureFilter !== "all") query = query.eq('departure_id', departureFilter);
+      if (departureFilter !== "all") {
+        query = query.eq('departure_id', departureFilter);
+      } else if (packageFilter !== "all") {
+        // PostgREST tidak bisa filter via dot pada nested join — resolve dulu departure IDs.
+        const { data: deps, error: depsErr } = await supabase
+          .from('departures')
+          .select('id')
+          .eq('package_id', packageFilter);
+        if (depsErr) throw depsErr;
+        const ids = (deps || []).map(d => d.id);
+        if (ids.length === 0) return { bookings: [] as Booking[], count: 0 };
+        query = query.in('departure_id', ids);
+      }
       if (dateFrom) query = query.gte('created_at', dateFrom);
       if (dateTo) query = query.lte('created_at', dateTo + 'T23:59:59');
 

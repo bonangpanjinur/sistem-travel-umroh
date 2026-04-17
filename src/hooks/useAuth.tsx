@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const authHandledRef = useRef(false);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -39,8 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authHandledRef.current = true;
 
         if (session?.user) {
+          // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
+          if (lastFetchedUserIdRef.current === session.user.id) {
+            setIsLoading(false);
+            return;
+          }
           fetchUserData(session.user.id);
         } else {
+          lastFetchedUserIdRef.current = null;
           setProfile(null);
           setRoles([]);
           setIsLoading(false);
@@ -56,6 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        if (lastFetchedUserIdRef.current === session.user.id) {
+          setIsLoading(false);
+          return;
+        }
         fetchUserData(session.user.id);
       } else {
         setIsLoading(false);
@@ -67,9 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
+      lastFetchedUserIdRef.current = userId;
       // Fetch profile + roles in parallel for faster login
       const [profileRes, rolesRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('user_id', userId).single(),
+        supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
         supabase.from('user_roles').select('role, branch_id').eq('user_id', userId),
       ]);
 
