@@ -320,7 +320,9 @@ function AdminLayoutDynamicImproved() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <CommandPalette />
+            <Suspense fallback={<Skeleton className="h-9 w-9 rounded-md" />}>
+              <CommandPalette />
+            </Suspense>
             <NotificationBell 
               notifications={[]} 
               unreadCount={0} 
