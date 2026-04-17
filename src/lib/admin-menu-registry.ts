@@ -83,8 +83,6 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'security-audit', label: 'Security Audit', path: '/admin/security-audit', icon: 'ShieldAlert', group_name: 'Pengaturan', sort_order: 3, required_permission: 'security-audit' },
   { key: '2fa-settings', label: '2FA Settings', path: '/admin/2fa', icon: 'KeyRound', group_name: 'Pengaturan', sort_order: 4, required_permission: '2fa-settings' },
   { key: 'appearance', label: 'Tampilan', path: '/admin/appearance', icon: 'Palette', group_name: 'Pengaturan', sort_order: 5, required_permission: 'appearance' },
-  { key: 'static-pages', label: 'Halaman Statis', path: '/admin/static-pages', icon: 'FileText', group_name: 'Pengaturan', sort_order: 6, required_permission: 'static-pages' },
-  { key: 'testimonials', label: 'Testimoni', path: '/admin/testimonials', icon: 'MessageCircle', group_name: 'Pengaturan', sort_order: 7, required_permission: 'testimonials' },
   { key: 'package-types', label: 'Tipe Paket', path: '/admin/package-types', icon: 'Layers', group_name: 'Pengaturan', sort_order: 8, required_permission: 'package-types' },
   { key: 'settings', label: 'Pengaturan', path: '/admin/settings', icon: 'Settings', group_name: 'Pengaturan', sort_order: 9, required_permission: 'settings' },
 ];
