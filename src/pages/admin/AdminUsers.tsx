@@ -661,20 +661,30 @@ export default function AdminUsers() {
 
       {/* User Permissions Dialog */}
       <Dialog open={showPermissionsDialog} onOpenChange={setShowPermissionsDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
               Kelola Izin Akses
             </DialogTitle>
             <DialogDescription>
-              Atur izin akses untuk <strong>{selectedUser?.full_name}</strong>
+              Atur izin akses per fitur untuk <strong>{selectedUser?.full_name}</strong>
+              {selectedUser?.roles?.length ? (
+                <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
+                  {selectedUser.roles.map(r => (
+                    <Badge key={r.id} variant="outline" className="text-[10px] h-4 px-1.5">
+                      {ROLE_LABELS[r.role]}
+                    </Badge>
+                  ))}
+                </span>
+              ) : null}
             </DialogDescription>
           </DialogHeader>
           {selectedUser && (
             <UserPermissionsManager
               userId={selectedUser.user_id}
               userName={selectedUser.full_name || ""}
+              isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin' || r.role === 'owner')}
             />
           )}
         </DialogContent>
