@@ -2,15 +2,6 @@
 
 /**
  * Enhanced AdminLayout dengan Dynamic Menu Integration & Improved UI/UX
- * 
- * Fitur:
- * - Menu items diambil dari database secara dinamis
- * - Real-time sync ketika permission berubah
- * - Fallback ke hardcoded menu jika database tidak tersedia
- * - Support untuk menu grouping dan sorting
- * - UI/UX yang lebih bersih, responsif, dan modern
- * - Smooth animations dan better visual hierarchy
- * - Enhanced hover states dan active indicators
  */
 
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
@@ -33,7 +24,6 @@ import {
   ChevronDown,
   Loader2,
   Search,
-  Zap,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
@@ -49,7 +39,7 @@ const DynamicIcon = ({ name, className }: { name?: string; className?: string })
 };
 
 function AdminLayoutDynamicImproved() {
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { groupedMenus, isLoading: menusLoading, isPathAllowed } = useDynamicMenus();
   const location = useLocation();
   const navigate = useNavigate();
@@ -172,7 +162,7 @@ function AdminLayoutDynamicImproved() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Sidebar Header - Improved */}
+        {/* Sidebar Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-border/50 bg-gradient-to-r from-card to-card/50 backdrop-blur-md sticky top-0 z-10">
           <Link to="/admin" className="flex items-center gap-3 group">
             <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center text-primary-foreground font-bold group-hover:scale-110 transition-transform duration-200 shadow-md">
@@ -193,7 +183,7 @@ function AdminLayoutDynamicImproved() {
           </Button>
         </div>
 
-        {/* Sidebar Search - Improved */}
+        {/* Sidebar Search */}
         <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -206,9 +196,34 @@ function AdminLayoutDynamicImproved() {
           </div>
         </div>
 
-        {/* Sidebar Content - Improved */}
+        {/* Sidebar Content */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-4">
+            {/* Dashboard Link - Always visible at the top */}
+            <div className="space-y-1.5">
+              <Link
+                to="/admin"
+                onClick={() => !isDesktop && setSidebarOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
+                  location.pathname === '/admin'
+                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                )}
+              >
+                <LayoutDashboard className={cn(
+                  "w-4.5 h-4.5 flex-shrink-0 transition-all duration-200",
+                  location.pathname === '/admin' 
+                    ? "text-primary-foreground" 
+                    : "text-muted-foreground/70 group-hover:text-primary group-hover:scale-110"
+                )} />
+                <span className="flex-1 truncate relative z-10">Dashboard</span>
+                {location.pathname === '/admin' && (
+                  <div className="absolute right-2 w-2 h-2 rounded-full bg-primary-foreground/60 animate-pulse" />
+                )}
+              </Link>
+            </div>
+
             {menusLoading ? (
               <div className="flex flex-col items-center justify-center py-12 space-y-3">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -226,7 +241,7 @@ function AdminLayoutDynamicImproved() {
             ) : (
               filteredGroupedMenus.map((group, groupIdx) => (
                 <div key={group.name} className="space-y-1.5 animate-in fade-in duration-300" style={{ animationDelay: `${groupIdx * 50}ms` }}>
-                  {/* Group Header - Improved */}
+                  {/* Group Header */}
                   <button
                     onClick={() => toggleGroup(group.name)}
                     className={cn(
@@ -245,7 +260,7 @@ function AdminLayoutDynamicImproved() {
                     />
                   </button>
 
-                  {/* Group Items - Improved */}
+                  {/* Group Items */}
                   <div className={cn(
                     "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out",
                     isGroupExpanded(group.name) ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
@@ -272,12 +287,10 @@ function AdminLayoutDynamicImproved() {
                             animation: isGroupExpanded(group.name) ? 'slideIn 0.3s ease-out forwards' : 'none'
                           }}
                         >
-                          {/* Background gradient on hover */}
                           {!isActive && (
                             <div className="absolute inset-0 bg-gradient-to-r from-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                           )}
                           
-                          {/* Icon */}
                           <DynamicIcon 
                             name={item.icon} 
                             className={cn(
@@ -288,15 +301,12 @@ function AdminLayoutDynamicImproved() {
                             )} 
                           />
                           
-                          {/* Label */}
                           <span className="flex-1 truncate relative z-10">{item.label}</span>
                           
-                          {/* Active Indicator */}
                           {isActive && (
                             <div className="absolute right-2 w-2 h-2 rounded-full bg-primary-foreground/60 animate-pulse" />
                           )}
                           
-                          {/* Hover Indicator */}
                           {isHovered && !isActive && (
                             <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary/40 transition-all duration-200" />
                           )}
@@ -310,9 +320,8 @@ function AdminLayoutDynamicImproved() {
           </nav>
         </ScrollArea>
 
-        {/* Sidebar Footer - Improved */}
+        {/* Sidebar Footer */}
         <div className="p-4 border-t border-border/50 bg-gradient-to-t from-muted/20 to-transparent space-y-3">
-          {/* User Info Card */}
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-muted-foreground/10 transition-all hover:bg-muted/60">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
               {profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
@@ -323,7 +332,6 @@ function AdminLayoutDynamicImproved() {
             </div>
           </div>
           
-          {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
@@ -349,7 +357,6 @@ function AdminLayoutDynamicImproved() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 relative">
-        {/* Top Bar - Improved */}
         <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 lg:px-8 gap-4 sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-4 min-w-0">
             <Button
@@ -366,7 +373,6 @@ function AdminLayoutDynamicImproved() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Command Palette & Notifications */}
             <div className="flex items-center bg-muted/30 rounded-full px-1 gap-1">
               <CommandPalette />
               <NotificationBell
@@ -380,7 +386,6 @@ function AdminLayoutDynamicImproved() {
             
             <div className="h-8 w-[1px] bg-border/50 mx-1 hidden sm:block" />
             
-            {/* User Settings Button */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -395,7 +400,6 @@ function AdminLayoutDynamicImproved() {
           </div>
         </header>
 
-        {/* Page Content - Improved */}
         <main className="flex-1 overflow-auto bg-muted/10">
           <div className="container mx-auto p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500">
             {isPathAllowed(location.pathname) ? (
@@ -418,7 +422,6 @@ function AdminLayoutDynamicImproved() {
         </main>
       </div>
 
-      {/* CSS for animations */}
       <style>{`
         @keyframes slideIn {
           from {
