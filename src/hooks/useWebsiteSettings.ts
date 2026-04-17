@@ -134,15 +134,18 @@ const websiteSettingsSchema = z.object({
 export function useWebsiteSettings() {
   return useQuery({
     queryKey: ["website-settings"],
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60,
+    retry: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("website_settings")
         .select("*")
         .eq("id", SETTINGS_ID)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      
+      if (!data) return null;
       return mapWebsiteSettings(data);
     },
   });
