@@ -4976,6 +4976,17 @@ export type Database = {
         Args: { _booking_id: string; _user_id: string }
         Returns: boolean
       }
+      validate_employee_user_sync: {
+        Args: never
+        Returns: {
+          description: string
+          employee_code: string
+          employee_id: string
+          full_name: string
+          issue_type: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role:

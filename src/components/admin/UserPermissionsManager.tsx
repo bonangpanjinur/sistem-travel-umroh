@@ -10,29 +10,28 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
-  Search, ChevronDown, ChevronRight,
-  CheckCircle2, XCircle, AlertTriangle, RotateCcw, Info
+  Search, ChevronDown, ChevronRight, ShieldCheck,
+  RotateCcw, CheckCircle2, XCircle, Crown, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { logUserPermissionChange } from "@/lib/audit-logger";
 
 interface UserPermissionsManagerProps {
   userId: string;
   userName: string;
+  isSuperAdminTarget?: boolean;
 }
 
-interface PermissionItem {
-  permission_key: string;
+interface PermissionRow {
+  key: string;
   label: string;
   group_name: string;
   description: string | null;
   is_enabled: boolean;
-  source: 'role' | 'override' | 'default';
+  hasOverride: boolean;
 }
 
 const GROUP_ICONS: Record<string, string> = {
@@ -47,131 +46,191 @@ const GROUP_ICONS: Record<string, string> = {
   "Pengaturan": "⚙️",
   "Laporan": "📋",
   "Support & Komunikasi": "💬",
+  "Lainnya": "📁",
 };
 
-export function UserPermissionsManager({ userId, userName }: UserPermissionsManagerProps) {
+export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }: UserPermissionsManagerProps) {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const { data: permissions = [], isLoading } = useQuery({
-    queryKey: ["user-permissions-detailed", userId],
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["user-permissions-detail", userId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_user_all_effective_permissions', {
-        p_user_id: userId
-      });
-      
-      if (error) throw error;
-
-      // Fetch labels and groups from permissions_list
-      const { data: listData, error: listError } = await supabase
+      // Fetch all permissions list
+      const { data: list, error: listErr } = await supabase
         .from('permissions_list')
-        .select('*');
-      
-      if (listError) throw listError;
+        .select('*')
+        .order('group_name', { ascending: true })
+        .order('label', { ascending: true });
+      if (listErr) throw listErr;
 
-      return (data as any[]).map(item => {
-        const detail = listData?.find(d => d.key === item.permission_key);
+      // Fetch user-specific overrides (user_permissions table)
+      const { data: overrides, error: overrideErr } = await supabase
+        .from('user_permissions')
+        .select('permission_key, is_enabled')
+        .eq('user_id', userId);
+      if (overrideErr) throw overrideErr;
+
+      const overrideMap = new Map(
+        (overrides || []).map(o => [o.permission_key, o.is_enabled])
+      );
+
+      return (list || []).map((p: any): PermissionRow => {
+        const has = overrideMap.has(p.key);
         return {
-          ...item,
-          label: detail?.label || item.permission_key,
-          group_name: detail?.group_name || 'General',
-          description: detail?.description
+          key: p.key,
+          label: p.label,
+          group_name: p.group_name || 'Lainnya',
+          description: p.description,
+          is_enabled: has ? (overrideMap.get(p.key) as boolean) : true, // default allow
+          hasOverride: has,
         };
-      }) as PermissionItem[];
+      });
     },
+    enabled: !isSuperAdminTarget,
   });
 
   const toggleMutation = useMutation({
-    mutationFn: async ({ permissionKey, newValue }: { permissionKey: string; newValue: boolean }) => {
-      // Logic: 
-      // 1. Get current role-based permission
-      // 2. If newValue matches role-based, remove override
-      // 3. If newValue differs from role-based, upsert override
-      
-      const { data: rolePerms } = await supabase
-        .from('user_roles')
-        .select('role, role_permissions(permission_key, is_enabled)')
-        .eq('user_id', userId);
-      
-      const roleHasIt = rolePerms?.some(rp => 
-        (rp.role_permissions as any)?.some((p: any) => p.permission_key === permissionKey && p.is_enabled)
-      );
-
-      if (roleHasIt === newValue) {
-        // Remove override if it matches role default
-        await supabase
-          .from('user_permissions_overrides')
+    mutationFn: async ({ key, newValue, oldValue }: { key: string; newValue: boolean; oldValue: boolean }) => {
+      // Default is enabled. If new value is enabled (true) → remove override
+      // If new value is disabled (false) → upsert override is_enabled=false
+      if (newValue === true) {
+        const { error } = await supabase
+          .from('user_permissions')
           .delete()
           .eq('user_id', userId)
-          .eq('permission_key', permissionKey);
+          .eq('permission_key', key);
+        if (error) throw error;
       } else {
-        // Upsert override
         const { error } = await supabase
-          .from('user_permissions_overrides')
-          .upsert({ 
-            user_id: userId, 
-            permission_key: permissionKey, 
-            is_enabled: newValue,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id, permission_key' });
-        
+          .from('user_permissions')
+          .upsert(
+            { user_id: userId, permission_key: key, is_enabled: false },
+            { onConflict: 'user_id,permission_key' }
+          );
+        if (error) throw error;
+      }
+      // Audit log (best-effort, don't fail mutation if it errors)
+      logUserPermissionChange(userId, key, oldValue, newValue).catch(() => {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-detail", userId] });
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-revoked"] });
+      toast.success("Izin diperbarui");
+    },
+    onError: (error: any) => {
+      console.error(error);
+      toast.error("Gagal memperbarui izin: " + (error?.message || ''));
+    },
+  });
+
+  const groupBulkMutation = useMutation({
+    mutationFn: async ({ groupItems, enable }: { groupItems: PermissionRow[]; enable: boolean }) => {
+      if (enable) {
+        const keys = groupItems.filter(p => p.hasOverride).map(p => p.key);
+        if (keys.length === 0) return;
+        const { error } = await supabase
+          .from('user_permissions')
+          .delete()
+          .eq('user_id', userId)
+          .in('permission_key', keys);
+        if (error) throw error;
+      } else {
+        const upsertPayload = groupItems.map(p => ({
+          user_id: userId,
+          permission_key: p.key,
+          is_enabled: false,
+        }));
+        const { error } = await supabase
+          .from('user_permissions')
+          .upsert(upsertPayload, { onConflict: 'user_id,permission_key' });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-permissions-detailed", userId] });
-      toast.success("Izin berhasil diperbarui");
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-detail", userId] });
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-revoked"] });
+      toast.success("Izin grup diperbarui");
     },
-    onError: (error) => {
-      console.error(error);
-      toast.error("Gagal memperbarui izin");
-    },
+    onError: () => toast.error("Gagal memperbarui izin grup"),
   });
 
-  const resetMutation = useMutation({
+  const resetAllMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from('user_permissions_overrides')
+        .from('user_permissions')
         .delete()
         .eq('user_id', userId);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-permissions-detailed", userId] });
-      toast.success("Semua izin telah dikembalikan ke pengaturan peran (default)");
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-detail", userId] });
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-revoked"] });
+      toast.success("Semua izin dikembalikan ke default (akses penuh)");
     },
-    onError: () => {
-      toast.error("Gagal mereset izin");
-    }
+    onError: () => toast.error("Gagal mereset izin"),
   });
 
   const grouped = useMemo(() => {
     const filtered = searchQuery
-      ? permissions.filter(
-          (p) =>
-            p.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (p.description || "").toLowerCase().includes(searchQuery.toLowerCase())
+      ? rows.filter(p =>
+          p.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (p.description || '').toLowerCase().includes(searchQuery.toLowerCase())
         )
-      : permissions;
-
-    return filtered.reduce<Record<string, PermissionItem[]>>((acc, p) => {
+      : rows;
+    return filtered.reduce<Record<string, PermissionRow[]>>((acc, p) => {
       if (!acc[p.group_name]) acc[p.group_name] = [];
       acc[p.group_name].push(p);
       return acc;
     }, {});
-  }, [permissions, searchQuery]);
+  }, [rows, searchQuery]);
 
-  const overrideCount = permissions.filter(p => p.source === 'override').length;
+  const stats = useMemo(() => ({
+    total: rows.length,
+    active: rows.filter(p => p.is_enabled).length,
+    revoked: rows.filter(p => !p.is_enabled).length,
+    overrides: rows.filter(p => p.hasOverride).length,
+  }), [rows]);
+
+  // Super admin special view
+  if (isSuperAdminTarget) {
+    return (
+      <div className="space-y-4 py-6">
+        <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-6 text-center">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg mb-3">
+            <Crown className="h-7 w-7" />
+          </div>
+          <h3 className="text-lg font-bold text-amber-900">Super Admin</h3>
+          <p className="text-sm text-amber-800/80 mt-1">
+            <span className="font-semibold">{userName}</span> memiliki akses penuh ke seluruh sistem.
+          </p>
+          <p className="text-xs text-amber-700/70 mt-2">
+            Izin Super Admin tidak dapat dibatasi.
+          </p>
+          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-amber-200 text-xs font-medium text-amber-900">
+            <Sparkles className="h-3 w-3" />
+            Akses Penuh Aktif
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-2">
+      <div className="space-y-3 p-2">
+        <div className="grid grid-cols-3 gap-2">
+          {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+        </div>
+        <Skeleton className="h-9 w-full" />
         {[1, 2, 3].map((i) => (
           <div key={i} className="space-y-2">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
           </div>
         ))}
       </div>
@@ -181,99 +240,191 @@ export function UserPermissionsManager({ userId, userName }: UserPermissionsMana
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="px-3 py-1.5">
-              {permissions.filter(p => p.is_enabled).length} Aktif
-            </Badge>
-            {overrideCount > 0 && (
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
-                {overrideCount} Manual Override
-              </Badge>
-            )}
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl border bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200 p-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700">Aktif</span>
+            </div>
+            <p className="text-2xl font-bold text-emerald-900 mt-1">{stats.active}</p>
+            <p className="text-[10px] text-emerald-700/70">dari {stats.total} izin</p>
           </div>
-          
-          {overrideCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => resetMutation.mutate()}
-              className="text-xs h-8 text-muted-foreground hover:text-destructive"
+          <div className="rounded-xl border bg-gradient-to-br from-red-50 to-rose-50 border-red-200 p-3">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-600" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-red-700">Dicabut</span>
+            </div>
+            <p className="text-2xl font-bold text-red-900 mt-1">{stats.revoked}</p>
+            <p className="text-[10px] text-red-700/70">tidak dapat akses</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200 p-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-amber-600" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-700">Override</span>
+            </div>
+            <p className="text-2xl font-bold text-amber-900 mt-1">{stats.overrides}</p>
+            <p className="text-[10px] text-amber-700/70">diatur manual</p>
+          </div>
+        </div>
+
+        {/* Search + reset */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari menu atau izin..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
+          {stats.overrides > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Reset semua ${stats.overrides} pengaturan manual ke akses penuh?`)) {
+                  resetAllMutation.mutate();
+                }
+              }}
+              className="h-9 gap-1.5 text-xs"
             >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Reset ke Default
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
             </Button>
           )}
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari izin akses..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 text-sm"
-          />
-        </div>
+        {/* Permissions list */}
+        <ScrollArea className="h-[55vh] pr-2 -mr-2">
+          <div className="space-y-2">
+            {Object.entries(grouped).length === 0 && (
+              <div className="text-center py-12 text-sm text-muted-foreground">
+                Tidak ada izin yang cocok dengan pencarian.
+              </div>
+            )}
+            {Object.entries(grouped).map(([group, items]) => {
+              const groupActive = items.filter(p => p.is_enabled).length;
+              const isCollapsed = collapsedGroups.has(group);
+              const allEnabled = items.every(p => p.is_enabled);
+              const allDisabled = items.every(p => !p.is_enabled);
+              return (
+                <div key={group} className="rounded-xl border bg-card overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 px-3 py-2.5 bg-gradient-to-r from-muted/40 to-muted/20 border-b">
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 flex-1 text-left hover:opacity-80 transition-opacity"
+                      onClick={() => {
+                        const next = new Set(collapsedGroups);
+                        if (next.has(group)) next.delete(group);
+                        else next.add(group);
+                        setCollapsedGroups(next);
+                      }}
+                    >
+                      {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      <span className="text-base">{GROUP_ICONS[group] || "📁"}</span>
+                      <span className="text-sm font-semibold">{group}</span>
+                      <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                        {groupActive}/{items.length}
+                      </Badge>
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={allEnabled || groupBulkMutation.isPending}
+                            onClick={() => groupBulkMutation.mutate({ groupItems: items, enable: true })}
+                            className="h-7 px-2 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                          >
+                            Aktif Semua
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Aktifkan semua izin di grup ini</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={allDisabled || groupBulkMutation.isPending}
+                            onClick={() => groupBulkMutation.mutate({ groupItems: items, enable: false })}
+                            className="h-7 px-2 text-xs text-red-700 hover:text-red-800 hover:bg-red-50"
+                          >
+                            Cabut Semua
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Cabut semua izin di grup ini</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
 
-        <ScrollArea className="h-[50vh] pr-2">
-          <div className="space-y-3">
-            {Object.entries(grouped).map(([group, items]) => (
-              <div key={group} className="rounded-lg border bg-card overflow-hidden">
-                <div 
-                  className="flex items-center gap-2 px-3 py-2 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => {
-                    const next = new Set(collapsedGroups);
-                    if (next.has(group)) next.delete(group);
-                    else next.add(group);
-                    setCollapsedGroups(next);
-                  }}
-                >
-                  {collapsedGroups.has(group) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  <span className="text-sm font-semibold">{GROUP_ICONS[group] || "📁"} {group}</span>
-                  <span className="text-[10px] text-muted-foreground ml-auto">{items.length} izin</span>
-                </div>
-
-                {!collapsedGroups.has(group) && (
-                  <div className="divide-y divide-border">
-                    {items.map((perm) => (
-                      <div key={perm.permission_key} className="flex items-center justify-between p-3 hover:bg-accent/5 transition-colors">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-sm font-medium leading-none cursor-pointer" htmlFor={perm.permission_key}>
-                              {perm.label}
-                            </Label>
-                            {perm.source === 'override' && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-amber-200 bg-amber-50 text-amber-700">
-                                    Override
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent>Izin ini telah diubah secara manual dari pengaturan peran.</TooltipContent>
-                              </Tooltip>
-                            )}
-                            {perm.source === 'role' && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-muted-foreground">
-                                Role-based
-                              </Badge>
+                  {!isCollapsed && (
+                    <div className="divide-y divide-border/60">
+                      {items.map((perm) => (
+                        <div
+                          key={perm.key}
+                          className={cn(
+                            "flex items-center justify-between gap-3 p-3 transition-colors",
+                            perm.is_enabled ? "hover:bg-emerald-50/30" : "bg-red-50/30 hover:bg-red-50/50"
+                          )}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Label
+                                htmlFor={`perm-${perm.key}`}
+                                className="text-sm font-medium cursor-pointer leading-tight"
+                              >
+                                {perm.label}
+                              </Label>
+                              {perm.hasOverride && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="h-4 px-1.5 text-[9px] border-amber-300 bg-amber-50 text-amber-800">
+                                      Manual
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Diatur manual oleh Super Admin</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {!perm.hasOverride && (
+                                <Badge variant="outline" className="h-4 px-1.5 text-[9px] text-muted-foreground border-border">
+                                  Default
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 truncate font-mono">
+                              {perm.key}
+                            </p>
+                            {perm.description && (
+                              <p className="text-[11px] text-muted-foreground/80 mt-0.5 line-clamp-2">
+                                {perm.description}
+                              </p>
                             )}
                           </div>
-                          {perm.description && (
-                            <p className="text-[11px] text-muted-foreground line-clamp-1">{perm.description}</p>
-                          )}
+                          <Switch
+                            id={`perm-${perm.key}`}
+                            checked={perm.is_enabled}
+                            disabled={toggleMutation.isPending}
+                            onCheckedChange={(val) =>
+                              toggleMutation.mutate({
+                                key: perm.key,
+                                newValue: val,
+                                oldValue: perm.is_enabled,
+                              })
+                            }
+                          />
                         </div>
-                        <Switch
-                          id={perm.permission_key}
-                          checked={perm.is_enabled}
-                          onCheckedChange={(val) => toggleMutation.mutate({ permissionKey: perm.permission_key, newValue: val })}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </ScrollArea>
       </div>

@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { 
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
-  CalendarDays, Building2, Link2Off, MapPin,
+  CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
   ChevronLeft, ChevronRight
 } from "lucide-react";
@@ -529,7 +529,7 @@ export default function AdminDepartures() {
             <DialogTitle>{editingDeparture ? 'Edit Jadwal' : 'Tambah Jadwal Baru'}</DialogTitle>
           </DialogHeader>
           <DepartureForm 
-            initialData={editingDeparture} 
+            departureData={editingDeparture || undefined} 
             onSuccess={handleFormClose}
             onCancel={handleFormClose}
           />
@@ -544,6 +544,7 @@ export default function AdminDepartures() {
           {itineraryDeparture && (
             <LinkItineraryForm 
               departureId={itineraryDeparture.id} 
+              departureDate={itineraryDeparture.departure_date}
               onSuccess={() => setItineraryDeparture(null)} 
             />
           )}

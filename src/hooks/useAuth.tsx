@@ -3,7 +3,6 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole, Profile } from '@/types/database';
 import { sortRoles } from '@/lib/constants';
-import { RECOMMENDED_MENUS } from './useSyncMenusFixed';
 
 interface AuthContextType {
   user: User | null;
@@ -68,42 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
-      if (profileData) {
-        setProfile(profileData as Profile);
+      // Fetch profile + roles in parallel for faster login
+      const [profileRes, rolesRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('user_id', userId).single(),
+        supabase.from('user_roles').select('role, branch_id').eq('user_id', userId),
+      ]);
+
+      if (profileRes.data) {
+        setProfile(profileRes.data as Profile);
       }
 
-      // Fetch roles
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('role, branch_id')
-        .eq('user_id', userId);
-      
-      if (rolesData) {
-        const userRoles = sortRoles(rolesData.map(r => r.role as AppRole));
+      if (rolesRes.data) {
+        const userRoles = sortRoles(rolesRes.data.map(r => r.role as AppRole));
         setRoles(userRoles);
-        const branchRole = rolesData.find(r => r.branch_id);
+        const branchRole = rolesRes.data.find(r => r.branch_id);
         setBranchId(branchRole?.branch_id || null);
-
-        // Auto-sync menus for admin/staff on login to ensure sidebar is clean
-        const isAdminOrStaff = userRoles.some(role => 
-          ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'].includes(role)
-        );
-        
-        if (isAdminOrStaff) {
-          // Send array directly as JSONB - Supabase will handle JSON serialization
-          supabase.rpc('bulk_sync_menu_items', {
-            _menu_items: RECOMMENDED_MENUS
-          })
-            .then(() => console.log('Menu sync completed'))
-            .catch((err: any) => console.error('Menu sync failed:', err));
-        }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);

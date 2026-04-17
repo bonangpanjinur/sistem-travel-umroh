@@ -220,7 +220,7 @@ export default function AdminDashboard() {
                 </div>
                 <p className="text-xs text-blue-800 dark:text-blue-300">Segera periksa dan verifikasi dokumen jamaah</p>
                 <Button variant="outline" size="sm" className="w-full mt-2" asChild>
-                  <Link to="/admin/documents-verification">Verifikasi Dokumen</Link>
+                  <Link to="/admin/document-verification">Verifikasi Dokumen</Link>
                 </Button>
               </div>
             </CardContent>
