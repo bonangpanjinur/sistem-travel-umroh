@@ -69,21 +69,16 @@ export function useAdminNotifications() {
   useEffect(() => {
     const channelId = crypto.randomUUID().slice(0, 8);
     
-    // Subscribe to new bookings
-    const bookingsChannel = supabase
-      .channel(`admin-bookings-${channelId}`)
+    // Combined channel for all admin notifications to reduce overhead
+    const adminChannel = supabase
+      .channel(`admin-notifications-${channelId}`)
+      // 1. New Bookings
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'bookings',
-        },
+        { event: 'INSERT', schema: 'public', table: 'bookings' },
         async (payload) => {
           if (!payload || !payload.new) return;
           const booking = payload.new as BookingRow;
-          
-          // Fetch customer name
           const { data: customer } = await supabase
             .from('customers')
             .select('full_name')
@@ -99,25 +94,13 @@ export function useAdminNotifications() {
           });
         }
       )
-      .subscribe((status) => {
-        if (status === 'CLOSED') console.warn('Admin bookings channel closed');
-      });
-
-    // Subscribe to new payments
-    const paymentsChannel = supabase
-      .channel(`admin-payments-${channelId}`)
+      // 2. New Payments
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'payments',
-        },
+        { event: 'INSERT', schema: 'public', table: 'payments' },
         async (payload) => {
           if (!payload || !payload.new) return;
           const payment = payload.new as PaymentRow;
-          
-          // Fetch booking code
           const { data: booking } = await supabase
             .from('bookings')
             .select('id, booking_code')
@@ -133,26 +116,15 @@ export function useAdminNotifications() {
           });
         }
       )
-      .subscribe((status) => {
-        if (status === 'CLOSED') console.warn('Admin payments channel closed');
-      });
-
-    // Subscribe to payment status updates (for verification)
-    const paymentUpdatesChannel = supabase
-      .channel(`admin-payment-updates-${channelId}`)
+      // 3. Payment Verification Updates
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'payments',
-        },
+        { event: 'UPDATE', schema: 'public', table: 'payments' },
         async (payload) => {
           if (!payload || !payload.new || !payload.old) return;
           const payment = payload.new as PaymentRow;
           const oldPayment = payload.old as PaymentRow;
           
-          // Only notify if status changed to pending (new proof uploaded)
           if (oldPayment.status !== 'pending' && payment.status === 'pending' && payment.proof_url) {
             const { data: booking } = await supabase
               .from('bookings')
@@ -170,25 +142,13 @@ export function useAdminNotifications() {
           }
         }
       )
-      .subscribe((status) => {
-        if (status === 'CLOSED') console.warn('Admin payment updates channel closed');
-      });
-
-    // Subscribe to new device registrations
-    const deviceRegistrationChannel = supabase
-      .channel(`admin-device-registrations-${channelId}`)
+      // 4. Device Registrations
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'employee_devices',
-        },
+        { event: 'INSERT', schema: 'public', table: 'employee_devices' },
         async (payload) => {
           if (!payload || !payload.new) return;
           const device = payload.new as EmployeeDevice;
-          
-          // Fetch employee details
           const { data: employee } = await supabase
             .from('employees')
             .select('id, full_name, employee_code')
@@ -205,14 +165,12 @@ export function useAdminNotifications() {
         }
       )
       .subscribe((status) => {
-        if (status === 'CLOSED') console.warn('Admin device registration channel closed');
+        if (status === 'CLOSED') console.warn('Admin notifications channel closed');
+        if (status === 'CHANNEL_ERROR') console.error('Admin notifications channel error');
       });
 
     return () => {
-      supabase.removeChannel(bookingsChannel);
-      supabase.removeChannel(paymentsChannel);
-      supabase.removeChannel(paymentUpdatesChannel);
-      supabase.removeChannel(deviceRegistrationChannel);
+      supabase.removeChannel(adminChannel);
     };
   }, [addNotification]);
 

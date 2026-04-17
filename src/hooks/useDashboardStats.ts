@@ -12,40 +12,46 @@ export function useDashboardStats(branchId?: string | null) {
   return useQuery({
     queryKey: ['admin-dashboard-stats', branchId],
     queryFn: async () => {
-      let bookingsQuery = supabase
-        .from('bookings')
-        .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id');
-      if (branchId) bookingsQuery = bookingsQuery.eq('branch_id', branchId);
-      const { data: rawBookings } = await bookingsQuery;
-
-      // Fetch agents separately to avoid join issues
-      const { data: agents } = await supabase
-        .from('agents')
-        .select('id, company_name');
+      // Use Promise.all to fetch all dashboard data in parallel
+      const [
+        { data: rawBookings },
+        { data: agents },
+        { count: customerCount },
+        { data: pendingPayments },
+        { data: leads }
+      ] = await Promise.all([
+        // Query 1: Bookings
+        (() => {
+          let q = supabase.from('bookings').select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id');
+          if (branchId) q = q.eq('branch_id', branchId);
+          return q;
+        })(),
+        // Query 2: Agents
+        supabase.from('agents').select('id, company_name'),
+        // Query 3: Customer Count
+        (() => {
+          let q = supabase.from('customers').select('*', { count: 'exact', head: true });
+          if (branchId) q = q.eq('branch_id', branchId);
+          return q;
+        })(),
+        // Query 4: Pending Payments
+        (() => {
+          let q = supabase.from('payments').select('amount, booking:bookings!inner(branch_id)').eq('status', 'pending');
+          if (branchId) q = q.eq('booking.branch_id', branchId);
+          return q;
+        })(),
+        // Query 5: Leads
+        (() => {
+          let q = supabase.from('leads').select('id, status, created_at');
+          if (branchId) q = q.eq('branch_id', branchId);
+          return q;
+        })()
+      ]);
 
       const bookings = rawBookings?.map(b => ({
         ...b,
         agent: agents?.find(a => a.id === b.agent_id) || null
       })) || [];
-
-      let customerQuery = supabase
-        .from('customers')
-        .select('*', { count: 'exact', head: true });
-      if (branchId) customerQuery = customerQuery.eq('branch_id', branchId);
-      const { count: customerCount } = await customerQuery;
-
-      let pendingQuery = supabase
-        .from('payments')
-        .select('amount, booking:bookings!inner(branch_id)')
-        .eq('status', 'pending');
-      if (branchId) pendingQuery = pendingQuery.eq('booking.branch_id', branchId);
-      const { data: pendingPayments } = await pendingQuery;
-
-      let leadsQuery = supabase
-        .from('leads')
-        .select('id, status, created_at');
-      if (branchId) leadsQuery = leadsQuery.eq('branch_id', branchId);
-      const { data: leads } = await leadsQuery;
 
       const totalRevenue = bookings?.reduce((sum, b) => sum + (b.paid_amount || 0), 0) || 0;
       const totalBookings = bookings?.length || 0;
@@ -175,6 +181,7 @@ export function useDashboardStats(branchId?: string | null) {
         arData
       };
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes stale time for dashboard
   });
 }
 

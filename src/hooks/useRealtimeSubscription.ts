@@ -1,20 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Subscribe to realtime changes on a Supabase table and auto-invalidate React Query caches.
- * @param table - The table name to subscribe to
- * @param queryKeys - Array of query keys to invalidate when changes occur
+ * Optimized with debounce to prevent excessive refetching.
  */
 export function useRealtimeSubscription(
   table: string,
   queryKeys: string[][]
 ) {
   const queryClient = useQueryClient();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Add a unique but stable suffix to avoid collisions between multiple instances
     const instanceId = Math.random().toString(36).substring(2, 9);
     const channel = supabase
       .channel(`realtime-${table}-${instanceId}`)
@@ -22,19 +21,23 @@ export function useRealtimeSubscription(
         'postgres_changes',
         { event: '*', schema: 'public', table },
         () => {
-          queryKeys.forEach((key) => {
-            queryClient.invalidateQueries({ queryKey: key });
-          });
+          // Debounce invalidation to prevent waterfall refetching
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => {
+            queryKeys.forEach((key) => {
+              queryClient.invalidateQueries({ queryKey: key });
+            });
+          }, 300); // 300ms debounce
         }
       );
     
-    // Subscribe AFTER all .on() callbacks are registered
     channel.subscribe();
 
     return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       supabase.removeChannel(channel);
     };
-  }, [table, queryClient]); // queryKeys intentionally omitted to avoid re-subscribing
+  }, [table, queryClient]);
 }
 
 export function useMultipleRealtimeSubscriptions(
@@ -42,33 +45,35 @@ export function useMultipleRealtimeSubscriptions(
   queryKeys: string[][]
 ) {
   const queryClient = useQueryClient();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const instanceId = Math.random().toString(36).substring(2, 9);
-    const channels = tables.map((table) => {
-      const channel = supabase.channel(`realtime-${table}-${instanceId}`);
-      
-      // Add listener BEFORE subscribing to avoid postgres_changes error
+    
+    // Create a single channel for multiple tables if possible, 
+    // but Supabase JS client usually recommends one per table or one channel with multiple .on()
+    const channel = supabase.channel(`realtime-multi-${instanceId}`);
+    
+    tables.forEach((table) => {
       channel.on(
         'postgres_changes',
         { event: '*', schema: 'public', table },
         () => {
-          queryKeys.forEach((key) => {
-            queryClient.invalidateQueries({ queryKey: key });
-          });
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => {
+            queryKeys.forEach((key) => {
+              queryClient.invalidateQueries({ queryKey: key });
+            });
+          }, 500); // Higher debounce for multiple tables
         }
       );
-      
-      // Subscribe after all listeners are attached
-      channel.subscribe();
-      
-      return channel;
     });
+    
+    channel.subscribe();
 
     return () => {
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel);
-      });
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      supabase.removeChannel(channel);
     };
   }, [tables.join(','), queryClient]);
 }

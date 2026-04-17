@@ -24,8 +24,9 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { 
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
-  CalendarDays, Hotel, Building2, Link2Off, MapPin,
-  MessageCircle, Bell, Send, DollarSign, MoreVertical
+  CalendarDays, Building2, Link2Off, MapPin,
+  MessageCircle, Bell, Send, DollarSign, MoreVertical,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
@@ -44,6 +45,8 @@ const MONTHS = [
   { value: "12", label: "Desember" },
 ];
 
+const ITEMS_PER_PAGE = 20;
+
 export default function AdminDepartures() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,11 +57,30 @@ export default function AdminDepartures() {
   const [editingDeparture, setEditingDeparture] = useState<any>(null);
   const [deleteDeparture, setDeleteDeparture] = useState<any>(null);
   const [itineraryDeparture, setItineraryDeparture] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const { data: departures, isLoading } = useQuery({
-    queryKey: ['admin-all-departures'],
+  // Separate query for stats to avoid overhead on every page change
+  const { data: statsData } = useQuery({
+    queryKey: ['admin-departures-stats'],
     queryFn: async () => {
       const { data, error } = await supabase
+        .from('departures')
+        .select('id, package_id, status, booked_count');
+      if (error) throw error;
+      return {
+        total: data.length,
+        linked: data.filter(d => d.package_id).length,
+        unlinked: data.filter(d => !d.package_id).length,
+        open: data.filter(d => d.status === 'open').length,
+        totalBooked: data.reduce((sum, d) => sum + (d.booked_count || 0), 0),
+      };
+    }
+  });
+
+  const { data: departuresData, isLoading } = useQuery({
+    queryKey: ['admin-departures', currentPage, searchTerm, statusFilter, monthFilter, linkedFilter],
+    queryFn: async () => {
+      let query = supabase
         .from('departures')
         .select(`
           *,
@@ -70,11 +92,34 @@ export default function AdminDepartures() {
           hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, star_rating),
           muthawif:muthawifs(name),
           team_leader:customers!departures_team_leader_id_fkey(full_name)
-        `)
-        .order('departure_date', { ascending: true });
+        `, { count: 'exact' });
+
+      // Apply Filters
+      if (searchTerm) {
+        query = query.or(`flight_number.ilike.%${searchTerm}%,package.name.ilike.%${searchTerm}%,package.code.ilike.%${searchTerm}%`);
+      }
+      if (statusFilter !== "all") {
+        query = query.eq('status', statusFilter);
+      }
+      if (monthFilter !== "all") {
+        query = query.ilike('departure_date', `${monthFilter}%`);
+      }
+      if (linkedFilter === "linked") {
+        query = query.not('package_id', 'is', null);
+      } else if (linkedFilter === "unlinked") {
+        query = query.is('package_id', null);
+      }
+
+      // Pagination
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      
+      const { data, error, count } = await query
+        .order('departure_date', { ascending: true })
+        .range(from, to);
 
       if (error) throw error;
-      return data;
+      return { data, count };
     },
   });
 
@@ -85,7 +130,8 @@ export default function AdminDepartures() {
     },
     onSuccess: () => {
       toast.success("Jadwal berhasil dihapus");
-      queryClient.invalidateQueries({ queryKey: ['admin-all-departures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-departures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-departures-stats'] });
       setDeleteDeparture(null);
     },
     onError: (error: Error) => {
@@ -109,37 +155,9 @@ export default function AdminDepartures() {
     },
   });
 
-  const months = departures 
-    ? [...new Set(departures.map(d => d.departure_date ? d.departure_date.substring(0, 7) : null).filter(Boolean))]
-        .sort()
-        .map(m => {
-          if (m?.startsWith('MONTH-')) {
-            const monthVal = m.replace('MONTH-', '');
-            const label = MONTHS.find(mon => mon.value === monthVal)?.label || monthVal;
-            return { value: m, label: `Bulan ${label}` };
-          }
-          return { value: m, label: new Date(m + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) };
-        })
-    : [];
-
-  const filteredDepartures = departures?.filter(dep => {
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      const matchesSearch = 
-        dep.package?.name?.toLowerCase().includes(search) ||
-        dep.package?.code?.toLowerCase().includes(search) ||
-        dep.flight_number?.toLowerCase().includes(search) ||
-        dep.airline?.name?.toLowerCase().includes(search);
-      if (!matchesSearch) return false;
-    }
-    if (statusFilter !== "all" && dep.status !== statusFilter) return false;
-    if (monthFilter !== "all") {
-      if (!dep.departure_date || !dep.departure_date.startsWith(monthFilter)) return false;
-    }
-    if (linkedFilter === "linked" && !dep.package_id) return false;
-    if (linkedFilter === "unlinked" && dep.package_id) return false;
-    return true;
-  });
+  const departures = departuresData?.data || [];
+  const totalCount = departuresData?.count || 0;
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -166,12 +184,12 @@ export default function AdminDepartures() {
     setEditingDeparture(null);
   };
 
-  const stats = {
-    total: departures?.length || 0,
-    linked: departures?.filter(d => d.package_id).length || 0,
-    unlinked: departures?.filter(d => !d.package_id).length || 0,
-    open: departures?.filter(d => d.status === 'open').length || 0,
-    totalBooked: departures?.reduce((sum, d) => sum + (d.booked_count || 0), 0) || 0,
+  const stats = statsData || {
+    total: 0,
+    linked: 0,
+    unlinked: 0,
+    open: 0,
+    totalBooked: 0,
   };
 
   const formatShortCurrency = (value: number | null | undefined) => {
@@ -276,332 +294,281 @@ export default function AdminDepartures() {
         </Card>
       </div>
 
-      {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari paket, maskapai, atau no. penerbangan..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <CardTitle>Daftar Jadwal</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari jadwal..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="open">Buka</SelectItem>
+                  <SelectItem value="closed">Tutup</SelectItem>
+                  <SelectItem value="full">Penuh</SelectItem>
+                  <SelectItem value="departed">Berangkat</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={linkedFilter} onValueChange={(val) => { setLinkedFilter(val); setCurrentPage(1); }}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Koneksi Paket" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="linked">Terhubung Paket</SelectItem>
+                  <SelectItem value="unlinked">Belum Terhubung</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={linkedFilter} onValueChange={setLinkedFilter}>
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="Hubungan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua</SelectItem>
-                <SelectItem value="linked">Terhubung Paket</SelectItem>
-                <SelectItem value="unlinked">Belum Terhubung</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="open">Buka</SelectItem>
-                <SelectItem value="closed">Tutup</SelectItem>
-                <SelectItem value="full">Penuh</SelectItem>
-                <SelectItem value="departed">Sudah Berangkat</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Bulan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Bulan</SelectItem>
-                {months.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="pt-6 px-0">
-          {isLoading ? (
-            <div className="space-y-4 px-6">
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16" />)}
-            </div>
-          ) : !filteredDepartures || filteredDepartures.length === 0 ? (
-            <div className="text-center py-12">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {searchTerm || statusFilter !== 'all' || monthFilter !== 'all' || linkedFilter !== 'all'
-                  ? 'Tidak ada jadwal yang cocok dengan filter.' 
-                  : 'Belum ada jadwal keberangkatan.'}
-              </p>
-            </div>
-          ) : (
-            <TooltipProvider>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">Tanggal</TableHead>
-                      <TableHead className="whitespace-nowrap">Paket</TableHead>
-                      <TableHead className="whitespace-nowrap">Penerbangan</TableHead>
-                      <TableHead className="whitespace-nowrap">Hotel</TableHead>
-                      <TableHead className="whitespace-nowrap">Harga per Kamar</TableHead>
-                      <TableHead className="text-center whitespace-nowrap">Kuota</TableHead>
-                      <TableHead className="whitespace-nowrap">Status</TableHead>
-                      <TableHead className="text-right w-[50px]"></TableHead>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jadwal & Paket</TableHead>
+                  <TableHead>Penerbangan</TableHead>
+                  <TableHead>Hotel (Mk/Md)</TableHead>
+                  <TableHead className="text-center">Kuota</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-20 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-20 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-20 ml-auto" /></TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredDepartures.map((dep) => (
-                      <TableRow key={dep.id}>
-                        {/* Tanggal */}
-                        <TableCell className="whitespace-nowrap">
+                  ))
+                ) : departures.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                      Tidak ada jadwal ditemukan
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  departures.map((dep) => (
+                    <TableRow key={dep.id}>
+                      <TableCell>
+                        <div className="space-y-1">
                           {getDepartureLabel(dep)}
-                        </TableCell>
-
-                        {/* Paket */}
-                        <TableCell>
                           {dep.package ? (
-                            <div className="max-w-[160px]">
-                              <Link 
-                                to={`/admin/packages/${dep.package.id}`}
-                                className="font-medium text-sm hover:text-primary hover:underline line-clamp-2"
-                              >
-                                {dep.package.name}
-                              </Link>
-                              <p className="text-xs text-muted-foreground">{dep.package.code}</p>
-                            </div>
+                            <Link to={`/admin/packages/${dep.package.id}`} className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                              <Building2 className="h-3 w-3" />
+                              {dep.package.name} ({dep.package.code})
+                            </Link>
                           ) : (
-                            <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">
-                              <Link2Off className="h-3 w-3 mr-1" />
-                              Belum
+                            <Badge variant="outline" className="text-[10px] text-orange-500 border-orange-200 bg-orange-50">
+                              Belum Terhubung Paket
                             </Badge>
                           )}
-                        </TableCell>
-
-                        {/* Penerbangan */}
-                        <TableCell>
-                          <div className="space-y-0.5">
-                            {dep.airline && (
-                              <p className="text-sm font-medium truncate max-w-[120px]">{dep.airline.name}</p>
-                            )}
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <span>{dep.departure_airport?.code || '-'}</span>
-                              <Plane className="h-3 w-3 shrink-0" />
-                              <span>{dep.arrival_airport?.code || '-'}</span>
-                            </div>
-                            {dep.flight_number && (
-                              <p className="text-xs text-muted-foreground">{dep.flight_number}</p>
-                            )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1 text-sm font-medium">
+                            <Plane className="h-3 w-3" />
+                            {dep.airline?.code || '-'} {dep.flight_number || ''}
                           </div>
-                        </TableCell>
-
-                        {/* Hotel - Gabung Makkah & Madinah */}
-                        <TableCell>
-                          <div className="space-y-1 max-w-[180px]">
-                            {dep.hotel_makkah ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1.5">
-                                    <Hotel className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                                    <span className="text-sm truncate">{dep.hotel_makkah.name}</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Makkah: {dep.hotel_makkah.name} {'⭐'.repeat(dep.hotel_makkah.star_rating || 0)}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Makkah: -</span>
-                            )}
-                            {dep.hotel_madinah ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1.5">
-                                    <Hotel className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                                    <span className="text-sm truncate">{dep.hotel_madinah.name}</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Madinah: {dep.hotel_madinah.name} {'⭐'.repeat(dep.hotel_madinah.star_rating || 0)}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Madinah: -</span>
-                            )}
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <span>{dep.departure_airport?.code || '-'}</span>
+                            <span>→</span>
+                            <span>{dep.arrival_airport?.code || '-'}</span>
                           </div>
-                        </TableCell>
-
-                        {/* Harga per Kamar - Grid 2x2 */}
-                        <TableCell>
-                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs min-w-[140px]">
-                            {[
-                              { label: 'Q', value: dep.price_quad, full: 'Quad', color: 'text-blue-600' },
-                              { label: 'T', value: dep.price_triple, full: 'Triple', color: 'text-emerald-600' },
-                              { label: 'D', value: dep.price_double, full: 'Double', color: 'text-amber-600' },
-                              { label: 'S', value: dep.price_single, full: 'Single', color: 'text-purple-600' },
-                            ].map(p => (
-                              <Tooltip key={p.label}>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1 cursor-default">
-                                    <span className={`font-bold ${p.color}`}>{p.label}</span>
-                                    <span className="font-medium tabular-nums">{formatShortCurrency(p.value)}</span>
-                                  </div>
-                                </TooltipTrigger>
-                                {p.value && p.value > 0 && (
-                                  <TooltipContent><p>{p.full}: {formatCurrency(p.value)}</p></TooltipContent>
-                                )}
-                              </Tooltip>
-                            ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Hotel className="h-3 w-3 text-muted-foreground" />
+                            <span className="truncate max-w-[120px]">{dep.hotel_makkah?.name || '-'}</span>
+                            <span className="text-yellow-500">★{dep.hotel_makkah?.star_rating || 0}</span>
                           </div>
-                        </TableCell>
+                          <div className="flex items-center gap-1">
+                            <Hotel className="h-3 w-3 text-muted-foreground" />
+                            <span className="truncate max-w-[120px]">{dep.hotel_madinah?.name || '-'}</span>
+                            <span className="text-yellow-500">★{dep.hotel_madinah?.star_rating || 0}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="space-y-1">
+                          <div className="text-sm font-bold">
+                            {dep.booked_count || 0} / {dep.quota || 0}
+                          </div>
+                          <div className="w-full bg-secondary h-1 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-primary h-full" 
+                              style={{ width: `${Math.min(100, ((dep.booked_count || 0) / (dep.quota || 1)) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getStatusBadge(dep.status)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleEdit(dep)}>
+                              <Edit className="h-4 w-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setItineraryDeparture(dep)}>
+                              <MapPin className="h-4 w-4 mr-2" /> Kelola Itinerary
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-primary"
+                              onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'departure_reminder' })}
+                            >
+                              <Bell className="h-4 w-4 mr-2" /> Pengingat Berangkat
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-primary"
+                              onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'manasik_info' })}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" /> Info Manasik
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => setDeleteDeparture(dep)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Hapus
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-                        {/* Kuota */}
-                        <TableCell className="text-center">
-                          {(() => {
-                            const booked = dep.booked_count || 0;
-                            const quota = dep.quota;
-                            const pct = quota > 0 ? (booked / quota) * 100 : 0;
-                            const color = pct >= 100 ? 'text-destructive' : pct >= 75 ? 'text-orange-600' : 'text-green-600';
-                            return (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <div className="flex items-center gap-1">
-                                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span className={`text-sm font-bold ${color}`}>
-                                    {booked}/{quota}
-                                  </span>
-                                </div>
-                                <div className="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-destructive' : pct >= 75 ? 'bg-orange-500' : 'bg-green-500'}`}
-                                    style={{ width: `${Math.min(pct, 100)}%` }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
+          {/* Pagination Controls */}
+          {!isLoading && totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Menampilkan {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} dari {totalCount} data
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                    let pageNum = currentPage;
+                    if (currentPage <= 3) pageNum = i + 1;
+                    else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                    else pageNum = currentPage - 2 + i;
 
-                        {/* Status */}
-                        <TableCell>{getStatusBadge(dep.status)}</TableCell>
+                    if (pageNum <= 0 || pageNum > totalPages) return null;
 
-                        {/* Aksi */}
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEdit(dep)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setItineraryDeparture(dep)}>
-                                <MapPin className="h-4 w-4 mr-2" />
-                                Itinerary
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link to="/admin/finance/pl">
-                                  <DollarSign className="h-4 w-4 mr-2" />
-                                  Lihat P&L
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'departure_reminder' })}
-                              >
-                                <Bell className="h-4 w-4 mr-2" />
-                                Pengingat Berangkat
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => sendNotificationMutation.mutate({ departureId: dep.id, type: 'welcome_umrah' })}
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Ucapan Selamat
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setDeleteDeparture(dep)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Hapus
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className="w-8"
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
               </div>
-            </TooltipProvider>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Form Dialog */}
-      <Dialog open={isFormOpen} onOpenChange={handleFormClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingDeparture ? 'Edit Keberangkatan' : 'Tambah Keberangkatan Baru'}
-            </DialogTitle>
+            <DialogTitle>{editingDeparture ? 'Edit Jadwal' : 'Tambah Jadwal Baru'}</DialogTitle>
           </DialogHeader>
-          <DepartureForm
-            departureData={editingDeparture}
+          <DepartureForm 
+            initialData={editingDeparture} 
             onSuccess={handleFormClose}
             onCancel={handleFormClose}
           />
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteDeparture} onOpenChange={() => setDeleteDeparture(null)}>
+      <Dialog open={!!itineraryDeparture} onOpenChange={(open) => !open && setItineraryDeparture(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Kelola Itinerary - {itineraryDeparture?.package?.name}</DialogTitle>
+          </DialogHeader>
+          {itineraryDeparture && (
+            <LinkItineraryForm 
+              departureId={itineraryDeparture.id} 
+              onSuccess={() => setItineraryDeparture(null)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteDeparture} onOpenChange={(open) => !open && setDeleteDeparture(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Keberangkatan?</AlertDialogTitle>
+            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              Anda yakin ingin menghapus jadwal keberangkatan {deleteDeparture && (deleteDeparture.departure_date ? `tanggal ${formatDate(deleteDeparture.departure_date)}` : (deleteDeparture.month ? `bulan ${MONTHS.find(m => m.value === deleteDeparture.month)?.label}` : 'ini'))}? 
-              Tindakan ini tidak dapat dibatalkan.
+              Tindakan ini tidak dapat dibatalkan. Jadwal keberangkatan akan dihapus secara permanen dari database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogAction 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteDeparture && deleteMutation.mutate(deleteDeparture.id)}
+              onClick={() => deleteMutation.mutate(deleteDeparture.id)}
             >
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Itinerary Dialog */}
-      <Dialog open={!!itineraryDeparture} onOpenChange={() => setItineraryDeparture(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Itinerary Keberangkatan</DialogTitle>
-          </DialogHeader>
-          {itineraryDeparture && (
-            <LinkItineraryForm 
-              departureId={itineraryDeparture.id}
-              departureDate={itineraryDeparture.departure_date}
-              onSuccess={() => setItineraryDeparture(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
