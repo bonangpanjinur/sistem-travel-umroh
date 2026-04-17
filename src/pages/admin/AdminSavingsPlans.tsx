@@ -183,7 +183,8 @@ export default function AdminSavingsPlans() {
       const amount = parseFloat(manualAmount);
       if (isNaN(amount) || amount <= 0) throw new Error('Jumlah tidak valid');
 
-      const { data: paymentCode } = await supabase.rpc('generate_savings_payment_code');
+      const { data: paymentCode, error: paymentCodeError } = await supabase.rpc('generate_savings_payment_code');
+      if (paymentCodeError) throw paymentCodeError;
       
       const { error } = await supabase.from('savings_payments').insert({
         savings_plan_id: manualPaymentPlan.id,

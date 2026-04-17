@@ -99,7 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isAdminOrStaff) {
           supabase.rpc('bulk_sync_menu_items', {
             _menu_items: JSON.stringify(RECOMMENDED_MENUS)
-          }).catch(err => console.error('Menu sync failed:', err));
+          })
+            .then(() => console.log('Menu sync completed'))
+            .catch((err: any) => console.error('Menu sync failed:', err));
         }
       }
     } catch (error) {

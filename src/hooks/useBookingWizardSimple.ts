@@ -124,10 +124,14 @@ export function useBookingWizardSimple(
       const totalPrice = basePrice * totalPax;
 
       // 4. Create booking (remaining_amount is auto-calculated from total_price - paid_amount)
+      const { data: bookingCodeData, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: (departure.package as any)?.code || '', _departure_date: departure.departure_date });
+      if (bookingCodeError) throw bookingCodeError;
+      const bookingCode = bookingCodeData || `TRA${Date.now().toString(36).toUpperCase()}`;
+      
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
-          booking_code: (await supabase.rpc('generate_booking_code', { _package_code: (departure.package as any)?.code || '', _departure_date: departure.departure_date })).data || `TRA${Date.now().toString(36).toUpperCase()}`,
+          booking_code: bookingCode,
           departure_id: formData.departureId,
           customer_id: customer.id,
           room_type: formData.roomType,
