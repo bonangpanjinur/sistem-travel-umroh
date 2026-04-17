@@ -50,7 +50,7 @@ export function DistributionTab({
           id,
           customer_id,
           customer:customers(id, full_name),
-          booking:bookings(departure_id),
+          booking:bookings!inner(departure_id),
           is_main_passenger,
           passenger_type
         `)
@@ -58,7 +58,7 @@ export function DistributionTab({
         .order("customer.full_name");
       
       if (error) throw error;
-      return data as Passenger[];
+      return (data || []) as Passenger[];
     },
     enabled: selectedDeparture !== "all",
   });

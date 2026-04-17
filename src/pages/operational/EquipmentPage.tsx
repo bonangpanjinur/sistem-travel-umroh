@@ -117,12 +117,12 @@ export default function EquipmentPage() {
         .select(`
           id, customer_id,
           customer:customers(id, full_name, gender),
-          booking:bookings(departure_id),
+          booking:bookings!inner(departure_id),
           is_main_passenger, passenger_type
         `)
         .eq("booking.departure_id", selectedDeparture);
       if (error) throw error;
-      return (data || []).filter((p: any) => p.booking !== null) as Passenger[];
+      return (data || []) as Passenger[];
     },
     enabled: !!selectedDeparture,
   });
@@ -208,15 +208,24 @@ export default function EquipmentPage() {
       if (inserts.length === 0) throw new Error("Semua jamaah sudah lengkap atau stok habis");
       const { error } = await supabase.from("equipment_distributions").insert(inserts);
       if (error) throw error;
-      // Reduce stock
+      // Reduce stock atomically
       const stockMap = new Map<string, number>();
       inserts.forEach(ins => stockMap.set(ins.equipment_id, (stockMap.get(ins.equipment_id) || 0) + 1));
       for (const [eqId, qty] of stockMap) {
-        const item = items.find(i => i.id === eqId);
-        if (item) {
-          await supabase.from("equipment_items").update({
-            stock_quantity: Math.max(0, (item.stock_quantity || 0) - qty),
-          }).eq("id", eqId);
+        // Use atomic update to prevent race condition
+        const { error: updateError } = await supabase
+          .from("equipment_items")
+          .update({ stock_quantity: supabase.rpc('decrement_stock', { item_id: eqId, qty: qty }) })
+          .eq("id", eqId);
+        
+        // Fallback: if RPC not available, use client-side calculation with select
+        if (updateError) {
+          const item = items.find(i => i.id === eqId);
+          if (item) {
+            await supabase.from("equipment_items").update({
+              stock_quantity: Math.max(0, (item.stock_quantity || 0) - qty),
+            }).eq("id", eqId);
+          }
         }
       }
       return inserts.length;

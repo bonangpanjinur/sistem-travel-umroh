@@ -22,7 +22,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,8 @@ function AdminLayoutDynamicImproved() {
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle responsive sidebar behavior
   useEffect(() => {
@@ -59,6 +61,23 @@ function AdminLayoutDynamicImproved() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Debounce search query (150ms)
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 150);
+    
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   // Auto-expand group containing active path
   useEffect(() => {
@@ -102,18 +121,18 @@ function AdminLayoutDynamicImproved() {
     return location.pathname.startsWith(path);
   };
 
-  // Filter menus based on search query
+  // Filter menus based on debounced search query
   const filteredGroupedMenus = useMemo(() => {
-    if (!searchQuery) return groupedMenus;
+    if (!debouncedSearchQuery) return groupedMenus;
     
     return groupedMenus.map(group => ({
       ...group,
       items: group.items.filter(item => 
-        item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        group.name.toLowerCase().includes(searchQuery.toLowerCase())
+        item.label.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        group.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
       )
     })).filter(group => group.items.length > 0);
-  }, [groupedMenus, searchQuery]);
+  }, [groupedMenus, debouncedSearchQuery]);
 
 
 
@@ -187,7 +206,7 @@ function AdminLayoutDynamicImproved() {
                   <Search className="w-6 h-6 text-muted-foreground/50" />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {searchQuery ? 'Menu tidak ditemukan' : 'Tidak ada menu tersedia'}
+                  {debouncedSearchQuery ? 'Menu tidak ditemukan' : 'Tidak ada menu tersedia'}
                 </p>
               </div>
             ) : (
