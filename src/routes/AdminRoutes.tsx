@@ -1,7 +1,7 @@
 import { Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
+
 import { LoadingState } from "@/components/shared/LoadingState";
 
 const AdminLayout = lazy(() => import("@/components/admin/AdminLayoutDynamicImproved"));
@@ -77,11 +77,9 @@ export default function AdminRoutes() {
       path="/admin"
       element={
         <ProtectedRoute>
-          <ThemeProvider>
-            <Suspense fallback={<LoadingState />}>
-              <AdminLayout />
-            </Suspense>
-          </ThemeProvider>
+          <Suspense fallback={<LoadingState />}>
+            <AdminLayout />
+          </Suspense>
         </ProtectedRoute>
       }
     >

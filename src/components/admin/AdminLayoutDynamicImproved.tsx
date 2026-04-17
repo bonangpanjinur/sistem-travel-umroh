@@ -50,8 +50,9 @@ function AdminLayoutDynamicImproved() {
     const handleResize = () => {
       const isLargeScreen = window.innerWidth >= 1024;
       setIsDesktop(isLargeScreen);
-      if (isLargeScreen) setSidebarOpen(true);
-      else setSidebarOpen(false);
+      // Only auto-close sidebar on mobile, don't force open on desktop
+      // Let user's preference persist via CSS (lg:translate-x-0)
+      if (!isLargeScreen) setSidebarOpen(false);
     };
 
     handleResize();
@@ -114,16 +115,7 @@ function AdminLayoutDynamicImproved() {
     })).filter(group => group.items.length > 0);
   }, [groupedMenus, searchQuery]);
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <Shield className="w-12 h-12 text-muted-foreground mx-auto" />
-          <p className="text-muted-foreground">Silakan login terlebih dahulu</p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -222,9 +214,10 @@ function AdminLayoutDynamicImproved() {
 
                   {/* Group Items */}
                   <div className={cn(
-                    "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out",
-                    isGroupExpanded(group.name) ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                    "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out grid",
+                    isGroupExpanded(group.name) ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none"
                   )}>
+                    <div className="min-h-0">
                     {group.items.map((item) => (
                       <Link
                         key={item.id}
@@ -252,6 +245,7 @@ function AdminLayoutDynamicImproved() {
                         )}
                       </Link>
                     ))}
+                    </div>
                   </div>
                 </div>
               ))

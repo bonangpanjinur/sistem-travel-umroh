@@ -36,8 +36,8 @@ export function useDashboardStats(branchId?: string | null) {
           if (branchId) q = q.eq('branch_id', branchId);
           return q;
         })(),
-        // Query 2: Agents
-        supabase.from('agents').select('id, company_name'),
+        // Query 2: Agents (limit to top 100 for leaderboard)
+        supabase.from('agents').select('id, company_name').limit(100),
         // Query 3: Customer Count
         (() => {
           let q = supabase.from('customers').select('*', { count: 'exact', head: true });

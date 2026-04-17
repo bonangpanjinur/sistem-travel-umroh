@@ -33,11 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const lastFetchedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Set authHandledRef synchronously to prevent race condition
+    let authHandled = false;
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        authHandled = true;
+        authHandledRef.current = true;
         setSession(session);
         setUser(session?.user ?? null);
-        authHandledRef.current = true;
 
         if (session?.user) {
           // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
@@ -56,8 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      // Skip if onAuthStateChange already handled this
-      if (authHandledRef.current) return;
+      // Skip if onAuthStateChange already handled this or listener fired
+      if (authHandled || authHandledRef.current) return;
 
       setSession(session);
       setUser(session?.user ?? null);

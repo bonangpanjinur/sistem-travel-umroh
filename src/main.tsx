@@ -90,5 +90,11 @@ const hideInitialLoader = () => {
 const root = createRoot(document.getElementById("root")!);
 root.render(<App />);
 
-// Hide loader after a brief delay to ensure React has started rendering
-setTimeout(hideInitialLoader, 100);
+// Hide loader after React has started rendering using requestAnimationFrame
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    requestAnimationFrame(hideInitialLoader);
+  });
+} else {
+  requestAnimationFrame(hideInitialLoader);
+}
