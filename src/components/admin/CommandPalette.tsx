@@ -9,57 +9,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { RECOMMENDED_MENUS } from "@/lib/admin-menu-registry";
-import * as Icons from "lucide-react";
-
-// Map icon names to lucide-react components
-const iconMap: Record<string, React.ComponentType<any>> = {
-  LayoutDashboard: Icons.LayoutDashboard,
-  BarChart3: Icons.BarChart3,
-  Package: Icons.Package,
-  CalendarDays: Icons.CalendarDays,
-  BookOpen: Icons.BookOpen,
-  Backpack: Icons.Backpack,
-  Map: Icons.Map,
-  Wallet: Icons.Wallet,
-  BedDouble: Icons.BedDouble,
-  Users: Icons.Users,
-  UserSquare2: Icons.UserSquare2,
-  Network: Icons.Network,
-  Gift: Icons.Gift,
-  Share2: Icons.Share2,
-  Star: Icons.Star,
-  GraduationCap: Icons.GraduationCap,
-  StickyNote: Icons.StickyNote,
-  CreditCard: Icons.CreditCard,
-  Coins: Icons.Coins,
-  TrendingUp: Icons.TrendingUp,
-  TrendingDown: Icons.TrendingDown,
-  PieChart: Icons.PieChart,
-  UserPlus: Icons.UserPlus,
-  Ticket: Icons.Ticket,
-  Globe: Icons.Globe,
-  Contact2: Icons.Contact2,
-  Banknote: Icons.Banknote,
-  FileCheck: Icons.FileCheck,
-  FileText: Icons.FileText,
-  Plane: Icons.Plane,
-  Building: Icons.Building,
-  Hotel: Icons.Hotel,
-  UserCheck: Icons.UserCheck,
-  Bus: Icons.Bus,
-  Store: Icons.Store,
-  LifeBuoy: Icons.LifeBuoy,
-  MessageSquare: Icons.MessageSquare,
-  Megaphone: Icons.Megaphone,
-  FileBarChart: Icons.FileBarChart,
-  UserCog: Icons.UserCog,
-  ShieldAlert: Icons.ShieldAlert,
-  KeyRound: Icons.KeyRound,
-  Palette: Icons.Palette,
-  MessageCircle: Icons.MessageCircle,
-  Layers: Icons.Layers,
-  Settings: Icons.Settings,
-};
+import { getMenuIcon } from "@/lib/admin-menu-icons";
 
 // Keyword mappings for better search
 const keywordMap: Record<string, string> = {
@@ -117,11 +67,11 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Convert RECOMMENDED_MENUS to command palette format
+  // Convert RECOMMENDED_MENUS to command palette format using tree-shaken icon registry
   const commandItems = useMemo(() => {
     return RECOMMENDED_MENUS.map(menu => ({
       label: menu.label,
-      icon: iconMap[menu.icon] || Icons.Settings,
+      icon: getMenuIcon(menu.icon),
       path: menu.path,
       keywords: keywordMap[menu.key] || menu.label.toLowerCase(),
     }));

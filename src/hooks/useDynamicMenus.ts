@@ -70,7 +70,7 @@ export const useDynamicMenus = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('menu_items')
-        .select('*')
+        .select('id,key,label,path,icon,group_name,sort_order,required_permission')
         .order('group_name', { ascending: true })
         .order('sort_order', { ascending: true });
       if (error) { console.error(error); throw error; }

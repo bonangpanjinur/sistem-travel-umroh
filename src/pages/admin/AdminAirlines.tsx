@@ -27,6 +27,8 @@ export default function AdminAirlines() {
       if (error) throw error;
       return data as Airline[];
     },
+    staleTime: 1000 * 60 * 5, // master data jarang berubah — cache 5 menit
+    gcTime: 1000 * 60 * 30,
   });
 
   const deleteMutation = useMutation({
