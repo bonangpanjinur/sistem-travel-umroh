@@ -71,3 +71,5 @@ export const useSyncMenusFixed = () => {
   };
   return { syncMenus };
 };
+
+// TODO: Ensure syncMenus() is called upon application startup or relevant event to update the database.

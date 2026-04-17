@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Bell, Plus, Trash2, Loader2, Database, AlertTriangle } from "lucide-react";
+import { Building2, CreditCard, Bell, Plus, Trash2, Loader2, Database, AlertTriangle, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -20,6 +20,7 @@ import {
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
+import { useAuth } from "@/hooks/useAuth";
 
 const companySchema = z.object({
   company_name: z.string().min(3, "Nama perusahaan minimal 3 karakter"),
@@ -40,6 +41,15 @@ const bankSchema = z.object({
 
 type BankFormData = z.infer<typeof bankSchema>;
 
+const certificateSchema = z.object({
+  certificate_cost_per_owner: z.preprocess(
+    (val) => Number(String(val).replace(/[^0-9]/g, "")),
+    z.number().min(0, "Biaya sertifikat tidak boleh negatif").optional()
+  ),
+});
+
+type CertificateFormData = z.infer<typeof certificateSchema>;
+
 export default function AdminSettings() {
   const { getSetting, updateMultipleSettings, resetDatabase, isLoading, isUpdating } = useCompanySettings();
   const { accounts, createAccount, updateAccount, deleteAccount, isLoading: loadingAccounts } = useBankAccounts();
@@ -49,6 +59,8 @@ export default function AdminSettings() {
   const [isResetting, setIsResetting] = useState(false);
   const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null);
+
+  const { isSuperAdmin } = useAuth();
 
   const companyForm = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -68,6 +80,13 @@ export default function AdminSettings() {
       account_name: "",
       branch_name: "",
       is_primary: false,
+    },
+  });
+
+  const certificateForm = useForm<CertificateFormData>({
+    resolver: zodResolver(certificateSchema),
+    defaultValues: {
+      certificate_cost_per_owner: 0,
     },
   });
 
@@ -104,6 +123,14 @@ export default function AdminSettings() {
     }
   }, [editingBank, bankForm]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      certificateForm.reset({
+        certificate_cost_per_owner: parseFloat(getSetting("certificate_cost_per_owner")) || 0,
+      });
+    }
+  }, [isLoading, getSetting, certificateForm]);
+
   const onSaveCompany = (data: CompanyFormData) => {
     updateMultipleSettings([
       { key: "company_name", value: data.company_name },
@@ -127,6 +154,12 @@ export default function AdminSettings() {
     }
     setIsBankDialogOpen(false);
     setEditingBank(null);
+  };
+
+  const onSaveCertificate = (data: CertificateFormData) => {
+    updateMultipleSettings([
+      { key: "certificate_cost_per_owner", value: data.certificate_cost_per_owner },
+    ]);
   };
 
   const handleResetDatabase = async () => {
@@ -156,6 +189,53 @@ export default function AdminSettings() {
 
       {/* Change Password */}
       <ChangePassword />
+
+      {/* Certificate Settings (Super Admin Only) */}
+      {isSuperAdmin() && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Pengaturan Sertifikat
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Memuat pengaturan...
+              </div>
+            ) : (
+              <Form {...certificateForm}>
+                <form onSubmit={certificateForm.handleSubmit(onSaveCertificate)} className="space-y-4">
+                  <FormField
+                    control={certificateForm.control}
+                    name="certificate_cost_per_owner"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Biaya per-sertifikat untuk Owner</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" disabled={isUpdating}>
+                    {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Simpan Perubahan
+                  </Button>
+                </form>
+              </Form>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Company Info */}
       <Card>
