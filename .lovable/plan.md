@@ -1,100 +1,49 @@
 
 
-## Akar masalah yang masih tersisa
+## Akar masalah ditemukan
 
-### 1. Urutan group tidak rapi — "Overview" tidak di atas
-`useDynamicMenus` order by `group_name ASC` (alfabetis). Hasilnya: Dokumen, Jamaah, Keuangan, Laporan, Master Data, **Overview**, Pengaturan, Produk... → Overview di tengah, bukan paling atas.
+### 1. Build error & runtime error `Cannot access '_' before initialization`
+**Penyebab:** `AdminAnalytics.tsx` query `bookings` dengan kolom `package_id` & relasi `package:packages(name)` — **kolom itu tidak ada di tabel `bookings`**. Yang ada: `departure_id`. Relasi ke package: `bookings → departures → packages`.
 
-DB tidak punya kolom `group_sort_order`. Solusi paling cepat & robust: **tetapkan urutan group di frontend** lewat array konstan, sort grup berdasarkan posisi di array. Tidak perlu migrasi DB.
+Akibatnya:
+- TypeScript error 25 baris (semua `b.created_at`, `b.paid_amount`, dll dianggap `SelectQueryError`).
+- Runtime: query gagal di Supabase → bundle JS chunk `admin-crm` corrupt saat tree-shaking (variable `_` dari recharts/destructuring tidak terinisialisasi karena modul gagal evaluate). Inilah error `Cannot access '_' before initialization`.
 
-Urutan target:
-1. Overview
-2. Produk & Operasional
-3. Jamaah & Agent
-4. Keuangan & Akuntansi
-5. Sales & CRM
-6. SDM (HR)
-7. Dokumen & Surat
-8. Master Data
-9. Support & Komunikasi
-10. Laporan
-11. Pengaturan
+### 2. Loading admin lama
+- Error #1 menyebabkan **AdminAnalytics & seluruh chunk yang share modul-nya GAGAL load** → React Suspense fallback nyantol → terlihat "loading lama" / blank.
+- `EquipmentPage.tsx` line 220: `supabase.rpc('decrement_stock', ...)` — **RPC tidak terdaftar di DB** (TS error: `'decrement_stock' is not assignable`). Setiap kali halaman equipment diakses, mutation gagal & lemparkan error tambahan.
 
-### 2. Halaman lambat — pola sama berulang
-**Akar:** banyak halaman fetch SEMUA data lalu filter/aggregate di JS, tanpa `staleTime`, dan halaman analytics eager-import `recharts` (~200 KB gzip).
-
-| Halaman | Masalah konkret |
-|---|---|
-| `AdminAnalytics` | recharts top-level + 3 query bookings/payments tanpa staleTime |
-| `AdminLeadAnalytics` | recharts top-level + fetch SEMUA leads (no limit, no period filter di SQL) |
-| `AdminAdvancedReports` | recharts top-level |
-| `AdminFinancePL` | fetch SEMUA bookings + SEMUA vendor_costs (no filter departure_id) |
-| `AdminFinanceAR` | fetch SEMUA bookings (no limit, no pagination) |
-| `AdminFinanceAP` | sama dengan AR |
-| `AdminPayroll` | query berat realtime tiap bulan |
-| `AdminSupportTickets` | tickets + responses tanpa staleTime, refetch tiap navigasi |
+### 3. Loading lama secara umum
+Cascading dari #1: chunk admin gagal di-evaluate → React error boundary fallback berulang kali → user lihat halaman blank / spinner panjang.
 
 ---
 
-## Rencana perbaikan
+## Rencana perbaikan (minimal, fokus fix bug)
 
-### A. Urutkan group menu (dampak visual langsung)
-**File:** `src/hooks/useDynamicMenus.ts`
-- Tambah konstanta `GROUP_ORDER` (array di atas).
-- Setelah `groupedMenus.reduce(...)`, sort grup: `groupedMenus.sort((a,b) => GROUP_ORDER.indexOf(a.name) - GROUP_ORDER.indexOf(b.name))`. Group yang tidak ada di array tetap di akhir.
+### A. `src/pages/admin/AdminAnalytics.tsx`
+- **Hapus** `package_id` dari select.
+- **Ganti** relasi `package:packages(name)` jadi `departure:departures(id, package_id, package:packages(name))`.
+- Update semua referensi:
+  - `b.package_id` → `b.departure?.package_id`
+  - `(b.package as any)?.name` → `(b.departure as any)?.package?.name`
+- Tidak ada perubahan UI/fungsional.
 
-### B. Lazy-load `recharts` di halaman analytics
-**File:** `AdminAnalytics.tsx`, `AdminLeadAnalytics.tsx`, `AdminAdvancedReports.tsx`
-- Ekstrak blok chart ke komponen terpisah di file yang sama (atau file `*Charts.tsx`), pakai `React.lazy` + `Suspense` dengan skeleton fallback.
-- Halaman utama tampil instan; chart muncul setelah JS chart termuat.
+### B. `src/pages/operational/EquipmentPage.tsx`
+- **Hapus** pemanggilan `supabase.rpc('decrement_stock', ...)` (line 218-222) yang tidak ada.
+- Pakai langsung pola fallback yang sudah ada: SELECT current stock → UPDATE dengan nilai hasil hitungan. (Race condition tetap ada tapi tidak crash; fix atomik sebenarnya butuh bikin RPC baru — di luar scope sekarang.)
 
-### C. Optimasi query data berat
-**`AdminFinancePL.tsx`:**
-- Filter bookings & vendor_costs by `departure_id IN (...)` setelah dapat list departures (pakai `.in('departure_id', depIds)`), bukan fetch semua.
-- Tambah `staleTime: 1000 * 60 * 5`.
-
-**`AdminFinanceAR.tsx` & `AdminFinanceAP.tsx`:**
-- Tambah `.limit(200)` + filter outstanding > 0 default (pakai `.gt('total_price - paid_amount', 0)` via RPC sederhana, atau cukup `.limit(200).order('created_at desc')` agar UI ringan).
-- Tambah `staleTime: 1000 * 60 * 5`.
-
-**`AdminLeadAnalytics.tsx`:**
-- Filter SQL by period (`gte('created_at', startDate)`) — jangan fetch semua leads.
-- Tambah `staleTime: 1000 * 60 * 5`.
-
-**`AdminAnalytics.tsx`:**
-- Tambah `staleTime: 1000 * 60 * 5` (sudah filter by period, tapi belum cache).
-
-**`AdminSupportTickets.tsx`:**
-- Tambah `staleTime: 1000 * 60 * 2` di kedua query.
-- Tambah `.limit(100).order('created_at', { ascending: false })` agar tidak load semua.
-
-**`AdminPayroll.tsx`:**
-- Tambah `staleTime: 1000 * 60 * 10` (gaji bulanan tidak berubah per detik).
-
-### D. Bonus: Skeleton fallback yang lebih ringan
-- Suspense fallback `LoadingState` saat ini full-screen spinner. Untuk halaman dalam Outlet, pakai skeleton kartu (tampak lebih responsif).
+### C. Verifikasi tidak ada file lain yang pakai `bookings.package_id`
+- Quick search & fix kalau ada (umumnya hooks lain sudah benar pakai `departure.package_id`).
 
 ---
 
 ## File yang akan diubah
-
-**Diedit:**
-- `src/hooks/useDynamicMenus.ts` — tambah `GROUP_ORDER`, sort grup.
-- `src/pages/admin/AdminAnalytics.tsx` — lazy-load chart section + staleTime.
-- `src/pages/admin/AdminLeadAnalytics.tsx` — lazy-load chart + filter SQL by period + staleTime.
-- `src/pages/admin/AdminAdvancedReports.tsx` — lazy-load chart section.
-- `src/pages/admin/AdminFinancePL.tsx` — query terbatas by departure_id + staleTime.
-- `src/pages/admin/AdminFinanceAR.tsx` — limit 200 + staleTime.
-- `src/pages/admin/AdminFinanceAP.tsx` — limit 200 + staleTime.
-- `src/pages/admin/AdminSupportTickets.tsx` — limit 100 + staleTime.
-- `src/pages/admin/AdminPayroll.tsx` — staleTime 10 menit.
-
----
+- `src/pages/admin/AdminAnalytics.tsx` — fix select + referensi package via departure.
+- `src/pages/operational/EquipmentPage.tsx` — hapus RPC `decrement_stock` yang tidak ada.
 
 ## Hasil yang ditargetkan
-- **Group "Overview" tampil paling atas**, urutan grup konsisten & natural.
-- **Halaman analytics**: time-to-first-paint < 1 detik (chart muncul progresif).
-- **Halaman finance**: query payload turun drastis untuk tenant dengan banyak booking.
-- **Navigasi balik ke halaman yang sama**: instan (cache 5-10 menit).
-- **Tidak ada perubahan fungsional** — semua data, chart, filter tetap sama.
+- ✅ Build error 25 baris hilang.
+- ✅ Runtime error `Cannot access '_' before initialization` hilang (karena chunk berhasil evaluate).
+- ✅ Halaman admin tidak blank / loading menggantung.
+- ✅ Halaman equipment tidak error saat distribute.
 
