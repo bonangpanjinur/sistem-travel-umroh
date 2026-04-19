@@ -97,8 +97,8 @@ export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectio
           )}
 
           {/* Search Widget */}
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-3xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-card text-card-foreground rounded-2xl shadow-2xl p-6 max-w-3xl mx-auto border border-border/50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary" />
@@ -167,7 +167,7 @@ export function DynamicHeroSection({ settings: propSettings }: DynamicHeroSectio
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
             {statsLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="text-center">

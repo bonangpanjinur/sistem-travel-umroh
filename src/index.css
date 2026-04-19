@@ -11,13 +11,38 @@
 @layer base {
   :root {
     /* 
-      IMPORTANT: Default color values removed to prevent Flash of Unstyled Content (FOUC).
-      These values are now applied by the theme restoration script in index.html and ThemeProvider.
-      This ensures consistent design from the first pixel rendered.
+      IMPORTANT: Default color values (Emerald Green & Gold) are provided as fallbacks.
+      The theme restoration script in index.html and ThemeProvider will override these 
+      if a custom theme is stored in localStorage or fetched from the server.
     */
-    
-    /* Border Radius - kept as it's not theme-dependent */
+    --background: 0 0% 100%;
+    --foreground: 160 50% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 160 50% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 50% 5%;
+    --primary: 160 84% 25%;
+    --primary-foreground: 160 10% 98%;
+    --secondary: 160 20% 96%;
+    --secondary-foreground: 160 84% 25%;
+    --muted: 160 20% 96%;
+    --muted-foreground: 160 10% 40%;
+    --accent: 45 93% 47%;
+    --accent-foreground: 45 10% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 20% 90%;
+    --input: 160 20% 90%;
+    --ring: 160 84% 25%;
     --radius: 0.75rem;
+
+    /* Extended colors */
+    --success: 142 76% 36%;
+    --success-foreground: 142 10% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 10% 5%;
+    --info: 199 89% 48%;
+    --info-foreground: 199 10% 98%;
   }
 
   .dark {
