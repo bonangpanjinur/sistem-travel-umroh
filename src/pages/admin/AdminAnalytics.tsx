@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,21 +13,27 @@ import {
 } from "recharts";
 import {
   TrendingUp, DollarSign, Users, Calendar,
-  Building2, CreditCard, Package
+  Building2, CreditCard, Package, Filter, X
 } from "lucide-react";
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, isWithinInterval } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
+import { Button } from "@/components/ui/button";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export default function AdminAnalytics() {
-  const [period, setPeriod] = useState("6");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subMonths(new Date(), 6),
+    to: new Date(),
+  });
+  const [selectedBranch, setSelectedBranch] = useState<string>("all");
 
   const { data: bookings, isLoading: loadingBookings } = useQuery({
-    queryKey: ['analytics-bookings', period],
+    queryKey: ['analytics-bookings', dateRange, selectedBranch],
     queryFn: async () => {
-      const startDate = subMonths(new Date(), parseInt(period));
-      const { data, error } = await supabase
+      let query = supabase
         .from('bookings')
         .select(`
           id,
@@ -40,29 +46,18 @@ export default function AdminAnalytics() {
           branch_id,
           branch:branches(name)
         `)
-        .gte('created_at', startDate.toISOString())
-        .limit(1000);
+        .gte('created_at', dateRange?.from?.toISOString() || subMonths(new Date(), 6).toISOString())
+        .lte('created_at', dateRange?.to?.toISOString() || new Date().toISOString())
+        .limit(2000);
       
+      if (selectedBranch !== "all") {
+        query = query.eq('branch_id', selectedBranch);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const { data: payments, isLoading: loadingPayments } = useQuery({
-    queryKey: ['analytics-payments', period],
-    queryFn: async () => {
-      const startDate = subMonths(new Date(), parseInt(period));
-      const { data, error } = await supabase
-        .from('payments')
-        .select('amount, status, created_at')
-        .gte('created_at', startDate.toISOString())
-        .limit(1000);
-      
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 1000 * 60 * 5,
   });
 
   const { data: branches } = useQuery({
@@ -76,16 +71,15 @@ export default function AdminAnalytics() {
       if (error) throw error;
       return data;
     },
-    staleTime: 1000 * 60 * 10,
   });
 
   // Calculate monthly revenue data
-  const monthlyData = (() => {
-    if (!bookings) return [];
+  const monthlyData = useMemo(() => {
+    if (!bookings || !dateRange?.from || !dateRange?.to) return [];
     
     const months = eachMonthOfInterval({
-      start: subMonths(new Date(), parseInt(period) - 1),
-      end: new Date()
+      start: dateRange.from,
+      end: dateRange.to
     });
 
     return months.map(month => {
@@ -109,10 +103,10 @@ export default function AdminAnalytics() {
         pax: paxCount
       };
     });
-  })();
+  }, [bookings, dateRange]);
 
   // Calculate branch statistics
-  const branchData = (() => {
+  const branchData = useMemo(() => {
     if (!bookings || !branches) return [];
     
     return branches.map(branch => {
@@ -126,10 +120,10 @@ export default function AdminAnalytics() {
         bookings: bookingCount
       };
     }).filter(b => b.bookings > 0).sort((a, b) => b.revenue - a.revenue);
-  })();
+  }, [bookings, branches]);
 
   // Calculate booking status distribution
-  const statusData = (() => {
+  const statusData = useMemo(() => {
     if (!bookings) return [];
     
     const statusMap: Record<string, number> = {};
@@ -142,26 +136,10 @@ export default function AdminAnalytics() {
       name: name.charAt(0).toUpperCase() + name.slice(1),
       value
     }));
-  })();
-
-  // Calculate payment status distribution
-  const paymentStatusData = (() => {
-    if (!bookings) return [];
-    
-    const statusMap: Record<string, number> = {};
-    bookings.forEach(b => {
-      const status = b.payment_status || 'pending';
-      statusMap[status] = (statusMap[status] || 0) + 1;
-    });
-
-    return Object.entries(statusMap).map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      value
-    }));
-  })();
+  }, [bookings]);
 
   // Summary statistics
-  const stats = {
+  const stats = useMemo(() => ({
     totalRevenue: bookings?.reduce((sum, b) => sum + (b.paid_amount || 0), 0) || 0,
     totalBookings: bookings?.length || 0,
     totalPax: bookings?.reduce((sum, b) => sum + (b.total_pax || 0), 0) || 0,
@@ -169,28 +147,40 @@ export default function AdminAnalytics() {
       ? (bookings.reduce((sum, b) => sum + (b.paid_amount || 0), 0) / bookings.length) 
       : 0,
     confirmedBookings: bookings?.filter(b => b.booking_status === 'confirmed').length || 0,
-    pendingPayments: bookings?.filter(b => b.payment_status === 'pending').length || 0,
-  };
+  }), [bookings]);
 
-  const isLoading = loadingBookings || loadingPayments;
+  const resetFilters = () => {
+    setDateRange({
+      from: subMonths(new Date(), 6),
+      to: new Date(),
+    });
+    setSelectedBranch("all");
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground">Statistik dan analisis performa bisnis</p>
         </div>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Pilih periode" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="3">3 Bulan Terakhir</SelectItem>
-            <SelectItem value="6">6 Bulan Terakhir</SelectItem>
-            <SelectItem value="12">12 Bulan Terakhir</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          <DateRangePicker date={dateRange} setDate={setDateRange} />
+          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Semua Cabang" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Cabang</SelectItem>
+              {branches?.map(b => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset Filter">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -199,32 +189,32 @@ export default function AdminAnalytics() {
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue)}
           icon={DollarSign}
-          loading={isLoading}
-          trend="+12%"
+          loading={loadingBookings}
+          trend={stats.totalRevenue > 0 ? "+12%" : undefined}
         />
         <StatCard
           title="Total Booking"
           value={stats.totalBookings.toString()}
           icon={Calendar}
-          loading={isLoading}
+          loading={loadingBookings}
           subtitle={`${stats.confirmedBookings} confirmed`}
         />
         <StatCard
           title="Total Jamaah"
           value={stats.totalPax.toString()}
           icon={Users}
-          loading={isLoading}
+          loading={loadingBookings}
         />
         <StatCard
           title="Rata-rata per Booking"
           value={formatCurrency(stats.averageRevenue)}
           icon={TrendingUp}
-          loading={isLoading}
+          loading={loadingBookings}
         />
       </div>
 
       <Tabs defaultValue="revenue" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-2 md:w-auto md:inline-grid md:grid-cols-4">
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="bookings">Booking Trends</TabsTrigger>
           <TabsTrigger value="branches">Per Cabang</TabsTrigger>
@@ -234,13 +224,13 @@ export default function AdminAnalytics() {
         <TabsContent value="revenue" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base">
+                <DollarSign className="h-4 w-4 text-primary" />
                 Revenue Bulanan
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {loadingBookings ? (
                 <Skeleton className="h-[350px] w-full" />
               ) : (
                 <ResponsiveContainer width="100%" height={350}>
@@ -251,18 +241,19 @@ export default function AdminAnalytics() {
                         <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" />
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                    <XAxis dataKey="month" className="text-[10px]" />
                     <YAxis 
                       tickFormatter={(value) => `${(value / 1000000).toFixed(0)}jt`}
-                      className="text-xs"
+                      className="text-[10px]"
                     />
                     <Tooltip 
                       formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        fontSize: '12px'
                       }}
                     />
                     <Area 
@@ -284,28 +275,29 @@ export default function AdminAnalytics() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Calendar className="h-4 w-4 text-blue-500" />
                   Jumlah Booking per Bulan
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
+                {loadingBookings ? (
                   <Skeleton className="h-[300px] w-full" />
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="month" className="text-xs" />
-                      <YAxis className="text-xs" />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                      <XAxis dataKey="month" className="text-[10px]" />
+                      <YAxis className="text-[10px]" />
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--background))',
                           border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
+                          borderRadius: '8px',
+                          fontSize: '12px'
                         }}
                       />
-                      <Bar dataKey="bookings" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="bookings" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -314,34 +306,29 @@ export default function AdminAnalytics() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-4 w-4 text-green-500" />
                   Jumlah Jamaah per Bulan
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
+                {loadingBookings ? (
                   <Skeleton className="h-[300px] w-full" />
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="month" className="text-xs" />
-                      <YAxis className="text-xs" />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                      <XAxis dataKey="month" className="text-[10px]" />
+                      <YAxis className="text-[10px]" />
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--background))',
                           border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
+                          borderRadius: '8px',
+                          fontSize: '12px'
                         }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="pax" 
-                        stroke="hsl(var(--chart-2))" 
-                        strokeWidth={2}
-                        dot={{ fill: 'hsl(var(--chart-2))' }}
-                      />
+                      <Line type="monotone" dataKey="pax" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -351,124 +338,35 @@ export default function AdminAnalytics() {
         </TabsContent>
 
         <TabsContent value="branches" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Revenue per Cabang
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <Skeleton className="h-[300px] w-full" />
-                ) : branchData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={branchData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        type="number" 
-                        tickFormatter={(value) => `${(value / 1000000).toFixed(0)}jt`}
-                        className="text-xs"
-                      />
-                      <YAxis type="category" dataKey="name" className="text-xs" width={100} />
-                      <Tooltip 
-                        formatter={(value: number) => [formatCurrency(value), 'Revenue']}
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                      />
-                      <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                    Belum ada data cabang
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Booking per Cabang
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <Skeleton className="h-[300px] w-full" />
-                ) : branchData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={branchData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        outerRadius={100}
-                        fill="hsl(var(--primary))"
-                        dataKey="bookings"
-                      >
-                        {branchData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => [value, 'Bookings']}
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                    Belum ada data cabang
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Branch Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Detail per Cabang</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Building2 className="h-4 w-4 text-amber-500" />
+                Revenue per Cabang
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium">Cabang</th>
-                      <th className="text-right py-3 px-4 font-medium">Bookings</th>
-                      <th className="text-right py-3 px-4 font-medium">Revenue</th>
-                      <th className="text-right py-3 px-4 font-medium">Kontribusi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {branchData.map((branch, i) => (
-                      <tr key={i} className="border-b last:border-0">
-                        <td className="py-3 px-4">{branch.name}</td>
-                        <td className="py-3 px-4 text-right">{branch.bookings}</td>
-                        <td className="py-3 px-4 text-right">{formatCurrency(branch.revenue)}</td>
-                        <td className="py-3 px-4 text-right">
-                          {stats.totalRevenue > 0 
-                            ? ((branch.revenue / stats.totalRevenue) * 100).toFixed(1) 
-                            : 0}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {loadingBookings ? (
+                <Skeleton className="h-[350px] w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={branchData} layout="vertical" margin={{ left: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis type="number" tickFormatter={(value) => `${(value / 1000000).toFixed(0)}jt`} className="text-[10px]" />
+                    <YAxis dataKey="name" type="category" className="text-[10px]" width={100} />
+                    <Tooltip 
+                      formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -477,82 +375,42 @@ export default function AdminAnalytics() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Distribusi Status Booking
-                </CardTitle>
+                <CardTitle className="text-base">Distribusi Status Booking</CardTitle>
               </CardHeader>
-              <CardContent>
-                {isLoading ? (
+              <CardContent className="flex flex-col items-center">
+                {loadingBookings ? (
                   <Skeleton className="h-[300px] w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={statusData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        outerRadius={100}
-                        fill="hsl(var(--primary))"
-                        dataKey="value"
-                      >
-                        {statusData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Distribusi Status Pembayaran
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <Skeleton className="h-[300px] w-full" />
-                ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={paymentStatusData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        outerRadius={100}
-                        fill="hsl(var(--primary))"
-                        dataKey="value"
-                      >
-                        {paymentStatusData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={statusData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {statusData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--background))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              fontSize: '12px'
+                            }}
+                          />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -563,43 +421,29 @@ export default function AdminAnalytics() {
   );
 }
 
-interface StatCardProps {
-  title: string;
-  value: string;
-  icon: React.ComponentType<{ className?: string }>;
-  loading?: boolean;
-  subtitle?: string;
-  trend?: string;
-}
-
-function StatCard({ title, value, icon: Icon, loading, subtitle, trend }: StatCardProps) {
+function StatCard({ title, value, subtitle, icon: Icon, loading, trend }: any) {
   return (
     <Card>
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
-            {loading ? (
-              <Skeleton className="h-8 w-24 mt-1" />
-            ) : (
-              <>
-                <p className="text-xl sm:text-2xl font-bold truncate">{value}</p>
-                {subtitle && (
-                  <p className="text-xs text-muted-foreground">{subtitle}</p>
-                )}
-                {trend && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 shrink-0" />
-                    {trend} dari periode sebelumnya
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-          <div className="p-2 sm:p-3 rounded-full bg-primary/10 shrink-0">
-            <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-          </div>
-        </div>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-8 w-24" />
+        ) : (
+          <>
+            <div className="text-2xl font-bold">{value}</div>
+            <div className="flex items-center gap-2 mt-1">
+              {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+              {trend && (
+                <span className="text-[10px] font-medium text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">
+                  {trend}
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
