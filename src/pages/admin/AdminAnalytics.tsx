@@ -55,9 +55,9 @@ export default function AdminAnalytics() {
           created_at,
           total_pax,
           branch_id,
-          package_id,
+          departure_id,
           branch:branches(name),
-          package:packages(name)
+          departure:departures(id, package_id, package:packages(name))
         `)
         .gte('created_at', dateRange?.from?.toISOString() || subMonths(new Date(), 6).toISOString())
         .lte('created_at', dateRange?.to?.toISOString() || new Date().toISOString())
@@ -144,8 +144,8 @@ export default function AdminAnalytics() {
     
     const packageMap: Record<string, { name: string, count: number, revenue: number }> = {};
     bookings.forEach(b => {
-      const pkgId = b.package_id || 'unknown';
-      const pkgName = (b.package as any)?.name || 'Paket Tidak Diketahui';
+      const pkgId = (b.departure as any)?.package_id || 'unknown';
+      const pkgName = (b.departure as any)?.package?.name || 'Paket Tidak Diketahui';
       
       if (!packageMap[pkgId]) {
         packageMap[pkgId] = { name: pkgName, count: 0, revenue: 0 };
@@ -228,7 +228,7 @@ export default function AdminAnalytics() {
         b.paid_amount,
         b.total_pax,
         (b.branch as any)?.name || "-",
-        (b.package as any)?.name || "-"
+        (b.departure as any)?.package?.name || "-"
       ].join(","))
     ].join("\n");
     
