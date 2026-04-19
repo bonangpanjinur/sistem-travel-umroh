@@ -4,15 +4,11 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { 
   DollarSign, Users, Calendar, CreditCard, 
-  TrendingUp, ArrowRight, Package, ShoppingCart, FileText,
-  AlertTriangle, CheckCircle2, AlertCircle, Filter, X, Building2, User
+  ArrowRight, Package, ShoppingCart, FileText,
+  AlertTriangle, AlertCircle, Filter, X, Building2, User
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { lazy, Suspense, useState, useMemo } from "react";
-import {
-  AreaChart, Area, BarChart, Bar,
-  ResponsiveContainer, XAxis
-} from "recharts";
+import { lazy, Suspense, useState, useMemo, useCallback, memo } from "react";
 import { format, subMonths } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useDashboardStats, useRecentBookings, useUpcomingDepartures } from "@/hooks/useDashboardStats";
@@ -28,6 +24,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // Lazy load heavy chart components
 const DashboardCharts = lazy(() => import('./DashboardCharts').then(m => ({ default: m.DashboardCharts })));
 
+// Memoized Stats Card for performance
+const StatsCard = memo(({ title, value, subtitle, icon: Icon, loading, highlight, trend }: any) => (
+  <Card className={highlight ? "border-primary/50 bg-primary/5" : "transition-all hover:shadow-md"}>
+    <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <Icon className={`h-4 w-4 ${highlight ? "text-primary" : "text-muted-foreground"}`} />
+    </CardHeader>
+    <CardContent>
+      {loading ? (
+        <Skeleton className="h-8 w-24" />
+      ) : (
+        <>
+          <div className="text-2xl font-bold">{value}</div>
+          <div className="flex items-center gap-2 mt-1">
+            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+            {trend && (
+              <span className="text-[10px] font-medium text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">
+                {trend}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+    </CardContent>
+  </Card>
+));
+
+StatsCard.displayName = "StatsCard";
+
 export default function AdminDashboard() {
   const { branchId, hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
@@ -41,6 +66,7 @@ export default function AdminDashboard() {
     to: new Date(),
   });
 
+  // Memoize filters to prevent unnecessary re-fetches
   const filters = useMemo(() => ({
     branchId: selectedBranch === "all" ? null : selectedBranch,
     agentId: selectedAgent === "all" ? null : selectedAgent,
@@ -52,7 +78,7 @@ export default function AdminDashboard() {
   const { data: recentBookings } = useRecentBookings(filters.branchId);
   const { data: upcomingDepartures } = useUpcomingDepartures(filters.branchId);
 
-  // Fetch Branches for Filter
+  // Fetch Branches for Filter - Cached
   const { data: branches } = useQuery({
     queryKey: ['dashboard-branches'],
     queryFn: async () => {
@@ -61,9 +87,10 @@ export default function AdminDashboard() {
       return data;
     },
     enabled: isSuperAdmin,
+    staleTime: 1000 * 60 * 60, // 1 hour
   });
 
-  // Fetch Agents for Filter
+  // Fetch Agents for Filter - Cached
   const { data: agents } = useQuery({
     queryKey: ['dashboard-agents'],
     queryFn: async () => {
@@ -71,6 +98,7 @@ export default function AdminDashboard() {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 60, // 1 hour
   });
 
   // Fetch inventory stock alerts
@@ -86,7 +114,7 @@ export default function AdminDashboard() {
       const low = (data || []).filter((item: any) => item.stock_quantity > 0 && item.stock_quantity <= 5);
       return { critical: critical.length, low: low.length, total: (data || []).length };
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15,
   });
 
   // Fetch pending document verification count
@@ -100,7 +128,7 @@ export default function AdminDashboard() {
       if (error) throw error;
       return count || 0;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15,
   });
 
   // Fetch latest audit logs
@@ -126,14 +154,14 @@ export default function AdminDashboard() {
     ]
   );
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setSelectedBranch(branchId || "all");
     setSelectedAgent("all");
     setDateRange({
       from: subMonths(new Date(), 6),
       to: new Date(),
     });
-  };
+  }, [branchId]);
 
   return (
     <div className="space-y-6">
@@ -165,7 +193,7 @@ export default function AdminDashboard() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <Card className="bg-muted/30 border-dashed">
+        <Card className="bg-muted/30 border-dashed animate-in fade-in slide-in-from-top-2 duration-300">
           <CardContent className="pt-6">
             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
               <div className="space-y-2">
@@ -223,30 +251,10 @@ export default function AdminDashboard() {
 
       {/* Quick Actions Section */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4 hover:bg-primary/5 transition-colors" asChild>
-          <Link to="/admin/packages">
-            <Package className="h-5 w-5 text-primary" />
-            <span className="text-xs font-semibold">Tambah Paket</span>
-          </Link>
-        </Button>
-        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4 hover:bg-blue-50 transition-colors" asChild>
-          <Link to="/admin/bookings">
-            <ShoppingCart className="h-5 w-5 text-blue-600" />
-            <span className="text-xs font-semibold">Verifikasi Bayar</span>
-          </Link>
-        </Button>
-        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4 hover:bg-green-50 transition-colors" asChild>
-          <Link to="/admin/customers">
-            <Users className="h-5 w-5 text-green-600" />
-            <span className="text-xs font-semibold">Tambah Jamaah</span>
-          </Link>
-        </Button>
-        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4 hover:bg-amber-50 transition-colors" asChild>
-          <Link to="/admin/documents-generator">
-            <FileText className="h-5 w-5 text-amber-600" />
-            <span className="text-xs font-semibold">Generate Dokumen</span>
-          </Link>
-        </Button>
+        <QuickActionButton to="/admin/packages" icon={Package} label="Tambah Paket" color="text-primary" hoverBg="hover:bg-primary/5" />
+        <QuickActionButton to="/admin/bookings" icon={ShoppingCart} label="Verifikasi Bayar" color="text-blue-600" hoverBg="hover:bg-blue-50" />
+        <QuickActionButton to="/admin/customers" icon={Users} label="Tambah Jamaah" color="text-green-600" hoverBg="hover:bg-green-50" />
+        <QuickActionButton to="/admin/documents-generator" icon={FileText} label="Generate Dokumen" color="text-amber-600" hoverBg="hover:bg-amber-50" />
       </div>
 
       {/* Stats Cards */}
@@ -285,59 +293,45 @@ export default function AdminDashboard() {
       {/* Alert Widgets */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Stock Alert Widget */}
-        {(stockAlerts?.critical || 0) > 0 || (stockAlerts?.low || 0) > 0 ? (
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-medium flex items-center gap-2 text-amber-900 dark:text-amber-200">
-                <AlertTriangle className="h-5 w-5" />
-                Peringatan Stok Perlengkapan
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {(stockAlerts?.critical || 0) > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-amber-900 dark:text-amber-200">Status Habis:</span>
-                    <Badge variant="destructive">{stockAlerts.critical} item</Badge>
-                  </div>
-                )}
-                {(stockAlerts?.low || 0) > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-amber-900 dark:text-amber-200">Status Kritis (≤5):</span>
-                    <Badge variant="outline" className="border-amber-300 text-amber-900 dark:text-amber-200">{stockAlerts.low} item</Badge>
-                  </div>
-                )}
-                <Button variant="outline" size="sm" className="w-full mt-2" asChild>
-                  <Link to="/admin/equipment">Kelola Stok</Link>
-                </Button>
+        {((stockAlerts?.critical || 0) > 0 || (stockAlerts?.low || 0) > 0) && (
+          <AlertWidget 
+            title="Peringatan Stok Perlengkapan" 
+            icon={AlertTriangle} 
+            colorClass="border-amber-200 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200"
+            link="/admin/equipment"
+            linkLabel="Kelola Stok"
+          >
+            {(stockAlerts?.critical || 0) > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Status Habis:</span>
+                <Badge variant="destructive">{stockAlerts.critical} item</Badge>
               </div>
-            </CardContent>
-          </Card>
-        ) : null}
+            )}
+            {(stockAlerts?.low || 0) > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Status Kritis (≤5):</span>
+                <Badge variant="outline" className="border-amber-300">{stockAlerts.low} item</Badge>
+              </div>
+            )}
+          </AlertWidget>
+        )}
 
         {/* Pending Documents Widget */}
-        {(pendingDocuments || 0) > 0 ? (
-          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-medium flex items-center gap-2 text-blue-900 dark:text-blue-200">
-                <AlertCircle className="h-5 w-5" />
-                Dokumen Menunggu Verifikasi
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-blue-900 dark:text-blue-200">Total Pending:</span>
-                  <Badge className="bg-blue-600 dark:bg-blue-700">{pendingDocuments} dokumen</Badge>
-                </div>
-                <p className="text-xs text-blue-800 dark:text-blue-300">Segera periksa dan verifikasi dokumen jamaah</p>
-                <Button variant="outline" size="sm" className="w-full mt-2" asChild>
-                  <Link to="/admin/document-verification">Verifikasi Dokumen</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
+        {(pendingDocuments || 0) > 0 && (
+          <AlertWidget 
+            title="Dokumen Menunggu Verifikasi" 
+            icon={AlertCircle} 
+            colorClass="border-blue-200 bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200"
+            link="/admin/document-verification"
+            linkLabel="Verifikasi Dokumen"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Total Pending:</span>
+              <Badge className="bg-blue-600 dark:bg-blue-700">{pendingDocuments} dokumen</Badge>
+            </div>
+            <p className="text-xs opacity-80">Segera periksa dan verifikasi dokumen jamaah</p>
+          </AlertWidget>
+        )}
       </div>
 
       {/* Charts Row - Lazy Loaded */}
@@ -352,115 +346,105 @@ export default function AdminDashboard() {
 
       {/* Recent Data */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Recent Bookings */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-medium">Booking Terbaru</CardTitle>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/admin/bookings">Lihat Semua</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentBookings?.length ? (
-                recentBookings.map((booking) => (
-                  <div 
-                    key={booking.id} 
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <div>
-                      <p className="font-mono text-sm font-semibold">{booking.booking_code}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(booking.customer as any)?.full_name}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold">{formatCurrency(booking.total_price)}</p>
-                      <Badge variant={booking.payment_status === 'paid' ? 'default' : 'outline'} className="text-[10px] h-5">
-                        {booking.payment_status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  Tidak ada booking terbaru
-                </div>
-              )}
+        <RecentDataCard 
+          title="Booking Terbaru" 
+          link="/admin/bookings" 
+          data={recentBookings} 
+          renderItem={(booking: any) => (
+            <div key={booking.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+              <div>
+                <p className="font-mono text-sm font-semibold">{booking.booking_code}</p>
+                <p className="text-sm text-muted-foreground">{(booking.customer as any)?.full_name}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold">{formatCurrency(booking.total_price)}</p>
+                <Badge variant={booking.payment_status === 'paid' ? 'default' : 'outline'} className="text-[10px] h-5">
+                  {booking.payment_status}
+                </Badge>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+          emptyLabel="Tidak ada booking terbaru"
+        />
 
-        {/* Upcoming Departures */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-medium">Keberangkatan Terdekat</CardTitle>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/admin/departures">Lihat Semua</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {upcomingDepartures?.length ? (
-                upcomingDepartures.map((departure) => (
+        <RecentDataCard 
+          title="Keberangkatan Terdekat" 
+          link="/admin/departures" 
+          data={upcomingDepartures} 
+          renderItem={(departure: any) => (
+            <div key={departure.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate">{(departure.package as any)?.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(departure.departure_date), 'dd MMMM yyyy', { locale: idLocale })}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xs font-medium">{departure.booked_count} / {departure.quota} Pax</p>
+                <div className="w-20 h-1.5 bg-secondary rounded-full mt-1 overflow-hidden">
                   <div 
-                    key={departure.id} 
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">{(departure.package as any)?.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(departure.departure_date), 'dd MMMM yyyy', { locale: idLocale })}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-medium">{departure.booked_count} / {departure.quota} Pax</p>
-                      <div className="w-20 h-1.5 bg-secondary rounded-full mt-1 overflow-hidden">
-                        <div 
-                          className="h-full bg-primary" 
-                          style={{ width: `${Math.min(100, (departure.booked_count / departure.quota) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  Tidak ada keberangkatan terdekat
+                    className="h-full bg-primary" 
+                    style={{ width: `${Math.min(100, (departure.booked_count / departure.quota) * 100)}%` }}
+                  />
                 </div>
-              )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+          emptyLabel="Tidak ada keberangkatan terdekat"
+        />
       </div>
     </div>
   );
 }
 
-function StatsCard({ title, value, subtitle, icon: Icon, loading, highlight, trend }: any) {
-  return (
-    <Card className={highlight ? "border-primary/50 bg-primary/5" : ""}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className={`h-4 w-4 ${highlight ? "text-primary" : "text-muted-foreground"}`} />
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-8 w-24" />
-        ) : (
-          <>
-            <div className="text-2xl font-bold">{value}</div>
-            <div className="flex items-center gap-2 mt-1">
-              {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-              {trend && (
-                <span className="text-[10px] font-medium text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">
-                  {trend}
-                </span>
-              )}
-            </div>
-          </>
+// Helper Components for cleaner code and better performance
+const QuickActionButton = memo(({ to, icon: Icon, label, color, hoverBg }: any) => (
+  <Button variant="outline" className={`h-auto flex-col items-center gap-2 py-4 transition-colors ${hoverBg}`} asChild>
+    <Link to={to}>
+      <Icon className={`h-5 w-5 ${color}`} />
+      <span className="text-xs font-semibold">{label}</span>
+    </Link>
+  </Button>
+));
+QuickActionButton.displayName = "QuickActionButton";
+
+const AlertWidget = memo(({ title, icon: Icon, colorClass, children, link, linkLabel }: any) => (
+  <Card className={`border ${colorClass}`}>
+    <CardHeader className="pb-3">
+      <CardTitle className="text-base font-medium flex items-center gap-2">
+        <Icon className="h-5 w-5" />
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-2">
+        {children}
+        <Button variant="outline" size="sm" className="w-full mt-2 bg-transparent" asChild>
+          <Link to={link}>{linkLabel}</Link>
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+));
+AlertWidget.displayName = "AlertWidget";
+
+const RecentDataCard = memo(({ title, link, data, renderItem, emptyLabel }: any) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardTitle className="text-base font-medium">{title}</CardTitle>
+      <Button variant="ghost" size="sm" asChild>
+        <Link to={link}>Lihat Semua</Link>
+      </Button>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-3">
+        {data?.length ? data.map(renderItem) : (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            {emptyLabel}
+          </div>
         )}
-      </CardContent>
-    </Card>
-  );
-}
+      </div>
+    </CardContent>
+  </Card>
+));
+RecentDataCard.displayName = "RecentDataCard";
