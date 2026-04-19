@@ -3,7 +3,7 @@
  * Single source of truth: `menu_items` + `user_permissions` (revocations only).
  */
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,8 +45,8 @@ export const useDynamicMenus = () => {
       return (data || []).map((d: any) => d.permission_key as string);
     },
     enabled: !!user && !isSuperAdmin && isStaffUser,
-    staleTime: 1000 * 60 * 30, // Increase staleTime to 30 mins
-    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
+    staleTime: 1000 * 60 * 60, // Increase staleTime to 1 hour
+    gcTime: 1000 * 60 * 60 * 2, // Keep in cache for 2 hours
   });
 
   // Registry fallback (used when DB is empty / unreachable) — keeps sidebar usable.
@@ -64,7 +64,7 @@ export const useDynamicMenus = () => {
     []
   );
 
-  // Fetch all menus (DB)
+  // Fetch all menus (DB) - with optimized caching
   const { data: dbMenus = [], isLoading, error, refetch } = useQuery({
     queryKey: ['dynamic-menus'],
     queryFn: async () => {
@@ -86,8 +86,8 @@ export const useDynamicMenus = () => {
       })) as MenuItem[];
     },
     enabled: !!user && isStaffUser,
-    staleTime: Infinity,
-    gcTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 30, // 30 minutes - balance between freshness and performance
+    gcTime: 1000 * 60 * 60 * 2, // Keep in cache for 2 hours
   });
 
   // If DB returned empty (or query disabled), fall back to the static registry
@@ -104,63 +104,73 @@ export const useDynamicMenus = () => {
 
   // Super admin → all menus. Other staff → hide menus whose required_permission
   // appears in revokedKeys (user has explicit is_enabled=false override).
+  // Memoized with stable dependency array
+  const revokedSet = useMemo(() => new Set(revokedKeys), [revokedKeys]);
+  
   const filteredMenus = useMemo(() => {
     if (isSuperAdmin) return menus;
     if (!revokedKeys || revokedKeys.length === 0) return menus;
-    const revokedSet = new Set(revokedKeys);
     return menus.filter(m => !m.required_permission || !revokedSet.has(m.required_permission));
-  }, [menus, revokedKeys, isSuperAdmin]);
+  }, [menus, revokedSet, isSuperAdmin]);
 
-  // Group menus
-  const groupedMenus: MenuGroup[] = filteredMenus.reduce((acc: MenuGroup[], menu: MenuItem) => {
-    const existing = acc.find(g => g.name === menu.group_name);
-    if (existing) { existing.items.push(menu); }
-    else { acc.push({ name: menu.group_name, items: [menu] }); }
-    return acc;
-  }, []);
+  // Group menus - memoized for performance
+  const groupedMenus: MenuGroup[] = useMemo(() => {
+    const grouped: MenuGroup[] = filteredMenus.reduce((acc: MenuGroup[], menu: MenuItem) => {
+      const existing = acc.find(g => g.name === menu.group_name);
+      if (existing) { existing.items.push(menu); }
+      else { acc.push({ name: menu.group_name, items: [menu] }); }
+      return acc;
+    }, []);
 
-  groupedMenus.forEach(g => g.items.sort((a, b) => a.sort_order - b.sort_order));
+    grouped.forEach(g => g.items.sort((a, b) => a.sort_order - b.sort_order));
+    return grouped;
+  }, [filteredMenus]);
 
   // Manual group order (DB has no group_sort_order column). Groups not listed
   // here are appended at the end, preserving their insertion order.
-  const GROUP_ORDER = [
-    'Overview',
-    'Sales & CRM',
-    'Produk & Operasional',
-    'Keuangan & Akuntansi',
-    'Jamaah & Agent',
-    'SDM (HR)',
-    'Dokumen & Surat',
-    'Master Data',
-    'Support & Komunikasi',
-    'Laporan',
-    'Pengaturan',
-  ];
-  groupedMenus.sort((a, b) => {
-    const ia = GROUP_ORDER.indexOf(a.name);
-    const ib = GROUP_ORDER.indexOf(b.name);
-    if (ia === -1 && ib === -1) return 0;
-    if (ia === -1) return 1;
-    if (ib === -1) return -1;
-    return ia - ib;
-  });
+  // Memoized to prevent re-sorting on every render
+  const sortedGroupedMenus = useMemo(() => {
+    const GROUP_ORDER = [
+      'Overview',
+      'Sales & CRM',
+      'Produk & Operasional',
+      'Keuangan & Akuntansi',
+      'Jamaah & Agent',
+      'SDM (HR)',
+      'Dokumen & Surat',
+      'Master Data',
+      'Support & Komunikasi',
+      'Laporan',
+      'Pengaturan',
+    ];
+    const sorted = [...groupedMenus];
+    sorted.sort((a, b) => {
+      const ia = GROUP_ORDER.indexOf(a.name);
+      const ib = GROUP_ORDER.indexOf(b.name);
+      if (ia === -1 && ib === -1) return 0;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+    return sorted;
+  }, [groupedMenus]);
 
   /** Check if a given path is allowed for the current user.
    * Super admin → always allowed. Other staff → blocked if matching menu's
    * required_permission is in revokedKeys. Unknown paths default to allowed.
+   * Memoized callback to prevent unnecessary re-creation.
    */
-  const isPathAllowed = (path: string): boolean => {
+  const isPathAllowed = useCallback((path: string): boolean => {
     if (isSuperAdmin) return true;
     if (!revokedKeys || revokedKeys.length === 0) return true;
-    const revokedSet = new Set(revokedKeys);
     // Find the most-specific menu match (longest matching path)
     const match = menus
       .filter(m => path === m.path || (m.path !== '/admin' && path.startsWith(m.path)))
       .sort((a, b) => b.path.length - a.path.length)[0];
     if (!match || !match.required_permission) return true;
     return !revokedSet.has(match.required_permission);
-  };
+  }, [isSuperAdmin, revokedKeys, menus, revokedSet]);
 
-  return { menus: filteredMenus, groupedMenus, isLoading, error, refetch, revokedKeys, isPathAllowed };
+  return { menus: filteredMenus, groupedMenus: sortedGroupedMenus, isLoading, error, refetch, revokedKeys, isPathAllowed };
 };
 

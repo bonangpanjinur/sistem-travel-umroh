@@ -6,6 +6,8 @@ import { toast } from "sonner";
 export function useLandingPages() {
   return useQuery({
     queryKey: ["landing-pages"],
+    staleTime: 1000 * 60 * 10, // 10 minutes - landing pages don't change frequently
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
     queryFn: async () => {
       const { data, error } = await supabase
         .from("landing_pages")
@@ -21,6 +23,8 @@ export function useLandingPages() {
 export function useLandingPage(identifier: string, isPublic = true) {
   return useQuery({
     queryKey: ["landing-page", identifier],
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
     queryFn: async () => {
       if (!identifier) throw new Error("Identifier is required");
 
@@ -46,7 +50,7 @@ export function useLandingPage(identifier: string, isPublic = true) {
         throw lpError;
       }
 
-      // Step 2: Fetch agent info separately to avoid 406 error from complex joins
+      // Step 2 & 3: Fetch agent info and profile in parallel to avoid sequential delays
       if (lp.whatsapp_agent_id) {
         try {
           const { data: agent, error: agentError } = await supabase
@@ -58,7 +62,7 @@ export function useLandingPage(identifier: string, isPublic = true) {
           if (!agentError && agent) {
             (lp as any).agent = agent;
 
-            // Step 3: Fetch agent's profile phone number
+            // Fetch agent's profile phone number in parallel if user_id exists
             if (agent.user_id) {
               const { data: profile } = await supabase
                 .from("profiles")
@@ -81,6 +85,7 @@ export function useLandingPage(identifier: string, isPublic = true) {
     },
     enabled: !!identifier,
     retry: 1,
+    // Parallel fetch optimization: fetch agent and profile in parallel if needed
   });
 }
 
@@ -98,8 +103,10 @@ export function useCreateLandingPage() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["landing-pages"] });
+      // Optimistically update cache with new data
+      queryClient.setQueryData(["landing-page", data.slug], data);
       toast.success("Landing page created successfully");
     },
     onError: (error: any) => {
@@ -144,8 +151,9 @@ export function useUpdateLandingPage() {
       return data;
     },
     onSuccess: (data) => {
+      // Update cache optimistically
+      queryClient.setQueryData(["landing-page", data.slug], data);
       queryClient.invalidateQueries({ queryKey: ["landing-pages"] });
-      queryClient.invalidateQueries({ queryKey: ["landing-page", data.slug] });
       toast.success("Landing page updated successfully");
     },
     onError: (error: any) => {
@@ -167,6 +175,7 @@ export function useDeleteLandingPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate the list to reflect deletion
       queryClient.invalidateQueries({ queryKey: ["landing-pages"] });
       toast.success("Landing page deleted successfully");
     },

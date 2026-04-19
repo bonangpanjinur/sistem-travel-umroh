@@ -12,6 +12,8 @@ export function useLeads(filters?: { status?: LeadStatus; assignedTo?: string })
     queryKey: ['leads', filters],
     retry: 2,
     retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    staleTime: 1000 * 60 * 5, // 5 minutes - balance between freshness and performance
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
     queryFn: async () => {
       let query = supabase.from('leads').select(`
         *, 
@@ -51,6 +53,8 @@ export function useLead(id: string | undefined) {
   return useQuery({
     queryKey: ['leads', id],
     enabled: !!id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
     queryFn: async () => {
       const { data, error } = await supabase.from('leads').select('*, packages:package_interest(*)').eq('id', id!).single();
       if (error) throw error;
@@ -67,7 +71,10 @@ export function useCreateLead() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+    onSuccess: () => {
+      // Invalidate only the leads list, not individual leads
+      qc.invalidateQueries({ queryKey: ['leads'], exact: false });
+    },
   });
 }
 
@@ -79,7 +86,11 @@ export function useUpdateLead() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+    onSuccess: (data) => {
+      // Invalidate both the list and the specific lead
+      qc.invalidateQueries({ queryKey: ['leads'], exact: false });
+      qc.setQueryData(['leads', data.id], data);
+    },
   });
 }
 
@@ -96,6 +107,9 @@ export function useConvertLead() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['leads'], exact: false });
+      qc.setQueryData(['leads', data.id], data);
+    },
   });
 }

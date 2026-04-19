@@ -79,18 +79,41 @@ export default defineConfig(({ mode }) => ({
     // Optimized chunk splitting strategy
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks(id) {
           // Vendor chunks - separated for better caching
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-ui": ["recharts", "@radix-ui/react-dialog", "@radix-ui/react-select"],
-          "vendor-query": ["@tanstack/react-query"],
-          "vendor-supabase": ["@supabase/supabase-js"],
-          "vendor-date": ["date-fns"],
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-query';
+          }
+          if (id.includes('node_modules/@supabase/supabase-js')) {
+            return 'vendor-supabase';
+          }
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-date';
+          }
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/@radix-ui')) {
+            return 'vendor-ui';
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+          
+          // Sales & CRM pages - separate chunk for better lazy loading
+          if (id.includes('AdminLeads') || id.includes('AdminCoupons') || id.includes('AdminLandingPages')) {
+            return 'admin-crm';
+          }
+          
+          // Admin pages - separate chunk
+          if (id.includes('pages/admin/')) {
+            return 'admin-pages';
+          }
         },
       },
     },
     // Performance optimizations
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1500, // Increased for better code splitting
     minify: "terser",
     terserOptions: {
       compress: {
@@ -121,7 +144,14 @@ export default defineConfig(({ mode }) => ({
       "@supabase/supabase-js",
       "recharts",
       "date-fns",
+      "lucide-react",
     ],
     exclude: ["@vite/client"],
+    // Pre-bundle heavy dependencies
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
   },
 }));

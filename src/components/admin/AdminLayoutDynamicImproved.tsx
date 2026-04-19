@@ -22,12 +22,72 @@ import {
   Search,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 
 const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
+
+// Memoized menu group component to prevent unnecessary re-renders
+const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavigate }: any) => (
+  <div className="space-y-1.5 animate-in fade-in duration-300">
+    <button
+      onClick={() => onToggle(group.name)}
+      className={cn(
+        'w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 group rounded-lg',
+        isExpanded
+          ? 'text-primary bg-primary/5'
+          : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/50'
+      )}
+    >
+      <span className="flex-1 text-left">{group.name}</span>
+      <ChevronDown
+        className={cn(
+          'w-3.5 h-3.5 transition-transform duration-300 flex-shrink-0',
+          isExpanded ? 'rotate-180' : '-rotate-90'
+        )}
+      />
+    </button>
+
+    <div className={cn(
+      "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out grid",
+      isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none"
+    )}>
+      <div className="min-h-0">
+        {group.items.map((item: any) => (
+          <Link
+            key={item.id}
+            to={item.path}
+            onClick={onNavigate}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
+              isPathActive(item.path)
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+            )}
+          >
+            <DynamicIcon
+              name={item.icon}
+              className={cn(
+                'w-4 h-4 flex-shrink-0 transition-all duration-200',
+                isPathActive(item.path)
+                  ? 'text-primary-foreground'
+                  : 'text-muted-foreground/70 group-hover:text-primary group-hover:scale-110'
+              )}
+            />
+            <span className="flex-1 truncate relative z-10">{item.label}</span>
+            {isPathActive(item.path) && (
+              <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />
+            )}
+          </Link>
+        ))}
+      </div>
+    </div>
+  </div>
+));
+
+MenuGroupItem.displayName = 'MenuGroupItem';
 
 // Helper to render Lucide icon by name (uses tree-shaken registry)
 const DynamicIcon = ({ name, className }: { name?: string; className?: string }) => {
@@ -210,63 +270,15 @@ function AdminLayoutDynamicImproved() {
                 </p>
               </div>
             ) : (
-              filteredGroupedMenus.map((group, groupIdx) => (
-                <div key={group.name} className="space-y-1.5 animate-in fade-in duration-300" style={{ animationDelay: `${groupIdx * 50}ms` }}>
-                  {/* Group Header */}
-                  <button
-                    onClick={() => toggleGroup(group.name)}
-                    className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 group rounded-lg',
-                      isGroupExpanded(group.name)
-                        ? 'text-primary bg-primary/5'
-                        : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/50'
-                    )}
-                  >
-                    <span className="flex-1 text-left">{group.name}</span>
-                    <ChevronDown
-                      className={cn(
-                        'w-3.5 h-3.5 transition-transform duration-300 flex-shrink-0',
-                        isGroupExpanded(group.name) ? 'rotate-180' : '-rotate-90'
-                      )}
-                    />
-                  </button>
-
-                  {/* Group Items */}
-                  <div className={cn(
-                    "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out grid",
-                    isGroupExpanded(group.name) ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none"
-                  )}>
-                    <div className="min-h-0">
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.id}
-                        to={item.path}
-                        onClick={() => !isDesktop && setSidebarOpen(false)}
-                        className={cn(
-                          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden',
-                          isPathActive(item.path)
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                        )}
-                      >
-                        <DynamicIcon
-                          name={item.icon}
-                          className={cn(
-                            'w-4 h-4 flex-shrink-0 transition-all duration-200',
-                            isPathActive(item.path)
-                              ? 'text-primary-foreground'
-                              : 'text-muted-foreground/70 group-hover:text-primary group-hover:scale-110'
-                          )}
-                        />
-                        <span className="flex-1 truncate relative z-10">{item.label}</span>
-                        {isPathActive(item.path) && (
-                          <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />
-                        )}
-                      </Link>
-                    ))}
-                    </div>
-                  </div>
-                </div>
+                  filteredGroupedMenus.map((group, groupIdx) => (
+                <MenuGroupItem
+                  key={group.name}
+                  group={group}
+                  isExpanded={isGroupExpanded(group.name)}
+                  onToggle={toggleGroup}
+                  isPathActive={isPathActive}
+                  onNavigate={() => !isDesktop && setSidebarOpen(false)}
+                />
               ))
             )}
           </nav>
