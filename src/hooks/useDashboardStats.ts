@@ -49,7 +49,7 @@ export function useDashboardStats(filters: DashboardFilters = {}) {
             .gte('created_at', effectiveStartDate.toISOString())
             .lte('created_at', effectiveEndDate.toISOString())
             .order('created_at', { ascending: false })
-            .limit(1000);
+            .limit(500);
           
           if (branchId) q = q.eq('branch_id', branchId);
           if (agentId) q = q.eq('agent_id', agentId);
@@ -102,6 +102,11 @@ export function useDashboardStats(filters: DashboardFilters = {}) {
         monthlyStatsMap[key] = { revenue: 0, bookings: 0 };
       });
 
+      // Build agent map once for O(1) lookup instead of O(N*M) .find() in loop
+      const agentMap = new Map<string, string>(
+        (agents || []).map(a => [a.id, a.company_name || 'Unknown Agent'])
+      );
+
       rawBookings?.forEach(b => {
         const revenue = b.paid_amount || 0;
         const price = b.total_price || 0;
@@ -120,10 +125,10 @@ export function useDashboardStats(filters: DashboardFilters = {}) {
         statusMap[status] = (statusMap[status] || 0) + 1;
         paymentMap[pStatus] = (paymentMap[pStatus] || 0) + 1;
         
-        // Agent stats
+        // Agent stats - O(1) Map lookup
         if (b.agent_id) {
           if (!agentStats[b.agent_id]) {
-            const agentName = agents?.find(a => a.id === b.agent_id)?.company_name || 'Unknown Agent';
+            const agentName = agentMap.get(b.agent_id) || 'Unknown Agent';
             agentStats[b.agent_id] = { name: agentName, bookings: 0, revenue: 0 };
           }
           agentStats[b.agent_id].bookings += 1;

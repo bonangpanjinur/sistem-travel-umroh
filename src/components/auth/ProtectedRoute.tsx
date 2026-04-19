@@ -4,72 +4,59 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { AppRole } from '@/types/database';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAuth?: boolean;
   allowedRoles?: AppRole[];
-  permission?: string; // Specific permission key required to access this route
+  permission?: string;
 }
 
-export default function ProtectedRoute({ 
-  children, 
+const LoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-muted-foreground">Memeriksa izin akses...</p>
+    </div>
+  </div>
+);
+
+/**
+ * Sub-component that ONLY mounts when dynamic menu permission check is needed.
+ * This avoids subscribing to useDynamicMenus query for super admins / non-staff routes,
+ * which prevents extra re-renders on the Admin Layout.
+ */
+function DynamicMenuGate({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const { isPathAllowed, isLoading } = useDynamicMenus();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setAllowed(isPathAllowed(location.pathname));
+    }
+  }, [isLoading, isPathAllowed, location.pathname]);
+
+  if (isLoading || allowed === null) return <LoadingScreen />;
+  if (allowed === false) return <Navigate to="/access-denied" replace />;
+  return <>{children}</>;
+}
+
+export default function ProtectedRoute({
+  children,
   requireAuth = true,
   allowedRoles,
-  permission
 }: ProtectedRouteProps) {
   const { user, isLoading: authLoading, roles, isStaff, isSuperAdmin } = useAuth();
   const location = useLocation();
-  
-  // Super admin bypasses all permission checks for maximum speed
-  const isSuper = isSuperAdmin();
-  
-  // Only use dynamic menus for admin/staff paths to speed up customer/public access
-  const isStaffPath = location.pathname.startsWith('/admin') || 
-                     location.pathname.startsWith('/operational') || 
-                     location.pathname.startsWith('/hr');
-  
-  const shouldCheckDynamicMenus = !!user && isStaffPath && isStaff() && !isSuper;
-  
-  const { isPathAllowed, isLoading: menusLoading } = useDynamicMenus();
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    // Super admin or non-staff path → always granted
-    if (!shouldCheckDynamicMenus) {
-      setPermissionGranted(true);
-      return;
-    }
+  if (authLoading) return <LoadingScreen />;
 
-    // Check granular path-based access using dynamic menus
-    if (user && !menusLoading) {
-      const pathAllowed = isPathAllowed(location.pathname);
-      setPermissionGranted(pathAllowed);
-    }
-  }, [user, location.pathname, menusLoading, isPathAllowed, shouldCheckDynamicMenus]);
-
-  // Only wait for menus if we actually need to check them (super admin never waits)
-  const isLoading = authLoading || (shouldCheckDynamicMenus && menusLoading);
-
-  // Show loading state while checking auth and permissions
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Memeriksa izin akses...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If loading finished but no user, and it's required, redirect to login
   if (requireAuth && !user) {
     return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  // Check if user has allowed role (Legacy check)
+  // Legacy role-based check
   if (allowedRoles && allowedRoles.length > 0) {
     const hasAllowedRole = roles.some(role => allowedRoles.includes(role));
     if (!hasAllowedRole) {
@@ -77,10 +64,18 @@ export default function ProtectedRoute({
     }
   }
 
-  // Check granular path-based permission (covers both dynamic check and explicit permission prop)
-  if (permissionGranted === false) {
-    return <Navigate to="/access-denied" replace />;
+  // Super admin bypasses dynamic permission checks (no useDynamicMenus subscription)
+  const isSuper = isSuperAdmin();
+  const isStaffPath =
+    location.pathname.startsWith('/admin') ||
+    location.pathname.startsWith('/operational') ||
+    location.pathname.startsWith('/hr');
+  const shouldCheckDynamicMenus = !!user && isStaffPath && isStaff() && !isSuper;
+
+  if (!shouldCheckDynamicMenus) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Only this branch subscribes to useDynamicMenus
+  return <DynamicMenuGate>{children}</DynamicMenuGate>;
 }

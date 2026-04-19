@@ -139,47 +139,57 @@ function AdminLayoutDynamicImproved() {
     };
   }, [searchQuery]);
 
-  // Auto-expand group containing active path
+  // Auto-expand group containing active path (guarded to avoid no-op setState → re-render)
   useEffect(() => {
-    if (groupedMenus.length > 0) {
-      const activeGroup = groupedMenus.find(group => 
-        group.items.some(item => location.pathname === item.path || (item.path !== '/admin' && location.pathname.startsWith(item.path)))
-      );
-      
-      if (activeGroup) {
-        setExpandedGroups(prev => {
-          const next = new Set(prev);
-          next.add(activeGroup.name);
-          return next;
-        });
-      } else if (expandedGroups.size === 0 && groupedMenus.length > 0) {
-        // Default expand first group
-        setExpandedGroups(new Set([groupedMenus[0].name]));
-      }
+    if (groupedMenus.length === 0) return;
+
+    const activeGroup = groupedMenus.find(group =>
+      group.items.some(item => location.pathname === item.path || (item.path !== '/admin' && location.pathname.startsWith(item.path)))
+    );
+
+    if (activeGroup) {
+      setExpandedGroups(prev => {
+        if (prev.has(activeGroup.name)) return prev; // already expanded → skip setState
+        const next = new Set(prev);
+        next.add(activeGroup.name);
+        return next;
+      });
+    } else {
+      setExpandedGroups(prev => {
+        if (prev.size > 0) return prev;
+        return new Set([groupedMenus[0].name]);
+      });
     }
   }, [groupedMenus, location.pathname]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await signOut();
     navigate('/');
-  };
+  }, [signOut, navigate]);
 
-  const toggleGroup = (groupName: string) => {
-    const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(groupName)) {
-      newExpanded.delete(groupName);
-    } else {
-      newExpanded.add(groupName);
-    }
-    setExpandedGroups(newExpanded);
-  };
+  const toggleGroup = useCallback((groupName: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupName)) next.delete(groupName);
+      else next.add(groupName);
+      return next;
+    });
+  }, []);
 
-  const isGroupExpanded = (groupName: string) => expandedGroups.has(groupName);
+  const isGroupExpanded = useCallback(
+    (groupName: string) => expandedGroups.has(groupName),
+    [expandedGroups]
+  );
 
-  const isPathActive = (path: string) => {
+  // Stable callback so memoized MenuGroupItem doesn't re-render every parent render
+  const isPathActive = useCallback((path: string) => {
     if (path === '/admin') return location.pathname === '/admin';
     return location.pathname.startsWith(path);
-  };
+  }, [location.pathname]);
+
+  const handleNavigate = useCallback(() => {
+    if (!isDesktop) setSidebarOpen(false);
+  }, [isDesktop]);
 
   // Filter menus based on debounced search query
   const filteredGroupedMenus = useMemo(() => {
@@ -270,14 +280,14 @@ function AdminLayoutDynamicImproved() {
                 </p>
               </div>
             ) : (
-                  filteredGroupedMenus.map((group, groupIdx) => (
+                  filteredGroupedMenus.map((group) => (
                 <MenuGroupItem
                   key={group.name}
                   group={group}
                   isExpanded={isGroupExpanded(group.name)}
                   onToggle={toggleGroup}
                   isPathActive={isPathActive}
-                  onNavigate={() => !isDesktop && setSidebarOpen(false)}
+                  onNavigate={handleNavigate}
                 />
               ))
             )}

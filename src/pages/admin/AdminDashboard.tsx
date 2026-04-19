@@ -14,6 +14,7 @@ import { lazy, Suspense, useState, useMemo, useCallback, memo } from "react";
 import { format, subMonths } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useDashboardStats, useRecentBookings, useUpcomingDepartures } from "@/hooks/useDashboardStats";
+import { useDashboardAlerts } from "@/hooks/useDashboardAlerts";
 import { useMultipleRealtimeSubscriptions } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -170,50 +171,11 @@ export default function AdminDashboard() {
     staleTime: 1000 * 60 * 60, // 1 hour
   });
 
-  // Fetch inventory stock alerts
-  const { data: stockAlerts } = useQuery({
-    queryKey: ['dashboard-stock-alerts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('equipment_items')
-        .select('id, name, stock_quantity')
-        .lte('stock_quantity', 5);
-      if (error) throw error;
-      const critical = (data || []).filter((item: any) => item.stock_quantity === 0);
-      const low = (data || []).filter((item: any) => item.stock_quantity > 0 && item.stock_quantity <= 5);
-      return { critical: critical.length, low: low.length, total: (data || []).length };
-    },
-    staleTime: 1000 * 60 * 15,
-  });
-
-  // Fetch pending document verification count
-  const { data: pendingDocuments } = useQuery({
-    queryKey: ['dashboard-pending-documents'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('customer_documents')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      if (error) throw error;
-      return count || 0;
-    },
-    staleTime: 1000 * 60 * 15,
-  });
-
-  // Fetch latest audit logs
-  const { data: recentAudits } = useQuery({
-    queryKey: ['dashboard-recent-audits'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 1000 * 60 * 5,
-  });
+  // Combined alerts query (stockAlerts + pendingDocuments + recentAudits)
+  const { data: alerts } = useDashboardAlerts();
+  const stockAlerts = alerts?.stockAlerts;
+  const pendingDocuments = alerts?.pendingDocuments;
+  const recentAudits = alerts?.recentAudits;
 
   useMultipleRealtimeSubscriptions(
     ['bookings', 'payments'],
