@@ -1,80 +1,81 @@
 
 
-## Akar masalah loading lambat (yang masih tersisa)
+## Bug & Inefisiensi yang Masih Tersisa
 
-Setelah cek mendalam, saya temukan **5 bottleneck nyata** yang belum disentuh:
+### 🔴 Bug 1 — Tabel `hero_stats` TIDAK ADA tapi tetap di-fetch (404 error)
+Network log: `GET /rest/v1/hero_stats → 404 PGRST205 "Could not find the table 'public.hero_stats'"`.
+- Hook `useHeroStats` swallow error & return `[]` ✓ — **tidak crash**, tapi tetap:
+  - HTTP request 404 setiap kunjungan ke homepage `/`
+  - Memboroskan round-trip
+  - Meng-clutter network tab developer
+- Kemungkinan migrasi belum dijalankan, atau kode masih reference tabel yang sudah dihapus.
 
-### 1. `useDashboardStats` masih dependent ke `agents` query — sequential
-Di `useDashboardStats.ts` line 60-69, query bookings memakai `Promise.all` dengan agents query — bagus. **TAPI** di dalam loop `rawBookings?.forEach`, untuk setiap booking, code memanggil `agents?.find(a => a.id === b.agent_id)` → **O(N×M) lookup**. Untuk 1000 bookings × 100 agents = 100.000 iterasi sinkron di main thread saat dashboard load. Inilah penyebab "freeze" sebentar.
+### 🟡 Bug 2 — `loadGoogleFonts` di ThemeProvider override font async kita
+Di `index.html` saya sudah ubah Google Fonts jadi `rel="preload"` (non-blocking) ✓.
+**TAPI** `ThemeProvider.tsx` line 84-88 setiap kali settings load akan **ADD link `<link rel="stylesheet">` baru** dengan font yang sama (Inter, Plus Jakarta Sans) → **render-blocking lagi** + **duplikat download**.
 
-### 2. AdminDashboard mounting **5 query berbeda secara parallel** + 1 realtime subscription
-- `useDashboardStats` (1)
-- `useRecentBookings` (2)
-- `useUpcomingDepartures` (3)
-- `branches`, `agents`, `stockAlerts`, `pendingDocuments`, `recentAudits` (4-8)
-- `useMultipleRealtimeSubscriptions` (WS handshake)
+Network log mengkonfirmasi: `website_settings` di-fetch saat `/` dimuat → trigger `loadGoogleFonts` → tambah link blocking. Optimisasi font async di index.html jadi **tidak efektif**.
 
-Total: **8 HTTP request paralel + 1 WebSocket** saat dashboard pertama buka. Browser HTTP/2 dapat handle, tapi waterfall server-side & RLS check tetap terasa.
+### 🟡 Bug 3 — `applyMetaTags` & `loadGoogleFonts` jalan setiap settings update
+`useEffect` deps `[settings, cssVariables, settingsHash]` — `settings` adalah objek baru tiap React Query refetch (walau staleTime). Setiap re-mount/refetch:
+- Hapus & buat ulang `<link>` font (Bug 2)
+- Update meta tags (relatif murah)
+- Tulis localStorage 3 kali
 
-### 3. ProtectedRoute + AdminLayout sama-sama panggil `useDynamicMenus`
-- `ProtectedRoute` panggil `useDynamicMenus()` untuk cek `isPathAllowed`.
-- `AdminLayoutDynamicImproved` panggil `useDynamicMenus()` LAGI untuk render sidebar.
-- React Query dedupe network ✓, tapi 2 komponen subscribe → 2× re-render saat data masuk. Plus `sortedGroupedMenus` `useMemo` jalan 2× dengan dep array array reference berbeda.
+Solusi: bandingkan `settingsHash` saja sebelum apply, atau pisah jadi 2 useEffect (CSS vars vs fonts vs meta).
 
-### 4. `index.html` blocking stylesheet untuk Google Fonts
-Line 26: `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?...">` — **render-blocking**. Browser harus tunggu CSS fonts download sebelum first paint. Walau preconnect ada, tetap ada round-trip. Untuk koneksi lambat = +200-500ms ke First Paint.
+### 🟢 Bug 4 — Tidak ada LoadingState fallback yang ringan
+`LazyPage` pakai `<LoadingState />`. Cek apakah komponen ini berat (animasi/icon) — bila iya, first paint terhambat saat lazy chunk download.
 
-### 5. `AdminLayoutDynamicImproved` re-render sidebar setiap pindah route
-- `expandedGroups` `useEffect` (line 143) jalan setiap `location.pathname` ganti → `setExpandedGroups` → re-render seluruh sidebar (47 menu items).
-- `MenuGroupItem` sudah `memo` ✓, tapi prop `isPathActive` (line 179) **adalah function baru tiap render** → memo gagal → semua group re-render.
+### 🟡 Bug 5 — `useDashboardStats` tetap mem-fetch saat `enabled` tidak diset
+Hook tidak punya guard `enabled: !!user`. Bila ada komponen yang mount sebelum user ready, tetap fire query → kemungkinan 401/RLS denied terbuang.
+
+### 🟢 Bug 6 — Route `/:slug` catch-all di akhir public routes
+`<Route path="/:slug" element={<StaticPage />} />` — catch SEMUA path yang tidak match, tapi diletakkan **sebelum** `*` NotFound. OK secara fungsi, tapi setiap typo URL → render `StaticPage` lalu 404 di dalam → boros render 1 page lazy chunk dulu sebelum tahu tidak ada.
 
 ---
 
-## Rencana perbaikan (fokus, tidak invasif)
+## Rencana Perbaikan (fokus, low-risk)
 
-### A. `src/hooks/useDashboardStats.ts` — buat agent map sekali
-- Sebelum loop bookings, build `agentMap = new Map(agents.map(a => [a.id, a.company_name]))`.
-- Ganti `agents?.find(...)` → `agentMap.get(b.agent_id)`. Dari O(N×M) → O(N).
-- Limit bookings select dari 1000 → 500 (default 6 bulan biasanya cukup).
+### A. `src/hooks/useHeroStats.ts` — disable query bila tabel tidak ada
+- Tambah `enabled: false` sementara (atau tambah cek apakah feature dipakai). 
+- **Atau** lebih baik: `staleTime: Infinity` + cache hasil 404 supaya tidak retry. Saat ini `retry: 0` ✓ tapi tetap fire 1× setiap mount.
+- **Solusi terbaik:** ganti `useQuery` jadi simple `return { data: [], isLoading: false }` sampai tabel di-create. Atau tambah migrasi `CREATE TABLE hero_stats`.
 
-### B. `src/pages/admin/AdminDashboard.tsx` — gabung query "alerts"
-- Buat 1 hook `useDashboardAlerts()` yang fetch `stockAlerts + pendingDocuments + recentAudits` paralel di dalam 1 hook (Promise.all). Mengurangi 3 useQuery → 1.
-- Naikkan staleTime `recentAudits` dari 5 menit → 15 menit (audit jarang dilihat detik-per-detik).
+### B. `src/components/providers/ThemeProvider.tsx` — hentikan boros font load
+- **Skip `loadGoogleFonts`** bila font sama dengan yang sudah ada di `<link rel="preload">` di `index.html` (Inter & Plus Jakarta Sans). 
+- Cek nama font sebelum append link: bila sudah ada di document, skip.
+- Tambahkan guard hash: hanya re-apply bila `settingsHash` berubah, bukan setiap render.
 
-### C. `src/components/auth/ProtectedRoute.tsx` — skip `useDynamicMenus` saat super admin
-- Sudah ada `isSuper` flag tapi hook tetap dipanggil. React rules: hook harus dipanggil. **Solusi:** pakai `enabled: false` lewat conditional yang sudah ada di `useDynamicMenus` (line 47, 88) — sudah benar. Yang perlu diperbaiki: pastikan `isPathAllowed` jadi stable callback (sudah `useCallback` ✓). 
-- **Real fix:** keluarkan `useDynamicMenus()` dari `ProtectedRoute` ketika `!shouldCheckDynamicMenus` — pakai komponen wrapper terpisah `<DynamicMenuGate>` yang hanya mount saat butuh.
+### C. `src/components/providers/ThemeProvider.tsx` — pisah useEffect by concern
+- useEffect 1: CSS vars (deps: `cssVariables`)
+- useEffect 2: Fonts (deps: `settings.heading_font, settings.body_font`)
+- useEffect 3: Meta tags (deps: `settings.meta_title, settings.meta_description, settings.logo_url, settings.favicon_url, settings.primary_color`)
+- localStorage write hanya saat `settingsHash` berubah (guard di awal).
 
-### D. `src/components/admin/AdminLayoutDynamicImproved.tsx` — stable `isPathActive`
-- Bungkus `isPathActive` dengan `useCallback([location.pathname])`. Lalu `MenuGroupItem` memo akan benar-benar bekerja.
-- `expandedGroups` `useEffect`: tambah guard agar tidak `setState` jika group sudah expanded → cegah re-render kosong.
+### D. `src/hooks/useDashboardStats.ts` — guard enabled
+- Tambah `enabled` param atau cek lewat user/role di hook agar tidak fire saat unauth.
 
-### E. `index.html` — non-blocking font load
-- Ganti `<link rel="stylesheet" href="...fonts...">` jadi pola async:
-  ```html
-  <link rel="preload" as="style" href="..." onload="this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="..."></noscript>
-  ```
-- First Paint langsung jalan, fonts swap-in saat siap (Inter & Plus Jakarta Sans memang `display=swap`).
-
-### F. (Opsional, low-risk) Lazy `CommandPalette` keyboard listener
-- Sudah lazy ✓, tetap.
+### E. (Pilihan, opsional) Tanya user: buat migrasi `hero_stats` atau hapus fitur?
+- Bila editor `HeroStatsEditor.tsx` masih dipakai admin untuk edit angka statistik → buat migrasi tabel.
+- Bila tidak dipakai → hapus hook & komponen.
 
 ---
 
 ## File yang akan diubah
-- `src/hooks/useDashboardStats.ts` — agent Map lookup, limit 500.
-- `src/pages/admin/AdminDashboard.tsx` — gabung 3 query alerts jadi 1.
-- `src/hooks/useDashboardAlerts.ts` — **BARU**, single Promise.all.
-- `src/components/auth/ProtectedRoute.tsx` — extract dynamic menu check ke sub-component.
-- `src/components/admin/AdminLayoutDynamicImproved.tsx` — useCallback `isPathActive`, guard expandedGroups setState.
-- `index.html` — async font loading.
+- `src/hooks/useHeroStats.ts` — short-circuit return tanpa query (sampai user pilih).
+- `src/components/providers/ThemeProvider.tsx` — skip font load bila sudah preloaded di index.html, pisah useEffect.
+- `src/hooks/useDashboardStats.ts` — tambah guard `enabled`.
 
 ## Hasil yang ditargetkan
-- Dashboard TTI: **turun ~30-40%** untuk tenant produksi (1000 bookings).
-- Loop processing dashboard: **dari ~50-100ms → < 5ms**.
-- HTTP requests dashboard pertama: **dari 8 → 6** request.
-- First Paint: **turun ~150-300ms** (font tidak blocking).
-- Sidebar tidak re-render seluruhnya saat pindah halaman.
-- **Tidak ada perubahan UI/fungsional.** Semua data, chart, menu tetap sama.
+- ✅ Hilangkan 1 HTTP 404 request setiap visit homepage.
+- ✅ **Optimisasi font async di index.html jadi efektif** (sekarang dibatalkan oleh ThemeProvider).
+- ✅ Meta tag & font tidak re-apply setiap re-render → kurang DOM mutation.
+- ✅ Dashboard tidak fetch saat unauth.
+
+## Pertanyaan untuk user (sebelum implementasi)
+**Apakah fitur "Hero Stats" (statistik di banner homepage seperti "1000+ Jamaah") masih dipakai?**
+- **Ya, mau dipakai** → saya buat migrasi tabel `hero_stats` (ada di kode tapi belum di DB).
+- **Tidak / belum dibutuhkan** → saya hapus hook + komponen `HeroStatsEditor` agar tidak ada 404.
+- **Skip dulu** → saya hanya silence query supaya tidak 404, fitur biarkan mati sementara.
 
