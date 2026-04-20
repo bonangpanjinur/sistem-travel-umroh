@@ -1,4 +1,4 @@
-import { Route } from "react-router-dom";
+import { Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
@@ -148,6 +148,8 @@ export default function AdminRoutes() {
 
       {/* Pengaturan */}
       <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} />
+      {/* Legacy redirect — UserPermissionsManager is now a dialog inside /admin/users */}
+      <Route path="user-permissions" element={<Navigate to="/admin/users" replace />} />
       <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
       <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />

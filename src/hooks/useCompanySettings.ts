@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,10 +22,10 @@ export function useCompanySettings() {
     },
   });
 
-  const getSetting = (key: string): any => {
+  const getSetting = useCallback((key: string): any => {
     const setting = settings.find((s) => s.setting_key === key);
     return setting?.setting_value ?? null;
-  };
+  }, [settings]);
 
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
