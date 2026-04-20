@@ -35,11 +35,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Set authHandledRef synchronously to prevent race condition
     let authHandled = false;
-    
+
+    const handleInvalidSession = () => {
+      lastFetchedUserIdRef.current = null;
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      setRoles([]);
+      setBranchId(null);
+      setIsLoading(false);
+      // Hard signOut to clear corrupted token in storage (fire & forget)
+      supabase.auth.signOut().catch(() => {});
+      // Redirect to login if user is on a protected area
+      const path = window.location.pathname;
+      const isProtected =
+        path.startsWith('/admin') ||
+        path.startsWith('/operational') ||
+        path.startsWith('/hr') ||
+        path.startsWith('/agent') ||
+        path.startsWith('/jamaah') ||
+        path.startsWith('/customer');
+      if (isProtected && !path.startsWith('/auth/')) {
+        window.location.href = `/auth/login?redirect=${encodeURIComponent(path)}`;
+      }
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         authHandled = true;
         authHandledRef.current = true;
+
+        // Refresh failure: token rotated and revoked, or storage corrupted
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          console.warn('[Auth] TOKEN_REFRESHED but no session — invalid refresh token. Signing out.');
+          handleInvalidSession();
+          return;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -59,25 +91,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // Skip if onAuthStateChange already handled this or listener fired
-      if (authHandled || authHandledRef.current) return;
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        // Skip if onAuthStateChange already handled this or listener fired
+        if (authHandled || authHandledRef.current) return;
 
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        if (lastFetchedUserIdRef.current === session.user.id) {
-          setIsLoading(false);
-          return;
+        if (error) {
+          const msg = (error as any)?.message?.toLowerCase?.() || '';
+          if (msg.includes('refresh token') || msg.includes('invalid')) {
+            console.warn('[Auth] getSession error — invalid token. Signing out.', error);
+            handleInvalidSession();
+            return;
+          }
         }
-        fetchUserData(session.user.id);
-      } else {
-        setIsLoading(false);
-      }
-    });
 
-    return () => subscription.unsubscribe();
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          if (lastFetchedUserIdRef.current === session.user.id) {
+            setIsLoading(false);
+            return;
+          }
+          fetchUserData(session.user.id);
+        } else {
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('[Auth] getSession threw — clearing session.', err);
+        handleInvalidSession();
+      });
+
+    // Sync logout across tabs
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key && e.key.includes('supabase.auth.token') && !e.newValue) {
+        lastFetchedUserIdRef.current = null;
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setRoles([]);
+        setBranchId(null);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const fetchUserData = async (userId: string) => {

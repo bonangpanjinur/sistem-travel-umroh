@@ -90,7 +90,8 @@ export default function AdminSettings() {
     },
   });
 
-  // Initialize company form when settings load
+  // Initialize company form when settings load (deps must be stable to avoid infinite loop)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isLoading) {
       companyForm.reset({
@@ -100,9 +101,11 @@ export default function AdminSettings() {
         company_address: getSetting("company_address") || "",
       });
     }
-  }, [isLoading, getSetting, companyForm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   // Initialize bank form when editing
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (editingBank) {
       bankForm.reset({
@@ -121,15 +124,18 @@ export default function AdminSettings() {
         is_primary: false,
       });
     }
-  }, [editingBank, bankForm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingBank]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isLoading) {
       certificateForm.reset({
         certificate_cost_per_owner: parseFloat(getSetting("certificate_cost_per_owner")) || 0,
       });
     }
-  }, [isLoading, getSetting, certificateForm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   const onSaveCompany = (data: CompanyFormData) => {
     updateMultipleSettings([
