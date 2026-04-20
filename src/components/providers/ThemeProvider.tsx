@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo } from 'react';
+import { ReactNode, useEffect, useMemo, useRef } from 'react';
 import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 
 interface ThemeProviderProps {
@@ -8,9 +8,11 @@ interface ThemeProviderProps {
 
 const THEME_CACHE_KEY = 'website-theme-cache';
 const THEME_VERSION_KEY = 'website-theme-version';
-const CURRENT_THEME_VERSION = '2'; // Increment this when cache structure changes
+const CURRENT_THEME_VERSION = '2';
 
-// Generate CSS variables from website settings
+// Fonts already preloaded in index.html — skip duplicate loading for these.
+const PRELOADED_FONTS = new Set(['Inter', 'Plus Jakarta Sans']);
+
 function generateCSSVariables(settings: WebsiteSettings | null | undefined): Record<string, string> {
   if (!settings) return {};
 
@@ -55,7 +57,6 @@ function generateCSSVariables(settings: WebsiteSettings | null | undefined): Rec
   };
 }
 
-// Apply CSS variables to root element
 function applyCSSVariables(cssVariables: Record<string, string>, settings?: Partial<WebsiteSettings> | null) {
   const root = document.documentElement;
   Object.entries(cssVariables).forEach(([key, value]) => {
@@ -70,25 +71,34 @@ function applyCSSVariables(cssVariables: Record<string, string>, settings?: Part
   }
 }
 
-// Load Google Fonts dynamically
+// Load Google Fonts dynamically — but skip fonts already preloaded in index.html.
 function loadGoogleFonts(headingFont: string | null, bodyFont: string | null) {
   const fonts = [headingFont, bodyFont].filter(Boolean) as string[];
-  const uniqueFonts = [...new Set(fonts)];
-  
-  if (uniqueFonts.length === 0) return;
+  // Skip preloaded fonts to avoid duplicate render-blocking <link> tags.
+  const customFonts = [...new Set(fonts)].filter(f => !PRELOADED_FONTS.has(f));
 
   const existingLink = document.getElementById('dynamic-google-fonts');
+
+  if (customFonts.length === 0) {
+    // Nothing custom to load — clean up any prior dynamic link.
+    if (existingLink) existingLink.remove();
+    return;
+  }
+
+  const fontFamilies = customFonts.map(f => f.replace(/\s+/g, '+')).join('&family=');
+  const newHref = `https://fonts.googleapis.com/css2?family=${fontFamilies}:wght@400;500;600;700&display=swap`;
+
+  // Skip if already loaded with the same href.
+  if (existingLink && (existingLink as HTMLLinkElement).href === newHref) return;
   if (existingLink) existingLink.remove();
 
-  const fontFamilies = uniqueFonts.map(f => f.replace(/\s+/g, '+')).join('&family=');
   const link = document.createElement('link');
   link.id = 'dynamic-google-fonts';
   link.rel = 'stylesheet';
-  link.href = `https://fonts.googleapis.com/css2?family=${fontFamilies}:wght@400;500;600;700&display=swap`;
+  link.href = newHref;
   document.head.appendChild(link);
 }
 
-// Helper to update or create meta tags
 function updateMetaTag(name: string, content: string, attr: 'name' | 'property' = 'name') {
   let element = document.querySelector(`meta[${attr}="${name}"]`);
   if (!element) {
@@ -99,7 +109,6 @@ function updateMetaTag(name: string, content: string, attr: 'name' | 'property' 
   element.setAttribute('content', content);
 }
 
-// Apply dynamic meta tags for SEO
 function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   if (!settings) return;
 
@@ -109,24 +118,17 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
 
   document.title = title;
   updateMetaTag('description', description);
-  
-  // Open Graph
   updateMetaTag('og:title', title, 'property');
   updateMetaTag('og:description', description, 'property');
   updateMetaTag('og:image', logo, 'property');
-  
-  // Twitter
   updateMetaTag('twitter:title', title);
   updateMetaTag('twitter:description', description);
   updateMetaTag('twitter:image', logo);
 
-  // Theme Color (Sync with Primary)
   if (settings.primary_color) {
-    // Convert HSL to Hex or similar if needed, but for now use the variable
     updateMetaTag('theme-color', `hsl(${settings.primary_color})`);
   }
 
-  // Google Search Console Verification
   if (settings.google_console_verification) {
     updateMetaTag('google-site-verification', settings.google_console_verification);
   }
@@ -140,8 +142,7 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
       document.head.appendChild(favicon);
     }
     favicon.href = iconUrl;
-    
-    // Apple Touch Icon
+
     let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
     if (!appleIcon) {
       appleIcon = document.createElement('link');
@@ -152,13 +153,9 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   }
 }
 
-/**
- * Generate a hash of the settings to detect changes
- * This helps invalidate cache when settings structure changes
- */
 function generateSettingsHash(settings: WebsiteSettings | null | undefined): string {
   if (!settings) return '';
-  
+
   const hashableData = {
     colors: {
       primary: settings.primary_color,
@@ -174,14 +171,13 @@ function generateSettingsHash(settings: WebsiteSettings | null | undefined): str
     template: settings.template,
     updated_at: settings.updated_at,
   };
-  
-  // Simple hash function - in production, consider using a proper hashing library
+
   return btoa(JSON.stringify(hashableData)).substring(0, 16);
 }
 
 /**
- * ThemeProvider component that applies website settings to the document
- * Includes improved caching with version control to prevent stale styles
+ * ThemeProvider — applies website settings to the document.
+ * Effects are split by concern to minimize redundant DOM mutations.
  */
 export function ThemeProvider({ children, settings: propSettings }: ThemeProviderProps) {
   const { data: fetchedSettings } = useWebsiteSettings();
@@ -189,49 +185,60 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
 
   const cssVariables = useMemo(() => generateCSSVariables(settings), [settings]);
   const settingsHash = useMemo(() => generateSettingsHash(settings), [settings]);
+  const lastAppliedHashRef = useRef<string>('');
 
+  // Effect 1: CSS variables — re-apply only when computed values change.
   useEffect(() => {
     if (!settings) return;
+    applyCSSVariables(cssVariables, settings);
+  }, [cssVariables, settings]);
 
-    // Check if cached version is still valid
+  // Effect 2: Fonts — re-apply only when font names change.
+  useEffect(() => {
+    if (!settings) return;
+    loadGoogleFonts(settings.heading_font, settings.body_font);
+  }, [settings?.heading_font, settings?.body_font]);
+
+  // Effect 3: Meta tags — re-apply only when relevant SEO fields change.
+  useEffect(() => {
+    if (!settings) return;
+    applyMetaTags(settings);
+  }, [
+    settings?.meta_title,
+    settings?.meta_description,
+    settings?.company_name,
+    settings?.tagline,
+    settings?.logo_url,
+    settings?.favicon_url,
+    settings?.primary_color,
+    settings?.google_console_verification,
+  ]);
+
+  // Effect 4: Cache write — only when the settings hash actually changes.
+  useEffect(() => {
+    if (!settings || !settingsHash) return;
+    if (lastAppliedHashRef.current === settingsHash) return;
+    lastAppliedHashRef.current = settingsHash;
+
     try {
       const cachedVersion = localStorage.getItem(THEME_VERSION_KEY);
       const cachedHash = localStorage.getItem(`${THEME_CACHE_KEY}-hash`);
-      
-      // Clear cache if version mismatch or hash mismatch (settings changed)
+
       if (cachedVersion !== CURRENT_THEME_VERSION || cachedHash !== settingsHash) {
-        localStorage.removeItem(THEME_CACHE_KEY);
-        localStorage.removeItem(`${THEME_CACHE_KEY}-hash`);
+        localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(cssVariables));
+        localStorage.setItem(THEME_VERSION_KEY, CURRENT_THEME_VERSION);
+        localStorage.setItem(`${THEME_CACHE_KEY}-hash`, settingsHash);
       }
-    } catch {
-      // Ignore quota errors
-    }
 
-    // Apply CSS variables
-    applyCSSVariables(cssVariables, settings);
-
-      // Cache CSS variables and metadata for instant apply on next reload
-    try {
-      localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(cssVariables));
-      localStorage.setItem(THEME_VERSION_KEY, CURRENT_THEME_VERSION);
-      localStorage.setItem(`${THEME_CACHE_KEY}-hash`, settingsHash);
-      
-      // Cache SEO settings for instant head tag injection
       if (settings.google_console_verification) {
         localStorage.setItem('website-seo-verification', settings.google_console_verification);
       } else {
         localStorage.removeItem('website-seo-verification');
       }
     } catch {
-      // Ignore quota errors (localStorage full)
+      // Ignore quota errors
     }
-
-    // Load Google Fonts
-    loadGoogleFonts(settings.heading_font, settings.body_font);
-
-    // Apply meta tags
-    applyMetaTags(settings);
-  }, [settings, cssVariables, settingsHash]);
+  }, [settingsHash, cssVariables, settings]);
 
   return <>{children}</>;
 }

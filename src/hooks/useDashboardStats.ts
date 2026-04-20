@@ -23,11 +23,13 @@ export interface DashboardFilters {
  * 3. Extended staleTime to reduce redundant API calls
  * 4. Selectors for granular re-renders
  */
-export function useDashboardStats(filters: DashboardFilters = {}) {
+export function useDashboardStats(filters: DashboardFilters = {}, options: { enabled?: boolean } = {}) {
   const { branchId, startDate, endDate, agentId } = filters;
+  const { enabled = true } = options;
 
   return useQuery({
     queryKey: ['admin-dashboard-stats', filters],
+    enabled,
     queryFn: async () => {
       const defaultStartDate = subMonths(new Date(), 6);
       const effectiveStartDate = startDate || defaultStartDate;
