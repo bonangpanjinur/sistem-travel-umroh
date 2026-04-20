@@ -100,12 +100,10 @@ export default defineConfig(({ mode }) => ({
             return 'vendor-icons';
           }
           
-          // Sales & CRM pages - separate chunk for better lazy loading
-          if (id.includes('AdminLeads') || id.includes('AdminCoupons') || id.includes('AdminLandingPages')) {
-            return 'admin-crm';
-          }
-          
-          // Admin pages - separate chunk
+          // Admin pages - single chunk to avoid cross-chunk circular deps.
+          // Splitting CRM pages into a separate 'admin-crm' chunk caused
+          // "Cannot access '_' before initialization" because shared admin
+          // modules ended up referenced across two chunks in the wrong order.
           if (id.includes('pages/admin/')) {
             return 'admin-pages';
           }
