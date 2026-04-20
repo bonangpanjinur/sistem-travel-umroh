@@ -1,6 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-
 export interface HeroStat {
   id: string;
   settings_id: string;
@@ -11,28 +8,18 @@ export interface HeroStat {
   updated_at: string;
 }
 
+/**
+ * Hero stats hook — temporarily disabled (table not in DB).
+ * Returns empty array without making any network request.
+ * Re-enable by restoring the useQuery implementation once the
+ * `hero_stats` table migration is applied.
+ */
 export function useHeroStats() {
-  return useQuery({
-    queryKey: ['hero-stats'],
-    staleTime: Infinity,
-    gcTime: 1000 * 60 * 60,
-    retry: 0,
-    queryFn: async (): Promise<HeroStat[]> => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('hero_stats')
-          .select('*')
-          .order('display_order', { ascending: true });
-        
-        if (error) {
-          // Table missing or other error — silently return empty list
-          return [];
-        }
-        
-        return data || [];
-      } catch {
-        return [];
-      }
-    },
-  });
+  return {
+    data: [] as HeroStat[],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: async () => ({ data: [] as HeroStat[] }),
+  };
 }
