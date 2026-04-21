@@ -167,10 +167,10 @@ export default function AdminLandingPageEditor() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="content" className="space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              <div className="lg:col-span-1">
-                <div className="sticky top-24">
+          <TabsContent value="content" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 auto-rows-max">
+              <div className="md:col-span-2 lg:col-span-1 order-2 md:order-1">
+                <div className="sticky top-[100px] z-10">
                   <SectionSelectorCard 
                     onSelect={addSection}
                     selectedSections={formData.sections.map((s: any) => s.type)}
@@ -178,12 +178,12 @@ export default function AdminLandingPageEditor() {
                 </div>
               </div>
 
-              <div className="lg:col-span-3 space-y-4">
+              <div className="md:col-span-3 lg:col-span-4 space-y-4 order-1 md:order-2">
                 {!formData.sections || formData.sections.length === 0 ? (
-                  <div className="bg-card border-2 border-dashed border-border rounded-xl p-12 text-center">
+                  <div className="bg-card border-2 border-dashed border-border rounded-xl p-8 sm:p-12 text-center">
                     <Layout className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground">Belum ada section</h3>
-                    <p className="text-muted-foreground mb-6">Mulai bangun landing page Anda dengan menambahkan section dari menu di samping.</p>
+                    <p className="text-sm text-muted-foreground mb-6">Mulai bangun landing page Anda dengan menambahkan section dari menu di samping.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">

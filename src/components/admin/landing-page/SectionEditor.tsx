@@ -25,25 +25,25 @@ export function SectionEditor({ section, onUpdate, onDelete }: SectionEditorProp
 
   return (
     <Card className="overflow-hidden border-l-4 border-l-primary border border-border">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 py-3 px-6 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Badge className="capitalize bg-primary text-primary-foreground">{section.type}</Badge>
-            <span className="text-sm font-medium text-muted-foreground">Section #{section.order + 1}</span>
+      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 py-3 px-4 sm:px-6 border-b border-border">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <Badge className="capitalize bg-primary text-primary-foreground text-xs">{section.type}</Badge>
+            <span className="text-xs sm:text-sm font-medium text-muted-foreground">Section #{section.order + 1}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onDelete()} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => onDelete()} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0">
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="p-6">
+      <CardContent className="p-4 sm:p-6">
         <Tabs value={editMode} onValueChange={(val) => setEditMode(val as 'visual' | 'json')} className="w-full">
-          <TabsList className="mb-4 bg-secondary border border-border">
-            <TabsTrigger value="visual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Visual Editor</TabsTrigger>
-            <TabsTrigger value="json" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">JSON Editor</TabsTrigger>
+          <TabsList className="mb-4 bg-secondary border border-border grid w-full grid-cols-2">
+            <TabsTrigger value="visual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">Visual</TabsTrigger>
+            <TabsTrigger value="json" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">JSON</TabsTrigger>
           </TabsList>
 
           <TabsContent value="visual" className="space-y-4">
@@ -102,51 +102,56 @@ function HeroEditor({ data, onChange }: { data: any; onChange: (data: any) => vo
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Title</Label>
+        <Label className="text-foreground text-sm">Title</Label>
         <Input
           value={data.title || ''}
           onChange={(e) => onChange({ ...data, title: e.target.value })}
           placeholder="Hero title"
+          className="border-border"
         />
       </div>
       <div className="space-y-2">
-        <Label>Subtitle</Label>
+        <Label className="text-foreground text-sm">Subtitle</Label>
         <Input
           value={data.subtitle || ''}
           onChange={(e) => onChange({ ...data, subtitle: e.target.value })}
           placeholder="Hero subtitle"
+          className="border-border"
         />
       </div>
       <div className="space-y-2">
-        <Label>Image URL</Label>
+        <Label className="text-foreground text-sm">Image URL</Label>
         <Input
           value={data.imageUrl || ''}
           onChange={(e) => onChange({ ...data, imageUrl: e.target.value })}
           placeholder="https://example.com/image.jpg"
           type="url"
+          className="border-border"
         />
       </div>
       <div className="space-y-2">
-        <Label>CTA Button Text</Label>
+        <Label className="text-foreground text-sm">CTA Button Text</Label>
         <Input
           value={data.ctaText || ''}
           onChange={(e) => onChange({ ...data, ctaText: e.target.value })}
           placeholder="Call to action text"
+          className="border-border"
         />
       </div>
       <div className="space-y-2">
-        <Label>Background Color</Label>
-        <div className="flex gap-2">
+        <Label className="text-foreground text-sm">Background Color</Label>
+        <div className="flex gap-2 flex-wrap">
           <input
             type="color"
             value={data.bgColor || '#ffffff'}
             onChange={(e) => onChange({ ...data, bgColor: e.target.value })}
-            className="h-10 w-20 rounded border"
+            className="h-10 w-16 sm:w-20 rounded border border-border cursor-pointer"
           />
           <Input
             value={data.bgColor || '#ffffff'}
             onChange={(e) => onChange({ ...data, bgColor: e.target.value })}
             placeholder="#ffffff"
+            className="border-border flex-1 min-w-[120px]"
           />
         </div>
       </div>
@@ -159,34 +164,37 @@ function TimerEditor({ data, onChange }: { data: any; onChange: (data: any) => v
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Title</Label>
+        <Label className="text-foreground text-sm">Title</Label>
         <Input
           value={data.title || ''}
           onChange={(e) => onChange({ ...data, title: e.target.value })}
           placeholder="Timer title"
+          className="border-border"
         />
       </div>
       <div className="space-y-2">
-        <Label>End Date & Time</Label>
+        <Label className="text-foreground text-sm">End Date & Time</Label>
         <Input
           type="datetime-local"
           value={data.endDate ? new Date(data.endDate).toISOString().slice(0, 16) : ''}
           onChange={(e) => onChange({ ...data, endDate: new Date(e.target.value).toISOString() })}
+          className="border-border"
         />
       </div>
       <div className="space-y-2">
-        <Label>Timer Text Color</Label>
-        <div className="flex gap-2">
+        <Label className="text-foreground text-sm">Timer Text Color</Label>
+        <div className="flex gap-2 flex-wrap">
           <input
             type="color"
             value={data.textColor || '#000000'}
             onChange={(e) => onChange({ ...data, textColor: e.target.value })}
-            className="h-10 w-20 rounded border"
+            className="h-10 w-16 sm:w-20 rounded border border-border cursor-pointer"
           />
           <Input
             value={data.textColor || '#000000'}
             onChange={(e) => onChange({ ...data, textColor: e.target.value })}
             placeholder="#000000"
+            className="border-border flex-1 min-w-[120px]"
           />
         </div>
       </div>
