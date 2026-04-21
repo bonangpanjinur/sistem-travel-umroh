@@ -12,7 +12,7 @@ import {
   CheckCircle2, ExternalLink
 } from "lucide-react";
 import { formatCurrency, getBookingStatusLabel, getPaymentStatusLabel } from "@/lib/format";
-import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
