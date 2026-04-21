@@ -73,6 +73,12 @@ import autoTable from "jspdf-autotable";
 import { Share2 } from "lucide-react";
 
 export default function AdminPackages() {
+  const getUpcomingDepartures = (departures: any[]) => {
+    if (!departures) return [];
+    const today = new Date().toISOString().split('T')[0];
+    return departures.filter(d => d.departure_date >= today && d.status === 'open');
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
