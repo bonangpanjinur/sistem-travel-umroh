@@ -27,6 +27,7 @@ export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
     .filter(p => p.is_featured)
     .slice(0, packageCount);
   
+  // Only show featured packages if they exist, otherwise show first N active packages
   const displayPackages = featuredPackages.length > 0 
     ? featuredPackages 
     : packages.slice(0, packageCount);

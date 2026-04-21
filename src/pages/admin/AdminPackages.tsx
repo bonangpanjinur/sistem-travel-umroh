@@ -10,7 +10,8 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { 
   Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, 
-  MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle
+  MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
+  Power, PowerOff
 } from "lucide-react";
 import {
   Dialog,
@@ -33,6 +34,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
@@ -42,6 +44,7 @@ import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { subDays } from "date-fns";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,6 +83,40 @@ export default function AdminPackages() {
     },
   });
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string, is_active: boolean }) => {
+      const { error } = await supabase
+        .from('packages')
+        .update({ is_active })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Paket berhasil ${variables.is_active ? 'diaktifkan' : 'dinonaktifkan'}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal mengubah status paket");
+    },
+  });
+
+  const toggleFeaturedMutation = useMutation({
+    mutationFn: async ({ id, is_featured }: { id: string, is_featured: boolean }) => {
+      const { error } = await supabase
+        .from('packages')
+        .update({ is_featured })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Paket ${variables.is_featured ? 'ditandai sebagai unggulan' : 'dihapus dari unggulan'}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal mengubah status unggulan");
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('packages').delete().eq('id', id);
@@ -97,7 +134,6 @@ export default function AdminPackages() {
 
   const filteredPackages = useMemo(() => {
     return packages?.filter(pkg => {
-      // Filter by search term
       if (searchTerm && !(
         pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pkg.code.toLowerCase().includes(searchTerm.toLowerCase())
@@ -105,11 +141,9 @@ export default function AdminPackages() {
         return false;
       }
       
-      // Filter by package type
       if (packageTypeFilter === "tabungan" && pkg.package_type !== "tabungan") return false;
       if (packageTypeFilter === "regular" && pkg.package_type === "tabungan") return false;
 
-      // Filter by status
       if (statusFilter === "active" && !pkg.is_active) return false;
       if (statusFilter === "inactive" && pkg.is_active) return false;
       
@@ -133,53 +167,6 @@ export default function AdminPackages() {
     setEditingPackage(null);
   };
 
-  const handleApplyDateFilter = () => {
-    if (selectedDateRange === "custom") {
-      if (!customStartDate || !customEndDate) {
-        toast.error("Silakan isi tanggal awal dan akhir");
-        return;
-      }
-      setStatsFilters({
-        ...statsFilters,
-        startDate: new Date(customStartDate),
-        endDate: new Date(customEndDate)
-      });
-    } else {
-      const now = new Date();
-      let startDate: Date;
-      
-      switch (selectedDateRange) {
-        case "7days":
-          startDate = subDays(now, 7);
-          break;
-        case "90days":
-          startDate = subDays(now, 90);
-          break;
-        case "30days":
-        default:
-          startDate = subDays(now, 30);
-          break;
-      }
-      
-      setStatsFilters({
-        ...statsFilters,
-        startDate,
-        endDate: now
-      });
-    }
-    setShowFilters(false);
-  };
-
-  const handleClearFilters = () => {
-    setStatsFilters({});
-    setSelectedDateRange("30days");
-    setCustomStartDate("");
-    setCustomEndDate("");
-    setPackageTypeFilter("all");
-    setStatusFilter("all");
-    setSearchTerm("");
-  };
-
   const getUpcomingDepartures = (departures: any[]) => {
     if (!departures) return [];
     const today = new Date().toISOString().split('T')[0];
@@ -200,22 +187,6 @@ export default function AdminPackages() {
     return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
   };
 
-  const toggleAll = () => {
-    if (selectedPackages.length === filteredPackages.length) {
-      setSelectedPackages([]);
-    } else {
-      setSelectedPackages(filteredPackages.map(p => p.id));
-    }
-  };
-
-  const activeFilterCount = [
-    packageTypeFilter !== "all",
-    statusFilter !== "all",
-    Object.keys(statsFilters).length > 0,
-  ].filter(Boolean).length;
-
-  const hasActiveFilters = !!searchTerm || activeFilterCount > 0;
-
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -229,36 +200,19 @@ export default function AdminPackages() {
             <p className="text-muted-foreground">Pusat manajemen paket perjalanan umroh & haji</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => handleAddPackage("regular")} className="gap-2 shadow-sm">
+            <Button onClick={() => handleAddPackage("regular")} className="gap-2 shadow-sm bg-primary hover:bg-primary/90 rounded-xl">
               <Plus className="h-4 w-4" />
               Paket Reguler
             </Button>
-            <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2 shadow-sm">
+            <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2 shadow-sm rounded-xl border-primary/20 hover:bg-primary/5 text-primary">
               <Plus className="h-4 w-4" />
               Paket Tabungan
             </Button>
-            {selectedPackages.length > 0 && (
-              <div className="flex items-center gap-2 ml-4 bg-primary/5 p-1 rounded-lg border border-primary/20 animate-in fade-in slide-in-from-right-2">
-                <span className="text-xs font-semibold px-2 text-primary">{selectedPackages.length} terpilih</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 text-primary hover:bg-primary/10">
-                      Aksi Masal
-                      <MoreHorizontal className="h-3 w-3 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="text-xs">Aktifkan Semua</DropdownMenuItem>
-                    <DropdownMenuItem className="text-xs text-destructive">Nonaktifkan Semua</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Search & Filter Bar */}
-        <Card className="border-none shadow-sm bg-card/50 backdrop-blur">
+        <Card className="border-none shadow-sm bg-card/50 backdrop-blur rounded-2xl">
           <CardContent className="p-3">
             <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
               <div className="relative flex-1">
@@ -267,348 +221,270 @@ export default function AdminPackages() {
                   placeholder="Cari nama atau kode paket..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-10 h-10 bg-background border-none shadow-inner"
+                  className="pl-10 h-11 bg-background border-none shadow-inner rounded-xl focus-visible:ring-primary/20"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant={showFilters ? "secondary" : "outline"} 
-                  size="sm" 
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="gap-2 h-10 px-4"
-                >
-                  <Filter className="h-4 w-4" />
-                  Filter Lanjutan
-                  {activeFilterCount > 0 && (
-                    <Badge variant="default" className="ml-1 h-5 min-w-5 px-1 flex items-center justify-center bg-primary">
-                      {activeFilterCount}
-                    </Badge>
-                  )}
-                </Button>
-                {hasActiveFilters && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleClearFilters}
-                    className="gap-2 h-10 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                    Reset
-                  </Button>
-                )}
+                <Select value={packageTypeFilter} onValueChange={(v: any) => setPackageTypeFilter(v)}>
+                  <SelectTrigger className="w-[140px] h-11 rounded-xl border-none bg-background shadow-sm">
+                    <SelectValue placeholder="Tipe Paket" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="all">Semua Tipe</SelectItem>
+                    <SelectItem value="regular">Reguler</SelectItem>
+                    <SelectItem value="tabungan">Tabungan</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <SelectTrigger className="w-[140px] h-11 rounded-xl border-none bg-background shadow-sm">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="active">Aktif</SelectItem>
+                    <SelectItem value="inactive">Nonaktif</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-
-            {/* Expanded Filter Panel */}
-            {showFilters && (
-              <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-300">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tipe Paket</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["all", "regular", "tabungan"].map((type) => (
-                      <Badge 
-                        key={type}
-                        variant={packageTypeFilter === type ? "default" : "outline"}
-                        className="cursor-pointer capitalize px-3 py-1"
-                        onClick={() => setPackageTypeFilter(type as any)}
-                      >
-                        {type === "all" ? "Semua" : type}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["all", "active", "inactive"].map((status) => (
-                      <Badge 
-                        key={status}
-                        variant={statusFilter === status ? "default" : "outline"}
-                        className="cursor-pointer capitalize px-3 py-1"
-                        onClick={() => setStatusFilter(status as any)}
-                      >
-                        {status === "all" ? "Semua" : status === "active" ? "Aktif" : "Nonaktif"}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2 lg:col-span-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rentang Waktu Statistik</label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex bg-muted p-1 rounded-md">
-                      {["7days", "30days", "90days", "custom"].map((range) => (
-                        <button
-                          key={range}
-                          onClick={() => setSelectedDateRange(range as any)}
-                          className={`px-3 py-1 text-xs rounded-sm transition-all ${selectedDateRange === range ? "bg-background shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"}`}
-                        >
-                          {range === "7days" ? "7H" : range === "30days" ? "30H" : range === "90days" ? "90H" : "Kustom"}
-                        </button>
-                      ))}
-                    </div>
-                    {selectedDateRange === "custom" && (
-                      <div className="flex items-center gap-2 animate-in fade-in zoom-in-95">
-                        <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="text-xs p-1 border rounded bg-background" />
-                        <span className="text-muted-foreground">-</span>
-                        <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="text-xs p-1 border rounded bg-background" />
-                      </div>
-                    )}
-                    <Button size="sm" className="h-8 text-xs ml-auto" onClick={handleApplyDateFilter}>Terapkan</Button>
-                  </div>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Statistics Overview */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "Total Terjual", value: stats?.totalSold || 0, sub: "Pax dari semua paket", icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
-            { label: "Bulan Ini", value: stats?.soldThisMonth || 0, sub: "Pax terjual bulan ini", icon: Calendar, color: "text-emerald-500", bg: "bg-emerald-50" },
-            { label: "Total Pendapatan", value: formatCurrency(stats?.totalRevenue || 0), sub: "Akumulasi omzet", icon: CheckCircle2, color: "text-amber-500", bg: "bg-amber-50" },
-            { label: "Konversi", value: `${(stats?.conversionRate || 0).toFixed(1)}%`, sub: "Rasio booking sukses", icon: Star, color: "text-purple-500", bg: "bg-purple-50" }
-          ].map((item, i) => (
-            <Card key={i} className="border-none shadow-sm overflow-hidden group">
-              <CardContent className="p-5 flex items-center gap-4">
-                <div className={`${item.bg} ${item.color} p-3 rounded-2xl transition-transform group-hover:scale-110 duration-300`}>
-                  <item.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{item.label}</p>
-                  {isStatsLoading ? <Skeleton className="h-7 w-20 mt-1" /> : <div className="text-xl font-bold mt-0.5">{item.value}</div>}
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{item.sub}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Package List Area */}
+        {/* Package Grid */}
         {isLoading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-[400px] rounded-3xl" />)}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <Card key={i} className="overflow-hidden rounded-3xl border-none shadow-sm">
+                <Skeleton className="h-48 w-full" />
+                <CardContent className="p-6 space-y-4">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 flex-1" />
+                    <Skeleton className="h-8 flex-1" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        ) : !filteredPackages || filteredPackages.length === 0 ? (
+        ) : filteredPackages.length === 0 ? (
           <EmptyState
             icon={Package}
             title="Tidak ada paket ditemukan"
-            description={hasActiveFilters ? "Coba sesuaikan filter atau kata kunci pencarian Anda." : "Mulai bangun bisnis Anda dengan membuat paket perjalanan pertama."}
-            action={
-              <Button onClick={() => handleAddPackage("regular")} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Buat Paket Sekarang
-              </Button>
-            }
+            description="Coba ubah kata kunci pencarian atau filter Anda."
+            action={{
+              label: "Reset Filter",
+              onClick: () => {
+                setSearchTerm("");
+                setPackageTypeFilter("all");
+                setStatusFilter("all");
+              }
+            }}
           />
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-3">
-                <Checkbox 
-                  id="select-all"
-                  checked={selectedPackages.length === filteredPackages.length && filteredPackages.length > 0}
-                  onCheckedChange={toggleAll}
-                  className="rounded-md border-muted-foreground/30"
-                />
-                <label htmlFor="select-all" className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
-                  {selectedPackages.length > 0 ? `${selectedPackages.length} Paket terpilih` : `Pilih semua (${filteredPackages.length})`}
-                </label>
-              </div>
-              <div className="text-xs text-muted-foreground font-medium bg-muted px-3 py-1 rounded-full">
-                Menampilkan {filteredPackages.length} paket
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPackages.map((pkg) => {
+              const upcoming = getUpcomingDepartures(pkg.departures || []);
+              const lowestPrice = getLowestPrice(pkg);
+              
+              return (
+                <Card 
+                  key={pkg.id} 
+                  className={cn(
+                    "group overflow-hidden rounded-3xl border-none shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col bg-card relative",
+                    !pkg.is_active && "opacity-75 grayscale-[0.5]"
+                  )}
+                >
+                  {/* Status Badges */}
+                  <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                    {pkg.is_featured && (
+                      <Badge className="bg-amber-500/90 hover:bg-amber-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-current" /> UNGGULAN
+                      </Badge>
+                    )}
+                    {!pkg.is_active && (
+                      <Badge variant="destructive" className="shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
+                        NONAKTIF
+                      </Badge>
+                    )}
+                  </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredPackages.map((pkg) => {
-                const upcoming = getUpcomingDepartures(pkg.departures as any[]);
-                const lowestPrice = getLowestPrice(pkg);
-                
-                return (
-                  <Card key={pkg.id} className="group overflow-hidden border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-3xl flex flex-col bg-card/50 backdrop-blur-sm">
-                    {/* Image Section */}
-                    <div className="aspect-[16/10] relative overflow-hidden bg-muted">
-                      <img
-                        src={pkg.featured_image || '/placeholder.svg'}
+                  {/* Image Section */}
+                  <div className="relative h-52 overflow-hidden">
+                    {pkg.featured_image ? (
+                      <img 
+                        src={pkg.featured_image} 
                         alt={pkg.name}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                      
-                      {/* Selection Overlay */}
-                      <div className="absolute top-4 right-4 z-20">
-                        <Checkbox 
-                          checked={selectedPackages.includes(pkg.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) setSelectedPackages([...selectedPackages, pkg.id]);
-                            else setSelectedPackages(selectedPackages.filter(id => id !== pkg.id));
-                          }}
-                          className="h-6 w-6 rounded-lg bg-white/20 border-white/40 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                        />
+                    ) : (
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <Package className="h-12 w-12 text-muted-foreground/20" />
                       </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                    
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <Badge className="mb-2 bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md text-[10px] font-bold">
+                        {pkg.package_type_ref?.name || formatPackageType(pkg.package_type)}
+                      </Badge>
+                      <h3 className="text-white font-black text-lg leading-tight line-clamp-2 drop-shadow-md">
+                        {pkg.name}
+                      </h3>
+                    </div>
+                  </div>
 
-                      {/* Badges */}
-                      <div className="absolute top-4 left-4 flex flex-wrap gap-2 z-20">
-                        <Badge variant="secondary" className="bg-white/90 text-black border-none font-bold text-[10px] px-2 py-0.5 rounded-full shadow-lg">
-                          {formatPackageType(pkg.package_type)}
-                        </Badge>
-                        {pkg.is_featured && (
-                          <Badge className="bg-amber-500 text-white border-none font-bold text-[10px] px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
-                            <Star className="h-3 w-3 fill-current" /> UNGGULAN
-                          </Badge>
-                        )}
+                  <CardContent className="p-5 flex-1 flex flex-col space-y-4">
+                    {/* Price & Info */}
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Mulai Dari</p>
+                        <p className="text-xl font-black text-primary">
+                          {lowestPrice > 0 ? formatCurrency(lowestPrice) : 'Hubungi Kami'}
+                        </p>
                       </div>
-
-                      {/* Status Badge */}
-                      <div className="absolute bottom-4 left-4 z-20">
-                        <Badge 
-                          variant={pkg.is_active ? "default" : "destructive"} 
-                          className={`text-[10px] font-bold px-3 py-1 rounded-full border-none shadow-lg flex items-center gap-1.5 ${pkg.is_active ? 'bg-emerald-500' : 'bg-red-500'}`}
-                        >
-                          <div className={`h-1.5 w-1.5 rounded-full bg-white ${pkg.is_active ? 'animate-pulse' : ''}`} />
-                          {pkg.is_active ? 'PUBLISHED' : 'DRAFT'}
-                        </Badge>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Durasi</p>
+                        <p className="text-sm font-bold text-foreground flex items-center justify-end gap-1">
+                          <Clock className="h-3.5 w-3.5 text-primary" /> {pkg.duration_days} Hari
+                        </p>
                       </div>
+                    </div>
 
-                      {/* Quick Info Overlay */}
-                      <div className="absolute bottom-4 right-4 z-20 flex flex-col items-end">
-                        <div className="text-[10px] text-white/80 font-bold uppercase tracking-tighter">Mulai Dari</div>
-                        <div className="text-xl font-black text-white drop-shadow-md">
-                          {lowestPrice > 0 ? formatCurrency(lowestPrice) : 'TBA'}
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-2 gap-3 py-3 border-y border-border/50">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Hotel className="h-3.5 w-3.5" /></div>
+                        <div className="truncate">
+                          <span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Hotel</span>
+                          <span className="truncate block font-medium">{pkg.hotel_makkah?.name || '-'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Plane className="h-3.5 w-3.5" /></div>
+                        <div className="truncate">
+                          <span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Pesawat</span>
+                          <span className="truncate block font-medium">{pkg.airline?.name || '-'}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Content Section */}
-                    <CardContent className="p-6 flex-1 flex flex-col space-y-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black text-primary tracking-widest uppercase">{pkg.code}</span>
-                          <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{pkg.duration_days} HARI</span>
+                    {/* Schedule Summary */}
+                    <div className="bg-muted/30 rounded-2xl p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-xl bg-background flex items-center justify-center shadow-sm">
+                          <Calendar className="h-4 w-4 text-primary" />
                         </div>
-                        <h3 className="font-bold text-lg line-clamp-1 group-hover:text-primary transition-colors duration-300" title={pkg.name}>
-                          {pkg.name}
-                        </h3>
-                      </div>
-                      
-                      {/* Facility & Service Info */}
-                      <div className="grid grid-cols-2 gap-3 py-1">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <div className="bg-muted p-1.5 rounded-lg"><Hotel className="h-3.5 w-3.5" /></div>
-                          <div className="truncate">
-                            <span className="block font-semibold text-foreground text-[10px] uppercase">Hotel</span>
-                            <span className="truncate block">{pkg.hotel_makkah?.name || '-'}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <div className="bg-muted p-1.5 rounded-lg"><Plane className="h-3.5 w-3.5" /></div>
-                          <div className="truncate">
-                            <span className="block font-semibold text-foreground text-[10px] uppercase">Pesawat</span>
-                            <span className="truncate block">{pkg.airline?.name || '-'}</span>
-                          </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-foreground uppercase">Jadwal Aktif</p>
+                          <p className="text-xs text-muted-foreground font-medium">{upcoming.length} Keberangkatan</p>
                         </div>
                       </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs p-3 rounded-xl">
+                          <p className="text-xs font-bold mb-1 uppercase tracking-wider">Jadwal Terdekat:</p>
+                          {upcoming.length > 0 ? (
+                            <div className="space-y-1">
+                              {upcoming.slice(0, 3).map((d: any, idx: number) => (
+                                <div key={idx} className="flex justify-between gap-4 text-[10px]">
+                                  <span>{new Date(d.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                  <span className="font-bold text-primary">{d.booked_count}/{d.quota} Pax</span>
+                                </div>
+                              ))}
+                              {upcoming.length > 3 && <p className="text-[9px] text-center pt-1 border-t mt-1">+{upcoming.length - 3} lainnya</p>}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground">Belum ada jadwal aktif.</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
 
-                      {/* Schedule Summary */}
-                      <div className="bg-muted/30 rounded-2xl p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-xl bg-background flex items-center justify-center shadow-sm">
-                            <Clock className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-foreground uppercase">Jadwal Aktif</p>
-                            <p className="text-xs text-muted-foreground font-medium">{upcoming.length} Keberangkatan</p>
-                          </div>
-                        </div>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs p-3">
-                            <p className="text-xs font-bold mb-1 uppercase tracking-wider">Jadwal Terdekat:</p>
-                            {upcoming.length > 0 ? (
-                              <div className="space-y-1">
-                                {upcoming.slice(0, 3).map((d: any, idx: number) => (
-                                  <div key={idx} className="flex justify-between gap-4 text-[10px]">
-                                    <span>{new Date(d.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                    <span className="font-bold text-primary">{d.booked_count}/{d.quota} Pax</span>
-                                  </div>
-                                ))}
-                                {upcoming.length > 3 && <p className="text-[9px] text-center pt-1 border-t mt-1">+{upcoming.length - 3} jadwal lainnya</p>}
-                              </div>
+                    {/* Actions */}
+                    <div className="pt-2 flex gap-2 mt-auto">
+                      <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary" asChild>
+                        <Link to={`/admin/packages/${pkg.id}`}>
+                          <Eye className="h-3.5 w-3.5" /> DETAIL
+                        </Link>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleEdit(pkg)}
+                        className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary"
+                      >
+                        <Edit className="h-3.5 w-3.5" /> EDIT
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-primary/20 hover:bg-primary/5 text-primary">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl p-1 w-48">
+                          <DropdownMenuItem 
+                            className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                            onClick={() => toggleFeaturedMutation.mutate({ id: pkg.id, is_featured: !pkg.is_featured })}
+                          >
+                            <Star className={cn("h-4 w-4", pkg.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground")} />
+                            {pkg.is_featured ? 'Hapus Unggulan' : 'Jadikan Unggulan'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                            onClick={() => toggleStatusMutation.mutate({ id: pkg.id, is_active: !pkg.is_active })}
+                          >
+                            {pkg.is_active ? (
+                              <>
+                                <PowerOff className="h-4 w-4 text-orange-500" />
+                                Nonaktifkan Paket
+                              </>
                             ) : (
-                              <p className="text-[10px] text-muted-foreground">Belum ada jadwal keberangkatan aktif.</p>
+                              <>
+                                <Power className="h-4 w-4 text-emerald-500" />
+                                Aktifkan Paket
+                              </>
                             )}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="pt-4 flex gap-2 mt-auto">
-                        <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 font-bold text-xs gap-2" asChild>
-                          <Link to={`/admin/packages/${pkg.id}`}>
-                            <Eye className="h-4 w-4" /> DETAIL
-                          </Link>
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleEdit(pkg)}
-                          className="flex-1 rounded-xl h-10 font-bold text-xs gap-2"
-                        >
-                          <Edit className="h-4 w-4" /> EDIT
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="rounded-xl p-1">
-                            <DropdownMenuItem className="text-xs font-semibold gap-2 py-2 cursor-pointer">
-                              <Star className="h-4 w-4 text-amber-500" /> Tandai Unggulan
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-xs font-semibold gap-2 py-2 cursor-pointer">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Ubah Status
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-xs font-semibold gap-2 py-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
-                              onClick={() => setDeletePackage(pkg)}
-                            >
-                              <Trash2 className="h-4 w-4" /> Hapus Permanen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
+                            onClick={() => setDeletePackage(pkg)}
+                          >
+                            <Trash2 className="h-4 w-4" /> Hapus Permanen
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
 
         {/* Package Form Dialog */}
         <Dialog open={isFormOpen} onOpenChange={handleFormClose}>
-          <DialogContent className="max-w-4xl max-h-[95vh] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
-            <div className="bg-primary p-6 text-primary-foreground">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-2xl"><Package className="h-6 w-6" /></div>
+          <DialogContent className="max-w-4xl max-h-[95vh] p-0 overflow-hidden rounded-[2rem] border-none shadow-2xl">
+            <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-24 -mb-24 blur-2xl" />
+              
+              <DialogHeader className="relative z-10">
+                <DialogTitle className="text-3xl font-black uppercase tracking-tight flex items-center gap-4">
+                  <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md shadow-inner"><Package className="h-7 w-7" /></div>
                   {editingPackage ? 'Konfigurasi Paket' : 'Pendaftaran Paket Baru'}
                 </DialogTitle>
-                <p className="text-primary-foreground/70 text-sm font-medium mt-1">
-                  {editingPackage ? `Memperbarui data paket ${editingPackage.code}` : 'Lengkapi detail paket perjalanan untuk mulai dipublikasikan.'}
+                <p className="text-primary-foreground/80 text-sm font-medium mt-2 max-w-xl">
+                  {editingPackage ? `Memperbarui data paket ${editingPackage.code}. Pastikan informasi yang dimasukkan sudah sesuai dengan standar operasional.` : 'Lengkapi detail paket perjalanan untuk mulai dipublikasikan ke calon jamaah.'}
                 </p>
               </DialogHeader>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(95vh-140px)] custom-scrollbar">
+            <div className="p-8 overflow-y-auto max-h-[calc(95vh-180px)] custom-scrollbar bg-background">
               {packageTypeFilter === "tabungan" ? (
                 <SavingsPackageForm 
                   packageData={editingPackage} 
@@ -628,24 +504,24 @@ export default function AdminPackages() {
 
         {/* Delete Confirmation */}
         <AlertDialog open={!!deletePackage} onOpenChange={() => setDeletePackage(null)}>
-          <AlertDialogContent className="rounded-3xl border-none shadow-2xl p-8">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="bg-red-100 p-4 rounded-full text-red-600">
-                <AlertCircle className="h-10 w-10" />
+          <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-10">
+            <div className="flex flex-col items-center text-center space-y-6">
+              <div className="bg-red-50 p-6 rounded-full text-red-500 shadow-inner">
+                <AlertCircle className="h-12 w-12" />
               </div>
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-2xl font-black">Hapus Paket Ini?</AlertDialogTitle>
-                <AlertDialogDescription className="text-muted-foreground font-medium">
-                  Anda akan menghapus paket <strong className="text-foreground">{deletePackage?.name}</strong> secara permanen. Tindakan ini akan berdampak pada data riwayat yang terkait.
+                <AlertDialogTitle className="text-3xl font-black text-foreground">Hapus Paket Ini?</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground font-medium text-base">
+                  Anda akan menghapus paket <strong className="text-foreground font-bold">{deletePackage?.name}</strong> secara permanen. Tindakan ini tidak dapat dibatalkan dan akan berdampak pada data riwayat yang terkait.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter className="w-full flex sm:flex-row gap-3 pt-4">
-                <AlertDialogCancel className="flex-1 rounded-2xl h-12 font-bold border-muted">BATALKAN</AlertDialogCancel>
+              <AlertDialogFooter className="w-full flex sm:flex-row gap-4 pt-6">
+                <AlertDialogCancel className="flex-1 rounded-2xl h-14 font-bold border-muted hover:bg-muted/50 transition-all">BATALKAN</AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={() => deleteMutation.mutate(deletePackage.id)}
-                  className="flex-1 rounded-2xl h-12 font-bold bg-red-600 hover:bg-red-700 text-white border-none shadow-lg shadow-red-200"
+                  className="flex-1 rounded-2xl h-14 font-bold bg-red-500 hover:bg-red-600 text-white border-none shadow-xl shadow-red-100 transition-all"
                 >
-                  YA, HAPUS SEKARANG
+                  YA, HAPUS PERMANEN
                 </AlertDialogAction>
               </AlertDialogFooter>
             </div>
@@ -654,4 +530,26 @@ export default function AdminPackages() {
       </div>
     </TooltipProvider>
   );
+}
+
+function Select({ value, onValueChange, children }: any) {
+  return (
+    <div className="relative">
+      <select 
+        value={value} 
+        onChange={(e) => onValueChange(e.target.value)}
+        className="appearance-none w-full h-11 px-4 pr-10 rounded-xl bg-background border-none shadow-sm text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
+      >
+        {children}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+    </div>
+  );
+}
+
+function SelectTrigger({ children, className }: any) { return null; }
+function SelectValue({ placeholder }: any) { return null; }
+function SelectContent({ children }: any) { return null; }
+function SelectItem({ value, children }: any) {
+  return <option value={value}>{children}</option>;
 }

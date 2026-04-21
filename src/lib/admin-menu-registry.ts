@@ -34,10 +34,10 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'packages', label: 'Paket', path: '/admin/packages', icon: 'Package', group_name: 'Produk & Operasional', sort_order: 1, required_permission: 'packages' },
   { key: 'departures', label: 'Keberangkatan', path: '/admin/departures', icon: 'CalendarDays', group_name: 'Produk & Operasional', sort_order: 2, required_permission: 'departures' },
   { key: 'bookings', label: 'Booking', path: '/admin/bookings', icon: 'BookOpen', group_name: 'Produk & Operasional', sort_order: 3, required_permission: 'bookings' },
-  { key: 'equipment', label: 'Perlengkapan', path: '/admin/equipment', icon: 'Backpack', group_name: 'Produk & Operasional', sort_order: 4, required_permission: 'equipment' },
-  { key: 'itinerary-templates', label: 'Template Itinerary', path: '/admin/itinerary-templates', icon: 'Map', group_name: 'Produk & Operasional', sort_order: 5, required_permission: 'itinerary-templates' },
-  { key: 'savings', label: 'Tabungan', path: '/admin/savings', icon: 'Wallet', group_name: 'Produk & Operasional', sort_order: 6, required_permission: 'savings' },
-  { key: 'room-assignments', label: 'Kamar', path: '/admin/room-assignments', icon: 'BedDouble', group_name: 'Produk & Operasional', sort_order: 7, required_permission: 'room-assignments' },
+  { key: 'room-assignments', label: 'Kamar', path: '/admin/room-assignments', icon: 'BedDouble', group_name: 'Produk & Operasional', sort_order: 4, required_permission: 'room-assignments' },
+  { key: 'equipment', label: 'Perlengkapan', path: '/admin/equipment', icon: 'Backpack', group_name: 'Produk & Operasional', sort_order: 5, required_permission: 'equipment' },
+  { key: 'itinerary-templates', label: 'Template Itinerary', path: '/admin/itinerary-templates', icon: 'Map', group_name: 'Produk & Operasional', sort_order: 6, required_permission: 'itinerary-templates' },
+  { key: 'savings', label: 'Tabungan', path: '/admin/savings', icon: 'Wallet', group_name: 'Produk & Operasional', sort_order: 7, required_permission: 'savings' },
 
   // Keuangan & Akuntansi
   { key: 'payments', label: 'Pembayaran', path: '/admin/payments', icon: 'CreditCard', group_name: 'Keuangan & Akuntansi', sort_order: 1, required_permission: 'payments' },
