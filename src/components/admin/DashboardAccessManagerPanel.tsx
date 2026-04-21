@@ -71,7 +71,7 @@ export default function DashboardAccessManagerPanel({
   const { data: accessConfig, isLoading: configLoading, error: configError } = useQuery({
     queryKey: ['dashboard-access-config', selectedRole],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('dashboard_access_config')
         .select('*')
         .eq('role', selectedRole)
@@ -104,7 +104,7 @@ export default function DashboardAccessManagerPanel({
   const { data: auditLog = [] } = useQuery({
     queryKey: ['dashboard-access-audit-log', selectedRole],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('dashboard_access_audit_log')
         .select('*')
         .eq('role', selectedRole)
@@ -140,7 +140,7 @@ export default function DashboardAccessManagerPanel({
       
       if (accessConfig) {
         // Update existing
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('dashboard_access_config')
           .update({
             enabled_modules: enabledModules,
@@ -157,7 +157,7 @@ export default function DashboardAccessManagerPanel({
         result = data;
       } else {
         // Insert new
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('dashboard_access_config')
           .insert({
             role: selectedRole,
@@ -182,7 +182,7 @@ export default function DashboardAccessManagerPanel({
         action_type: accessConfig ? 'UPDATE' : 'CREATE',
         old_data: accessConfig,
         new_data: result,
-        severity: 'medium',
+        severity: 'warning',
       });
 
       return result;
@@ -202,8 +202,9 @@ export default function DashboardAccessManagerPanel({
 
   const handleToggleModule = useCallback(
     (moduleKey: string, enabled: boolean) => {
-      const currentEnabled = accessConfig?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
-      const currentDisabled = accessConfig?.disabled_modules || [];
+      const cfg = accessConfig as any;
+      const currentEnabled = cfg?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
+      const currentDisabled = cfg?.disabled_modules || [];
       
       const enabledModules = enabled
         ? [...currentEnabled, moduleKey]
@@ -217,7 +218,7 @@ export default function DashboardAccessManagerPanel({
       updateConfigMutation.mutate({
         enabledModules,
         disabledModules,
-        defaultDashboard: accessConfig?.default_dashboard || ROLE_DASHBOARD_CONFIG[selectedRole]?.defaultDashboard,
+        defaultDashboard: cfg?.default_dashboard || ROLE_DASHBOARD_CONFIG[selectedRole]?.defaultDashboard,
       });
     },
     [accessConfig, selectedRole, updateConfigMutation]
@@ -225,8 +226,9 @@ export default function DashboardAccessManagerPanel({
 
   const handleSetDefaultDashboard = useCallback(
     (moduleKey: string) => {
-      const currentEnabled = accessConfig?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
-      const currentDisabled = accessConfig?.disabled_modules || [];
+      const cfg = accessConfig as any;
+      const currentEnabled = cfg?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
+      const currentDisabled = cfg?.disabled_modules || [];
 
       setSaving(true);
       updateConfigMutation.mutate({
@@ -239,9 +241,9 @@ export default function DashboardAccessManagerPanel({
   );
 
   const roleConfig = ROLE_DASHBOARD_CONFIG[selectedRole];
-  const enabledModules = accessConfig?.enabled_modules || [];
-  const disabledModules = accessConfig?.disabled_modules || [];
-  const defaultDashboard = accessConfig?.default_dashboard;
+  const enabledModules = (accessConfig as any)?.enabled_modules || [];
+  const disabledModules = (accessConfig as any)?.disabled_modules || [];
+  const defaultDashboard = (accessConfig as any)?.default_dashboard;
 
   const containerClass = mode === 'embedded' ? 'space-y-4 w-full' : 'space-y-8 pb-10';
   const headerClass = mode === 'embedded' ? 'space-y-1' : 'space-y-2';
