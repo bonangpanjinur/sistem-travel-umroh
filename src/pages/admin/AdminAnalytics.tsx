@@ -294,7 +294,7 @@ export default function AdminAnalytics() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue)}
@@ -339,15 +339,15 @@ export default function AdminAnalytics() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <div className="flex items-center justify-between">
-          <TabsList className="p-1 bg-muted/50 rounded-xl border">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <TabsList className="p-1 bg-muted/50 rounded-xl border overflow-x-auto w-full sm:w-auto">
             <TabsTrigger value="overview" className="rounded-lg px-6">Ringkasan</TabsTrigger>
             <TabsTrigger value="sales" className="rounded-lg px-6">Penjualan</TabsTrigger>
             <TabsTrigger value="products" className="rounded-lg px-6">Produk</TabsTrigger>
             <TabsTrigger value="branches" className="rounded-lg px-6">Cabang</TabsTrigger>
           </TabsList>
           
-          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex md:flex items-center gap-2 text-sm text-muted-foreground flex-wrap mt-2 sm:mt-0">
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-full bg-primary"></div>
               <span>Revenue</span>
@@ -360,7 +360,7 @@ export default function AdminAnalytics() {
         </div>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {/* Revenue Area Chart */}
             <Card className="lg:col-span-2 shadow-sm border-muted/60 overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between bg-muted/10 pb-4">
@@ -374,7 +374,7 @@ export default function AdminAnalytics() {
                 {loadingBookings ? (
                   <Skeleton className="h-[350px] w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={350}>
+                  <ResponsiveContainer width="100%" height={250}>
                     <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -488,7 +488,7 @@ export default function AdminAnalytics() {
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
             {/* Popular Packages */}
             <Card className="shadow-sm border-muted/60">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -543,7 +543,7 @@ export default function AdminAnalytics() {
                 {loadingBookings ? (
                   <Skeleton className="h-[300px] w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={branchData} layout="vertical" margin={{ left: 20, right: 30 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
                       <XAxis type="number" hide />
@@ -591,7 +591,7 @@ export default function AdminAnalytics() {
               <CardDescription>Volume transaksi dan jumlah jamaah per bulan</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={250}>
                 <ComposedChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} dy={10} className="text-[11px]" />
@@ -608,7 +608,7 @@ export default function AdminAnalytics() {
         </TabsContent>
         
         <TabsContent value="products" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
              <Card className="shadow-sm border-muted/60">
               <CardHeader>
                 <CardTitle>Revenue per Paket</CardTitle>
@@ -662,24 +662,24 @@ export default function AdminAnalytics() {
             </CardHeader>
             <CardContent>
               <div className="relative overflow-x-auto rounded-lg border">
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-xs sm:text-sm text-left">
                   <thead className="text-xs uppercase bg-muted/50 font-bold">
                     <tr>
-                      <th className="px-6 py-4">Nama Cabang</th>
-                      <th className="px-6 py-4 text-right">Total Booking</th>
-                      <th className="px-6 py-4 text-right">Revenue</th>
-                      <th className="px-6 py-4 text-right">Avg. Ticket</th>
-                      <th className="px-6 py-4 text-center">Status</th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-4">Nama Cabang</th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-4 text-right">Total Booking</th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-4 text-right">Revenue</th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-4 text-right">Avg. Ticket</th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-4 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {branchData.map((branch, i) => (
                       <tr key={i} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-6 py-4 font-medium">{branch.name}</td>
-                        <td className="px-6 py-4 text-right">{branch.bookings}</td>
-                        <td className="px-6 py-4 text-right font-bold">{formatCurrency(branch.revenue)}</td>
-                        <td className="px-6 py-4 text-right">{formatCurrency(branch.revenue / branch.bookings)}</td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 font-medium">{branch.name}</td>
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 text-right">{branch.bookings}</td>
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 text-right font-bold">{formatCurrency(branch.revenue)}</td>
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 text-right">{formatCurrency(branch.revenue / branch.bookings)}</td>
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 text-center">
                           <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-none">Aktif</Badge>
                         </td>
                       </tr>

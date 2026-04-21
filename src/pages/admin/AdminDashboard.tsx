@@ -43,8 +43,8 @@ const StatsCard = memo(({ title, value, subtitle, icon: Icon, loading, highlight
       "relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group",
       highlight ? "border-primary/50 bg-primary/5" : "border-muted/60"
     )}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+        <CardTitle className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
         <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-110", colorMap[color] || colorMap.primary)}>
           <Icon className="h-4 w-4" />
         </div>
@@ -57,7 +57,7 @@ const StatsCard = memo(({ title, value, subtitle, icon: Icon, loading, highlight
           </div>
         ) : (
           <div className="flex flex-col">
-            <div className="text-2xl font-bold tracking-tight">{value}</div>
+            <div className="text-lg sm:text-2xl font-bold tracking-tight">{value}</div>
             <div className="flex items-center gap-2 mt-1">
               {trend && (
                 <div className={cn(
@@ -101,15 +101,15 @@ StatsCard.displayName = "StatsCard";
 const QuickActionButton = ({ to, icon: Icon, label, color, hoverBg, description }: any) => (
   <Link to={to} className="block group">
     <Card className={cn("h-full transition-all duration-300 border-muted/60 group-hover:border-primary/30 group-hover:shadow-md overflow-hidden")}>
-      <CardContent className={cn("p-4 flex items-center gap-4", hoverBg)}>
-        <div className={cn("p-3 rounded-xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-sm bg-white border", color)}>
-          <Icon className="h-5 w-5" />
+      <CardContent className={cn("p-2 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4", hoverBg)}>
+        <div className={cn("p-2 sm:p-3 rounded-xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-sm bg-white border flex-shrink-0", color)}>
+          <Icon className="h-4 sm:h-5 w-4 sm:w-5" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold group-hover:text-primary transition-colors truncate">{label}</p>
-          <p className="text-[10px] text-muted-foreground truncate">{description || "Klik untuk akses cepat"}</p>
+        <div className="flex-1 min-w-0 text-center sm:text-left">
+          <p className="text-xs sm:text-sm font-bold group-hover:text-primary transition-colors truncate">{label}</p>
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{description || "Klik untuk akses cepat"}</p>
         </div>
-        <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+        <ArrowUpRight className="h-3 sm:h-4 w-3 sm:w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 flex-shrink-0" />
       </CardContent>
     </Card>
   </Link>
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 pb-10 animate-fade-in">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20 shadow-sm">
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 bg-card p-2.5 rounded-xl border shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-card p-2 sm:p-2.5 rounded-xl border shadow-sm">
           <Button 
             variant={showFilters ? "secondary" : "outline"} 
             onClick={() => setShowFilters(!showFilters)}
@@ -251,7 +251,7 @@ export default function AdminDashboard() {
       {showFilters && (
         <Card className="bg-muted/30 border-dashed animate-in fade-in slide-in-from-top-2 duration-300">
           <CardContent className="pt-6">
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                   <Calendar className="h-3 w-3" /> Rentang Tanggal
@@ -306,7 +306,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Quick Actions Section */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
         <QuickActionButton to="/admin/packages" icon={Package} label="Tambah Paket" color="text-primary" hoverBg="hover:bg-primary/5" description="Buat paket umroh baru" />
         <QuickActionButton to="/admin/bookings" icon={ShoppingCart} label="Verifikasi Bayar" color="text-blue-600" hoverBg="hover:bg-blue-50" description="Cek bukti pembayaran" />
         <QuickActionButton to="/admin/customers" icon={Users} label="Tambah Jamaah" color="text-green-600" hoverBg="hover:bg-green-50" description="Registrasi jamaah baru" />
@@ -314,7 +314,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* System Alerts / Health Widgets */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         <Card className="border-red-100 bg-red-50/30">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-2 bg-red-100 rounded-lg">
@@ -419,7 +419,7 @@ export default function AdminDashboard() {
       </Suspense>
 
       {/* Recent Activity & Upcoming Departures Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Recent Bookings Table */}
         <Card className="shadow-sm border-muted/60 overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between bg-muted/10 pb-4">

@@ -31,9 +31,9 @@ const LeadConversionChart = memo(({ data, isLoading }: any) => (
     </CardHeader>
     <CardContent>
       {isLoading ? (
-        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[150px] sm:h-[180px] md:h-[200px] w-full" />
       ) : (
-        <div className="h-[200px] w-full">
+        <div className="h-[150px] sm:h-[180px] md:h-[200px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.funnelData || []} layout="vertical" margin={{ left: -20 }}>
               <XAxis type="number" hide />
@@ -79,7 +79,7 @@ const AgentLeaderboard = memo(({ agents, isLoading }: any) => (
     </CardHeader>
     <CardContent>
       {isLoading ? (
-        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[150px] sm:h-[180px] md:h-[200px] w-full" />
       ) : (
         <div className="space-y-4">
           {(agents || []).length > 0 ? (
@@ -119,10 +119,10 @@ const ReceivablesChart = memo(({ arData, totalRevenue, totalOutstanding, isLoadi
     </CardHeader>
     <CardContent>
       {isLoading ? (
-        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[150px] sm:h-[180px] md:h-[200px] w-full" />
       ) : (
         <div className="flex flex-col items-center">
-          <div className="h-[150px] w-full">
+          <div className="h-[120px] sm:h-[140px] md:h-[150px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -183,9 +183,9 @@ const RevenueAreaChart = memo(({ monthlyRevenue, isLoading }: any) => (
     </CardHeader>
     <CardContent>
       {isLoading ? (
-        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[150px] sm:h-[180px] md:h-[200px] w-full" />
       ) : (
-        <div className="h-[200px] w-full">
+        <div className="h-[150px] sm:h-[180px] md:h-[200px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={monthlyRevenue || []}>
               <defs>
@@ -270,7 +270,7 @@ export const DashboardCharts = memo(function DashboardCharts({ stats, isLoading,
   return (
     <>
       {/* Phase 3: Analytics Row */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
         <LeadConversionChart data={chartData} isLoading={isLoading} />
         <AgentLeaderboard agents={chartData.topAgents} isLoading={isLoading} />
         <ReceivablesChart 
@@ -282,7 +282,7 @@ export const DashboardCharts = memo(function DashboardCharts({ stats, isLoading,
       </div>
 
       {/* Charts Row */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
         <RevenueAreaChart monthlyRevenue={chartData.monthlyRevenue} isLoading={isLoading} />
         <AuditActivityLog audits={recentAudits} isLoading={isLoading} />
       </div>
