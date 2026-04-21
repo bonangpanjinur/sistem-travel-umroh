@@ -31,7 +31,10 @@ export default function AdminDashboard() {
   const [selectedBranch, setSelectedBranch] = useState<string>(branchId || "all");
   const [selectedAgent, setSelectedAgent] = useState<string>("all");
   const [selectedSubAgent, setSelectedSubAgent] = useState<string>("all");
+  
+  // New Filter States for Periodic Stats
   const [jamaahFilter, setJamaahFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
+  const [soldFilter, setSoldFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
 
   const { data: stats, isLoading, refetch } = useDashboardStats({ 
     branchId: selectedBranch,
@@ -44,45 +47,59 @@ export default function AdminDashboard() {
   const { data: upcomingDepartures, isLoading: loadingDepartures } = useUpcomingDepartures(selectedBranch);
   const { data: alerts } = useDashboardAlerts();
 
-  // Calculate periodic jamaah stats
-  const periodicJamaahStats = useMemo(() => {
-    if (!stats?.dailyJamaahData) return { week: 0, month: 0, year: 0 };
+  // Calculate periodic stats
+  const periodicStats = useMemo(() => {
+    if (!stats) return { 
+      jamaah: { week: 0, month: 0, year: 0 },
+      sold: { week: 0, month: 0, year: 0 }
+    };
     
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
-    const yearStart = startOfYear(now);
+    const currentYear = now.getFullYear();
 
     const currentWeekKey = format(weekStart, 'dd MMM', { locale: idLocale });
     const currentMonthKey = format(monthStart, 'MMM yyyy', { locale: idLocale });
     
-    const weekData = stats.weeklyJamaahData?.find((w: any) => w.week.startsWith(currentWeekKey));
-    const monthData = stats.monthlyJamaahData?.find((m: any) => m.month === currentMonthKey);
-    
-    const currentYear = now.getFullYear();
-    const yearData = stats.monthlyJamaahData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
+    // Jamaah
+    const jamaahWeek = stats.weeklyJamaahData?.find((w: any) => w.week.startsWith(currentWeekKey))?.jamaah || 0;
+    const jamaahMonth = stats.monthlyJamaahData?.find((m: any) => m.month === currentMonthKey)?.jamaah || 0;
+    const jamaahYear = stats.monthlyJamaahData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
       .reduce((sum: number, m: any) => sum + m.jamaah, 0) || 0;
 
+    // Sold
+    const soldWeek = stats.weeklySoldData?.find((w: any) => w.week.startsWith(currentWeekKey))?.sold || 0;
+    const soldMonth = stats.monthlySoldData?.find((m: any) => m.month === currentMonthKey)?.sold || 0;
+    const soldYear = stats.monthlySoldData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
+      .reduce((sum: number, m: any) => sum + m.sold, 0) || 0;
+
     return {
-      week: weekData?.jamaah || 0,
-      month: monthData?.jamaah || 0,
-      year: yearData || stats.totalJamaah || 0
+      jamaah: { week: jamaahWeek, month: jamaahMonth, year: jamaahYear },
+      sold: { week: soldWeek, month: soldMonth, year: soldYear }
     };
   }, [stats]);
 
   const filteredJamaahCount = useMemo(() => {
-    if (jamaahFilter === 'week') return periodicJamaahStats.week;
-    if (jamaahFilter === 'month') return periodicJamaahStats.month;
-    if (jamaahFilter === 'year') return periodicJamaahStats.year;
+    if (jamaahFilter === 'week') return periodicStats.jamaah.week;
+    if (jamaahFilter === 'month') return periodicStats.jamaah.month;
+    if (jamaahFilter === 'year') return periodicStats.jamaah.year;
     return stats?.totalJamaah || 0;
-  }, [jamaahFilter, periodicJamaahStats, stats]);
+  }, [jamaahFilter, periodicStats, stats]);
 
-  const jamaahLabel = useMemo(() => {
-    if (jamaahFilter === 'week') return "Minggu Ini";
-    if (jamaahFilter === 'month') return "Bulan Ini";
-    if (jamaahFilter === 'year') return "Tahun Ini";
+  const filteredSoldCount = useMemo(() => {
+    if (soldFilter === 'week') return periodicStats.sold.week;
+    if (soldFilter === 'month') return periodicStats.sold.month;
+    if (soldFilter === 'year') return periodicStats.sold.year;
+    return stats?.soldPackagesCount || 0;
+  }, [soldFilter, periodicStats, stats]);
+
+  const getLabel = (filter: string) => {
+    if (filter === 'week') return "Minggu Ini";
+    if (filter === 'month') return "Bulan Ini";
+    if (filter === 'year') return "Tahun Ini";
     return "Total Keseluruhan";
-  }, [jamaahFilter]);
+  };
 
   return (
     <div className="space-y-8 pb-10 animate-fade-in">
@@ -243,29 +260,52 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* New Stats Section: Sold Packages & Periodic Jamaah */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-primary text-primary-foreground shadow-lg border-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 opacity-90">
-              <CheckCircle2 className="h-4 w-4" /> PAKET TERJUAL
+      {/* Detailed Stats Section: Sold Packages & Periodic Jamaah */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Sold Packages Detail */}
+        <Card className="bg-white border-none shadow-sm">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-amber-500" /> PAKET TERJUAL ({getLabel(soldFilter)})
             </CardTitle>
+            <Select value={soldFilter} onValueChange={(v: any) => setSoldFilter(v)}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue placeholder="Filter Waktu" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Waktu</SelectItem>
+                <SelectItem value="week">Minggu Ini</SelectItem>
+                <SelectItem value="month">Bulan Ini</SelectItem>
+                <SelectItem value="year">Tahun Ini</SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              <p className="text-3xl font-black">{stats?.soldPackagesCount || 0}</p>
-              <p className="text-xs opacity-80 font-medium">Total paket terkonfirmasi</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <p className="text-3xl font-black text-amber-600">{filteredSoldCount}</p>
+                <p className="text-xs text-muted-foreground font-medium">Paket Terkonfirmasi</p>
+              </div>
+              <div className="hidden md:flex flex-col justify-center border-l pl-4">
+                <p className="text-xs font-bold text-muted-foreground uppercase">Minggu Ini</p>
+                <p className="text-xl font-bold text-slate-700">{periodicStats.sold.week}</p>
+              </div>
+              <div className="hidden md:flex flex-col justify-center border-l pl-4">
+                <p className="text-xs font-bold text-muted-foreground uppercase">Bulan Ini</p>
+                <p className="text-xl font-bold text-slate-700">{periodicStats.sold.month}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-none shadow-sm lg:col-span-3">
+        {/* Jamaah Detail */}
+        <Card className="bg-white border-none shadow-sm">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
-              <Users className="h-4 w-4 text-blue-500" /> JUMLAH JAMAAH ({jamaahLabel})
+              <Users className="h-4 w-4 text-blue-500" /> JUMLAH JAMAAH ({getLabel(jamaahFilter)})
             </CardTitle>
             <Select value={jamaahFilter} onValueChange={(v: any) => setJamaahFilter(v)}>
-              <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectTrigger className="w-[140px] h-8 text-xs">
                 <SelectValue placeholder="Filter Waktu" />
               </SelectTrigger>
               <SelectContent>
@@ -284,11 +324,11 @@ export default function AdminDashboard() {
               </div>
               <div className="hidden md:flex flex-col justify-center border-l pl-4">
                 <p className="text-xs font-bold text-muted-foreground uppercase">Minggu Ini</p>
-                <p className="text-xl font-bold text-slate-700">{periodicJamaahStats.week}</p>
+                <p className="text-xl font-bold text-slate-700">{periodicStats.jamaah.week}</p>
               </div>
               <div className="hidden md:flex flex-col justify-center border-l pl-4">
                 <p className="text-xs font-bold text-muted-foreground uppercase">Bulan Ini</p>
-                <p className="text-xl font-bold text-slate-700">{periodicJamaahStats.month}</p>
+                <p className="text-xl font-bold text-slate-700">{periodicStats.jamaah.month}</p>
               </div>
             </div>
           </CardContent>

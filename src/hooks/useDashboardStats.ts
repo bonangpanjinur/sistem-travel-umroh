@@ -135,12 +135,17 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
       let pendingBookings = 0;
       let totalPax = 0;
       let totalOutstanding = 0;
-      const soldPackages = new Set<string>();
+      let soldPackagesCount = 0;
       
       const agentStats: Record<string, { name: string; bookings: number; revenue: number }> = {};
       const statusMap: Record<string, number> = {};
       const paymentMap: Record<string, number> = {};
       const monthlyStatsMap: Record<string, { revenue: number; bookings: number }> = {};
+      
+      // Sold packages tracking
+      const soldByDay: Record<string, number> = {};
+      const soldByWeek: Record<string, number> = {};
+      const soldByMonth: Record<string, number> = {};
 
       // Pre-calculate month keys for the interval to ensure all months are present
       const months = eachMonthOfInterval({
@@ -180,10 +185,24 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         totalOutstanding += (price - revenue);
         
         if (status === 'pending') pendingBookings += 1;
-        if (status === 'confirmed' || status === 'completed') {
-          // Assuming we want to count unique packages sold
-          // We don't have package_id directly in bookings, but we have it in departures
-          // For now, let's count confirmed bookings as "sold"
+        
+        const isSold = status === 'confirmed' || status === 'completed';
+        if (isSold) {
+          soldPackagesCount += 1;
+          
+          if (b.created_at) {
+            const date = parseISO(b.created_at);
+            // Daily
+            const dayKey = format(date, 'yyyy-MM-dd');
+            soldByDay[dayKey] = (soldByDay[dayKey] || 0) + 1;
+            // Weekly
+            const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+            const weekKey = format(weekStart, 'yyyy-MM-dd');
+            soldByWeek[weekKey] = (soldByWeek[weekKey] || 0) + 1;
+            // Monthly
+            const monthKey = format(date, 'yyyy-MM');
+            soldByMonth[monthKey] = (soldByMonth[monthKey] || 0) + 1;
+          }
         }
         
         // Status distributions
@@ -262,14 +281,23 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
 
       // Format weekly data
       const weeks = [];
+      const soldWeeks = [];
       let currentWeek = startOfWeek(effectiveStartDate, { weekStartsOn: 1 });
       while (currentWeek <= effectiveEndDate) {
         const weekKey = format(currentWeek, 'yyyy-MM-dd');
         const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
+        const weekLabel = `${format(currentWeek, 'dd MMM', { locale: idLocale })} - ${format(weekEnd, 'dd MMM', { locale: idLocale })}`;
+        
         weeks.push({
-          week: `${format(currentWeek, 'dd MMM', { locale: idLocale })} - ${format(weekEnd, 'dd MMM', { locale: idLocale })}`,
+          week: weekLabel,
           jamaah: jamaahByWeek[weekKey] || 0
         });
+        
+        soldWeeks.push({
+          week: weekLabel,
+          sold: soldByWeek[weekKey] || 0
+        });
+        
         currentWeek = new Date(currentWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
       }
 
@@ -279,6 +307,14 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         return {
           month: format(month, 'MMM yyyy', { locale: idLocale }),
           jamaah: jamaahByMonth[key] || 0
+        };
+      });
+      
+      const monthlySoldData = months.map(month => {
+        const key = format(month, 'yyyy-MM');
+        return {
+          month: format(month, 'MMM yyyy', { locale: idLocale }),
+          sold: soldByMonth[key] || 0
         };
       });
 
@@ -335,7 +371,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         funnelData,
         topAgents,
         totalOutstanding,
-        soldPackagesCount: rawBookings?.filter(b => b.booking_status === 'confirmed' || b.booking_status === 'completed').length || 0,
+        soldPackagesCount,
         arData: [
           { name: 'Terbayar', value: totalRevenue },
           { name: 'Piutang', value: totalOutstanding }
@@ -344,6 +380,9 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         dailyJamaahData,
         weeklyJamaahData: weeks,
         monthlyJamaahData,
+        // Sold packages periodic data
+        weeklySoldData: soldWeeks,
+        monthlySoldData,
         branches: branches || [],
         agents: agents || [],
       };
