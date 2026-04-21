@@ -1,1 +1,345 @@
-/**\n * EquipmentDashboard.tsx\n * \n * Dashboard khusus untuk Tim Perlengkapan.\n * Menampilkan:\n * - Daftar peralatan yang tersedia/digunakan\n * - Jadwal pemeliharaan rutin\n * - Laporan kerusakan dan perbaikan\n * - Riwayat penggunaan peralatan\n * - Notifikasi stok rendah\n */\n\nimport { useMemo } from 'react';\nimport { useQuery } from '@tanstack/react-query';\nimport { supabase } from '@/integrations/supabase/client';\nimport BaseDashboardTemplate, { DashboardStatsCard, DashboardQuickAction, DashboardAlert } from '@/components/dashboards/BaseDashboardTemplate';\nimport { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';\nimport {\n  Backpack, AlertTriangle, CheckCircle2, Wrench, Clock, TrendingDown\n} from 'lucide-react';\n\nexport default function EquipmentDashboard() {\n  // Fetch equipment inventory\n  const { data: equipmentInventory, isLoading: inventoryLoading } = useQuery({\n    queryKey: ['equipment-inventory'],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('equipment')\n        .select('id, name, category, status, quantity, condition')\n        .order('name', { ascending: true });\n\n      if (error) {\n        console.error('Error fetching equipment:', error);\n        return [];\n      }\n\n      return data || [];\n    },\n  });\n\n  // Fetch maintenance schedule\n  const { data: maintenanceSchedule = [] } = useQuery({\n    queryKey: ['equipment-maintenance-schedule'],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('equipment_maintenance')\n        .select('id, equipment_name, maintenance_date, maintenance_type, status')\n        .gte('maintenance_date', new Date().toISOString())\n        .order('maintenance_date', { ascending: true })\n        .limit(10);\n\n      if (error) {\n        console.error('Error fetching maintenance schedule:', error);\n        return [];\n      }\n\n      return data || [];\n    },\n  });\n\n  // Fetch damage reports\n  const { data: damageReports = [] } = useQuery({\n    queryKey: ['equipment-damage-reports'],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('equipment_damage')\n        .select('id, equipment_name, damage_date, description, status, severity')\n        .order('damage_date', { ascending: false })\n        .limit(10);\n\n      if (error) {\n        console.error('Error fetching damage reports:', error);\n        return [];\n      }\n\n      return data || [];\n    },\n  });\n\n  // Calculate stats\n  const stats = useMemo(() => {\n    const totalEquipment = equipmentInventory.length;\n    const availableEquipment = equipmentInventory.filter((e: any) => e.status === 'available').length;\n    const inUseEquipment = equipmentInventory.filter((e: any) => e.status === 'in_use').length;\n    const damageCount = equipmentInventory.filter((e: any) => e.condition === 'damaged').length;\n    const lowStockCount = equipmentInventory.filter((e: any) => e.quantity < 5).length;\n\n    return {\n      totalEquipment,\n      availableEquipment,\n      inUseEquipment,\n      damageCount,\n      lowStockCount,\n    };\n  }, [equipmentInventory]);\n\n  // Stats cards\n  const statsCards: DashboardStatsCard[] = useMemo(() => [\n    {\n      id: 'total-equipment',\n      title: 'Total Perlengkapan',\n      value: stats.totalEquipment,\n      subtitle: 'Dalam inventaris',\n      icon: Backpack,\n      color: 'primary',\n      loading: inventoryLoading,\n    },\n    {\n      id: 'available-equipment',\n      title: 'Tersedia',\n      value: stats.availableEquipment,\n      subtitle: 'Siap digunakan',\n      icon: CheckCircle2,\n      trend: '+5.2%',\n      trendUp: true,\n      color: 'emerald',\n      loading: inventoryLoading,\n    },\n    {\n      id: 'in-use-equipment',\n      title: 'Sedang Digunakan',\n      value: stats.inUseEquipment,\n      subtitle: 'Dalam penggunaan',\n      icon: Clock,\n      color: 'blue',\n      loading: inventoryLoading,\n    },\n    {\n      id: 'damaged-equipment',\n      title: 'Rusak',\n      value: stats.damageCount,\n      subtitle: 'Perlu perbaikan',\n      icon: AlertTriangle,\n      color: 'amber',\n      loading: inventoryLoading,\n    },\n  ], [stats, inventoryLoading]);\n\n  // Quick actions\n  const quickActions: DashboardQuickAction[] = useMemo(() => [\n    {\n      id: 'view-equipment',\n      to: '/admin/equipment',\n      icon: Backpack,\n      label: 'Lihat Inventaris',\n      description: 'Kelola perlengkapan',\n      color: 'text-primary border-primary/20',\n      hoverBg: 'hover:bg-primary/5',\n    },\n    {\n      id: 'schedule-maintenance',\n      to: '/admin/equipment',\n      icon: Wrench,\n      label: 'Jadwal Pemeliharaan',\n      description: 'Kelola jadwal maintenance',\n      color: 'text-blue-600 border-blue-200',\n      hoverBg: 'hover:bg-blue-50',\n    },\n    {\n      id: 'report-damage',\n      to: '/admin/equipment',\n      icon: AlertTriangle,\n      label: 'Lapor Kerusakan',\n      description: 'Buat laporan kerusakan',\n      color: 'text-amber-600 border-amber-200',\n      hoverBg: 'hover:bg-amber-50',\n    },\n    {\n      id: 'view-history',\n      to: '/admin/equipment',\n      icon: TrendingDown,\n      label: 'Riwayat',\n      description: 'Lihat riwayat penggunaan',\n      color: 'text-emerald-600 border-emerald-200',\n      hoverBg: 'hover:bg-emerald-50',\n    },\n  ], []);\n\n  // Alerts\n  const alerts: DashboardAlert[] = useMemo(() => {\n    const alertList: DashboardAlert[] = [];\n\n    if (stats.damageCount > 0) {\n      alertList.push({\n        id: 'damaged-equipment',\n        type: 'critical',\n        title: 'Perlengkapan Rusak',\n        message: `${stats.damageCount} perlengkapan dalam kondisi rusak`,\n        action: {\n          label: 'Lihat',\n          to: '/admin/equipment',\n        },\n      });\n    }\n\n    if (stats.lowStockCount > 0) {\n      alertList.push({\n        id: 'low-stock',\n        type: 'warning',\n        title: 'Stok Rendah',\n        message: `${stats.lowStockCount} item memiliki stok rendah`,\n        action: {\n          label: 'Lihat',\n          to: '/admin/equipment',\n        },\n      });\n    }\n\n    if (maintenanceSchedule.length > 0) {\n      alertList.push({\n        id: 'maintenance-due',\n        type: 'info',\n        title: 'Pemeliharaan Terjadwal',\n        message: `${maintenanceSchedule.length} pemeliharaan akan datang`,\n        action: {\n          label: 'Lihat',\n          to: '/admin/equipment',\n        },\n      });\n    }\n\n    return alertList;\n  }, [stats, maintenanceSchedule]);\n\n  return (\n    <BaseDashboardTemplate\n      title=\"Dashboard Perlengkapan\"\n      subtitle=\"Manajemen inventaris dan pemeliharaan perlengkapan\"\n      statusIndicator={true}\n      statusText=\"Data Perlengkapan Terkini\"\n      quickActions={quickActions}\n      alerts={alerts}\n      statsCards={statsCards}\n    >\n      {/* Maintenance Schedule */}\n      <Card className=\"shadow-sm border-muted/60 overflow-hidden\">\n        <CardHeader className=\"flex flex-row items-center justify-between bg-muted/10 pb-4\">\n          <div>\n            <CardTitle className=\"text-lg font-bold\">Jadwal Pemeliharaan</CardTitle>\n            <CardDescription>Pemeliharaan rutin yang akan datang</CardDescription>\n          </div>\n        </CardHeader>\n        <CardContent className=\"p-0\">\n          <div className=\"relative overflow-x-auto\">\n            <table className=\"w-full text-sm text-left\">\n              <thead className=\"text-xs uppercase bg-muted/30 font-bold text-muted-foreground\">\n                <tr>\n                  <th className=\"px-6 py-4\">Perlengkapan</th>\n                  <th className=\"px-6 py-4\">Jenis Pemeliharaan</th>\n                  <th className=\"px-6 py-4\">Tanggal</th>\n                  <th className=\"px-6 py-4\">Status</th>\n                </tr>\n              </thead>\n              <tbody className=\"divide-y\">\n                {maintenanceSchedule.length > 0 ? (\n                  maintenanceSchedule.map((maintenance: any) => (\n                    <tr key={maintenance.id} className=\"hover:bg-muted/20 transition-colors\">\n                      <td className=\"px-6 py-4 font-bold\">{maintenance.equipment_name}</td>\n                      <td className=\"px-6 py-4\">{maintenance.maintenance_type}</td>\n                      <td className=\"px-6 py-4 text-muted-foreground\">{maintenance.maintenance_date}</td>\n                      <td className=\"px-6 py-4\">\n                        <span className={`text-xs font-bold px-2 py-1 rounded ${\n                          maintenance.status === 'scheduled' ? 'bg-blue-50 text-blue-700' :\n                          maintenance.status === 'completed' ? 'bg-emerald-50 text-emerald-700' :\n                          'bg-amber-50 text-amber-700'\n                        }`}>\n                          {maintenance.status?.toUpperCase()}\n                        </span>\n                      </td>\n                    </tr>\n                  ))\n                ) : (\n                  <tr>\n                    <td colSpan={4} className=\"px-6 py-10 text-center text-muted-foreground\">\n                      Tidak ada jadwal pemeliharaan\n                    </td>\n                  </tr>\n                )}\n              </tbody>\n            </table>\n          </div>\n        </CardContent>\n      </Card>\n\n      {/* Damage Reports */}\n      <Card className=\"shadow-sm border-muted/60 overflow-hidden\">\n        <CardHeader className=\"flex flex-row items-center justify-between bg-muted/10 pb-4\">\n          <div>\n            <CardTitle className=\"text-lg font-bold\">Laporan Kerusakan</CardTitle>\n            <CardDescription>Kerusakan perlengkapan yang dilaporkan</CardDescription>\n          </div>\n        </CardHeader>\n        <CardContent className=\"p-0\">\n          <div className=\"relative overflow-x-auto\">\n            <table className=\"w-full text-sm text-left\">\n              <thead className=\"text-xs uppercase bg-muted/30 font-bold text-muted-foreground\">\n                <tr>\n                  <th className=\"px-6 py-4\">Perlengkapan</th>\n                  <th className=\"px-6 py-4\">Deskripsi</th>\n                  <th className=\"px-6 py-4\">Severity</th>\n                  <th className=\"px-6 py-4\">Status</th>\n                </tr>\n              </thead>\n              <tbody className=\"divide-y\">\n                {damageReports.length > 0 ? (\n                  damageReports.map((report: any) => (\n                    <tr key={report.id} className=\"hover:bg-muted/20 transition-colors\">\n                      <td className=\"px-6 py-4 font-bold\">{report.equipment_name}</td>\n                      <td className=\"px-6 py-4 text-muted-foreground\">{report.description}</td>\n                      <td className=\"px-6 py-4\">\n                        <span className={`text-xs font-bold px-2 py-1 rounded ${\n                          report.severity === 'critical' ? 'bg-red-50 text-red-700' :\n                          report.severity === 'high' ? 'bg-amber-50 text-amber-700' :\n                          'bg-blue-50 text-blue-700'\n                        }`}>\n                          {report.severity?.toUpperCase()}\n                        </span>\n                      </td>\n                      <td className=\"px-6 py-4\">\n                        <span className={`text-xs font-bold px-2 py-1 rounded ${\n                          report.status === 'completed' ? 'bg-emerald-50 text-emerald-700' :\n                          report.status === 'in_progress' ? 'bg-blue-50 text-blue-700' :\n                          'bg-amber-50 text-amber-700'\n                        }`}>\n                          {report.status?.toUpperCase()}\n                        </span>\n                      </td>\n                    </tr>\n                  ))\n                ) : (\n                  <tr>\n                    <td colSpan={4} className=\"px-6 py-10 text-center text-muted-foreground\">\n                      Tidak ada laporan kerusakan\n                    </td>\n                  </tr>\n                )}\n              </tbody>\n            </table>\n          </div>\n        </CardContent>\n      </Card>\n    </BaseDashboardTemplate>\n  );\n}\n
+/**
+ * EquipmentDashboard.tsx
+ * 
+ * Dashboard khusus untuk Tim Perlengkapan.
+ * Menampilkan:
+ * - Daftar peralatan yang tersedia/digunakan
+ * - Jadwal pemeliharaan rutin
+ * - Laporan kerusakan dan perbaikan
+ * - Riwayat penggunaan peralatan
+ * - Notifikasi stok rendah
+ */
+
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import BaseDashboardTemplate, { DashboardStatsCard, DashboardQuickAction, DashboardAlert } from '@/components/dashboards/BaseDashboardTemplate';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Backpack, AlertTriangle, CheckCircle2, Wrench, Clock, TrendingDown
+} from 'lucide-react';
+
+export default function EquipmentDashboard() {
+  // Fetch equipment inventory
+  const { data: equipmentInventory, isLoading: inventoryLoading } = useQuery({
+    queryKey: ['equipment-inventory'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment')
+        .select('id, name, category, status, quantity, condition')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching equipment:', error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  // Fetch maintenance schedule
+  const { data: maintenanceSchedule = [] } = useQuery({
+    queryKey: ['equipment-maintenance-schedule'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment_maintenance')
+        .select('id, equipment_name, maintenance_date, maintenance_type, status')
+        .gte('maintenance_date', new Date().toISOString())
+        .order('maintenance_date', { ascending: true })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching maintenance schedule:', error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  // Fetch damage reports
+  const { data: damageReports = [] } = useQuery({
+    queryKey: ['equipment-damage-reports'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment_damage')
+        .select('id, equipment_name, damage_date, description, status, severity')
+        .order('damage_date', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching damage reports:', error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalEquipment = equipmentInventory.length;
+    const availableEquipment = equipmentInventory.filter((e: any) => e.status === 'available').length;
+    const inUseEquipment = equipmentInventory.filter((e: any) => e.status === 'in_use').length;
+    const damageCount = equipmentInventory.filter((e: any) => e.condition === 'damaged').length;
+    const lowStockCount = equipmentInventory.filter((e: any) => e.quantity < 5).length;
+
+    return {
+      totalEquipment,
+      availableEquipment,
+      inUseEquipment,
+      damageCount,
+      lowStockCount,
+    };
+  }, [equipmentInventory]);
+
+  // Stats cards
+  const statsCards: DashboardStatsCard[] = useMemo(() => [
+    {
+      id: 'total-equipment',
+      title: 'Total Perlengkapan',
+      value: stats.totalEquipment,
+      subtitle: 'Dalam inventaris',
+      icon: Backpack,
+      color: 'primary',
+      loading: inventoryLoading,
+    },
+    {
+      id: 'available-equipment',
+      title: 'Tersedia',
+      value: stats.availableEquipment,
+      subtitle: 'Siap digunakan',
+      icon: CheckCircle2,
+      trend: '+5.2%',
+      trendUp: true,
+      color: 'emerald',
+      loading: inventoryLoading,
+    },
+    {
+      id: 'in-use-equipment',
+      title: 'Sedang Digunakan',
+      value: stats.inUseEquipment,
+      subtitle: 'Dalam penggunaan',
+      icon: Clock,
+      color: 'blue',
+      loading: inventoryLoading,
+    },
+    {
+      id: 'damaged-equipment',
+      title: 'Rusak',
+      value: stats.damageCount,
+      subtitle: 'Perlu perbaikan',
+      icon: AlertTriangle,
+      color: 'amber',
+      loading: inventoryLoading,
+    },
+  ], [stats, inventoryLoading]);
+
+  // Quick actions
+  const quickActions: DashboardQuickAction[] = useMemo(() => [
+    {
+      id: 'view-equipment',
+      to: '/admin/equipment',
+      icon: Backpack,
+      label: 'Lihat Inventaris',
+      description: 'Kelola perlengkapan',
+      color: 'text-primary border-primary/20',
+      hoverBg: 'hover:bg-primary/5',
+    },
+    {
+      id: 'schedule-maintenance',
+      to: '/admin/equipment',
+      icon: Wrench,
+      label: 'Jadwal Pemeliharaan',
+      description: 'Kelola jadwal maintenance',
+      color: 'text-blue-600 border-blue-200',
+      hoverBg: 'hover:bg-blue-50',
+    },
+    {
+      id: 'report-damage',
+      to: '/admin/equipment',
+      icon: AlertTriangle,
+      label: 'Lapor Kerusakan',
+      description: 'Buat laporan kerusakan',
+      color: 'text-amber-600 border-amber-200',
+      hoverBg: 'hover:bg-amber-50',
+    },
+    {
+      id: 'view-history',
+      to: '/admin/equipment',
+      icon: TrendingDown,
+      label: 'Riwayat',
+      description: 'Lihat riwayat penggunaan',
+      color: 'text-emerald-600 border-emerald-200',
+      hoverBg: 'hover:bg-emerald-50',
+    },
+  ], []);
+
+  // Alerts
+  const alerts: DashboardAlert[] = useMemo(() => {
+    const alertList: DashboardAlert[] = [];
+
+    if (stats.damageCount > 0) {
+      alertList.push({
+        id: 'damaged-equipment',
+        type: 'critical',
+        title: 'Perlengkapan Rusak',
+        message: `${stats.damageCount} perlengkapan dalam kondisi rusak`,
+        action: {
+          label: 'Lihat',
+          to: '/admin/equipment',
+        },
+      });
+    }
+
+    if (stats.lowStockCount > 0) {
+      alertList.push({
+        id: 'low-stock',
+        type: 'warning',
+        title: 'Stok Rendah',
+        message: `${stats.lowStockCount} item memiliki stok rendah`,
+        action: {
+          label: 'Lihat',
+          to: '/admin/equipment',
+        },
+      });
+    }
+
+    if (maintenanceSchedule.length > 0) {
+      alertList.push({
+        id: 'maintenance-due',
+        type: 'info',
+        title: 'Pemeliharaan Terjadwal',
+        message: `${maintenanceSchedule.length} pemeliharaan akan datang`,
+        action: {
+          label: 'Lihat',
+          to: '/admin/equipment',
+        },
+      });
+    }
+
+    return alertList;
+  }, [stats, maintenanceSchedule]);
+
+  return (
+    <BaseDashboardTemplate
+      title="Dashboard Perlengkapan"
+      subtitle="Manajemen inventaris dan pemeliharaan perlengkapan"
+      statusIndicator={true}
+      statusText="Data Perlengkapan Terkini"
+      quickActions={quickActions}
+      alerts={alerts}
+      statsCards={statsCards}
+    >
+      {/* Maintenance Schedule */}
+      <Card className="shadow-sm border-muted/60 overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between bg-muted/10 pb-4">
+          <div>
+            <CardTitle className="text-lg font-bold">Jadwal Pemeliharaan</CardTitle>
+            <CardDescription>Pemeliharaan rutin yang akan datang</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="relative overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-muted/30 font-bold text-muted-foreground">
+                <tr>
+                  <th className="px-6 py-4">Perlengkapan</th>
+                  <th className="px-6 py-4">Jenis Pemeliharaan</th>
+                  <th className="px-6 py-4">Tanggal</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {maintenanceSchedule.length > 0 ? (
+                  maintenanceSchedule.map((maintenance: any) => (
+                    <tr key={maintenance.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4 font-bold">{maintenance.equipment_name}</td>
+                      <td className="px-6 py-4">{maintenance.maintenance_type}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{maintenance.maintenance_date}</td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${
+                          maintenance.status === 'scheduled' ? 'bg-blue-50 text-blue-700' :
+                          maintenance.status === 'completed' ? 'bg-emerald-50 text-emerald-700' :
+                          'bg-amber-50 text-amber-700'
+                        }`}>
+                          {maintenance.status?.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
+                      Tidak ada jadwal pemeliharaan
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Damage Reports */}
+      <Card className="shadow-sm border-muted/60 overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between bg-muted/10 pb-4">
+          <div>
+            <CardTitle className="text-lg font-bold">Laporan Kerusakan</CardTitle>
+            <CardDescription>Kerusakan perlengkapan yang dilaporkan</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="relative overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-muted/30 font-bold text-muted-foreground">
+                <tr>
+                  <th className="px-6 py-4">Perlengkapan</th>
+                  <th className="px-6 py-4">Deskripsi</th>
+                  <th className="px-6 py-4">Severity</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {damageReports.length > 0 ? (
+                  damageReports.map((report: any) => (
+                    <tr key={report.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4 font-bold">{report.equipment_name}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{report.description}</td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${
+                          report.severity === 'critical' ? 'bg-red-50 text-red-700' :
+                          report.severity === 'high' ? 'bg-amber-50 text-amber-700' :
+                          'bg-blue-50 text-blue-700'
+                        }`}>
+                          {report.severity?.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${
+                          report.status === 'completed' ? 'bg-emerald-50 text-emerald-700' :
+                          report.status === 'in_progress' ? 'bg-blue-50 text-blue-700' :
+                          'bg-amber-50 text-amber-700'
+                        }`}>
+                          {report.status?.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
+                      Tidak ada laporan kerusakan
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </BaseDashboardTemplate>
+  );
+}
+

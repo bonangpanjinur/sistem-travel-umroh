@@ -1,2 +1,322 @@
 /**
- * MarketingDashboard.tsx\n * \n * Dashboard khusus untuk Tim Marketing.\n * Menampilkan:\n * - Ringkasan kampanye aktif\n * - Metrik engagement (website, media sosial)\n * - Laporan konversi dari marketing\n * - Analisis demografi pelanggan\n * - Laporan ROI kampanye\n */\n\nimport { useMemo } from 'react';\nimport { useQuery } from '@tanstack/react-query';\nimport { supabase } from '@/integrations/supabase/client';\nimport BaseDashboardTemplate, { DashboardStatsCard, DashboardQuickAction, DashboardAlert } from '@/components/dashboards/BaseDashboardTemplate';\nimport { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';\nimport {\n  Megaphone, TrendingUp, Users, BarChart3, Eye, MousePointerClick\n} from 'lucide-react';\nimport { formatCurrency } from '@/lib/format';\n\nexport default function MarketingDashboard() {\n  // Fetch campaign summary\n  const { data: campaignSummary, isLoading: campaignLoading } = useQuery({\n    queryKey: ['marketing-campaign-summary'],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('marketing_campaigns')\n        .select('id, name, status, budget, spent, impressions, clicks, conversions')\n        .eq('status', 'active')\n        .order('created_at', { ascending: false })\n        .limit(1);\n\n      if (error) {\n        console.error('Error fetching campaigns:', error);\n        return null;\n      }\n\n      return data?.[0] || null;\n    },\n  });\n\n  // Fetch engagement metrics\n  const { data: engagementMetrics = {} } = useQuery({\n    queryKey: ['marketing-engagement-metrics'],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('marketing_metrics')\n        .select('*')\n        .order('date', { ascending: false })\n        .limit(1)\n        .single();\n\n      if (error) {\n        console.error('Error fetching metrics:', error);\n        return {};\n      }\n\n      return data || {};\n    },\n  });\n\n  // Fetch active campaigns\n  const { data: activeCampaigns = [] } = useQuery({\n    queryKey: ['marketing-active-campaigns'],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('marketing_campaigns')\n        .select('id, name, status, budget, spent, impressions, clicks')\n        .eq('status', 'active')\n        .order('created_at', { ascending: false })\n        .limit(10);\n\n      if (error) {\n        console.error('Error fetching active campaigns:', error);\n        return [];\n      }\n\n      return data || [];\n    },\n  });\n\n  // Fetch conversion data\n  const { data: conversionData = [] } = useQuery({\n    queryKey: ['marketing-conversion-data'],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('marketing_conversions')\n        .select('campaign_id, campaign_name, conversions, revenue')\n        .order('revenue', { ascending: false })\n        .limit(10);\n\n      if (error) {\n        console.error('Error fetching conversion data:', error);\n        return [];\n      }\n\n      return data || [];\n    },\n  });\n\n  // Calculate ROI\n  const calculateROI = (spent: number, revenue: number): number => {\n    if (spent === 0) return 0;\n    return ((revenue - spent) / spent) * 100;\n  };\n\n  // Calculate CTR\n  const calculateCTR = (clicks: number, impressions: number): number => {\n    if (impressions === 0) return 0;\n    return (clicks / impressions) * 100;\n  };\n\n  // Stats cards\n  const statsCards: DashboardStatsCard[] = useMemo(() => {\n    const totalImpressions = activeCampaigns.reduce((sum: number, c: any) => sum + (c.impressions || 0), 0);\n    const totalClicks = activeCampaigns.reduce((sum: number, c: any) => sum + (c.clicks || 0), 0);\n    const totalSpent = activeCampaigns.reduce((sum: number, c: any) => sum + (c.spent || 0), 0);\n    const totalRevenue = conversionData.reduce((sum: number, c: any) => sum + (c.revenue || 0), 0);\n\n    return [\n      {\n        id: 'total-impressions',\n        title: 'Total Impressions',\n        value: totalImpressions.toLocaleString(),\n        subtitle: 'Kampanye aktif',\n        icon: Eye,\n        trend: '+12.5%',\n        trendUp: true,\n        color: 'primary',\n        loading: campaignLoading,\n      },\n      {\n        id: 'total-clicks',\n        title: 'Total Clicks',\n        value: totalClicks.toLocaleString(),\n        subtitle: `CTR: ${calculateCTR(totalClicks, totalImpressions).toFixed(2)}%`,\n        icon: MousePointerClick,\n        trend: '+8.2%',\n        trendUp: true,\n        color: 'blue',\n        loading: campaignLoading,\n      },\n      {\n        id: 'total-spent',\n        title: 'Total Budget Terpakai',\n        value: formatCurrency(totalSpent),\n        subtitle: 'Bulan ini',\n        icon: TrendingUp,\n        color: 'amber',\n        loading: campaignLoading,\n      },\n      {\n        id: 'total-roi',\n        title: 'ROI Kampanye',\n        value: `${calculateROI(totalSpent, totalRevenue).toFixed(1)}%`,\n        subtitle: 'Return on investment',\n        icon: BarChart3,\n        trend: '+18.7%',\n        trendUp: true,\n        color: 'emerald',\n        loading: campaignLoading,\n      },\n    ];\n  }, [activeCampaigns, conversionData, campaignLoading]);\n\n  // Quick actions\n  const quickActions: DashboardQuickAction[] = useMemo(() => [\n    {\n      id: 'create-campaign',\n      to: '/admin/marketing-materials',\n      icon: Megaphone,\n      label: 'Kampanye Baru',\n      description: 'Buat kampanye marketing',\n      color: 'text-primary border-primary/20',\n      hoverBg: 'hover:bg-primary/5',\n    },\n    {\n      id: 'view-materials',\n      to: '/admin/marketing-materials',\n      icon: BarChart3,\n      label: 'Materi Promosi',\n      description: 'Kelola materi marketing',\n      color: 'text-blue-600 border-blue-200',\n      hoverBg: 'hover:bg-blue-50',\n    },\n    {\n      id: 'view-landing-pages',\n      to: '/admin/landing-pages',\n      icon: TrendingUp,\n      label: 'Landing Pages',\n      description: 'Kelola landing pages',\n      color: 'text-emerald-600 border-emerald-200',\n      hoverBg: 'hover:bg-emerald-50',\n    },\n    {\n      id: 'view-coupons',\n      to: '/admin/coupons',\n      icon: Users,\n      label: 'Kupon',\n      description: 'Kelola kupon promosi',\n      color: 'text-amber-600 border-amber-200',\n      hoverBg: 'hover:bg-amber-50',\n    },\n  ], []);\n\n  // Alerts\n  const alerts: DashboardAlert[] = useMemo(() => {\n    const alertList: DashboardAlert[] = [];\n\n    if (activeCampaigns.length === 0) {\n      alertList.push({\n        id: 'no-active-campaigns',\n        type: 'info',\n        title: 'Tidak Ada Kampanye Aktif',\n        message: 'Buat kampanye baru untuk meningkatkan engagement',\n        action: {\n          label: 'Buat',\n          to: '/admin/marketing-materials',\n        },\n      });\n    }\n\n    return alertList;\n  }, [activeCampaigns]);\n\n  return (\n    <BaseDashboardTemplate\n      title=\"Dashboard Marketing\"\n      subtitle=\"Ringkasan performa kampanye dan engagement\"\n      statusIndicator={true}\n      statusText=\"Data Marketing Terkini\"\n      quickActions={quickActions}\n      alerts={alerts}\n      statsCards={statsCards}\n    >\n      {/* Active Campaigns */}\n      <Card className=\"shadow-sm border-muted/60 overflow-hidden\">\n        <CardHeader className=\"flex flex-row items-center justify-between bg-muted/10 pb-4\">\n          <div>\n            <CardTitle className=\"text-lg font-bold\">Kampanye Aktif</CardTitle>\n            <CardDescription>Kampanye marketing yang sedang berjalan</CardDescription>\n          </div>\n        </CardHeader>\n        <CardContent className=\"p-0\">\n          <div className=\"relative overflow-x-auto\">\n            <table className=\"w-full text-sm text-left\">\n              <thead className=\"text-xs uppercase bg-muted/30 font-bold text-muted-foreground\">\n                <tr>\n                  <th className=\"px-6 py-4\">Nama Kampanye</th>\n                  <th className=\"px-6 py-4\">Impressions</th>\n                  <th className=\"px-6 py-4\">Clicks</th>\n                  <th className=\"px-6 py-4\">Budget</th>\n                </tr>\n              </thead>\n              <tbody className=\"divide-y\">\n                {activeCampaigns.length > 0 ? (\n                  activeCampaigns.map((campaign: any) => (\n                    <tr key={campaign.id} className=\"hover:bg-muted/20 transition-colors\">\n                      <td className=\"px-6 py-4 font-bold\">{campaign.name}</td>\n                      <td className=\"px-6 py-4\">{campaign.impressions?.toLocaleString()}</td>\n                      <td className=\"px-6 py-4\">{campaign.clicks?.toLocaleString()}</td>\n                      <td className=\"px-6 py-4 font-bold\">{formatCurrency(campaign.budget)}</td>\n                    </tr>\n                  ))\n                ) : (\n                  <tr>\n                    <td colSpan={4} className=\"px-6 py-10 text-center text-muted-foreground\">\n                      Belum ada kampanye aktif\n                    </td>\n                  </tr>\n                )}\n              </tbody>\n            </table>\n          </div>\n        </CardContent>\n      </Card>\n\n      {/* Conversion Report */}\n      <Card className=\"shadow-sm border-muted/60 overflow-hidden\">\n        <CardHeader className=\"flex flex-row items-center justify-between bg-muted/10 pb-4\">\n          <div>\n            <CardTitle className=\"text-lg font-bold\">Laporan Konversi</CardTitle>\n            <CardDescription>Konversi dari setiap kampanye</CardDescription>\n          </div>\n        </CardHeader>\n        <CardContent className=\"p-0\">\n          <div className=\"relative overflow-x-auto\">\n            <table className=\"w-full text-sm text-left\">\n              <thead className=\"text-xs uppercase bg-muted/30 font-bold text-muted-foreground\">\n                <tr>\n                  <th className=\"px-6 py-4\">Kampanye</th>\n                  <th className=\"px-6 py-4\">Konversi</th>\n                  <th className=\"px-6 py-4 text-right\">Revenue</th>\n                </tr>\n              </thead>\n              <tbody className=\"divide-y\">\n                {conversionData.length > 0 ? (\n                  conversionData.map((data: any) => (\n                    <tr key={data.campaign_id} className=\"hover:bg-muted/20 transition-colors\">\n                      <td className=\"px-6 py-4 font-bold\">{data.campaign_name}</td>\n                      <td className=\"px-6 py-4\">{data.conversions}</td>\n                      <td className=\"px-6 py-4 text-right font-bold\">{formatCurrency(data.revenue)}</td>\n                    </tr>\n                  ))\n                ) : (\n                  <tr>\n                    <td colSpan={3} className=\"px-6 py-10 text-center text-muted-foreground\">\n                      Belum ada data konversi\n                    </td>\n                  </tr>\n                )}\n              </tbody>\n            </table>\n          </div>\n        </CardContent>\n      </Card>\n    </BaseDashboardTemplate>\n  );\n}\n
+ * MarketingDashboard.tsx
+ * 
+ * Dashboard khusus untuk Tim Marketing.
+ * Menampilkan:
+ * - Ringkasan kampanye aktif
+ * - Metrik engagement (website, media sosial)
+ * - Laporan konversi dari marketing
+ * - Analisis demografi pelanggan
+ * - Laporan ROI kampanye
+ */
+
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import BaseDashboardTemplate, { DashboardStatsCard, DashboardQuickAction, DashboardAlert } from '@/components/dashboards/BaseDashboardTemplate';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Megaphone, TrendingUp, Users, BarChart3, Eye, MousePointerClick
+} from 'lucide-react';
+import { formatCurrency } from '@/lib/format';
+
+export default function MarketingDashboard() {
+  // Fetch campaign summary
+  const { data: campaignSummary, isLoading: campaignLoading } = useQuery({
+    queryKey: ['marketing-campaign-summary'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marketing_campaigns')
+        .select('id, name, status, budget, spent, impressions, clicks, conversions')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error fetching campaigns:', error);
+        return null;
+      }
+
+      return data?.[0] || null;
+    },
+  });
+
+  // Fetch engagement metrics
+  const { data: engagementMetrics = {} } = useQuery({
+    queryKey: ['marketing-engagement-metrics'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marketing_metrics')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error fetching metrics:', error);
+        return {};
+      }
+
+      return data || {};
+    },
+  });
+
+  // Fetch active campaigns
+  const { data: activeCampaigns = [] } = useQuery({
+    queryKey: ['marketing-active-campaigns'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marketing_campaigns')
+        .select('id, name, status, budget, spent, impressions, clicks')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching active campaigns:', error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  // Fetch conversion data
+  const { data: conversionData = [] } = useQuery({
+    queryKey: ['marketing-conversion-data'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marketing_conversions')
+        .select('campaign_id, campaign_name, conversions, revenue')
+        .order('revenue', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching conversion data:', error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  // Calculate ROI
+  const calculateROI = (spent: number, revenue: number): number => {
+    if (spent === 0) return 0;
+    return ((revenue - spent) / spent) * 100;
+  };
+
+  // Calculate CTR
+  const calculateCTR = (clicks: number, impressions: number): number => {
+    if (impressions === 0) return 0;
+    return (clicks / impressions) * 100;
+  };
+
+  // Stats cards
+  const statsCards: DashboardStatsCard[] = useMemo(() => {
+    const totalImpressions = activeCampaigns.reduce((sum: number, c: any) => sum + (c.impressions || 0), 0);
+    const totalClicks = activeCampaigns.reduce((sum: number, c: any) => sum + (c.clicks || 0), 0);
+    const totalSpent = activeCampaigns.reduce((sum: number, c: any) => sum + (c.spent || 0), 0);
+    const totalRevenue = conversionData.reduce((sum: number, c: any) => sum + (c.revenue || 0), 0);
+
+    return [
+      {
+        id: 'total-impressions',
+        title: 'Total Impressions',
+        value: totalImpressions.toLocaleString(),
+        subtitle: 'Kampanye aktif',
+        icon: Eye,
+        trend: '+12.5%',
+        trendUp: true,
+        color: 'primary',
+        loading: campaignLoading,
+      },
+      {
+        id: 'total-clicks',
+        title: 'Total Clicks',
+        value: totalClicks.toLocaleString(),
+        subtitle: `CTR: ${calculateCTR(totalClicks, totalImpressions).toFixed(2)}%`,
+        icon: MousePointerClick,
+        trend: '+8.2%',
+        trendUp: true,
+        color: 'blue',
+        loading: campaignLoading,
+      },
+      {
+        id: 'total-spent',
+        title: 'Total Budget Terpakai',
+        value: formatCurrency(totalSpent),
+        subtitle: 'Bulan ini',
+        icon: TrendingUp,
+        color: 'amber',
+        loading: campaignLoading,
+      },
+      {
+        id: 'total-roi',
+        title: 'ROI Kampanye',
+        value: `${calculateROI(totalSpent, totalRevenue).toFixed(1)}%`,
+        subtitle: 'Return on investment',
+        icon: BarChart3,
+        trend: '+18.7%',
+        trendUp: true,
+        color: 'emerald',
+        loading: campaignLoading,
+      },
+    ];
+  }, [activeCampaigns, conversionData, campaignLoading]);
+
+  // Quick actions
+  const quickActions: DashboardQuickAction[] = useMemo(() => [
+    {
+      id: 'create-campaign',
+      to: '/admin/marketing-materials',
+      icon: Megaphone,
+      label: 'Kampanye Baru',
+      description: 'Buat kampanye marketing',
+      color: 'text-primary border-primary/20',
+      hoverBg: 'hover:bg-primary/5',
+    },
+    {
+      id: 'view-materials',
+      to: '/admin/marketing-materials',
+      icon: BarChart3,
+      label: 'Materi Promosi',
+      description: 'Kelola materi marketing',
+      color: 'text-blue-600 border-blue-200',
+      hoverBg: 'hover:bg-blue-50',
+    },
+    {
+      id: 'view-landing-pages',
+      to: '/admin/landing-pages',
+      icon: TrendingUp,
+      label: 'Landing Pages',
+      description: 'Kelola landing pages',
+      color: 'text-emerald-600 border-emerald-200',
+      hoverBg: 'hover:bg-emerald-50',
+    },
+    {
+      id: 'view-coupons',
+      to: '/admin/coupons',
+      icon: Users,
+      label: 'Kupon',
+      description: 'Kelola kupon promosi',
+      color: 'text-amber-600 border-amber-200',
+      hoverBg: 'hover:bg-amber-50',
+    },
+  ], []);
+
+  // Alerts
+  const alerts: DashboardAlert[] = useMemo(() => {
+    const alertList: DashboardAlert[] = [];
+
+    if (activeCampaigns.length === 0) {
+      alertList.push({
+        id: 'no-active-campaigns',
+        type: 'info',
+        title: 'Tidak Ada Kampanye Aktif',
+        message: 'Buat kampanye baru untuk meningkatkan engagement',
+        action: {
+          label: 'Buat',
+          to: '/admin/marketing-materials',
+        },
+      });
+    }
+
+    return alertList;
+  }, [activeCampaigns]);
+
+  return (
+    <BaseDashboardTemplate
+      title="Dashboard Marketing"
+      subtitle="Ringkasan performa kampanye dan engagement"
+      statusIndicator={true}
+      statusText="Data Marketing Terkini"
+      quickActions={quickActions}
+      alerts={alerts}
+      statsCards={statsCards}
+    >
+      {/* Active Campaigns */}
+      <Card className="shadow-sm border-muted/60 overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between bg-muted/10 pb-4">
+          <div>
+            <CardTitle className="text-lg font-bold">Kampanye Aktif</CardTitle>
+            <CardDescription>Kampanye marketing yang sedang berjalan</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="relative overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-muted/30 font-bold text-muted-foreground">
+                <tr>
+                  <th className="px-6 py-4">Nama Kampanye</th>
+                  <th className="px-6 py-4">Impressions</th>
+                  <th className="px-6 py-4">Clicks</th>
+                  <th className="px-6 py-4">Budget</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {activeCampaigns.length > 0 ? (
+                  activeCampaigns.map((campaign: any) => (
+                    <tr key={campaign.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4 font-bold">{campaign.name}</td>
+                      <td className="px-6 py-4">{campaign.impressions?.toLocaleString()}</td>
+                      <td className="px-6 py-4">{campaign.clicks?.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold">{formatCurrency(campaign.budget)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
+                      Belum ada kampanye aktif
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Conversion Report */}
+      <Card className="shadow-sm border-muted/60 overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between bg-muted/10 pb-4">
+          <div>
+            <CardTitle className="text-lg font-bold">Laporan Konversi</CardTitle>
+            <CardDescription>Konversi dari setiap kampanye</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="relative overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-muted/30 font-bold text-muted-foreground">
+                <tr>
+                  <th className="px-6 py-4">Kampanye</th>
+                  <th className="px-6 py-4">Konversi</th>
+                  <th className="px-6 py-4 text-right">Revenue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {conversionData.length > 0 ? (
+                  conversionData.map((data: any) => (
+                    <tr key={data.campaign_id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4 font-bold">{data.campaign_name}</td>
+                      <td className="px-6 py-4">{data.conversions}</td>
+                      <td className="px-6 py-4 text-right font-bold">{formatCurrency(data.revenue)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-10 text-center text-muted-foreground">
+                      Belum ada data konversi
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </BaseDashboardTemplate>
+  );
+}
+
