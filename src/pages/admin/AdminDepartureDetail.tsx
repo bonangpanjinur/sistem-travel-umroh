@@ -100,6 +100,8 @@ export default function AdminDepartureDetail() {
           )
         `
         )
+        .order('booking.booking_code', { ascending: true })
+        .order('is_main_passenger', { ascending: false })
         .eq("booking.departure_id", id)
         .eq("booking.booking_status", "confirmed");
 
@@ -572,10 +574,12 @@ export default function AdminDepartureDetail() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Booking Code</TableHead>
                         <TableHead>Nama</TableHead>
                         <TableHead>L/P</TableHead>
                         <TableHead>Paspor</TableHead>
                         <TableHead>Exp. Paspor</TableHead>
+                        <TableHead>Tipe Penumpang</TableHead>
                         <TableHead>Kamar</TableHead>
                         <TableHead>Telepon</TableHead>
                       </TableRow>
@@ -583,8 +587,18 @@ export default function AdminDepartureDetail() {
                     <TableBody>
                       {passengers.map((p) => (
                         <TableRow key={p.id}>
+                          <TableCell className="font-mono text-sm">
+                            {p.booking?.booking_code || "-"}
+                          </TableCell>
                           <TableCell className="font-medium">
-                            {p.customer?.full_name}
+                            <div className="flex items-center gap-2">
+                              {p.customer?.full_name}
+                              {p.is_main_passenger && (
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  Utama
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {p.customer?.gender === "male" ? "L" : "P"}
@@ -597,6 +611,9 @@ export default function AdminDepartureDetail() {
                                   "dd/MM/yyyy"
                                 )
                               : "-"}
+                          </TableCell>
+                          <TableCell className="capitalize">
+                            {p.passenger_type || "-"}
                           </TableCell>
                           <TableCell>
                             {(p.booking?.room_type || "-").toUpperCase()}
