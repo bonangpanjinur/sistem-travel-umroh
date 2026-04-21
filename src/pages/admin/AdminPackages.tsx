@@ -213,17 +213,24 @@ export default function AdminPackages() {
     },
   });
 
-  const getUpcomingDepartures = (departures: any[]) => {
-    if (!departures) return [];
-    const today = new Date().toISOString().split('T')[0];
-    return departures.filter(d => d.departure_date >= today && d.status === 'open');
-  };
-
   const filteredPackages = useMemo(() => {
     if (!packages) return [];
 
     // Pre-calculate minPrice and maxBooked for filtering
-    const allPrices = packages.map(p => getLowestPrice(p)).filter(p => p > 0);
+    const allPrices = packages.map(p => {
+      const today = new Date().toISOString().split('T')[0];
+      const openDeps = (p.departures as any[])?.filter(
+        (d: any) => d.departure_date >= today && d.status === 'open'
+      ) || [];
+      const depPrices = openDeps.flatMap((d: any) =>
+        [d.price_quad, d.price_triple, d.price_double, d.price_single].filter((pr: number) => pr && pr > 0)
+      );
+      if (depPrices.length > 0) return Math.min(...depPrices);
+      const pkgPrices = [p.price_quad, p.price_triple, p.price_double, p.price_single]
+        .filter((pr: number) => pr && pr > 0);
+      return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
+    }).filter(p => p > 0);
+    
     const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
 
     const allBooked = packages.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0);
@@ -243,10 +250,23 @@ export default function AdminPackages() {
       if (statusFilter === "active" && !pkg.is_active) return false;
       if (statusFilter === "inactive" && pkg.is_active) return false;
 
-      const upcoming = getUpcomingDepartures(pkg.departures || []);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const upcoming = (pkg.departures as any[])?.filter(d => d.departure_date >= todayStr && d.status === 'open') || [];
       
       if (quickFilter === "cheapest") {
-        const lowestPrice = getLowestPrice(pkg);
+        const openDeps = upcoming;
+        const depPrices = openDeps.flatMap((d: any) =>
+          [d.price_quad, d.price_triple, d.price_double, d.price_single].filter((pr: number) => pr && pr > 0)
+        );
+        let lowestPrice = 0;
+        if (depPrices.length > 0) {
+          lowestPrice = Math.min(...depPrices);
+        } else {
+          const pkgPrices = [pkg.price_quad, pkg.price_triple, pkg.price_double, pkg.price_single]
+            .filter((pr: number) => pr && pr > 0);
+          lowestPrice = pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
+        }
+        
         if (lowestPrice === 0 || lowestPrice !== minPrice) return false;
       }
 
@@ -309,6 +329,7 @@ export default function AdminPackages() {
     setEditingType(null);
   };
 
+  // Moved logic inside useMemo and other places to avoid initialization issues in minified builds
   const getLowestPrice = (pkg: any) => {
     const today = new Date().toISOString().split('T')[0];
     const openDeps = (pkg.departures as any[])?.filter(
