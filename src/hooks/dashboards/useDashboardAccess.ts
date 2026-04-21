@@ -7,7 +7,7 @@
 
 import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { fromExtra } from '@/integrations/supabase/extra-tables';
 import { useAuth } from '@/hooks/useAuth';
 import {
   DASHBOARD_MODULES,
@@ -41,11 +41,10 @@ export const useDashboardAccess = () => {
     queryFn: async () => {
       if (!primaryRole) return null;
 
-      const { data, error } = await (supabase as any)
-        .from('dashboard_access_config')
+      const { data, error } = await fromExtra('dashboard_access_config')
         .select('*')
         .eq('role', primaryRole)
-        .single();
+        .maybeSingle();
 
       if (error) {
         // PGRST116 = no rows returned, which is OK
@@ -80,14 +79,14 @@ export const useDashboardAccess = () => {
 
     // For other roles, combine default config with dynamic overrides
     const defaultModules = getAvailableModulesForRole(primaryRole);
-    const enabledModules = dynamicConfig?.enabled_modules || defaultModules;
-    const disabledModules = dynamicConfig?.disabled_modules || [];
+    const enabledModules = dynamicConfig?.enabled_modules ?? defaultModules;
+    const disabledModules = dynamicConfig?.disabled_modules ?? [];
 
     return {
       role: primaryRole,
       enabledModules,
       disabledModules,
-      defaultDashboard: dynamicConfig?.default_dashboard || getDefaultDashboardForRole(primaryRole),
+      defaultDashboard: dynamicConfig?.default_dashboard ?? getDefaultDashboardForRole(primaryRole),
     };
   }, [primaryRole, isSuperAdmin, dynamicConfig]);
 

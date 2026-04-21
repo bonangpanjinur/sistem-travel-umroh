@@ -13,7 +13,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { fromExtra } from '@/integrations/supabase/extra-tables';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,11 +71,10 @@ export default function DashboardAccessManagerPanel({
   const { data: accessConfig, isLoading: configLoading, error: configError } = useQuery({
     queryKey: ['dashboard-access-config', selectedRole],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('dashboard_access_config')
+      const { data, error } = await fromExtra('dashboard_access_config')
         .select('*')
         .eq('role', selectedRole)
-        .single();
+        .maybeSingle();
 
       if (error) {
         // PGRST116 = no rows returned, which is OK
@@ -104,8 +103,7 @@ export default function DashboardAccessManagerPanel({
   const { data: auditLog = [] } = useQuery({
     queryKey: ['dashboard-access-audit-log', selectedRole],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('dashboard_access_audit_log')
+      const { data, error } = await fromExtra('dashboard_access_audit_log')
         .select('*')
         .eq('role', selectedRole)
         .order('changed_at', { ascending: false })
@@ -140,8 +138,7 @@ export default function DashboardAccessManagerPanel({
       
       if (accessConfig) {
         // Update existing
-        const { data, error } = await (supabase as any)
-          .from('dashboard_access_config')
+        const { data, error } = await fromExtra('dashboard_access_config')
           .update({
             enabled_modules: enabledModules,
             disabled_modules: disabledModules,
@@ -157,8 +154,7 @@ export default function DashboardAccessManagerPanel({
         result = data;
       } else {
         // Insert new
-        const { data, error } = await (supabase as any)
-          .from('dashboard_access_config')
+        const { data, error } = await fromExtra('dashboard_access_config')
           .insert({
             role: selectedRole,
             enabled_modules: enabledModules,
@@ -202,9 +198,9 @@ export default function DashboardAccessManagerPanel({
 
   const handleToggleModule = useCallback(
     (moduleKey: string, enabled: boolean) => {
-      const cfg = accessConfig as any;
-      const currentEnabled = cfg?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
-      const currentDisabled = cfg?.disabled_modules || [];
+      const cfg = accessConfig;
+      const currentEnabled = cfg?.enabled_modules ?? ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules ?? [];
+      const currentDisabled = cfg?.disabled_modules ?? [];
       
       const enabledModules = enabled
         ? [...currentEnabled, moduleKey]
@@ -218,7 +214,7 @@ export default function DashboardAccessManagerPanel({
       updateConfigMutation.mutate({
         enabledModules,
         disabledModules,
-        defaultDashboard: cfg?.default_dashboard || ROLE_DASHBOARD_CONFIG[selectedRole]?.defaultDashboard,
+        defaultDashboard: cfg?.default_dashboard ?? ROLE_DASHBOARD_CONFIG[selectedRole]?.defaultDashboard,
       });
     },
     [accessConfig, selectedRole, updateConfigMutation]
@@ -226,9 +222,9 @@ export default function DashboardAccessManagerPanel({
 
   const handleSetDefaultDashboard = useCallback(
     (moduleKey: string) => {
-      const cfg = accessConfig as any;
-      const currentEnabled = cfg?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
-      const currentDisabled = cfg?.disabled_modules || [];
+      const cfg = accessConfig;
+      const currentEnabled = cfg?.enabled_modules ?? ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules ?? [];
+      const currentDisabled = cfg?.disabled_modules ?? [];
 
       setSaving(true);
       updateConfigMutation.mutate({
@@ -241,9 +237,9 @@ export default function DashboardAccessManagerPanel({
   );
 
   const roleConfig = ROLE_DASHBOARD_CONFIG[selectedRole];
-  const enabledModules = (accessConfig as any)?.enabled_modules || [];
-  const disabledModules = (accessConfig as any)?.disabled_modules || [];
-  const defaultDashboard = (accessConfig as any)?.default_dashboard;
+  const enabledModules = accessConfig?.enabled_modules ?? [];
+  const disabledModules = accessConfig?.disabled_modules ?? [];
+  const defaultDashboard = accessConfig?.default_dashboard;
 
   const containerClass = mode === 'embedded' ? 'space-y-4 w-full' : 'space-y-8 pb-10';
   const headerClass = mode === 'embedded' ? 'space-y-1' : 'space-y-2';
