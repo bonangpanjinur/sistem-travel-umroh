@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     // Add agent role
     await adminClient
       .from("user_roles")
-      .insert({ user_id: newUserId, role: "agent" });
+      .insert({ user_id: newUserId, role: parentAgentId ? "sub_agent" : "agent" });
 
     // Generate agent code
     const prefix = parentAgentId ? "SUB" : "AGT";

@@ -10,6 +10,7 @@ export type AppRole =
   | 'marketing'
   | 'equipment'
   | 'agent'
+  | 'sub_agent'
   | 'customer';
 
 export type BookingStatus = 

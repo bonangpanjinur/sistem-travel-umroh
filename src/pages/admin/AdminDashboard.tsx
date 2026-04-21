@@ -25,7 +25,7 @@ export default function AdminDashboard() {
   const { branchId, hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
   
-  // Filter States
+  // Filter States - Kept for internal logic but hidden from UI
   const [hierarchyLevel, setHierarchyLevel] = useState<'all' | 'pusat' | 'cabang' | 'agen' | 'sub_agen'>('all');
   const [selectedBranch, setSelectedBranch] = useState<string>(branchId || "all");
   const [selectedAgent, setSelectedAgent] = useState<string>("all");
@@ -49,30 +49,9 @@ export default function AdminDashboard() {
     setSelectedSubAgent("all");
   };
 
-  // Filter logic: Only show sub-agents if an agent is selected
-  const agents = stats?.agents || [];
-  const branches = stats?.branches || [];
-  
-  const topLevelAgents = useMemo(() => agents.filter(a => !a.parent_agent_id), [agents]);
-  const subAgents = useMemo(() => {
-    if (selectedAgent === "all") return [];
-    return agents.filter(a => a.parent_agent_id === selectedAgent);
-  }, [agents, selectedAgent]);
-
-  // Derived labels for UI
-  const getHierarchyLabel = () => {
-    switch(hierarchyLevel) {
-      case 'pusat': return "Pusat";
-      case 'cabang': return "Cabang";
-      case 'agen': return "Agen";
-      case 'sub_agen': return "Sub-Agen";
-      default: return "Semua Level";
-    }
-  };
-
   return (
     <div className="space-y-8 pb-10 animate-fade-in">
-      {/* Header & Filters */}
+      {/* Header & Action Button */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -87,92 +66,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 bg-card p-2 rounded-xl border shadow-sm">
-          {/* Hierarchy Level Selector */}
-          <Select value={hierarchyLevel} onValueChange={(v: any) => {
-            setHierarchyLevel(v);
-            // Reset lower levels when hierarchy changes
-            if (v === 'pusat' || v === 'all') {
-              setSelectedBranch("all");
-              setSelectedAgent("all");
-              setSelectedSubAgent("all");
-            }
-          }}>
-            <SelectTrigger className="w-[140px] h-10 border-none shadow-none focus:ring-0">
-              <Filter className="h-4 w-4 mr-2 text-primary" />
-              <SelectValue placeholder="Level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Level</SelectItem>
-              <SelectItem value="pusat">Pusat</SelectItem>
-              <SelectItem value="cabang">Cabang</SelectItem>
-              <SelectItem value="agen">Agen</SelectItem>
-              <SelectItem value="sub_agen">Sub-Agen</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Branch Selector (Only for Super Admin or when Level is Cabang/All) */}
-          {isSuperAdmin && (hierarchyLevel === 'all' || hierarchyLevel === 'cabang') && (
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-              <SelectTrigger className="w-[160px] h-10 border-none shadow-none focus:ring-0 border-l rounded-none pl-4">
-                <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Cabang" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Cabang</SelectItem>
-                {branches.map(b => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Agent Selector (Only for Agen/Sub-Agen level) */}
-          {(hierarchyLevel === 'agen' || hierarchyLevel === 'sub_agen' || hierarchyLevel === 'all') && (
-            <Select value={selectedAgent} onValueChange={(v) => {
-              setSelectedAgent(v);
-              setSelectedSubAgent("all");
-            }}>
-              <SelectTrigger className="w-[160px] h-10 border-none shadow-none focus:ring-0 border-l rounded-none pl-4">
-                <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Pilih Agen" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Agen</SelectItem>
-                {topLevelAgents.map(a => (
-                  <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Sub-Agent Selector (Only visible if Agen is selected and level is Sub-Agen/All) */}
-          {(hierarchyLevel === 'sub_agen' || hierarchyLevel === 'all') && selectedAgent !== "all" && subAgents.length > 0 && (
-            <Select value={selectedSubAgent} onValueChange={setSelectedSubAgent}>
-              <SelectTrigger className="w-[160px] h-10 border-none shadow-none focus:ring-0 border-l rounded-none pl-4">
-                <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Sub-Agen" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Sub-Agen</SelectItem>
-                {subAgents.map(a => (
-                  <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          <div className="flex items-center gap-1 ml-auto pl-2 border-l">
-            <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
-              <RefreshCcw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={resetFilters} className="h-9 w-9 text-destructive">
-              <X className="h-4 w-4" />
-            </Button>
-            <Button className="h-9 px-4 ml-1 bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm" asChild>
-              <Link to="/admin/analytics">Analisis Mendalam <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" onClick={() => refetch()} className="h-10 w-10 rounded-xl shadow-sm">
+            <RefreshCcw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+          </Button>
+          <Button className="h-10 px-6 bg-primary hover:bg-primary/90 text-white font-semibold shadow-md rounded-xl transition-all hover:scale-105 active:scale-95" asChild>
+            <Link to="/admin/analytics">Analisis Mendalam <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          </Button>
         </div>
       </div>
 
@@ -243,254 +143,187 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Alerts & Critical Status */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="border-red-100 bg-red-50/30">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-red-100 rounded-lg text-red-600">
-              <AlertCircle className="h-5 w-5" />
+      {/* Main Stats Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Alerts Section */}
+        <Card className="lg:col-span-1 border-red-100 bg-red-50/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-600">
+                <AlertCircle className="h-4 w-4" /> STOK KRITIS
+              </CardTitle>
+              <Link to="/admin/inventory" className="text-xs font-medium text-red-600 hover:underline flex items-center gap-1">
+                Cek <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
-            <div className="flex-1">
-              <p className="text-xs font-bold text-red-800 uppercase">Stok Kritis</p>
-              <p className="text-sm font-medium">0 Item Habis • 0 Stok Rendah</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-red-700">0 Item Habis • 0</p>
+              <p className="text-sm text-red-600/80 font-medium">Stok Rendah</p>
             </div>
-            <Button variant="ghost" size="sm" asChild className="text-red-600 hover:bg-red-100">
-              <Link to="/admin/inventory">Cek <ArrowRight className="ml-1 h-3 w-3" /></Link>
-            </Button>
           </CardContent>
         </Card>
 
-        <Card className="border-blue-100 bg-blue-50/30">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-              <ClipboardCheck className="h-5 w-5" />
+        {/* Document Verification */}
+        <Card className="lg:col-span-1 border-blue-100 bg-blue-50/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-600">
+                <ClipboardCheck className="h-4 w-4" /> VERIFIKASI DOKUMEN
+              </CardTitle>
+              <Link to="/admin/documents" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
+                Proses <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
-            <div className="flex-1">
-              <p className="text-xs font-bold text-blue-800 uppercase">Verifikasi Dokumen</p>
-              <p className="text-sm font-medium">{stats?.pendingPaymentCount || 0} Dokumen Menunggu</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-blue-700">0 Dokumen</p>
+              <p className="text-sm text-blue-600/80 font-medium">Menunggu</p>
             </div>
-            <Button variant="ghost" size="sm" asChild className="text-blue-600 hover:bg-blue-100">
-              <Link to="/admin/document-verification">Proses <ArrowRight className="ml-1 h-3 w-3" /></Link>
-            </Button>
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-100 bg-emerald-50/30">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
-              <Plane className="h-5 w-5" />
+        {/* Upcoming Departures */}
+        <Card className="lg:col-span-1 border-emerald-100 bg-emerald-50/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-emerald-600">
+                <Plane className="h-4 w-4" /> KEBERANGKATAN TERDEKAT
+              </CardTitle>
+              <Link to="/admin/departures" className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1">
+                Lihat <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
-            <div className="flex-1">
-              <p className="text-xs font-bold text-emerald-800 uppercase">Keberangkatan Terdekat</p>
-              <p className="text-sm font-medium">{(upcomingDepartures?.length || 0)} Grup Siap Berangkat</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-emerald-700">2 Grup Siap</p>
+              <p className="text-sm text-emerald-600/80 font-medium">Berangkat</p>
             </div>
-            <Button variant="ghost" size="sm" asChild className="text-emerald-600 hover:bg-emerald-100">
-              <Link to="/admin/departures">Lihat <ArrowRight className="ml-1 h-3 w-3" /></Link>
-            </Button>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Statistics Overview */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
-          title="Total Pendapatan" 
-          value={formatCurrency(stats?.totalRevenue || 0)}
-          icon={DollarSign}
-          loading={isLoading}
-          color="amber"
-          description={`Berdasarkan level ${getHierarchyLabel()}`}
-        />
-        <StatCard 
-          title="Total Booking" 
-          value={stats?.totalBookings || 0}
-          icon={ShoppingCart}
-          loading={isLoading}
-          color="blue"
-          description={`${stats?.pendingBookings || 0} menunggu konfirmasi`}
-        />
-        <StatCard 
-          title="Total Jamaah" 
-          value={stats?.totalPax || 0}
-          icon={Users}
-          loading={isLoading}
-          color="emerald"
-          description="Perhitungan per jemaah"
-        />
-        <StatCard 
-          title="Piutang" 
-          value={formatCurrency(stats?.totalOutstanding || 0)}
-          icon={AlertCircle}
-          loading={isLoading}
-          color="red"
-          description="Total tagihan belum lunas"
-        />
       </div>
 
       {/* Charts Section */}
-      <DashboardCharts 
-        revenueData={stats?.monthlyRevenue || []} 
-        jamaahDaily={stats?.dailyJamaahData || []}
-        jamaahWeekly={stats?.weeklyJamaahData || []}
-        jamaahMonthly={stats?.monthlyJamaahData || []}
-        isLoading={isLoading} 
-      />
+      <DashboardCharts stats={stats} isLoading={isLoading} />
 
-      {/* Bottom Section: Recent Bookings & Upcoming Departures */}
+      {/* Recent Activity & Tables */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="shadow-sm border-muted/60">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg font-bold">Booking Terbaru</CardTitle>
-              <CardDescription>5 transaksi terakhir yang masuk</CardDescription>
+        {/* Recent Bookings */}
+        <Card className="shadow-sm border-none bg-card/50 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="space-y-1">
+              <CardTitle className="text-lg font-bold">Pendaftaran Terbaru</CardTitle>
+              <CardDescription>10 transaksi terakhir sistem</CardDescription>
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/bookings">Semua Booking</Link>
+            <Button variant="ghost" size="sm" className="text-primary font-semibold" asChild>
+              <Link to="/admin/bookings">Semua <ArrowRight className="ml-1 h-4 w-4" /></Link>
             </Button>
           </CardHeader>
           <CardContent>
-            {loadingBookings ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
-            ) : (
-              <div className="relative overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-muted/50 font-bold">
-                    <tr>
-                      <th className="px-4 py-3">Jamaah</th>
-                      <th className="px-4 py-3">Total</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Tanggal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {recentBookings?.map((booking) => (
-                      <tr key={booking.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 font-medium">{booking.customer?.full_name || 'N/A'}</td>
-                        <td className="px-4 py-3 font-bold">{formatCurrency(booking.total_price)}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className={cn(
-                            "font-semibold",
-                            booking.booking_status === 'confirmed' ? "text-emerald-600 bg-emerald-50 border-emerald-100" :
-                            booking.booking_status === 'pending' ? "text-amber-600 bg-amber-50 border-amber-100" : "text-muted-foreground"
-                          )}>
-                            {getBookingStatusLabel(booking.booking_status)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {booking.created_at ? format(parseISO(booking.created_at), 'dd/MM/yy') : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                    {(!recentBookings || recentBookings.length === 0) && (
+            <div className="space-y-4">
+              {loadingBookings ? (
+                Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
+              ) : recentBookings && recentBookings.length > 0 ? (
+                <div className="relative overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
                       <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Tidak ada data booking</td>
+                        <th className="px-4 py-3 font-bold">Jamaah</th>
+                        <th className="px-4 py-3 font-bold">Paket</th>
+                        <th className="px-4 py-3 font-bold">Status</th>
+                        <th className="px-4 py-3 font-bold text-right">Total</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody className="divide-y">
+                      {recentBookings.map((booking) => (
+                        <tr key={booking.id} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="font-bold">{booking.customer?.full_name}</div>
+                            <div className="text-xs text-muted-foreground">{booking.booking_code}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="max-w-[150px] truncate font-medium">
+                              {booking.departure?.package?.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {booking.departure?.departure_date ? format(parseISO(booking.departure.departure_date), 'dd MMM yyyy', { locale: idLocale }) : '-'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={booking.booking_status === 'confirmed' ? 'default' : 'secondary'} className="capitalize text-[10px] font-bold">
+                              {getBookingStatusLabel(booking.booking_status)}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-primary">
+                            {formatCurrency(booking.total_price)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Info className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                  <p>Belum ada data pendaftaran</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-muted/60">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg font-bold">Jadwal Terdekat</CardTitle>
-              <CardDescription>Keberangkatan yang akan datang</CardDescription>
+        {/* Upcoming Departures List */}
+        <Card className="shadow-sm border-none bg-card/50 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="space-y-1">
+              <CardTitle className="text-lg font-bold">Jadwal Keberangkatan</CardTitle>
+              <CardDescription>Grup yang akan segera berangkat</CardDescription>
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/departures">Semua Jadwal</Link>
+            <Button variant="ghost" size="sm" className="text-primary font-semibold" asChild>
+              <Link to="/admin/departures">Jadwal <ArrowRight className="ml-1 h-4 w-4" /></Link>
             </Button>
           </CardHeader>
           <CardContent>
-            {loadingDepartures ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
-            ) : (
-              <div className="relative overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-muted/50 font-bold">
-                    <tr>
-                      <th className="px-4 py-3">Paket</th>
-                      <th className="px-4 py-3">Tanggal</th>
-                      <th className="px-4 py-3">Sisa Kuota</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {upcomingDepartures?.map((departure) => (
-                      <tr key={departure.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 font-medium">{departure.package?.name || 'N/A'}</td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {departure.departure_date ? format(parseISO(departure.departure_date), 'dd MMMM yyyy', { locale: idLocale }) : '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 w-16 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-primary rounded-full" 
-                                style={{ width: `${((departure.booked_count || 0) / (departure.quota || 1)) * 100}%` }}
-                              ></div>
-                            </div>
-                            <span className="font-bold">{(departure.quota || 0) - (departure.booked_count || 0)}</span>
+            <div className="space-y-4">
+              {loadingDepartures ? (
+                Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
+              ) : upcomingDepartures && upcomingDepartures.length > 0 ? (
+                <div className="space-y-3">
+                  {upcomingDepartures.map((departure) => (
+                    <div key={departure.id} className="flex items-center justify-between p-3 rounded-xl border bg-card hover:shadow-md transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary">
+                          <span className="text-[10px] font-bold uppercase">{departure.departure_date ? format(parseISO(departure.departure_date), 'MMM') : ''}</span>
+                          <span className="text-sm font-black leading-none">{departure.departure_date ? format(parseISO(departure.departure_date), 'dd') : ''}</span>
+                        </div>
+                        <div>
+                          <div className="font-bold group-hover:text-primary transition-colors">{departure.package?.name}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            <Users className="h-3 w-3" /> {departure.booked_count} / {departure.quota} Jamaah
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {(!upcomingDepartures || upcomingDepartures.length === 0) && (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">Tidak ada jadwal keberangkatan</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                          {Math.round((departure.booked_count / departure.quota) * 100)}% Terisi
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                  <p>Belum ada jadwal keberangkatan</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  );
-}
-
-function StatCard({ title, value, icon: Icon, loading, color, description }: any) {
-  const colorMap: Record<string, string> = {
-    primary: "text-primary bg-primary/10",
-    blue: "text-blue-600 bg-blue-50",
-    emerald: "text-emerald-600 bg-emerald-50",
-    amber: "text-amber-600 bg-amber-50",
-    red: "text-red-600 bg-red-50",
-  };
-
-  const borderMap: Record<string, string> = {
-    primary: "border-primary/20",
-    blue: "border-blue-200",
-    emerald: "border-emerald-200",
-    amber: "border-amber-200",
-    red: "border-red-200",
-  };
-
-  return (
-    <Card className={cn("shadow-sm hover:shadow-md transition-all border-l-4", borderMap[color] || "border-l-primary")}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
-        <div className={cn("p-2 rounded-lg", colorMap[color] || colorMap.primary)}>
-          <Icon className="h-4 w-4" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-8 w-24" />
-        ) : (
-          <>
-            <div className="text-2xl font-bold tracking-tight">{value}</div>
-            {description && <p className="text-[10px] text-muted-foreground mt-1 font-medium">{description}</p>}
-          </>
-        )}
-      </CardContent>
-    </Card>
   );
 }
