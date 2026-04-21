@@ -7,7 +7,7 @@
 
 import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { fromExtra } from '@/integrations/supabase/extra-tables';
 import { useAuth } from '@/hooks/useAuth';
 import {
   DASHBOARD_MODULES,
@@ -41,11 +41,10 @@ export const useDashboardAccess = () => {
     queryFn: async () => {
       if (!primaryRole) return null;
 
-      const { data, error } = await (supabase as any)
-        .from('dashboard_access_config')
+      const { data, error } = await fromExtra('dashboard_access_config')
         .select('*')
         .eq('role', primaryRole)
-        .single();
+        .maybeSingle();
 
       if (error) {
         // PGRST116 = no rows returned, which is OK
