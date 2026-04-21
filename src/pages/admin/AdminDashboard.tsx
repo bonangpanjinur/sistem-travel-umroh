@@ -26,11 +26,12 @@ export default function AdminDashboard() {
   const { branchId, hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
   
-  // Filter States - Kept for internal logic but hidden from UI
+  // Filter States
   const [hierarchyLevel, setHierarchyLevel] = useState<'all' | 'pusat' | 'cabang' | 'agen' | 'sub_agen'>('all');
   const [selectedBranch, setSelectedBranch] = useState<string>(branchId || "all");
   const [selectedAgent, setSelectedAgent] = useState<string>("all");
   const [selectedSubAgent, setSelectedSubAgent] = useState<string>("all");
+  const [jamaahFilter, setJamaahFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
 
   const { data: stats, isLoading, refetch } = useDashboardStats({ 
     branchId: selectedBranch,
@@ -52,23 +53,12 @@ export default function AdminDashboard() {
     const monthStart = startOfMonth(now);
     const yearStart = startOfYear(now);
 
-    let weekCount = 0;
-    let monthCount = 0;
-    let yearCount = 0;
-
-    // We need the raw customer data or use the dailyJamaahData if it covers enough range
-    // Since useDashboardStats fetches last 6 months by default, we can use that
-    
-    // For simplicity, let's use the aggregated data from stats if available
-    // But wait, useDashboardStats already provides weeklyJamaahData and monthlyJamaahData
-    
     const currentWeekKey = format(weekStart, 'dd MMM', { locale: idLocale });
     const currentMonthKey = format(monthStart, 'MMM yyyy', { locale: idLocale });
     
     const weekData = stats.weeklyJamaahData?.find((w: any) => w.week.startsWith(currentWeekKey));
     const monthData = stats.monthlyJamaahData?.find((m: any) => m.month === currentMonthKey);
     
-    // For year, we sum all months in the current year
     const currentYear = now.getFullYear();
     const yearData = stats.monthlyJamaahData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
       .reduce((sum: number, m: any) => sum + m.jamaah, 0) || 0;
@@ -79,6 +69,20 @@ export default function AdminDashboard() {
       year: yearData || stats.totalJamaah || 0
     };
   }, [stats]);
+
+  const filteredJamaahCount = useMemo(() => {
+    if (jamaahFilter === 'week') return periodicJamaahStats.week;
+    if (jamaahFilter === 'month') return periodicJamaahStats.month;
+    if (jamaahFilter === 'year') return periodicJamaahStats.year;
+    return stats?.totalJamaah || 0;
+  }, [jamaahFilter, periodicJamaahStats, stats]);
+
+  const jamaahLabel = useMemo(() => {
+    if (jamaahFilter === 'week') return "Minggu Ini";
+    if (jamaahFilter === 'month') return "Bulan Ini";
+    if (jamaahFilter === 'year') return "Tahun Ini";
+    return "Total Keseluruhan";
+  }, [jamaahFilter]);
 
   return (
     <div className="space-y-8 pb-10 animate-fade-in">
@@ -138,7 +142,7 @@ export default function AdminDashboard() {
               <p className="text-xs text-muted-foreground">Cek bukti pembayaran</p>
             </div>
           </CardContent>
-          <Link to="/admin/payments/verification" className="absolute inset-0" />
+          <Link to="/admin/payments" className="absolute inset-0" />
         </Card>
 
         <Card className="group hover:border-emerald-500/50 transition-all cursor-pointer overflow-hidden relative">
@@ -170,7 +174,7 @@ export default function AdminDashboard() {
               <p className="text-xs text-muted-foreground">Cetak manifest & ID Card</p>
             </div>
           </CardContent>
-          <Link to="/admin/reports" className="absolute inset-0" />
+          <Link to="/admin/documents-generator" className="absolute inset-0" />
         </Card>
       </div>
 
@@ -255,44 +259,37 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-none shadow-sm">
-          <CardHeader className="pb-2">
+        <Card className="bg-white border-none shadow-sm lg:col-span-3">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
-              <Users className="h-4 w-4 text-blue-500" /> JAMAAH MINGGU INI
+              <Users className="h-4 w-4 text-blue-500" /> JUMLAH JAMAAH ({jamaahLabel})
             </CardTitle>
+            <Select value={jamaahFilter} onValueChange={(v: any) => setJamaahFilter(v)}>
+              <SelectTrigger className="w-[180px] h-8 text-xs">
+                <SelectValue placeholder="Filter Waktu" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Waktu</SelectItem>
+                <SelectItem value="week">Minggu Ini</SelectItem>
+                <SelectItem value="month">Bulan Ini</SelectItem>
+                <SelectItem value="year">Tahun Ini</SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              <p className="text-3xl font-black text-blue-600">{periodicJamaahStats.week}</p>
-              <p className="text-xs text-muted-foreground font-medium">Pendaftaran baru</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-none shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
-              <Users className="h-4 w-4 text-emerald-500" /> JAMAAH BULAN INI
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-3xl font-black text-emerald-600">{periodicJamaahStats.month}</p>
-              <p className="text-xs text-muted-foreground font-medium">Pendaftaran baru</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-none shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
-              <Users className="h-4 w-4 text-amber-500" /> JAMAAH TAHUN INI
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-3xl font-black text-amber-600">{periodicJamaahStats.year}</p>
-              <p className="text-xs text-muted-foreground font-medium">Total pendaftaran</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <p className="text-3xl font-black text-blue-600">{filteredJamaahCount}</p>
+                <p className="text-xs text-muted-foreground font-medium">Pendaftaran {jamaahFilter === 'all' ? 'Total' : 'Baru'}</p>
+              </div>
+              <div className="hidden md:flex flex-col justify-center border-l pl-4">
+                <p className="text-xs font-bold text-muted-foreground uppercase">Minggu Ini</p>
+                <p className="text-xl font-bold text-slate-700">{periodicJamaahStats.week}</p>
+              </div>
+              <div className="hidden md:flex flex-col justify-center border-l pl-4">
+                <p className="text-xs font-bold text-muted-foreground uppercase">Bulan Ini</p>
+                <p className="text-xl font-bold text-slate-700">{periodicJamaahStats.month}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
