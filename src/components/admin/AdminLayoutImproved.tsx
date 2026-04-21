@@ -179,7 +179,10 @@ function AdminLayoutImproved() {
   const isGroupExpanded = useCallback((groupName: string) => expandedGroups.has(groupName), [expandedGroups]);
   const isPathActive = useCallback((path: string) => {
     if (path === '/admin') return location.pathname === '/admin';
-    return location.pathname.startsWith(path);
+    // Ensure exact match for sub-paths to avoid double highlighting (e.g., /admin/hr and /admin/hr/payroll)
+    if (location.pathname === path) return true;
+    // For parent paths, only highlight if it's a true parent and not another specific menu item
+    return location.pathname.startsWith(path + '/');
   }, [location.pathname]);
 
   const handleNavigate = useCallback(() => { if (isMobile) setSidebarOpen(false); }, [isMobile]);
