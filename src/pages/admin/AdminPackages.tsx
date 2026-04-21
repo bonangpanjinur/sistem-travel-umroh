@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, formatPackageType } from "@/lib/format";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, Edit, Eye, Package, Trash2, Calendar, TrendingUp, ShoppingCart, Star, BarChart3, Filter, X } from "lucide-react";
+import { Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, MoreHorizontal, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -26,11 +26,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { format, subDays } from "date-fns";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,7 +51,8 @@ export default function AdminPackages() {
   const [selectedDateRange, setSelectedDateRange] = useState<"7days" | "30days" | "90days" | "custom">("30days");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
-  const [activeStatsTab, setActiveStatsTab] = useState("overview");
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   
   const queryClient = useQueryClient();
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
@@ -83,24 +92,26 @@ export default function AdminPackages() {
     },
   });
 
-  const filteredPackages = packages?.filter(pkg => {
-    // Filter by search term
-    if (searchTerm && !(
-      pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pkg.code.toLowerCase().includes(searchTerm.toLowerCase())
-    )) {
-      return false;
-    }
-    
-    // Filter by package type
-    if (packageTypeFilter === "tabungan") {
-      return pkg.package_type === "tabungan";
-    } else if (packageTypeFilter === "regular") {
-      return pkg.package_type !== "tabungan";
-    }
-    
-    return true;
-  });
+  const filteredPackages = useMemo(() => {
+    return packages?.filter(pkg => {
+      // Filter by search term
+      if (searchTerm && !(
+        pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pkg.code.toLowerCase().includes(searchTerm.toLowerCase())
+      )) {
+        return false;
+      }
+      
+      // Filter by package type
+      if (packageTypeFilter === "tabungan") {
+        return pkg.package_type === "tabungan";
+      } else if (packageTypeFilter === "regular") {
+        return pkg.package_type !== "tabungan";
+      }
+      
+      return true;
+    }) || [];
+  }, [packages, searchTerm, packageTypeFilter]);
 
   const handleEdit = (pkg: any) => {
     setEditingPackage(pkg);
@@ -182,57 +193,150 @@ export default function AdminPackages() {
     return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
   };
 
+  const toggleAll = () => {
+    if (selectedPackages.length === filteredPackages.length) {
+      setSelectedPackages([]);
+    } else {
+      setSelectedPackages(filteredPackages.map(p => p.id));
+    }
+  };
+
+  const activeFilterCount = [
+    packageTypeFilter !== "all",
+    Object.keys(statsFilters).length > 0,
+  ].filter(Boolean).length;
+
+  const hasActiveFilters = !!searchTerm || activeFilterCount > 0;
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Kelola Paket</h1>
           <p className="text-muted-foreground">Lihat dan kelola paket umroh & haji</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1 sm:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari paket..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
-              />
+        <div className="flex items-center gap-2">
+          <Button onClick={() => handleAddPackage("regular")} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Paket Reguler
+          </Button>
+          <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Paket Tabungan
+          </Button>
+          {selectedPackages.length > 0 && (
+            <div className="flex items-center gap-2 ml-4 bg-muted p-1 rounded-md animate-in fade-in slide-in-from-right-2">
+              <span className="text-sm font-medium px-2">{selectedPackages.length} dipilih</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="sm">
+                    Aksi Masal
+                    <MoreHorizontal className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => {
+                    toast.info("Fitur ini akan segera tersedia");
+                  }}>
+                    Aktifkan Semua
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    toast.info("Fitur ini akan segera tersedia");
+                  }} className="text-destructive">
+                    Nonaktifkan Semua
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <Button onClick={() => handleAddPackage("regular")} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Paket Reguler
-            </Button>
-            <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Paket Tabungan
-            </Button>
-          </div>
+          )}
+        </div>
       </div>
 
-      {/* Statistics Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>Realisasi Paket</CardTitle>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowFilters(!showFilters)}
-              className="gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
-          </div>
-        </CardHeader>
-        
-        {/* Filter Panel */}
-        {showFilters && (
-          <CardContent className="border-t pt-4 pb-4 space-y-4">
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari paket..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-10 w-full"
+          />
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setShowFilters(!showFilters)}
+          className="gap-2 w-full sm:w-auto"
+        >
+          <Filter className="h-4 w-4" />
+          Filter
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
+          )}
+        </Button>
+        {hasActiveFilters && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              setSearchTerm("");
+              handleClearFilters();
+              setPackageTypeFilter("all");
+              setSelectedPackages([]);
+            }}
+            className="gap-2 w-full sm:w-auto"
+          >
+            <X className="h-4 w-4" />
+            Hapus Filter
+          </Button>
+        )}
+      </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <Card>
+          <CardContent className="pt-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Rentang Tanggal</label>
+                <label className="text-sm font-medium mb-3 block">Tipe Paket</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      value="all" 
+                      checked={packageTypeFilter === "all"}
+                      onChange={(e) => setPackageTypeFilter(e.target.value as any)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Semua Paket</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      value="regular" 
+                      checked={packageTypeFilter === "regular"}
+                      onChange={(e) => setPackageTypeFilter(e.target.value as any)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Paket Reguler</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      value="tabungan" 
+                      checked={packageTypeFilter === "tabungan"}
+                      onChange={(e) => setPackageTypeFilter(e.target.value as any)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Paket Tabungan</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-3 block">Rentang Tanggal</label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input 
@@ -276,32 +380,32 @@ export default function AdminPackages() {
                   </label>
                 </div>
               </div>
-              
-              {selectedDateRange === "custom" && (
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Tanggal Awal</label>
-                    <input 
-                      type="date" 
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Tanggal Akhir</label>
-                    <input 
-                      type="date" 
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
             
-            <div className="flex gap-2 justify-end">
+            {selectedDateRange === "custom" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tanggal Awal</label>
+                  <input 
+                    type="date" 
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tanggal Akhir</label>
+                  <input 
+                    type="date" 
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={handleClearFilters} className="gap-2">
                 <X className="h-4 w-4" />
                 Hapus Filter
@@ -309,308 +413,198 @@ export default function AdminPackages() {
               <Button onClick={handleApplyDateFilter}>Terapkan Filter</Button>
             </div>
           </CardContent>
-        )}
+        </Card>
+      )}
 
-        {/* Statistics Tabs */}
-        <CardContent className="pt-4">
-          <Tabs value={activeStatsTab} onValueChange={setActiveStatsTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-              <TabsTrigger value="packages">Per Paket</TabsTrigger>
-              <TabsTrigger value="breakdown">Kategori</TabsTrigger>
-            </TabsList>
-
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Terjual</CardTitle>
-                    <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {isStatsLoading ? (
-                      <Skeleton className="h-8 w-20" />
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold">{stats?.totalSold || 0}</div>
-                        <p className="text-xs text-muted-foreground">Pax dari semua paket</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Bulan Ini</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {isStatsLoading ? (
-                      <Skeleton className="h-8 w-20" />
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold">{stats?.soldThisMonth || 0}</div>
-                        <p className="text-xs text-muted-foreground">Pax terjual bulan ini</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Tahun Ini</CardTitle>
-                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {isStatsLoading ? (
-                      <Skeleton className="h-8 w-20" />
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold">{stats?.soldThisYear || 0}</div>
-                        <p className="text-xs text-muted-foreground">Pax terjual tahun ini</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Paket Paling Laku</CardTitle>
-                    <Star className="h-4 w-4 text-yellow-500" />
-                  </CardHeader>
-                  <CardContent>
-                    {isStatsLoading ? (
-                      <Skeleton className="h-8 w-20" />
-                    ) : (
-                      <>
-                        <div className="text-lg font-bold truncate" title={stats?.mostPopular?.name}>
-                          {stats?.mostPopular?.name || '-'}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {stats?.mostPopular ? `${stats.mostPopular.count} Pax` : 'Belum ada data'}
-                        </p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Additional Metrics */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Total Pendapatan</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {isStatsLoading ? (
-                      <Skeleton className="h-8 w-24" />
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</div>
-                        <p className="text-xs text-muted-foreground">Dari semua paket</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Nilai Rata-rata Booking</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {isStatsLoading ? (
-                      <Skeleton className="h-8 w-24" />
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold">{formatCurrency(stats?.averageBookingValue || 0)}</div>
-                        <p className="text-xs text-muted-foreground">Per transaksi</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Tingkat Konversi</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {isStatsLoading ? (
-                      <Skeleton className="h-8 w-24" />
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold">{(stats?.conversionRate || 0).toFixed(1)}%</div>
-                        <p className="text-xs text-muted-foreground">Booking terkonfirmasi</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* Per Package Tab */}
-            <TabsContent value="packages" className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-2 font-semibold">Nama Paket</th>
-                      <th className="text-right py-2 px-2 font-semibold">Pax Terjual</th>
-                      <th className="text-right py-2 px-2 font-semibold">Jumlah Booking</th>
-                      <th className="text-right py-2 px-2 font-semibold">Total Pendapatan</th>
-                      <th className="text-right py-2 px-2 font-semibold">Rata-rata</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isStatsLoading ? (
-                      <tr><td colSpan={5} className="py-4"><Skeleton className="h-6" /></td></tr>
-                    ) : stats?.topPackages && stats.topPackages.length > 0 ? (
-                      stats.topPackages.map((pkg: any, idx: number) => (
-                        <tr key={idx} className="border-b hover:bg-muted/50">
-                          <td className="py-3 px-2">
-                            <div>
-                              <p className="font-medium">{pkg.name}</p>
-                              <p className="text-xs text-muted-foreground">{pkg.code}</p>
-                            </div>
-                          </td>
-                          <td className="text-right py-3 px-2 font-semibold">{pkg.count}</td>
-                          <td className="text-right py-3 px-2">{pkg.bookingCount}</td>
-                          <td className="text-right py-3 px-2">{formatCurrency(pkg.revenue)}</td>
-                          <td className="text-right py-3 px-2">{formatCurrency(pkg.revenue / pkg.bookingCount)}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">Tidak ada data</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </TabsContent>
-
-            {/* Breakdown Tab */}
-            <TabsContent value="breakdown" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                {isStatsLoading ? (
-                  <>
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
-                  </>
-                ) : stats?.packageTypeBreakdown && stats.packageTypeBreakdown.length > 0 ? (
-                  stats.packageTypeBreakdown.map((breakdown: any, idx: number) => (
-                    <Card key={idx}>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium capitalize">{formatPackageType(breakdown.type)}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Total Pax</span>
-                          <span className="font-semibold">{breakdown.count}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Total Pendapatan</span>
-                          <span className="font-semibold">{formatCurrency(breakdown.revenue)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Persentase</span>
-                          <span className="font-semibold">{((breakdown.count / (stats?.totalSold || 1)) * 100).toFixed(1)}%</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-2 py-8 text-center text-muted-foreground">Tidak ada data</div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Package Type Tabs */}
-      <Tabs value={packageTypeFilter} onValueChange={(v: any) => setPackageTypeFilter(v)} className="w-full">
-        <TabsList>
-          <TabsTrigger value="all">Semua Paket</TabsTrigger>
-          <TabsTrigger value="regular">Paket Reguler</TabsTrigger>
-          <TabsTrigger value="tabungan">Paket Tabungan</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-64" />)}
-        </div>
-      ) : !filteredPackages || filteredPackages.length === 0 ? (
+      {/* Statistics Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="py-12 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              {searchTerm ? 'Tidak ada paket yang cocok.' : packageTypeFilter !== 'all' ? `Belum ada paket ${packageTypeFilter === 'tabungan' ? 'tabungan' : 'reguler'}.` : 'Belum ada paket.'}
-            </p>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Terjual</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.totalSold || 0}</div>
+                <p className="text-xs text-muted-foreground">Pax dari semua paket</p>
+              </>
+            )}
           </CardContent>
         </Card>
-      ) : (
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bulan Ini</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.soldThisMonth || 0}</div>
+                <p className="text-xs text-muted-foreground">Pax terjual bulan ini</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Pendapatan</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</div>
+                <p className="text-xs text-muted-foreground">Dari semua paket</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Rata-rata Booking</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{formatCurrency(stats?.averageBookingValue || 0)}</div>
+                <p className="text-xs text-muted-foreground">Per transaksi</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Package List */}
+      {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredPackages.map((pkg) => (
-            <Card key={pkg.id} className="overflow-hidden">
-              <div className="aspect-video relative">
-                <img
-                  src={pkg.featured_image || '/placeholder.svg'}
-                  alt={pkg.name}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-2 left-2 flex gap-1">
-                  <Badge>{pkg.package_type_ref?.name || formatPackageType(pkg.package_type)}</Badge>
-                  {pkg.is_featured && <Badge variant="secondary">Featured</Badge>}
-                </div>
-                {!pkg.is_active && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Badge variant="destructive">Nonaktif</Badge>
-                  </div>
-                )}
-              </div>
-              <CardContent className="p-4 space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">{pkg.code}</p>
-                  <h3 className="font-semibold line-clamp-1">{pkg.name}</h3>
-                </div>
-                
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>{pkg.duration_days} Hari</p>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>{getUpcomingDepartures(pkg.departures as any[])} jadwal aktif</span>
-                  </div>
-                </div>
+          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-80" />)}
+        </div>
+      ) : !filteredPackages || filteredPackages.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="Tidak ada paket"
+          description={searchTerm ? 'Tidak ada paket yang cocok dengan pencarian Anda.' : packageTypeFilter !== 'all' ? `Belum ada paket ${packageTypeFilter === 'tabungan' ? 'tabungan' : 'reguler'}.` : 'Mulai dengan membuat paket baru.'}
+          action={
+            <Button onClick={() => handleAddPackage("regular")} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Tambah Paket
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {/* Select All */}
+          <div className="flex items-center gap-2 px-2">
+            <Checkbox 
+              checked={selectedPackages.length === filteredPackages.length && filteredPackages.length > 0}
+              onCheckedChange={toggleAll}
+            />
+            <span className="text-sm text-muted-foreground">
+              {selectedPackages.length > 0 
+                ? `${selectedPackages.length} dari ${filteredPackages.length} dipilih` 
+                : `Pilih semua (${filteredPackages.length})`}
+            </span>
+          </div>
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Mulai dari</p>
-                  <p className="font-bold text-primary">
-                    {getLowestPrice(pkg) > 0 ? formatCurrency(getLowestPrice(pkg)) : 'Hubungi Kami'}
-                  </p>
+          {/* Package Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredPackages.map((pkg) => (
+              <Card key={pkg.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                <div className="aspect-video relative bg-muted">
+                  <img
+                    src={pkg.featured_image || '/placeholder.svg'}
+                    alt={pkg.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end p-3">
+                    <Checkbox 
+                      checked={selectedPackages.includes(pkg.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedPackages([...selectedPackages, pkg.id]);
+                        } else {
+                          setSelectedPackages(selectedPackages.filter(id => id !== pkg.id));
+                        }
+                      }}
+                      className="h-5 w-5"
+                    />
+                  </div>
+                  <div className="absolute top-2 left-2 flex gap-1">
+                    <Badge variant="secondary" className="text-xs">{formatPackageType(pkg.package_type)}</Badge>
+                    {pkg.is_featured && <Badge className="text-xs">Featured</Badge>}
+                  </div>
+                  {!pkg.is_active && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Badge variant="destructive">Nonaktif</Badge>
+                    </div>
+                  )}
                 </div>
+                <CardContent className="p-4 space-y-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">{pkg.code}</p>
+                    <h3 className="font-semibold line-clamp-2">{pkg.name}</h3>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p className="flex items-center gap-2">
+                      <Calendar className="h-3 w-3" />
+                      {pkg.duration_days} Hari
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Package className="h-3 w-3" />
+                      {getUpcomingDepartures(pkg.departures as any[])} jadwal aktif
+                    </p>
+                  </div>
 
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1" asChild>
-                    <Link to={`/admin/packages/${pkg.id}`}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      Detail
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(pkg)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => setDeletePackage(pkg)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground mb-1">Mulai dari</p>
+                    <p className="font-bold text-primary text-lg">
+                      {getLowestPrice(pkg) > 0 ? formatCurrency(getLowestPrice(pkg)) : 'Hubungi Kami'}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" size="sm" className="flex-1" asChild>
+                      <Link to={`/admin/packages/${pkg.id}`}>
+                        <Eye className="h-4 w-4 mr-1" />
+                        Detail
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleEdit(pkg)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeletePackage(pkg)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 

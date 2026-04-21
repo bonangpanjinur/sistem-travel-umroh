@@ -14,7 +14,7 @@ import NotFound from "./pages/NotFound";
 import PublicRoutes from "@/routes/PublicRoutes";
 import CustomerRoutes from "@/routes/CustomerRoutes";
 import AdminRoutes from "@/routes/AdminRoutes";
-import OperationalRoutes from "@/routes/OperationalRoutes";
+// import OperationalRoutes from "@/routes/OperationalRoutes";
 import AgentRoutes from "@/routes/AgentRoutes";
 
 const queryClient = new QueryClient({
@@ -42,7 +42,7 @@ const App = () => (
                   {PublicRoutes()}
                   {CustomerRoutes()}
                   {AdminRoutes()}
-                  {OperationalRoutes()}
+                  {/* {OperationalRoutes()} */}
                   {AgentRoutes()}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
