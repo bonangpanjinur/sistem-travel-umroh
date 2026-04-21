@@ -4,7 +4,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 import { LoadingState } from "@/components/shared/LoadingState";
 
-const AdminLayout = lazy(() => import("@/components/admin/AdminLayoutDynamicImproved"));
+const AdminLayout = lazy(() => import("@/components/admin/AdminLayoutImproved"));
 
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
