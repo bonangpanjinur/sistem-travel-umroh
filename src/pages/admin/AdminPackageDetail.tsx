@@ -548,64 +548,65 @@ export default function AdminPackageDetail() {
                           </div>
 
                           <div className="space-y-4">
-                          {!departure.bookings || departure.bookings.length === 0 ? (
-                            <div className="text-center py-8">
-                              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm text-muted-foreground">Belum ada jamaah terdaftar pada keberangkatan ini</p>
-                            </div>
-                          ) : (
-                            <div className="overflow-x-auto">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Nama Jamaah</TableHead>
-                                    <TableHead>NIK</TableHead>
-                                    <TableHead>Kode Booking</TableHead>
-                                    <TableHead>Status Booking</TableHead>
-                                    <TableHead>Status Pembayaran</TableHead>
-                                    <TableHead className="text-right">Harga</TableHead>
-                                    <TableHead className="text-right">Terbayar</TableHead>
-                                    <TableHead className="text-center">Aksi</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {departure.bookings.map((booking: any) => (
-                                    <TableRow key={booking.id}>
-                                      <TableCell>
-                                        <div>
-                                          <p className="font-medium">{booking.customer?.full_name || '-'}</p>
-                                          <p className="text-xs text-muted-foreground">{booking.customer?.phone || '-'}</p>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-sm">{booking.customer?.nik || '-'}</TableCell>
-                                      <TableCell>
-                                        <p className="font-mono text-sm">{booking.booking_code}</p>
-                                      </TableCell>
-                                      <TableCell>
-                                        {getBookingStatusBadge(booking.booking_status)}
-                                      </TableCell>
-                                      <TableCell>
-                                        {getPaymentStatusBadge(booking.payment_status)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-medium">
-                                        {formatCurrency(booking.total_price)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-medium">
-                                        {formatCurrency(booking.paid_amount)}
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                        <Button variant="ghost" size="icon" asChild>
-                                          <Link to={`/admin/bookings/${booking.id}`}>
-                                            <Eye className="h-4 w-4" />
-                                          </Link>
-                                        </Button>
-                                      </TableCell>
+                            {!departure.bookings || departure.bookings.length === 0 ? (
+                              <div className="text-center py-8">
+                                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm text-muted-foreground">Belum ada jamaah terdaftar pada keberangkatan ini</p>
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Nama Jamaah</TableHead>
+                                      <TableHead>NIK</TableHead>
+                                      <TableHead>Kode Booking</TableHead>
+                                      <TableHead>Status Booking</TableHead>
+                                      <TableHead>Status Pembayaran</TableHead>
+                                      <TableHead className="text-right">Harga</TableHead>
+                                      <TableHead className="text-right">Terbayar</TableHead>
+                                      <TableHead className="text-center">Aksi</TableHead>
                                     </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          )}
+                                  </TableHeader>
+                                  <TableBody>
+                                    {departure.bookings.map((booking: any) => (
+                                      <TableRow key={booking.id}>
+                                        <TableCell>
+                                          <div>
+                                            <p className="font-medium">{booking.customer?.full_name || '-'}</p>
+                                            <p className="text-xs text-muted-foreground">{booking.customer?.phone || '-'}</p>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-sm">{booking.customer?.nik || '-'}</TableCell>
+                                        <TableCell>
+                                          <p className="font-mono text-sm">{booking.booking_code}</p>
+                                        </TableCell>
+                                        <TableCell>
+                                          {getBookingStatusBadge(booking.booking_status)}
+                                        </TableCell>
+                                        <TableCell>
+                                          {getPaymentStatusBadge(booking.payment_status)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">
+                                          {formatCurrency(booking.total_price)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">
+                                          {formatCurrency(booking.paid_amount)}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Button variant="ghost" size="icon" asChild>
+                                            <Link to={`/admin/bookings/${booking.id}`}>
+                                              <Eye className="h-4 w-4" />
+                                            </Link>
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </CollapsibleContent>
                     </Collapsible>

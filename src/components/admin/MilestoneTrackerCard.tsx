@@ -1,1 +1,104 @@
-import { Card, CardContent, CardHeader, CardTitle } from \"@/components/ui/card\";\nimport { Badge } from \"@/components/ui/badge\";\nimport { Calendar, AlertCircle, CheckCircle2, Clock } from \"lucide-react\";\nimport { formatDate } from \"@/lib/format\";\nimport { cn } from \"@/lib/utils\";\n\ninterface Milestone {\n  label: string;\n  date: string | null;\n  type: \"document\" | \"payment\" | \"visa\";\n}\n\ninterface MilestoneTrackerCardProps {\n  milestones: Milestone[];\n  className?: string;\n}\n\nfunction getMilestoneStatus(deadline: string | null) {\n  if (!deadline) {\n    return {\n      label: \"Belum diatur\",\n      color: \"text-muted-foreground\",\n      bgColor: \"bg-slate-50\",\n      borderColor: \"border-slate-200\",\n      icon: Clock,\n    };\n  }\n\n  const today = new Date();\n  const deadlineDate = new Date(deadline);\n  const diffDays = Math.ceil(\n    (deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)\n  );\n\n  if (diffDays < 0) {\n    return {\n      label: \"Terlewati\",\n      color: \"text-destructive\",\n      bgColor: \"bg-red-50\",\n      borderColor: \"border-red-200\",\n      icon: AlertCircle,\n    };\n  }\n\n  if (diffDays <= 7) {\n    return {\n      label: `Mendekati (${diffDays}h)\",\n      color: \"text-orange-600\",\n      bgColor: \"bg-orange-50\",\n      borderColor: \"border-orange-200\",\n      icon: AlertCircle,\n    };\n  }\n\n  return {\n    label: \"Aman\",\n    color: \"text-green-600\",\n    bgColor: \"bg-green-50\",\n    borderColor: \"border-green-200\",\n    icon: CheckCircle2,\n  };\n}\n\nexport function MilestoneTrackerCard({\n  milestones,\n  className,\n}: MilestoneTrackerCardProps) {\n  return (\n    <Card className={cn(\"bg-blue-50/30 border-blue-100\", className)}>\n      <CardHeader className=\"p-3 pb-0\">\n        <CardTitle className=\"text-xs font-semibold flex items-center gap-2 text-blue-700\">\n          <Calendar className=\"h-3.5 w-3.5\" /> Milestone & Deadline\n        </CardTitle>\n      </CardHeader>\n      <CardContent className=\"p-3 space-y-2\">\n        {milestones.map((milestone, idx) => {\n          const status = getMilestoneStatus(milestone.date);\n          const Icon = status.icon;\n\n          return (\n            <div\n              key={idx}\n              className={cn(\n                \"flex items-center justify-between p-2 rounded-lg border text-[10px]\",\n                status.bgColor,\n                status.borderColor\n              )}\n            >\n              <div className=\"flex items-center gap-1.5\">\n                <span className=\"text-muted-foreground font-medium\">{milestone.label}</span>\n              </div>\n              <div className=\"flex items-center gap-1.5\">\n                <span className=\"font-medium text-muted-foreground\">\n                  {milestone.date ? formatDate(milestone.date) : \"-\"}\n                </span>\n                <Icon className={cn(\"h-3 w-3\", status.color)} />\n              </div>\n            </div>\n          );\n        })}\n      </CardContent>\n    </Card>\n  );\n}\n
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+interface Milestone {
+  label: string;
+  date: string | null;
+  type: "document" | "payment" | "visa";
+}
+
+interface MilestoneTrackerCardProps {
+  milestones: Milestone[];
+  className?: string;
+}
+
+function getMilestoneStatus(deadline: string | null) {
+  if (!deadline) {
+    return {
+      label: "Belum diatur",
+      color: "text-muted-foreground",
+      bgColor: "bg-slate-50",
+      borderColor: "border-slate-200",
+      icon: Clock,
+    };
+  }
+
+  const today = new Date();
+  const deadlineDate = new Date(deadline);
+  const diffDays = Math.ceil(
+    (deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays < 0) {
+    return {
+      label: "Terlewati",
+      color: "text-destructive",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+      icon: AlertCircle,
+    };
+  }
+
+  if (diffDays <= 7) {
+    return {
+      label: `Mendekati (${diffDays}h)`,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200",
+      icon: AlertCircle,
+    };
+  }
+
+  return {
+    label: "Aman",
+    color: "text-green-600",
+    bgColor: "bg-green-50",
+    borderColor: "border-green-200",
+    icon: CheckCircle2,
+  };
+}
+
+export function MilestoneTrackerCard({
+  milestones,
+  className,
+}: MilestoneTrackerCardProps) {
+  return (
+    <Card className={cn("bg-blue-50/30 border-blue-100", className)}>
+      <CardHeader className="p-3 pb-0">
+        <CardTitle className="text-xs font-semibold flex items-center gap-2 text-blue-700">
+          <Calendar className="h-3.5 w-3.5" /> Milestone & Deadline
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-3 space-y-2">
+        {milestones.map((milestone, idx) => {
+          const status = getMilestoneStatus(milestone.date);
+          const Icon = status.icon;
+
+          return (
+            <div
+              key={idx}
+              className={cn(
+                "flex items-center justify-between p-2 rounded-lg border text-[10px]",
+                status.bgColor,
+                status.borderColor
+              )}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">{milestone.label}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-muted-foreground">
+                  {milestone.date ? formatDate(milestone.date) : "-"}
+                </span>
+                <Icon className={cn("h-3 w-3", status.color)} />
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
