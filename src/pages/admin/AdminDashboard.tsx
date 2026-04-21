@@ -9,7 +9,7 @@ import {
   AlertCircle, ArrowRight, Package, Calendar,
   Building2, User, RefreshCcw, Filter, X,
   FileText, Briefcase, Plane, ClipboardCheck, Info,
-  CheckCircle2
+  CheckCircle2, ExternalLink
 } from "lucide-react";
 import { formatCurrency, getBookingStatusLabel, getPaymentStatusLabel } from "@/lib/format";
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
@@ -21,6 +21,14 @@ import { DashboardCharts } from "./DashboardCharts";
 import { useAuth } from "@/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function AdminDashboard() {
   const { branchId, hasRole } = useAuth();
@@ -35,6 +43,9 @@ export default function AdminDashboard() {
   // New Filter States for Periodic Stats
   const [jamaahFilter, setJamaahFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
   const [soldFilter, setSoldFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
+  
+  // Modal State
+  const [isSoldModalOpen, setIsSoldModalOpen] = useState(false);
 
   const { data: stats, isLoading, refetch } = useDashboardStats({ 
     branchId: selectedBranch,
@@ -268,17 +279,74 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-amber-500" /> PAKET TERJUAL ({getLabel(soldFilter)})
             </CardTitle>
-            <Select value={soldFilter} onValueChange={(v: any) => setSoldFilter(v)}>
-              <SelectTrigger className="w-[140px] h-8 text-xs">
-                <SelectValue placeholder="Filter Waktu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Waktu</SelectItem>
-                <SelectItem value="week">Minggu Ini</SelectItem>
-                <SelectItem value="month">Bulan Ini</SelectItem>
-                <SelectItem value="year">Tahun Ini</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Dialog open={isSoldModalOpen} onOpenChange={setIsSoldModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-primary font-semibold">
+                    Detail <ExternalLink className="ml-1 h-3 w-3" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Daftar Paket Terjual</DialogTitle>
+                    <DialogDescription>
+                      Daftar booking dengan status 'Confirmed' atau 'Completed' yang dihitung sebagai paket terjual.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4">
+                    {stats?.soldPackagesList && stats.soldPackagesList.length > 0 ? (
+                      <div className="relative overflow-x-auto border rounded-lg">
+                        <table className="w-full text-sm text-left">
+                          <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+                            <tr>
+                              <th className="px-4 py-3 font-bold">Kode Booking</th>
+                              <th className="px-4 py-3 font-bold">Nama Paket</th>
+                              <th className="px-4 py-3 font-bold">Tanggal</th>
+                              <th className="px-4 py-3 font-bold">Status</th>
+                              <th className="px-4 py-3 font-bold text-right">Harga</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {stats.soldPackagesList.map((item: any) => (
+                              <tr key={item.id} className="hover:bg-muted/20 transition-colors">
+                                <td className="px-4 py-3 font-medium">{item.booking_code}</td>
+                                <td className="px-4 py-3">{item.package_name}</td>
+                                <td className="px-4 py-3 text-xs">
+                                  {item.created_at ? format(parseISO(item.created_at), 'dd MMM yyyy', { locale: idLocale }) : '-'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="outline" className="capitalize text-[10px]">
+                                    {getBookingStatusLabel(item.status)}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-right font-bold text-primary">
+                                  {formatCurrency(item.total_price)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-10 text-muted-foreground">
+                        <p>Tidak ada data paket terjual.</p>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Select value={soldFilter} onValueChange={(v: any) => setSoldFilter(v)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Filter Waktu" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Waktu</SelectItem>
+                  <SelectItem value="week">Minggu Ini</SelectItem>
+                  <SelectItem value="month">Bulan Ini</SelectItem>
+                  <SelectItem value="year">Tahun Ini</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

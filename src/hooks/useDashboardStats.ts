@@ -52,7 +52,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         (() => {
           let q = supabase
             .from('bookings')
-            .select('total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id, branch_id')
+            .select('id, booking_code, total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id, branch_id, departure:departures(package:packages(name))')
             .gte('created_at', effectiveStartDate.toISOString())
             .lte('created_at', effectiveEndDate.toISOString())
             .order('created_at', { ascending: false })
@@ -136,6 +136,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
       let totalPax = 0;
       let totalOutstanding = 0;
       let soldPackagesCount = 0;
+      const soldPackagesList: any[] = [];
       
       const agentStats: Record<string, { name: string; bookings: number; revenue: number }> = {};
       const statusMap: Record<string, number> = {};
@@ -189,6 +190,17 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         const isSold = status === 'confirmed' || status === 'completed';
         if (isSold) {
           soldPackagesCount += 1;
+          
+          // Extract package name from the joined data
+          const packageName = (b as any).departure?.package?.name || 'Unknown Package';
+          soldPackagesList.push({
+            id: b.id,
+            booking_code: b.booking_code,
+            package_name: packageName,
+            created_at: b.created_at,
+            total_price: b.total_price,
+            status: b.booking_status
+          });
           
           if (b.created_at) {
             const date = parseISO(b.created_at);
@@ -372,6 +384,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         topAgents,
         totalOutstanding,
         soldPackagesCount,
+        soldPackagesList,
         arData: [
           { name: 'Terbayar', value: totalRevenue },
           { name: 'Piutang', value: totalOutstanding }
