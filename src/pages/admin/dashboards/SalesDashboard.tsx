@@ -32,7 +32,7 @@ export default function SalesDashboard() {
     queryFn: async () => {
       if (!user?.id) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('sales_targets')
         .select('*')
         .eq('user_id', user.id)
@@ -45,7 +45,7 @@ export default function SalesDashboard() {
         return null;
       }
 
-      return data;
+      return data as any;
     },
     enabled: !!user?.id,
   });
@@ -56,7 +56,7 @@ export default function SalesDashboard() {
     queryFn: async () => {
       if (!user?.id) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('bookings')
         .select('id, total_price, booking_status, created_at')
         .eq('sales_person_id', user.id)

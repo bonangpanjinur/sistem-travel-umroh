@@ -26,7 +26,7 @@ export default function MarketingDashboard() {
   const { data: campaignSummary, isLoading: campaignLoading } = useQuery({
     queryKey: ['marketing-campaign-summary'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('marketing_campaigns')
         .select('id, name, status, budget, spent, impressions, clicks, conversions')
         .eq('status', 'active')
@@ -46,7 +46,7 @@ export default function MarketingDashboard() {
   const { data: engagementMetrics = {} } = useQuery({
     queryKey: ['marketing-engagement-metrics'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('marketing_metrics')
         .select('*')
         .order('date', { ascending: false })
@@ -66,7 +66,7 @@ export default function MarketingDashboard() {
   const { data: activeCampaigns = [] } = useQuery({
     queryKey: ['marketing-active-campaigns'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('marketing_campaigns')
         .select('id, name, status, budget, spent, impressions, clicks')
         .eq('status', 'active')
@@ -86,7 +86,7 @@ export default function MarketingDashboard() {
   const { data: conversionData = [] } = useQuery({
     queryKey: ['marketing-conversion-data'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('marketing_conversions')
         .select('campaign_id, campaign_name, conversions, revenue')
         .order('revenue', { ascending: false })
