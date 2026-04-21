@@ -62,6 +62,12 @@ const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
 const AdminVisaManagement = lazy(() => import("@/pages/admin/AdminVisaManagement"));
 const AdminAirlines = lazy(() => import("@/pages/admin/AdminAirlines"));
 const AdminAirports = lazy(() => import("@/pages/admin/AdminAirports"));
+const BranchManagerDashboard = lazy(() => import("@/pages/admin/dashboards/BranchManagerDashboard"));
+const FinanceDashboard = lazy(() => import("@/pages/admin/dashboards/FinanceDashboard"));
+const SalesDashboard = lazy(() => import("@/pages/admin/dashboards/SalesDashboard"));
+const MarketingDashboard = lazy(() => import("@/pages/admin/dashboards/MarketingDashboard"));
+const EquipmentDashboard = lazy(() => import("@/pages/admin/dashboards/EquipmentDashboard"));
+const DashboardAccessManager = lazy(() => import("@/pages/admin/DashboardAccessManager"));
 const AdminHotels = lazy(() => import("@/pages/admin/AdminHotels"));
 const AdminMuthawifs = lazy(() => import("@/pages/admin/AdminMuthawifs"));
 const AdminBusProviders = lazy(() => import("@/pages/admin/AdminBusProviders"));
@@ -87,6 +93,14 @@ export default function AdminRoutes() {
       {/* Overview */}
       <Route index element={<LazyPage><AdminDashboard /></LazyPage>} />
       <Route path="analytics" element={<LazyPage><AdminAnalytics /></LazyPage>} />
+      <Route path="branch-manager" element={<LazyPage><BranchManagerDashboard /></LazyPage>} />
+      <Route path="finance-dashboard" element={<LazyPage><FinanceDashboard /></LazyPage>} />
+      <Route path="sales-dashboard" element={<LazyPage><SalesDashboard /></LazyPage>} />
+      <Route path="marketing-dashboard" element={<LazyPage><MarketingDashboard /></LazyPage>} />
+      <Route path="equipment-dashboard" element={<LazyPage><EquipmentDashboard /></LazyPage>} />
+
+      {/* Dashboard Management */}
+      <Route path="dashboard-access" element={<LazyPage><DashboardAccessManager /></LazyPage>} />
 
       {/* Sales & CRM */}
       <Route path="leads" element={<LazyPage><AdminLeads /></LazyPage>} />
