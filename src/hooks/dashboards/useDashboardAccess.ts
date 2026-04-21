@@ -79,14 +79,14 @@ export const useDashboardAccess = () => {
 
     // For other roles, combine default config with dynamic overrides
     const defaultModules = getAvailableModulesForRole(primaryRole);
-    const enabledModules = dynamicConfig?.enabled_modules || defaultModules;
-    const disabledModules = dynamicConfig?.disabled_modules || [];
+    const enabledModules = dynamicConfig?.enabled_modules ?? defaultModules;
+    const disabledModules = dynamicConfig?.disabled_modules ?? [];
 
     return {
       role: primaryRole,
       enabledModules,
       disabledModules,
-      defaultDashboard: dynamicConfig?.default_dashboard || getDefaultDashboardForRole(primaryRole),
+      defaultDashboard: dynamicConfig?.default_dashboard ?? getDefaultDashboardForRole(primaryRole),
     };
   }, [primaryRole, isSuperAdmin, dynamicConfig]);
 
