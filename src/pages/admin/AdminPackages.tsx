@@ -13,7 +13,7 @@ import {
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
   Power, PowerOff, ChevronDown, Layers, TrendingUp, DollarSign, Users, Zap,
   ArrowUpRight, ArrowDownRight, Download, FileSpreadsheet, FileText,
-  AlertTriangle, CheckSquare, Square, BarChart3
+  AlertTriangle, CheckSquare, Square, BarChart3, Box
 } from "lucide-react";
 import {
   Dialog,
