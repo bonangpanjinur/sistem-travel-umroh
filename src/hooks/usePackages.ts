@@ -82,6 +82,7 @@ export function usePackage(packageId: string | undefined) {
           package_type_ref:package_types(*)
         `)
         .eq('id', packageId)
+        .eq('is_active', true)
         .single();
 
       if (error) throw error;
@@ -127,13 +128,17 @@ export function useUpcomingDepartures() {
           package:packages(*)
         `)
         .eq('status', 'open')
+        .eq('packages.is_active', true)
         .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date', { ascending: true })
         .limit(10);
 
       if (error) throw error;
       
-      return data.map(d => ({
+      // Filter out departures where package is inactive (double check since PostgREST join filter might not exclude the root record)
+      const filteredData = (data || []).filter((d: any) => d.package && d.package.is_active !== false);
+
+      return filteredData.map(d => ({
         ...d,
         available_seats: (d.quota || 0) - (d.booked_count || 0),
       })) as (Departure & { package: Package })[];

@@ -20,7 +20,7 @@ export default function DeparturesPage() {
         .from("departures")
         .select(`
           *,
-          package:packages(id, name, package_type, duration_days),
+          package:packages(id, name, package_type, duration_days, is_active),
           airline:airlines(name, code),
           hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name, star_rating),
           hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, star_rating)
@@ -30,7 +30,8 @@ export default function DeparturesPage() {
         .order("departure_date");
 
       if (error) throw error;
-      return data;
+      // Filter out departures whose packages are inactive
+      return (data || []).filter((dep: any) => dep.package?.is_active !== false);
     },
   });
 
