@@ -41,9 +41,9 @@ export function SectionEditor({ section, onUpdate, onDelete }: SectionEditorProp
 
       <CardContent className="p-4 sm:p-6">
         <Tabs value={editMode} onValueChange={(val) => setEditMode(val as 'visual' | 'json')} className="w-full">
-          <TabsList className="mb-4 bg-secondary border border-border grid w-full grid-cols-2">
-            <TabsTrigger value="visual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">Visual</TabsTrigger>
-            <TabsTrigger value="json" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">JSON</TabsTrigger>
+          <TabsList className="mb-4 bg-secondary border border-border p-1 w-full">
+            <TabsTrigger value="visual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm flex-1">Visual</TabsTrigger>
+            <TabsTrigger value="json" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm flex-1">JSON</TabsTrigger>
           </TabsList>
 
           <TabsContent value="visual" className="space-y-4">
