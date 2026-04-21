@@ -237,9 +237,16 @@ export const ROLE_DASHBOARD_CONFIG: Record<AppRole, RoleDashboardConfig> = {
   customer: {
     role: 'customer',
     label: 'Jamaah',
-    description: 'Dashboard khusus untuk jamaah',
+     description: 'Dashboard khusus untuk jamaah',
     defaultDashboard: 'customer_dashboard',
     availableModules: ['customer_dashboard'],
+  },
+  sub_agent: {
+    role: 'sub_agent',
+    label: 'Sub Agen',
+    description: 'Dashboard untuk sub-agen di bawah agen induk',
+    defaultDashboard: 'agent_dashboard',
+    availableModules: ['agent_dashboard'],
   },
 };
 

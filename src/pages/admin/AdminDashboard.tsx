@@ -468,20 +468,20 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {recentBookings.map((booking) => (
-                        <tr key={booking.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="font-bold">{booking.customer?.full_name}</div>
-                            <div className="text-xs text-muted-foreground">{booking.booking_code}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="max-w-[150px] truncate font-medium">
-                              {booking.departure?.package?.name}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {booking.departure?.departure_date ? format(parseISO(booking.departure.departure_date), 'dd MMM yyyy', { locale: idLocale }) : '-'}
-                            </div>
-                          </td>
+                  {recentBookings.map((booking: any) => (
+                    <tr key={booking.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-bold">{booking.customer?.full_name}</div>
+                        <div className="text-xs text-muted-foreground">{booking.booking_code}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="max-w-[150px] truncate font-medium">
+                          {booking.departure?.package?.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {booking.departure?.departure_date ? format(parseISO(booking.departure.departure_date), 'dd MMM yyyy', { locale: idLocale }) : '-'}
+                        </div>
+                      </td>
                           <td className="px-4 py-3">
                             <Badge variant={booking.booking_status === 'confirmed' ? 'default' : 'secondary'} className="capitalize text-[10px] font-bold">
                               {getBookingStatusLabel(booking.booking_status)}
