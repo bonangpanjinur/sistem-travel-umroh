@@ -11,7 +11,7 @@ import { Link } from "react-router-dom";
 import { 
   Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, 
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
-  Power, PowerOff
+  Power, PowerOff, ChevronDown
 } from "lucide-react";
 import {
   Dialog,
@@ -45,6 +45,13 @@ import { subDays } from "date-fns";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -532,24 +539,3 @@ export default function AdminPackages() {
   );
 }
 
-function Select({ value, onValueChange, children }: any) {
-  return (
-    <div className="relative">
-      <select 
-        value={value} 
-        onChange={(e) => onValueChange(e.target.value)}
-        className="appearance-none w-full h-11 px-4 pr-10 rounded-xl bg-background border-none shadow-sm text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
-      >
-        {children}
-      </select>
-      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-    </div>
-  );
-}
-
-function SelectTrigger({ children, className }: any) { return null; }
-function SelectValue({ placeholder }: any) { return null; }
-function SelectContent({ children }: any) { return null; }
-function SelectItem({ value, children }: any) {
-  return <option value={value}>{children}</option>;
-}
