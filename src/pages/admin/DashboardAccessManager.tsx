@@ -1,1 +1,353 @@
-/**\n * DashboardAccessManager.tsx\n * \n * UI untuk super_admin mengelola akses dashboard per peran.\n * Fitur:\n * - Lihat daftar peran dan modul dashboard yang tersedia\n * - Enable/disable modul untuk setiap peran\n * - Set default dashboard untuk setiap peran\n * - Audit trail untuk perubahan konfigurasi\n */\n\nimport { useState, useCallback } from 'react';\nimport { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';\nimport { supabase } from '@/integrations/supabase/client';\nimport { useAuth } from '@/hooks/useAuth';\nimport { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';\nimport { Button } from '@/components/ui/button';\nimport { Badge } from '@/components/ui/badge';\nimport { Checkbox } from '@/components/ui/checkbox';\nimport { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';\nimport { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';\nimport { AlertCircle, CheckCircle2, Settings, Shield, History } from 'lucide-react';\nimport { DASHBOARD_MODULES, ROLE_DASHBOARD_CONFIG } from '@/lib/dashboard-config';\nimport { AppRole } from '@/types/database';\nimport { formatDistanceToNow } from 'date-fns';\nimport { id as idLocale } from 'date-fns/locale';\nimport { logAuditEvent } from '@/lib/audit-logger';\n\nconst ROLES: AppRole[] = [\n  'super_admin', 'owner', 'branch_manager', 'finance', 'sales',\n  'marketing', 'operational', 'equipment', 'agent', 'customer'\n];\n\nexport default function DashboardAccessManager() {\n  const { user, hasRole } = useAuth();\n  const queryClient = useQueryClient();\n  const [selectedRole, setSelectedRole] = useState<AppRole>('branch_manager');\n  const [saving, setSaving] = useState(false);\n\n  // Check if user is super admin\n  const isSuperAdmin = hasRole('super_admin');\n\n  if (!isSuperAdmin) {\n    return (\n      <div className=\"flex items-center justify-center min-h-screen\">\n        <Card className=\"w-full max-w-md\">\n          <CardContent className=\"pt-6\">\n            <div className=\"flex items-center gap-3 text-red-600 mb-4\">\n              <AlertCircle className=\"h-5 w-5\" />\n              <p className=\"font-bold\">Akses Ditolak</p>\n            </div>\n            <p className=\"text-muted-foreground\">Hanya super admin yang dapat mengakses halaman ini.</p>\n          </CardContent>\n        </Card>\n      </div>\n    );\n  }\n\n  // Fetch dashboard access config\n  const { data: accessConfig, isLoading: configLoading } = useQuery({\n    queryKey: ['dashboard-access-config', selectedRole],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('dashboard_access_config')\n        .select('*')\n        .eq('role', selectedRole)\n        .single();\n\n      if (error && error.code !== 'PGRST116') {\n        console.error('Error fetching config:', error);\n        throw error;\n      }\n\n      return data || null;\n    },\n  });\n\n  // Fetch audit log\n  const { data: auditLog = [] } = useQuery({\n    queryKey: ['dashboard-access-audit-log', selectedRole],\n    queryFn: async () => {\n      const { data, error } = await supabase\n        .from('dashboard_access_audit_log')\n        .select('*')\n        .eq('role', selectedRole)\n        .order('changed_at', { ascending: false })\n        .limit(20);\n\n      if (error) {\n        console.error('Error fetching audit log:', error);\n        return [];\n      }\n\n      return data || [];\n    },\n  });\n\n  // Mutation untuk update config\n  const updateConfigMutation = useMutation({\n    mutationFn: async ({\n      enabledModules,\n      disabledModules,\n      defaultDashboard,\n    }: {\n      enabledModules: string[];\n      disabledModules: string[];\n      defaultDashboard: string;\n    }) => {\n      const { data, error } = await supabase\n        .from('dashboard_access_config')\n        .update({\n          enabled_modules: enabledModules,\n          disabled_modules: disabledModules,\n          default_dashboard: defaultDashboard,\n          updated_by: user?.id,\n          updated_at: new Date().toISOString(),\n        })\n        .eq('role', selectedRole)\n        .select()\n        .single();\n\n      if (error) throw error;\n\n      // Log to audit trail\n      await logAuditEvent({\n        table_name: 'dashboard_access_config',\n        record_id: data.id,\n        action: 'update',\n        action_type: 'update',\n        old_data: accessConfig,\n        new_data: data,\n        severity: 'medium',\n      });\n\n      return data;\n    },\n    onSuccess: () => {\n      queryClient.invalidateQueries({ queryKey: ['dashboard-access-config'] });\n      queryClient.invalidateQueries({ queryKey: ['dashboard-access-audit-log'] });\n      setSaving(false);\n    },\n    onError: (error) => {\n      console.error('Error updating config:', error);\n      setSaving(false);\n    },\n  });\n\n  const handleToggleModule = useCallback(\n    (moduleKey: string, enabled: boolean) => {\n      if (!accessConfig) return;\n\n      const enabledModules = enabled\n        ? [...(accessConfig.enabled_modules || []), moduleKey]\n        : (accessConfig.enabled_modules || []).filter((m: string) => m !== moduleKey);\n\n      const disabledModules = !enabled\n        ? [...(accessConfig.disabled_modules || []), moduleKey]\n        : (accessConfig.disabled_modules || []).filter((m: string) => m !== moduleKey);\n\n      setSaving(true);\n      updateConfigMutation.mutate({\n        enabledModules,\n        disabledModules,\n        defaultDashboard: accessConfig.default_dashboard,\n      });\n    },\n    [accessConfig, updateConfigMutation]\n  );\n\n  const handleSetDefaultDashboard = useCallback(\n    (moduleKey: string) => {\n      if (!accessConfig) return;\n\n      setSaving(true);\n      updateConfigMutation.mutate({\n        enabledModules: accessConfig.enabled_modules || [],\n        disabledModules: accessConfig.disabled_modules || [],\n        defaultDashboard: moduleKey,\n      });\n    },\n    [accessConfig, updateConfigMutation]\n  );\n\n  const roleConfig = ROLE_DASHBOARD_CONFIG[selectedRole];\n  const enabledModules = accessConfig?.enabled_modules || [];\n  const disabledModules = accessConfig?.disabled_modules || [];\n  const defaultDashboard = accessConfig?.default_dashboard;\n\n  return (\n    <div className=\"space-y-8 pb-10\">\n      {/* Header */}\n      <div className=\"space-y-2\">\n        <div className=\"flex items-center gap-3\">\n          <div className=\"p-2.5 bg-primary/10 rounded-xl border border-primary/20\">\n            <Shield className=\"h-6 w-6 text-primary\" />\n          </div>\n          <div>\n            <h1 className=\"text-3xl font-bold tracking-tight\">Manajemen Akses Dashboard</h1>\n            <p className=\"text-muted-foreground\">Kelola modul dashboard yang dapat diakses oleh setiap peran</p>\n          </div>\n        </div>\n      </div>\n\n      {/* Role Selection */}\n      <Card>\n        <CardHeader>\n          <CardTitle>Pilih Peran</CardTitle>\n          <CardDescription>Pilih peran untuk mengatur akses dashboardnya</CardDescription>\n        </CardHeader>\n        <CardContent>\n          <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as AppRole)}>\n            <SelectTrigger className=\"w-full md:w-64\">\n              <SelectValue />\n            </SelectTrigger>\n            <SelectContent>\n              {ROLES.map((role) => (\n                <SelectItem key={role} value={role}>\n                  {ROLE_DASHBOARD_CONFIG[role]?.label || role}\n                </SelectItem>\n              ))}\n            </SelectContent>\n          </Select>\n        </CardContent>\n      </Card>\n\n      {/* Main Content */}\n      <Tabs defaultValue=\"modules\" className=\"w-full\">\n        <TabsList className=\"grid w-full grid-cols-2\">\n          <TabsTrigger value=\"modules\">Modul Dashboard</TabsTrigger>\n          <TabsTrigger value=\"audit\">Audit Log</TabsTrigger>\n        </TabsList>\n\n        {/* Modules Tab */}\n        <TabsContent value=\"modules\" className=\"space-y-6\">\n          {/* Role Info */}\n          <Card>\n            <CardHeader>\n              <CardTitle>{roleConfig?.label}</CardTitle>\n              <CardDescription>{roleConfig?.description}</CardDescription>\n            </CardHeader>\n            <CardContent>\n              <div className=\"grid gap-4 md:grid-cols-2\">\n                <div>\n                  <p className=\"text-sm font-bold text-muted-foreground mb-2\">Modul yang Diaktifkan</p>\n                  <div className=\"flex flex-wrap gap-2\">\n                    {enabledModules.map((moduleKey: string) => {\n                      const module = DASHBOARD_MODULES[moduleKey];\n                      return (\n                        <Badge key={moduleKey} variant=\"default\" className=\"bg-emerald-50 text-emerald-700 border-emerald-200\">\n                          {module?.label || moduleKey}\n                        </Badge>\n                      );\n                    })}\n                  </div>\n                </div>\n                <div>\n                  <p className=\"text-sm font-bold text-muted-foreground mb-2\">Default Dashboard</p>\n                  <Badge variant=\"outline\" className=\"bg-primary/10 text-primary border-primary/20\">\n                    {DASHBOARD_MODULES[defaultDashboard]?.label || defaultDashboard}\n                  </Badge>\n                </div>\n              </div>\n            </CardContent>\n          </Card>\n\n          {/* Module Configuration */}\n          <Card>\n            <CardHeader>\n              <CardTitle>Konfigurasi Modul</CardTitle>\n              <CardDescription>Aktifkan atau nonaktifkan modul untuk peran ini</CardDescription>\n            </CardHeader>\n            <CardContent>\n              {configLoading ? (\n                <div className=\"text-center text-muted-foreground py-8\">Loading...</div>\n              ) : (\n                <div className=\"space-y-4\">\n                  {Object.entries(DASHBOARD_MODULES).map(([moduleKey, module]) => (\n                    <div key={moduleKey} className=\"flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors\">\n                      <div className=\"flex-1\">\n                        <p className=\"font-bold\">{module.label}</p>\n                        <p className=\"text-sm text-muted-foreground\">{module.description}</p>\n                      </div>\n                      <div className=\"flex items-center gap-4\">\n                        <div className=\"flex items-center gap-2\">\n                          <Checkbox\n                            checked={enabledModules.includes(moduleKey)}\n                            onCheckedChange={(checked) => handleToggleModule(moduleKey, checked as boolean)}\n                            disabled={saving}\n                          />\n                          <span className=\"text-sm\">Aktif</span>\n                        </div>\n                        {enabledModules.includes(moduleKey) && (\n                          <Button\n                            variant={defaultDashboard === moduleKey ? 'default' : 'outline'}\n                            size=\"sm\"\n                            onClick={() => handleSetDefaultDashboard(moduleKey)}\n                            disabled={saving}\n                          >\n                            {defaultDashboard === moduleKey ? '✓ Default' : 'Set Default'}\n                          </Button>\n                        )}\n                      </div>\n                    </div>\n                  ))}\n                </div>\n              )}\n            </CardContent>\n          </Card>\n        </TabsContent>\n\n        {/* Audit Log Tab */}\n        <TabsContent value=\"audit\" className=\"space-y-6\">\n          <Card>\n            <CardHeader>\n              <CardTitle>Riwayat Perubahan</CardTitle>\n              <CardDescription>Audit trail untuk perubahan konfigurasi akses dashboard</CardDescription>\n            </CardHeader>\n            <CardContent>\n              {auditLog.length > 0 ? (\n                <div className=\"space-y-4\">\n                  {auditLog.map((log: any) => (\n                    <div key={log.id} className=\"flex items-start gap-4 p-4 border rounded-lg\">\n                      <div className=\"p-2 bg-blue-50 rounded-lg\">\n                        <History className=\"h-4 w-4 text-blue-600\" />\n                      </div>\n                      <div className=\"flex-1 min-w-0\">\n                        <p className=\"font-bold\">{log.action}</p>\n                        <p className=\"text-sm text-muted-foreground\">\n                          {log.module_key && `Modul: ${log.module_key}`}\n                          {log.old_value && ` (dari: ${log.old_value})`}\n                          {log.new_value && ` (ke: ${log.new_value})`}\n                        </p>\n                        <p className=\"text-xs text-muted-foreground mt-1\">\n                          {formatDistanceToNow(new Date(log.changed_at), { locale: idLocale, addSuffix: true })}\n                        </p>\n                      </div>\n                    </div>\n                  ))}\n                </div>\n              ) : (\n                <div className=\"text-center text-muted-foreground py-8\">\n                  <History className=\"h-10 w-10 mx-auto mb-2 opacity-20\" />\n                  <p>Tidak ada riwayat perubahan</p>\n                </div>\n              )}\n            </CardContent>\n          </Card>\n        </TabsContent>\n      </Tabs>\n    </div>\n  );\n}\n
+/**
+ * DashboardAccessManager.tsx
+ * 
+ * UI untuk super_admin mengelola akses dashboard per peran.
+ * Fitur:
+ * - Lihat daftar peran dan modul dashboard yang tersedia
+ * - Enable/disable modul untuk setiap peran
+ * - Set default dashboard untuk setiap peran
+ * - Audit trail untuk perubahan konfigurasi
+ */
+
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertCircle, CheckCircle2, Settings, Shield, History } from 'lucide-react';
+import { DASHBOARD_MODULES, ROLE_DASHBOARD_CONFIG } from '@/lib/dashboard-config';
+import { AppRole } from '@/types/database';
+import { formatDistanceToNow } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { logAuditEvent } from '@/lib/audit-logger';
+
+const ROLES: AppRole[] = [
+  'super_admin', 'owner', 'branch_manager', 'finance', 'sales',
+  'marketing', 'operational', 'equipment', 'agent', 'customer'
+];
+
+export default function DashboardAccessManager() {
+  const { user, hasRole } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedRole, setSelectedRole] = useState<AppRole>('branch_manager');
+  const [saving, setSaving] = useState(false);
+
+  // Check if user is super admin
+  const isSuperAdmin = hasRole('super_admin');
+
+  if (!isSuperAdmin) {
+    return (
+      <div className=\"flex items-center justify-center min-h-screen\">
+        <Card className=\"w-full max-w-md\">
+          <CardContent className=\"pt-6\">
+            <div className=\"flex items-center gap-3 text-red-600 mb-4\">
+              <AlertCircle className=\"h-5 w-5\" />
+              <p className=\"font-bold\">Akses Ditolak</p>
+            </div>
+            <p className=\"text-muted-foreground\">Hanya super admin yang dapat mengakses halaman ini.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Fetch dashboard access config
+  const { data: accessConfig, isLoading: configLoading } = useQuery({
+    queryKey: ['dashboard-access-config', selectedRole],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dashboard_access_config')
+        .select('*')
+        .eq('role', selectedRole)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching config:', error);
+        throw error;
+      }
+
+      return data || null;
+    },
+  });
+
+  // Fetch audit log
+  const { data: auditLog = [] } = useQuery({
+    queryKey: ['dashboard-access-audit-log', selectedRole],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dashboard_access_audit_log')
+        .select('*')
+        .eq('role', selectedRole)
+        .order('changed_at', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error('Error fetching audit log:', error);
+        return [];
+      }
+
+      return data || [];
+    },
+  });
+
+  // Mutation untuk update config
+  const updateConfigMutation = useMutation({
+    mutationFn: async ({
+      enabledModules,
+      disabledModules,
+      defaultDashboard,
+    }: {
+      enabledModules: string[];
+      disabledModules: string[];
+      defaultDashboard: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('dashboard_access_config')
+        .update({
+          enabled_modules: enabledModules,
+          disabled_modules: disabledModules,
+          default_dashboard: defaultDashboard,
+          updated_by: user?.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('role', selectedRole)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Log to audit trail
+      await logAuditEvent({
+        table_name: 'dashboard_access_config',
+        record_id: data.id,
+        action: 'update',
+        action_type: 'update',
+        old_data: accessConfig,
+        new_data: data,
+        severity: 'medium',
+      });
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-access-config'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-access-audit-log'] });
+      setSaving(false);
+    },
+    onError: (error) => {
+      console.error('Error updating config:', error);
+      setSaving(false);
+    },
+  });
+
+  const handleToggleModule = useCallback(
+    (moduleKey: string, enabled: boolean) => {
+      if (!accessConfig) return;
+
+      const enabledModules = enabled
+        ? [...(accessConfig.enabled_modules || []), moduleKey]
+        : (accessConfig.enabled_modules || []).filter((m: string) => m !== moduleKey);
+
+      const disabledModules = !enabled
+        ? [...(accessConfig.disabled_modules || []), moduleKey]
+        : (accessConfig.disabled_modules || []).filter((m: string) => m !== moduleKey);
+
+      setSaving(true);
+      updateConfigMutation.mutate({
+        enabledModules,
+        disabledModules,
+        defaultDashboard: accessConfig.default_dashboard,
+      });
+    },
+    [accessConfig, updateConfigMutation]
+  );
+
+  const handleSetDefaultDashboard = useCallback(
+    (moduleKey: string) => {
+      if (!accessConfig) return;
+
+      setSaving(true);
+      updateConfigMutation.mutate({
+        enabledModules: accessConfig.enabled_modules || [],
+        disabledModules: accessConfig.disabled_modules || [],
+        defaultDashboard: moduleKey,
+      });
+    },
+    [accessConfig, updateConfigMutation]
+  );
+
+  const roleConfig = ROLE_DASHBOARD_CONFIG[selectedRole];
+  const enabledModules = accessConfig?.enabled_modules || [];
+  const disabledModules = accessConfig?.disabled_modules || [];
+  const defaultDashboard = accessConfig?.default_dashboard;
+
+  return (
+    <div className=\"space-y-8 pb-10\">
+      {/* Header */}
+      <div className=\"space-y-2\">
+        <div className=\"flex items-center gap-3\">
+          <div className=\"p-2.5 bg-primary/10 rounded-xl border border-primary/20\">
+            <Shield className=\"h-6 w-6 text-primary\" />
+          </div>
+          <div>
+            <h1 className=\"text-3xl font-bold tracking-tight\">Manajemen Akses Dashboard</h1>
+            <p className=\"text-muted-foreground\">Kelola modul dashboard yang dapat diakses oleh setiap peran</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Role Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pilih Peran</CardTitle>
+          <CardDescription>Pilih peran untuk mengatur akses dashboardnya</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as AppRole)}>
+            <SelectTrigger className=\"w-full md:w-64\">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {ROLE_DASHBOARD_CONFIG[role]?.label || role}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Main Content */}
+      <Tabs defaultValue=\"modules\" className=\"w-full\">
+        <TabsList className=\"grid w-full grid-cols-2\">
+          <TabsTrigger value=\"modules\">Modul Dashboard</TabsTrigger>
+          <TabsTrigger value=\"audit\">Audit Log</TabsTrigger>
+        </TabsList>
+
+        {/* Modules Tab */}
+        <TabsContent value=\"modules\" className=\"space-y-6\">
+          {/* Role Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{roleConfig?.label}</CardTitle>
+              <CardDescription>{roleConfig?.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className=\"grid gap-4 md:grid-cols-2\">
+                <div>
+                  <p className=\"text-sm font-bold text-muted-foreground mb-2\">Modul yang Diaktifkan</p>
+                  <div className=\"flex flex-wrap gap-2\">
+                    {enabledModules.map((moduleKey: string) => {
+                      const module = DASHBOARD_MODULES[moduleKey];
+                      return (
+                        <Badge key={moduleKey} variant=\"default\" className=\"bg-emerald-50 text-emerald-700 border-emerald-200\">
+                          {module?.label || moduleKey}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className=\"text-sm font-bold text-muted-foreground mb-2\">Default Dashboard</p>
+                  <Badge variant=\"outline\" className=\"bg-primary/10 text-primary border-primary/20\">
+                    {DASHBOARD_MODULES[defaultDashboard]?.label || defaultDashboard}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Module Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Konfigurasi Modul</CardTitle>
+              <CardDescription>Aktifkan atau nonaktifkan modul untuk peran ini</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {configLoading ? (
+                <div className=\"text-center text-muted-foreground py-8\">Loading...</div>
+              ) : (
+                <div className=\"space-y-4\">
+                  {Object.entries(DASHBOARD_MODULES).map(([moduleKey, module]) => (
+                    <div key={moduleKey} className=\"flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors\">
+                      <div className=\"flex-1\">
+                        <p className=\"font-bold\">{module.label}</p>
+                        <p className=\"text-sm text-muted-foreground\">{module.description}</p>
+                      </div>
+                      <div className=\"flex items-center gap-4\">
+                        <div className=\"flex items-center gap-2\">
+                          <Checkbox
+                            checked={enabledModules.includes(moduleKey)}
+                            onCheckedChange={(checked) => handleToggleModule(moduleKey, checked as boolean)}
+                            disabled={saving}
+                          />
+                          <span className=\"text-sm\">Aktif</span>
+                        </div>
+                        {enabledModules.includes(moduleKey) && (
+                          <Button
+                            variant={defaultDashboard === moduleKey ? 'default' : 'outline'}
+                            size=\"sm\"
+                            onClick={() => handleSetDefaultDashboard(moduleKey)}
+                            disabled={saving}
+                          >
+                            {defaultDashboard === moduleKey ? '✓ Default' : 'Set Default'}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Audit Log Tab */}
+        <TabsContent value=\"audit\" className=\"space-y-6\">
+          <Card>
+            <CardHeader>
+              <CardTitle>Riwayat Perubahan</CardTitle>
+              <CardDescription>Audit trail untuk perubahan konfigurasi akses dashboard</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {auditLog.length > 0 ? (
+                <div className=\"space-y-4\">
+                  {auditLog.map((log: any) => (
+                    <div key={log.id} className=\"flex items-start gap-4 p-4 border rounded-lg\">
+                      <div className=\"p-2 bg-blue-50 rounded-lg\">
+                        <History className=\"h-4 w-4 text-blue-600\" />
+                      </div>
+                      <div className=\"flex-1 min-w-0\">
+                        <p className=\"font-bold\">{log.action}</p>
+                        <p className=\"text-sm text-muted-foreground\">
+                          {log.module_key && `Modul: ${log.module_key}`}
+                          {log.old_value && ` (dari: ${log.old_value})`}
+                          {log.new_value && ` (ke: ${log.new_value})`}
+                        </p>
+                        <p className=\"text-xs text-muted-foreground mt-1\">
+                          {formatDistanceToNow(new Date(log.changed_at), { locale: idLocale, addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className=\"text-center text-muted-foreground py-8\">
+                  <History className=\"h-10 w-10 mx-auto mb-2 opacity-20\" />
+                  <p>Tidak ada riwayat perubahan</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
