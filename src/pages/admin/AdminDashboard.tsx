@@ -121,8 +121,10 @@ export default function AdminDashboard() {
   
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
+  const [hierarchyLevel, setHierarchyLevel] = useState<'all' | 'pusat' | 'cabang' | 'agen' | 'sub_agen'>('all');
   const [selectedBranch, setSelectedBranch] = useState<string>(branchId || "all");
   const [selectedAgent, setSelectedAgent] = useState<string>("all");
+  const [selectedSubAgent, setSelectedSubAgent] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subMonths(new Date(), 6),
     to: new Date(),
@@ -132,9 +134,11 @@ export default function AdminDashboard() {
   const filters = useMemo(() => ({
     branchId: selectedBranch === "all" ? null : selectedBranch,
     agentId: selectedAgent === "all" ? null : selectedAgent,
+    subAgentId: selectedSubAgent === "all" ? null : selectedSubAgent,
+    hierarchyLevel,
     startDate: dateRange?.from,
     endDate: dateRange?.to,
-  }), [selectedBranch, selectedAgent, dateRange]);
+  }), [selectedBranch, selectedAgent, selectedSubAgent, hierarchyLevel, dateRange]);
 
   const { data: stats, isLoading, refetch } = useDashboardStats(filters);
   const { data: recentBookings } = useRecentBookings(filters.branchId);
@@ -164,12 +168,18 @@ export default function AdminDashboard() {
   const { data: agents } = useQuery({
     queryKey: ['dashboard-agents'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('agents').select('id, company_name').limit(100);
+      const { data, error } = await supabase.from('agents').select('id, company_name, parent_agent_id').limit(200);
       if (error) throw error;
       return data;
     },
     staleTime: 1000 * 60 * 60, // 1 hour
   });
+
+  // Filter sub-agents based on selected agent
+  const subAgents = useMemo(() => {
+    if (!selectedAgent || selectedAgent === "all") return [];
+    return (agents || []).filter(a => a.parent_agent_id === selectedAgent);
+  }, [agents, selectedAgent]);
 
   // Combined alerts query (stockAlerts + pendingDocuments + recentAudits)
   const { data: alerts } = useDashboardAlerts();
@@ -186,8 +196,10 @@ export default function AdminDashboard() {
   );
 
   const resetFilters = useCallback(() => {
+    setHierarchyLevel('all');
     setSelectedBranch(branchId || "all");
     setSelectedAgent("all");
+    setSelectedSubAgent("all");
     setDateRange({
       from: subMonths(new Date(), 6),
       to: new Date(),
@@ -229,7 +241,7 @@ export default function AdminDashboard() {
           >
             <Filter className="mr-2 h-4 w-4" />
             Filter
-            {(selectedBranch !== (branchId || "all") || selectedAgent !== "all") && (
+            {(hierarchyLevel !== 'all' || selectedBranch !== (branchId || "all") || selectedAgent !== "all" || selectedSubAgent !== "all") && (
               <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-white">!</Badge>
             )}
           </Button>
@@ -237,8 +249,8 @@ export default function AdminDashboard() {
           <Button variant="outline" size="icon" onClick={handleRefresh} className="h-10 w-10" title="Refresh Data">
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
-          
-          <Button asChild className="h-10 shadow-sm">
+  
+          <Button variant="default" className="h-10 text-xs sm:text-sm" asChild>
             <Link to="/admin/analytics">
               Analisis Mendalam
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -251,7 +263,25 @@ export default function AdminDashboard() {
       {showFilters && (
         <Card className="bg-muted/30 border-dashed animate-in fade-in slide-in-from-top-2 duration-300">
           <CardContent className="pt-6">
-            <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                  <Building2 className="h-3 w-3" /> Hierarki
+                </label>
+                <Select value={hierarchyLevel} onValueChange={(v: any) => setHierarchyLevel(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    <SelectItem value="pusat">Pusat</SelectItem>
+                    <SelectItem value="cabang">Cabang</SelectItem>
+                    <SelectItem value="agen">Agen</SelectItem>
+                    <SelectItem value="sub_agen">Sub-Agen</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                   <Calendar className="h-3 w-3" /> Rentang Tanggal
@@ -282,18 +312,40 @@ export default function AdminDashboard() {
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                   <User className="h-3 w-3" /> Agen
                 </label>
-                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                <Select value={selectedAgent} onValueChange={(v) => {
+                  setSelectedAgent(v);
+                  setSelectedSubAgent("all");
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Semua Agen" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua Agen</SelectItem>
-                    {agents?.map((a) => (
+                    {(agents || []).filter(a => !a.parent_agent_id).map((a) => (
                       <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedAgent !== "all" && subAgents.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <User className="h-3 w-3" /> Sub-Agen
+                  </label>
+                  <Select value={selectedSubAgent} onValueChange={setSelectedSubAgent}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Semua Sub-Agen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Sub-Agen</SelectItem>
+                      {subAgents.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="flex items-end">
                 <Button variant="ghost" onClick={resetFilters} className="text-xs h-10 w-full md:w-auto">
@@ -340,7 +392,7 @@ export default function AdminDashboard() {
               <p className="text-sm font-medium">{pendingDocuments || 0} Dokumen Menunggu</p>
             </div>
             <Button variant="ghost" size="sm" asChild className="text-blue-600 hover:bg-blue-100">
-              <Link to="/admin/documents/verification">Proses <ArrowRight className="ml-1 h-3 w-3" /></Link>
+              <Link to="/admin/document-verification">Proses <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           </CardContent>
         </Card>
@@ -387,7 +439,7 @@ export default function AdminDashboard() {
         />
         <StatsCard
           title="Total Jamaah"
-          value={stats?.totalPax?.toString() || "0"}
+          value={stats?.totalJamaah?.toString() || "0"}
           icon={Users}
           loading={isLoading}
           trend="+15.3%"
@@ -447,8 +499,8 @@ export default function AdminDashboard() {
                       <tr key={booking.id} className="hover:bg-muted/20 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
-                            <span className="font-bold group-hover:text-primary transition-colors">{booking.customer_name || 'Jamaah'}</span>
-                            <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{booking.package_name}</span>
+                            <span className="font-bold group-hover:text-primary transition-colors">{booking.customer?.full_name || 'Jamaah'}</span>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{booking.booking_code}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -497,7 +549,7 @@ export default function AdminDashboard() {
                       <span className="text-lg font-bold leading-none">{format(new Date(departure.departure_date), 'dd')}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{departure.package_name}</p>
+                      <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{departure.package?.name}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-[10px] flex items-center gap-1 text-muted-foreground">
                           <Users className="h-3 w-3" /> {departure.booked_count}/{departure.quota} Pax

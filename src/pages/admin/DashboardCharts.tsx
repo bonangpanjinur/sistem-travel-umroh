@@ -3,12 +3,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { 
-  Target, Trophy, DollarSign, Calendar, Activity, ArrowRight
+  Target, Trophy, DollarSign, Calendar, Activity, ArrowRight, Users
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid
 } from "recharts";
 
@@ -215,6 +216,84 @@ const RevenueAreaChart = memo(({ monthlyRevenue, isLoading }: any) => (
 ));
 RevenueAreaChart.displayName = "RevenueAreaChart";
 
+const JamaahRegistrationChart = memo(({ dailyData, weeklyData, monthlyData, isLoading }: any) => {
+  const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+
+  const chartData = useMemo(() => {
+    switch (timeRange) {
+      case 'daily':
+        return dailyData || [];
+      case 'weekly':
+        return weeklyData || [];
+      case 'monthly':
+        return monthlyData || [];
+      default:
+        return monthlyData || [];
+    }
+  }, [timeRange, dailyData, weeklyData, monthlyData]);
+
+  const dataKey = timeRange === 'daily' ? 'date' : timeRange === 'weekly' ? 'week' : 'month';
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-600" />
+            Pendaftaran Jamaah
+          </CardTitle>
+          <Tabs value={timeRange} onValueChange={(v: any) => setTimeRange(v)} className="w-auto">
+            <TabsList className="grid w-auto grid-cols-3 h-8">
+              <TabsTrigger value="daily" className="text-xs">Harian</TabsTrigger>
+              <TabsTrigger value="weekly" className="text-xs">Mingguan</TabsTrigger>
+              <TabsTrigger value="monthly" className="text-xs">Bulanan</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-[150px] sm:h-[180px] md:h-[200px] w-full" />
+        ) : (
+          <div className="h-[150px] sm:h-[180px] md:h-[200px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorJamaah" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                <XAxis dataKey={dataKey} className="text-[10px]" />
+                <YAxis className="text-[10px]" />
+                <Tooltip 
+                  formatter={(value: number) => [value, 'Jamaah']}
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    fontSize: '12px'
+                  }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="jamaah" 
+                  stroke="hsl(var(--chart-2))" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--chart-2))', r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+});
+JamaahRegistrationChart.displayName = "JamaahRegistrationChart";
+
 const AuditActivityLog = memo(({ audits, isLoading }: any) => (
   <Card>
     <CardHeader className="pb-2">
@@ -265,6 +344,9 @@ export const DashboardCharts = memo(function DashboardCharts({ stats, isLoading,
     totalRevenue: stats?.totalRevenue,
     totalOutstanding: stats?.totalOutstanding,
     monthlyRevenue: stats?.monthlyRevenue,
+    dailyJamaahData: stats?.dailyJamaahData,
+    weeklyJamaahData: stats?.weeklyJamaahData,
+    monthlyJamaahData: stats?.monthlyJamaahData,
   }), [stats]);
 
   return (
@@ -286,6 +368,14 @@ export const DashboardCharts = memo(function DashboardCharts({ stats, isLoading,
         <RevenueAreaChart monthlyRevenue={chartData.monthlyRevenue} isLoading={isLoading} />
         <AuditActivityLog audits={recentAudits} isLoading={isLoading} />
       </div>
+
+      {/* Jamaah Registration Chart */}
+      <JamaahRegistrationChart 
+        dailyData={chartData.dailyJamaahData}
+        weeklyData={chartData.weeklyJamaahData}
+        monthlyData={chartData.monthlyJamaahData}
+        isLoading={isLoading}
+      />
     </>
   );
 });

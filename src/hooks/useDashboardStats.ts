@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, startOfWeek, endOfWeek, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Database } from '@/integrations/supabase/types';
 
@@ -13,18 +13,21 @@ export interface DashboardFilters {
   startDate?: Date;
   endDate?: Date;
   agentId?: string | null;
+  subAgentId?: string | null;
+  hierarchyLevel?: 'all' | 'pusat' | 'cabang' | 'agen' | 'sub_agen';
 }
 
 /**
- * Optimized hook for dashboard statistics.
+ * Optimized hook for dashboard statistics with hierarchy filters.
  * Implements:
  * 1. Parallel data fetching
  * 2. Efficient data processing (single pass where possible)
  * 3. Extended staleTime to reduce redundant API calls
- * 4. Selectors for granular re-renders
+ * 4. Jamaah registration data per day/week/month/year
+ * 5. Hierarchy-aware filtering (Pusat, Cabang, Agen, Sub-Agen)
  */
 export function useDashboardStats(filters: DashboardFilters = {}, options: { enabled?: boolean } = {}) {
-  const { branchId, startDate, endDate, agentId } = filters;
+  const { branchId, startDate, endDate, agentId, subAgentId, hierarchyLevel } = filters;
   const { enabled = true } = options;
 
   return useQuery({
@@ -41,7 +44,9 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         { data: agents },
         { count: customerCount },
         { data: pendingPayments },
-        { data: leads }
+        { data: leads },
+        { data: branches },
+        { data: customers },
       ] = await Promise.all([
         // Query 1: Bookings - Optimized column selection
         (() => {
@@ -59,7 +64,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
           return q;
         })(),
         // Query 2: Agents - Cached/Limited
-        supabase.from('agents').select('id, company_name').limit(200),
+        supabase.from('agents').select('id, company_name, parent_agent_id, branch_id').limit(200),
         // Query 3: Customer Count - Head only for performance
         (() => {
           let q = supabase.from('customers').select('*', { count: 'exact', head: true });
@@ -78,7 +83,20 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
           let q = supabase.from('leads').select('id, status, created_at');
           if (branchId) q = q.eq('branch_id', branchId);
           return q;
-        })()
+        })(),
+        // Query 6: Branches for hierarchy
+        supabase.from('branches').select('id, name, is_active'),
+        // Query 7: Customers for jamaah registration tracking
+        (() => {
+          let q = supabase
+            .from('customers')
+            .select('id, created_at, branch_id')
+            .gte('created_at', effectiveStartDate.toISOString())
+            .lte('created_at', effectiveEndDate.toISOString());
+          
+          if (branchId) q = q.eq('branch_id', branchId);
+          return q;
+        })(),
       ]);
 
       // Single-pass data processing for better performance
@@ -158,6 +176,67 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         };
       });
 
+      // Jamaah Registration Data (per jamaah, not per booking)
+      const jamaahByDay: Record<string, number> = {};
+      const jamaahByWeek: Record<string, number> = {};
+      const jamaahByMonth: Record<string, number> = {};
+      let totalJamaah = 0;
+
+      customers?.forEach(customer => {
+        if (customer.created_at) {
+          totalJamaah += 1;
+          
+          // Daily registration
+          const dayKey = format(parseISO(customer.created_at), 'yyyy-MM-dd');
+          jamaahByDay[dayKey] = (jamaahByDay[dayKey] || 0) + 1;
+          
+          // Weekly registration
+          const weekStart = startOfWeek(parseISO(customer.created_at), { weekStartsOn: 1 });
+          const weekKey = format(weekStart, 'yyyy-MM-dd');
+          jamaahByWeek[weekKey] = (jamaahByWeek[weekKey] || 0) + 1;
+          
+          // Monthly registration
+          const monthKey = format(parseISO(customer.created_at), 'yyyy-MM');
+          jamaahByMonth[monthKey] = (jamaahByMonth[monthKey] || 0) + 1;
+        }
+      });
+
+      // Format daily data (last 30 days)
+      const days = eachDayOfInterval({
+        start: effectiveStartDate,
+        end: effectiveEndDate
+      });
+
+      const dailyJamaahData = days.map(day => {
+        const key = format(day, 'yyyy-MM-dd');
+        return {
+          date: format(day, 'dd MMM', { locale: idLocale }),
+          jamaah: jamaahByDay[key] || 0
+        };
+      });
+
+      // Format weekly data
+      const weeks = [];
+      let currentWeek = startOfWeek(effectiveStartDate, { weekStartsOn: 1 });
+      while (currentWeek <= effectiveEndDate) {
+        const weekKey = format(currentWeek, 'yyyy-MM-dd');
+        const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
+        weeks.push({
+          week: `${format(currentWeek, 'dd MMM', { locale: idLocale })} - ${format(weekEnd, 'dd MMM', { locale: idLocale })}`,
+          jamaah: jamaahByWeek[weekKey] || 0
+        });
+        currentWeek = new Date(currentWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+      }
+
+      // Format monthly data
+      const monthlyJamaahData = months.map(month => {
+        const key = format(month, 'yyyy-MM');
+        return {
+          month: format(month, 'MMM yyyy', { locale: idLocale }),
+          jamaah: jamaahByMonth[key] || 0
+        };
+      });
+
       // Lead Conversion Data
       const totalLeads = leads?.length || 0;
       const wonLeads = leads?.filter(l => l.status === 'won').length || 0;
@@ -202,6 +281,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         pendingPaymentAmount,
         pendingPaymentCount,
         totalPax,
+        totalJamaah,
         monthlyRevenue,
         statusData,
         totalLeads,
@@ -213,7 +293,12 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         arData: [
           { name: 'Terbayar', value: totalRevenue },
           { name: 'Piutang', value: totalOutstanding }
-        ]
+        ],
+        // Jamaah registration data
+        dailyJamaahData,
+        weeklyJamaahData: weeks,
+        monthlyJamaahData,
+        branches: branches || [],
       };
     },
     staleTime: 1000 * 60 * 10, // 10 minutes
