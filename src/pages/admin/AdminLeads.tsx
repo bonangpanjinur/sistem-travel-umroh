@@ -159,13 +159,13 @@ export default function AdminLeads() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">CRM - Leads</h1>
           <p className="text-muted-foreground">Kelola prospek dan konversi ke booking</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild className="flex-1 sm:flex-none">
             <Link to="/admin/leads/analytics">
               <TrendingUp className="h-4 w-4 mr-2" />
               Analytics
@@ -173,7 +173,7 @@ export default function AdminLeads() {
           </Button>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="flex-1 sm:flex-none">
                 <Plus className="h-4 w-4 mr-2" />
                 Tambah Lead
               </Button>
@@ -244,18 +244,13 @@ export default function AdminLeads() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard title="Total Leads" value={stats.total} icon={Users} />
         <StatCard title="Leads Baru" value={stats.new} icon={Plus} color="blue" />
-        <StatCard title="Dalam Proses" value={stats.inProgress} icon={TrendingUp} color="amber" />
-        <StatCard title="Won" value={stats.won} icon={Target} color="green" />
-        <StatCard title="Conversion" value={`${stats.conversionRate}%`} icon={ArrowRight} color="emerald" />
-        <StatCard 
-          title="Overdue F/U" 
-          value={stats.overdueFollowUps} 
-          icon={AlertTriangle} 
-          color={stats.overdueFollowUps > 0 ? "red" : undefined}
-        />
+        <StatCard title="Dalam Proses" value={stats.inProgress} icon={ArrowRight} color="purple" />
+        <StatCard title="Won" value={stats.won} icon={TrendingUp} color="green" />
+        <StatCard title="Lost" value={stats.lost} icon={XCircle} color="red" />
+        <StatCard title="Konversi" value={`${stats.conversionRate}%`} icon={Target} color="amber" />
       </div>
 
       {/* Pipeline Value */}
@@ -271,91 +266,107 @@ export default function AdminLeads() {
         </Card>
       )}
 
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Cari nama, telepon, atau email..." 
+                className="pl-10"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  {Object.entries(STATUS_CONFIG).map(([value, config]) => (
+                    <SelectItem key={value} value={value}>{config.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Sumber" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Sumber</SelectItem>
+                  {SOURCES.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasActiveFilters && (
+                <Button variant="ghost" onClick={clearFilters} className="col-span-2 sm:col-auto px-2">
+                  <X className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="kanban" className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <TabsList>
-            <TabsTrigger value="kanban">Kanban</TabsTrigger>
-            <TabsTrigger value="list">List</TabsTrigger>
+            <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
+            <TabsTrigger value="list">List View</TabsTrigger>
           </TabsList>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 sm:w-64 sm:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari lead..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Sumber" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Sumber</SelectItem>
-                {SOURCES.map(s => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="h-4 w-4 mr-1" />
-                Reset
-              </Button>
-            )}
-          </div>
+          
+          {stats.overdueFollowUps > 0 && (
+            <Badge variant="destructive" className="animate-pulse">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              {stats.overdueFollowUps} Follow-up Terlambat
+            </Badge>
+          )}
         </div>
 
-        <TabsContent value="kanban">
+        <TabsContent value="kanban" className="mt-0">
           {isLoading ? (
             <LoadingState message="Memuat leads..." />
           ) : isError ? (
             <ErrorState onRetry={() => refetch()} />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-5 overflow-x-auto">
+            <div className="grid gap-4 lg:grid-cols-5 overflow-x-auto pb-4">
               {KANBAN_COLUMNS.map(status => {
                 const statusLeads = filteredLeads?.filter(l => l.status === status) || [];
                 const config = STATUS_CONFIG[status];
                 const pipelineValue = getPipelineValue(statusLeads as any[]);
                 
                 return (
-                  <div key={status} className="min-w-[250px]">
-                    <div className={cn("rounded-t-lg px-3 py-2 font-medium", config.bgColor)}>
-                      <div className="flex items-center justify-between">
-                        <span className={config.color}>{config.label}</span>
-                        <Badge variant="secondary" className="text-xs">{statusLeads.length}</Badge>
+                  <div key={status} className="min-w-[280px] flex flex-col gap-4">
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-2 h-2 rounded-full", config.bgColor.replace('bg-', 'bg-').split(' ')[0])} />
+                        <h3 className="font-bold text-sm uppercase tracking-wider">{config.label}</h3>
+                        <Badge variant="secondary" className="ml-1">{statusLeads.length}</Badge>
                       </div>
                       {pipelineValue > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <span className="text-[10px] font-bold text-muted-foreground">
                           {formatCurrency(pipelineValue)}
-                        </p>
+                        </span>
                       )}
                     </div>
-                    <div className="bg-muted/30 rounded-b-lg p-2 space-y-2 min-h-[350px]">
+                    
+                    <div className="flex flex-col gap-3 min-h-[200px]">
                       {statusLeads.map(lead => (
                         <LeadCard 
                           key={lead.id} 
                           lead={lead as any} 
-                          onStatusChange={(newStatus) => handleStatusChange(lead.id, newStatus)}
+                          onStatusChange={handleStatusChange}
                         />
                       ))}
                       {statusLeads.length === 0 && (
-                        <p className="text-center text-muted-foreground text-sm py-8">
+                        <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground text-xs">
                           Tidak ada lead
-                        </p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -366,243 +377,156 @@ export default function AdminLeads() {
         </TabsContent>
 
         <TabsContent value="list">
-          {isLoading ? (
-            <LoadingState message="Memuat leads..." />
-          ) : isError ? (
-            <ErrorState onRetry={() => refetch()} />
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left py-3 px-4 font-medium">Nama</th>
-                      <th className="text-left py-3 px-4 font-medium">Kontak</th>
-                      <th className="text-left py-3 px-4 font-medium">Paket</th>
-                      <th className="text-left py-3 px-4 font-medium">Assigned</th>
-                      <th className="text-left py-3 px-4 font-medium">Status</th>
-                      <th className="text-left py-3 px-4 font-medium">Follow Up</th>
-                      <th className="text-left py-3 px-4 font-medium">Aksi</th>
+          <Card>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="text-left p-4 font-medium">Nama</th>
+                    <th className="text-left p-4 font-medium">Status</th>
+                    <th className="text-left p-4 font-medium">Sumber</th>
+                    <th className="text-left p-4 font-medium">Paket</th>
+                    <th className="text-left p-4 font-medium">Follow Up</th>
+                    <th className="text-right p-4 font-medium">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredLeads?.map(lead => (
+                    <tr key={lead.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-4">
+                        <div className="font-medium">{lead.full_name}</div>
+                        <div className="text-xs text-muted-foreground">{lead.phone}</div>
+                      </td>
+                      <td className="p-4">
+                        <Badge className={cn(STATUS_CONFIG[lead.status as LeadStatus].bgColor, STATUS_CONFIG[lead.status as LeadStatus].color, "border-none")}>
+                          {STATUS_CONFIG[lead.status as LeadStatus].label}
+                        </Badge>
+                      </td>
+                      <td className="p-4 capitalize">{lead.source}</td>
+                      <td className="p-4">{lead.package?.name || '-'}</td>
+                      <td className="p-4">
+                        {lead.follow_up_date ? (
+                          <div className={cn(
+                            "text-xs",
+                            isPast(new Date(lead.follow_up_date)) && !isToday(new Date(lead.follow_up_date)) && "text-red-500 font-bold"
+                          )}>
+                            {format(new Date(lead.follow_up_date), 'dd MMM yyyy', { locale: idLocale })}
+                          </div>
+                        ) : '-'}
+                      </td>
+                      <td className="p-4 text-right">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to={`/admin/leads/${lead.id}`}>Detail</Link>
+                        </Button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filteredLeads?.map(lead => {
-                      const isOverdue = lead.follow_up_date && 
-                        isPast(new Date(lead.follow_up_date)) && 
-                        !isToday(new Date(lead.follow_up_date)) &&
-                        lead.status !== 'won' && lead.status !== 'lost';
-
-                      return (
-                        <tr key={lead.id} className={cn(
-                          "border-b last:border-0 hover:bg-muted/30",
-                          isOverdue && "bg-red-50 dark:bg-red-950/10"
-                        )}>
-                          <td className="py-3 px-4">
-                            <div>
-                              <p className="font-medium">{lead.full_name}</p>
-                              <p className="text-xs text-muted-foreground capitalize">{lead.source}</p>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              {lead.phone && (
-                                <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                                  className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600" title="WhatsApp">
-                                  <MessageCircle className="h-3.5 w-3.5" />
-                                </a>
-                              )}
-                              {lead.phone && (
-                                <a href={`tel:${lead.phone}`} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600" title="Telepon">
-                                  <Phone className="h-3.5 w-3.5" />
-                                </a>
-                              )}
-                              {lead.email && (
-                                <a href={`mailto:${lead.email}`} className="p-1 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-600" title="Email">
-                                  <Mail className="h-3.5 w-3.5" />
-                                </a>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-sm">
-                            {lead.package?.name || '-'}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-muted-foreground">
-                            {(lead as any).assigned_profile?.full_name || '-'}
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge className={cn("font-normal", STATUS_CONFIG[lead.status as LeadStatus]?.bgColor, STATUS_CONFIG[lead.status as LeadStatus]?.color)}>
-                              {STATUS_CONFIG[lead.status as LeadStatus]?.label}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-sm">
-                            {lead.follow_up_date ? (
-                              <span className={cn(
-                                "flex items-center gap-1",
-                                isOverdue && "text-red-600 font-medium"
-                              )}>
-                                {isOverdue && <AlertTriangle className="h-3 w-3" />}
-                                {format(new Date(lead.follow_up_date), 'dd MMM yyyy', { locale: idLocale })}
-                              </span>
-                            ) : '-'}
-                          </td>
-                          <td className="py-3 px-4">
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/admin/leads/${lead.id}`}>
-                                Detail
-                                <ArrowRight className="h-4 w-4 ml-1" />
-                              </Link>
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  ))}
+                  {(!filteredLeads || filteredLeads.length === 0) && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        Tidak ada data lead yang ditemukan
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-interface StatCardProps {
-  title: string;
-  value: number | string;
-  icon: React.ComponentType<{ className?: string }>;
-  color?: 'blue' | 'amber' | 'green' | 'emerald' | 'red';
-}
-
-function StatCard({ title, value, icon: Icon, color }: StatCardProps) {
-  const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30',
-    amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30',
-    green: 'bg-green-100 text-green-600 dark:bg-green-900/30',
-    emerald: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30',
-    red: 'bg-red-100 text-red-600 dark:bg-red-900/30',
+function StatCard({ title, value, icon: Icon, color }: { title: string, value: string | number, icon: any, color?: string }) {
+  const colorClasses: Record<string, string> = {
+    blue: "text-blue-600 bg-blue-50",
+    purple: "text-purple-600 bg-purple-50",
+    green: "text-green-600 bg-green-50",
+    red: "text-red-600 bg-red-50",
+    amber: "text-amber-600 bg-amber-50",
   };
 
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
-          </div>
-          <div className={cn("p-2 rounded-full", color ? colorClasses[color] : "bg-primary/10 text-primary")}>
-            <Icon className="h-5 w-5" />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</span>
+          <div className={cn("p-1.5 rounded-lg", color ? colorClasses[color] : "bg-muted text-muted-foreground")}>
+            <Icon className="h-4 w-4" />
           </div>
         </div>
+        <div className="text-2xl font-bold">{value}</div>
       </CardContent>
     </Card>
   );
 }
 
-interface LeadCardProps {
-  lead: Lead;
-  onStatusChange: (status: LeadStatus) => void;
-}
-
-function LeadCard({ lead, onStatusChange }: LeadCardProps) {
-  const currentIndex = KANBAN_COLUMNS.indexOf(lead.status as LeadStatus);
-  const canMoveForward = currentIndex < KANBAN_COLUMNS.length - 1;
-  const nextStatus = canMoveForward ? KANBAN_COLUMNS[currentIndex + 1] : null;
-
-  const isOverdue = lead.follow_up_date && 
-    isPast(new Date(lead.follow_up_date)) && 
-    !isToday(new Date(lead.follow_up_date)) &&
-    lead.status !== 'won' && lead.status !== 'lost';
-
-  const assignedName = lead.assigned_profile?.full_name;
+function LeadCard({ lead, onStatusChange }: { lead: Lead, onStatusChange: (id: string, status: LeadStatus) => void }) {
+  const isOverdue = lead.follow_up_date && isPast(new Date(lead.follow_up_date)) && !isToday(new Date(lead.follow_up_date));
 
   return (
-    <Card className={cn(
-      "cursor-pointer hover:shadow-md transition-shadow",
-      isOverdue && "border-red-400 bg-red-50/50 dark:bg-red-950/20"
-    )}>
-      <CardContent className="p-3">
-        <Link to={`/admin/leads/${lead.id}`} className="block">
-          <div className="flex items-start justify-between mb-1">
-            <p className="font-medium text-sm leading-tight">{lead.full_name}</p>
-          </div>
-          
-          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-            {lead.source && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{lead.source}</Badge>
-            )}
-            {assignedName && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                <User className="h-2.5 w-2.5 mr-0.5" />
-                {assignedName}
-              </Badge>
-            )}
-          </div>
+    <Card className="group hover:shadow-md transition-all border-l-4 border-l-transparent hover:border-l-primary">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex justify-between items-start gap-2">
+          <Link to={`/admin/leads/${lead.id}`} className="font-bold text-sm hover:text-primary transition-colors line-clamp-1">
+            {lead.full_name}
+          </Link>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 capitalize flex-shrink-0">
+            {lead.source}
+          </Badge>
+        </div>
 
-          {lead.package?.name && (
-            <p className="text-xs text-muted-foreground mb-1">
-              📦 {lead.package.name}
-            </p>
-          )}
-
-          {(lead.package?.price_quad || 0) > 0 && (
-            <p className="text-xs font-medium text-primary mb-2">
-              {formatCurrency(lead.package!.price_quad)}
-            </p>
-          )}
-          
-          {/* Quick contact actions */}
-          <div className="flex items-center gap-1 mb-2">
-            {lead.phone && (
-              <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600" title="WhatsApp">
-                <MessageCircle className="h-3.5 w-3.5" />
-              </a>
-            )}
-            {lead.phone && (
-              <a href={`tel:${lead.phone}`} onClick={(e) => e.stopPropagation()}
-                className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600" title="Telepon">
-                <Phone className="h-3.5 w-3.5" />
-              </a>
-            )}
-            {lead.email && (
-              <a href={`mailto:${lead.email}`} onClick={(e) => e.stopPropagation()}
-                className="p-1 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-600" title="Email">
-                <Mail className="h-3.5 w-3.5" />
-              </a>
-            )}
+        {lead.package && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Target className="h-3 w-3" />
+            <span className="line-clamp-1">{lead.package.name}</span>
           </div>
-          
+        )}
+
+        <div className="flex flex-wrap gap-3 pt-1">
+          {lead.phone && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Phone className="h-3 w-3" />
+              {lead.phone}
+            </div>
+          )}
           {lead.follow_up_date && (
             <div className={cn(
-              "flex items-center gap-1 text-xs mt-1",
-              isOverdue ? "text-red-600 font-medium" : "text-amber-600"
+              "flex items-center gap-1.5 text-[11px]",
+              isOverdue ? "text-red-500 font-bold" : "text-muted-foreground"
             )}>
-              {isOverdue ? <AlertTriangle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
-              {isOverdue ? "Overdue: " : ""}
+              <Calendar className="h-3 w-3" />
               {format(new Date(lead.follow_up_date), 'dd MMM', { locale: idLocale })}
             </div>
           )}
-        </Link>
-        
-        {nextStatus && (
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="w-full mt-2 text-xs h-7"
-            onClick={(e) => {
-              e.preventDefault();
-              onStatusChange(nextStatus);
-            }}
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+              <a href={`tel:${lead.phone}`}><Phone className="h-3.5 w-3.5" /></a>
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+              <a href={`https://wa.me/${lead.phone?.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">
+                <MessageCircle className="h-3.5 w-3.5" />
+              </a>
+            </Button>
+          </div>
+          <Select 
+            value={lead.status} 
+            onValueChange={(val) => onStatusChange(lead.id, val as LeadStatus)}
           >
-            Pindah ke {STATUS_CONFIG[nextStatus].label}
-            <ArrowRight className="h-3 w-3 ml-1" />
-          </Button>
-        )}
+            <SelectTrigger className="h-7 text-[10px] w-[100px] bg-muted/50 border-none">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(STATUS_CONFIG).map(([value, config]) => (
+                <SelectItem key={value} value={value} className="text-[10px]">{config.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </CardContent>
     </Card>
   );

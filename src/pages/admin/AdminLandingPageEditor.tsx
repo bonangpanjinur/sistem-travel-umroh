@@ -83,34 +83,34 @@ export default function AdminLandingPageEditor() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 px-8 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/landing-pages')}>
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 px-4 sm:px-8 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/landing-pages')} className="flex-shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{formData.title}</h1>
-              <p className="text-sm text-gray-500">/lp/{formData.slug}</p>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{formData.title}</h1>
+              <p className="text-xs sm:text-sm text-gray-500 truncate">/lp/{formData.slug}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <Button variant="outline" asChild>
-              <a href={`/lp/${formData.slug}`} target="_blank" rel="noreferrer">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button variant="outline" asChild className="flex-1 sm:flex-none">
+              <a href={`/lp/${formData.slug}`} target="_blank" rel="noreferrer" className="flex items-center justify-center">
                 <Eye className="w-4 h-4 mr-2" />
-                Preview
+                <span className="hidden xs:inline">Preview</span>
               </a>
             </Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleSave} disabled={updateMutation.isPending}>
+            <Button className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white" onClick={handleSave} disabled={updateMutation.isPending}>
               <Save className="w-4 h-4 mr-2" />
-              {updateMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
+              <span>{updateMutation.isPending ? '...' : 'Simpan'}</span>
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-8">
+      <div className="max-w-7xl mx-auto p-4 sm:p-8">
         <Tabs defaultValue="content" className="space-y-8">
           <TabsList className="bg-white border border-gray-200 p-1">
             <TabsTrigger value="content" className="flex items-center gap-2">

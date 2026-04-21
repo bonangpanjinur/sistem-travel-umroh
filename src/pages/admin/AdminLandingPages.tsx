@@ -42,16 +42,16 @@ export default function AdminLandingPages() {
   if (isLoading) return <LoadingState />;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Landing Page Builder</h1>
-          <p className="text-gray-500">Kelola halaman penawaran khusus Anda di sini.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Landing Page Builder</h1>
+          <p className="text-gray-500 text-sm sm:text-base">Kelola halaman penawaran khusus Anda di sini.</p>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
+            <Button className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2">
               <Plus className="w-5 h-5" />
               Buat Landing Page Baru
             </Button>

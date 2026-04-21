@@ -74,13 +74,13 @@ export default function AdminCoupons() {
       </div>
 
       {/* Search Section */}
-      <div className="relative max-w-sm group">
+      <div className="relative w-full sm:max-w-sm group">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
         <Input 
           placeholder="Cari kupon berdasarkan kode atau nama..." 
           value={searchTerm} 
           onChange={e => setSearchTerm(e.target.value)} 
-          className="pl-10 bg-card border-muted-foreground/20 focus-visible:ring-primary/50"
+          className="pl-10 bg-card border-muted-foreground/20 focus-visible:ring-primary/50 w-full"
         />
       </div>
 
