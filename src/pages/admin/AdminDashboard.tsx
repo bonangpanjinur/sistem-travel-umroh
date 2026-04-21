@@ -279,7 +279,7 @@ export default function AdminDashboard() {
         <Card className="bg-white border-none shadow-sm">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-amber-500" /> PAKET TERJUAL ({getLabel(soldFilter)})
+              <CheckCircle2 className="h-4 w-4 text-amber-500" /> TOTAL BOOKING ({getLabel(soldFilter)})
             </CardTitle>
             <div className="flex items-center gap-2">
               <Dialog open={isSoldModalOpen} onOpenChange={setIsSoldModalOpen}>
@@ -290,9 +290,9 @@ export default function AdminDashboard() {
                 </DialogTrigger>
                 <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Daftar Paket Terjual</DialogTitle>
+                    <DialogTitle>Daftar Total Booking</DialogTitle>
                     <DialogDescription>
-                      Daftar booking dengan status 'Confirmed' atau 'Completed' yang dihitung sebagai paket terjual.
+                      Daftar booking dengan status 'Confirmed' atau 'Completed' yang dihitung sebagai total booking.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4">
@@ -354,7 +354,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <p className="text-4xl font-black text-amber-600">{isLoading ? <Skeleton className="h-10 w-16" /> : filteredSoldCount}</p>
-                <p className="text-xs text-muted-foreground font-medium">Paket Terkonfirmasi</p>
+                <p className="text-xs text-muted-foreground font-medium">Booking Terkonfirmasi</p>
               </div>
               <div className="hidden md:flex flex-col justify-center border-l pl-4">
                 <p className="text-xs font-bold text-muted-foreground uppercase">Minggu Ini</p>
