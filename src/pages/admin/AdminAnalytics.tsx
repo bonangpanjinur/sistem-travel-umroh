@@ -15,7 +15,7 @@ import {
   TrendingUp, DollarSign, Users, Calendar,
   Building2, CreditCard, Package, Filter, X,
   ArrowUpRight, ArrowDownRight, Download, RefreshCcw,
-  PieChart as PieChartIcon, Activity, ShoppingBag
+  PieChart as PieChartIcon, Activity, ShoppingBag, User
 } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, isWithinInterval, subDays, startOfYear } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -24,6 +24,7 @@ import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const COLORS = [
   'hsl(var(--primary))', 
@@ -35,14 +36,22 @@ const COLORS = [
 ];
 
 export default function AdminAnalytics() {
+  const { branchId, hasRole } = useAuth();
+  const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subMonths(new Date(), 6),
     to: new Date(),
   });
-  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  
+  // Filter States
+  const [hierarchyLevel, setHierarchyLevel] = useState<'all' | 'pusat' | 'cabang' | 'agen' | 'sub_agen'>('all');
+  const [selectedBranch, setSelectedBranch] = useState<string>(branchId || "all");
+  const [selectedAgent, setSelectedAgent] = useState<string>("all");
+  const [selectedSubAgent, setSelectedSubAgent] = useState<string>("all");
 
   const { data: bookings, isLoading: loadingBookings, refetch } = useQuery({
-    queryKey: ['analytics-bookings', dateRange, selectedBranch],
+    queryKey: ['analytics-bookings', dateRange, selectedBranch, selectedAgent, selectedSubAgent, hierarchyLevel],
     queryFn: async () => {
       let query = supabase
         .from('bookings')
@@ -55,6 +64,7 @@ export default function AdminAnalytics() {
           created_at,
           total_pax,
           branch_id,
+          agent_id,
           departure_id,
           branch:branches(name),
           departure:departures(id, package_id, package:packages(name))
@@ -65,6 +75,14 @@ export default function AdminAnalytics() {
       
       if (selectedBranch !== "all") {
         query = query.eq('branch_id', selectedBranch);
+      }
+      
+      if (selectedAgent !== "all") {
+        query = query.eq('agent_id', selectedAgent);
+      }
+
+      if (selectedSubAgent !== "all") {
+        query = query.eq('agent_id', selectedSubAgent);
       }
       
       const { data, error } = await query;
@@ -85,6 +103,23 @@ export default function AdminAnalytics() {
       return data;
     },
   });
+
+  const { data: agents } = useQuery({
+    queryKey: ['analytics-agents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('id, company_name, parent_agent_id')
+        .limit(200);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const subAgents = useMemo(() => {
+    if (!selectedAgent || selectedAgent === "all") return [];
+    return (agents || []).filter(a => a.parent_agent_id === selectedAgent);
+  }, [agents, selectedAgent]);
 
   // Calculate monthly revenue data
   const monthlyData = useMemo(() => {
@@ -129,11 +164,13 @@ export default function AdminAnalytics() {
       const branchBookings = bookings.filter(b => b.branch_id === branch.id);
       const revenue = branchBookings.reduce((sum, b) => sum + (b.paid_amount || 0), 0);
       const bookingCount = branchBookings.length;
+      const paxCount = branchBookings.reduce((sum, b) => sum + (b.total_pax || 0), 0);
       
       return {
         name: branch.name,
         revenue,
-        bookings: bookingCount
+        bookings: bookingCount,
+        pax: paxCount
       };
     }).filter(b => b.bookings > 0).sort((a, b) => b.revenue - a.revenue);
   }, [bookings, branches]);
@@ -142,20 +179,21 @@ export default function AdminAnalytics() {
   const packageData = useMemo(() => {
     if (!bookings) return [];
     
-    const packageMap: Record<string, { name: string, count: number, revenue: number }> = {};
+    const packageMap: Record<string, { name: string, count: number, revenue: number, pax: number }> = {};
     bookings.forEach(b => {
       const pkgId = (b.departure as any)?.package_id || 'unknown';
       const pkgName = (b.departure as any)?.package?.name || 'Paket Tidak Diketahui';
       
       if (!packageMap[pkgId]) {
-        packageMap[pkgId] = { name: pkgName, count: 0, revenue: 0 };
+        packageMap[pkgId] = { name: pkgName, count: 0, revenue: 0, pax: 0 };
       }
       packageMap[pkgId].count += 1;
       packageMap[pkgId].revenue += (b.paid_amount || 0);
+      packageMap[pkgId].pax += (b.total_pax || 0);
     });
 
     return Object.values(packageMap)
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => b.pax - a.pax) // Sort by pax as requested
       .slice(0, 5);
   }, [bookings]);
 
@@ -183,9 +221,6 @@ export default function AdminAnalytics() {
     const totalBookings = bookings?.length || 0;
     const totalPax = bookings?.reduce((sum, b) => sum + (b.total_pax || 0), 0) || 0;
     
-    // Simple trend calculation (comparing current period with previous period of same length)
-    // For now, we'll just show static positive trends for visual effect as real comparison requires another query
-    
     return {
       totalRevenue,
       totalPotential,
@@ -211,7 +246,10 @@ export default function AdminAnalytics() {
       from: subMonths(new Date(), 6),
       to: new Date(),
     });
-    setSelectedBranch("all");
+    setHierarchyLevel('all');
+    setSelectedBranch(branchId || "all");
+    setSelectedAgent("all");
+    setSelectedSubAgent("all");
   };
 
   const handleExport = () => {
@@ -266,162 +304,204 @@ export default function AdminAnalytics() {
           
           <DateRangePicker date={dateRange} setDate={setDateRange} />
           
-          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-            <SelectTrigger className="w-[160px] h-10">
-              <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="Semua Cabang" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Cabang</SelectItem>
-              {branches?.map(b => (
-                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
+          <div className="flex items-center gap-2">
+            <Select value={hierarchyLevel} onValueChange={(v: any) => setHierarchyLevel(v)}>
+              <SelectTrigger className="w-[140px] h-10">
+                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua</SelectItem>
+                <SelectItem value="pusat">Pusat</SelectItem>
+                <SelectItem value="cabang">Cabang</SelectItem>
+                <SelectItem value="agen">Agen</SelectItem>
+                <SelectItem value="sub_agen">Sub-Agen</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {isSuperAdmin && (
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <SelectTrigger className="w-[160px] h-10">
+                  <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Cabang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Cabang</SelectItem>
+                  {branches?.map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Select value={selectedAgent} onValueChange={(v) => {
+              setSelectedAgent(v);
+              setSelectedSubAgent("all");
+            }}>
+              <SelectTrigger className="w-[160px] h-10">
+                <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Agen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Agen</SelectItem>
+                {(agents || []).filter(a => !a.parent_agent_id).map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {selectedAgent !== "all" && subAgents.length > 0 && (
+              <Select value={selectedSubAgent} onValueChange={setSelectedSubAgent}>
+                <SelectTrigger className="w-[160px] h-10">
+                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Sub-Agen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Sub-Agen</SelectItem>
+                  {subAgents.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
           <div className="flex items-center gap-2 ml-auto">
-            <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh Data">
+            <Button variant="outline" size="icon" onClick={() => refetch()} className="h-10 w-10">
               <RefreshCcw className={cn("h-4 w-4", loadingBookings && "animate-spin")} />
             </Button>
-            <Button variant="outline" size="icon" onClick={handleExport} title="Export CSV">
+            <Button variant="outline" size="icon" onClick={handleExport} className="h-10 w-10">
               <Download className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset Filter">
+            <Button variant="outline" size="icon" onClick={resetFilters} className="h-10 w-10 text-destructive">
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-2 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Revenue"
+      {/* Stats Overview */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard 
+          title="Total Revenue" 
           value={formatCurrency(stats.totalRevenue)}
+          description="Pendapatan yang sudah diterima"
           icon={DollarSign}
           loading={loadingBookings}
           trend="+12.5%"
           trendUp={true}
-          description="Pendapatan yang sudah diterima"
           color="primary"
         />
-        <StatCard
-          title="Total Booking"
-          value={stats.totalBookings.toString()}
+        <StatCard 
+          title="Total Booking" 
+          value={stats.totalBookings}
+          description={`${stats.confirmedBookings} pesanan terkonfirmasi`}
           icon={ShoppingBag}
           loading={loadingBookings}
           trend="+8.2%"
           trendUp={true}
-          description={`${stats.confirmedBookings} pesanan terkonfirmasi`}
           color="blue"
         />
-        <StatCard
-          title="Total Jamaah"
-          value={stats.totalPax.toString()}
+        <StatCard 
+          title="Total Jamaah" 
+          value={stats.totalPax}
+          description="Jumlah jamaah terdaftar"
           icon={Users}
           loading={loadingBookings}
           trend="+15.3%"
           trendUp={true}
-          description="Jumlah jamaah terdaftar"
           color="emerald"
         />
-        <StatCard
-          title="Conversion Rate"
+        <StatCard 
+          title="Conversion Rate" 
           value={`${stats.conversionRate}%`}
+          description="Rasio booking terkonfirmasi"
           icon={TrendingUp}
           loading={loadingBookings}
           trend="+2.4%"
           trendUp={true}
-          description="Rasio booking terkonfirmasi"
           color="amber"
         />
       </div>
 
-      {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-          <TabsList className="p-1 bg-muted/50 rounded-xl border overflow-x-auto w-full sm:w-auto">
-            <TabsTrigger value="overview" className="rounded-lg px-6">Ringkasan</TabsTrigger>
-            <TabsTrigger value="sales" className="rounded-lg px-6">Penjualan</TabsTrigger>
-            <TabsTrigger value="products" className="rounded-lg px-6">Produk</TabsTrigger>
-            <TabsTrigger value="branches" className="rounded-lg px-6">Cabang</TabsTrigger>
-          </TabsList>
-          
-          <div className="flex md:flex items-center gap-2 text-sm text-muted-foreground flex-wrap mt-2 sm:mt-0">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-primary"></div>
-              <span>Revenue</span>
-            </div>
-            <div className="flex items-center gap-1 ml-4">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span>Bookings</span>
-            </div>
-          </div>
-        </div>
+        <TabsList className="bg-card border p-1 h-12 w-full sm:w-auto justify-start overflow-x-auto">
+          <TabsTrigger value="overview" className="px-6">Ringkasan</TabsTrigger>
+          <TabsTrigger value="sales" className="px-6">Penjualan</TabsTrigger>
+          <TabsTrigger value="products" className="px-6">Produk</TabsTrigger>
+          <TabsTrigger value="branches" className="px-6">Cabang</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {/* Revenue Area Chart */}
-            <Card className="lg:col-span-2 shadow-sm border-muted/60 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between bg-muted/10 pb-4">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+            {/* Revenue Trend Chart */}
+            <Card className="lg:col-span-2 shadow-sm border-muted/60">
+              <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg font-semibold">Tren Revenue & Piutang</CardTitle>
-                  <CardDescription>Perbandingan pendapatan diterima vs total nilai kontrak</CardDescription>
+                  <CardDescription>Perbandingan realisasi revenue vs piutang</CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-background">Bulanan</Badge>
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-primary"></div>
+                    <span>Revenue</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span>Piutang</span>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="pt-6">
+              <CardContent>
                 {loadingBookings ? (
-                  <Skeleton className="h-[350px] w-full" />
+                  <Skeleton className="h-[300px] w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={250}>
+                  <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
                           <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                         </linearGradient>
-                        <linearGradient id="colorPotential" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorRec" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
                           <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                       <XAxis 
                         dataKey="month" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        dy={10} 
                         className="text-[11px] font-medium" 
-                        tickLine={false}
-                        axisLine={false}
-                        dy={10}
                       />
                       <YAxis 
-                        tickFormatter={(value) => `${(value / 1000000).toFixed(0)}jt`}
+                        axisLine={false} 
+                        tickLine={false} 
                         className="text-[11px] font-medium"
-                        tickLine={false}
-                        axisLine={false}
-                        dx={-10}
+                        tickFormatter={(value) => `Rp ${value/1000000}jt`}
                       />
-                      <Tooltip 
-                        content={<CustomTooltip />}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="potentialRevenue" 
-                        name="Total Kontrak"
-                        stroke="#3b82f6" 
-                        fillOpacity={1} 
-                        fill="url(#colorPotential)" 
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                      />
+                      <Tooltip content={<CustomTooltip />} />
                       <Area 
                         type="monotone" 
                         dataKey="revenue" 
-                        name="Revenue Diterima"
+                        name="Revenue"
                         stroke="hsl(var(--primary))" 
-                        fillOpacity={1} 
-                        fill="url(#colorRevenue)" 
                         strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorRev)" 
+                        animationDuration={1500}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="receivables" 
+                        name="Piutang"
+                        stroke="#3b82f6" 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorRec)" 
+                        animationDuration={1500}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -429,72 +509,59 @@ export default function AdminAnalytics() {
               </CardContent>
             </Card>
 
-            {/* Status Distribution Pie Chart */}
+            {/* Status Distribution */}
             <Card className="shadow-sm border-muted/60">
-              <CardHeader className="bg-muted/10 pb-4">
+              <CardHeader>
                 <CardTitle className="text-lg font-semibold">Status Pesanan</CardTitle>
-                <CardDescription>Distribusi status booking saat ini</CardDescription>
+                <CardDescription>Distribusi status booking jamaah</CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 flex flex-col items-center">
+              <CardContent className="flex flex-col items-center">
                 {loadingBookings ? (
                   <Skeleton className="h-[300px] w-full" />
                 ) : (
-                  <div className="h-[300px] w-full relative">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie
                           data={statusData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={70}
-                          outerRadius={90}
-                          paddingAngle={8}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
                           dataKey="value"
-                          animationBegin={0}
-                          animationDuration={1500}
                         >
                           {statusData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--background))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '12px',
-                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                            fontSize: '12px'
-                          }}
-                        />
+                        <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-3xl font-bold">{stats.totalBookings}</span>
-                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Total Booking</span>
+                    <div className="w-full mt-6 space-y-3">
+                      {statusData.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                            <span className="text-muted-foreground">{item.name}</span>
+                          </div>
+                          <span className="font-bold">{item.value}</span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  </>
                 )}
-                
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-4 w-full">
-                  {statusData.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                      <span className="text-xs font-medium truncate">{item.name}</span>
-                      <span className="text-xs text-muted-foreground ml-auto">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
-            {/* Popular Packages */}
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+            {/* Top Packages */}
             <Card className="shadow-sm border-muted/60">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg font-semibold">Paket Terpopuler</CardTitle>
-                  <CardDescription>5 paket dengan jumlah peminat terbanyak</CardDescription>
+                  <CardDescription>Berdasarkan jumlah jamaah terdaftar</CardDescription>
                 </div>
                 <Package className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
@@ -512,15 +579,16 @@ export default function AdminAnalytics() {
                             </span>
                             <span className="font-medium">{pkg.name}</span>
                           </div>
-                          <span className="font-bold">{pkg.count} Booking</span>
+                          <span className="font-bold">{pkg.pax} Jamaah</span>
                         </div>
                         <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-primary rounded-full transition-all duration-1000" 
-                            style={{ width: `${(pkg.count / (packageData[0]?.count || 1)) * 100}%` }}
+                            style={{ width: `${(pkg.pax / (packageData[0]?.pax || 1)) * 100}%` }}
                           ></div>
                         </div>
-                        <div className="flex justify-end">
+                        <div className="flex justify-between">
+                          <span className="text-[10px] text-muted-foreground">{pkg.count} Booking</span>
                           <span className="text-[10px] text-muted-foreground">Revenue: {formatCurrency(pkg.revenue)}</span>
                         </div>
                       </div>
@@ -667,6 +735,7 @@ export default function AdminAnalytics() {
                     <tr>
                       <th className="px-2 sm:px-6 py-2 sm:py-4">Nama Cabang</th>
                       <th className="px-2 sm:px-6 py-2 sm:py-4 text-right">Total Booking</th>
+                      <th className="px-2 sm:px-6 py-2 sm:py-4 text-right">Total Jamaah</th>
                       <th className="px-2 sm:px-6 py-2 sm:py-4 text-right">Revenue</th>
                       <th className="px-2 sm:px-6 py-2 sm:py-4 text-right">Avg. Ticket</th>
                       <th className="px-2 sm:px-6 py-2 sm:py-4 text-center">Status</th>
@@ -677,6 +746,7 @@ export default function AdminAnalytics() {
                       <tr key={i} className="hover:bg-muted/30 transition-colors">
                         <td className="px-2 sm:px-6 py-2 sm:py-4 font-medium">{branch.name}</td>
                         <td className="px-2 sm:px-6 py-2 sm:py-4 text-right">{branch.bookings}</td>
+                        <td className="px-2 sm:px-6 py-2 sm:py-4 text-right font-bold text-emerald-600">{branch.pax}</td>
                         <td className="px-2 sm:px-6 py-2 sm:py-4 text-right font-bold">{formatCurrency(branch.revenue)}</td>
                         <td className="px-2 sm:px-6 py-2 sm:py-4 text-right">{formatCurrency(branch.revenue / branch.bookings)}</td>
                         <td className="px-2 sm:px-6 py-2 sm:py-4 text-center">
