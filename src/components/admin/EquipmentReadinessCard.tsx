@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Box, Backpack, BookOpen } from "lucide-react";
+import { Package, Backpack, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EquipmentReadinessCardProps {
@@ -19,7 +19,7 @@ export function EquipmentReadinessCard({
   const readinessPercentage = totalJamaah > 0 ? (completedJamaah / totalJamaah) * 100 : 0;
   
   const equipmentItems = [
-    { name: "Koper", icon: Box, status: "partial" },
+    { name: "Koper", icon: Package, status: "partial" },
     { name: "Kain Ihram", icon: Backpack, status: "partial" },
     { name: "Buku Doa", icon: BookOpen, status: "completed" },
   ];
@@ -28,7 +28,7 @@ export function EquipmentReadinessCard({
     <Card className={cn("bg-orange-50/30 border-orange-100", className)}>
       <CardHeader className="p-3 pb-0">
         <CardTitle className="text-xs font-semibold flex items-center gap-2 text-orange-700">
-          <Box className="h-3.5 w-3.5" /> Equipment Readiness
+          <Package className="h-3.5 w-3.5" /> Equipment Readiness
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 space-y-3">
