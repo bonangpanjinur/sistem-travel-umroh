@@ -68,7 +68,7 @@ export default function DashboardAccessManagerPanel({
   }
 
   // Fetch dashboard access config
-  const { data: accessConfig, isLoading: configLoading } = useQuery({
+  const { data: accessConfig, isLoading: configLoading, error: configError } = useQuery({
     queryKey: ['dashboard-access-config', selectedRole],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -77,14 +77,28 @@ export default function DashboardAccessManagerPanel({
         .eq('role', selectedRole)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        // PGRST116 = no rows returned, which is OK
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        
+        // 42P01 = table does not exist (PostgreSQL error code)
+        // 404 = table not found (Supabase REST error)
+        if (error.code === '42P01' || (error as any).status === 404) {
+          throw new Error('TABLE_NOT_FOUND');
+        }
+        
         console.error('Error fetching config:', error);
         throw error;
       }
 
       return data || null;
     },
+    retry: false,
   });
+
+  const isTableMissing = configError?.message === 'TABLE_NOT_FOUND';
 
   // Fetch audit log
   const { data: auditLog = [] } = useQuery({
@@ -98,6 +112,11 @@ export default function DashboardAccessManagerPanel({
         .limit(20);
 
       if (error) {
+        // 42P01 = table does not exist
+        // 404 = table not found
+        if (error.code === '42P01' || (error as any).status === 404) {
+          return [];
+        }
         console.error('Error fetching audit log:', error);
         return [];
       }
@@ -265,6 +284,24 @@ export default function DashboardAccessManagerPanel({
           </Select>
         </CardContent>
       </Card>
+
+      {/* Table Missing Warning */}
+      {isTableMissing && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3 text-amber-800">
+              <AlertCircle className="h-5 w-5 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold">Tabel Database Belum Dibuat</p>
+                <p className="text-sm">
+                  Fitur ini memerlukan tabel <code>dashboard_access_config</code> dan <code>dashboard_access_audit_log</code> di Supabase.
+                  Silakan jalankan file migrasi SQL yang tersedia di <code>src/lib/migrations/dashboard-access-config.sql</code> di SQL Editor Supabase Anda.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Content */}
       <Tabs defaultValue="modules" className="w-full flex flex-col">

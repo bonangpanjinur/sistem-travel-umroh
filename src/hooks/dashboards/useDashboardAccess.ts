@@ -47,9 +47,13 @@ export const useDashboardAccess = () => {
         .eq('role', primaryRole)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         // PGRST116 = no rows returned, which is OK
-        console.error('Error fetching dashboard config:', error);
+        // 42P01 = table does not exist
+        // 404 = table not found
+        if (error.code !== 'PGRST116' && error.code !== '42P01' && (error as any).status !== 404) {
+          console.error('Error fetching dashboard config:', error);
+        }
       }
 
       return data;
