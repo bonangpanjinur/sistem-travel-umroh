@@ -42,14 +42,14 @@ export default function DashboardAccessManager() {
 
   if (!isSuperAdmin) {
     return (
-      <div className=\"flex items-center justify-center min-h-screen\">
-        <Card className=\"w-full max-w-md\">
-          <CardContent className=\"pt-6\">
-            <div className=\"flex items-center gap-3 text-red-600 mb-4\">
-              <AlertCircle className=\"h-5 w-5\" />
-              <p className=\"font-bold\">Akses Ditolak</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <AlertCircle className="h-5 w-5" />
+              <p className="font-bold">Akses Ditolak</p>
             </div>
-            <p className=\"text-muted-foreground\">Hanya super admin yang dapat mengakses halaman ini.</p>
+            <p className="text-muted-foreground">Hanya super admin yang dapat mengakses halaman ini.</p>
           </CardContent>
         </Card>
       </div>
@@ -187,16 +187,16 @@ export default function DashboardAccessManager() {
   const defaultDashboard = accessConfig?.default_dashboard;
 
   return (
-    <div className=\"space-y-8 pb-10\">
+    <div className="space-y-8 pb-10">
       {/* Header */}
-      <div className=\"space-y-2\">
-        <div className=\"flex items-center gap-3\">
-          <div className=\"p-2.5 bg-primary/10 rounded-xl border border-primary/20\">
-            <Shield className=\"h-6 w-6 text-primary\" />
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
+            <Shield className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className=\"text-3xl font-bold tracking-tight\">Manajemen Akses Dashboard</h1>
-            <p className=\"text-muted-foreground\">Kelola modul dashboard yang dapat diakses oleh setiap peran</p>
+            <h1 className="text-3xl font-bold tracking-tight">Manajemen Akses Dashboard</h1>
+            <p className="text-muted-foreground">Kelola modul dashboard yang dapat diakses oleh setiap peran</p>
           </div>
         </div>
       </div>
@@ -209,7 +209,7 @@ export default function DashboardAccessManager() {
         </CardHeader>
         <CardContent>
           <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as AppRole)}>
-            <SelectTrigger className=\"w-full md:w-64\">
+            <SelectTrigger className="w-full md:w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -224,14 +224,14 @@ export default function DashboardAccessManager() {
       </Card>
 
       {/* Main Content */}
-      <Tabs defaultValue=\"modules\" className=\"w-full\">
-        <TabsList className=\"grid w-full grid-cols-2\">
-          <TabsTrigger value=\"modules\">Modul Dashboard</TabsTrigger>
-          <TabsTrigger value=\"audit\">Audit Log</TabsTrigger>
+      <Tabs defaultValue="modules" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="modules">Modul Dashboard</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
         {/* Modules Tab */}
-        <TabsContent value=\"modules\" className=\"space-y-6\">
+        <TabsContent value="modules" className="space-y-6">
           {/* Role Info */}
           <Card>
             <CardHeader>
@@ -239,14 +239,14 @@ export default function DashboardAccessManager() {
               <CardDescription>{roleConfig?.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className=\"grid gap-4 md:grid-cols-2\">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <p className=\"text-sm font-bold text-muted-foreground mb-2\">Modul yang Diaktifkan</p>
-                  <div className=\"flex flex-wrap gap-2\">
+                  <p className="text-sm font-bold text-muted-foreground mb-2">Modul yang Diaktifkan</p>
+                  <div className="flex flex-wrap gap-2">
                     {enabledModules.map((moduleKey: string) => {
                       const module = DASHBOARD_MODULES[moduleKey];
                       return (
-                        <Badge key={moduleKey} variant=\"default\" className=\"bg-emerald-50 text-emerald-700 border-emerald-200\">
+                        <Badge key={moduleKey} variant="default" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                           {module?.label || moduleKey}
                         </Badge>
                       );
@@ -254,8 +254,8 @@ export default function DashboardAccessManager() {
                   </div>
                 </div>
                 <div>
-                  <p className=\"text-sm font-bold text-muted-foreground mb-2\">Default Dashboard</p>
-                  <Badge variant=\"outline\" className=\"bg-primary/10 text-primary border-primary/20\">
+                  <p className="text-sm font-bold text-muted-foreground mb-2">Default Dashboard</p>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                     {DASHBOARD_MODULES[defaultDashboard]?.label || defaultDashboard}
                   </Badge>
                 </div>
@@ -271,28 +271,28 @@ export default function DashboardAccessManager() {
             </CardHeader>
             <CardContent>
               {configLoading ? (
-                <div className=\"text-center text-muted-foreground py-8\">Loading...</div>
+                <div className="text-center text-muted-foreground py-8">Loading...</div>
               ) : (
-                <div className=\"space-y-4\">
+                <div className="space-y-4">
                   {Object.entries(DASHBOARD_MODULES).map(([moduleKey, module]) => (
-                    <div key={moduleKey} className=\"flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors\">
-                      <div className=\"flex-1\">
-                        <p className=\"font-bold\">{module.label}</p>
-                        <p className=\"text-sm text-muted-foreground\">{module.description}</p>
+                    <div key={moduleKey} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                      <div className="flex-1">
+                        <p className="font-bold">{module.label}</p>
+                        <p className="text-sm text-muted-foreground">{module.description}</p>
                       </div>
-                      <div className=\"flex items-center gap-4\">
-                        <div className=\"flex items-center gap-2\">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
                           <Checkbox
                             checked={enabledModules.includes(moduleKey)}
                             onCheckedChange={(checked) => handleToggleModule(moduleKey, checked as boolean)}
                             disabled={saving}
                           />
-                          <span className=\"text-sm\">Aktif</span>
+                          <span className="text-sm">Aktif</span>
                         </div>
                         {enabledModules.includes(moduleKey) && (
                           <Button
                             variant={defaultDashboard === moduleKey ? 'default' : 'outline'}
-                            size=\"sm\"
+                            size="sm"
                             onClick={() => handleSetDefaultDashboard(moduleKey)}
                             disabled={saving}
                           >
@@ -309,7 +309,7 @@ export default function DashboardAccessManager() {
         </TabsContent>
 
         {/* Audit Log Tab */}
-        <TabsContent value=\"audit\" className=\"space-y-6\">
+        <TabsContent value="audit" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Riwayat Perubahan</CardTitle>
@@ -317,20 +317,20 @@ export default function DashboardAccessManager() {
             </CardHeader>
             <CardContent>
               {auditLog.length > 0 ? (
-                <div className=\"space-y-4\">
+                <div className="space-y-4">
                   {auditLog.map((log: any) => (
-                    <div key={log.id} className=\"flex items-start gap-4 p-4 border rounded-lg\">
-                      <div className=\"p-2 bg-blue-50 rounded-lg\">
-                        <History className=\"h-4 w-4 text-blue-600\" />
+                    <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <History className="h-4 w-4 text-blue-600" />
                       </div>
-                      <div className=\"flex-1 min-w-0\">
-                        <p className=\"font-bold\">{log.action}</p>
-                        <p className=\"text-sm text-muted-foreground\">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold">{log.action}</p>
+                        <p className="text-sm text-muted-foreground">
                           {log.module_key && `Modul: ${log.module_key}`}
                           {log.old_value && ` (dari: ${log.old_value})`}
                           {log.new_value && ` (ke: ${log.new_value})`}
                         </p>
-                        <p className=\"text-xs text-muted-foreground mt-1\">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {formatDistanceToNow(new Date(log.changed_at), { locale: idLocale, addSuffix: true })}
                         </p>
                       </div>
@@ -338,8 +338,8 @@ export default function DashboardAccessManager() {
                   ))}
                 </div>
               ) : (
-                <div className=\"text-center text-muted-foreground py-8\">
-                  <History className=\"h-10 w-10 mx-auto mb-2 opacity-20\" />
+                <div className="text-center text-muted-foreground py-8">
+                  <History className="h-10 w-10 mx-auto mb-2 opacity-20" />
                   <p>Tidak ada riwayat perubahan</p>
                 </div>
               )}
