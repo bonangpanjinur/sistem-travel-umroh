@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LPSection, SectionType } from "@/types/landing-page";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { SectionEditor } from "@/components/admin/landing-page/SectionEditor";
+import { SectionSelectorCard } from "@/components/admin/landing-page/SectionSelector";
 
 export default function AdminLandingPageEditor() {
   const { id } = useParams();
@@ -45,18 +47,52 @@ export default function AdminLandingPageEditor() {
       ...formData,
       sections: [...formData.sections, newSection]
     });
+    toast.success(`${type} section added`);
   };
 
   const getDefaultData = (type: SectionType) => {
     switch(type) {
-      case 'hero': return { title: 'Judul Hero', subtitle: 'Subjudul Hero', imageUrl: '', ctaText: 'Daftar Sekarang' };
-      case 'timer': return { title: 'Promo Berakhir Dalam:', endDate: new Date(Date.now() + 86400000 * 7).toISOString() };
-      case 'features': return { title: 'Keunggulan Kami', subtitle: 'Kenapa harus memilih kami?', features: [{ id: '1', text: 'Fitur 1', description: 'Deskripsi fitur 1' }] };
-      case 'faq': return { title: 'FAQ', faqs: [{ id: '1', question: 'Pertanyaan 1', answer: 'Jawaban 1' }] };
-      case 'testimonials': return { title: 'Testimoni', testimonials: [{ id: '1', name: 'Nama', role: 'Jamaah', content: 'Sangat puas!', rating: 5 }] };
-      case 'comparison': return { title: 'Perbandingan', subtitle: 'Kami vs Kompetitor', features: [{ id: '1', name: 'Layanan 1', ourValue: true, otherValue: false }] };
-      case 'pricing': return { title: 'Paket Harga', subtitle: 'Pilih paket Anda', plans: [{ id: '1', name: 'Paket Hemat', price: '25', features: ['Fitur A', 'Fitur B'], isPopular: true, ctaText: 'Pilih Paket' }] };
-      case 'cta': return { text: 'Daftar Sekarang!', subtext: 'Hubungi kami via WhatsApp' };
+      case 'hero': return { 
+        title: 'Judul Hero', 
+        subtitle: 'Subjudul Hero', 
+        imageUrl: '', 
+        ctaText: 'Daftar Sekarang',
+        bgColor: '#ffffff'
+      };
+      case 'timer': return { 
+        title: 'Promo Berakhir Dalam:', 
+        endDate: new Date(Date.now() + 86400000 * 7).toISOString(),
+        textColor: '#000000'
+      };
+      case 'features': return { 
+        title: 'Keunggulan Kami', 
+        subtitle: 'Kenapa harus memilih kami?', 
+        features: [{ id: '1', text: 'Fitur 1', description: 'Deskripsi fitur 1', icon: '✨' }] 
+      };
+      case 'faq': return { 
+        title: 'FAQ', 
+        faqs: [{ id: '1', question: 'Pertanyaan 1', answer: 'Jawaban 1' }] 
+      };
+      case 'testimonials': return { 
+        title: 'Testimoni', 
+        testimonials: [{ id: '1', name: 'Nama', role: 'Jamaah', content: 'Sangat puas!', rating: 5, image: '' }] 
+      };
+      case 'comparison': return { 
+        title: 'Perbandingan', 
+        subtitle: 'Kami vs Kompetitor', 
+        features: [{ id: '1', name: 'Layanan 1', ourValue: true, otherValue: false }] 
+      };
+      case 'pricing': return { 
+        title: 'Paket Harga', 
+        subtitle: 'Pilih paket Anda', 
+        plans: [{ id: '1', name: 'Paket Hemat', price: '25', features: ['Fitur A', 'Fitur B'], isPopular: true, ctaText: 'Pilih Paket' }] 
+      };
+      case 'cta': return { 
+        text: 'Daftar Sekarang!', 
+        subtext: 'Hubungi kami via WhatsApp',
+        bgColor: '#000000',
+        textColor: '#ffffff'
+      };
       default: return {};
     }
   };
@@ -65,6 +101,14 @@ export default function AdminLandingPageEditor() {
     setFormData({
       ...formData,
       sections: formData.sections.filter((s: any) => s.id !== sectionId)
+    });
+    toast.success('Section removed');
+  };
+
+  const updateSection = (updatedSection: LPSection) => {
+    setFormData({
+      ...formData,
+      sections: formData.sections.map((s: any) => s.id === updatedSection.id ? updatedSection : s)
     });
   };
 
@@ -112,7 +156,7 @@ export default function AdminLandingPageEditor() {
 
       <div className="max-w-7xl mx-auto p-4 sm:p-8">
         <Tabs defaultValue="content" className="space-y-8">
-          <TabsList className="bg-white border border-gray-200 p-1">
+          <TabsList className="bg-white border border-gray-200 p-1 w-full sm:w-auto">
             <TabsTrigger value="content" className="flex items-center gap-2">
               <Layout className="w-4 h-4" />
               Konten & Section
@@ -125,25 +169,13 @@ export default function AdminLandingPageEditor() {
 
           <TabsContent value="content" className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              <div className="lg:col-span-1 space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Tambah Section</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 gap-2">
-                    {(['hero', 'timer', 'features', 'comparison', 'faq', 'testimonials', 'pricing', 'cta'] as SectionType[]).map((type) => (
-                      <Button 
-                        key={type} 
-                        variant="outline" 
-                        className="justify-start capitalize"
-                        onClick={() => addSection(type)}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        {type}
-                      </Button>
-                    ))}
-                  </CardContent>
-                </Card>
+              <div className="lg:col-span-1">
+                <div className="sticky top-24">
+                  <SectionSelectorCard 
+                    onSelect={addSection}
+                    selectedSections={formData.sections.map((s: any) => s.type)}
+                  />
+                </div>
               </div>
 
               <div className="lg:col-span-3 space-y-4">
@@ -154,44 +186,42 @@ export default function AdminLandingPageEditor() {
                     <p className="text-gray-500 mb-6">Mulai bangun landing page Anda dengan menambahkan section dari menu di samping.</p>
                   </div>
                 ) : (
-                  [...(formData.sections || [])].sort((a: any, b: any) => a.order - b.order).map((section: any, index: number) => (
-                    <Card key={section.id} className="overflow-hidden border-l-4 border-l-green-500">
-                      <CardHeader className="bg-gray-50 py-3 px-6 flex flex-row justify-between items-center space-y-0">
-                        <div className="flex items-center gap-3">
-                          <Badge className="capitalize">{section.type}</Badge>
-                          <span className="text-sm font-medium text-gray-500">Section #{index + 1}</span>
+                  <div className="space-y-4">
+                    {[...(formData.sections || [])].sort((a: any, b: any) => a.order - b.order).map((section: any, index: number) => (
+                      <div key={section.id} className="space-y-2">
+                        <div className="flex items-center justify-between px-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-muted-foreground uppercase">Section #{index + 1}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => moveSection(index, 'up')} 
+                              disabled={index === 0}
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoveUp className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => moveSection(index, 'down')} 
+                              disabled={index === formData.sections.length - 1}
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoveDown className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => moveSection(index, 'up')} disabled={index === 0}>
-                            <MoveUp className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => moveSection(index, 'down')} disabled={index === formData.sections.length - 1}>
-                            <MoveDown className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removeSection(section.id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        <p className="text-sm text-gray-500 italic">Editor konten untuk tipe {section.type} akan tampil di sini. (Gunakan JSON editor atau form dinamis)</p>
-                        <textarea 
-                          className="w-full mt-4 p-3 border border-gray-200 rounded-md font-mono text-xs h-32"
-                          value={JSON.stringify(section.data, null, 2)}
-                          onChange={(e) => {
-                            try {
-                              const newData = JSON.parse(e.target.value);
-                              const newSections = [...formData.sections];
-                              newSections[index].data = newData;
-                              setFormData({ ...formData, sections: newSections });
-                            } catch (err) {
-                              // Silently wait for valid JSON
-                            }
-                          }}
+                        <SectionEditor
+                          section={section}
+                          onUpdate={updateSection}
+                          onDelete={() => removeSection(section.id)}
                         />
-                      </CardContent>
-                    </Card>
-                  ))
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -248,20 +278,20 @@ export default function AdminLandingPageEditor() {
                       <SelectValue placeholder="Pilih sumber" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="global">Nomor Global (Pusat)</SelectItem>
-                      <SelectItem value="agent">Nomor Agen (Dinamis)</SelectItem>
-                      <SelectItem value="custom">Nomor Kustom (Manual)</SelectItem>
+                      <SelectItem value="global">Global</SelectItem>
+                      <SelectItem value="agent">Agent Tertentu</SelectItem>
+                      <SelectItem value="custom">Nomor Custom</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {formData.whatsapp_source_type === 'custom' && (
                   <div className="space-y-2">
-                    <Label>Nomor WhatsApp Kustom (Gunakan format 62...)</Label>
+                    <Label>Nomor WhatsApp Custom</Label>
                     <Input 
-                      placeholder="628123456789" 
                       value={formData.whatsapp_custom_number || ''} 
-                      onChange={(e) => setFormData({...formData, whatsapp_custom_number: e.target.value})} 
+                      onChange={(e) => setFormData({...formData, whatsapp_custom_number: e.target.value})}
+                      placeholder="+62812345678"
                     />
                   </div>
                 )}
@@ -270,28 +300,32 @@ export default function AdminLandingPageEditor() {
 
             <Card>
               <CardHeader>
-                <CardTitle>SEO & Media Sosial</CardTitle>
+                <CardTitle>SEO & Open Graph</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label>Meta Title</Label>
                   <Input 
                     value={formData.meta_title || ''} 
-                    onChange={(e) => setFormData({...formData, meta_title: e.target.value})} 
+                    onChange={(e) => setFormData({...formData, meta_title: e.target.value})}
+                    placeholder="Judul untuk search engine"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Meta Description</Label>
                   <Input 
                     value={formData.meta_description || ''} 
-                    onChange={(e) => setFormData({...formData, meta_description: e.target.value})} 
+                    onChange={(e) => setFormData({...formData, meta_description: e.target.value})}
+                    placeholder="Deskripsi untuk search engine"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>OG Image URL (Gambar Share)</Label>
+                  <Label>OG Image URL</Label>
                   <Input 
                     value={formData.og_image_url || ''} 
-                    onChange={(e) => setFormData({...formData, og_image_url: e.target.value})} 
+                    onChange={(e) => setFormData({...formData, og_image_url: e.target.value})}
+                    placeholder="https://example.com/image.jpg"
+                    type="url"
                   />
                 </div>
               </CardContent>
