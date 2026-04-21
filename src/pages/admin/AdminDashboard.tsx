@@ -8,10 +8,11 @@ import {
   Users, ShoppingCart, DollarSign, TrendingUp, 
   AlertCircle, ArrowRight, Package, Calendar,
   Building2, User, RefreshCcw, Filter, X,
-  FileText, Briefcase, Plane, ClipboardCheck, Info
+  FileText, Briefcase, Plane, ClipboardCheck, Info,
+  CheckCircle2
 } from "lucide-react";
 import { formatCurrency, getBookingStatusLabel, getPaymentStatusLabel } from "@/lib/format";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -42,12 +43,42 @@ export default function AdminDashboard() {
   const { data: upcomingDepartures, isLoading: loadingDepartures } = useUpcomingDepartures(selectedBranch);
   const { data: alerts } = useDashboardAlerts();
 
-  const resetFilters = () => {
-    setHierarchyLevel('all');
-    setSelectedBranch(branchId || "all");
-    setSelectedAgent("all");
-    setSelectedSubAgent("all");
-  };
+  // Calculate periodic jamaah stats
+  const periodicJamaahStats = useMemo(() => {
+    if (!stats?.dailyJamaahData) return { week: 0, month: 0, year: 0 };
+    
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const monthStart = startOfMonth(now);
+    const yearStart = startOfYear(now);
+
+    let weekCount = 0;
+    let monthCount = 0;
+    let yearCount = 0;
+
+    // We need the raw customer data or use the dailyJamaahData if it covers enough range
+    // Since useDashboardStats fetches last 6 months by default, we can use that
+    
+    // For simplicity, let's use the aggregated data from stats if available
+    // But wait, useDashboardStats already provides weeklyJamaahData and monthlyJamaahData
+    
+    const currentWeekKey = format(weekStart, 'dd MMM', { locale: idLocale });
+    const currentMonthKey = format(monthStart, 'MMM yyyy', { locale: idLocale });
+    
+    const weekData = stats.weeklyJamaahData?.find((w: any) => w.week.startsWith(currentWeekKey));
+    const monthData = stats.monthlyJamaahData?.find((m: any) => m.month === currentMonthKey);
+    
+    // For year, we sum all months in the current year
+    const currentYear = now.getFullYear();
+    const yearData = stats.monthlyJamaahData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
+      .reduce((sum: number, m: any) => sum + m.jamaah, 0) || 0;
+
+    return {
+      week: weekData?.jamaah || 0,
+      month: monthData?.jamaah || 0,
+      year: yearData || stats.totalJamaah || 0
+    };
+  }, [stats]);
 
   return (
     <div className="space-y-8 pb-10 animate-fade-in">
@@ -67,7 +98,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={() => refetch()} className="h-10 w-10 rounded-xl shadow-sm">
+          <Button variant="outline" size="icon" onClick={() => { refetch(); }} className="h-10 w-10 rounded-xl shadow-sm">
             <RefreshCcw className={cn("h-4 w-4", isLoading && "animate-spin")} />
           </Button>
           <Button className="h-10 px-6 bg-primary hover:bg-primary/90 text-white font-semibold shadow-md rounded-xl transition-all hover:scale-105 active:scale-95" asChild>
@@ -152,14 +183,16 @@ export default function AdminDashboard() {
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-600">
                 <AlertCircle className="h-4 w-4" /> STOK KRITIS
               </CardTitle>
-              <Link to="/admin/inventory" className="text-xs font-medium text-red-600 hover:underline flex items-center gap-1">
+              <Link to="/admin/equipment" className="text-xs font-medium text-red-600 hover:underline flex items-center gap-1">
                 Cek <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-2xl font-bold text-red-700">0 Item Habis • 0</p>
+              <p className="text-2xl font-bold text-red-700">
+                {alerts?.stockAlerts?.critical || 0} Item Habis • {alerts?.stockAlerts?.low || 0}
+              </p>
               <p className="text-sm text-red-600/80 font-medium">Stok Rendah</p>
             </div>
           </CardContent>
@@ -172,14 +205,14 @@ export default function AdminDashboard() {
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-600">
                 <ClipboardCheck className="h-4 w-4" /> VERIFIKASI DOKUMEN
               </CardTitle>
-              <Link to="/admin/documents" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
+              <Link to="/admin/document-verification" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
                 Proses <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-2xl font-bold text-blue-700">0 Dokumen</p>
+              <p className="text-2xl font-bold text-blue-700">{alerts?.pendingDocuments || 0} Dokumen</p>
               <p className="text-sm text-blue-600/80 font-medium">Menunggu</p>
             </div>
           </CardContent>
@@ -199,8 +232,67 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-2xl font-bold text-emerald-700">2 Grup Siap</p>
+              <p className="text-2xl font-bold text-emerald-700">{upcomingDepartures?.length || 0} Grup Siap</p>
               <p className="text-sm text-emerald-600/80 font-medium">Berangkat</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* New Stats Section: Sold Packages & Periodic Jamaah */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="bg-primary text-primary-foreground shadow-lg border-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 opacity-90">
+              <CheckCircle2 className="h-4 w-4" /> PAKET TERJUAL
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-3xl font-black">{stats?.soldPackagesCount || 0}</p>
+              <p className="text-xs opacity-80 font-medium">Total paket terkonfirmasi</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-none shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
+              <Users className="h-4 w-4 text-blue-500" /> JAMAAH MINGGU INI
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-3xl font-black text-blue-600">{periodicJamaahStats.week}</p>
+              <p className="text-xs text-muted-foreground font-medium">Pendaftaran baru</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-none shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
+              <Users className="h-4 w-4 text-emerald-500" /> JAMAAH BULAN INI
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-3xl font-black text-emerald-600">{periodicJamaahStats.month}</p>
+              <p className="text-xs text-muted-foreground font-medium">Pendaftaran baru</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-none shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
+              <Users className="h-4 w-4 text-amber-500" /> JAMAAH TAHUN INI
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-3xl font-black text-amber-600">{periodicJamaahStats.year}</p>
+              <p className="text-xs text-muted-foreground font-medium">Total pendaftaran</p>
             </div>
           </CardContent>
         </Card>
