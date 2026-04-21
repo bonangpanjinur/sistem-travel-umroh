@@ -1,1 +1,35 @@
-/**\n * DashboardRedirect.tsx\n * \n * Komponen untuk mengarahkan pengguna ke dashboard yang sesuai berdasarkan peran mereka.\n * Digunakan sebagai landing page setelah login.\n */\n\nimport { useEffect } from 'react';\nimport { useNavigate } from 'react-router-dom';\nimport { useAuth } from '@/hooks/useAuth';\nimport { useDashboardRouter } from '@/hooks/dashboards/useDashboardRouter';\nimport { Skeleton } from '@/components/ui/skeleton';\n\nexport default function DashboardRedirect() {\n  const navigate = useNavigate();\n  const { isLoading: authLoading } = useAuth();\n  const { getDefaultDashboardPath } = useDashboardRouter();\n\n  useEffect(() => {\n    if (!authLoading) {\n      const dashboardPath = getDefaultDashboardPath();\n      navigate(dashboardPath, { replace: true });\n    }\n  }, [authLoading, navigate, getDefaultDashboardPath]);\n\n  return (\n    <div className=\"flex items-center justify-center min-h-screen\">\n      <div className=\"space-y-4 w-full max-w-md\">\n        <Skeleton className=\"h-12 w-full\" />\n        <Skeleton className=\"h-8 w-3/4\" />\n        <Skeleton className=\"h-8 w-1/2\" />\n      </div>\n    </div>\n  );\n}\n
+/**
+ * DashboardRedirect.tsx
+ *
+ * Komponen untuk mengarahkan pengguna ke dashboard yang sesuai berdasarkan peran mereka.
+ * Digunakan sebagai landing page setelah login.
+ */
+
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useDashboardRouter } from '@/hooks/dashboards/useDashboardRouter';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function DashboardRedirect() {
+  const navigate = useNavigate();
+  const { isLoading: authLoading } = useAuth();
+  const { getDefaultDashboardPath } = useDashboardRouter();
+
+  useEffect(() => {
+    if (!authLoading) {
+      const dashboardPath = getDefaultDashboardPath();
+      navigate(dashboardPath, { replace: true });
+    }
+  }, [authLoading, navigate, getDefaultDashboardPath]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="space-y-4 w-full max-w-md">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-8 w-3/4" />
+        <Skeleton className="h-8 w-1/2" />
+      </div>
+    </div>
+  );
+}
