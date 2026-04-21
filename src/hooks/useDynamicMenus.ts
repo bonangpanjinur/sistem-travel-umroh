@@ -70,7 +70,7 @@ export const useDynamicMenus = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('menu_items')
-        .select('id,key,label,path,icon,group_name,sort_order,required_permission')
+        .select('id,key,label,path,icon,group_name,sort_order,required_permission,is_visible')
         .order('group_name', { ascending: true })
         .order('sort_order', { ascending: true });
       if (error) { console.error(error); throw error; }
@@ -82,7 +82,8 @@ export const useDynamicMenus = () => {
         icon: m.icon,
         group_name: m.group_name,
         sort_order: m.sort_order,
-        required_permission: m.required_permission
+        required_permission: m.required_permission,
+        is_visible: m.is_visible
       })) as MenuItem[];
     },
     enabled: !!user && isStaffUser,
@@ -108,9 +109,12 @@ export const useDynamicMenus = () => {
   const revokedSet = useMemo(() => new Set(revokedKeys), [revokedKeys]);
   
   const filteredMenus = useMemo(() => {
-    if (isSuperAdmin) return menus;
-    if (!revokedKeys || revokedKeys.length === 0) return menus;
-    return menus.filter(m => !m.required_permission || !revokedSet.has(m.required_permission));
+    // Filter by is_visible first (unless it's undefined, which shouldn't happen with DB data)
+    const visibleMenus = menus.filter(m => (m as any).is_visible !== false);
+    
+    if (isSuperAdmin) return visibleMenus;
+    if (!revokedKeys || revokedKeys.length === 0) return visibleMenus;
+    return visibleMenus.filter(m => !m.required_permission || !revokedSet.has(m.required_permission));
   }, [menus, revokedSet, isSuperAdmin]);
 
   // Group menus - memoized for performance

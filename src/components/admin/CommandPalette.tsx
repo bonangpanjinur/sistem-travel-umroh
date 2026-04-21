@@ -8,7 +8,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { RECOMMENDED_MENUS } from "@/lib/admin-menu-registry";
+import { useDynamicMenus } from "@/hooks/useDynamicMenus";
 import { getMenuIcon } from "@/lib/admin-menu-icons";
 
 // Keyword mappings for better search
@@ -67,15 +67,17 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Convert RECOMMENDED_MENUS to command palette format using tree-shaken icon registry
+  const { menus } = useDynamicMenus();
+
+  // Convert dynamic menus to command palette format using tree-shaken icon registry
   const commandItems = useMemo(() => {
-    return RECOMMENDED_MENUS.map(menu => ({
+    return menus.map(menu => ({
       label: menu.label,
       icon: getMenuIcon(menu.icon),
       path: menu.path,
       keywords: keywordMap[menu.key] || menu.label.toLowerCase(),
     }));
-  }, []);
+  }, [menus]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
