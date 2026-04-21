@@ -45,6 +45,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
   marketing: "Marketing",
   equipment: "Equipment",
   agent: "Agent",
+  sub_agent: "Sub Agent",
   customer: "Customer",
 };
 
@@ -58,6 +59,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
   marketing: "bg-pink-100 text-pink-800 border-pink-200",
   equipment: "bg-gray-100 text-gray-800 border-gray-200",
   agent: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  sub_agent: "bg-violet-100 text-violet-800 border-violet-200",
   customer: "bg-slate-100 text-slate-800 border-slate-200",
 };
 
@@ -168,13 +170,13 @@ export default function AdminUsers() {
       if (roleId) {
         const { error } = await supabase
           .from('user_roles')
-          .update({ role, branch_id: branchId })
+          .update({ role: role as any, branch_id: branchId })
           .eq('id', roleId);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('user_roles')
-          .insert({ user_id: userId, role, branch_id: branchId });
+          .insert({ user_id: userId, role: role as any, branch_id: branchId });
         if (error) throw error;
       }
     },

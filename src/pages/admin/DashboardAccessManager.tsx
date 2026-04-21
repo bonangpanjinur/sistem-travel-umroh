@@ -60,7 +60,7 @@ export default function DashboardAccessManager() {
   const { data: accessConfig, isLoading: configLoading } = useQuery({
     queryKey: ['dashboard-access-config', selectedRole],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('dashboard_access_config')
         .select('*')
         .eq('role', selectedRole)
@@ -79,7 +79,7 @@ export default function DashboardAccessManager() {
   const { data: auditLog = [] } = useQuery({
     queryKey: ['dashboard-access-audit-log', selectedRole],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('dashboard_access_audit_log')
         .select('*')
         .eq('role', selectedRole)
@@ -106,7 +106,7 @@ export default function DashboardAccessManager() {
       disabledModules: string[];
       defaultDashboard: string;
     }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('dashboard_access_config')
         .update({
           enabled_modules: enabledModules,
@@ -126,10 +126,10 @@ export default function DashboardAccessManager() {
         table_name: 'dashboard_access_config',
         record_id: data.id,
         action: 'update',
-        action_type: 'update',
+        action_type: 'UPDATE',
         old_data: accessConfig,
         new_data: data,
-        severity: 'medium',
+        severity: 'warning',
       });
 
       return data;
@@ -148,20 +148,21 @@ export default function DashboardAccessManager() {
   const handleToggleModule = useCallback(
     (moduleKey: string, enabled: boolean) => {
       if (!accessConfig) return;
+      const cfg = accessConfig as any;
 
       const enabledModules = enabled
-        ? [...(accessConfig.enabled_modules || []), moduleKey]
-        : (accessConfig.enabled_modules || []).filter((m: string) => m !== moduleKey);
+        ? [...(cfg.enabled_modules || []), moduleKey]
+        : (cfg.enabled_modules || []).filter((m: string) => m !== moduleKey);
 
       const disabledModules = !enabled
-        ? [...(accessConfig.disabled_modules || []), moduleKey]
-        : (accessConfig.disabled_modules || []).filter((m: string) => m !== moduleKey);
+        ? [...(cfg.disabled_modules || []), moduleKey]
+        : (cfg.disabled_modules || []).filter((m: string) => m !== moduleKey);
 
       setSaving(true);
       updateConfigMutation.mutate({
         enabledModules,
         disabledModules,
-        defaultDashboard: accessConfig.default_dashboard,
+        defaultDashboard: cfg.default_dashboard,
       });
     },
     [accessConfig, updateConfigMutation]
@@ -170,11 +171,12 @@ export default function DashboardAccessManager() {
   const handleSetDefaultDashboard = useCallback(
     (moduleKey: string) => {
       if (!accessConfig) return;
+      const cfg = accessConfig as any;
 
       setSaving(true);
       updateConfigMutation.mutate({
-        enabledModules: accessConfig.enabled_modules || [],
-        disabledModules: accessConfig.disabled_modules || [],
+        enabledModules: cfg.enabled_modules || [],
+        disabledModules: cfg.disabled_modules || [],
         defaultDashboard: moduleKey,
       });
     },
@@ -182,9 +184,9 @@ export default function DashboardAccessManager() {
   );
 
   const roleConfig = ROLE_DASHBOARD_CONFIG[selectedRole];
-  const enabledModules = accessConfig?.enabled_modules || [];
-  const disabledModules = accessConfig?.disabled_modules || [];
-  const defaultDashboard = accessConfig?.default_dashboard;
+  const enabledModules = (accessConfig as any)?.enabled_modules || [];
+  const disabledModules = (accessConfig as any)?.disabled_modules || [];
+  const defaultDashboard = (accessConfig as any)?.default_dashboard;
 
   return (
     <div className="space-y-8 pb-10">

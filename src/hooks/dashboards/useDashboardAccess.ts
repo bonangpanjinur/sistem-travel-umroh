@@ -41,7 +41,7 @@ export const useDashboardAccess = () => {
     queryFn: async () => {
       if (!primaryRole) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('dashboard_access_config')
         .select('*')
         .eq('role', primaryRole)

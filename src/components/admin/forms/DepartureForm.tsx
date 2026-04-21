@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Calendar, TrendingUp } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Database } from "@/integrations/supabase/types";
 import { MultiSelect } from "@/components/ui/multi-select";

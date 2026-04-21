@@ -446,7 +446,7 @@ export default function AdminPackageDetail() {
             </div>
           ) : (
             <div className="space-y-4">
-              {departures.map((departure) => {
+              {departures.map((departure: any) => {
                 const isExpanded = expandedDepartures.has(departure.id);
                 const bookingCount = departure.bookings?.length || 0;
                 

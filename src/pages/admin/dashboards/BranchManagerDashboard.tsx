@@ -15,7 +15,8 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseRaw } from '@/integrations/supabase/client';
+const supabase: any = supabaseRaw;
 import BaseDashboardTemplate, { DashboardStatsCard, DashboardQuickAction, DashboardAlert } from '@/components/dashboards/BaseDashboardTemplate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,7 +37,7 @@ export default function BranchManagerDashboard() {
     queryFn: async () => {
       if (!branchId) return null;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('dashboard_stats')
         .select('*')
         .eq('branch_id', branchId)

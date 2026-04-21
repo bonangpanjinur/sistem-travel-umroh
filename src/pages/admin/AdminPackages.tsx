@@ -1250,7 +1250,7 @@ export default function AdminPackages() {
             <div className="p-6">
               {packageTypeFilter === "tabungan" ? (
                 <SavingsPackageForm 
-                  initialData={editingPackage} 
+                  packageData={editingPackage} 
                   onSuccess={() => {
                     handleFormClose();
                     queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
@@ -1259,7 +1259,7 @@ export default function AdminPackages() {
                 />
               ) : (
                 <RegularPackageForm 
-                  initialData={editingPackage} 
+                  packageData={editingPackage} 
                   onSuccess={() => {
                     handleFormClose();
                     queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
@@ -1281,7 +1281,7 @@ export default function AdminPackages() {
             </DialogHeader>
             <div className="p-6">
               <PackageTypeForm
-                initialData={editingType}
+                packageTypeData={editingType}
                 onSuccess={() => {
                   handleTypeFormClose();
                   queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
