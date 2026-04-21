@@ -42,6 +42,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
+import { PackageMarketingActions } from "@/components/admin/packages/PackageMarketingActions";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { usePackageAnalytics } from "@/hooks/usePackageAnalytics";
@@ -69,6 +70,7 @@ import {
 } from "@/lib/export-utils-enhanced";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Share2 } from "lucide-react";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -969,6 +971,17 @@ export default function AdminPackages() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="rounded-xl p-1 w-48">
+                              <div className="px-1 py-1.5">
+                                <PackageMarketingActions
+                                  pkg={pkg}
+                                  companyPhone="62812345678"
+                                  companyName="Vins Tour Travel"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full justify-start text-xs"
+                                />
+                              </div>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
                                 onClick={() => toggleFeaturedMutation.mutate({ id: pkg.id, is_featured: !pkg.is_featured })}
