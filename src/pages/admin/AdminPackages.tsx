@@ -854,26 +854,45 @@ export default function AdminPackages() {
                                   {progressLabel}
                                 </p>
                               </div>
-                              <span className={cn(
-                                "text-xs font-bold px-2 py-1 rounded-full",
-                                occupancyRate > 90 ? "bg-rose-100 text-rose-600" : 
-                                occupancyRate > 50 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
-                              )}>
-                                {mainDep.booked_count} / {mainDep.quota} PAX
-                              </span>
+                              <div className="flex flex-col items-end gap-1">
+                                <span className={cn(
+                                  "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                  occupancyRate > 90 ? "bg-rose-100 text-rose-600" : 
+                                  occupancyRate > 50 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
+                                )}>
+                                  {mainDep.booked_count} / {mainDep.quota} PAX
+                                </span>
+                                {mainDep.break_even_pax > 0 && (
+                                  <span className={cn(
+                                    "text-[9px] font-bold px-1.5 py-0.5 rounded-md border",
+                                    mainDep.booked_count >= mainDep.break_even_pax 
+                                      ? "bg-green-50 text-green-600 border-green-200" 
+                                      : "bg-slate-50 text-slate-500 border-slate-200"
+                                  )}>
+                                    BEP: {mainDep.break_even_pax}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <div className="space-y-1">
-                              <Progress 
-                                value={occupancyRate} 
-                                className="h-3 bg-slate-100 rounded-full" 
-                                indicatorClassName={cn(
-                                  "rounded-full transition-all",
-                                  progressColor
+                              <div className="relative h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={cn("h-full transition-all", progressColor)}
+                                  style={{ width: `${occupancyRate}%` }}
+                                />
+                                {mainDep.break_even_pax > 0 && mainDep.break_even_pax < mainDep.quota && (
+                                  <div 
+                                    className="absolute top-0 bottom-0 w-0.5 bg-destructive/50 z-10"
+                                    style={{ left: `${(mainDep.break_even_pax / mainDep.quota) * 100}%` }}
+                                    title={`Titik Impas: ${mainDep.break_even_pax} Pax`}
+                                  />
                                 )}
-                              />
+                              </div>
                               <div className="flex justify-between text-[9px] text-muted-foreground">
-                                <span>0%</span>
-                                <span>{occupancyRate.toFixed(0)}%</span>
+                                <span className="flex items-center gap-1">
+                                  <Box className="h-2.5 w-2.5 text-orange-500" /> 45% Perlengkapan
+                                </span>
+                                <span>{occupancyRate.toFixed(0)}% Terisi</span>
                                 <span>100%</span>
                               </div>
                             </div>

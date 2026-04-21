@@ -35,7 +35,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { formatCurrency, formatPackageType, formatDate } from "@/lib/format";
-import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye } from "lucide-react";
+import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box } from "lucide-react";
 import { useState } from "react";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
 import { PackageForm } from "@/components/admin/forms/PackageForm";
@@ -170,6 +170,17 @@ export default function AdminPackageDetail() {
   };
 
   const dynamicData = getDynamicData();
+
+  const getMilestoneStatus = (deadline: string | null) => {
+    if (!deadline) return { label: "Belum diatur", color: "text-muted-foreground", icon: Clock };
+    const today = new Date();
+    const deadlineDate = new Date(deadline);
+    const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return { label: "Terlewati", color: "text-destructive", icon: AlertCircle };
+    if (diffDays <= 7) return { label: `Mendekati (${diffDays} hari)`, color: "text-orange-500", icon: AlertCircle };
+    return { label: "Aman", color: "text-green-500", icon: CheckCircle2 };
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -436,8 +447,18 @@ export default function AdminPackageDetail() {
                 const isExpanded = expandedDepartures.has(departure.id);
                 const bookingCount = departure.bookings?.length || 0;
                 
+                // Phase 3: Milestone status
+                const docMilestone = getMilestoneStatus(departure.document_deadline);
+                const payMilestone = getMilestoneStatus(departure.payment_deadline);
+                const visaMilestone = getMilestoneStatus(departure.visa_deadline);
+                
+                // Phase 5: Break-even calculation
+                const totalBooked = departure.booked_count || 0;
+                const breakEven = departure.break_even_pax || 0;
+                const isProfitable = breakEven > 0 && totalBooked >= breakEven;
+
                 return (
-                  <div key={departure.id} className="border rounded-lg">
+                  <div key={departure.id} className="border rounded-lg overflow-hidden">
                     {/* Departure Header */}
                     <Collapsible open={isExpanded} onOpenChange={() => toggleDepartureExpanded(departure.id)}>
                       <CollapsibleTrigger asChild>
@@ -498,7 +519,93 @@ export default function AdminPackageDetail() {
 
                       {/* Jamaah List */}
                       <CollapsibleContent className="border-t">
-                        <div className="p-4">
+                        <div className="p-4 space-y-6">
+                          {/* Phase 3 & 5 Quick Stats */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Phase 3: Milestone Tracker */}
+                            <Card className="bg-blue-50/30 border-blue-100">
+                              <CardHeader className="p-3 pb-0">
+                                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-blue-700">
+                                  <Calendar className="h-3.5 w-3.5" /> Milestone & Deadline
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-3 space-y-2">
+                                {[
+                                  { label: "Dokumen", date: departure.document_deadline, milestone: docMilestone },
+                                  { label: "Pelunasan", date: departure.payment_deadline, milestone: payMilestone },
+                                  { label: "Visa", date: departure.visa_deadline, milestone: visaMilestone },
+                                ].map((m, i) => (
+                                  <div key={i} className="flex items-center justify-between text-[10px]">
+                                    <span className="text-muted-foreground">{m.label}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-medium">{m.date ? formatDate(m.date) : "-"}</span>
+                                      <m.milestone.icon className={cn("h-3 w-3", m.milestone.color)} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </CardContent>
+                            </Card>
+
+                            {/* Phase 5: Break-even Indicator */}
+                            <Card className="bg-green-50/30 border-green-100">
+                              <CardHeader className="p-3 pb-0">
+                                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-green-700">
+                                  <TrendingUp className="h-3.5 w-3.5" /> Profitability Monitoring
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-3 space-y-2">
+                                <div className="flex justify-between text-[10px]">
+                                  <span className="text-muted-foreground">Titik Impas (BEP)</span>
+                                  <span className="font-medium">{breakEven} Pax</span>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="relative h-2 w-full bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                      className={cn("h-full transition-all", isProfitable ? "bg-green-500" : "bg-blue-500")}
+                                      style={{ width: `${Math.min((totalBooked / departure.quota) * 100, 100)}%` }}
+                                    />
+                                    {breakEven > 0 && breakEven < departure.quota && (
+                                      <div 
+                                        className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10"
+                                        style={{ left: `${(breakEven / departure.quota) * 100}%` }}
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="flex justify-between text-[9px]">
+                                    <span className={isProfitable ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                                      {isProfitable ? "PROFIT" : "BELUM BEP"}
+                                    </span>
+                                    <span className="text-muted-foreground">{totalBooked}/{departure.quota} Pax</span>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Phase 4: Equipment Readiness (Placeholder for now) */}
+                            <Card className="bg-orange-50/30 border-orange-100">
+                              <CardHeader className="p-3 pb-0">
+                                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-orange-700">
+                                  <Box className="h-3.5 w-3.5" /> Equipment Readiness
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-3 space-y-2">
+                                <div className="flex justify-between text-[10px]">
+                                  <span className="text-muted-foreground">Status Kelengkapan</span>
+                                  <span className="font-medium">45%</span>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                    <div className="h-full bg-orange-500 w-[45%]" />
+                                  </div>
+                                  <p className="text-[9px] text-muted-foreground">
+                                    20 dari 45 jamaah sudah menerima perlengkapan
+                                  </p>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          <div className="space-y-4">
                           {!departure.bookings || departure.bookings.length === 0 ? (
                             <div className="text-center py-8">
                               <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />

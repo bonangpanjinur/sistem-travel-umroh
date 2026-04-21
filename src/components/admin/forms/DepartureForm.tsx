@@ -51,6 +51,13 @@ const departureSchema = z.object({
   price_triple: z.coerce.number().min(0).default(0),
   price_double: z.coerce.number().min(0).default(0),
   price_single: z.coerce.number().min(0).default(0),
+  // Phase 3: Milestone & Deadline Alert Tracker
+  document_deadline: z.string().optional().nullable(),
+  payment_deadline: z.string().optional().nullable(),
+  visa_deadline: z.string().optional().nullable(),
+  // Phase 5: Break-even Indicator
+  break_even_pax: z.coerce.number().min(0).default(0),
+  operational_cost_per_pax: z.coerce.number().min(0).default(0),
 }).refine((data) => {
   // Either departure_date or month must be filled
   return (data.departure_date && data.return_date) || data.month;
@@ -165,6 +172,11 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
       price_triple: departureData?.price_triple || 0,
       price_double: departureData?.price_double || 0,
       price_single: departureData?.price_single || 0,
+      document_deadline: (departureData as any)?.document_deadline || "",
+      payment_deadline: (departureData as any)?.payment_deadline || "",
+      visa_deadline: (departureData as any)?.visa_deadline || "",
+      break_even_pax: (departureData as any)?.break_even_pax || 0,
+      operational_cost_per_pax: (departureData as any)?.operational_cost_per_pax || 0,
     },
   });
 
@@ -185,6 +197,11 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         airline_id: values.airline_id || null,
         hotel_makkah_id: values.hotel_makkah_id || null,
         hotel_madinah_id: values.hotel_madinah_id || null,
+        document_deadline: values.document_deadline || null,
+        payment_deadline: values.payment_deadline || null,
+        visa_deadline: values.visa_deadline || null,
+        break_even_pax: values.break_even_pax || 0,
+        operational_cost_per_pax: values.operational_cost_per_pax || 0,
         // Ensure either date or month is sent, and the other is null
         departure_date: values.departure_date || null,
         return_date: values.return_date || null,
@@ -220,6 +237,93 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Phase 3: Milestone & Deadline Alert Tracker */}
+        <div className="space-y-4 p-4 border rounded-lg bg-blue-50/30">
+          <h3 className="font-medium text-sm text-blue-700 flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Fase 3: Milestone & Deadline Tracker
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="document_deadline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Batas Dokumen</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="payment_deadline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Batas Pelunasan</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="visa_deadline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Batas Visa</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Phase 5: Break-even Indicator */}
+        <div className="space-y-4 p-4 border rounded-lg bg-green-50/30">
+          <h3 className="font-medium text-sm text-green-700 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Fase 5: Break-even Indicator
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="break_even_pax"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Titik Impas (Pax)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="operational_cost_per_pax"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Biaya Ops per Pax</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
         {/* Basic Info */}
         <div className="space-y-4">
           <h3 className="font-medium text-sm text-muted-foreground">Informasi Dasar</h3>
