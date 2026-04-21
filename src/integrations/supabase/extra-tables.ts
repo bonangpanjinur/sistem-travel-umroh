@@ -3,34 +3,70 @@
  * `src/integrations/supabase/types.ts`. Use `fromExtra(<table>)` instead of
  * `(supabase as any).from(<table>)` to keep proper TypeScript types at call
  * sites.
- *
- * When the real tables are added to the database and the generated types are
- * regenerated, callers can switch back to plain `supabase.from(<table>)`
- * without changing their query logic.
  */
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { ExtraTables, ExtraTableName } from '@/types/dashboard-tables';
+import type {
+  ExtraTables,
+  ExtraTableName,
+  DashboardAccessConfigRow,
+  DashboardAccessAuditLogRow,
+  DashboardStatsRow,
+  FinancialSummaryRow,
+  TransactionRow,
+  ExpenseRow,
+  MarketingCampaignRow,
+  MarketingMetricsRow,
+  MarketingConversionRow,
+  EquipmentRow,
+  EquipmentMaintenanceRow,
+  EquipmentDamageRow,
+  SalesTargetRow,
+} from '@/types/dashboard-tables';
 
-// Build a synthetic Database shape that exposes ONLY the extra tables.
-// We use a separate client typing so it does not collide with the generated
-// `Database` typing on the real `supabase` client.
-type ExtraDatabase = {
-  public: {
-    Tables: ExtraTables;
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
-  };
-};
+// Map table name -> Row type
+type RowOf<T extends ExtraTableName> = ExtraTables[T]['Row'];
 
-// Reuse the runtime client; only the type is reinterpreted.
-const extraClient = supabase as unknown as SupabaseClient<ExtraDatabase>;
-
-/** Strongly-typed `.from()` for tables not yet in generated types. */
+// We bypass the generated Database types entirely with `any` for the runtime
+// call, then re-attach the proper Row type via the return signature so call
+// sites get full typing on `.select()` / `.insert()` / `.update()` data.
 export function fromExtra<T extends ExtraTableName>(table: T) {
-  return extraClient.from(table);
+  return (supabase as any).from(table) as ReturnType<
+    ReturnType<typeof makeTypedFrom<RowOf<T>, ExtraTables[T]['Insert'], ExtraTables[T]['Update']>>
+  >;
 }
 
-export type { ExtraTables, ExtraTableName } from '@/types/dashboard-tables';
+// Helper to derive the proper PostgrestQueryBuilder shape for a given row.
+// Using a thunk so we can extract its return type via ReturnType<>.
+import type { SupabaseClient } from '@supabase/supabase-js';
+function makeTypedFrom<Row, Insert, Update>() {
+  type DB = {
+    public: {
+      Tables: {
+        __t: { Row: Row; Insert: Insert; Update: Update; Relationships: [] };
+      };
+      Views: Record<string, never>;
+      Functions: Record<string, never>;
+      Enums: Record<string, never>;
+      CompositeTypes: Record<string, never>;
+    };
+  };
+  return (client: SupabaseClient<DB>) => client.from('__t');
+}
+
+export type {
+  ExtraTables,
+  ExtraTableName,
+  DashboardAccessConfigRow,
+  DashboardAccessAuditLogRow,
+  DashboardStatsRow,
+  FinancialSummaryRow,
+  TransactionRow,
+  ExpenseRow,
+  MarketingCampaignRow,
+  MarketingMetricsRow,
+  MarketingConversionRow,
+  EquipmentRow,
+  EquipmentMaintenanceRow,
+  EquipmentDamageRow,
+  SalesTargetRow,
+};
