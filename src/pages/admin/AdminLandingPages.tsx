@@ -45,13 +45,13 @@ export default function AdminLandingPages() {
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Landing Page Builder</h1>
-          <p className="text-gray-500 text-sm sm:text-base">Kelola halaman penawaran khusus Anda di sini.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Landing Page Builder</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Kelola halaman penawaran khusus Anda di sini.</p>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2">
+            <Button className="w-full sm:w-auto bg-success hover:bg-success/90 text-success-foreground flex items-center justify-center gap-2">
               <Plus className="w-5 h-5" />
               Buat Landing Page Baru
             </Button>
@@ -73,7 +73,7 @@ export default function AdminLandingPages() {
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug URL (tanpa spasi)</Label>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-sm">/lp/</span>
+                  <span className="text-muted-foreground text-sm">/lp/</span>
                   <Input 
                     id="slug" 
                     placeholder="promo-umrah-ramadhan" 
@@ -85,7 +85,7 @@ export default function AdminLandingPages() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Batal</Button>
-              <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleCreate} disabled={!newLP.title || !newLP.slug}>
+              <Button className="bg-success hover:bg-success/90 text-success-foreground" onClick={handleCreate} disabled={!newLP.title || !newLP.slug}>
                 Lanjutkan ke Editor
               </Button>
             </DialogFooter>
@@ -93,7 +93,7 @@ export default function AdminLandingPages() {
         </Dialog>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -107,7 +107,7 @@ export default function AdminLandingPages() {
           <TableBody>
             {landingPages?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                   Belum ada landing page. Klik tombol di atas untuk membuat yang pertama.
                 </TableCell>
               </TableRow>
@@ -115,23 +115,23 @@ export default function AdminLandingPages() {
               landingPages?.map((lp) => (
                 <TableRow key={lp.id}>
                   <TableCell>
-                    <div className="font-bold text-gray-900">{lp.title}</div>
-                    <div className="text-sm text-gray-500 flex items-center gap-1">
+                    <div className="font-bold text-foreground">{lp.title}</div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Globe className="w-3 h-3" />
                       /lp/{lp.slug}
                     </div>
                   </TableCell>
                   <TableCell>
                     {lp.is_published ? (
-                      <Badge className="bg-green-100 text-green-700 border-green-200">Published</Badge>
+                      <Badge className="bg-success/20 text-success border-success/30">Published</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-gray-500">Draft</Badge>
+                      <Badge variant="outline" className="text-muted-foreground">Draft</Badge>
                     )}
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="capitalize">{lp.whatsapp_source_type}</Badge>
                   </TableCell>
-                  <TableCell className="text-gray-500 text-sm">
+                  <TableCell className="text-muted-foreground text-sm">
                     {lp.created_at ? new Date(lp.created_at).toLocaleDateString('id-ID') : '-'}
                   </TableCell>
                   <TableCell className="text-right">
@@ -146,7 +146,7 @@ export default function AdminLandingPages() {
                           <Edit className="w-4 h-4" />
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleDelete(lp.id)}>
+                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(lp.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>

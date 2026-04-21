@@ -24,15 +24,15 @@ export function SectionEditor({ section, onUpdate, onDelete }: SectionEditorProp
   };
 
   return (
-    <Card className="overflow-hidden border-l-4 border-l-primary">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 py-3 px-6">
+    <Card className="overflow-hidden border-l-4 border-l-primary border border-border">
+      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 py-3 px-6 border-b border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Badge className="capitalize">{section.type}</Badge>
+            <Badge className="capitalize bg-primary text-primary-foreground">{section.type}</Badge>
             <span className="text-sm font-medium text-muted-foreground">Section #{section.order + 1}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onDelete()} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+            <Button variant="ghost" size="sm" onClick={() => onDelete()} className="text-destructive hover:text-destructive hover:bg-destructive/10">
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
@@ -41,9 +41,9 @@ export function SectionEditor({ section, onUpdate, onDelete }: SectionEditorProp
 
       <CardContent className="p-6">
         <Tabs value={editMode} onValueChange={(val) => setEditMode(val as 'visual' | 'json')} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="visual">Visual Editor</TabsTrigger>
-            <TabsTrigger value="json">JSON Editor</TabsTrigger>
+          <TabsList className="mb-4 bg-secondary border border-border">
+            <TabsTrigger value="visual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Visual Editor</TabsTrigger>
+            <TabsTrigger value="json" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">JSON Editor</TabsTrigger>
           </TabsList>
 
           <TabsContent value="visual" className="space-y-4">
@@ -75,9 +75,9 @@ export function SectionEditor({ section, onUpdate, onDelete }: SectionEditorProp
 
           <TabsContent value="json">
             <div className="space-y-2">
-              <Label>JSON Data</Label>
+              <Label className="text-foreground">JSON Data</Label>
               <textarea
-                className="w-full p-3 border border-gray-200 rounded-md font-mono text-xs h-48 bg-gray-50"
+                className="w-full p-3 border border-border rounded-md font-mono text-xs h-48 bg-secondary/50 text-foreground"
                 value={JSON.stringify(section.data, null, 2)}
                 onChange={(e) => {
                   try {
@@ -244,15 +244,15 @@ function FeaturesEditor({ data, onChange }: { data: any; onChange: (data: any) =
         </div>
 
         {features.map((feature: any, index: number) => (
-          <Card key={feature.id} className="p-4 bg-gray-50">
+          <Card key={feature.id} className="p-4 bg-secondary/30 border border-border">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Feature #{index + 1}</span>
+                <span className="text-sm font-medium text-foreground">Feature #{index + 1}</span>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => removeFeature(index)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -323,15 +323,15 @@ function FAQEditor({ data, onChange }: { data: any; onChange: (data: any) => voi
         </div>
 
         {faqs.map((faq: any, index: number) => (
-          <Card key={faq.id} className="p-4 bg-gray-50">
+          <Card key={faq.id} className="p-4 bg-secondary/30 border border-border">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">FAQ #{index + 1}</span>
+                <span className="text-sm font-medium text-foreground">FAQ #{index + 1}</span>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => removeFAQ(index)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -397,15 +397,15 @@ function TestimonialsEditor({ data, onChange }: { data: any; onChange: (data: an
         </div>
 
         {testimonials.map((testimonial: any, index: number) => (
-          <Card key={testimonial.id} className="p-4 bg-gray-50">
+          <Card key={testimonial.id} className="p-4 bg-secondary/30 border border-border">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Testimonial #{index + 1}</span>
+                <span className="text-sm font-medium text-foreground">Testimonial #{index + 1}</span>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => removeTestimonial(index)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -504,15 +504,15 @@ function ComparisonEditor({ data, onChange }: { data: any; onChange: (data: any)
         </div>
 
         {features.map((feature: any, index: number) => (
-          <Card key={feature.id} className="p-4 bg-gray-50">
+          <Card key={feature.id} className="p-4 bg-secondary/30 border border-border">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Feature #{index + 1}</span>
+                <span className="text-sm font-medium text-foreground">Feature #{index + 1}</span>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => removeFeature(index)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -618,15 +618,15 @@ function PricingEditor({ data, onChange }: { data: any; onChange: (data: any) =>
         </div>
 
         {plans.map((plan: any, planIndex: number) => (
-          <Card key={plan.id} className="p-4 bg-gray-50">
+          <Card key={plan.id} className="p-4 bg-secondary/30 border border-border">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Plan #{planIndex + 1}</span>
+                <span className="text-sm font-medium text-foreground">Plan #{planIndex + 1}</span>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => removePlan(planIndex)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

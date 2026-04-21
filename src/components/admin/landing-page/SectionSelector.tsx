@@ -104,8 +104,8 @@ export function SectionSelector({ onSelect, selectedSections = [] }: SectionSele
         return (
           <div key={category} className="space-y-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground">{categoryLabel}</h3>
-              <Badge variant="secondary" className="text-xs">{sections.length}</Badge>
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">{categoryLabel}</h3>
+              <Badge variant="secondary" className="text-xs bg-secondary text-secondary-foreground">{sections.length}</Badge>
             </div>
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
               {sections.map((section) => {
@@ -115,15 +115,15 @@ export function SectionSelector({ onSelect, selectedSections = [] }: SectionSele
                     key={section.type}
                     variant="outline"
                     onClick={() => onSelect(section.type)}
-                    className="h-auto p-4 flex flex-col items-start justify-start gap-2 hover:border-primary hover:bg-primary/5 transition-all group"
+                    className="h-auto p-4 flex flex-col items-start justify-start gap-2 border-border hover:border-primary hover:bg-primary/5 transition-all duration-300 group"
                   >
                     <div className="flex items-start justify-between w-full">
-                      <div className="flex items-center gap-2 text-primary group-hover:text-primary/80">
+                      <div className="flex items-center gap-2 text-primary group-hover:text-primary">
                         {section.icon}
-                        <span className="font-medium text-sm text-left">{section.label}</span>
+                        <span className="font-medium text-sm text-left text-foreground">{section.label}</span>
                       </div>
                       {isSelected && (
-                        <Badge className="ml-auto">Added</Badge>
+                        <Badge className="ml-auto bg-accent text-accent-foreground">Added</Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground text-left">{section.description}</p>
@@ -140,13 +140,13 @@ export function SectionSelector({ onSelect, selectedSections = [] }: SectionSele
 
 export function SectionSelectorCard({ onSelect, selectedSections }: SectionSelectorProps) {
   return (
-    <Card className="border-2 border-dashed">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Plus className="w-5 h-5" />
+    <Card className="border-2 border-dashed border-border bg-card">
+      <CardHeader className="border-b border-border">
+        <CardTitle className="text-lg flex items-center gap-2 text-foreground">
+          <Plus className="w-5 h-5 text-accent" />
           Add Sections
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-muted-foreground">
           Choose from pre-built sections to create your landing page
         </CardDescription>
       </CardHeader>
