@@ -69,8 +69,8 @@ export function AdminBreadcrumb() {
   });
 
   return (
-    <Breadcrumb className="mb-4">
-      <BreadcrumbList>
+    <Breadcrumb className="mb-0">
+      <BreadcrumbList className="flex-nowrap overflow-hidden">
         {crumbs.map((crumb, i) => (
           <Fragment key={crumb.path}>
             {i > 0 && <BreadcrumbSeparator />}
