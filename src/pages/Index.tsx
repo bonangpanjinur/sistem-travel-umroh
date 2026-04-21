@@ -17,7 +17,7 @@ import { IslamicCTASection } from '@/components/home/IslamicCTASection';
 import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
 import { NatureCTASection } from '@/components/home/NatureCTASection';
 import { RoyalCTASection } from '@/components/home/RoyalCTASection';
-import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
@@ -47,23 +47,8 @@ const Index = () => {
       .sort((a: HomepageSection, b: HomepageSection) => a.order - b.order);
   }, [settings?.homepage_sections]);
 
-  if (isLoading) {
-    return (
-      <DynamicPublicLayout>
-        <div className="min-h-screen">
-          <Skeleton className="h-[600px] w-full" />
-          <div className="container mx-auto py-12 space-y-4">
-            <Skeleton className="h-8 w-64" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Skeleton className="h-64" />
-              <Skeleton className="h-64" />
-              <Skeleton className="h-64" />
-            </div>
-          </div>
-        </div>
-      </DynamicPublicLayout>
-    );
-  }
+  // Show content immediately with default settings while fetching updates
+  // This eliminates the skeleton loading screen that users see
 
   return (
     <DynamicPublicLayout>

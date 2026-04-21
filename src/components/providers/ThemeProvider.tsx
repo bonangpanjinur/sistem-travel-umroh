@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
-import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -243,4 +243,4 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
   return <>{children}</>;
 }
 
-export { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+export { useWebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
