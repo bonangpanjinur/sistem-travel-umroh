@@ -48,8 +48,8 @@ export default function DashboardAccessManagerPanel({
   const [selectedRole, setSelectedRole] = useState<AppRole>('branch_manager');
   const [saving, setSaving] = useState(false);
 
-  // Check if user is super admin
-  const isSuperAdmin = hasRole('super_admin');
+  // Check if user is super admin or owner
+  const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
 
   if (!isSuperAdmin) {
     return (
@@ -106,7 +106,7 @@ export default function DashboardAccessManagerPanel({
     },
   });
 
-  // Mutation untuk update config
+  // Mutation untuk update config (upsert)
   const updateConfigMutation = useMutation({
     mutationFn: async ({
       enabledModules,
@@ -117,33 +117,56 @@ export default function DashboardAccessManagerPanel({
       disabledModules: string[];
       defaultDashboard: string;
     }) => {
-      const { data, error } = await supabase
-        .from('dashboard_access_config')
-        .update({
-          enabled_modules: enabledModules,
-          disabled_modules: disabledModules,
-          default_dashboard: defaultDashboard,
-          updated_by: user?.id,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('role', selectedRole)
-        .select()
-        .single();
-
-      if (error) throw error;
+      let result;
+      
+      if (accessConfig) {
+        // Update existing
+        const { data, error } = await supabase
+          .from('dashboard_access_config')
+          .update({
+            enabled_modules: enabledModules,
+            disabled_modules: disabledModules,
+            default_dashboard: defaultDashboard,
+            updated_by: user?.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('role', selectedRole)
+          .select()
+          .single();
+          
+        if (error) throw error;
+        result = data;
+      } else {
+        // Insert new
+        const { data, error } = await supabase
+          .from('dashboard_access_config')
+          .insert({
+            role: selectedRole,
+            enabled_modules: enabledModules,
+            disabled_modules: disabledModules,
+            default_dashboard: defaultDashboard,
+            updated_by: user?.id,
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+          
+        if (error) throw error;
+        result = data;
+      }
 
       // Log to audit trail
       await logAuditEvent({
         table_name: 'dashboard_access_config',
-        record_id: data.id,
-        action: 'update',
-        action_type: 'update',
+        record_id: result.id,
+        action: accessConfig ? 'update' : 'create',
+        action_type: accessConfig ? 'UPDATE' : 'CREATE',
         old_data: accessConfig,
-        new_data: data,
+        new_data: result,
         severity: 'medium',
       });
 
-      return data;
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-access-config'] });
@@ -160,38 +183,40 @@ export default function DashboardAccessManagerPanel({
 
   const handleToggleModule = useCallback(
     (moduleKey: string, enabled: boolean) => {
-      if (!accessConfig) return;
-
+      const currentEnabled = accessConfig?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
+      const currentDisabled = accessConfig?.disabled_modules || [];
+      
       const enabledModules = enabled
-        ? [...(accessConfig.enabled_modules || []), moduleKey]
-        : (accessConfig.enabled_modules || []).filter((m: string) => m !== moduleKey);
+        ? [...currentEnabled, moduleKey]
+        : currentEnabled.filter((m: string) => m !== moduleKey);
 
       const disabledModules = !enabled
-        ? [...(accessConfig.disabled_modules || []), moduleKey]
-        : (accessConfig.disabled_modules || []).filter((m: string) => m !== moduleKey);
+        ? [...currentDisabled, moduleKey]
+        : currentDisabled.filter((m: string) => m !== moduleKey);
 
       setSaving(true);
       updateConfigMutation.mutate({
         enabledModules,
         disabledModules,
-        defaultDashboard: accessConfig.default_dashboard,
+        defaultDashboard: accessConfig?.default_dashboard || ROLE_DASHBOARD_CONFIG[selectedRole]?.defaultDashboard,
       });
     },
-    [accessConfig, updateConfigMutation]
+    [accessConfig, selectedRole, updateConfigMutation]
   );
 
   const handleSetDefaultDashboard = useCallback(
     (moduleKey: string) => {
-      if (!accessConfig) return;
+      const currentEnabled = accessConfig?.enabled_modules || ROLE_DASHBOARD_CONFIG[selectedRole]?.availableModules || [];
+      const currentDisabled = accessConfig?.disabled_modules || [];
 
       setSaving(true);
       updateConfigMutation.mutate({
-        enabledModules: accessConfig.enabled_modules || [],
-        disabledModules: accessConfig.disabled_modules || [],
+        enabledModules: currentEnabled,
+        disabledModules: currentDisabled,
         defaultDashboard: moduleKey,
       });
     },
-    [accessConfig, updateConfigMutation]
+    [accessConfig, selectedRole, updateConfigMutation]
   );
 
   const roleConfig = ROLE_DASHBOARD_CONFIG[selectedRole];
