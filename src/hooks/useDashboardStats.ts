@@ -56,32 +56,58 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
             .gte('created_at', effectiveStartDate.toISOString())
             .lte('created_at', effectiveEndDate.toISOString())
             .order('created_at', { ascending: false })
-            .limit(500);
+            .limit(1000);
           
-          if (branchId) q = q.eq('branch_id', branchId);
-          if (agentId) q = q.eq('agent_id', agentId);
+          // Apply Hierarchy Filtering
+          if (hierarchyLevel === 'pusat') {
+            q = q.is('branch_id', null).is('agent_id', null);
+          } else if (hierarchyLevel === 'cabang') {
+            if (branchId && branchId !== 'all') {
+              q = q.eq('branch_id', branchId);
+            } else {
+              q = q.not('branch_id', 'is', null);
+            }
+          } else if (hierarchyLevel === 'agen') {
+            if (agentId && agentId !== 'all') {
+              q = q.eq('agent_id', agentId);
+            } else {
+              q = q.not('agent_id', 'is', null);
+            }
+          } else if (hierarchyLevel === 'sub_agen') {
+            if (subAgentId && subAgentId !== 'all') {
+              q = q.eq('agent_id', subAgentId);
+            } else {
+              // This logic is tricky without a direct sub-agent flag in bookings
+              // We'll filter by agent_id being in the list of sub-agents in the processing step
+            }
+          } else {
+            // 'all' level - optionally filter by branch/agent if specifically selected
+            if (branchId && branchId !== 'all') q = q.eq('branch_id', branchId);
+            if (agentId && agentId !== 'all') q = q.eq('agent_id', agentId);
+            if (subAgentId && subAgentId !== 'all') q = q.eq('agent_id', subAgentId);
+          }
           
           return q;
         })(),
         // Query 2: Agents - Cached/Limited
-        supabase.from('agents').select('id, company_name, parent_agent_id, branch_id').limit(200),
+        supabase.from('agents').select('id, company_name, parent_agent_id, branch_id').limit(500),
         // Query 3: Customer Count - Head only for performance
         (() => {
           let q = supabase.from('customers').select('*', { count: 'exact', head: true });
-          if (branchId) q = q.eq('branch_id', branchId);
+          if (branchId && branchId !== 'all') q = q.eq('branch_id', branchId);
           return q;
         })(),
         // Query 4: Pending Payments - Inner join optimization
         (() => {
           let q = supabase.from('payments').select('amount, booking:bookings!inner(branch_id, agent_id)').eq('status', 'pending');
-          if (branchId) q = q.eq('booking.branch_id', branchId);
-          if (agentId) q = q.eq('booking.agent_id', agentId);
+          if (branchId && branchId !== 'all') q = q.eq('booking.branch_id', branchId);
+          if (agentId && agentId !== 'all') q = q.eq('booking.agent_id', agentId);
           return q;
         })(),
         // Query 5: Leads
         (() => {
           let q = supabase.from('leads').select('id, status, created_at');
-          if (branchId) q = q.eq('branch_id', branchId);
+          if (branchId && branchId !== 'all') q = q.eq('branch_id', branchId);
           return q;
         })(),
         // Query 6: Branches for hierarchy
@@ -94,10 +120,14 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
             .gte('created_at', effectiveStartDate.toISOString())
             .lte('created_at', effectiveEndDate.toISOString());
           
-          if (branchId) q = q.eq('branch_id', branchId);
+          if (branchId && branchId !== 'all') q = q.eq('branch_id', branchId);
           return q;
         })(),
       ]);
+
+      // Map for quick sub-agent identification
+      const subAgentIds = new Set((agents || []).filter(a => a.parent_agent_id !== null).map(a => a.id));
+      const topLevelAgentIds = new Set((agents || []).filter(a => a.parent_agent_id === null).map(a => a.id));
 
       // Single-pass data processing for better performance
       let totalRevenue = 0;
@@ -122,12 +152,21 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         monthlyStatsMap[key] = { revenue: 0, bookings: 0 };
       });
 
-      // Build agent map once for O(1) lookup instead of O(N*M) .find() in loop
+      // Build agent map once for O(1) lookup
       const agentMap = new Map<string, string>(
         (agents || []).map(a => [a.id, a.company_name || 'Unknown Agent'])
       );
 
       rawBookings?.forEach(b => {
+        // Additional filtering for 'sub_agen' hierarchy level if no specific subAgentId is selected
+        if (hierarchyLevel === 'sub_agen' && (!subAgentId || subAgentId === 'all')) {
+          if (!b.agent_id || !subAgentIds.has(b.agent_id)) return;
+        }
+        // Additional filtering for 'agen' hierarchy level if no specific agentId is selected
+        if (hierarchyLevel === 'agen' && (!agentId || agentId === 'all')) {
+          if (!b.agent_id || !topLevelAgentIds.has(b.agent_id)) return;
+        }
+
         const revenue = b.paid_amount || 0;
         const price = b.total_price || 0;
         const pax = b.total_pax || 0;
@@ -299,6 +338,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         weeklyJamaahData: weeks,
         monthlyJamaahData,
         branches: branches || [],
+        agents: agents || [],
       };
     },
     staleTime: 1000 * 60 * 10, // 10 minutes
@@ -318,7 +358,7 @@ export function useRecentBookings(branchId?: string | null) {
         `)
         .order('created_at', { ascending: false })
         .limit(5);
-      if (branchId) query = query.eq('branch_id', branchId);
+      if (branchId && branchId !== 'all') query = query.eq('branch_id', branchId);
       const { data, error } = await query;
       if (error) throw error;
       
@@ -345,7 +385,7 @@ export function useUpcomingDepartures(branchId?: string | null) {
         .limit(5);
       let { data, error } = await query;
       
-      if (branchId && data) {
+      if (branchId && branchId !== 'all' && data) {
         const { data: bookingsData, error: bookingsError } = await supabase
           .from('bookings')
           .select('departure_id')
