@@ -41,8 +41,8 @@ export default function AdminDashboard() {
   const [selectedSubAgent, setSelectedSubAgent] = useState<string>("all");
   
   // New Filter States for Periodic Stats
-  const [jamaahFilter, setJamaahFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
-  const [soldFilter, setSoldFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
+  const [jamaahFilter, setJamaahFilter] = useState<'all' | 'week' | 'month' | 'year' | '3months' | '6months' | '9months'>('all');
+  const [soldFilter, setSoldFilter] = useState<'all' | 'week' | 'month' | 'year' | '3months' | '6months' | '9months'>('all');
   
   // Modal State
   const [isSoldModalOpen, setIsSoldModalOpen] = useState(false);
@@ -61,8 +61,8 @@ export default function AdminDashboard() {
   // Calculate periodic stats
   const periodicStats = useMemo(() => {
     if (!stats) return { 
-      jamaah: { week: 0, month: 0, year: 0 },
-      sold: { week: 0, month: 0, year: 0 }
+      jamaah: { week: 0, month: 0, year: 0, m3: 0, m6: 0, m9: 0 },
+      sold: { week: 0, month: 0, year: 0, m3: 0, m6: 0, m9: 0 }
     };
     
     const now = new Date();
@@ -70,6 +70,16 @@ export default function AdminDashboard() {
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
     const currentYear = now.getFullYear();
+
+    // Helper to get sum for last X months
+    const getSumLastMonths = (data: any[], count: number, key: string) => {
+      const monthsToInclude = [];
+      for (let i = 0; i < count; i++) {
+        monthsToInclude.push(format(subMonths(monthStart, i), 'MMM yyyy', { locale: idLocale }));
+      }
+      return data?.filter((m: any) => monthsToInclude.includes(m.month))
+        .reduce((sum: number, m: any) => sum + (m[key] || 0), 0) || 0;
+    };
 
     // Format: "21 Apr - 27 Apr" (matching the format from useDashboardStats)
     const currentWeekKey = `${format(weekStart, 'dd MMM', { locale: idLocale })} - ${format(weekEnd, 'dd MMM', { locale: idLocale })}`;
@@ -80,16 +90,22 @@ export default function AdminDashboard() {
     const jamaahMonth = stats.monthlyJamaahData?.find((m: any) => m.month === currentMonthKey)?.jamaah || 0;
     const jamaahYear = stats.monthlyJamaahData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
       .reduce((sum: number, m: any) => sum + m.jamaah, 0) || 0;
+    const jamaah3m = getSumLastMonths(stats.monthlyJamaahData, 3, 'jamaah');
+    const jamaah6m = getSumLastMonths(stats.monthlyJamaahData, 6, 'jamaah');
+    const jamaah9m = getSumLastMonths(stats.monthlyJamaahData, 9, 'jamaah');
 
     // Sold
     const soldWeek = stats.weeklySoldData?.find((w: any) => w.week === currentWeekKey)?.sold || 0;
     const soldMonth = stats.monthlySoldData?.find((m: any) => m.month === currentMonthKey)?.sold || 0;
     const soldYear = stats.monthlySoldData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
       .reduce((sum: number, m: any) => sum + m.sold, 0) || 0;
+    const sold3m = getSumLastMonths(stats.monthlySoldData, 3, 'sold');
+    const sold6m = getSumLastMonths(stats.monthlySoldData, 6, 'sold');
+    const sold9m = getSumLastMonths(stats.monthlySoldData, 9, 'sold');
 
     return {
-      jamaah: { week: jamaahWeek, month: jamaahMonth, year: jamaahYear },
-      sold: { week: soldWeek, month: soldMonth, year: soldYear }
+      jamaah: { week: jamaahWeek, month: jamaahMonth, year: jamaahYear, m3: jamaah3m, m6: jamaah6m, m9: jamaah9m },
+      sold: { week: soldWeek, month: soldMonth, year: soldYear, m3: sold3m, m6: sold6m, m9: sold9m }
     };
   }, [stats]);
 
@@ -97,6 +113,9 @@ export default function AdminDashboard() {
     if (jamaahFilter === 'week') return periodicStats.jamaah.week;
     if (jamaahFilter === 'month') return periodicStats.jamaah.month;
     if (jamaahFilter === 'year') return periodicStats.jamaah.year;
+    if (jamaahFilter === '3months') return periodicStats.jamaah.m3;
+    if (jamaahFilter === '6months') return periodicStats.jamaah.m6;
+    if (jamaahFilter === '9months') return periodicStats.jamaah.m9;
     return stats?.totalJamaah || 0;
   }, [jamaahFilter, periodicStats, stats]);
 
@@ -104,12 +123,18 @@ export default function AdminDashboard() {
     if (soldFilter === 'week') return periodicStats.sold.week;
     if (soldFilter === 'month') return periodicStats.sold.month;
     if (soldFilter === 'year') return periodicStats.sold.year;
+    if (soldFilter === '3months') return periodicStats.sold.m3;
+    if (soldFilter === '6months') return periodicStats.sold.m6;
+    if (soldFilter === '9months') return periodicStats.sold.m9;
     return stats?.soldPackagesCount || 0;
   }, [soldFilter, periodicStats, stats]);
 
   const getLabel = (filter: string) => {
     if (filter === 'week') return "Minggu Ini";
     if (filter === 'month') return "Bulan Ini";
+    if (filter === '3months') return "3 Bulan Terakhir";
+    if (filter === '6months') return "6 Bulan Terakhir";
+    if (filter === '9months') return "9 Bulan Terakhir";
     if (filter === 'year') return "Tahun Ini";
     return "Total Keseluruhan";
   };
@@ -345,6 +370,9 @@ export default function AdminDashboard() {
                   <SelectItem value="all">Semua Waktu</SelectItem>
                   <SelectItem value="week">Minggu Ini</SelectItem>
                   <SelectItem value="month">Bulan Ini</SelectItem>
+                  <SelectItem value="3months">3 Bulan Terakhir</SelectItem>
+                  <SelectItem value="6months">6 Bulan Terakhir</SelectItem>
+                  <SelectItem value="9months">9 Bulan Terakhir</SelectItem>
                   <SelectItem value="year">Tahun Ini</SelectItem>
                 </SelectContent>
               </Select>
@@ -382,6 +410,9 @@ export default function AdminDashboard() {
                 <SelectItem value="all">Semua Waktu</SelectItem>
                 <SelectItem value="week">Minggu Ini</SelectItem>
                 <SelectItem value="month">Bulan Ini</SelectItem>
+                <SelectItem value="3months">3 Bulan Terakhir</SelectItem>
+                <SelectItem value="6months">6 Bulan Terakhir</SelectItem>
+                <SelectItem value="9months">9 Bulan Terakhir</SelectItem>
                 <SelectItem value="year">Tahun Ini</SelectItem>
               </SelectContent>
             </Select>
