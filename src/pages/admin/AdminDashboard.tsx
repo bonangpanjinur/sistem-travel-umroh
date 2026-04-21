@@ -67,20 +67,22 @@ export default function AdminDashboard() {
     
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
     const currentYear = now.getFullYear();
 
-    const currentWeekKey = format(weekStart, 'dd MMM', { locale: idLocale });
+    // Format: "21 Apr - 27 Apr" (matching the format from useDashboardStats)
+    const currentWeekKey = `${format(weekStart, 'dd MMM', { locale: idLocale })} - ${format(weekEnd, 'dd MMM', { locale: idLocale })}`;
     const currentMonthKey = format(monthStart, 'MMM yyyy', { locale: idLocale });
     
     // Jamaah
-    const jamaahWeek = stats.weeklyJamaahData?.find((w: any) => w.week.startsWith(currentWeekKey))?.jamaah || 0;
+    const jamaahWeek = stats.weeklyJamaahData?.find((w: any) => w.week === currentWeekKey)?.jamaah || 0;
     const jamaahMonth = stats.monthlyJamaahData?.find((m: any) => m.month === currentMonthKey)?.jamaah || 0;
     const jamaahYear = stats.monthlyJamaahData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
       .reduce((sum: number, m: any) => sum + m.jamaah, 0) || 0;
 
     // Sold
-    const soldWeek = stats.weeklySoldData?.find((w: any) => w.week.startsWith(currentWeekKey))?.sold || 0;
+    const soldWeek = stats.weeklySoldData?.find((w: any) => w.week === currentWeekKey)?.sold || 0;
     const soldMonth = stats.monthlySoldData?.find((m: any) => m.month === currentMonthKey)?.sold || 0;
     const soldYear = stats.monthlySoldData?.filter((m: any) => m.month.endsWith(currentYear.toString()))
       .reduce((sum: number, m: any) => sum + m.sold, 0) || 0;
