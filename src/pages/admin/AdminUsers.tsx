@@ -28,10 +28,11 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck
+  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck, Settings
 } from "lucide-react";
 import { AppRole } from "@/types/database";
 import { UserPermissionsManager } from "@/components/admin/UserPermissionsManager";
+import DashboardAccessManagerPanel from "@/components/admin/DashboardAccessManagerPanel";
 import { sortRoles } from "@/lib/constants";
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -87,6 +88,7 @@ export default function AdminUsers() {
   const [resetPasswordMethod, setResetPasswordMethod] = useState<'email' | 'direct'>('email');
   const [newPassword, setNewPassword] = useState('');
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
+  const [showDashboardSettings, setShowDashboardSettings] = useState(false);
   const { hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
 
@@ -314,14 +316,26 @@ export default function AdminUsers() {
           <h1 className="text-3xl font-bold text-gray-900">Manajemen User</h1>
           <p className="text-muted-foreground mt-1">Kelola akses, role, dan keamanan pengguna sistem</p>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Cari nama, email, role..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10 w-full sm:w-80 bg-white"
-          />
+        <div className="flex items-center gap-3">
+          {isSuperAdmin && (
+            <Button
+              onClick={() => setShowDashboardSettings(true)}
+              variant="outline"
+              className="border-blue-200 hover:bg-blue-50 text-blue-600"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Pengaturan Dashboard
+            </Button>
+          )}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Cari nama, email, role..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 w-full sm:w-80 bg-white"
+            />
+          </div>
         </div>
       </div>
 
@@ -808,6 +822,24 @@ export default function AdminUsers() {
                 : 'Simpan Password'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dashboard Settings Dialog */}
+      <Dialog open={showDashboardSettings} onOpenChange={setShowDashboardSettings}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Pengaturan Dashboard Per Role
+            </DialogTitle>
+            <DialogDescription>
+              Atur dashboard mana saja yang dapat diakses oleh setiap role dan tentukan dashboard default untuk setiap role.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <DashboardAccessManagerPanel mode="embedded" onClose={() => setShowDashboardSettings(false)} />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

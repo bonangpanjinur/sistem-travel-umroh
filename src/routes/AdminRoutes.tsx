@@ -1,6 +1,7 @@
 import { Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import DashboardProtectedRoute from '@/components/dashboards/DashboardProtectedRoute';
 
 import { LoadingState } from "@/components/shared/LoadingState";
 
@@ -68,6 +69,7 @@ const SalesDashboard = lazy(() => import("@/pages/admin/dashboards/SalesDashboar
 const MarketingDashboard = lazy(() => import("@/pages/admin/dashboards/MarketingDashboard"));
 const EquipmentDashboard = lazy(() => import("@/pages/admin/dashboards/EquipmentDashboard"));
 const DashboardAccessManager = lazy(() => import("@/pages/admin/DashboardAccessManager"));
+const DashboardAccessManagerPanel = lazy(() => import("@/components/admin/DashboardAccessManagerPanel"));
 const AdminHotels = lazy(() => import("@/pages/admin/AdminHotels"));
 const AdminMuthawifs = lazy(() => import("@/pages/admin/AdminMuthawifs"));
 const AdminBusProviders = lazy(() => import("@/pages/admin/AdminBusProviders"));
@@ -92,15 +94,17 @@ export default function AdminRoutes() {
     >
       {/* Overview */}
       <Route index element={<LazyPage><AdminDashboard /></LazyPage>} />
-      <Route path="analytics" element={<LazyPage><AdminAnalytics /></LazyPage>} />
-      <Route path="branch-manager" element={<LazyPage><BranchManagerDashboard /></LazyPage>} />
-      <Route path="finance-dashboard" element={<LazyPage><FinanceDashboard /></LazyPage>} />
-      <Route path="sales-dashboard" element={<LazyPage><SalesDashboard /></LazyPage>} />
-      <Route path="marketing-dashboard" element={<LazyPage><MarketingDashboard /></LazyPage>} />
-      <Route path="equipment-dashboard" element={<LazyPage><EquipmentDashboard /></LazyPage>} />
+
+      {/* Dashboard Routes with Dynamic Access Control */}
+      <Route path="analytics" element={<LazyPage><DashboardProtectedRoute moduleKey="admin_analytics"><AdminAnalytics /></DashboardProtectedRoute></LazyPage>} />
+      <Route path="branch-manager" element={<LazyPage><DashboardProtectedRoute moduleKey="branch_manager_dashboard"><BranchManagerDashboard /></DashboardProtectedRoute></LazyPage>} />
+      <Route path="finance-dashboard" element={<LazyPage><DashboardProtectedRoute moduleKey="finance_dashboard"><FinanceDashboard /></DashboardProtectedRoute></LazyPage>} />
+      <Route path="sales-dashboard" element={<LazyPage><DashboardProtectedRoute moduleKey="sales_dashboard"><SalesDashboard /></DashboardProtectedRoute></LazyPage>} />
+      <Route path="marketing-dashboard" element={<LazyPage><DashboardProtectedRoute moduleKey="marketing_dashboard"><MarketingDashboard /></DashboardProtectedRoute></LazyPage>} />
+      <Route path="equipment-dashboard" element={<LazyPage><DashboardProtectedRoute moduleKey="equipment_dashboard"><EquipmentDashboard /></DashboardProtectedRoute></LazyPage>} />
 
       {/* Dashboard Management */}
-      <Route path="dashboard-access" element={<LazyPage><DashboardAccessManager /></LazyPage>} />
+      <Route path="dashboard-access" element={<LazyPage><DashboardAccessManagerPanel mode="standalone" /></LazyPage>} />
 
       {/* Sales & CRM */}
       <Route path="leads" element={<LazyPage><AdminLeads /></LazyPage>} />
