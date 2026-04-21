@@ -1,1 +1,15 @@
-/**\n * Dashboard Components Index\n * \n * Central export point untuk semua dashboard-related components\n */\n\nexport { default as BaseDashboardTemplate } from './BaseDashboardTemplate';\nexport type {\n  DashboardStatsCard,\n  DashboardQuickAction,\n  DashboardAlert,\n} from './BaseDashboardTemplate';\n\nexport { default as DashboardProtectedRoute } from './DashboardProtectedRoute';\n
+/**
+ * Dashboard Components Index
+ * 
+ * Central export point untuk semua dashboard-related components
+ */
+
+export { default as BaseDashboardTemplate } from './BaseDashboardTemplate';
+export type {
+  DashboardStatsCard,
+  DashboardQuickAction,
+  DashboardAlert,
+} from './BaseDashboardTemplate';
+
+export { default as DashboardProtectedRoute } from './DashboardProtectedRoute';
+
