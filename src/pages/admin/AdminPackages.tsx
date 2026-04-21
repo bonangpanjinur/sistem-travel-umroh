@@ -79,7 +79,7 @@ export default function AdminPackages() {
   const [deletePackage, setDeletePackage] = useState<any>(null);
   const [packageTypeFilter, setPackageTypeFilter] = useState<"all" | "regular" | "tabungan">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [quickFilter, setQuickFilter] = useState<"all" | "almost_full" | "soon">("all");
+  const [quickFilter, setQuickFilter] = useState<"all" | "almost_full" | "soon" | "cheapest" | "popular">("all");
   const [showFilters, setShowFilters] = useState(false);
   const [statsFilters, setStatsFilters] = useState<PackageStatsFilters>({});
   const [selectedDateRange, setSelectedDateRange] = useState<"7days" | "30days" | "90days" | "custom">("30days");
@@ -236,6 +236,20 @@ export default function AdminPackages() {
 
       const upcoming = getUpcomingDepartures(pkg.departures || []);
       
+      if (quickFilter === "cheapest") {
+        const lowestPrice = getLowestPrice(pkg);
+        const allPrices = packages?.map(p => getLowestPrice(p)).filter(p => p > 0) || [];
+        const minPrice = Math.min(...allPrices);
+        if (lowestPrice !== minPrice) return false;
+      }
+
+      if (quickFilter === "popular") {
+        const totalBooked = pkg.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0;
+        const allBooked = packages?.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0) || [];
+        const maxBooked = Math.max(...allBooked);
+        if (totalBooked !== maxBooked || totalBooked === 0) return false;
+      }
+
       if (quickFilter === "almost_full") {
         const hasAlmostFull = upcoming.some(d => (d.quota - (d.booked_count || 0)) < 5);
         if (!hasAlmostFull) return false;
@@ -602,6 +616,30 @@ export default function AdminPackages() {
                 <Clock className="h-3.5 w-3.5" />
                 Segera Berangkat
               </Button>
+              <Button 
+                variant={quickFilter === "cheapest" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setQuickFilter("cheapest")}
+                className={cn(
+                  "rounded-full px-4 h-9 gap-2",
+                  quickFilter !== "cheapest" && "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                )}
+              >
+                <DollarSign className="h-3.5 w-3.5" />
+                Termurah
+              </Button>
+              <Button 
+                variant={quickFilter === "popular" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setQuickFilter("popular")}
+                className={cn(
+                  "rounded-full px-4 h-9 gap-2",
+                  quickFilter !== "popular" && "border-purple-200 text-purple-600 hover:bg-purple-50"
+                )}
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                Terpopuler
+              </Button>
             </div>
 
             {/* Search & Filter Bar */}
@@ -734,6 +772,16 @@ export default function AdminPackages() {
                   const isLowQuota = remainingQuota > 0 && remainingQuota < 5;
                   const hasNoDepartures = !pkg.departures || pkg.departures.length === 0;
 
+                  // Calculate if this is the cheapest or most popular
+                  const allPrices = packages?.map(p => getLowestPrice(p)).filter(p => p > 0) || [];
+                  const minPrice = Math.min(...allPrices);
+                  const isCheapest = lowestPrice > 0 && lowestPrice === minPrice;
+
+                  const totalBooked = pkg.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0;
+                  const allBooked = packages?.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0) || [];
+                  const maxBooked = Math.max(...allBooked);
+                  const isPopular = totalBooked > 0 && totalBooked === maxBooked;
+
                   // Determine progress bar color based on occupancy
                   let progressColor = "bg-emerald-500"; // Green - Safe
                   let progressLabel = "Aman";
@@ -784,6 +832,16 @@ export default function AdminPackages() {
                         {isLowQuota && (
                           <Badge className="bg-rose-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase animate-pulse flex items-center gap-1">
                             <AlertTriangle className="h-3 w-3" /> KUOTA MENIPIS
+                          </Badge>
+                        )}
+                        {isCheapest && (
+                          <Badge className="bg-emerald-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" /> TERMURAH
+                          </Badge>
+                        )}
+                        {isPopular && (
+                          <Badge className="bg-purple-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" /> TERPOPULER
                           </Badge>
                         )}
                         {hasNoDepartures && pkg.is_active && (
