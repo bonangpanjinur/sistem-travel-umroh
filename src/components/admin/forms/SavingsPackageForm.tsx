@@ -212,6 +212,7 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
     onSuccess: () => {
       toast.success(isEditing ? "Paket tabungan berhasil diperbarui" : "Paket tabungan berhasil ditambahkan");
       queryClient.invalidateQueries({ queryKey: ["admin-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
       onSuccess();
     },
     onError: (error: any) => {

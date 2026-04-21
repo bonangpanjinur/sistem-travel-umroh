@@ -79,7 +79,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
   const [isUploading, setIsUploading] = useState(false);
 
   const { data: packageTypes } = useQuery({
-    queryKey: ["package-types"],
+    queryKey: ["admin-package-types"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("package_types")
@@ -202,6 +202,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
     onSuccess: () => {
       toast.success(isEditing ? "Paket berhasil diperbarui" : "Paket berhasil ditambahkan");
       queryClient.invalidateQueries({ queryKey: ["admin-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
       onSuccess();
     },
     onError: (error: any) => {

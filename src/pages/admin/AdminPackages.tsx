@@ -11,7 +11,7 @@ import { Link } from "react-router-dom";
 import { 
   Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, 
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
-  Power, PowerOff, ChevronDown
+  Power, PowerOff, ChevronDown, Layers
 } from "lucide-react";
 import {
   Dialog,
@@ -39,6 +39,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
+import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { subDays } from "date-fns";
@@ -52,6 +53,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,6 +69,11 @@ export default function AdminPackages() {
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("packages");
+  const [isTypeFormOpen, setIsTypeFormOpen] = useState(false);
+  const [editingType, setEditingType] = useState<any>(null);
+  const [typeSearchTerm, setTypeSearchTerm] = useState("");
+  const [deleteType, setDeleteType] = useState<any>(null);
   
   const queryClient = useQueryClient();
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
@@ -85,6 +93,18 @@ export default function AdminPackages() {
         `)
         .order('created_at', { ascending: false });
 
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: packageTypes, isLoading: isLoadingTypes } = useQuery({
+    queryKey: ["admin-package-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("package_types")
+        .select("*")
+        .order("display_order", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -139,6 +159,21 @@ export default function AdminPackages() {
     },
   });
 
+  const deleteTypeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("package_types").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tipe paket berhasil dihapus");
+      queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
+      setDeleteType(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal menghapus tipe paket");
+    },
+  });
+
   const filteredPackages = useMemo(() => {
     return packages?.filter(pkg => {
       if (searchTerm && !(
@@ -158,6 +193,13 @@ export default function AdminPackages() {
     }) || [];
   }, [packages, searchTerm, packageTypeFilter, statusFilter]);
 
+  const filteredTypes = useMemo(() => {
+    return packageTypes?.filter(t => 
+      t.name.toLowerCase().includes(typeSearchTerm.toLowerCase()) || 
+      t.code.toLowerCase().includes(typeSearchTerm.toLowerCase())
+    ) || [];
+  }, [packageTypes, typeSearchTerm]);
+
   const handleEdit = (pkg: any) => {
     setEditingPackage(pkg);
     setIsFormOpen(true);
@@ -172,6 +214,16 @@ export default function AdminPackages() {
   const handleFormClose = () => {
     setIsFormOpen(false);
     setEditingPackage(null);
+  };
+
+  const handleEditType = (type: any) => {
+    setEditingType(type);
+    setIsTypeFormOpen(true);
+  };
+
+  const handleTypeFormClose = () => {
+    setIsTypeFormOpen(false);
+    setEditingType(null);
   };
 
   const getUpcomingDepartures = (departures: any[]) => {
@@ -218,261 +270,383 @@ export default function AdminPackages() {
           </div>
         </div>
 
-        {/* Search & Filter Bar */}
-        <Card className="border-none shadow-sm bg-card/50 backdrop-blur rounded-2xl">
-          <CardContent className="p-3">
-            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari nama atau kode paket..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-10 h-11 bg-background border-none shadow-inner rounded-xl focus-visible:ring-primary/20"
-                />
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/50 p-1">
+            <TabsTrigger value="packages" className="rounded-lg gap-2">
+              <Package className="h-4 w-4" />
+              Daftar Paket
+            </TabsTrigger>
+            <TabsTrigger value="types" className="rounded-lg gap-2">
+              <Layers className="h-4 w-4" />
+              Tipe Paket
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Packages Tab */}
+          <TabsContent value="packages" className="space-y-6 mt-6">
+            {/* Search & Filter Bar */}
+            <Card className="border-none shadow-sm bg-card/50 backdrop-blur rounded-2xl">
+              <CardContent className="p-3">
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cari nama atau kode paket..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      className="pl-10 h-11 bg-background border-none shadow-inner rounded-xl focus-visible:ring-primary/20"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select value={packageTypeFilter} onValueChange={(v: any) => setPackageTypeFilter(v)}>
+                      <SelectTrigger className="w-[140px] h-11 rounded-xl border-none bg-background shadow-sm">
+                        <SelectValue placeholder="Tipe Paket" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="all">Semua Tipe</SelectItem>
+                        <SelectItem value="regular">Reguler</SelectItem>
+                        <SelectItem value="tabungan">Tabungan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                      <SelectTrigger className="w-[140px] h-11 rounded-xl border-none bg-background shadow-sm">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="all">Semua Status</SelectItem>
+                        <SelectItem value="active">Aktif</SelectItem>
+                        <SelectItem value="inactive">Nonaktif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Package Grid */}
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <Card key={i} className="overflow-hidden rounded-3xl border-none shadow-sm">
+                    <Skeleton className="h-48 w-full" />
+                    <CardContent className="p-6 space-y-4">
+                      <Skeleton className="h-6 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-8 flex-1" />
+                        <Skeleton className="h-8 flex-1" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
-                <Select value={packageTypeFilter} onValueChange={(v: any) => setPackageTypeFilter(v)}>
-                  <SelectTrigger className="w-[140px] h-11 rounded-xl border-none bg-background shadow-sm">
-                    <SelectValue placeholder="Tipe Paket" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="all">Semua Tipe</SelectItem>
-                    <SelectItem value="regular">Reguler</SelectItem>
-                    <SelectItem value="tabungan">Tabungan</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                  <SelectTrigger className="w-[140px] h-11 rounded-xl border-none bg-background shadow-sm">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="active">Aktif</SelectItem>
-                    <SelectItem value="inactive">Nonaktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Package Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <Card key={i} className="overflow-hidden rounded-3xl border-none shadow-sm">
-                <Skeleton className="h-48 w-full" />
-                <CardContent className="p-6 space-y-4">
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                  <div className="flex gap-2">
-                    <Skeleton className="h-8 flex-1" />
-                    <Skeleton className="h-8 flex-1" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : filteredPackages.length === 0 ? (
-          <EmptyState
-            icon={Package}
-            title="Tidak ada paket ditemukan"
-            description="Coba ubah kata kunci pencarian atau filter Anda."
-            action={{
-              label: "Reset Filter",
-              onClick: () => {
-                setSearchTerm("");
-                setPackageTypeFilter("all");
-                setStatusFilter("all");
-              }
-            }}
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPackages.map((pkg) => {
-              const upcoming = getUpcomingDepartures(pkg.departures || []);
-              const lowestPrice = getLowestPrice(pkg);
-              
-              return (
-                <Card 
-                  key={pkg.id} 
-                  className={cn(
-                    "group overflow-hidden rounded-3xl border-none shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col bg-card relative",
-                    !pkg.is_active && "opacity-75 grayscale-[0.5]"
-                  )}
-                >
-                  {/* Status Badges */}
-                  <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                    {pkg.is_featured && (
-                      <Badge className="bg-amber-500/90 hover:bg-amber-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-current" /> UNGGULAN
-                      </Badge>
-                    )}
-                    {!pkg.is_active && (
-                      <Badge variant="destructive" className="shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
-                        NONAKTIF
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Image Section */}
-                  <div className="relative h-52 overflow-hidden">
-                    {pkg.featured_image ? (
-                      <img 
-                        src={pkg.featured_image} 
-                        alt={pkg.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <Package className="h-12 w-12 text-muted-foreground/20" />
+            ) : filteredPackages.length === 0 ? (
+              <EmptyState
+                icon={Package}
+                title="Tidak ada paket ditemukan"
+                description="Coba ubah kata kunci pencarian atau filter Anda."
+                action={{
+                  label: "Reset Filter",
+                  onClick: () => {
+                    setSearchTerm("");
+                    setPackageTypeFilter("all");
+                    setStatusFilter("all");
+                  }
+                }}
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPackages.map((pkg) => {
+                  const upcoming = getUpcomingDepartures(pkg.departures || []);
+                  const lowestPrice = getLowestPrice(pkg);
+                  
+                  return (
+                    <Card 
+                      key={pkg.id} 
+                      className={cn(
+                        "group overflow-hidden rounded-3xl border-none shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col bg-card relative",
+                        !pkg.is_active && "opacity-75 grayscale-[0.5]"
+                      )}
+                    >
+                      {/* Status Badges */}
+                      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                        {pkg.is_featured && (
+                          <Badge className="bg-amber-500/90 hover:bg-amber-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-current" /> UNGGULAN
+                          </Badge>
+                        )}
+                        {!pkg.is_active && (
+                          <Badge variant="destructive" className="shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
+                            NONAKTIF
+                          </Badge>
+                        )}
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-                    
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <Badge className="mb-2 bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md text-[10px] font-bold">
-                        {pkg.package_type_ref?.name || formatPackageType(pkg.package_type)}
-                      </Badge>
-                      <h3 className="text-white font-black text-lg leading-tight line-clamp-2 drop-shadow-md">
-                        {pkg.name}
-                      </h3>
-                    </div>
-                  </div>
 
-                  <CardContent className="p-5 flex-1 flex flex-col space-y-4">
-                    {/* Price & Info */}
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Mulai Dari</p>
-                        <p className="text-xl font-black text-primary">
-                          {lowestPrice > 0 ? formatCurrency(lowestPrice) : 'Hubungi Kami'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Durasi</p>
-                        <p className="text-sm font-bold text-foreground flex items-center justify-end gap-1">
-                          <Clock className="h-3.5 w-3.5 text-primary" /> {pkg.duration_days} Hari
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Quick Stats */}
-                    <div className="grid grid-cols-2 gap-3 py-3 border-y border-border/50">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Hotel className="h-3.5 w-3.5" /></div>
-                        <div className="truncate">
-                          <span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Hotel</span>
-                          <span className="truncate block font-medium">{pkg.hotel_makkah?.name || '-'}</span>
+                      {/* Image Section */}
+                      <div className="relative h-52 overflow-hidden">
+                        {pkg.featured_image ? (
+                          <img 
+                            src={pkg.featured_image} 
+                            alt={pkg.name}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <Package className="h-12 w-12 text-muted-foreground/20" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                        
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <Badge className="mb-2 bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-md text-[10px] font-bold">
+                            {pkg.package_type_ref?.name || formatPackageType(pkg.package_type)}
+                          </Badge>
+                          <h3 className="text-white font-black text-lg leading-tight line-clamp-2 drop-shadow-md">
+                            {pkg.name}
+                          </h3>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Plane className="h-3.5 w-3.5" /></div>
-                        <div className="truncate">
-                          <span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Pesawat</span>
-                          <span className="truncate block font-medium">{pkg.airline?.name || '-'}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Schedule Summary */}
-                    <div className="bg-muted/30 rounded-2xl p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-xl bg-background flex items-center justify-center shadow-sm">
-                          <Calendar className="h-4 w-4 text-primary" />
+                      <CardContent className="p-5 flex-1 flex flex-col space-y-4">
+                        {/* Price & Info */}
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Mulai Dari</p>
+                            <p className="text-xl font-black text-primary">
+                              {lowestPrice > 0 ? formatCurrency(lowestPrice) : 'Hubungi Kami'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Durasi</p>
+                            <p className="text-sm font-bold text-foreground flex items-center justify-end gap-1">
+                              <Clock className="h-3.5 w-3.5 text-primary" /> {pkg.duration_days} Hari
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-foreground uppercase">Jadwal Aktif</p>
-                          <p className="text-xs text-muted-foreground font-medium">{upcoming.length} Keberangkatan</p>
-                        </div>
-                      </div>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                            <Info className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs p-3 rounded-xl">
-                          <p className="text-xs font-bold mb-1 uppercase tracking-wider">Jadwal Terdekat:</p>
-                          {upcoming.length > 0 ? (
-                            <div className="space-y-1">
-                              {upcoming.slice(0, 3).map((d: any, idx: number) => (
-                                <div key={idx} className="flex justify-between gap-4 text-[10px]">
-                                  <span>{new Date(d.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                  <span className="font-bold text-primary">{d.booked_count}/{d.quota} Pax</span>
-                                </div>
-                              ))}
-                              {upcoming.length > 3 && <p className="text-[9px] text-center pt-1 border-t mt-1">+{upcoming.length - 3} lainnya</p>}
+
+                        {/* Quick Stats */}
+                        <div className="grid grid-cols-2 gap-3 py-3 border-y border-border/50">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Hotel className="h-3.5 w-3.5" /></div>
+                            <div className="truncate">
+                              <span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Hotel</span>
+                              <span className="truncate block font-medium">{pkg.hotel_makkah?.name || '-'}</span>
                             </div>
-                          ) : (
-                            <p className="text-[10px] text-muted-foreground">Belum ada jadwal aktif.</p>
-                          )}
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Plane className="h-3.5 w-3.5" /></div>
+                            <div className="truncate">
+                              <span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Pesawat</span>
+                              <span className="truncate block font-medium">{pkg.airline?.name || '-'}</span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Actions */}
-                    <div className="pt-2 flex gap-2 mt-auto">
-                      <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary" asChild>
-                        <Link to={`/admin/packages/${pkg.id}`}>
-                          <Eye className="h-3.5 w-3.5" /> DETAIL
-                        </Link>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleEdit(pkg)}
-                        className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary"
-                      >
-                        <Edit className="h-3.5 w-3.5" /> EDIT
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-primary/20 hover:bg-primary/5 text-primary">
-                            <MoreHorizontal className="h-4 w-4" />
+                        {/* Schedule Summary */}
+                        <div className="bg-muted/30 rounded-2xl p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-xl bg-background flex items-center justify-center shadow-sm">
+                              <Calendar className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-foreground uppercase">Jadwal Aktif</p>
+                              <p className="text-xs text-muted-foreground font-medium">{upcoming.length} Keberangkatan</p>
+                            </div>
+                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                <Info className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs p-3 rounded-xl">
+                              <p className="text-xs font-bold mb-1 uppercase tracking-wider">Jadwal Terdekat:</p>
+                              {upcoming.length > 0 ? (
+                                <div className="space-y-1">
+                                  {upcoming.slice(0, 3).map((d: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between gap-4 text-[10px]">
+                                      <span>{new Date(d.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                      <span className="font-bold text-primary">{d.booked_count}/{d.quota} Pax</span>
+                                    </div>
+                                  ))}
+                                  {upcoming.length > 3 && <p className="text-[9px] text-center pt-1 border-t mt-1">+{upcoming.length - 3} lainnya</p>}
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-muted-foreground">Belum ada jadwal aktif.</p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="pt-2 flex gap-2 mt-auto">
+                          <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary" asChild>
+                            <Link to={`/admin/packages/${pkg.id}`}>
+                              <Eye className="h-3.5 w-3.5" /> DETAIL
+                            </Link>
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl p-1 w-48">
-                          <DropdownMenuItem 
-                            className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
-                            onClick={() => toggleFeaturedMutation.mutate({ id: pkg.id, is_featured: !pkg.is_featured })}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleEdit(pkg)}
+                            className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary"
                           >
-                            <Star className={cn("h-4 w-4", pkg.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground")} />
-                            {pkg.is_featured ? 'Hapus Unggulan' : 'Jadikan Unggulan'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
-                            onClick={() => toggleStatusMutation.mutate({ id: pkg.id, is_active: !pkg.is_active })}
-                          >
-                            {pkg.is_active ? (
-                              <>
-                                <PowerOff className="h-4 w-4 text-orange-500" />
-                                Nonaktifkan Paket
-                              </>
-                            ) : (
-                              <>
-                                <Power className="h-4 w-4 text-emerald-500" />
-                                Aktifkan Paket
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
-                            onClick={() => setDeletePackage(pkg)}
-                          >
-                            <Trash2 className="h-4 w-4" /> Hapus Permanen
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <Edit className="h-3.5 w-3.5" /> EDIT
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-primary/20 hover:bg-primary/5 text-primary">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl p-1 w-48">
+                              <DropdownMenuItem 
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => toggleFeaturedMutation.mutate({ id: pkg.id, is_featured: !pkg.is_featured })}
+                              >
+                                <Star className={cn("h-4 w-4", pkg.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground")} />
+                                {pkg.is_featured ? 'Hapus Unggulan' : 'Jadikan Unggulan'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => toggleStatusMutation.mutate({ id: pkg.id, is_active: !pkg.is_active })}
+                              >
+                                {pkg.is_active ? (
+                                  <>
+                                    <PowerOff className="h-4 w-4 text-orange-500" />
+                                    Nonaktifkan Paket
+                                  </>
+                                ) : (
+                                  <>
+                                    <Power className="h-4 w-4 text-emerald-500" />
+                                    Aktifkan Paket
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
+                                onClick={() => setDeletePackage(pkg)}
+                              >
+                                <Trash2 className="h-4 w-4" /> Hapus Permanen
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Package Types Tab */}
+          <TabsContent value="types" className="space-y-6 mt-6">
+            {/* Search & Add Button */}
+            <Card className="border-none shadow-sm bg-card/50 backdrop-blur rounded-2xl">
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cari tipe paket..."
+                      value={typeSearchTerm}
+                      onChange={e => setTypeSearchTerm(e.target.value)}
+                      className="pl-10 h-11 bg-background border-none shadow-inner rounded-xl focus-visible:ring-primary/20"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => { setEditingType(null); setIsTypeFormOpen(true); }}
+                    className="gap-2 shadow-sm bg-primary hover:bg-primary/90 rounded-xl whitespace-nowrap"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Tambah Tipe
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Package Types Table */}
+            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/30 border-b">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Layers className="h-5 w-5" />
+                  Daftar Tipe Paket
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoadingTypes ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="h-4 w-4 rounded-full bg-primary/30 animate-pulse" />
+                      Memuat data...
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-border/50">
+                          <TableHead className="w-[100px] font-bold">Urutan</TableHead>
+                          <TableHead className="font-bold">Kode</TableHead>
+                          <TableHead className="font-bold">Nama Tipe</TableHead>
+                          <TableHead className="font-bold">Deskripsi</TableHead>
+                          <TableHead className="font-bold">Status</TableHead>
+                          <TableHead className="text-right font-bold">Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredTypes.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                              Tidak ada tipe paket ditemukan
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredTypes.map(type => (
+                            <TableRow key={type.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                              <TableCell className="font-medium">{type.display_order}</TableCell>
+                              <TableCell className="font-mono text-xs text-muted-foreground">{type.code}</TableCell>
+                              <TableCell className="font-medium">{type.name}</TableCell>
+                              <TableCell className="max-w-xs truncate text-sm text-muted-foreground">{type.description || "-"}</TableCell>
+                              <TableCell>
+                                <Badge variant={type.is_active ? "default" : "secondary"} className="rounded-full">
+                                  {type.is_active ? "Aktif" : "Nonaktif"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => handleEditType(type)}
+                                    className="rounded-lg border-primary/20 hover:bg-primary/5 text-primary"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="destructive" 
+                                    onClick={() => setDeleteType(type)}
+                                    className="rounded-lg"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Package Form Dialog */}
         <Dialog open={isFormOpen} onOpenChange={handleFormClose}>
@@ -509,7 +683,24 @@ export default function AdminPackages() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation */}
+        {/* Package Type Form Dialog */}
+        <Dialog open={isTypeFormOpen} onOpenChange={handleTypeFormClose}>
+          <DialogContent className="max-w-2xl rounded-[2rem] border-none shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                <Layers className="h-6 w-6 text-primary" />
+                {editingType ? 'Edit' : 'Tambah'} Tipe Paket
+              </DialogTitle>
+            </DialogHeader>
+            <PackageTypeForm 
+              packageTypeData={editingType} 
+              onSuccess={handleTypeFormClose} 
+              onCancel={handleTypeFormClose} 
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Package Confirmation */}
         <AlertDialog open={!!deletePackage} onOpenChange={() => setDeletePackage(null)}>
           <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-10">
             <div className="flex flex-col items-center text-center space-y-6">
@@ -534,8 +725,33 @@ export default function AdminPackages() {
             </div>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Delete Package Type Confirmation */}
+        <AlertDialog open={!!deleteType} onOpenChange={() => setDeleteType(null)}>
+          <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-10">
+            <div className="flex flex-col items-center text-center space-y-6">
+              <div className="bg-red-50 p-6 rounded-full text-red-500 shadow-inner">
+                <AlertCircle className="h-12 w-12" />
+              </div>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-3xl font-black text-foreground">Hapus Tipe Paket Ini?</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground font-medium text-base">
+                  Anda akan menghapus tipe paket <strong className="text-foreground font-bold">{deleteType?.name}</strong> secara permanen. Tindakan ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="w-full flex sm:flex-row gap-4 pt-6">
+                <AlertDialogCancel className="flex-1 rounded-2xl h-14 font-bold border-muted hover:bg-muted/50 transition-all">BATALKAN</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => deleteTypeMutation.mutate(deleteType.id)}
+                  className="flex-1 rounded-2xl h-14 font-bold bg-red-500 hover:bg-red-600 text-white border-none shadow-xl shadow-red-100 transition-all"
+                >
+                  YA, HAPUS PERMANEN
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </TooltipProvider>
   );
 }
-
