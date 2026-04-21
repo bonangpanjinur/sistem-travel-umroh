@@ -12,7 +12,8 @@ import {
   Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, 
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
   Power, PowerOff, ChevronDown, Layers, TrendingUp, DollarSign, Users, Zap,
-  ArrowUpRight, ArrowDownRight
+  ArrowUpRight, ArrowDownRight, Download, FileSpreadsheet, FileText,
+  AlertTriangle, CheckSquare, Square
 } from "lucide-react";
 import {
   Dialog,
@@ -44,7 +45,8 @@ import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { usePackageAnalytics } from "@/hooks/usePackageAnalytics";
-import { subDays } from "date-fns";
+import { subDays, format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -57,6 +59,10 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { exportToExcel, exportToPDF } from "@/lib/export-utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,6 +71,7 @@ export default function AdminPackages() {
   const [deletePackage, setDeletePackage] = useState<any>(null);
   const [packageTypeFilter, setPackageTypeFilter] = useState<"all" | "regular" | "tabungan">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [quickFilter, setQuickFilter] = useState<"all" | "almost_full" | "soon">("all");
   const [showFilters, setShowFilters] = useState(false);
   const [statsFilters, setStatsFilters] = useState<PackageStatsFilters>({});
   const [selectedDateRange, setSelectedDateRange] = useState<"7days" | "30days" | "90days" | "custom">("30days");
@@ -76,6 +83,7 @@ export default function AdminPackages() {
   const [editingType, setEditingType] = useState<any>(null);
   const [typeSearchTerm, setTypeSearchTerm] = useState("");
   const [deleteType, setDeleteType] = useState<any>(null);
+  const [isExporting, setIsExporting] = useState(false);
   
   const queryClient = useQueryClient();
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
@@ -130,6 +138,24 @@ export default function AdminPackages() {
     },
   });
 
+  const bulkToggleStatusMutation = useMutation({
+    mutationFn: async ({ ids, is_active }: { ids: string[], is_active: boolean }) => {
+      const { error } = await supabase
+        .from('packages')
+        .update({ is_active })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`${variables.ids.length} paket berhasil ${variables.is_active ? 'diaktifkan' : 'dinonaktifkan'}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+      setSelectedPackages([]);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal mengubah status paket");
+    },
+  });
+
   const toggleFeaturedMutation = useMutation({
     mutationFn: async ({ id, is_featured }: { id: string, is_featured: boolean }) => {
       const { error } = await supabase
@@ -177,6 +203,12 @@ export default function AdminPackages() {
     },
   });
 
+  const getUpcomingDepartures = (departures: any[]) => {
+    if (!departures) return [];
+    const today = new Date().toISOString().split('T')[0];
+    return departures.filter(d => d.departure_date >= today && d.status === 'open');
+  };
+
   const filteredPackages = useMemo(() => {
     return packages?.filter(pkg => {
       if (searchTerm && !(
@@ -191,10 +223,29 @@ export default function AdminPackages() {
 
       if (statusFilter === "active" && !pkg.is_active) return false;
       if (statusFilter === "inactive" && pkg.is_active) return false;
+
+      const upcoming = getUpcomingDepartures(pkg.departures || []);
+      
+      if (quickFilter === "almost_full") {
+        const hasAlmostFull = upcoming.some(d => (d.quota - (d.booked_count || 0)) < 5);
+        if (!hasAlmostFull) return false;
+      }
+
+      if (quickFilter === "soon") {
+        const today = new Date();
+        const thirtyDaysLater = new Date();
+        thirtyDaysLater.setDate(today.getDate() + 30);
+        
+        const hasSoon = upcoming.some(d => {
+          const depDate = new Date(d.departure_date);
+          return depDate >= today && depDate <= thirtyDaysLater;
+        });
+        if (!hasSoon) return false;
+      }
       
       return true;
     }) || [];
-  }, [packages, searchTerm, packageTypeFilter, statusFilter]);
+  }, [packages, searchTerm, packageTypeFilter, statusFilter, quickFilter]);
 
   const filteredTypes = useMemo(() => {
     return packageTypes?.filter(t => 
@@ -229,12 +280,6 @@ export default function AdminPackages() {
     setEditingType(null);
   };
 
-  const getUpcomingDepartures = (departures: any[]) => {
-    if (!departures) return [];
-    const today = new Date().toISOString().split('T')[0];
-    return departures.filter(d => d.departure_date >= today && d.status === 'open');
-  };
-
   const getLowestPrice = (pkg: any) => {
     const today = new Date().toISOString().split('T')[0];
     const openDeps = (pkg.departures as any[])?.filter(
@@ -247,6 +292,114 @@ export default function AdminPackages() {
     const pkgPrices = [pkg.price_quad, pkg.price_triple, pkg.price_double, pkg.price_single]
       .filter((p: number) => p && p > 0);
     return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
+  };
+
+  const handleExportPackages = (type: 'excel' | 'pdf') => {
+    if (!filteredPackages.length) return;
+    setIsExporting(true);
+
+    const columns = [
+      { header: 'Kode', accessor: 'code', width: 12 },
+      { header: 'Nama Paket', accessor: 'name', width: 35 },
+      { header: 'Tipe', accessor: (r: any) => r.package_type_ref?.name || formatPackageType(r.package_type), width: 15 },
+      { header: 'Durasi', accessor: (r: any) => `${r.duration_days} Hari`, width: 10 },
+      { header: 'Harga Mulai', accessor: (r: any) => formatCurrency(getLowestPrice(r)), width: 20 },
+      { header: 'Hotel Makkah', accessor: (r: any) => r.hotel_makkah?.name || '-', width: 25 },
+      { header: 'Hotel Madinah', accessor: (r: any) => r.hotel_madinah?.name || '-', width: 25 },
+      { header: 'Pesawat', accessor: (r: any) => r.airline?.name || '-', width: 20 },
+      { header: 'Status', accessor: (r: any) => r.is_active ? 'Aktif' : 'Nonaktif', width: 12 },
+    ];
+
+    const filename = `Daftar_Paket_${format(new Date(), 'yyyyMMdd_HHmmss')}`;
+    const title = 'Daftar Paket Perjalanan';
+    const subtitle = `Total: ${filteredPackages.length} paket | Dicetak pada: ${format(new Date(), 'd MMMM yyyy', { locale: localeId })}`;
+
+    try {
+      if (type === 'excel') {
+        exportToExcel(filteredPackages, columns, filename, 'Packages');
+      } else {
+        exportToPDF(filteredPackages, columns, filename, title, subtitle);
+      }
+      toast.success(`Daftar paket berhasil di-export ke ${type.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Gagal melakukan export data');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const downloadManifest = async (pkg: any) => {
+    const upcoming = getUpcomingDepartures(pkg.departures || []);
+    if (upcoming.length === 0) {
+      toast.error("Tidak ada keberangkatan aktif untuk paket ini");
+      return;
+    }
+
+    const departure = upcoming[0]; // Ambil yang terdekat
+    
+    // Fetch passengers for this departure
+    const { data: passengers, error } = await supabase
+      .from("booking_passengers")
+      .select(`
+        id, is_main_passenger, room_preference, passenger_type,
+        customer:customers(id, full_name, gender, birth_date, passport_number, passport_expiry, phone),
+        booking:bookings!inner(id, booking_code, room_type, booking_status, departure_id)
+      `)
+      .eq("booking.departure_id", departure.id)
+      .eq("booking.booking_status", "confirmed");
+
+    if (error) {
+      toast.error("Gagal mengambil data jamaah");
+      return;
+    }
+
+    if (!passengers || passengers.length === 0) {
+      toast.error("Belum ada jamaah terdaftar untuk keberangkatan ini");
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Manifest Jamaah - ${pkg.name}`, 14, 20);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Tanggal Berangkat: ${format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId })}`, 14, 28);
+    doc.text(`Jumlah: ${passengers.length} jamaah`, 14, 34);
+
+    autoTable(doc, {
+      startY: 42,
+      head: [["No", "Nama Lengkap", "L/P", "No. Paspor", "Exp. Paspor", "Tipe Kamar", "Telepon"]],
+      body: passengers.map((p, idx) => [
+        (idx + 1).toString(),
+        p.customer?.full_name || "-",
+        p.customer?.gender === "male" ? "L" : "P",
+        p.customer?.passport_number || "-",
+        p.customer?.passport_expiry ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy") : "-",
+        (p.booking?.room_type || "-").toUpperCase(),
+        p.customer?.phone || "-",
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+    });
+
+    doc.save(`Manifest-${pkg.name}-${departure.departure_date}.pdf`);
+    toast.success("Manifest PDF berhasil di-download");
+  };
+
+  const toggleSelectPackage = (id: string) => {
+    setSelectedPackages(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedPackages.length === filteredPackages.length) {
+      setSelectedPackages([]);
+    } else {
+      setSelectedPackages(filteredPackages.map(p => p.id));
+    }
   };
 
   return (
@@ -262,11 +415,29 @@ export default function AdminPackages() {
             <p className="text-muted-foreground">Pusat manajemen paket perjalanan umroh & haji</p>
           </div>
           <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2 rounded-xl border-primary/20 text-primary">
+                  <Download className="h-4 w-4" />
+                  Export Data
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl">
+                <DropdownMenuItem onClick={() => handleExportPackages('excel')} className="gap-2 cursor-pointer">
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                  Download Excel (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportPackages('pdf')} className="gap-2 cursor-pointer">
+                  <FileText className="h-4 w-4 text-rose-600" />
+                  Download PDF (.pdf)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button onClick={() => handleAddPackage("regular")} className="gap-2 shadow-sm bg-primary hover:bg-primary/90 rounded-xl">
               <Plus className="h-4 w-4" />
               Paket Reguler
             </Button>
-            <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2 shadow-sm rounded-xl border-primary/20 hover:bg-primary/5 text-primary">
+            <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2 shadow-sm rounded-xl border-primary/20 text-primary">
               <Plus className="h-4 w-4" />
               Paket Tabungan
             </Button>
@@ -313,34 +484,6 @@ export default function AdminPackages() {
           />
         </div>
 
-        {/* Additional Metrics Row */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <AnalyticsCard
-            title="Paket Unggulan"
-            value={analytics?.featuredPackages || 0}
-            description="Paket ditandai sebagai unggulan"
-            icon={Star}
-            loading={isAnalyticsLoading}
-            color="amber"
-          />
-          <AnalyticsCard
-            title="Rata-rata Harga"
-            value={formatCurrency(analytics?.averagePrice || 0)}
-            description="Harga rata-rata per paket"
-            icon={DollarSign}
-            loading={isAnalyticsLoading}
-            color="primary"
-          />
-          <AnalyticsCard
-            title="Potensi Revenue"
-            value={formatCurrency(analytics?.totalRevenue || 0)}
-            description="Dari kapasitas tersedia"
-            icon={TrendingUp}
-            loading={isAnalyticsLoading}
-            color="emerald"
-          />
-        </div>
-
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/50 p-1">
@@ -356,6 +499,45 @@ export default function AdminPackages() {
 
           {/* Packages Tab */}
           <TabsContent value="packages" className="space-y-6 mt-6">
+            {/* Quick Action Tabs */}
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant={quickFilter === "all" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setQuickFilter("all")}
+                className="rounded-full px-4 h-9"
+              >
+                Semua Paket
+              </Button>
+              <Button 
+                variant={quickFilter === "almost_full" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setQuickFilter("almost_full")}
+                className={cn(
+                  "rounded-full px-4 h-9 gap-2",
+                  quickFilter !== "almost_full" && "border-rose-200 text-rose-600 hover:bg-rose-50"
+                )}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Hampir Penuh
+                {packages?.some(p => getUpcomingDepartures(p.departures || []).some(d => (d.quota - (d.booked_count || 0)) < 5)) && (
+                  <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                )}
+              </Button>
+              <Button 
+                variant={quickFilter === "soon" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setQuickFilter("soon")}
+                className={cn(
+                  "rounded-full px-4 h-9 gap-2",
+                  quickFilter !== "soon" && "border-amber-200 text-amber-600 hover:bg-amber-50"
+                )}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                Segera Berangkat
+              </Button>
+            </div>
+
             {/* Search & Filter Bar */}
             <Card className="border-none shadow-sm bg-card/50 backdrop-blur rounded-2xl">
               <CardContent className="p-3">
@@ -395,6 +577,60 @@ export default function AdminPackages() {
               </CardContent>
             </Card>
 
+            {/* Bulk Actions Bar */}
+            {selectedPackages.length > 0 && (
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary text-white h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold">
+                    {selectedPackages.length}
+                  </div>
+                  <span className="text-sm font-medium">Paket terpilih</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => bulkToggleStatusMutation.mutate({ ids: selectedPackages, is_active: true })}
+                    className="rounded-xl gap-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                  >
+                    <Power className="h-4 w-4" /> Aktifkan
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => bulkToggleStatusMutation.mutate({ ids: selectedPackages, is_active: false })}
+                    className="rounded-xl gap-2 border-rose-200 text-rose-600 hover:bg-rose-50"
+                  >
+                    <PowerOff className="h-4 w-4" /> Nonaktifkan
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={() => setSelectedPackages([])}
+                    className="rounded-xl"
+                  >
+                    Batal
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={toggleSelectAll}
+                className="text-xs font-bold gap-2 text-muted-foreground hover:text-primary"
+              >
+                {selectedPackages.length === filteredPackages.length ? (
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                PILIH SEMUA
+              </Button>
+            </div>
+
             {/* Package Grid */}
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -423,6 +659,7 @@ export default function AdminPackages() {
                     setSearchTerm("");
                     setPackageTypeFilter("all");
                     setStatusFilter("all");
+                    setQuickFilter("all");
                   }
                 }}
               />
@@ -431,15 +668,35 @@ export default function AdminPackages() {
                 {filteredPackages.map((pkg) => {
                   const upcoming = getUpcomingDepartures(pkg.departures || []);
                   const lowestPrice = getLowestPrice(pkg);
+                  const isSelected = selectedPackages.includes(pkg.id);
                   
+                  // Progress calculation for the closest departure
+                  const mainDep = upcoming[0];
+                  const occupancyRate = mainDep ? (mainDep.booked_count / mainDep.quota) * 100 : 0;
+                  const remainingQuota = mainDep ? mainDep.quota - mainDep.booked_count : 0;
+                  const isLowQuota = remainingQuota > 0 && remainingQuota < 5;
+                  const hasNoDepartures = !pkg.departures || pkg.departures.length === 0;
+
                   return (
                     <Card 
                       key={pkg.id} 
                       className={cn(
                         "group overflow-hidden rounded-3xl border-none shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col bg-card relative",
-                        !pkg.is_active && "opacity-75 grayscale-[0.5]"
+                        !pkg.is_active && "opacity-75 grayscale-[0.5]",
+                        isSelected && "ring-2 ring-primary ring-offset-2"
                       )}
                     >
+                      {/* Selection Overlay */}
+                      <div 
+                        className={cn(
+                          "absolute top-4 right-4 z-20 cursor-pointer transition-transform hover:scale-110",
+                          isSelected ? "text-primary" : "text-white/50 group-hover:text-white"
+                        )}
+                        onClick={() => toggleSelectPackage(pkg.id)}
+                      >
+                        {isSelected ? <CheckSquare className="h-6 w-6 fill-white" /> : <Square className="h-6 w-6" />}
+                      </div>
+
                       {/* Status Badges */}
                       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
                         {pkg.is_featured && (
@@ -451,6 +708,21 @@ export default function AdminPackages() {
                           <Badge variant="destructive" className="shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
                             NONAKTIF
                           </Badge>
+                        )}
+                        {isLowQuota && (
+                          <Badge className="bg-rose-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase animate-pulse">
+                            KUOTA MENIPIS
+                          </Badge>
+                        )}
+                        {hasNoDepartures && pkg.is_active && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-200 shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
+                                <AlertTriangle className="h-3 w-3 mr-1" /> DATA TIDAK LENGKAP
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>Paket aktif tetapi belum memiliki jadwal keberangkatan</TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
 
@@ -496,6 +768,29 @@ export default function AdminPackages() {
                           </div>
                         </div>
 
+                        {/* Quota Progress Bar */}
+                        {mainDep && (
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                              <span className="text-muted-foreground">Keterisian Kuota</span>
+                              <span className={cn(
+                                occupancyRate > 90 ? "text-rose-600" : 
+                                occupancyRate > 50 ? "text-amber-600" : "text-emerald-600"
+                              )}>
+                                {mainDep.booked_count} / {mainDep.quota} PAX
+                              </span>
+                            </div>
+                            <Progress 
+                              value={occupancyRate} 
+                              className="h-2 bg-slate-100" 
+                              indicatorClassName={cn(
+                                occupancyRate > 90 ? "bg-rose-500" : 
+                                occupancyRate > 50 ? "bg-amber-500" : "bg-emerald-500"
+                              )}
+                            />
+                          </div>
+                        )}
+
                         {/* Quick Stats */}
                         <div className="grid grid-cols-2 gap-3 py-3 border-y border-border/50">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -525,29 +820,44 @@ export default function AdminPackages() {
                               <p className="text-xs text-muted-foreground font-medium">{upcoming.length} Keberangkatan</p>
                             </div>
                           </div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                                <Info className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs p-3 rounded-xl">
-                              <p className="text-xs font-bold mb-1 uppercase tracking-wider">Jadwal Terdekat:</p>
-                              {upcoming.length > 0 ? (
-                                <div className="space-y-1">
-                                  {upcoming.slice(0, 3).map((d: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between gap-4 text-[10px]">
-                                      <span>{new Date(d.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                      <span className="font-bold text-primary">{d.booked_count}/{d.quota} Pax</span>
-                                    </div>
-                                  ))}
-                                  {upcoming.length > 3 && <p className="text-[9px] text-center pt-1 border-t mt-1">+{upcoming.length - 3} lainnya</p>}
-                                </div>
-                              ) : (
-                                <p className="text-[10px] text-muted-foreground">Belum ada jadwal aktif.</p>
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
+                          <div className="flex items-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 rounded-full text-primary hover:bg-primary/10"
+                                  onClick={() => downloadManifest(pkg)}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Download Manifest</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs p-3 rounded-xl">
+                                <p className="text-xs font-bold mb-1 uppercase tracking-wider">Jadwal Terdekat:</p>
+                                {upcoming.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {upcoming.slice(0, 3).map((d: any, idx: number) => (
+                                      <div key={idx} className="flex justify-between gap-4 text-[10px]">
+                                        <span>{new Date(d.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                        <span className="font-bold text-primary">{d.booked_count}/{d.quota} Pax</span>
+                                      </div>
+                                    ))}
+                                    {upcoming.length > 3 && <p className="text-[9px] text-center pt-1 border-t mt-1">+{upcoming.length - 3} lainnya</p>}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground">Belum ada jadwal aktif.</p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
                         </div>
 
                         {/* Actions */}
@@ -693,17 +1003,17 @@ export default function AdminPackages() {
                                     size="sm" 
                                     variant="outline" 
                                     onClick={() => handleEditType(type)}
-                                    className="rounded-lg border-primary/20 hover:bg-primary/5 text-primary"
+                                    className="rounded-lg h-8 w-8 p-0"
                                   >
-                                    <Edit className="h-4 w-4" />
+                                    <Edit className="h-3.5 w-3.5" />
                                   </Button>
                                   <Button 
                                     size="sm" 
-                                    variant="destructive" 
+                                    variant="outline" 
                                     onClick={() => setDeleteType(type)}
-                                    className="rounded-lg"
+                                    className="rounded-lg h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -719,34 +1029,32 @@ export default function AdminPackages() {
           </TabsContent>
         </Tabs>
 
-        {/* Package Form Dialog */}
+        {/* Forms & Dialogs */}
         <Dialog open={isFormOpen} onOpenChange={handleFormClose}>
-          <DialogContent className="max-w-4xl max-h-[95vh] p-0 overflow-hidden rounded-[2rem] border-none shadow-2xl">
-            <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-24 -mb-24 blur-2xl" />
-              
-              <DialogHeader className="relative z-10">
-                <DialogTitle className="text-3xl font-black uppercase tracking-tight flex items-center gap-4">
-                  <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md shadow-inner"><Package className="h-7 w-7" /></div>
-                  {editingPackage ? 'Konfigurasi Paket' : 'Pendaftaran Paket Baru'}
-                </DialogTitle>
-                <p className="text-primary-foreground/80 text-sm font-medium mt-2 max-w-xl">
-                  {editingPackage ? `Memperbarui data paket ${editingPackage.code}. Pastikan informasi yang dimasukkan sudah sesuai dengan standar operasional.` : 'Lengkapi detail paket perjalanan untuk mulai dipublikasikan ke calon jamaah.'}
-                </p>
-              </DialogHeader>
-            </div>
-            <div className="p-8 overflow-y-auto max-h-[calc(95vh-180px)] custom-scrollbar bg-background">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
+            <DialogHeader className="p-6 bg-primary text-white sticky top-0 z-10">
+              <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                <Package className="h-6 w-6" />
+                {editingPackage ? 'Edit Paket' : 'Tambah Paket Baru'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-6">
               {packageTypeFilter === "tabungan" ? (
                 <SavingsPackageForm 
-                  packageData={editingPackage} 
-                  onSuccess={handleFormClose}
+                  initialData={editingPackage} 
+                  onSuccess={() => {
+                    handleFormClose();
+                    queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+                  }}
                   onCancel={handleFormClose}
                 />
               ) : (
                 <RegularPackageForm 
-                  packageData={editingPackage} 
-                  onSuccess={handleFormClose}
+                  initialData={editingPackage} 
+                  onSuccess={() => {
+                    handleFormClose();
+                    queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+                  }}
                   onCancel={handleFormClose}
                 />
               )}
@@ -754,72 +1062,64 @@ export default function AdminPackages() {
           </DialogContent>
         </Dialog>
 
-        {/* Package Type Form Dialog */}
         <Dialog open={isTypeFormOpen} onOpenChange={handleTypeFormClose}>
-          <DialogContent className="max-w-2xl rounded-[2rem] border-none shadow-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                <Layers className="h-6 w-6 text-primary" />
-                {editingType ? 'Edit' : 'Tambah'} Tipe Paket
+          <DialogContent className="max-w-lg rounded-3xl p-0 border-none shadow-2xl">
+            <DialogHeader className="p-6 bg-primary text-white">
+              <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                <Layers className="h-6 w-6" />
+                {editingType ? "Edit Tipe Paket" : "Tambah Tipe Paket"}
               </DialogTitle>
             </DialogHeader>
-            <PackageTypeForm 
-              packageTypeData={editingType} 
-              onSuccess={handleTypeFormClose} 
-              onCancel={handleTypeFormClose} 
-            />
+            <div className="p-6">
+              <PackageTypeForm
+                initialData={editingType}
+                onSuccess={() => {
+                  handleTypeFormClose();
+                  queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
+                }}
+                onCancel={handleTypeFormClose}
+              />
+            </div>
           </DialogContent>
         </Dialog>
 
-        {/* Delete Package Confirmation */}
         <AlertDialog open={!!deletePackage} onOpenChange={() => setDeletePackage(null)}>
-          <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-10">
-            <div className="flex flex-col items-center text-center space-y-6">
-              <div className="bg-red-50 p-6 rounded-full text-red-500 shadow-inner">
-                <AlertCircle className="h-12 w-12" />
-              </div>
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-3xl font-black text-foreground">Hapus Paket Ini?</AlertDialogTitle>
-                <AlertDialogDescription className="text-muted-foreground font-medium text-base">
-                  Anda akan menghapus paket <strong className="text-foreground font-bold">{deletePackage?.name}</strong> secara permanen. Tindakan ini tidak dapat dibatalkan dan akan berdampak pada data riwayat yang terkait.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="w-full flex sm:flex-row gap-4 pt-6">
-                <AlertDialogCancel className="flex-1 rounded-2xl h-14 font-bold border-muted hover:bg-muted/50 transition-all">BATALKAN</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={() => deleteMutation.mutate(deletePackage.id)}
-                  className="flex-1 rounded-2xl h-14 font-bold bg-red-500 hover:bg-red-600 text-white border-none shadow-xl shadow-red-100 transition-all"
-                >
-                  YA, HAPUS PERMANEN
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </div>
+          <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-bold">Hapus Paket?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tindakan ini tidak dapat dibatalkan. Paket <strong>{deletePackage?.name}</strong> akan dihapus secara permanen dari sistem.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => deleteMutation.mutate(deletePackage.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+              >
+                Hapus Permanen
+              </AlertDialogAction>
+            </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Delete Package Type Confirmation */}
         <AlertDialog open={!!deleteType} onOpenChange={() => setDeleteType(null)}>
-          <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-10">
-            <div className="flex flex-col items-center text-center space-y-6">
-              <div className="bg-red-50 p-6 rounded-full text-red-500 shadow-inner">
-                <AlertCircle className="h-12 w-12" />
-              </div>
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-3xl font-black text-foreground">Hapus Tipe Paket Ini?</AlertDialogTitle>
-                <AlertDialogDescription className="text-muted-foreground font-medium text-base">
-                  Anda akan menghapus tipe paket <strong className="text-foreground font-bold">{deleteType?.name}</strong> secara permanen. Tindakan ini tidak dapat dibatalkan.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="w-full flex sm:flex-row gap-4 pt-6">
-                <AlertDialogCancel className="flex-1 rounded-2xl h-14 font-bold border-muted hover:bg-muted/50 transition-all">BATALKAN</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={() => deleteTypeMutation.mutate(deleteType.id)}
-                  className="flex-1 rounded-2xl h-14 font-bold bg-red-500 hover:bg-red-600 text-white border-none shadow-xl shadow-red-100 transition-all"
-                >
-                  YA, HAPUS PERMANEN
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </div>
+          <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-bold">Hapus Tipe Paket?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus tipe paket <strong>{deleteType?.name}</strong>? Tindakan ini tidak dapat dibatalkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteTypeMutation.mutate(deleteType.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+              >
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
@@ -827,40 +1127,42 @@ export default function AdminPackages() {
   );
 }
 
-function AnalyticsCard({ title, value, description, icon: Icon, loading, trend, trendUp, color }: any) {
-  const colorMap: Record<string, string> = {
-    primary: "text-primary bg-primary/10",
-    blue: "text-blue-600 bg-blue-50",
-    emerald: "text-emerald-600 bg-emerald-50",
-    amber: "text-amber-600 bg-amber-50",
+function AnalyticsCard({ title, value, description, icon: Icon, loading, color, trend, trendUp }: any) {
+  const colorMap: any = {
+    primary: "bg-primary/10 text-primary",
+    emerald: "bg-emerald-500/10 text-emerald-600",
+    blue: "bg-blue-500/10 text-blue-600",
+    amber: "bg-amber-500/10 text-amber-600",
   };
 
   return (
-    <Card className="relative overflow-hidden shadow-sm border-muted/60 hover:shadow-md transition-all group border-l-4 border-l-primary">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
-        <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-110", colorMap[color] || colorMap.primary)}>
-          <Icon className="h-4 w-4" />
+    <Card className="border-none shadow-sm overflow-hidden rounded-3xl bg-card/50 backdrop-blur group hover:shadow-md transition-all duration-300">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</p>
+            {loading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-black text-foreground">{value}</h3>
+                {trend && (
+                  <span className={cn(
+                    "text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5",
+                    trendUp ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+                  )}>
+                    {trendUp ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+                    {trend}
+                  </span>
+                )}
+              </div>
+            )}
+            <p className="text-[10px] font-medium text-muted-foreground line-clamp-1">{description}</p>
+          </div>
+          <div className={cn("p-3 rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3", colorMap[color])}>
+            <Icon className="h-5 w-5" />
+          </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-8 w-28" />
-        ) : (
-          <>
-            <div className="text-2xl font-bold tracking-tight">{value}</div>
-            <div className="flex items-center gap-2 mt-1">
-              {trend && (
-                <div className={cn("flex items-center text-[10px] font-bold px-1 py-0.5 rounded", trendUp ? "text-emerald-700 bg-emerald-50" : "text-red-700 bg-red-50")}>
-                  {trendUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                  {trend}
-                </div>
-              )}
-              {description && <p className="text-[10px] text-muted-foreground font-medium">{description}</p>}
-            </div>
-          </>
-        )}
       </CardContent>
     </Card>
-  );
 }
