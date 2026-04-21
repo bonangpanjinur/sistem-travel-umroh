@@ -39,6 +39,9 @@ import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Ey
 import { useState } from "react";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
 import { PackageForm } from "@/components/admin/forms/PackageForm";
+import { MilestoneTrackerCard } from "@/components/admin/MilestoneTrackerCard";
+import { BreakEvenIndicatorCard } from "@/components/admin/BreakEvenIndicatorCard";
+import { EquipmentReadinessCard } from "@/components/admin/EquipmentReadinessCard";
 import { toast } from "sonner";
 
 const MONTHS = [
@@ -522,87 +525,26 @@ export default function AdminPackageDetail() {
                         <div className="p-4 space-y-6">
                           {/* Phase 3 & 5 Quick Stats */}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Phase 3: Milestone Tracker */}
-                            <Card className="bg-blue-50/30 border-blue-100">
-                              <CardHeader className="p-3 pb-0">
-                                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-blue-700">
-                                  <Calendar className="h-3.5 w-3.5" /> Milestone & Deadline
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="p-3 space-y-2">
-                                {[
-                                  { label: "Dokumen", date: departure.document_deadline, milestone: docMilestone },
-                                  { label: "Pelunasan", date: departure.payment_deadline, milestone: payMilestone },
-                                  { label: "Visa", date: departure.visa_deadline, milestone: visaMilestone },
-                                ].map((m, i) => (
-                                  <div key={i} className="flex items-center justify-between text-[10px]">
-                                    <span className="text-muted-foreground">{m.label}</span>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="font-medium">{m.date ? formatDate(m.date) : "-"}</span>
-                                      <m.milestone.icon className={cn("h-3 w-3", m.milestone.color)} />
-                                    </div>
-                                  </div>
-                                ))}
-                              </CardContent>
-                            </Card>
+                            <MilestoneTrackerCard
+                              milestones={[
+                                { label: "Pengumpulan Dokumen", date: departure.document_deadline, type: "document" },
+                                { label: "Pelunasan Pembayaran", date: departure.payment_deadline, type: "payment" },
+                                { label: "Pengurusan Visa", date: departure.visa_deadline, type: "visa" },
+                              ]}
+                            />
 
-                            {/* Phase 5: Break-even Indicator */}
-                            <Card className="bg-green-50/30 border-green-100">
-                              <CardHeader className="p-3 pb-0">
-                                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-green-700">
-                                  <TrendingUp className="h-3.5 w-3.5" /> Profitability Monitoring
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="p-3 space-y-2">
-                                <div className="flex justify-between text-[10px]">
-                                  <span className="text-muted-foreground">Titik Impas (BEP)</span>
-                                  <span className="font-medium">{breakEven} Pax</span>
-                                </div>
-                                <div className="space-y-1">
-                                  <div className="relative h-2 w-full bg-muted rounded-full overflow-hidden">
-                                    <div 
-                                      className={cn("h-full transition-all", isProfitable ? "bg-green-500" : "bg-blue-500")}
-                                      style={{ width: `${Math.min((totalBooked / departure.quota) * 100, 100)}%` }}
-                                    />
-                                    {breakEven > 0 && breakEven < departure.quota && (
-                                      <div 
-                                        className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10"
-                                        style={{ left: `${(breakEven / departure.quota) * 100}%` }}
-                                      />
-                                    )}
-                                  </div>
-                                  <div className="flex justify-between text-[9px]">
-                                    <span className={isProfitable ? "text-green-600 font-medium" : "text-muted-foreground"}>
-                                      {isProfitable ? "PROFIT" : "BELUM BEP"}
-                                    </span>
-                                    <span className="text-muted-foreground">{totalBooked}/{departure.quota} Pax</span>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
+                            <BreakEvenIndicatorCard
+                              totalBooked={totalBooked}
+                              quota={departure.quota}
+                              breakEvenPax={breakEven}
+                              operationalCostPerPax={(departure as any)?.operational_cost_per_pax || 0}
+                            />
 
-                            {/* Phase 4: Equipment Readiness (Placeholder for now) */}
-                            <Card className="bg-orange-50/30 border-orange-100">
-                              <CardHeader className="p-3 pb-0">
-                                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-orange-700">
-                                  <Box className="h-3.5 w-3.5" /> Equipment Readiness
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="p-3 space-y-2">
-                                <div className="flex justify-between text-[10px]">
-                                  <span className="text-muted-foreground">Status Kelengkapan</span>
-                                  <span className="font-medium">45%</span>
-                                </div>
-                                <div className="space-y-1">
-                                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                                    <div className="h-full bg-orange-500 w-[45%]" />
-                                  </div>
-                                  <p className="text-[9px] text-muted-foreground">
-                                    20 dari 45 jamaah sudah menerima perlengkapan
-                                  </p>
-                                </div>
-                              </CardContent>
-                            </Card>
+                            <EquipmentReadinessCard
+                              departureId={departure.id}
+                              totalJamaah={departure.quota}
+                              completedJamaah={Math.floor((departure.quota * 45) / 100)}
+                            />
                           </div>
 
                           <div className="space-y-4">
