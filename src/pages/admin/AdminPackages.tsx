@@ -220,7 +220,16 @@ export default function AdminPackages() {
   };
 
   const filteredPackages = useMemo(() => {
-    return packages?.filter(pkg => {
+    if (!packages) return [];
+
+    // Pre-calculate minPrice and maxBooked for filtering
+    const allPrices = packages.map(p => getLowestPrice(p)).filter(p => p > 0);
+    const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+
+    const allBooked = packages.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0);
+    const maxBooked = allBooked.length > 0 ? Math.max(...allBooked) : 0;
+
+    return packages.filter(pkg => {
       if (searchTerm && !(
         pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pkg.code.toLowerCase().includes(searchTerm.toLowerCase())
@@ -238,16 +247,12 @@ export default function AdminPackages() {
       
       if (quickFilter === "cheapest") {
         const lowestPrice = getLowestPrice(pkg);
-        const allPrices = packages?.map(p => getLowestPrice(p)).filter(p => p > 0) || [];
-        const minPrice = Math.min(...allPrices);
-        if (lowestPrice !== minPrice) return false;
+        if (lowestPrice === 0 || lowestPrice !== minPrice) return false;
       }
 
       if (quickFilter === "popular") {
         const totalBooked = pkg.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0;
-        const allBooked = packages?.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0) || [];
-        const maxBooked = Math.max(...allBooked);
-        if (totalBooked !== maxBooked || totalBooked === 0) return false;
+        if (totalBooked === 0 || totalBooked !== maxBooked) return false;
       }
 
       if (quickFilter === "almost_full") {
@@ -268,7 +273,7 @@ export default function AdminPackages() {
       }
       
       return true;
-    }) || [];
+    });
   }, [packages, searchTerm, packageTypeFilter, statusFilter, quickFilter]);
 
   const filteredTypes = useMemo(() => {
