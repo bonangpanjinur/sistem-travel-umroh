@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
+        dontCacheBustURLsMatching: /assets\//,
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
@@ -79,6 +80,9 @@ export default defineConfig(({ mode }) => ({
     // Optimized chunk splitting strategy
     rollupOptions: {
       output: {
+        entryFileNames: `assets/[name]-[hash].js`,
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name]-[hash].[ext]`,
         manualChunks(id) {
           // Vendor chunks - separated for better caching
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
