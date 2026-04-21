@@ -1165,4 +1165,5 @@ function AnalyticsCard({ title, value, description, icon: Icon, loading, color, 
         </div>
       </CardContent>
     </Card>
+  );
 }
