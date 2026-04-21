@@ -56,7 +56,7 @@ export default function AdminDashboard() {
   
   const { data: recentBookings, isLoading: loadingBookings } = useRecentBookings(selectedBranch);
   const { data: upcomingDepartures, isLoading: loadingDepartures } = useUpcomingDepartures(selectedBranch);
-  const { data: alerts } = useDashboardAlerts();
+  const { data: alerts, isLoading: loadingAlerts } = useDashboardAlerts();
 
   // Calculate periodic stats
   const periodicStats = useMemo(() => {
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="space-y-1">
               <p className="text-2xl font-bold text-red-700">
-                {alerts?.stockAlerts?.critical || 0} Item Habis • {alerts?.stockAlerts?.low || 0}
+                {loadingAlerts ? <Skeleton className="h-8 w-24" /> : (alerts?.stockAlerts?.total || 0)}
               </p>
               <p className="text-sm text-red-600/80 font-medium">Stok Rendah</p>
             </div>
@@ -246,7 +246,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-2xl font-bold text-blue-700">{alerts?.pendingDocuments || 0} Dokumen</p>
+              <p className="text-2xl font-bold text-blue-700">{loadingAlerts ? <Skeleton className="h-8 w-24" /> : (alerts?.pendingDocuments || 0)}</p>
               <p className="text-sm text-blue-600/80 font-medium">Menunggu</p>
             </div>
           </CardContent>
@@ -266,7 +266,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-2xl font-bold text-emerald-700">{upcomingDepartures?.length || 0} Grup Siap</p>
+              <p className="text-2xl font-bold text-emerald-700">{loadingDepartures ? <Skeleton className="h-8 w-24" /> : (upcomingDepartures?.length || 0)}</p>
               <p className="text-sm text-emerald-600/80 font-medium">Berangkat</p>
             </div>
           </CardContent>
@@ -284,8 +284,8 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-2">
               <Dialog open={isSoldModalOpen} onOpenChange={setIsSoldModalOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs text-primary font-semibold">
-                    Detail <ExternalLink className="ml-1 h-3 w-3" />
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-amber-600 font-semibold flex items-center gap-1">
+                    Detail <ExternalLink className="h-3 w-3" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -353,16 +353,16 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <p className="text-3xl font-black text-amber-600">{filteredSoldCount}</p>
+                <p className="text-4xl font-black text-amber-600">{isLoading ? <Skeleton className="h-10 w-16" /> : filteredSoldCount}</p>
                 <p className="text-xs text-muted-foreground font-medium">Paket Terkonfirmasi</p>
               </div>
               <div className="hidden md:flex flex-col justify-center border-l pl-4">
                 <p className="text-xs font-bold text-muted-foreground uppercase">Minggu Ini</p>
-                <p className="text-xl font-bold text-slate-700">{periodicStats.sold.week}</p>
+                <p className="text-2xl font-bold text-slate-700">{isLoading ? <Skeleton className="h-7 w-12" /> : periodicStats.sold.week}</p>
               </div>
               <div className="hidden md:flex flex-col justify-center border-l pl-4">
                 <p className="text-xs font-bold text-muted-foreground uppercase">Bulan Ini</p>
-                <p className="text-xl font-bold text-slate-700">{periodicStats.sold.month}</p>
+                <p className="text-2xl font-bold text-slate-700">{isLoading ? <Skeleton className="h-7 w-12" /> : periodicStats.sold.month}</p>
               </div>
             </div>
           </CardContent>
@@ -389,16 +389,16 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <p className="text-3xl font-black text-blue-600">{filteredJamaahCount}</p>
-                <p className="text-xs text-muted-foreground font-medium">Pendaftaran {jamaahFilter === 'all' ? 'Total' : 'Baru'}</p>
+                <p className="text-4xl font-black text-blue-600">{isLoading ? <Skeleton className="h-10 w-16" /> : filteredJamaahCount}</p>
+                <p className="text-xs text-muted-foreground font-medium">Pendaftaran Total</p>
               </div>
               <div className="hidden md:flex flex-col justify-center border-l pl-4">
                 <p className="text-xs font-bold text-muted-foreground uppercase">Minggu Ini</p>
-                <p className="text-xl font-bold text-slate-700">{periodicStats.jamaah.week}</p>
+                <p className="text-2xl font-bold text-slate-700">{isLoading ? <Skeleton className="h-7 w-12" /> : periodicStats.jamaah.week}</p>
               </div>
               <div className="hidden md:flex flex-col justify-center border-l pl-4">
                 <p className="text-xs font-bold text-muted-foreground uppercase">Bulan Ini</p>
-                <p className="text-xl font-bold text-slate-700">{periodicStats.jamaah.month}</p>
+                <p className="text-2xl font-bold text-slate-700">{isLoading ? <Skeleton className="h-7 w-12" /> : periodicStats.jamaah.month}</p>
               </div>
             </div>
           </CardContent>
@@ -406,7 +406,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Charts Section */}
-      <DashboardCharts stats={stats} isLoading={isLoading} />
+      <DashboardCharts stats={stats} isLoading={isLoading} recentAudits={alerts?.recentAudits || []} />
 
       {/* Recent Activity & Tables */}
       <div className="grid gap-6 lg:grid-cols-2">

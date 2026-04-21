@@ -189,8 +189,8 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         
         const isSold = status === 'confirmed' || status === 'completed';
         if (isSold) {
-          // Count by total_pax (total jamaah), not by number of bookings
-          soldPackagesCount += pax;
+          // Count by number of bookings (paket terjual), not by total_pax
+          soldPackagesCount += 1;
           
           // Extract package name from the joined data
           const packageName = (b as any).departure?.package?.name || 'Unknown Package';
@@ -206,16 +206,16 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
           
           if (b.created_at) {
             const date = parseISO(b.created_at);
-            // Daily - add by pax count
+            // Daily - count by booking
             const dayKey = format(date, 'yyyy-MM-dd');
-            soldByDay[dayKey] = (soldByDay[dayKey] || 0) + pax;
-            // Weekly - add by pax count
+            soldByDay[dayKey] = (soldByDay[dayKey] || 0) + 1;
+            // Weekly - count by booking
             const weekStart = startOfWeek(date, { weekStartsOn: 1 });
             const weekKey = format(weekStart, 'yyyy-MM-dd');
-            soldByWeek[weekKey] = (soldByWeek[weekKey] || 0) + pax;
-            // Monthly - add by pax count
+            soldByWeek[weekKey] = (soldByWeek[weekKey] || 0) + 1;
+            // Monthly - count by booking
             const monthKey = format(date, 'yyyy-MM');
-            soldByMonth[monthKey] = (soldByMonth[monthKey] || 0) + pax;
+            soldByMonth[monthKey] = (soldByMonth[monthKey] || 0) + 1;
           }
         }
         
