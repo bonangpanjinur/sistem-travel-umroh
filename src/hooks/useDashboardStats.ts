@@ -143,7 +143,7 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
       const paymentMap: Record<string, number> = {};
       const monthlyStatsMap: Record<string, { revenue: number; bookings: number }> = {};
       
-      // Sold packages tracking
+      // Sold packages tracking (by total_pax, not by count of bookings)
       const soldByDay: Record<string, number> = {};
       const soldByWeek: Record<string, number> = {};
       const soldByMonth: Record<string, number> = {};
@@ -189,7 +189,8 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
         
         const isSold = status === 'confirmed' || status === 'completed';
         if (isSold) {
-          soldPackagesCount += 1;
+          // Count by total_pax (total jamaah), not by number of bookings
+          soldPackagesCount += pax;
           
           // Extract package name from the joined data
           const packageName = (b as any).departure?.package?.name || 'Unknown Package';
@@ -199,21 +200,22 @@ export function useDashboardStats(filters: DashboardFilters = {}, options: { ena
             package_name: packageName,
             created_at: b.created_at,
             total_price: b.total_price,
-            status: b.booking_status
+            status: b.booking_status,
+            total_pax: pax
           });
           
           if (b.created_at) {
             const date = parseISO(b.created_at);
-            // Daily
+            // Daily - add by pax count
             const dayKey = format(date, 'yyyy-MM-dd');
-            soldByDay[dayKey] = (soldByDay[dayKey] || 0) + 1;
-            // Weekly
+            soldByDay[dayKey] = (soldByDay[dayKey] || 0) + pax;
+            // Weekly - add by pax count
             const weekStart = startOfWeek(date, { weekStartsOn: 1 });
             const weekKey = format(weekStart, 'yyyy-MM-dd');
-            soldByWeek[weekKey] = (soldByWeek[weekKey] || 0) + 1;
-            // Monthly
+            soldByWeek[weekKey] = (soldByWeek[weekKey] || 0) + pax;
+            // Monthly - add by pax count
             const monthKey = format(date, 'yyyy-MM');
-            soldByMonth[monthKey] = (soldByMonth[monthKey] || 0) + 1;
+            soldByMonth[monthKey] = (soldByMonth[monthKey] || 0) + pax;
           }
         }
         
