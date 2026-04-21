@@ -1,1 +1,10 @@
-/**\n * Dashboard Hooks Index\n * \n * Central export point untuk semua dashboard-related hooks\n */\n\nexport { default as useDashboardAccess } from './useDashboardAccess';\nexport type { DashboardAccessConfig } from './useDashboardAccess';\n\nexport { default as useDashboardRouter } from './useDashboardRouter';\n
+/**
+ * Dashboard Hooks Index
+ *
+ * Central export point untuk semua dashboard-related hooks
+ */
+
+export { default as useDashboardAccess } from './useDashboardAccess';
+export type { DashboardAccessConfig } from './useDashboardAccess';
+
+export { default as useDashboardRouter } from './useDashboardRouter';
