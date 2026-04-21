@@ -827,18 +827,20 @@ export default function AdminUsers() {
 
       {/* Dashboard Settings Dialog */}
       <Dialog open={showDashboardSettings} onOpenChange={setShowDashboardSettings}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-primary" />
-              Pengaturan Dashboard Per Role
-            </DialogTitle>
-            <DialogDescription>
-              Atur dashboard mana saja yang dapat diakses oleh setiap role dan tentukan dashboard default untuk setiap role.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto">
-            <DashboardAccessManagerPanel mode="embedded" onClose={() => setShowDashboardSettings(false)} />
+        <DialogContent className="w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <div className="flex flex-col h-full">
+            <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <DialogTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" />
+                Pengaturan Dashboard Per Role
+              </DialogTitle>
+              <DialogDescription className="mt-2">
+                Atur dashboard mana saja yang dapat diakses oleh setiap role dan tentukan dashboard default untuk setiap role.
+              </DialogDescription>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <DashboardAccessManagerPanel mode="embedded" onClose={() => setShowDashboardSettings(false)} />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

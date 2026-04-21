@@ -224,7 +224,7 @@ export default function DashboardAccessManagerPanel({
   const disabledModules = accessConfig?.disabled_modules || [];
   const defaultDashboard = accessConfig?.default_dashboard;
 
-  const containerClass = mode === 'embedded' ? 'space-y-4' : 'space-y-8 pb-10';
+  const containerClass = mode === 'embedded' ? 'space-y-4 w-full' : 'space-y-8 pb-10';
   const headerClass = mode === 'embedded' ? 'space-y-1' : 'space-y-2';
 
   return (
@@ -245,14 +245,14 @@ export default function DashboardAccessManagerPanel({
       )}
 
       {/* Role Selection */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg">Pilih Peran</CardTitle>
           <CardDescription>Pilih peran untuk mengatur akses dashboardnya</CardDescription>
         </CardHeader>
         <CardContent>
           <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as AppRole)}>
-            <SelectTrigger className="w-full md:w-64">
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -267,14 +267,14 @@ export default function DashboardAccessManagerPanel({
       </Card>
 
       {/* Main Content */}
-      <Tabs defaultValue="modules" className="w-full">
+      <Tabs defaultValue="modules" className="w-full flex flex-col">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="modules">Modul Dashboard</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
         {/* Modules Tab */}
-        <TabsContent value="modules" className="space-y-6">
+        <TabsContent value="modules" className="space-y-6 w-full">
           {/* Role Info */}
           <Card>
             <CardHeader>
@@ -282,14 +282,14 @@ export default function DashboardAccessManagerPanel({
               <CardDescription>{roleConfig?.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                <div className="min-w-0">
                   <p className="text-sm font-bold text-muted-foreground mb-2">Modul yang Diaktifkan</p>
                   <div className="flex flex-wrap gap-2">
                     {enabledModules.map((moduleKey: string) => {
                       const module = DASHBOARD_MODULES[moduleKey];
                       return (
-                        <Badge key={moduleKey} variant="default" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                        <Badge key={moduleKey} variant="default" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
                           {module?.label || moduleKey}
                         </Badge>
                       );
@@ -299,10 +299,10 @@ export default function DashboardAccessManagerPanel({
                     )}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-bold text-muted-foreground mb-2">Default Dashboard</p>
                   {defaultDashboard ? (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
                       {DASHBOARD_MODULES[defaultDashboard]?.label || defaultDashboard}
                     </Badge>
                   ) : (
@@ -325,12 +325,12 @@ export default function DashboardAccessManagerPanel({
               ) : (
                 <div className="space-y-4">
                   {Object.entries(DASHBOARD_MODULES).map(([moduleKey, module]) => (
-                    <div key={moduleKey} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                      <div className="flex-1">
+                    <div key={moduleKey} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                      <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm">{module.label}</p>
                         <p className="text-xs text-muted-foreground">{module.description}</p>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-shrink-0">
                         <div className="flex items-center gap-2">
                           <Checkbox
                             checked={enabledModules.includes(moduleKey)}
@@ -345,7 +345,7 @@ export default function DashboardAccessManagerPanel({
                             size="sm"
                             onClick={() => handleSetDefaultDashboard(moduleKey)}
                             disabled={saving}
-                            className="text-xs"
+                            className="text-xs whitespace-nowrap"
                           >
                             {defaultDashboard === moduleKey ? '✓ Default' : 'Set Default'}
                           </Button>
@@ -360,7 +360,7 @@ export default function DashboardAccessManagerPanel({
         </TabsContent>
 
         {/* Audit Log Tab */}
-        <TabsContent value="audit" className="space-y-6">
+        <TabsContent value="audit" className="space-y-6 w-full">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Riwayat Perubahan</CardTitle>
