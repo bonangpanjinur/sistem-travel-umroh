@@ -25,7 +25,7 @@ export default function EquipmentDashboard() {
   const { data: equipmentInventory, isLoading: inventoryLoading } = useQuery({
     queryKey: ['equipment-inventory'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('equipment')
         .select('id, name, category, status, quantity, condition')
         .order('name', { ascending: true });
@@ -43,7 +43,7 @@ export default function EquipmentDashboard() {
   const { data: maintenanceSchedule = [] } = useQuery({
     queryKey: ['equipment-maintenance-schedule'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('equipment_maintenance')
         .select('id, equipment_name, maintenance_date, maintenance_type, status')
         .gte('maintenance_date', new Date().toISOString())
@@ -63,7 +63,7 @@ export default function EquipmentDashboard() {
   const { data: damageReports = [] } = useQuery({
     queryKey: ['equipment-damage-reports'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('equipment_damage')
         .select('id, equipment_name, damage_date, description, status, severity')
         .order('damage_date', { ascending: false })

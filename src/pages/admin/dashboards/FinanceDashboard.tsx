@@ -27,7 +27,7 @@ export default function FinanceDashboard() {
   const { data: financialSummary, isLoading: summaryLoading } = useQuery({
     queryKey: ['finance-summary'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('financial_summary')
         .select('*')
         .order('created_at', { ascending: false })
@@ -39,7 +39,7 @@ export default function FinanceDashboard() {
         return null;
       }
 
-      return data;
+      return data as any;
     },
   });
 
@@ -47,7 +47,7 @@ export default function FinanceDashboard() {
   const { data: recentTransactions = [] } = useQuery({
     queryKey: ['finance-recent-transactions'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('transactions')
         .select('id, description, type, amount, transaction_date, status')
         .order('transaction_date', { ascending: false })
@@ -86,7 +86,7 @@ export default function FinanceDashboard() {
   const { data: expenseSummary = {} } = useQuery({
     queryKey: ['finance-expense-summary'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('expenses')
         .select('category, amount')
         .order('category', { ascending: true });

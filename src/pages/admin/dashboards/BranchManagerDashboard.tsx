@@ -105,7 +105,7 @@ export default function BranchManagerDashboard() {
     queryFn: async () => {
       if (!branchId) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('departures')
         .select('id, package_name, departure_date, quota, booked_count')
         .eq('branch_id', branchId)
