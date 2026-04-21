@@ -247,7 +247,7 @@ export default function DashboardAccessManagerPanel({
   const headerClass = mode === 'embedded' ? 'space-y-1' : 'space-y-2';
 
   return (
-    <div className={containerClass}>
+    <div className={`${containerClass} ${mode === 'embedded' ? 'max-h-[calc(100vh-200px)] overflow-y-auto' : ''}`}>
       {/* Header - Only show in standalone mode */}
       {mode === 'standalone' && (
         <div className={headerClass}>
@@ -305,13 +305,13 @@ export default function DashboardAccessManagerPanel({
 
       {/* Main Content */}
       <Tabs defaultValue="modules" className="w-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 sticky top-0 z-10 bg-background">
           <TabsTrigger value="modules">Modul Dashboard</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
         {/* Modules Tab */}
-        <TabsContent value="modules" className="space-y-6 w-full">
+        <TabsContent value="modules" className="space-y-4 w-full max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
           {/* Role Info */}
           <Card>
             <CardHeader>
@@ -356,27 +356,28 @@ export default function DashboardAccessManagerPanel({
               <CardTitle className="text-lg">Konfigurasi Modul</CardTitle>
               <CardDescription>Aktifkan atau nonaktifkan modul untuk peran ini</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               {configLoading ? (
                 <div className="text-center text-muted-foreground py-8">Loading...</div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {Object.entries(DASHBOARD_MODULES).map(([moduleKey, module]) => (
-                    <div key={moduleKey} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm">{module.label}</p>
-                        <p className="text-xs text-muted-foreground">{module.description}</p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-shrink-0">
-                        <div className="flex items-center gap-2">
+                    <div key={moduleKey} className="flex flex-col gap-3 p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm line-clamp-2">{module.label}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{module.description}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <Checkbox
                             checked={enabledModules.includes(moduleKey)}
                             onCheckedChange={(checked) => handleToggleModule(moduleKey, checked as boolean)}
                             disabled={saving}
                           />
-                          <span className="text-sm">Aktif</span>
                         </div>
-                        {enabledModules.includes(moduleKey) && (
+                      </div>
+                      {enabledModules.includes(moduleKey) && (
+                        <div className="flex justify-end">
                           <Button
                             variant={defaultDashboard === moduleKey ? 'default' : 'outline'}
                             size="sm"
@@ -386,8 +387,8 @@ export default function DashboardAccessManagerPanel({
                           >
                             {defaultDashboard === moduleKey ? '✓ Default' : 'Set Default'}
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -397,23 +398,23 @@ export default function DashboardAccessManagerPanel({
         </TabsContent>
 
         {/* Audit Log Tab */}
-        <TabsContent value="audit" className="space-y-6 w-full">
+        <TabsContent value="audit" className="space-y-4 w-full max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Riwayat Perubahan</CardTitle>
               <CardDescription>Audit trail untuk perubahan konfigurasi akses dashboard</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               {auditLog.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {auditLog.map((log: any) => (
-                    <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg">
-                      <div className="p-2 bg-blue-50 rounded-lg">
+                    <div key={log.id} className="flex items-start gap-3 p-3 border rounded-lg">
+                      <div className="p-1.5 bg-blue-50 rounded-lg flex-shrink-0">
                         <History className="h-4 w-4 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm">{log.action}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="font-bold text-sm line-clamp-1">{log.action}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
                           {log.module_key && `Modul: ${log.module_key}`}
                           {log.old_value && ` (dari: ${log.old_value})`}
                           {log.new_value && ` (ke: ${log.new_value})`}
