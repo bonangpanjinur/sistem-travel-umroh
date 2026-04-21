@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatPackageType } from "@/lib/format";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { 
+import {
   Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, 
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
-  Power, PowerOff, ChevronDown, Layers
+  Power, PowerOff, ChevronDown, Layers, TrendingUp, DollarSign, Users, Zap,
+  ArrowUpRight, ArrowDownRight
 } from "lucide-react";
 import {
   Dialog,
@@ -42,6 +43,7 @@ import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm"
 import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
+import { usePackageAnalytics } from "@/hooks/usePackageAnalytics";
 import { subDays } from "date-fns";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -77,6 +79,7 @@ export default function AdminPackages() {
   
   const queryClient = useQueryClient();
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
+  const { data: analytics, isLoading: isAnalyticsLoading } = usePackageAnalytics();
   
   const { data: packages, isLoading } = useQuery({
     queryKey: ['admin-packages'],
@@ -268,6 +271,74 @@ export default function AdminPackages() {
               Paket Tabungan
             </Button>
           </div>
+        </div>
+
+        {/* Analytics Summary Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <AnalyticsCard
+            title="Total Paket"
+            value={analytics?.totalPackages || 0}
+            description="Paket aktif dan nonaktif"
+            icon={Package}
+            loading={isAnalyticsLoading}
+            color="primary"
+          />
+          <AnalyticsCard
+            title="Paket Aktif"
+            value={analytics?.activePackages || 0}
+            description={`${analytics?.inactivePackages || 0} paket nonaktif`}
+            icon={CheckCircle2}
+            loading={isAnalyticsLoading}
+            color="emerald"
+            trend={analytics?.activePackages ? `${((analytics.activePackages / (analytics.totalPackages || 1)) * 100).toFixed(0)}%` : "0%"}
+            trendUp={true}
+          />
+          <AnalyticsCard
+            title="Total Keberangkatan"
+            value={analytics?.totalDepartures || 0}
+            description={`${analytics?.openDepartures || 0} keberangkatan terbuka`}
+            icon={Plane}
+            loading={isAnalyticsLoading}
+            color="blue"
+          />
+          <AnalyticsCard
+            title="Kapasitas Tersedia"
+            value={analytics?.availableCapacity || 0}
+            description={`${analytics?.capacityUtilization || 0}% terisi`}
+            icon={Users}
+            loading={isAnalyticsLoading}
+            color="amber"
+            trend={`${analytics?.capacityUtilization || 0}%`}
+            trendUp={analytics?.capacityUtilization ? analytics.capacityUtilization < 80 : false}
+          />
+        </div>
+
+        {/* Additional Metrics Row */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <AnalyticsCard
+            title="Paket Unggulan"
+            value={analytics?.featuredPackages || 0}
+            description="Paket ditandai sebagai unggulan"
+            icon={Star}
+            loading={isAnalyticsLoading}
+            color="amber"
+          />
+          <AnalyticsCard
+            title="Rata-rata Harga"
+            value={formatCurrency(analytics?.averagePrice || 0)}
+            description="Harga rata-rata per paket"
+            icon={DollarSign}
+            loading={isAnalyticsLoading}
+            color="primary"
+          />
+          <AnalyticsCard
+            title="Potensi Revenue"
+            value={formatCurrency(analytics?.totalRevenue || 0)}
+            description="Dari kapasitas tersedia"
+            icon={TrendingUp}
+            loading={isAnalyticsLoading}
+            color="emerald"
+          />
         </div>
 
         {/* Tabs */}
@@ -753,5 +824,43 @@ export default function AdminPackages() {
         </AlertDialog>
       </div>
     </TooltipProvider>
+  );
+}
+
+function AnalyticsCard({ title, value, description, icon: Icon, loading, trend, trendUp, color }: any) {
+  const colorMap: Record<string, string> = {
+    primary: "text-primary bg-primary/10",
+    blue: "text-blue-600 bg-blue-50",
+    emerald: "text-emerald-600 bg-emerald-50",
+    amber: "text-amber-600 bg-amber-50",
+  };
+
+  return (
+    <Card className="relative overflow-hidden shadow-sm border-muted/60 hover:shadow-md transition-all group border-l-4 border-l-primary">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
+        <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-110", colorMap[color] || colorMap.primary)}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-8 w-28" />
+        ) : (
+          <>
+            <div className="text-2xl font-bold tracking-tight">{value}</div>
+            <div className="flex items-center gap-2 mt-1">
+              {trend && (
+                <div className={cn("flex items-center text-[10px] font-bold px-1 py-0.5 rounded", trendUp ? "text-emerald-700 bg-emerald-50" : "text-red-700 bg-red-50")}>
+                  {trendUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {trend}
+                </div>
+              )}
+              {description && <p className="text-[10px] text-muted-foreground font-medium">{description}</p>}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
