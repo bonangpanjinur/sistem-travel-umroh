@@ -432,32 +432,6 @@ export default function AdminBookings() {
               <p className="text-xs text-muted-foreground mt-1">revenue</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari kode booking, nama, atau telepon..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowFilters(!showFilters)}
-            className={showFilters ? "bg-muted" : ""}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
-            )}
-          </Button>
-          </div>
 
           {/* Status breakdown */}
           <div>
@@ -484,6 +458,32 @@ export default function AdminBookings() {
               })}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari kode booking, nama, atau telepon..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFilters(!showFilters)}
+            className={showFilters ? "bg-muted" : ""}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
+            )}
+          </Button>
+        </div>
 
         {showFilters && (
           <Card>
