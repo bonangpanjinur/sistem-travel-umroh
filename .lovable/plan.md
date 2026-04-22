@@ -1,73 +1,94 @@
 
-Tujuan: menuntaskan error saat konfirmasi booking/pendaftaran dengan memperbaiki drift skema audit trail, bukan hanya menambah satu kolom yang kebetulan sedang error.
 
-Diagnosis saat ini:
-- Error terbaru pada screenshot adalah `column "old_values" of relation "audit_logs" does not exist`.
-- Tabel `audit_logs` di database saat ini sudah punya `resource_type` dan `resource_id`, jadi fix sebelumnya hanya menutup satu gejala.
-- Struktur nyata `audit_logs` yang terbaca sekarang memakai nama kanonis `old_data` / `new_data`, sementara masih ada alur runtime lama yang jelas masih mencoba menulis `old_values` / `new_values`.
-- Ini menunjukkan masalah utamanya adalah ketidaksinkronan versi skema audit, bukan bug spesifik di tombol konfirmasi booking.
+## Analisis: Kenapa Daftar Jemaah Kosong di Detail Keberangkatan
 
-Rencana perbaikan:
-1. Lacak sumber query yang gagal
-   - Cek log database saat menekan konfirmasi booking/pendaftaran.
-   - Identifikasi objek yang benar-benar mengirim insert ke `audit_logs` dengan kolom lama (`old_values`, `new_values`), apakah dari trigger, function, atau jalur frontend lama.
+### Temuan Awal
+Saya sudah memeriksa kode `AdminDepartureDetail.tsx` (query passenger di baris 82-112) dan struktur database. Berikut kemungkinan penyebabnya, diurut dari yang paling mungkin:
 
-2. Buat migration kompatibilitas penuh untuk `audit_logs`
-   - Tambahkan kolom legacy yang masih dipakai alur lama:
-     - `old_values JSONB`
-     - `new_values JSONB`
-   - Pastikan semua kolom lintas versi tersedia sekaligus:
-     - `old_data`, `new_data`
-     - `old_values`, `new_values`
-     - `resource_type`, `resource_id`
-     - `table_name`, `record_id`, `action_type`, `severity`, `metadata`
-   - Backfill data lama agar `old_values <- old_data` dan `new_values <- new_data` untuk menjaga konsistensi historis.
+### Kemungkinan 1: Filter PostgREST nested join salah perilaku (PALING MUNGKIN)
+Query saat ini:
+```ts
+.from("booking_passengers")
+.select("..., booking:bookings!inner(..., departure_id)")
+.eq("booking.departure_id", id)
+.in("booking.booking_status", ["confirmed","pending","processing","completed"])
+```
 
-3. Sinkronkan kolom lama dan baru di level database
-   - Tambahkan trigger/fungsi kompatibilitas pada `audit_logs` agar:
-     - jika caller mengisi `old_values`, sistem otomatis menyalin ke `old_data`
-     - jika caller mengisi `old_data`, sistem otomatis menyalin ke `old_values`
-     - hal yang sama untuk `new_values` / `new_data`
-   - Dengan ini, caller lama dan caller baru sama-sama aman tanpa memblokir transaksi booking.
+Masalah: di PostgREST, `.eq("booking.departure_id", ...)` pada relasi nested **hanya mem-filter baris di dalam join**, bukan baris induk. Walau ada `!inner`, kombinasi `.eq` + `.in` pada kolom relasi sering menghasilkan nol baris karena kondisi tidak ter-AND dengan benar pada engine. Akibatnya semua passenger ter-filter habis.
 
-4. Rapikan semua penulis audit di codebase
-   - Audit helper frontend akan tetap distandardisasi ke kolom kanonis `old_data` / `new_data`.
-   - Review flow yang relevan:
-     - `src/lib/audit-logger.ts`
-     - `src/pages/admin/AdminBookingDetail.tsx`
-     - `src/pages/admin/AdminBookings.tsx`
-     - flow pendaftaran/konfirmasi lain yang mengubah status booking atau payment
-   - Jika ada insert manual ke `audit_logs`, ubah semua ke format kanonis agar ke depan tidak tergantung kolom legacy.
+### Kemungkinan 2: `booking_passengers` tidak terisi saat booking dibuat
+Booking utama (1 jamaah utama) tersimpan di `bookings.customer_id`, tapi baris di `booking_passengers` baru dibuat untuk passenger tambahan. Kalau wizard hanya membuat booking 1 pax tanpa insert ke `booking_passengers`, tabel jemaah akan kosong walau booking sudah confirmed. Perlu diverifikasi di `useBookingWizard.ts`, `useBookingWizardSimple.ts`, dan `useBookingWizardDynamic.ts`.
 
-5. Audit objek database yang mungkin tertinggal
-   - Review function/trigger terkait perubahan booking, pembayaran, dan registrasi.
-   - Jika ada function lama di backend yang masih memakai `old_values/new_values`, ganti ke format kanonis atau biarkan tetap kompatibel tapi terdokumentasi.
+### Kemungkinan 3: Status booking tidak ter-cover
+Filter hanya menerima: `confirmed, pending, processing, completed`. Kalau status setelah konfirmasi adalah `paid`, `active`, `verified`, atau lainnya, baris akan ter-skip.
 
-6. Verifikasi end-to-end
-   - Uji ulang:
-     - konfirmasi booking dari detail booking
-     - konfirmasi pendaftaran/jamaah jika ada flow terpisah
-     - verifikasi pembayaran yang memicu perubahan status
-   - Pastikan:
-     - tidak ada lagi error missing column
-     - perubahan status tetap tersimpan
-     - entry audit tetap tercatat dan bisa dibaca di halaman audit/security
+### Kemungkinan 4: RLS policy
+Policy `Staff can view all passengers` menerima role `super_admin, owner, branch_manager, sales, finance, operational`. Kalau user login dengan role lain (mis. `admin` saja, `marketing`), passengers tidak akan terlihat.
 
-Kenapa fix sebelumnya belum menyelesaikan masalah:
-- Sebelumnya hanya ditambahkan `resource_type`/`resource_id`.
-- Sekarang muncul `old_values`, artinya jalur lama masih aktif dan skema audit masih campuran beberapa versi.
-- Jadi solusi yang benar adalah compatibility patch penuh + normalisasi caller, bukan tambal satu kolom setiap kali error baru muncul.
+### Kemungkinan 5: Ordering salah (`booking.booking_code`)
+`.order('booking.booking_code')` pada relasi nested di PostgREST butuh sintaks `{ foreignTable: 'booking' }`. Tanpa itu, query bisa error atau dijalankan dengan urutan yang membuat `inner join` gagal mengikat.
 
-Detail teknis implementasi:
-- File utama yang akan disentuh:
-  - `supabase/migrations/...` untuk compatibility migration
-  - `src/lib/audit-logger.ts`
-  - `src/pages/admin/AdminBookingDetail.tsx`
-  - kemungkinan `src/pages/admin/AdminBookings.tsx` dan flow registrasi terkait
-- Objek database utama:
-  - `public.audit_logs`
-  - function/trigger audit terkait booking atau registrasi
-- Pendekatan aman:
-  - gunakan migration idempotent (`IF NOT EXISTS`)
-  - hindari ubah file auto-generated client
-  - pertahankan kompatibilitas sementara sambil menormalkan semua penulis audit ke `old_data/new_data`
+---
+
+## Rencana Perbaikan
+
+### Langkah 1: Refactor query passenger (paling penting)
+Ganti pendekatan dari "ambil semua passenger lalu filter via nested" menjadi "ambil booking_id dari departure dulu, lalu ambil passenger berdasarkan booking_id":
+
+```ts
+// 1) Ambil semua booking pada departure ini
+const { data: bookings } = await supabase
+  .from("bookings")
+  .select("id, booking_code, room_type, booking_status, payment_status")
+  .eq("departure_id", id)
+  .not("booking_status", "in", "(cancelled,refunded)"); 
+  // include semua status aktif (confirmed/pending/processing/paid/completed)
+
+// 2) Ambil passengers via booking_id list
+const { data: passengers } = await supabase
+  .from("booking_passengers")
+  .select("id, is_main_passenger, room_preference, passenger_type, customer:customers(...)")
+  .in("booking_id", bookings.map(b => b.id))
+  .order("is_main_passenger", { ascending: false });
+```
+
+Lalu gabungkan booking dan passenger di sisi client. Pendekatan ini menghilangkan ambiguitas filter nested PostgREST.
+
+### Langkah 2: Fallback untuk booking tanpa passenger row
+Kalau booking utama tidak punya baris `booking_passengers` (1 pax saja), buat virtual passenger dari `bookings.customer_id` agar tetap muncul di tabel jemaah dan manifest PDF.
+
+### Langkah 3: Perluas daftar status yang dianggap "aktif"
+Ganti whitelist menjadi blacklist: tampilkan semua kecuali `cancelled` dan `refunded`. Ini lebih tahan terhadap variasi status.
+
+### Langkah 4: Diagnosa data aktual
+Tambah panel debug ringkas (sementara) atau gunakan query langsung untuk memverifikasi:
+- Apakah `bookings` punya `departure_id` yang benar?
+- Apakah `booking_passengers.booking_id` terisi?
+- Apa status booking yang sebenarnya setelah konfirmasi?
+
+### Langkah 5: Verifikasi flow konfirmasi booking
+Cek `AdminBookings.tsx` (baris 286-289) — bulk confirm hanya update `booking_status = 'confirmed'` tapi tidak menyentuh `booking_passengers`. Pastikan saat booking dibuat, semua pax (termasuk yang utama) di-insert ke `booking_passengers`. Jika tidak, perlu trigger DB atau penyesuaian wizard.
+
+### Langkah 6: Perbaiki ordering nested
+Ganti:
+```ts
+.order('booking.booking_code', ...)
+```
+menjadi:
+```ts
+.order('booking_code', { foreignTable: 'booking', ascending: true })
+```
+(jika tetap memakai pendekatan nested join).
+
+---
+
+## File yang Akan Disentuh
+- `src/pages/admin/AdminDepartureDetail.tsx` — refactor query passenger, fallback virtual passenger, perluas status
+- `src/hooks/useBookingWizard.ts`, `useBookingWizardSimple.ts`, `useBookingWizardDynamic.ts` — pastikan jamaah utama selalu di-insert ke `booking_passengers`
+- (opsional) Migration: trigger `after insert on bookings` untuk auto-create `booking_passengers` baris jamaah utama jika belum ada
+
+## Hasil yang Diharapkan
+- Tab "Jemaah" menampilkan seluruh peserta dari semua booking pada keberangkatan tersebut, terlepas dari status pembayaran (selain cancelled/refunded)
+- Manifest PDF dan Rooming List PDF berisi data jamaah yang lengkap
+- Counter `Kuota & Jemaah` cocok dengan jumlah baris di tabel jemaah
+
