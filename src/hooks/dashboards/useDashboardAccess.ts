@@ -7,7 +7,7 @@
 
 import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fromExtra } from '@/integrations/supabase/extra-tables';
+import { fromExtra, type DashboardAccessConfigRow } from '@/integrations/supabase/extra-tables';
 import { useAuth } from '@/hooks/useAuth';
 import {
   DASHBOARD_MODULES,
@@ -36,7 +36,9 @@ export const useDashboardAccess = () => {
   }, [roles]);
 
   // Fetch dynamic dashboard access configuration from database
-  const { data: dynamicConfig = null, isLoading: configLoading } = useQuery({
+  const { data: dynamicConfig = null, isLoading: configLoading } = useQuery<
+    DashboardAccessConfigRow | null
+  >({
     queryKey: ['dashboard-access-config', primaryRole],
     queryFn: async () => {
       if (!primaryRole) return null;
@@ -53,9 +55,10 @@ export const useDashboardAccess = () => {
         if (error.code !== 'PGRST116' && error.code !== '42P01' && (error as any).status !== 404) {
           console.error('Error fetching dashboard config:', error);
         }
+        return null;
       }
 
-      return data;
+      return (data as DashboardAccessConfigRow | null) ?? null;
     },
     enabled: !!primaryRole && !isSuperAdmin,
     staleTime: 1000 * 60 * 30, // 30 minutes
