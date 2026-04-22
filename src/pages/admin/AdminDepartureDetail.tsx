@@ -186,19 +186,122 @@ export default function AdminDepartureDetail() {
     enabled: !!id,
   });
 
-  const passengerStats = (() => {
-    if (!passengers) return { confirmed: 0, pending: 0, total: 0 };
-    return passengers.reduce(
-      (acc, p: any) => {
-        const s = p.booking?.booking_status;
-        if (s === "confirmed" || s === "completed" || s === "paid") acc.confirmed += 1;
-        else if (s === "pending" || s === "processing") acc.pending += 1;
-        acc.total += 1;
-        return acc;
-      },
-      { confirmed: 0, pending: 0, total: 0 }
-    );
-  })();
+  // Fetch attendance records for this departure (real-time)
+  const { data: attendance } = useQuery({
+    queryKey: ["departure-attendance", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("id, customer_id, checkpoint, checked_in_at")
+        .eq("departure_id", id!);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Realtime subscription for attendance updates
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`attendance-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance",
+          filter: `departure_id=eq.${id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["departure-attendance", id],
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
+
+  // Map customer_id -> attendance record (latest checkpoint)
+  const attendanceMap = useMemo(() => {
+    const m = new Map<string, { checkpoint: string; checked_in_at: string }>();
+    (attendance || []).forEach((a) => {
+      if (a.customer_id) {
+        m.set(a.customer_id, {
+          checkpoint: a.checkpoint,
+          checked_in_at: a.checked_in_at || "",
+        });
+      }
+    });
+    return m;
+  }, [attendance]);
+
+  // Filtered passengers based on UI filters
+  const filteredPassengers = useMemo(() => {
+    if (!passengers) return [];
+    return passengers.filter((p: any) => {
+      if (statusFilter !== "all") {
+        const s = p.booking?.booking_status || p.booking?.payment_status;
+        if (s !== statusFilter) return false;
+      }
+      if (typeFilter !== "all") {
+        if ((p.passenger_type || "adult") !== typeFilter) return false;
+      }
+      return true;
+    });
+  }, [passengers, statusFilter, typeFilter]);
+
+  const passengerStats = useMemo(() => {
+    const stats = {
+      total: passengers?.length || 0,
+      confirmed: 0,
+      pending: 0,
+      paid: 0,
+      adult: 0,
+      child: 0,
+      infant: 0,
+      checkedIn: 0,
+    };
+    (passengers || []).forEach((p: any) => {
+      const s = p.booking?.booking_status;
+      const ps = p.booking?.payment_status;
+      if (s === "confirmed" || s === "completed") stats.confirmed += 1;
+      else if (s === "pending" || s === "processing") stats.pending += 1;
+      if (ps === "paid") stats.paid += 1;
+      const t = (p.passenger_type || "adult").toLowerCase();
+      if (t === "child") stats.child += 1;
+      else if (t === "infant") stats.infant += 1;
+      else stats.adult += 1;
+      if (p.customer?.id && attendanceMap.has(p.customer.id))
+        stats.checkedIn += 1;
+    });
+    return stats;
+  }, [passengers, attendanceMap]);
+
+  // Debug data
+  const debugData = useMemo(() => {
+    const totalPassengers = passengers?.length || 0;
+    const realRows = (passengers || []).filter((p: any) => !p._virtual).length;
+    const virtualRows = (passengers || []).filter((p: any) => p._virtual);
+    const bookingsSeen = new Set<string>();
+    (passengers || []).forEach((p: any) => {
+      if (p.booking_id) bookingsSeen.add(p.booking_id);
+    });
+    return {
+      totalPassengers,
+      realRows,
+      virtualCount: virtualRows.length,
+      bookingsCount: bookingsSeen.size,
+      virtualBookings: virtualRows.map((v: any) => ({
+        booking_code: v.booking?.booking_code,
+        booking_id: v.booking_id,
+        customer: v.customer?.full_name,
+      })),
+    };
+  }, [passengers]);
 
   // Fetch itinerary for this departure
   const { data: itinerary } = useQuery({
