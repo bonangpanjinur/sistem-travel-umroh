@@ -76,7 +76,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   // Dokumen & Surat
   { key: 'document-verification', label: 'Verifikasi Dokumen', path: '/admin/document-verification', icon: 'FileCheck', group_name: 'Dokumen & Surat', sort_order: 1, required_permission: 'document-verification' },
   { key: 'documents-generator', label: 'Generate Surat', path: '/admin/documents-generator', icon: 'FileText', group_name: 'Dokumen & Surat', sort_order: 2, required_permission: 'documents-generator' },
-  { key: 'offline-content', label: 'Konten Offline', path: '/admin/offline-content', icon: 'BookOpen', group_name: 'Dokumen & Surat', sort_order: 3, required_permission: 'offline-content' },
+  { key: 'offline-content', label: 'Konten Offline', path: '/admin/offline-content', icon: 'BookMarked', group_name: 'Dokumen & Surat', sort_order: 3, required_permission: 'offline-content' },
 
   // Laporan
   { key: 'reports', label: 'Laporan', path: '/admin/reports', icon: 'FileBarChart', group_name: 'Laporan', sort_order: 1, required_permission: 'reports' },
