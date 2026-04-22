@@ -737,14 +737,64 @@ export default function AdminRoomAssignments() {
 
       {/* Audit History Dialog */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5" /> Riwayat Perubahan Kamar
             </DialogTitle>
           </DialogHeader>
+
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-3 bg-muted/30 rounded-lg border">
+            <div>
+              <Label className="text-xs">Cabang</Label>
+              <Select value={auditBranch} onValueChange={setAuditBranch}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Keberangkatan Aktif</SelectItem>
+                  <SelectItem value="all">Semua Cabang</SelectItem>
+                  {branches?.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Aksi</Label>
+              <Select value={auditAction} onValueChange={setAuditAction}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Aksi</SelectItem>
+                  <SelectItem value="pair">Pasangkan</SelectItem>
+                  <SelectItem value="unpair">Batalkan Pasangan</SelectItem>
+                  <SelectItem value="update_room_number">Ubah Nomor Kamar</SelectItem>
+                  <SelectItem value="auto_assign">Auto-Kelompokkan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Dari Tanggal</Label>
+              <Input type="date" className="h-9" value={auditDateFrom} onChange={e => setAuditDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Sampai Tanggal</Label>
+              <Input type="date" className="h-9" value={auditDateTo} onChange={e => setAuditDateTo(e.target.value)} />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button variant="outline" size="sm" className="h-9" onClick={() => { setAuditAction('all'); setAuditDateFrom(''); setAuditDateTo(''); setAuditBranch('current'); }}>
+                Reset
+              </Button>
+              <Button size="sm" className="h-9" onClick={handleExportAuditCSV} disabled={!auditLogs?.length}>
+                <Download className="h-4 w-4 mr-1" /> CSV
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            Menampilkan <span className="font-medium text-foreground">{auditLogs?.length || 0}</span> baris riwayat
+            {auditBranch === 'current' && !selectedDeparture && ' — pilih keberangkatan terlebih dahulu atau ubah filter Cabang'}
+          </div>
+
           {!auditLogs || auditLogs.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Belum ada riwayat perubahan untuk keberangkatan ini.</p>
+            <p className="text-center text-muted-foreground py-8">Tidak ada riwayat sesuai filter.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -754,6 +804,7 @@ export default function AdminRoomAssignments() {
                   <TableHead>Jamaah</TableHead>
                   <TableHead>Kamar</TableHead>
                   <TableHead>Pasangan</TableHead>
+                  {auditBranch !== 'current' && <TableHead>Cabang / Paket</TableHead>}
                   <TableHead>Diubah Oleh</TableHead>
                   <TableHead>Alasan</TableHead>
                 </TableRow>
@@ -780,6 +831,12 @@ export default function AdminRoomAssignments() {
                       <TableCell className="text-xs">
                         {log.old_roommate_name || '—'} → <span className="font-medium">{log.new_roommate_name || '—'}</span>
                       </TableCell>
+                      {auditBranch !== 'current' && (
+                        <TableCell className="text-xs">
+                          <div className="font-medium">{log.branch_name}</div>
+                          <div className="text-muted-foreground">{log.package_code}</div>
+                        </TableCell>
+                      )}
                       <TableCell className="text-xs">{log.changed_by_name}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px]">{log.reason || '-'}</TableCell>
                     </TableRow>
