@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,19 @@ import { Loader2, Calendar, TrendingUp } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Database } from "@/integrations/supabase/types";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Plus, X as XIcon } from "lucide-react";
 
 type DepartureRow = Database["public"]["Tables"]["departures"]["Row"];
+
+interface AdditionalHotel {
+  id?: string;
+  hotel_id: string;
+  hotel_role: string;
+  check_in_date?: string | null;
+  check_out_date?: string | null;
+  nights?: number | null;
+  notes?: string | null;
+}
 type DepartureInsert = Database["public"]["Tables"]["departures"]["Insert"];
 type DepartureUpdate = Database["public"]["Tables"]["departures"]["Update"];
 
@@ -149,6 +161,24 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
   // Filter hotels based on common city names, but allow all hotels if needed
   const makkahHotels = hotels?.filter(h => h.city.toLowerCase() === 'makkah') || [];
   const madinahHotels = hotels?.filter(h => h.city.toLowerCase() === 'madinah') || [];
+
+  // Additional hotels state (transit, umroh plus, haji, etc)
+  const [additionalHotels, setAdditionalHotels] = useState<AdditionalHotel[]>([]);
+
+  // Load existing additional hotels when editing
+  useQuery({
+    queryKey: ["departure-hotels", departureData?.id],
+    enabled: !!departureData?.id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("departure_hotels")
+        .select("*")
+        .eq("departure_id", departureData!.id)
+        .order("sort_order", { ascending: true });
+      if (data) setAdditionalHotels(data as AdditionalHotel[]);
+      return data;
+    },
+  });
 
   const form = useForm<DepartureFormValues>({
     resolver: zodResolver(departureSchema),
