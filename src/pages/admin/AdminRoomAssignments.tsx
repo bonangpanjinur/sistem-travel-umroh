@@ -706,10 +706,11 @@ export default function AdminRoomAssignments() {
 function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassengers, searchQuery, onSearchChange, onPair, isPairing }: {
   open: boolean; onOpenChange: (o: boolean) => void; selectedPassenger: Passenger | null;
   unpairedPassengers: Passenger[]; searchQuery: string; onSearchChange: (q: string) => void;
-  onPair: (id: string, room?: string) => void; isPairing: boolean;
+  onPair: (id: string, room?: string, reason?: string) => void; isPairing: boolean;
 }) {
   const [selectedRoommate, setSelectedRoommate] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [reason, setReason] = useState("");
   const sameGender = unpairedPassengers.filter(p => p.customer?.gender === selectedPassenger?.customer?.gender);
 
   return (
