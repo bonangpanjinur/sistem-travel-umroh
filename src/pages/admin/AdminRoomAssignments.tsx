@@ -611,11 +611,92 @@ export default function AdminRoomAssignments() {
         unpairedPassengers={doublePassengers?.filter(p => !p.roommate_id && p.id !== selectedPassenger?.id && p.customer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) || []}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onPair={(roommateId, roomNumber) => {
-          if (selectedPassenger) pairMutation.mutate({ passengerId: selectedPassenger.id, roommateId, roomNumber });
+        onPair={(roommateId, roomNumber, reason) => {
+          if (selectedPassenger) pairMutation.mutate({ passengerId: selectedPassenger.id, roommateId, roomNumber, reason });
         }}
         isPairing={pairMutation.isPending}
       />
+
+      {/* Unpair Reason Dialog */}
+      <Dialog open={unpairReasonOpen} onOpenChange={setUnpairReasonOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Batalkan Pasangan Kamar</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Catat alasan pembatalan pasangan ini untuk audit trail.</p>
+            <div>
+              <Label>Alasan (opsional)</Label>
+              <Textarea
+                value={unpairReason}
+                onChange={e => setUnpairReason(e.target.value)}
+                placeholder="Contoh: Permintaan jamaah ingin pindah pasangan"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnpairReasonOpen(false)}>Batal</Button>
+            <Button onClick={() => { if (unpairTarget) unpairMutation.mutate({ passengerId: unpairTarget, reason: unpairReason }); }} disabled={unpairMutation.isPending}>
+              Konfirmasi Pembatalan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Audit History Dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" /> Riwayat Perubahan Kamar
+            </DialogTitle>
+          </DialogHeader>
+          {!auditLogs || auditLogs.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Belum ada riwayat perubahan untuk keberangkatan ini.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Waktu</TableHead>
+                  <TableHead>Aksi</TableHead>
+                  <TableHead>Jamaah</TableHead>
+                  <TableHead>Kamar</TableHead>
+                  <TableHead>Pasangan</TableHead>
+                  <TableHead>Diubah Oleh</TableHead>
+                  <TableHead>Alasan</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditLogs.map((log: any) => {
+                  const actionLabel: Record<string, string> = {
+                    pair: 'Pasangkan',
+                    unpair: 'Batalkan Pasangan',
+                    update_room_number: 'Ubah Nomor',
+                    auto_assign: 'Auto-Kelompokkan',
+                  };
+                  const actionVariant: Record<string, any> = {
+                    pair: 'default', unpair: 'destructive', update_room_number: 'secondary', auto_assign: 'outline',
+                  };
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-xs whitespace-nowrap">{new Date(log.created_at).toLocaleString('id-ID')}</TableCell>
+                      <TableCell><Badge variant={actionVariant[log.action] || 'outline'}>{actionLabel[log.action] || log.action}</Badge></TableCell>
+                      <TableCell className="font-medium">{log.passenger_name}</TableCell>
+                      <TableCell className="text-xs">
+                        {log.old_room_number || '—'} → <span className="font-medium">{log.new_room_number || '—'}</span>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {log.old_roommate_name || '—'} → <span className="font-medium">{log.new_roommate_name || '—'}</span>
+                      </TableCell>
+                      <TableCell className="text-xs">{log.changed_by_name}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px]">{log.reason || '-'}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
