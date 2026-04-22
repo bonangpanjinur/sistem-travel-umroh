@@ -282,6 +282,22 @@ export function useBookingWizardDynamic(
           .insert({ booking_id: booking.id, customer_id: passengerId, is_main_passenger: i === 0, passenger_type: passenger.passengerType, room_preference: passenger.roomType });
       }
 
+      // Auto-pair Double room passengers (chunks of 2)
+      try {
+        const { data: bps } = await supabase
+          .from('booking_passengers')
+          .select('id, room_preference')
+          .eq('booking_id', booking.id);
+        const doubles = (bps || []).filter((p: any) => p.room_preference === 'double');
+        for (let j = 0; j + 1 < doubles.length; j += 2) {
+          const a = doubles[j].id, b = doubles[j + 1].id;
+          await supabase.from('booking_passengers').update({ roommate_id: b }).eq('id', a);
+          await supabase.from('booking_passengers').update({ roommate_id: a }).eq('id', b);
+        }
+      } catch (e) {
+        console.warn('Auto-pair double failed:', e);
+      }
+
       // 7. Update departure booked count
       const { data: currentDeparture } = await supabase
         .from('departures')

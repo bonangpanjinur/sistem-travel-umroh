@@ -183,7 +183,17 @@ export function PackageCard({
             {pkg.is_featured && (
               <Badge className="bg-white/20 backdrop-blur-md text-white border-white/20 text-[10px] font-bold uppercase tracking-wider">
                 <Star className="mr-1 h-3 w-3 fill-amber-400 text-amber-400" />
-                Favorit
+                Unggulan
+              </Badge>
+            )}
+            {(pkg as any).is_popular && (
+              <Badge className="bg-rose-500/90 text-white border-none text-[10px] font-bold uppercase tracking-wider">
+                🔥 Populer
+              </Badge>
+            )}
+            {(pkg as any).is_cheapest && (
+              <Badge className="bg-emerald-600/90 text-white border-none text-[10px] font-bold uppercase tracking-wider">
+                💰 Termurah
               </Badge>
             )}
           </div>
@@ -278,6 +288,34 @@ export function PackageCard({
             </div>
           )}
 
+          {showSeats && totalQuota > 0 && !isTabungan && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
+                  <Users className="h-3 w-3" /> Ketersediaan Seat
+                </span>
+                <span className={cn(
+                  "text-xs font-bold",
+                  remainingSeats === 0 ? "text-destructive" : remainingSeats <= 5 ? "text-amber-600" : "text-emerald-600"
+                )}>
+                  {remainingSeats === 0 ? 'Penuh' : `${remainingSeats}/${totalQuota} tersisa`}
+                </span>
+              </div>
+              <div className={cn(
+                "w-full h-2 rounded-full overflow-hidden",
+                isRoyal ? "bg-white/10" : "bg-slate-200"
+              )}>
+                <div
+                  className={cn(
+                    "h-full transition-all duration-500",
+                    seatPercentage >= 100 ? "bg-destructive" : seatPercentage >= 80 ? "bg-amber-500" : "bg-emerald-500"
+                  )}
+                  style={{ width: `${Math.min(100, seatPercentage)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="mt-auto">
             <Button asChild className={cn(
               "w-full py-6 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg hover:shadow-xl active:scale-[0.98]",
@@ -290,6 +328,7 @@ export function PackageCard({
               </Link>
             </Button>
           </div>
+
         </CardContent>
       </Card>
     );

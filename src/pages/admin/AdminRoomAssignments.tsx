@@ -131,17 +131,32 @@ export default function AdminRoomAssignments() {
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
-      // Update the passenger's room number
+      const passenger = passengers?.find(p => p.id === passengerId);
+
+      // Capacity validation: enforce max occupants per room number based on room_preference
+      if (roomNumber && passenger?.room_preference) {
+        const capacityMap: Record<string, number> = { quad: 4, triple: 3, double: 2, single: 1 };
+        const cap = capacityMap[passenger.room_preference] ?? 99;
+        const sameRoom = passengers?.filter(
+          p => p.room_number === roomNumber && p.id !== passengerId
+        ) || [];
+        // Mismatched room_preference in same room is also blocked
+        const mismatched = sameRoom.find(p => p.room_preference !== passenger.room_preference);
+        if (mismatched) {
+          throw new Error(`Nomor kamar "${roomNumber}" sudah dipakai untuk tipe ${mismatched.room_preference?.toUpperCase()}. Gunakan nomor berbeda.`);
+        }
+        if (sameRoom.length + 1 > cap) {
+          throw new Error(`Kamar tipe ${passenger.room_preference.toUpperCase()} maksimal ${cap} orang per nomor kamar. Saat ini sudah ${sameRoom.length} orang di kamar "${roomNumber}".`);
+        }
+      }
+
       const { error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId);
       if (error) throw error;
 
-      // Auto-sync: if this passenger has a roommate, update roommate's room number too
-      const passenger = passengers?.find(p => p.id === passengerId);
+      // Auto-sync roommate
       if (passenger?.roommate_id) {
         await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passenger.roommate_id);
       }
-
-      // Also sync any passengers that have this passenger as their roommate
       const linkedPassengers = passengers?.filter(p => p.roommate_id === passengerId && p.id !== passengerId) || [];
       for (const linked of linkedPassengers) {
         await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', linked.id);

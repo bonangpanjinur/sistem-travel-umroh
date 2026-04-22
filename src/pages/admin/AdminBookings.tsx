@@ -413,6 +413,42 @@ export default function AdminBookings() {
                   <Input type="date" value={customPeriodTo} onChange={e => setCustomPeriodTo(e.target.value)} className="w-[150px]" />
                 </>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!periodStats) return;
+                  const rows: string[][] = [
+                    ['Periode', periodRange?.label || '-'],
+                    ['Dari', periodRange?.from ? periodRange.from.toISOString().slice(0, 10) : '-'],
+                    ['Sampai', periodRange?.to ? periodRange.to.toISOString().slice(0, 10) : '-'],
+                    [],
+                    ['Metrik', 'Nilai'],
+                    ['Total Jamaah', String(periodStats.totalPax)],
+                    ['Total Booking', String(periodStats.totalBookings)],
+                    ['Total Revenue', String(periodStats.totalRevenue)],
+                    [],
+                    ['Status Booking', 'Jumlah Jamaah', 'Jumlah Booking', 'Persentase Jamaah'],
+                    ...['confirmed', 'pending', 'processing', 'completed'].map(s => {
+                      const st = periodStats.byStatus?.[s] || { pax: 0, bookings: 0 };
+                      const pct = periodStats.totalPax > 0 ? ((st.pax / periodStats.totalPax) * 100).toFixed(1) + '%' : '0%';
+                      return [s, String(st.pax), String(st.bookings), pct];
+                    }),
+                  ];
+                  const csv = rows.map(r => r.map(c => `"${(c ?? '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+                  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `statistik-jamaah-${periodRange?.label?.toLowerCase().replace(/\s+/g, '-') || 'periode'}-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast({ title: 'Unduh dimulai', description: 'File CSV telah diunduh.' });
+                }}
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Unduh CSV
+              </Button>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
