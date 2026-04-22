@@ -457,7 +457,33 @@ export default function AdminBookings() {
               <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
             )}
           </Button>
-        </div>
+          </div>
+
+          {/* Status breakdown */}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Komposisi per Status Booking</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { key: 'confirmed', label: 'Terkonfirmasi', dot: 'bg-green-500' },
+                { key: 'pending', label: 'Menunggu', dot: 'bg-yellow-500' },
+                { key: 'processing', label: 'Diproses', dot: 'bg-blue-500' },
+                { key: 'completed', label: 'Selesai', dot: 'bg-emerald-600' },
+              ].map(s => {
+                const stat = periodStats?.byStatus?.[s.key] || { pax: 0, bookings: 0 };
+                const pct = (periodStats?.totalPax || 0) > 0 ? Math.round((stat.pax / periodStats!.totalPax) * 100) : 0;
+                return (
+                  <div key={s.key} className="rounded-lg border p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`h-2 w-2 rounded-full ${s.dot}`} />
+                      <span className="text-xs text-muted-foreground">{s.label}</span>
+                    </div>
+                    <p className="text-xl font-bold">{stat.pax}</p>
+                    <p className="text-xs text-muted-foreground">{stat.bookings} booking · {pct}%</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
         {showFilters && (
           <Card>
