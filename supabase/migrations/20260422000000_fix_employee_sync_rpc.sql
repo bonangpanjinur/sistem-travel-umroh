@@ -1,4 +1,7 @@
 -- Fix validate_employee_user_sync RPC to match the expected return type in the frontend
+-- We must drop the function first because PostgreSQL doesn't allow changing the return type with CREATE OR REPLACE
+DROP FUNCTION IF EXISTS public.validate_employee_user_sync();
+
 CREATE OR REPLACE FUNCTION public.validate_employee_user_sync()
 RETURNS TABLE (
     issue_type TEXT,
