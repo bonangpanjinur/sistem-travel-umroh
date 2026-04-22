@@ -728,6 +728,10 @@ function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassenge
               <Label>Nomor Kamar (opsional)</Label>
               <Input placeholder="301" value={roomNumber} onChange={e => setRoomNumber(e.target.value)} />
             </div>
+            <div>
+              <Label>Alasan (opsional)</Label>
+              <Textarea placeholder="Contoh: Permintaan jamaah" value={reason} onChange={e => setReason(e.target.value)} rows={2} />
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Cari..." className="pl-10" value={searchQuery} onChange={e => onSearchChange(e.target.value)} />
