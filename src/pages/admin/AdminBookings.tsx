@@ -75,6 +75,9 @@ export default function AdminBookings() {
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+  const [periodPreset, setPeriodPreset] = useState<string>("today");
+  const [customPeriodFrom, setCustomPeriodFrom] = useState("");
+  const [customPeriodTo, setCustomPeriodTo] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
