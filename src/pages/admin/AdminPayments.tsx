@@ -254,13 +254,37 @@ export default function AdminPayments() {
                 const { data, error } = await supabase.functions.invoke('send-payment-reminder', {
                   body: { reminder_type: 'all' }
                 });
-                if (error) throw error;
-                if (!data?.success) {
-                  throw new Error(data?.error || 'Gagal mengirim reminder');
+                if (error) {
+                  toast.error('Edge function error', {
+                    description: error.message || 'Tidak dapat menjangkau server reminder',
+                  });
+                  return;
                 }
-                toast.success(`Reminder terkirim: ${data.summary?.sent || 0} berhasil, ${data.summary?.failed || 0} gagal`);
+                if (!data?.success) {
+                  toast.error('Reminder gagal dikirim', {
+                    description: data?.error || data?.message || 'Periksa konfigurasi WhatsApp di pengaturan',
+                    duration: 6000,
+                  });
+                  return;
+                }
+                const sent = data.summary?.sent || 0;
+                const failed = data.summary?.failed || 0;
+                if (sent === 0 && failed === 0) {
+                  toast.info('Tidak ada reminder yang perlu dikirim', {
+                    description: 'Tidak ada pembayaran yang menunggu reminder saat ini',
+                  });
+                } else if (failed > 0) {
+                  toast.warning(`Reminder selesai: ${sent} berhasil, ${failed} gagal`, {
+                    description: data.summary?.last_error || 'Beberapa pesan gagal dikirim',
+                    duration: 6000,
+                  });
+                } else {
+                  toast.success(`${sent} reminder berhasil dikirim`);
+                }
               } catch (err: any) {
-                toast.error(err.message || 'Gagal mengirim reminder');
+                toast.error('Terjadi kesalahan', {
+                  description: err.message || 'Gagal mengirim reminder',
+                });
               } finally {
                 setIsSendingReminders(false);
               }

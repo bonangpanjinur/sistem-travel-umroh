@@ -1323,6 +1323,67 @@ export type Database = {
         }
         Relationships: []
       }
+      departure_hotels: {
+        Row: {
+          check_in_date: string | null
+          check_out_date: string | null
+          created_at: string | null
+          departure_id: string
+          hotel_id: string
+          hotel_role: string
+          id: string
+          nights: number | null
+          notes: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string | null
+          departure_id: string
+          hotel_id: string
+          hotel_role?: string
+          id?: string
+          nights?: number | null
+          notes?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string | null
+          departure_id?: string
+          hotel_id?: string
+          hotel_role?: string
+          id?: string
+          nights?: number | null
+          notes?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departure_hotels_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departure_hotels_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["departure_id"]
+          },
+          {
+            foreignKeyName: "departure_hotels_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departure_itineraries: {
         Row: {
           created_at: string | null
@@ -1374,16 +1435,21 @@ export type Database = {
           airline_id: string | null
           arrival_airport_id: string | null
           booked_count: number | null
+          break_even_pax: number | null
           created_at: string | null
           departure_airport_id: string | null
           departure_date: string
           departure_time: string | null
+          document_deadline: string | null
           flight_number: string | null
           hotel_madinah_id: string | null
           hotel_makkah_id: string | null
           id: string
+          month: string | null
           muthawif_id: string | null
+          operational_cost_per_pax: number | null
           package_id: string | null
+          payment_deadline: string | null
           price_double: number | null
           price_quad: number | null
           price_single: number | null
@@ -1393,21 +1459,27 @@ export type Database = {
           status: string | null
           team_leader_id: string | null
           updated_at: string | null
+          visa_deadline: string | null
         }
         Insert: {
           airline_id?: string | null
           arrival_airport_id?: string | null
           booked_count?: number | null
+          break_even_pax?: number | null
           created_at?: string | null
           departure_airport_id?: string | null
           departure_date: string
           departure_time?: string | null
+          document_deadline?: string | null
           flight_number?: string | null
           hotel_madinah_id?: string | null
           hotel_makkah_id?: string | null
           id?: string
+          month?: string | null
           muthawif_id?: string | null
+          operational_cost_per_pax?: number | null
           package_id?: string | null
+          payment_deadline?: string | null
           price_double?: number | null
           price_quad?: number | null
           price_single?: number | null
@@ -1417,21 +1489,27 @@ export type Database = {
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null
+          visa_deadline?: string | null
         }
         Update: {
           airline_id?: string | null
           arrival_airport_id?: string | null
           booked_count?: number | null
+          break_even_pax?: number | null
           created_at?: string | null
           departure_airport_id?: string | null
           departure_date?: string
           departure_time?: string | null
+          document_deadline?: string | null
           flight_number?: string | null
           hotel_madinah_id?: string | null
           hotel_makkah_id?: string | null
           id?: string
+          month?: string | null
           muthawif_id?: string | null
+          operational_cost_per_pax?: number | null
           package_id?: string | null
+          payment_deadline?: string | null
           price_double?: number | null
           price_quad?: number | null
           price_single?: number | null
@@ -1441,6 +1519,7 @@ export type Database = {
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null
+          visa_deadline?: string | null
         }
         Relationships: [
           {

@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 
 export default function PackageDetail() {
   const [openDepartureId, setOpenDepartureId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const { idSlug } = useParams<{ idSlug: string }>();
   const navigate = useNavigate();
   const id = extractIdFromSlug(idSlug || '');
@@ -192,7 +193,7 @@ export default function PackageDetail() {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <Tabs defaultValue="overview" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
@@ -492,7 +493,11 @@ export default function PackageDetail() {
                               )}
                             >
                               <button
-                                onClick={() => setOpenDepartureId(isOpen ? null : dep.id)}
+                                onClick={() => {
+                                  const next = isOpen ? null : dep.id;
+                                  setOpenDepartureId(next);
+                                  if (next) setActiveTab("itinerary");
+                                }}
                                 className="w-full flex items-center justify-between p-4 bg-white hover:bg-muted/30 transition-colors"
                               >
                                 <div className="flex items-center gap-4">
