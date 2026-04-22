@@ -146,6 +146,7 @@ export default function AdminDepartures() {
         body: { type, departure_id: departureId }
       });
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Gagal mengirim notifikasi');
       return data;
     },
     onSuccess: (data: { sent?: number; failed?: number; type?: string }) => {

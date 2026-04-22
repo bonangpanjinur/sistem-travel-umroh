@@ -205,6 +205,7 @@ export default function AdminBookingDetail() {
         body: { type, booking_id: id }
       });
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Gagal mengirim notifikasi');
       return data;
     },
     onSuccess: (data: any) => {
