@@ -137,6 +137,45 @@ export default function AdminBookings() {
   const bookings = bookingsData?.bookings;
   const totalCount = bookingsData?.count || 0;
 
+  // Period range computation
+  const periodRange = useMemo(() => {
+    const now = new Date();
+    switch (periodPreset) {
+      case "today": return { from: startOfDay(now), to: endOfDay(now), label: "Hari Ini" };
+      case "week": return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfDay(now), label: "Minggu Ini" };
+      case "month": return { from: startOfMonth(now), to: endOfDay(now), label: "Bulan Ini" };
+      case "3m": return { from: subMonths(now, 3), to: endOfDay(now), label: "3 Bulan" };
+      case "6m": return { from: subMonths(now, 6), to: endOfDay(now), label: "6 Bulan" };
+      case "9m": return { from: subMonths(now, 9), to: endOfDay(now), label: "9 Bulan" };
+      case "12m": return { from: subMonths(now, 12), to: endOfDay(now), label: "12 Bulan" };
+      case "custom": {
+        if (customPeriodFrom && customPeriodTo) {
+          return { from: new Date(customPeriodFrom), to: new Date(customPeriodTo + "T23:59:59"), label: "Kustom" };
+        }
+        return null;
+      }
+      default: return null;
+    }
+  }, [periodPreset, customPeriodFrom, customPeriodTo]);
+
+  const { data: periodStats } = useQuery({
+    queryKey: ['admin-bookings-period-stats', periodRange?.from?.toISOString(), periodRange?.to?.toISOString()],
+    enabled: !!periodRange,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('total_pax, total_price, booking_status')
+        .gte('created_at', periodRange!.from.toISOString())
+        .lte('created_at', periodRange!.to.toISOString())
+        .neq('booking_status', 'cancelled');
+      if (error) throw error;
+      const totalPax = (data || []).reduce((s, b: any) => s + (b.total_pax || 0), 0);
+      const totalBookings = (data || []).length;
+      const totalRevenue = (data || []).reduce((s, b: any) => s + (b.total_price || 0), 0);
+      return { totalPax, totalBookings, totalRevenue };
+    },
+  });
+
   // Extract unique packages, departures, branches for filter options
   const filterOptions = useMemo(() => {
     if (!bookings) return { packages: [], departures: [], branches: [] };
