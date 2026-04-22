@@ -375,7 +375,57 @@ export default function AdminBookings() {
         </Card>
       </div>
 
-      {/* Search & Filters */}
+      {/* Period Stats - Jumlah Jamaah */}
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold">Statistik Jamaah per Periode</h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={periodPreset} onValueChange={setPeriodPreset}>
+                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Hari Ini</SelectItem>
+                  <SelectItem value="week">Minggu Ini</SelectItem>
+                  <SelectItem value="month">Bulan Ini</SelectItem>
+                  <SelectItem value="3m">3 Bulan Terakhir</SelectItem>
+                  <SelectItem value="6m">6 Bulan Terakhir</SelectItem>
+                  <SelectItem value="9m">9 Bulan Terakhir</SelectItem>
+                  <SelectItem value="12m">12 Bulan Terakhir</SelectItem>
+                  <SelectItem value="custom">Pilih Tanggal</SelectItem>
+                </SelectContent>
+              </Select>
+              {periodPreset === "custom" && (
+                <>
+                  <Input type="date" value={customPeriodFrom} onChange={e => setCustomPeriodFrom(e.target.value)} className="w-[150px]" />
+                  <span className="text-muted-foreground text-sm">s/d</span>
+                  <Input type="date" value={customPeriodTo} onChange={e => setCustomPeriodTo(e.target.value)} className="w-[150px]" />
+                </>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">Jumlah Jamaah ({periodRange?.label || '-'})</p>
+              <p className="text-3xl font-bold text-primary">{periodStats?.totalPax ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">orang</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">Jumlah Booking</p>
+              <p className="text-3xl font-bold">{periodStats?.totalBookings ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">transaksi</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">Total Nilai</p>
+              <p className="text-2xl font-bold">{formatCurrency(periodStats?.totalRevenue ?? 0)}</p>
+              <p className="text-xs text-muted-foreground mt-1">revenue</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
