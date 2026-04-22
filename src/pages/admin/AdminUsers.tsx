@@ -847,7 +847,9 @@ export default function AdminUsers() {
               </DialogDescription>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <DashboardAccessManagerPanel mode="embedded" onClose={() => setShowDashboardSettings(false)} />
+              <Suspense fallback={<div className="py-8"><Skeleton className="h-32 w-full" /></div>}>
+                <DashboardAccessManagerPanel mode="embedded" onClose={() => setShowDashboardSettings(false)} />
+              </Suspense>
             </div>
           </div>
         </DialogContent>
