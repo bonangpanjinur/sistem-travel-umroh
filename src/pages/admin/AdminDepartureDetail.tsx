@@ -1174,6 +1174,14 @@ export default function AdminDepartureDetail() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* QR Check-in Dialog */}
+      <CheckinQRDialog
+        open={isCheckinOpen}
+        onOpenChange={setIsCheckinOpen}
+        departureId={id || ""}
+        passengers={(passengers || []) as any}
+      />
     </div>
   );
 }
