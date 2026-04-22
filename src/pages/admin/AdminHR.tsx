@@ -95,6 +95,12 @@ export default function AdminHR() {
   const [newPosDeptId, setNewPosDeptId] = useState("");
   const [scheduleEmployeeId, setScheduleEmployeeId] = useState("");
   
+  // Device registration state
+  const [isDeviceDialogOpen, setIsDeviceDialogOpen] = useState(false);
+  const [selectedEmployeeForDevice, setSelectedEmployeeForDevice] = useState("");
+  const [newDeviceName, setNewDeviceName] = useState("");
+  const [newDeviceFingerprint, setNewDeviceFingerprint] = useState("");
+
   // New state for linking existing user
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -416,6 +422,32 @@ export default function AdminHR() {
       setNewPosDeptId("");
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+
+  const registerDeviceMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployeeForDevice || !newDeviceName || !newDeviceFingerprint) {
+        throw new Error("Semua field wajib diisi");
+      }
+      
+      const { error } = await supabase.from("employee_devices").insert({
+        employee_id: selectedEmployeeForDevice,
+        device_name: newDeviceName,
+        device_fingerprint: newDeviceFingerprint,
+        is_active: true,
+      });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-devices"] });
+      toast.success("Perangkat berhasil didaftarkan");
+      setIsDeviceDialogOpen(false);
+      setSelectedEmployeeForDevice("");
+      setNewDeviceName("");
+      setNewDeviceFingerprint("");
+    },
+    onError: (error: Error) => toast.error("Gagal mendaftarkan perangkat: " + error.message),
   });
 
   const saveWorkScheduleMutation = useMutation({
@@ -781,6 +813,12 @@ export default function AdminHR() {
         </TabsContent>
 
         <TabsContent value="devices" className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setIsDeviceDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Daftarkan Perangkat
+            </Button>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Perangkat Karyawan</CardTitle>
@@ -865,6 +903,72 @@ export default function AdminHR() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isDeviceDialogOpen} onOpenChange={setIsDeviceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Daftarkan Perangkat Baru</DialogTitle>
+            <DialogDescription>
+              Daftarkan perangkat secara manual untuk karyawan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="device_employee">Karyawan *</Label>
+              <Select value={selectedEmployeeForDevice} onValueChange={setSelectedEmployeeForDevice}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Karyawan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.full_name} ({emp.employee_code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="device_name">Nama Perangkat *</Label>
+              <Input 
+                id="device_name" 
+                placeholder="Contoh: iPhone 13 Pro, Samsung S21" 
+                value={newDeviceName}
+                onChange={(e) => setNewDeviceName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="device_fingerprint">Fingerprint Perangkat *</Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="device_fingerprint" 
+                  placeholder="Masukkan fingerprint unik perangkat" 
+                  value={newDeviceFingerprint}
+                  onChange={(e) => setNewDeviceFingerprint(e.target.value)}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setNewDeviceFingerprint(crypto.randomUUID())}
+                  type="button"
+                >
+                  Generate
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Fingerprint biasanya didapat dari aplikasi mobile atau browser saat pertama kali login.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeviceDialogOpen(false)}>Batal</Button>
+            <Button 
+              onClick={() => registerDeviceMutation.mutate()} 
+              disabled={registerDeviceMutation.isPending}
+            >
+              {registerDeviceMutation.isPending ? "Mendaftarkan..." : "Daftarkan Perangkat"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
