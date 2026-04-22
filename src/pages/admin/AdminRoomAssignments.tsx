@@ -261,13 +261,17 @@ export default function AdminRoomAssignments() {
             // Link all members to each other (using first member as the "anchor")
             const anchorId = chunk[0].id;
             for (const member of chunk) {
-              // Each member points to the anchor (or for double, they point to each other)
               const roommateId = groupSize === 2 
                 ? (member.id === chunk[0].id ? chunk[1].id : chunk[0].id)
                 : anchorId;
               await supabase.from('booking_passengers').update({ roommate_id: roommateId }).eq('id', member.id);
+              await logRoomAudit({
+                passenger_id: member.id, departure_id: selectedDeparture, action: 'auto_assign',
+                old_room_number: member.room_number || null, new_room_number: member.room_number || null,
+                old_roommate_id: member.roommate_id || null, new_roommate_id: roommateId,
+                reason: `Auto-kelompokkan tipe ${roomType.toUpperCase()} berdasarkan gender`,
+              });
             }
-            // For double, also set the anchor's roommate
             if (groupSize === 2) {
               await supabase.from('booking_passengers').update({ roommate_id: chunk[1].id }).eq('id', chunk[0].id);
               await supabase.from('booking_passengers').update({ roommate_id: chunk[0].id }).eq('id', chunk[1].id);
@@ -281,9 +285,44 @@ export default function AdminRoomAssignments() {
     onSuccess: (count) => {
       toast.success(`✅ ${count} grup berhasil dibuat`);
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
+      queryClient.invalidateQueries({ queryKey: ['room-assignment-audit'] });
     },
     onError: (err) => toast.error("Gagal: " + err.message),
   });
+
+  // Audit log query
+  const { data: auditLogs } = useQuery({
+    queryKey: ['room-assignment-audit', selectedDeparture],
+    enabled: !!selectedDeparture && historyOpen,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('room_assignment_audit')
+        .select('*')
+        .eq('departure_id', selectedDeparture)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+
+      const userIds = Array.from(new Set((data || []).map((r: any) => r.changed_by).filter(Boolean)));
+      const passengerIds = Array.from(new Set((data || []).flatMap((r: any) => [r.passenger_id, r.old_roommate_id, r.new_roommate_id]).filter(Boolean)));
+
+      const [profilesRes, passengersRes] = await Promise.all([
+        userIds.length ? supabase.from('profiles').select('user_id, full_name').in('user_id', userIds as string[]) : Promise.resolve({ data: [] as any[] }),
+        passengerIds.length ? supabase.from('booking_passengers').select('id, customer:customers(full_name)').in('id', passengerIds as string[]) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.user_id, p.full_name]));
+      const paxMap = new Map((passengersRes.data || []).map((p: any) => [p.id, p.customer?.full_name || '-']));
+
+      return (data || []).map((r: any) => ({
+        ...r,
+        changed_by_name: r.changed_by ? (profileMap.get(r.changed_by) || 'Unknown') : 'System',
+        passenger_name: paxMap.get(r.passenger_id) || '-',
+        old_roommate_name: r.old_roommate_id ? paxMap.get(r.old_roommate_id) || '-' : null,
+        new_roommate_name: r.new_roommate_id ? paxMap.get(r.new_roommate_id) || '-' : null,
+      }));
+    },
+  });
+
 
   // Paired groups
   const pairedGroups: Passenger[][] = [];
