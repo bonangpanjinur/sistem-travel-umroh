@@ -127,16 +127,27 @@ export default function AdminRoomAssignments() {
   const doublePassengers = roomTypeGroups.double;
 
   const pairMutation = useMutation({
-    mutationFn: async ({ passengerId, roommateId, roomNumber }: { passengerId: string; roommateId: string; roomNumber?: string }) => {
+    mutationFn: async ({ passengerId, roommateId, roomNumber, reason }: { passengerId: string; roommateId: string; roomNumber?: string; reason?: string }) => {
+      const passengerA = passengers?.find(p => p.id === passengerId);
+      const passengerB = passengers?.find(p => p.id === roommateId);
       const results = await Promise.all([
         supabase.from('booking_passengers').update({ roommate_id: roommateId, room_number: roomNumber || null }).eq('id', passengerId),
         supabase.from('booking_passengers').update({ roommate_id: passengerId, room_number: roomNumber || null }).eq('id', roommateId),
       ]);
       results.forEach(r => { if (r.error) throw r.error; });
+      await logRoomAudit([
+        { passenger_id: passengerId, departure_id: selectedDeparture, action: 'pair',
+          old_room_number: passengerA?.room_number || null, new_room_number: roomNumber || null,
+          old_roommate_id: passengerA?.roommate_id || null, new_roommate_id: roommateId, reason: reason || null },
+        { passenger_id: roommateId, departure_id: selectedDeparture, action: 'pair',
+          old_room_number: passengerB?.room_number || null, new_room_number: roomNumber || null,
+          old_roommate_id: passengerB?.roommate_id || null, new_roommate_id: passengerId, reason: reason || null },
+      ]);
     },
     onSuccess: () => {
       toast.success("Berhasil memasangkan jamaah!");
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
+      queryClient.invalidateQueries({ queryKey: ['room-assignment-audit'] });
       setPairingDialogOpen(false);
       setSelectedPassenger(null);
     },
@@ -144,33 +155,46 @@ export default function AdminRoomAssignments() {
   });
 
   const unpairMutation = useMutation({
-    mutationFn: async (passengerId: string) => {
+    mutationFn: async ({ passengerId, reason }: { passengerId: string; reason?: string }) => {
       const passenger = passengers?.find(p => p.id === passengerId);
       if (!passenger?.roommate_id) return;
+      const roommate = passengers?.find(p => p.id === passenger.roommate_id);
       const results = await Promise.all([
         supabase.from('booking_passengers').update({ roommate_id: null, room_number: null }).eq('id', passengerId),
         supabase.from('booking_passengers').update({ roommate_id: null, room_number: null }).eq('id', passenger.roommate_id),
       ]);
       results.forEach(r => { if (r.error) throw r.error; });
+      await logRoomAudit([
+        { passenger_id: passengerId, departure_id: selectedDeparture, action: 'unpair',
+          old_room_number: passenger.room_number || null, new_room_number: null,
+          old_roommate_id: passenger.roommate_id, new_roommate_id: null, reason: reason || null },
+        { passenger_id: passenger.roommate_id, departure_id: selectedDeparture, action: 'unpair',
+          old_room_number: roommate?.room_number || null, new_room_number: null,
+          old_roommate_id: passengerId, new_roommate_id: null, reason: reason || null },
+      ]);
     },
     onSuccess: () => {
       toast.success("Pasangan dibatalkan!");
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
+      queryClient.invalidateQueries({ queryKey: ['room-assignment-audit'] });
+      setUnpairReasonOpen(false);
+      setUnpairTarget(null);
+      setUnpairReason("");
     },
   });
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
       const passenger = passengers?.find(p => p.id === passengerId);
+      const oldRoom = passenger?.room_number || null;
 
-      // Capacity validation: enforce max occupants per room number based on room_preference
+      // Capacity validation
       if (roomNumber && passenger?.room_preference) {
         const capacityMap: Record<string, number> = { quad: 4, triple: 3, double: 2, single: 1 };
         const cap = capacityMap[passenger.room_preference] ?? 99;
         const sameRoom = passengers?.filter(
           p => p.room_number === roomNumber && p.id !== passengerId
         ) || [];
-        // Mismatched room_preference in same room is also blocked
         const mismatched = sameRoom.find(p => p.room_preference !== passenger.room_preference);
         if (mismatched) {
           throw new Error(`Nomor kamar "${roomNumber}" sudah dipakai untuk tipe ${mismatched.room_preference?.toUpperCase()}. Gunakan nomor berbeda.`);
@@ -183,13 +207,30 @@ export default function AdminRoomAssignments() {
       const { error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId);
       if (error) throw error;
 
+      await logRoomAudit({
+        passenger_id: passengerId, departure_id: selectedDeparture, action: 'update_room_number',
+        old_room_number: oldRoom, new_room_number: roomNumber || null,
+        old_roommate_id: passenger?.roommate_id || null, new_roommate_id: passenger?.roommate_id || null,
+      });
+
       // Auto-sync roommate
       if (passenger?.roommate_id) {
+        const mate = passengers?.find(p => p.id === passenger.roommate_id);
         await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passenger.roommate_id);
+        await logRoomAudit({
+          passenger_id: passenger.roommate_id, departure_id: selectedDeparture, action: 'update_room_number',
+          old_room_number: mate?.room_number || null, new_room_number: roomNumber || null,
+          reason: 'Sinkron otomatis dengan pasangan',
+        });
       }
       const linkedPassengers = passengers?.filter(p => p.roommate_id === passengerId && p.id !== passengerId) || [];
       for (const linked of linkedPassengers) {
         await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', linked.id);
+        await logRoomAudit({
+          passenger_id: linked.id, departure_id: selectedDeparture, action: 'update_room_number',
+          old_room_number: linked.room_number || null, new_room_number: roomNumber || null,
+          reason: 'Sinkron otomatis dengan anggota grup',
+        });
       }
     },
     onSuccess: () => {
