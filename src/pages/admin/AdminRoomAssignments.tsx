@@ -74,6 +74,21 @@ export default function AdminRoomAssignments() {
   const [unpairReasonOpen, setUnpairReasonOpen] = useState(false);
   const [unpairTarget, setUnpairTarget] = useState<string | null>(null);
   const [unpairReason, setUnpairReason] = useState("");
+  // Audit filter state
+  const [auditDateFrom, setAuditDateFrom] = useState<string>("");
+  const [auditDateTo, setAuditDateTo] = useState<string>("");
+  const [auditAction, setAuditAction] = useState<string>("all");
+  const [auditBranch, setAuditBranch] = useState<string>("current");
+
+  const { data: branches } = useQuery({
+    queryKey: ['branches-for-audit-filter'],
+    enabled: historyOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('branches').select('id, name, code').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: packages } = useQuery({
     queryKey: ['packages-for-rooms'],
