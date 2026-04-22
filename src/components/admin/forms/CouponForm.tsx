@@ -31,19 +31,30 @@ type CouponRow = Database["public"]["Tables"]["coupons"]["Row"];
 type CouponInsert = Database["public"]["Tables"]["coupons"]["Insert"];
 type CouponUpdate = Database["public"]["Tables"]["coupons"]["Update"];
 
-const couponSchema = z.object({
-  code: z.string().min(1, "Kode kupon harus diisi"),
-  name: z.string().min(1, "Nama kupon harus diisi"),
-  description: z.string().optional(),
-  discount_type: z.enum(["percentage", "fixed"]),
-  discount_value: z.coerce.number().min(0),
-  min_purchase: z.coerce.number().min(0).default(0),
-  max_discount: z.coerce.number().optional().nullable(),
-  usage_limit: z.coerce.number().optional().nullable(),
-  valid_from: z.string().optional().nullable(),
-  valid_until: z.string().optional().nullable(),
-  is_active: z.boolean().default(true),
-});
+const couponSchema = z
+  .object({
+    code: z.string().min(1, "Kode kupon harus diisi"),
+    name: z.string().min(1, "Nama kupon harus diisi"),
+    description: z.string().optional(),
+    discount_type: z.enum(["percentage", "fixed"]),
+    discount_value: z.coerce.number().min(0),
+    min_purchase: z.coerce.number().min(0).default(0),
+    max_discount: z.coerce.number().optional().nullable(),
+    usage_limit: z.coerce.number().optional().nullable(),
+    valid_from: z.string().optional().nullable(),
+    valid_until: z.string().optional().nullable(),
+    is_active: z.boolean().default(true),
+  })
+  .refine(
+    (data) => {
+      if (!data.valid_from || !data.valid_until) return true;
+      return new Date(data.valid_until) >= new Date(data.valid_from);
+    },
+    {
+      message: "Tanggal akhir harus setelah atau sama dengan tanggal mulai",
+      path: ["valid_until"],
+    }
+  );
 
 type CouponFormValues = z.infer<typeof couponSchema>;
 
@@ -52,6 +63,15 @@ interface CouponFormProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
+
+// Convert ISO timestamp / date string to YYYY-MM-DD for <input type="date">
+const toDateInput = (value: string | null | undefined): string => {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+};
 
 export function CouponForm({ couponData, onSuccess, onCancel }: CouponFormProps) {
   const queryClient = useQueryClient();
@@ -68,8 +88,8 @@ export function CouponForm({ couponData, onSuccess, onCancel }: CouponFormProps)
       min_purchase: couponData?.min_purchase || 0,
       max_discount: couponData?.max_discount || null,
       usage_limit: couponData?.usage_limit || null,
-      valid_from: couponData?.valid_from || "",
-      valid_until: couponData?.valid_until || "",
+      valid_from: toDateInput(couponData?.valid_from),
+      valid_until: toDateInput(couponData?.valid_until),
       is_active: couponData?.is_active ?? true,
     },
   });

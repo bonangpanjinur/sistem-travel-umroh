@@ -95,7 +95,7 @@ export default function AdminDepartureDetail() {
             passport_number, passport_expiry, phone
           ),
           booking:bookings!inner(
-            id, booking_code, room_type, booking_status,
+            id, booking_code, room_type, booking_status, payment_status,
             departure_id
           )
         `
@@ -103,13 +103,27 @@ export default function AdminDepartureDetail() {
         .order('booking.booking_code', { ascending: true })
         .order('is_main_passenger', { ascending: false })
         .eq("booking.departure_id", id)
-        .eq("booking.booking_status", "confirmed");
+        .in("booking.booking_status", ["confirmed", "pending", "processing", "completed"]);
 
       if (error) throw error;
       return data;
     },
     enabled: !!id,
   });
+
+  const passengerStats = (() => {
+    if (!passengers) return { confirmed: 0, pending: 0, total: 0 };
+    return passengers.reduce(
+      (acc, p: any) => {
+        const s = p.booking?.booking_status;
+        if (s === "confirmed" || s === "completed") acc.confirmed += 1;
+        else if (s === "pending" || s === "processing") acc.pending += 1;
+        acc.total += 1;
+        return acc;
+      },
+      { confirmed: 0, pending: 0, total: 0 }
+    );
+  })();
 
   // Fetch itinerary for this departure
   const { data: itinerary } = useQuery({
