@@ -793,46 +793,164 @@ export default function AdminDepartureDetail() {
 
         {/* Tab: Jemaah */}
         <TabsContent value="jamaah" className="space-y-6">
+          {/* Debug Panel */}
+          <Collapsible open={debugOpen} onOpenChange={setDebugOpen}>
+            <Card>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full text-left flex items-center justify-between p-4 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Bug className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Panel Debug</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {debugData.bookingsCount} booking · {debugData.realRows} pax · {debugData.virtualCount} virtual
+                    </Badge>
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${debugOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="px-4 pb-4 space-y-3 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-md bg-muted/50 p-3">
+                      <p className="text-muted-foreground">Bookings (aktif)</p>
+                      <p className="text-lg font-semibold">{debugData.bookingsCount}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-3">
+                      <p className="text-muted-foreground">Total Passenger</p>
+                      <p className="text-lg font-semibold">{debugData.totalPassengers}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-3">
+                      <p className="text-muted-foreground">Real Row (booking_passengers)</p>
+                      <p className="text-lg font-semibold">{debugData.realRows}</p>
+                    </div>
+                    <div className="rounded-md bg-amber-50 p-3 border border-amber-200">
+                      <p className="text-amber-700">Virtual (kekurangan main)</p>
+                      <p className="text-lg font-semibold text-amber-800">{debugData.virtualCount}</p>
+                    </div>
+                  </div>
+                  {debugData.virtualBookings.length > 0 && (
+                    <div>
+                      <p className="font-medium mb-2">Booking yang kekurangan main passenger row:</p>
+                      <div className="rounded-md border bg-background overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="text-left p-2">Booking Code</th>
+                              <th className="text-left p-2">Customer (dari bookings.customer_id)</th>
+                              <th className="text-left p-2 font-mono">booking_id</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {debugData.virtualBookings.map((vb, i) => (
+                              <tr key={i} className="border-t">
+                                <td className="p-2 font-mono">{vb.booking_code || "-"}</td>
+                                <td className="p-2">{vb.customer || "(tidak ada)"}</td>
+                                <td className="p-2 font-mono text-[10px] text-muted-foreground">{vb.booking_id}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-muted-foreground">
+                    Attendance tercatat: <span className="font-semibold text-foreground">{attendance?.length || 0}</span> entri |
+                    Sudah check-in: <span className="font-semibold text-foreground">{passengerStats.checkedIn}</span>
+                  </p>
+                </div>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Daftar Jemaah ({passengers?.length || 0})
+                  Daftar Jemaah ({filteredPassengers.length}
+                  {filteredPassengers.length !== passengerStats.total && (
+                    <span className="text-xs text-muted-foreground"> dari {passengerStats.total}</span>
+                  )}
+                  )
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {passengerStats.total > 0 && (
-                    <div className="flex gap-1.5 mr-2">
-                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                        {passengerStats.confirmed} confirmed
-                      </Badge>
-                      {passengerStats.pending > 0 && (
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                          {passengerStats.pending} pending
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9 w-[140px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="partial">Partial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="h-9 w-[130px]">
+                      <SelectValue placeholder="Tipe Pax" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Tipe</SelectItem>
+                      <SelectItem value="adult">Adult ({passengerStats.adult})</SelectItem>
+                      <SelectItem value="child">Child ({passengerStats.child})</SelectItem>
+                      <SelectItem value="infant">Infant ({passengerStats.infant})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsCheckinOpen(true)}
+                    disabled={!passengers || passengers.length === 0}
+                  >
+                    <ScanLine className="h-4 w-4 mr-2" />
+                    QR Check-in
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={exportManifestPDF}
-                    disabled={!passengers || passengers.length === 0}
+                    disabled={filteredPassengers.length === 0}
                   >
                     <FileDown className="h-4 w-4 mr-2" />
-                    Export Manifest
+                    Manifest
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={exportRoomingListPDF}
-                    disabled={!passengers || passengers.length === 0}
+                    disabled={filteredPassengers.length === 0}
                   >
                     <Printer className="h-4 w-4 mr-2" />
-                    Export Rooming List
+                    Rooming List
                   </Button>
                 </div>
               </div>
+              {passengerStats.total > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                    {passengerStats.confirmed} confirmed
+                  </Badge>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    {passengerStats.paid} paid
+                  </Badge>
+                  {passengerStats.pending > 0 && (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                      {passengerStats.pending} pending
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    {passengerStats.checkedIn}/{passengerStats.total} check-in
+                  </Badge>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {passengersLoading ? (
@@ -841,7 +959,7 @@ export default function AdminDepartureDetail() {
                     <Skeleton key={i} className="h-12 w-full" />
                   ))}
                 </div>
-              ) : passengers && passengers.length > 0 ? (
+              ) : filteredPassengers.length > 0 ? (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -851,14 +969,16 @@ export default function AdminDepartureDetail() {
                         <TableHead>L/P</TableHead>
                         <TableHead>Paspor</TableHead>
                         <TableHead>Exp. Paspor</TableHead>
-                        <TableHead>Tipe Penumpang</TableHead>
+                        <TableHead>Tipe Pax</TableHead>
                         <TableHead>Kamar</TableHead>
+                        <TableHead>No. Kamar</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Check-in</TableHead>
                         <TableHead>Telepon</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {passengers.map((p: any) => {
+                      {filteredPassengers.map((p: any) => {
                         const bookingStatus = p.booking?.booking_status as string | undefined;
                         const paymentStatus = p.booking?.payment_status as string | undefined;
                         const statusVariant =
@@ -867,6 +987,9 @@ export default function AdminDepartureDetail() {
                             : bookingStatus === "pending"
                               ? "bg-amber-50 text-amber-700 border-amber-200"
                               : "bg-muted text-muted-foreground";
+                        const checkin = p.customer?.id
+                          ? attendanceMap.get(p.customer.id)
+                          : undefined;
                         return (
                           <TableRow key={p.id}>
                             <TableCell className="font-mono text-xs">
@@ -878,6 +1001,11 @@ export default function AdminDepartureDetail() {
                                 {p.is_main_passenger && (
                                   <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                                     Utama
+                                  </Badge>
+                                )}
+                                {p._virtual && (
+                                  <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                                    virtual
                                   </Badge>
                                 )}
                               </div>
@@ -892,10 +1020,13 @@ export default function AdminDepartureDetail() {
                                 : "-"}
                             </TableCell>
                             <TableCell className="capitalize">
-                              {p.passenger_type || "-"}
+                              {p.passenger_type || "adult"}
                             </TableCell>
                             <TableCell>
                               {(p.booking?.room_type || "-").toUpperCase()}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {p.room_number || "-"}
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
@@ -909,6 +1040,16 @@ export default function AdminDepartureDetail() {
                                 )}
                               </div>
                             </TableCell>
+                            <TableCell>
+                              {checkin ? (
+                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  {format(new Date(checkin.checked_in_at), "HH:mm")}
+                                </Badge>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">belum</span>
+                              )}
+                            </TableCell>
                             <TableCell>{p.customer?.phone || "-"}</TableCell>
                           </TableRow>
                         );
@@ -918,7 +1059,9 @@ export default function AdminDepartureDetail() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  Belum ada jemaah terdaftar
+                  {passengers && passengers.length > 0
+                    ? "Tidak ada jamaah cocok dengan filter saat ini"
+                    : "Belum ada jemaah terdaftar"}
                 </div>
               )}
             </CardContent>
