@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,8 +30,13 @@ import {
   Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck, Settings
 } from "lucide-react";
 import { AppRole } from "@/types/database";
-import { UserPermissionsManager } from "@/components/admin/UserPermissionsManager";
-import DashboardAccessManagerPanel from "@/components/admin/DashboardAccessManagerPanel";
+// Lazy-load heavy permission/dashboard config panels — only loaded when dialog opens
+const UserPermissionsManager = lazy(() =>
+  import("@/components/admin/UserPermissionsManager").then(m => ({ default: m.UserPermissionsManager }))
+);
+const DashboardAccessManagerPanel = lazy(() =>
+  import("@/components/admin/DashboardAccessManagerPanel")
+);
 import { sortRoles } from "@/lib/constants";
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -713,11 +717,13 @@ export default function AdminUsers() {
             </DialogDescription>
           </DialogHeader>
           {selectedUser && (
-            <UserPermissionsManager
-              userId={selectedUser.user_id}
-              userName={selectedUser.full_name || ""}
-              isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin' || r.role === 'owner')}
-            />
+            <Suspense fallback={<div className="py-8"><Skeleton className="h-32 w-full" /></div>}>
+              <UserPermissionsManager
+                userId={selectedUser.user_id}
+                userName={selectedUser.full_name || ""}
+                isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin' || r.role === 'owner')}
+              />
+            </Suspense>
           )}
         </DialogContent>
       </Dialog>
@@ -841,7 +847,9 @@ export default function AdminUsers() {
               </DialogDescription>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <DashboardAccessManagerPanel mode="embedded" onClose={() => setShowDashboardSettings(false)} />
+              <Suspense fallback={<div className="py-8"><Skeleton className="h-32 w-full" /></div>}>
+                <DashboardAccessManagerPanel mode="embedded" onClose={() => setShowDashboardSettings(false)} />
+              </Suspense>
             </div>
           </div>
         </DialogContent>
