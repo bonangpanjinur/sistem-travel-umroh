@@ -56,6 +56,8 @@ const packageSchema = z.object({
   includes: z.string().optional(),
   excludes: z.string().optional(),
   is_featured: z.boolean().default(false),
+  is_popular: z.boolean().default(false),
+  is_cheapest: z.boolean().default(false),
   is_active: z.boolean().default(true),
 
   // PIC Fee fields
@@ -94,6 +96,8 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
       includes: packageData?.includes?.join("\n") || "",
       excludes: packageData?.excludes?.join("\n") || "",
       is_featured: packageData?.is_featured || false,
+      is_popular: (packageData as any)?.is_popular || false,
+      is_cheapest: (packageData as any)?.is_cheapest || false,
       is_active: packageData?.is_active ?? true,
 
       fee_branch: (packageData as any)?.fee_branch || 0,
