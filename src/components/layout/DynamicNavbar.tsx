@@ -193,7 +193,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className={`lg:hidden ${isRoyal ? 'text-white hover:bg-white/10' : ''}`}
             onClick={() => setIsOpen(!isOpen)}
             aria-label={isOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
             aria-expanded={isOpen}
@@ -206,33 +206,43 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
 
         {/* Mobile Navigation - includes user menu items */}
         {isOpen && (
-          <div className="border-t py-4 lg:hidden" id="mobile-navigation" role="navigation" aria-label="Menu navigasi mobile">
+          <div className={`border-t py-4 lg:hidden ${isRoyal ? 'border-amber-500/20' : ''}`} id="mobile-navigation" role="navigation" aria-label="Menu navigasi mobile">
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    isRoyal 
+                      ? 'text-gray-400 hover:bg-white/5 hover:text-amber-500' 
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
                   onClick={() => setIsOpen(false)}
                 >
                   {link.label}
                 </Link>
               ))}
 
-              <hr className="my-2" />
+              <hr className={`my-2 ${isRoyal ? 'border-amber-500/20' : ''}`} />
 
               {user ? (
                 <>
                   {/* User info */}
                   <div className="px-4 py-2 flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                      isRoyal ? 'bg-amber-500 text-black' : 'bg-primary text-primary-foreground'
+                    }`}>
                       <User className="h-4 w-4" />
                     </div>
-                    <span className="text-sm font-medium">{profile?.full_name || 'User'}</span>
+                    <span className={`text-sm font-medium ${isRoyal ? 'text-white' : ''}`}>{profile?.full_name || 'User'}</span>
                   </div>
                   <Link
                     to={getDashboardLink()}
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground flex items-center gap-2"
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                      isRoyal 
+                        ? 'text-gray-400 hover:bg-white/5 hover:text-amber-500' 
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    }`}
                     onClick={() => setIsOpen(false)}
                   >
                     <LayoutDashboard className="h-4 w-4" />
@@ -240,7 +250,11 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                   </Link>
                   <Link
                     to="/my-bookings"
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground flex items-center gap-2"
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                      isRoyal 
+                        ? 'text-gray-400 hover:bg-white/5 hover:text-amber-500' 
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    }`}
                     onClick={() => setIsOpen(false)}
                   >
                     <Calendar className="h-4 w-4" />
@@ -248,7 +262,11 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                   </Link>
                   <Link
                     to="/customer/my-savings"
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground flex items-center gap-2"
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                      isRoyal 
+                        ? 'text-gray-400 hover:bg-white/5 hover:text-amber-500' 
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    }`}
                     onClick={() => setIsOpen(false)}
                   >
                     <Wallet className="h-4 w-4" />
@@ -266,14 +284,22 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                 <>
                   <Link
                     to="/login"
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      isRoyal 
+                        ? 'text-gray-400 hover:bg-white/5 hover:text-amber-500' 
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    }`}
                     onClick={() => setIsOpen(false)}
                   >
                     Masuk
                   </Link>
                   <Link
                     to="/register"
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-primary font-semibold transition-colors hover:bg-primary/10"
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      isRoyal 
+                        ? 'text-amber-500 font-bold hover:bg-amber-500/10' 
+                        : 'text-primary font-semibold hover:bg-primary/10'
+                    }`}
                     onClick={() => setIsOpen(false)}
                   >
                     Daftar
