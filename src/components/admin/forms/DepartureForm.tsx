@@ -238,14 +238,33 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         month: values.month || null,
       };
 
+      let departureId: string;
       if (isEditing && departureData) {
-        const updatePayload: DepartureUpdate = payload as any;
-        const { error } = await supabase.from("departures").update(updatePayload).eq("id", departureData.id);
+        const { error } = await supabase.from("departures").update(payload as any).eq("id", departureData.id);
         if (error) throw error;
+        departureId = departureData.id;
       } else {
-        const insertPayload = payload as unknown as DepartureInsert;
-        const { error } = await supabase.from("departures").insert(insertPayload);
+        const { data, error } = await supabase.from("departures").insert(payload as any).select("id").single();
         if (error) throw error;
+        departureId = (data as any).id;
+      }
+
+      // Sync additional hotels (transit/umroh plus/haji): delete all then re-insert
+      await (supabase as any).from("departure_hotels").delete().eq("departure_id", departureId);
+      const validAdditional = additionalHotels.filter(h => h.hotel_id);
+      if (validAdditional.length > 0) {
+        const rows = validAdditional.map((h, idx) => ({
+          departure_id: departureId,
+          hotel_id: h.hotel_id,
+          hotel_role: h.hotel_role || 'additional',
+          check_in_date: h.check_in_date || null,
+          check_out_date: h.check_out_date || null,
+          nights: h.nights || null,
+          notes: h.notes || null,
+          sort_order: idx,
+        }));
+        const { error: insErr } = await (supabase as any).from("departure_hotels").insert(rows);
+        if (insErr) throw insErr;
       }
     },
     onSuccess: () => {
