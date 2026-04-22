@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function respond(payload: Record<string, unknown>): Response {
+  return new Response(JSON.stringify(payload), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status: 200,
+  });
+}
+
 interface NotificationPayload {
   type: 'payment_received' | 'departure_reminder' | 'welcome_umrah' | 'booking_confirmed';
   booking_id?: string;
@@ -40,10 +47,7 @@ serve(async (req) => {
     } | null;
 
     if (!config?.api_key) {
-      return new Response(
-        JSON.stringify({ success: false, error: "WhatsApp API not configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+      return respond({ success: false, error: "WhatsApp API not configured", sent: 0, failed: 0, total: 0 });
     }
 
     const notifications: Array<{ phone: string; message: string; customer_name: string }> = [];
@@ -186,16 +190,10 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, type, sent, failed, total: notifications.length }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return respond({ success: true, type, sent, failed, total: notifications.length });
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    return respond({ success: false, error: errorMessage, sent: 0, failed: 0, total: 0 });
   }
 });

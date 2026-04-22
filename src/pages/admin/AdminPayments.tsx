@@ -255,6 +255,9 @@ export default function AdminPayments() {
                   body: { reminder_type: 'all' }
                 });
                 if (error) throw error;
+                if (!data?.success) {
+                  throw new Error(data?.error || 'Gagal mengirim reminder');
+                }
                 toast.success(`Reminder terkirim: ${data.summary?.sent || 0} berhasil, ${data.summary?.failed || 0} gagal`);
               } catch (err: any) {
                 toast.error(err.message || 'Gagal mengirim reminder');
