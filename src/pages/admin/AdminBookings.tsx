@@ -169,10 +169,19 @@ export default function AdminBookings() {
         .lte('created_at', periodRange!.to.toISOString())
         .neq('booking_status', 'cancelled');
       if (error) throw error;
-      const totalPax = (data || []).reduce((s, b: any) => s + (b.total_pax || 0), 0);
-      const totalBookings = (data || []).length;
-      const totalRevenue = (data || []).reduce((s, b: any) => s + (b.total_price || 0), 0);
-      return { totalPax, totalBookings, totalRevenue };
+      const rows = data || [];
+      const totalPax = rows.reduce((s, b: any) => s + (b.total_pax || 0), 0);
+      const totalBookings = rows.length;
+      const totalRevenue = rows.reduce((s, b: any) => s + (b.total_price || 0), 0);
+      const byStatus: Record<string, { pax: number; bookings: number }> = {};
+      ['confirmed', 'pending', 'processing', 'completed'].forEach(s => byStatus[s] = { pax: 0, bookings: 0 });
+      rows.forEach((b: any) => {
+        const st = b.booking_status || 'pending';
+        if (!byStatus[st]) byStatus[st] = { pax: 0, bookings: 0 };
+        byStatus[st].pax += b.total_pax || 0;
+        byStatus[st].bookings += 1;
+      });
+      return { totalPax, totalBookings, totalRevenue, byStatus };
     },
   });
 
