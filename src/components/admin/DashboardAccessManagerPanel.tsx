@@ -13,7 +13,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fromExtra } from '@/integrations/supabase/extra-tables';
+import { fromExtra, type DashboardAccessConfigRow, type DashboardAccessAuditLogRow } from '@/integrations/supabase/extra-tables';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,10 @@ export default function DashboardAccessManagerPanel({
   }
 
   // Fetch dashboard access config
-  const { data: accessConfig, isLoading: configLoading, error: configError } = useQuery({
+  const { data: accessConfig, isLoading: configLoading, error: configError } = useQuery<
+    DashboardAccessConfigRow | null,
+    Error
+  >({
     queryKey: ['dashboard-access-config', selectedRole],
     queryFn: async () => {
       const { data, error } = await fromExtra('dashboard_access_config')
@@ -92,7 +95,7 @@ export default function DashboardAccessManagerPanel({
         throw error;
       }
 
-      return data || null;
+      return (data as DashboardAccessConfigRow | null) ?? null;
     },
     retry: false,
   });
@@ -100,7 +103,7 @@ export default function DashboardAccessManagerPanel({
   const isTableMissing = configError?.message === 'TABLE_NOT_FOUND';
 
   // Fetch audit log
-  const { data: auditLog = [] } = useQuery({
+  const { data: auditLog = [] } = useQuery<DashboardAccessAuditLogRow[]>({
     queryKey: ['dashboard-access-audit-log', selectedRole],
     queryFn: async () => {
       const { data, error } = await fromExtra('dashboard_access_audit_log')
@@ -119,7 +122,7 @@ export default function DashboardAccessManagerPanel({
         return [];
       }
 
-      return data || [];
+      return (data as DashboardAccessAuditLogRow[] | null) ?? [];
     },
   });
 
