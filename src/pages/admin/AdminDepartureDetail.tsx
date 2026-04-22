@@ -78,35 +78,88 @@ export default function AdminDepartureDetail() {
     enabled: !!id,
   });
 
-  // Fetch passengers for this departure
+  // Fetch passengers for this departure (refactored: two-step query to avoid PostgREST nested filter issues)
   const { data: passengers, isLoading: passengersLoading } = useQuery({
     queryKey: ["departure-passengers", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Step 1: Fetch all active bookings for this departure (blacklist cancelled/refunded)
+      const { data: bookings, error: bookingsError } = await supabase
+        .from("bookings")
+        .select("id, booking_code, room_type, booking_status, payment_status, customer_id")
+        .eq("departure_id", id!)
+        .not("booking_status", "in", "(cancelled,refunded)");
+
+      if (bookingsError) throw bookingsError;
+      if (!bookings || bookings.length === 0) return [];
+
+      const bookingIds = bookings.map((b) => b.id);
+      const bookingMap = new Map(bookings.map((b) => [b.id, b]));
+
+      // Step 2: Fetch booking_passengers for these bookings
+      const { data: bps, error: bpsError } = await supabase
         .from("booking_passengers")
         .select(
           `
           id,
+          booking_id,
           is_main_passenger,
           room_preference,
           passenger_type,
           customer:customers(
             id, full_name, gender, birth_date,
             passport_number, passport_expiry, phone
-          ),
-          booking:bookings!inner(
-            id, booking_code, room_type, booking_status, payment_status,
-            departure_id
           )
         `
         )
-        .order('booking.booking_code', { ascending: true })
-        .order('is_main_passenger', { ascending: false })
-        .eq("booking.departure_id", id)
-        .in("booking.booking_status", ["confirmed", "pending", "processing", "completed"]);
+        .in("booking_id", bookingIds)
+        .order("is_main_passenger", { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (bpsError) throw bpsError;
+
+      // Step 3: Identify bookings missing a main_passenger row → build virtual passenger from booking.customer_id
+      const bookingsWithMain = new Set(
+        (bps || [])
+          .filter((p: any) => p.is_main_passenger)
+          .map((p: any) => p.booking_id)
+      );
+      const missingMainBookings = bookings.filter(
+        (b) => !bookingsWithMain.has(b.id) && b.customer_id
+      );
+
+      let virtualPassengers: any[] = [];
+      if (missingMainBookings.length > 0) {
+        const customerIds = missingMainBookings.map((b) => b.customer_id);
+        const { data: customers } = await supabase
+          .from("customers")
+          .select("id, full_name, gender, birth_date, passport_number, passport_expiry, phone")
+          .in("id", customerIds);
+
+        const customerMap = new Map((customers || []).map((c) => [c.id, c]));
+        virtualPassengers = missingMainBookings.map((b) => ({
+          id: `virtual-${b.id}`,
+          booking_id: b.id,
+          is_main_passenger: true,
+          room_preference: b.room_type,
+          passenger_type: "adult",
+          customer: customerMap.get(b.customer_id!) || null,
+          _virtual: true,
+        }));
+      }
+
+      // Step 4: Combine + attach booking info, sort by booking_code then main first
+      const combined = [...(bps || []), ...virtualPassengers].map((p: any) => ({
+        ...p,
+        booking: bookingMap.get(p.booking_id) || null,
+      }));
+
+      combined.sort((a: any, b: any) => {
+        const codeA = a.booking?.booking_code || "";
+        const codeB = b.booking?.booking_code || "";
+        if (codeA !== codeB) return codeA.localeCompare(codeB);
+        return (b.is_main_passenger ? 1 : 0) - (a.is_main_passenger ? 1 : 0);
+      });
+
+      return combined;
     },
     enabled: !!id,
   });
@@ -116,7 +169,7 @@ export default function AdminDepartureDetail() {
     return passengers.reduce(
       (acc, p: any) => {
         const s = p.booking?.booking_status;
-        if (s === "confirmed" || s === "completed") acc.confirmed += 1;
+        if (s === "confirmed" || s === "completed" || s === "paid") acc.confirmed += 1;
         else if (s === "pending" || s === "processing") acc.pending += 1;
         acc.total += 1;
         return acc;
