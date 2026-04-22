@@ -339,8 +339,12 @@ export default function AdminDepartureDetail() {
     }
   };
 
-  const exportManifestPDF = () => {
-    if (!passengers || !departure) return;
+  const exportManifestPDF = async () => {
+    const sourceList = filteredPassengers.length > 0 ? filteredPassengers : passengers || [];
+    if (sourceList.length === 0 || !departure) {
+      toast.error("Tidak ada data jamaah untuk diekspor");
+      return;
+    }
     const doc = new jsPDF({ orientation: "landscape" });
     const pkgName = departure.package?.name || "Manifest";
 
@@ -355,9 +359,23 @@ export default function AdminDepartureDetail() {
       28
     );
     doc.text(
-      `Flight: ${departure.flight_number || "-"} | Jumlah: ${passengers.length} jamaah`,
+      `Flight: ${departure.flight_number || "-"} | Jumlah: ${sourceList.length} jamaah`,
       14,
       34
+    );
+
+    const qrUrls = await Promise.all(
+      sourceList.map(async (p: any) => {
+        if (!p.customer?.id) return null;
+        try {
+          return await QRCode.toDataURL(`CUST:${p.customer.id}`, {
+            width: 80,
+            margin: 0,
+          });
+        } catch {
+          return null;
+        }
+      })
     );
 
     autoTable(doc, {
@@ -365,16 +383,20 @@ export default function AdminDepartureDetail() {
       head: [
         [
           "No",
+          "QR",
           "Nama Lengkap",
           "L/P",
           "No. Paspor",
           "Exp. Paspor",
           "Tipe Kamar",
+          "Kamar",
+          "Tipe Pax",
           "Telepon",
         ],
       ],
-      body: passengers.map((p, idx) => [
+      body: sourceList.map((p: any, idx: number) => [
         (idx + 1).toString(),
+        "",
         p.customer?.full_name || "-",
         p.customer?.gender === "male" ? "L" : "P",
         p.customer?.passport_number || "-",
@@ -382,11 +404,22 @@ export default function AdminDepartureDetail() {
           ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy")
           : "-",
         (p.booking?.room_type || "-").toUpperCase(),
+        p.room_number || "-",
+        (p.passenger_type || "adult").toUpperCase(),
         p.customer?.phone || "-",
       ]),
-      styles: { fontSize: 8, cellPadding: 2 },
+      styles: { fontSize: 8, cellPadding: 2, minCellHeight: 14 },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: { 1: { cellWidth: 14 } },
+      didDrawCell: (data) => {
+        if (data.section === "body" && data.column.index === 1) {
+          const url = qrUrls[data.row.index];
+          if (url) {
+            doc.addImage(url, "PNG", data.cell.x + 1, data.cell.y + 1, 12, 12);
+          }
+        }
+      },
     });
 
     doc.save(`Manifest-${pkgName}-${departure.departure_date}.pdf`);
@@ -394,12 +427,16 @@ export default function AdminDepartureDetail() {
   };
 
   const exportRoomingListPDF = () => {
-    if (!passengers || !departure) return;
+    const sourceList = filteredPassengers.length > 0 ? filteredPassengers : passengers || [];
+    if (sourceList.length === 0 || !departure) {
+      toast.error("Tidak ada data jamaah untuk diekspor");
+      return;
+    }
     const doc = new jsPDF();
     const pkgName = departure.package?.name || "Rooming List";
 
     const roomGroups: { [key: string]: any[] } = {};
-    passengers.forEach((p) => {
+    sourceList.forEach((p: any) => {
       const roomType = p.booking?.room_type || "unknown";
       if (!roomGroups[roomType]) roomGroups[roomType] = [];
       roomGroups[roomType].push(p);
@@ -437,15 +474,18 @@ export default function AdminDepartureDetail() {
       );
       startY += 6;
 
-      const tableRows = pax.map((p, idx) => [
+      const tableRows = pax.map((p: any, idx: number) => [
         (idx + 1).toString(),
         p.customer?.full_name || "-",
         p.customer?.gender === "male" ? "L" : "P",
+        p.room_number || "-",
+        p.booking?.booking_code || "-",
+        (p.passenger_type || "adult").toUpperCase(),
       ]);
 
       autoTable(doc, {
         startY,
-        head: [["No", "Nama Jamaah", "L/P"]],
+        head: [["No", "Nama Jamaah", "L/P", "No. Kamar", "Booking", "Tipe"]],
         body: tableRows,
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [100, 150, 200], textColor: 255 },
@@ -462,6 +502,7 @@ export default function AdminDepartureDetail() {
     doc.save(`RoomingList-${pkgName}-${departure.departure_date}.pdf`);
     toast.success("Rooming List PDF berhasil di-download");
   };
+
 
   if (departureLoading) {
     return (
