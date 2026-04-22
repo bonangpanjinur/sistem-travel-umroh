@@ -70,6 +70,10 @@ export default function AdminRoomAssignments() {
   const [pairingDialogOpen, setPairingDialogOpen] = useState(false);
   const [selectedPassenger, setSelectedPassenger] = useState<Passenger | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [unpairReasonOpen, setUnpairReasonOpen] = useState(false);
+  const [unpairTarget, setUnpairTarget] = useState<string | null>(null);
+  const [unpairReason, setUnpairReason] = useState("");
 
   const { data: packages } = useQuery({
     queryKey: ['packages-for-rooms'],
