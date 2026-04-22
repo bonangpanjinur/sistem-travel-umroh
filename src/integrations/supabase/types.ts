@@ -3643,6 +3643,70 @@ export type Database = {
           },
         ]
       }
+      room_assignment_audit: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string
+          departure_id: string | null
+          id: string
+          new_room_number: string | null
+          new_roommate_id: string | null
+          old_room_number: string | null
+          old_roommate_id: string | null
+          passenger_id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string
+          departure_id?: string | null
+          id?: string
+          new_room_number?: string | null
+          new_roommate_id?: string | null
+          old_room_number?: string | null
+          old_roommate_id?: string | null
+          passenger_id: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string
+          departure_id?: string | null
+          id?: string
+          new_room_number?: string | null
+          new_roommate_id?: string | null
+          old_room_number?: string | null
+          old_roommate_id?: string | null
+          passenger_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_assignment_audit_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_assignment_audit_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["departure_id"]
+          },
+          {
+            foreignKeyName: "room_assignment_audit_passenger_id_fkey"
+            columns: ["passenger_id"]
+            isOneToOne: false
+            referencedRelation: "booking_passengers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       room_assignments: {
         Row: {
           capacity: number | null

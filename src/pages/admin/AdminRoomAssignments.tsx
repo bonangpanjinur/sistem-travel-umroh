@@ -12,9 +12,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
-import { Users, UserPlus, BedDouble, Search, Check, X, Download, FileSpreadsheet, FileText, Wand2 } from "lucide-react";
+import { Users, UserPlus, BedDouble, Search, Check, X, Download, FileSpreadsheet, FileText, Wand2, History } from "lucide-react";
 import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 import { ROOM_TYPE_LABELS, GENDER_LABELS } from "@/lib/constants";
+import { Textarea } from "@/components/ui/textarea";
+
+// --- Audit logging helpers ---
+type RoomAuditAction = 'pair' | 'unpair' | 'update_room_number' | 'auto_assign';
+interface RoomAuditPayload {
+  passenger_id: string;
+  departure_id?: string | null;
+  action: RoomAuditAction;
+  old_room_number?: string | null;
+  new_room_number?: string | null;
+  old_roommate_id?: string | null;
+  new_roommate_id?: string | null;
+  reason?: string | null;
+}
+async function logRoomAudit(entries: RoomAuditPayload | RoomAuditPayload[]) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) return;
+    const list = Array.isArray(entries) ? entries : [entries];
+    const rows = list.map(e => ({ ...e, changed_by: uid }));
+    await (supabase as any).from('room_assignment_audit').insert(rows);
+  } catch (err) {
+    console.error('Audit log failed:', err);
+  }
+}
 
 interface Passenger {
   id: string;
@@ -44,6 +70,10 @@ export default function AdminRoomAssignments() {
   const [pairingDialogOpen, setPairingDialogOpen] = useState(false);
   const [selectedPassenger, setSelectedPassenger] = useState<Passenger | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [unpairReasonOpen, setUnpairReasonOpen] = useState(false);
+  const [unpairTarget, setUnpairTarget] = useState<string | null>(null);
+  const [unpairReason, setUnpairReason] = useState("");
 
   const { data: packages } = useQuery({
     queryKey: ['packages-for-rooms'],
@@ -97,16 +127,27 @@ export default function AdminRoomAssignments() {
   const doublePassengers = roomTypeGroups.double;
 
   const pairMutation = useMutation({
-    mutationFn: async ({ passengerId, roommateId, roomNumber }: { passengerId: string; roommateId: string; roomNumber?: string }) => {
+    mutationFn: async ({ passengerId, roommateId, roomNumber, reason }: { passengerId: string; roommateId: string; roomNumber?: string; reason?: string }) => {
+      const passengerA = passengers?.find(p => p.id === passengerId);
+      const passengerB = passengers?.find(p => p.id === roommateId);
       const results = await Promise.all([
         supabase.from('booking_passengers').update({ roommate_id: roommateId, room_number: roomNumber || null }).eq('id', passengerId),
         supabase.from('booking_passengers').update({ roommate_id: passengerId, room_number: roomNumber || null }).eq('id', roommateId),
       ]);
       results.forEach(r => { if (r.error) throw r.error; });
+      await logRoomAudit([
+        { passenger_id: passengerId, departure_id: selectedDeparture, action: 'pair',
+          old_room_number: passengerA?.room_number || null, new_room_number: roomNumber || null,
+          old_roommate_id: passengerA?.roommate_id || null, new_roommate_id: roommateId, reason: reason || null },
+        { passenger_id: roommateId, departure_id: selectedDeparture, action: 'pair',
+          old_room_number: passengerB?.room_number || null, new_room_number: roomNumber || null,
+          old_roommate_id: passengerB?.roommate_id || null, new_roommate_id: passengerId, reason: reason || null },
+      ]);
     },
     onSuccess: () => {
       toast.success("Berhasil memasangkan jamaah!");
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
+      queryClient.invalidateQueries({ queryKey: ['room-assignment-audit'] });
       setPairingDialogOpen(false);
       setSelectedPassenger(null);
     },
@@ -114,33 +155,46 @@ export default function AdminRoomAssignments() {
   });
 
   const unpairMutation = useMutation({
-    mutationFn: async (passengerId: string) => {
+    mutationFn: async ({ passengerId, reason }: { passengerId: string; reason?: string }) => {
       const passenger = passengers?.find(p => p.id === passengerId);
       if (!passenger?.roommate_id) return;
+      const roommate = passengers?.find(p => p.id === passenger.roommate_id);
       const results = await Promise.all([
         supabase.from('booking_passengers').update({ roommate_id: null, room_number: null }).eq('id', passengerId),
         supabase.from('booking_passengers').update({ roommate_id: null, room_number: null }).eq('id', passenger.roommate_id),
       ]);
       results.forEach(r => { if (r.error) throw r.error; });
+      await logRoomAudit([
+        { passenger_id: passengerId, departure_id: selectedDeparture, action: 'unpair',
+          old_room_number: passenger.room_number || null, new_room_number: null,
+          old_roommate_id: passenger.roommate_id, new_roommate_id: null, reason: reason || null },
+        { passenger_id: passenger.roommate_id, departure_id: selectedDeparture, action: 'unpair',
+          old_room_number: roommate?.room_number || null, new_room_number: null,
+          old_roommate_id: passengerId, new_roommate_id: null, reason: reason || null },
+      ]);
     },
     onSuccess: () => {
       toast.success("Pasangan dibatalkan!");
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
+      queryClient.invalidateQueries({ queryKey: ['room-assignment-audit'] });
+      setUnpairReasonOpen(false);
+      setUnpairTarget(null);
+      setUnpairReason("");
     },
   });
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
       const passenger = passengers?.find(p => p.id === passengerId);
+      const oldRoom = passenger?.room_number || null;
 
-      // Capacity validation: enforce max occupants per room number based on room_preference
+      // Capacity validation
       if (roomNumber && passenger?.room_preference) {
         const capacityMap: Record<string, number> = { quad: 4, triple: 3, double: 2, single: 1 };
         const cap = capacityMap[passenger.room_preference] ?? 99;
         const sameRoom = passengers?.filter(
           p => p.room_number === roomNumber && p.id !== passengerId
         ) || [];
-        // Mismatched room_preference in same room is also blocked
         const mismatched = sameRoom.find(p => p.room_preference !== passenger.room_preference);
         if (mismatched) {
           throw new Error(`Nomor kamar "${roomNumber}" sudah dipakai untuk tipe ${mismatched.room_preference?.toUpperCase()}. Gunakan nomor berbeda.`);
@@ -153,13 +207,30 @@ export default function AdminRoomAssignments() {
       const { error } = await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passengerId);
       if (error) throw error;
 
+      await logRoomAudit({
+        passenger_id: passengerId, departure_id: selectedDeparture, action: 'update_room_number',
+        old_room_number: oldRoom, new_room_number: roomNumber || null,
+        old_roommate_id: passenger?.roommate_id || null, new_roommate_id: passenger?.roommate_id || null,
+      });
+
       // Auto-sync roommate
       if (passenger?.roommate_id) {
+        const mate = passengers?.find(p => p.id === passenger.roommate_id);
         await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', passenger.roommate_id);
+        await logRoomAudit({
+          passenger_id: passenger.roommate_id, departure_id: selectedDeparture, action: 'update_room_number',
+          old_room_number: mate?.room_number || null, new_room_number: roomNumber || null,
+          reason: 'Sinkron otomatis dengan pasangan',
+        });
       }
       const linkedPassengers = passengers?.filter(p => p.roommate_id === passengerId && p.id !== passengerId) || [];
       for (const linked of linkedPassengers) {
         await supabase.from('booking_passengers').update({ room_number: roomNumber || null }).eq('id', linked.id);
+        await logRoomAudit({
+          passenger_id: linked.id, departure_id: selectedDeparture, action: 'update_room_number',
+          old_room_number: linked.room_number || null, new_room_number: roomNumber || null,
+          reason: 'Sinkron otomatis dengan anggota grup',
+        });
       }
     },
     onSuccess: () => {
@@ -190,13 +261,17 @@ export default function AdminRoomAssignments() {
             // Link all members to each other (using first member as the "anchor")
             const anchorId = chunk[0].id;
             for (const member of chunk) {
-              // Each member points to the anchor (or for double, they point to each other)
               const roommateId = groupSize === 2 
                 ? (member.id === chunk[0].id ? chunk[1].id : chunk[0].id)
                 : anchorId;
               await supabase.from('booking_passengers').update({ roommate_id: roommateId }).eq('id', member.id);
+              await logRoomAudit({
+                passenger_id: member.id, departure_id: selectedDeparture, action: 'auto_assign',
+                old_room_number: member.room_number || null, new_room_number: member.room_number || null,
+                old_roommate_id: member.roommate_id || null, new_roommate_id: roommateId,
+                reason: `Auto-kelompokkan tipe ${roomType.toUpperCase()} berdasarkan gender`,
+              });
             }
-            // For double, also set the anchor's roommate
             if (groupSize === 2) {
               await supabase.from('booking_passengers').update({ roommate_id: chunk[1].id }).eq('id', chunk[0].id);
               await supabase.from('booking_passengers').update({ roommate_id: chunk[0].id }).eq('id', chunk[1].id);
@@ -210,9 +285,44 @@ export default function AdminRoomAssignments() {
     onSuccess: (count) => {
       toast.success(`✅ ${count} grup berhasil dibuat`);
       queryClient.invalidateQueries({ queryKey: ['room-passengers'] });
+      queryClient.invalidateQueries({ queryKey: ['room-assignment-audit'] });
     },
     onError: (err) => toast.error("Gagal: " + err.message),
   });
+
+  // Audit log query
+  const { data: auditLogs } = useQuery({
+    queryKey: ['room-assignment-audit', selectedDeparture],
+    enabled: !!selectedDeparture && historyOpen,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('room_assignment_audit')
+        .select('*')
+        .eq('departure_id', selectedDeparture)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+
+      const userIds = Array.from(new Set((data || []).map((r: any) => r.changed_by).filter(Boolean)));
+      const passengerIds = Array.from(new Set((data || []).flatMap((r: any) => [r.passenger_id, r.old_roommate_id, r.new_roommate_id]).filter(Boolean)));
+
+      const [profilesRes, passengersRes] = await Promise.all([
+        userIds.length ? supabase.from('profiles').select('user_id, full_name').in('user_id', userIds as string[]) : Promise.resolve({ data: [] as any[] }),
+        passengerIds.length ? supabase.from('booking_passengers').select('id, customer:customers(full_name)').in('id', passengerIds as string[]) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.user_id, p.full_name]));
+      const paxMap = new Map((passengersRes.data || []).map((p: any) => [p.id, p.customer?.full_name || '-']));
+
+      return (data || []).map((r: any) => ({
+        ...r,
+        changed_by_name: r.changed_by ? (profileMap.get(r.changed_by) || 'Unknown') : 'System',
+        passenger_name: paxMap.get(r.passenger_id) || '-',
+        old_roommate_name: r.old_roommate_id ? paxMap.get(r.old_roommate_id) || '-' : null,
+        new_roommate_name: r.new_roommate_id ? paxMap.get(r.new_roommate_id) || '-' : null,
+      }));
+    },
+  });
+
 
   // Paired groups
   const pairedGroups: Passenger[][] = [];
@@ -274,6 +384,9 @@ export default function AdminRoomAssignments() {
         </div>
         {selectedDeparture && passengers && passengers.length > 0 && (
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
+              <History className="h-4 w-4 mr-1" /> Riwayat
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportExcel}>
               <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
             </Button>
@@ -421,7 +534,7 @@ export default function AdminRoomAssignments() {
                               <span key={p.id} className="text-sm">{p.customer?.full_name}</span>
                             )).reduce((prev, curr, i) => i === 0 ? [curr] : [...prev, <span key={`sep-${i}`} className="text-muted-foreground">&</span>, curr], [] as any)}
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => unpairMutation.mutate(group[0].id)} disabled={unpairMutation.isPending}>
+                          <Button variant="ghost" size="sm" onClick={() => { setUnpairTarget(group[0].id); setUnpairReason(""); setUnpairReasonOpen(true); }} disabled={unpairMutation.isPending}>
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
@@ -498,11 +611,92 @@ export default function AdminRoomAssignments() {
         unpairedPassengers={doublePassengers?.filter(p => !p.roommate_id && p.id !== selectedPassenger?.id && p.customer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) || []}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onPair={(roommateId, roomNumber) => {
-          if (selectedPassenger) pairMutation.mutate({ passengerId: selectedPassenger.id, roommateId, roomNumber });
+        onPair={(roommateId, roomNumber, reason) => {
+          if (selectedPassenger) pairMutation.mutate({ passengerId: selectedPassenger.id, roommateId, roomNumber, reason });
         }}
         isPairing={pairMutation.isPending}
       />
+
+      {/* Unpair Reason Dialog */}
+      <Dialog open={unpairReasonOpen} onOpenChange={setUnpairReasonOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Batalkan Pasangan Kamar</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Catat alasan pembatalan pasangan ini untuk audit trail.</p>
+            <div>
+              <Label>Alasan (opsional)</Label>
+              <Textarea
+                value={unpairReason}
+                onChange={e => setUnpairReason(e.target.value)}
+                placeholder="Contoh: Permintaan jamaah ingin pindah pasangan"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnpairReasonOpen(false)}>Batal</Button>
+            <Button onClick={() => { if (unpairTarget) unpairMutation.mutate({ passengerId: unpairTarget, reason: unpairReason }); }} disabled={unpairMutation.isPending}>
+              Konfirmasi Pembatalan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Audit History Dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" /> Riwayat Perubahan Kamar
+            </DialogTitle>
+          </DialogHeader>
+          {!auditLogs || auditLogs.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Belum ada riwayat perubahan untuk keberangkatan ini.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Waktu</TableHead>
+                  <TableHead>Aksi</TableHead>
+                  <TableHead>Jamaah</TableHead>
+                  <TableHead>Kamar</TableHead>
+                  <TableHead>Pasangan</TableHead>
+                  <TableHead>Diubah Oleh</TableHead>
+                  <TableHead>Alasan</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditLogs.map((log: any) => {
+                  const actionLabel: Record<string, string> = {
+                    pair: 'Pasangkan',
+                    unpair: 'Batalkan Pasangan',
+                    update_room_number: 'Ubah Nomor',
+                    auto_assign: 'Auto-Kelompokkan',
+                  };
+                  const actionVariant: Record<string, any> = {
+                    pair: 'default', unpair: 'destructive', update_room_number: 'secondary', auto_assign: 'outline',
+                  };
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-xs whitespace-nowrap">{new Date(log.created_at).toLocaleString('id-ID')}</TableCell>
+                      <TableCell><Badge variant={actionVariant[log.action] || 'outline'}>{actionLabel[log.action] || log.action}</Badge></TableCell>
+                      <TableCell className="font-medium">{log.passenger_name}</TableCell>
+                      <TableCell className="text-xs">
+                        {log.old_room_number || '—'} → <span className="font-medium">{log.new_room_number || '—'}</span>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {log.old_roommate_name || '—'} → <span className="font-medium">{log.new_roommate_name || '—'}</span>
+                      </TableCell>
+                      <TableCell className="text-xs">{log.changed_by_name}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px]">{log.reason || '-'}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -512,10 +706,11 @@ export default function AdminRoomAssignments() {
 function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassengers, searchQuery, onSearchChange, onPair, isPairing }: {
   open: boolean; onOpenChange: (o: boolean) => void; selectedPassenger: Passenger | null;
   unpairedPassengers: Passenger[]; searchQuery: string; onSearchChange: (q: string) => void;
-  onPair: (id: string, room?: string) => void; isPairing: boolean;
+  onPair: (id: string, room?: string, reason?: string) => void; isPairing: boolean;
 }) {
   const [selectedRoommate, setSelectedRoommate] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [reason, setReason] = useState("");
   const sameGender = unpairedPassengers.filter(p => p.customer?.gender === selectedPassenger?.customer?.gender);
 
   return (
@@ -532,6 +727,10 @@ function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassenge
             <div>
               <Label>Nomor Kamar (opsional)</Label>
               <Input placeholder="301" value={roomNumber} onChange={e => setRoomNumber(e.target.value)} />
+            </div>
+            <div>
+              <Label>Alasan (opsional)</Label>
+              <Textarea placeholder="Contoh: Permintaan jamaah" value={reason} onChange={e => setReason(e.target.value)} rows={2} />
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -557,7 +756,7 @@ function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassenge
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={() => { if (selectedRoommate) onPair(selectedRoommate, roomNumber); }} disabled={!selectedRoommate || isPairing}>Pasangkan</Button>
+          <Button onClick={() => { if (selectedRoommate) onPair(selectedRoommate, roomNumber, reason); }} disabled={!selectedRoommate || isPairing}>Pasangkan</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
