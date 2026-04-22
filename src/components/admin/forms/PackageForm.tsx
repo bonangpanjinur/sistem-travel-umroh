@@ -498,6 +498,9 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="is_active"
               render={({ field }) => (
                 <FormItem className="flex items-center gap-2">
                   <FormControl>
