@@ -183,7 +183,17 @@ export function PackageCard({
             {pkg.is_featured && (
               <Badge className="bg-white/20 backdrop-blur-md text-white border-white/20 text-[10px] font-bold uppercase tracking-wider">
                 <Star className="mr-1 h-3 w-3 fill-amber-400 text-amber-400" />
-                Favorit
+                Unggulan
+              </Badge>
+            )}
+            {(pkg as any).is_popular && (
+              <Badge className="bg-rose-500/90 text-white border-none text-[10px] font-bold uppercase tracking-wider">
+                🔥 Populer
+              </Badge>
+            )}
+            {(pkg as any).is_cheapest && (
+              <Badge className="bg-emerald-600/90 text-white border-none text-[10px] font-bold uppercase tracking-wider">
+                💰 Termurah
               </Badge>
             )}
           </div>
