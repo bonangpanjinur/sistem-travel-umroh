@@ -470,6 +470,7 @@ export type Database = {
           new_data: Json | null
           old_data: Json | null
           record_id: string | null
+          resource_id: string | null
           resource_type: string | null
           severity: string | null
           table_name: string | null
@@ -489,6 +490,7 @@ export type Database = {
           new_data?: Json | null
           old_data?: Json | null
           record_id?: string | null
+          resource_id?: string | null
           resource_type?: string | null
           severity?: string | null
           table_name?: string | null
@@ -508,6 +510,7 @@ export type Database = {
           new_data?: Json | null
           old_data?: Json | null
           record_id?: string | null
+          resource_id?: string | null
           resource_type?: string | null
           severity?: string | null
           table_name?: string | null
