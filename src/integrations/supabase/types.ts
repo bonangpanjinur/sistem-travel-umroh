@@ -468,7 +468,9 @@ export type Database = {
           ip_address: string | null
           metadata: Json | null
           new_data: Json | null
+          new_values: Json | null
           old_data: Json | null
+          old_values: Json | null
           record_id: string | null
           resource_id: string | null
           resource_type: string | null
@@ -488,7 +490,9 @@ export type Database = {
           ip_address?: string | null
           metadata?: Json | null
           new_data?: Json | null
+          new_values?: Json | null
           old_data?: Json | null
+          old_values?: Json | null
           record_id?: string | null
           resource_id?: string | null
           resource_type?: string | null
@@ -508,7 +512,9 @@ export type Database = {
           ip_address?: string | null
           metadata?: Json | null
           new_data?: Json | null
+          new_values?: Json | null
           old_data?: Json | null
+          old_values?: Json | null
           record_id?: string | null
           resource_id?: string | null
           resource_type?: string | null
