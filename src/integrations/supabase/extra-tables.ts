@@ -5,10 +5,11 @@
  * sites.
  *
  * Implementation:
- * - We construct a synthetic `Database`-shaped type (`ExtraDatabase`) whose
- *   `public.Tables` map matches our manually-defined Row/Insert/Update.
- * - We cast the supabase client to `SupabaseClient<ExtraDatabase>` so
- *   `.from(table)` returns a properly typed query builder for those tables.
+ * - We construct a synthetic `Database`-shaped type whose `public.Tables`
+ *   satisfies Supabase's `GenericTable` constraint
+ *   (Row/Insert/Update extend `Record<string, unknown>`).
+ * - We cast the existing supabase client to `SupabaseClient<ExtraDatabase>`
+ *   so `.from(table)` returns a properly typed query builder.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,12 +31,16 @@ import type {
   SalesTargetRow,
 } from '@/types/dashboard-tables';
 
-// Build a synthetic Database that exposes our manually-typed tables.
+// Widen each shape so it satisfies Supabase's GenericTable constraint
+// (`Record<string, unknown>` index signature) without losing the original
+// property names that downstream code uses.
+type AsRecord<T> = T & Record<string, unknown>;
+
 type ExtraTablesShape = {
   [K in ExtraTableName]: {
-    Row: ExtraTables[K]['Row'];
-    Insert: ExtraTables[K]['Insert'];
-    Update: ExtraTables[K]['Update'];
+    Row: AsRecord<ExtraTables[K]['Row']>;
+    Insert: AsRecord<ExtraTables[K]['Insert']>;
+    Update: AsRecord<ExtraTables[K]['Update']>;
     Relationships: [];
   };
 };
@@ -50,7 +55,6 @@ type ExtraDatabase = {
   };
 };
 
-// Cast the existing client to a typed view that exposes the extra tables.
 const extraClient = supabase as unknown as SupabaseClient<ExtraDatabase>;
 
 export function fromExtra<T extends ExtraTableName>(table: T) {
