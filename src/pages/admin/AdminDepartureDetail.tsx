@@ -675,7 +675,7 @@ export default function AdminDepartureDetail() {
               </CardContent>
             </Card>
 
-            {/* Kuota & Jemaah */}
+            {/* Kuota & Jemaah - sinkron dengan tabel jemaah (termasuk virtual) */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -685,22 +685,49 @@ export default function AdminDepartureDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Kuota</p>
-                  <p className="text-2xl font-bold">
-                    {departure.booked_count || 0} / {departure.quota || 0}
+                  <p className="text-sm text-muted-foreground">
+                    Total Jamaah Aktif (sinkron tabel)
                   </p>
+                  <p className="text-2xl font-bold">
+                    {passengerStats.total} / {departure.quota || 0}
+                  </p>
+                  {departure.booked_count !== passengerStats.total && (
+                    <p className="text-[11px] text-amber-600 mt-1">
+                      booked_count DB: {departure.booked_count || 0} (mismatch)
+                    </p>
+                  )}
                 </div>
                 <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
                   <div
                     className="bg-primary h-full"
                     style={{
-                      width: `${Math.min(100, ((departure.booked_count || 0) / (departure.quota || 1)) * 100)}%`,
+                      width: `${Math.min(100, (passengerStats.total / (departure.quota || 1)) * 100)}%`,
                     }}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {Math.round(((departure.booked_count || 0) / (departure.quota || 1)) * 100)}% Terisi
-                </p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded bg-muted/50 p-2">
+                    <p className="text-[10px] text-muted-foreground">Adult</p>
+                    <p className="font-semibold">{passengerStats.adult}</p>
+                  </div>
+                  <div className="rounded bg-muted/50 p-2">
+                    <p className="text-[10px] text-muted-foreground">Child</p>
+                    <p className="font-semibold">{passengerStats.child}</p>
+                  </div>
+                  <div className="rounded bg-muted/50 p-2">
+                    <p className="text-[10px] text-muted-foreground">Infant</p>
+                    <p className="font-semibold">{passengerStats.infant}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {Math.round((passengerStats.total / (departure.quota || 1)) * 100)}% Terisi
+                  </span>
+                  <span className="text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {passengerStats.checkedIn} check-in
+                  </span>
+                </div>
               </CardContent>
             </Card>
 
