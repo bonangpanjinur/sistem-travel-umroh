@@ -334,37 +334,40 @@ export default function AdminLeads() {
           ) : isError ? (
             <ErrorState onRetry={() => refetch()} />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-5 overflow-x-auto pb-4">
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-4 px-4">
               {KANBAN_COLUMNS.map(status => {
                 const statusLeads = filteredLeads?.filter(l => l.status === status) || [];
                 const config = STATUS_CONFIG[status];
                 const pipelineValue = getPipelineValue(statusLeads as any[]);
-                
+
                 return (
-                  <div key={status} className="min-w-[280px] flex flex-col gap-4">
-                    <div className="flex items-center justify-between px-2">
-                      <div className="flex items-center gap-2">
-                        <div className={cn("w-2 h-2 rounded-full", config.bgColor.replace('bg-', 'bg-').split(' ')[0])} />
-                        <h3 className="font-bold text-sm uppercase tracking-wider">{config.label}</h3>
-                        <Badge variant="secondary" className="ml-1">{statusLeads.length}</Badge>
+                  <div
+                    key={status}
+                    className="w-[300px] flex-shrink-0 snap-start flex flex-col gap-3 bg-muted/40 rounded-xl p-3 border"
+                  >
+                    <div className="flex items-center justify-between sticky top-0 z-10 bg-muted/40 backdrop-blur-sm pb-2 -mx-1 px-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", config.bgColor.split(' ')[0])} />
+                        <h3 className="font-bold text-xs uppercase tracking-wider truncate">{config.label}</h3>
+                        <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">{statusLeads.length}</Badge>
                       </div>
                       {pipelineValue > 0 && (
-                        <span className="text-[10px] font-bold text-muted-foreground">
+                        <span className="text-[10px] font-semibold text-muted-foreground flex-shrink-0 ml-2">
                           {formatCurrency(pipelineValue)}
                         </span>
                       )}
                     </div>
-                    
-                    <div className="flex flex-col gap-3 min-h-[200px]">
+
+                    <div className="flex flex-col gap-2.5 min-h-[180px]">
                       {statusLeads.map(lead => (
-                        <LeadCard 
-                          key={lead.id} 
-                          lead={lead as any} 
+                        <LeadCard
+                          key={lead.id}
+                          lead={lead as any}
                           onStatusChange={handleStatusChange}
                         />
                       ))}
                       {statusLeads.length === 0 && (
-                        <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground text-xs">
+                        <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center text-muted-foreground text-xs">
                           Tidak ada lead
                         </div>
                       )}

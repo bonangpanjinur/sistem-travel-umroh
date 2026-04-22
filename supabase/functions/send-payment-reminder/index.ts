@@ -138,10 +138,30 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Supabase configuration missing");
+      return respond({
+        success: false,
+        error: "Konfigurasi server (Supabase) belum lengkap.",
+        summary: { total: 0, sent: 0, failed: 0, skipped: 0 },
+        details: [],
+      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Pre-check WhatsApp config so we fail fast with a clear message
+    const { data: waConfig } = await supabase
+      .from("whatsapp_config")
+      .select("is_active, api_key, provider")
+      .maybeSingle() as { data: any; error: any };
+
+    if (!waConfig || !waConfig.is_active || !waConfig.api_key) {
+      return respond({
+        success: false,
+        error: "WhatsApp belum dikonfigurasi. Buka menu WhatsApp untuk mengaktifkan provider dan API key.",
+        summary: { total: 0, sent: 0, failed: 0, skipped: 0 },
+        details: [],
+      });
+    }
 
     // Parse request body for optional filters
     let reminderType = "all";
@@ -185,7 +205,12 @@ serve(async (req: Request): Promise<Response> => {
     const { data: bookings, error: bookingsError } = await query;
 
     if (bookingsError) {
-      throw new Error(`Failed to fetch bookings: ${bookingsError.message}`);
+      return respond({
+        success: false,
+        error: `Gagal mengambil data booking: ${bookingsError.message}`,
+        summary: { total: 0, sent: 0, failed: 0, skipped: 0 },
+        details: [],
+      });
     }
 
     const results: { booking_code: string; status: string; error?: string }[] = [];

@@ -95,7 +95,7 @@ export default function AdminDepartureDetail() {
             passport_number, passport_expiry, phone
           ),
           booking:bookings!inner(
-            id, booking_code, room_type, booking_status,
+            id, booking_code, room_type, booking_status, payment_status,
             departure_id
           )
         `
@@ -103,13 +103,27 @@ export default function AdminDepartureDetail() {
         .order('booking.booking_code', { ascending: true })
         .order('is_main_passenger', { ascending: false })
         .eq("booking.departure_id", id)
-        .eq("booking.booking_status", "confirmed");
+        .in("booking.booking_status", ["confirmed", "pending", "processing", "completed"]);
 
       if (error) throw error;
       return data;
     },
     enabled: !!id,
   });
+
+  const passengerStats = (() => {
+    if (!passengers) return { confirmed: 0, pending: 0, total: 0 };
+    return passengers.reduce(
+      (acc, p: any) => {
+        const s = p.booking?.booking_status;
+        if (s === "confirmed" || s === "completed") acc.confirmed += 1;
+        else if (s === "pending" || s === "processing") acc.pending += 1;
+        acc.total += 1;
+        return acc;
+      },
+      { confirmed: 0, pending: 0, total: 0 }
+    );
+  })();
 
   // Fetch itinerary for this departure
   const { data: itinerary } = useQuery({
@@ -535,12 +549,24 @@ export default function AdminDepartureDetail() {
         <TabsContent value="jamaah" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   Daftar Jemaah ({passengers?.length || 0})
                 </CardTitle>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {passengerStats.total > 0 && (
+                    <div className="flex gap-1.5 mr-2">
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                        {passengerStats.confirmed} confirmed
+                      </Badge>
+                      {passengerStats.pending > 0 && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          {passengerStats.pending} pending
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -574,53 +600,73 @@ export default function AdminDepartureDetail() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Booking Code</TableHead>
+                        <TableHead>Booking</TableHead>
                         <TableHead>Nama</TableHead>
                         <TableHead>L/P</TableHead>
                         <TableHead>Paspor</TableHead>
                         <TableHead>Exp. Paspor</TableHead>
                         <TableHead>Tipe Penumpang</TableHead>
                         <TableHead>Kamar</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Telepon</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {passengers.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-mono text-sm">
-                            {p.booking?.booking_code || "-"}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              {p.customer?.full_name}
-                              {p.is_main_passenger && (
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                  Utama
+                      {passengers.map((p: any) => {
+                        const bookingStatus = p.booking?.booking_status as string | undefined;
+                        const paymentStatus = p.booking?.payment_status as string | undefined;
+                        const statusVariant =
+                          bookingStatus === "confirmed" || bookingStatus === "completed"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : bookingStatus === "pending"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-muted text-muted-foreground";
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono text-xs">
+                              {p.booking?.booking_code || "-"}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {p.customer?.full_name}
+                                {p.is_main_passenger && (
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    Utama
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {p.customer?.gender === "male" ? "L" : "P"}
+                            </TableCell>
+                            <TableCell>{p.customer?.passport_number || "-"}</TableCell>
+                            <TableCell>
+                              {p.customer?.passport_expiry
+                                ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy")
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="capitalize">
+                              {p.passenger_type || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {(p.booking?.room_type || "-").toUpperCase()}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="outline" className={`text-[10px] capitalize ${statusVariant}`}>
+                                  {bookingStatus || "-"}
                                 </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {p.customer?.gender === "male" ? "L" : "P"}
-                          </TableCell>
-                          <TableCell>{p.customer?.passport_number || "-"}</TableCell>
-                          <TableCell>
-                            {p.customer?.passport_expiry
-                              ? format(
-                                  new Date(p.customer.passport_expiry),
-                                  "dd/MM/yyyy"
-                                )
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="capitalize">
-                            {p.passenger_type || "-"}
-                          </TableCell>
-                          <TableCell>
-                            {(p.booking?.room_type || "-").toUpperCase()}
-                          </TableCell>
-                          <TableCell>{p.customer?.phone || "-"}</TableCell>
-                        </TableRow>
-                      ))}
+                                {paymentStatus && (
+                                  <span className="text-[10px] text-muted-foreground capitalize">
+                                    bayar: {paymentStatus}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{p.customer?.phone || "-"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
