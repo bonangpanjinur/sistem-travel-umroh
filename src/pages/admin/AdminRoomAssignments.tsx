@@ -756,7 +756,7 @@ function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassenge
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={() => { if (selectedRoommate) onPair(selectedRoommate, roomNumber); }} disabled={!selectedRoommate || isPairing}>Pasangkan</Button>
+          <Button onClick={() => { if (selectedRoommate) onPair(selectedRoommate, roomNumber, reason); }} disabled={!selectedRoommate || isPairing}>Pasangkan</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
