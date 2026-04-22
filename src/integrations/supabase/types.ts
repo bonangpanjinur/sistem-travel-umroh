@@ -3044,6 +3044,7 @@ export type Database = {
           created_at: string | null
           currency: string | null
           description: string | null
+          display_order: number | null
           duration_days: number
           excludes: string[] | null
           featured_image: string | null
@@ -3053,7 +3054,9 @@ export type Database = {
           id: string
           includes: string[] | null
           is_active: boolean | null
+          is_cheapest: boolean | null
           is_featured: boolean | null
+          is_popular: boolean | null
           itinerary: Json | null
           muthawif_id: string | null
           name: string
@@ -3074,6 +3077,7 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           description?: string | null
+          display_order?: number | null
           duration_days?: number
           excludes?: string[] | null
           featured_image?: string | null
@@ -3083,7 +3087,9 @@ export type Database = {
           id?: string
           includes?: string[] | null
           is_active?: boolean | null
+          is_cheapest?: boolean | null
           is_featured?: boolean | null
+          is_popular?: boolean | null
           itinerary?: Json | null
           muthawif_id?: string | null
           name: string
@@ -3104,6 +3110,7 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           description?: string | null
+          display_order?: number | null
           duration_days?: number
           excludes?: string[] | null
           featured_image?: string | null
@@ -3113,7 +3120,9 @@ export type Database = {
           id?: string
           includes?: string[] | null
           is_active?: boolean | null
+          is_cheapest?: boolean | null
           is_featured?: boolean | null
+          is_popular?: boolean | null
           itinerary?: Json | null
           muthawif_id?: string | null
           name?: string
