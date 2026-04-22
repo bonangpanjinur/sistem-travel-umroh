@@ -53,6 +53,25 @@ export default function PackageDetail() {
     enabled: !!id,
   });
 
+  // Fetch itinerary linked to the currently selected departure (if any)
+  const { data: departureItinerary } = useQuery({
+    queryKey: ['departure-itinerary-public', openDepartureId],
+    queryFn: async () => {
+      if (!openDepartureId) return null;
+      const { data, error } = await supabase
+        .from('departure_itineraries')
+        .select(`
+          customized_days,
+          itinerary_template:itinerary_templates(id, name, description, days)
+        `)
+        .eq('departure_id', openDepartureId)
+        .maybeSingle();
+      if (error && (error as any).code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!openDepartureId,
+  });
+
   // Redirect to correct slug if name changed or slug is missing
   useEffect(() => {
     if (pkg && idSlug) {
@@ -240,25 +259,57 @@ export default function PackageDetail() {
 
               <TabsContent value="itinerary" className="mt-6">
                 <Card>
-                  <CardHeader><CardTitle>Jadwal Perjalanan</CardTitle></CardHeader>
-                  <CardContent>
-                    {itinerary.length > 0 ? (
-                      <div className="space-y-4">
-                        {itinerary.map((day: any, i: number) => (
-                          <div key={i} className="flex gap-4 pb-4 border-b last:border-0">
-                            <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <span className="font-bold text-primary">Hari {i + 1}</span>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold">{day.title}</h4>
-                              <p className="text-sm text-muted-foreground">{day.description}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground">Itinerary lengkap akan diberikan setelah pendaftaran.</p>
+                  <CardHeader>
+                    <CardTitle>Jadwal Perjalanan</CardTitle>
+                    {departureItinerary?.itinerary_template?.name && (
+                      <p className="text-xs text-muted-foreground">
+                        Template: <span className="font-semibold">{departureItinerary.itinerary_template.name}</span>
+                      </p>
                     )}
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const customized = Array.isArray(departureItinerary?.customized_days)
+                        ? (departureItinerary!.customized_days as any[])
+                        : null;
+                      const templateDays = Array.isArray(departureItinerary?.itinerary_template?.days)
+                        ? (departureItinerary!.itinerary_template!.days as any[])
+                        : null;
+                      const days = customized ?? templateDays ?? itinerary;
+
+                      if (!days || days.length === 0) {
+                        return (
+                          <p className="text-muted-foreground">
+                            Itinerary lengkap akan diberikan setelah pendaftaran.
+                          </p>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-4">
+                          {days.map((day: any, i: number) => (
+                            <div key={i} className="flex gap-4 pb-4 border-b last:border-0">
+                              <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <span className="font-bold text-primary text-sm">Hari {day.day || i + 1}</span>
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold">{day.title || day.name || `Hari ${i + 1}`}</h4>
+                                {day.description && (
+                                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{day.description}</p>
+                                )}
+                                {Array.isArray(day.activities) && day.activities.length > 0 && (
+                                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-disc list-inside">
+                                    {day.activities.map((act: any, ai: number) => (
+                                      <li key={ai}>{typeof act === 'string' ? act : act.title || act.name}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </TabsContent>
