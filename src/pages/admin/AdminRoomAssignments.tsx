@@ -12,9 +12,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
-import { Users, UserPlus, BedDouble, Search, Check, X, Download, FileSpreadsheet, FileText, Wand2 } from "lucide-react";
+import { Users, UserPlus, BedDouble, Search, Check, X, Download, FileSpreadsheet, FileText, Wand2, History } from "lucide-react";
 import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 import { ROOM_TYPE_LABELS, GENDER_LABELS } from "@/lib/constants";
+import { Textarea } from "@/components/ui/textarea";
+
+// --- Audit logging helpers ---
+type RoomAuditAction = 'pair' | 'unpair' | 'update_room_number' | 'auto_assign';
+interface RoomAuditPayload {
+  passenger_id: string;
+  departure_id?: string | null;
+  action: RoomAuditAction;
+  old_room_number?: string | null;
+  new_room_number?: string | null;
+  old_roommate_id?: string | null;
+  new_roommate_id?: string | null;
+  reason?: string | null;
+}
+async function logRoomAudit(entries: RoomAuditPayload | RoomAuditPayload[]) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) return;
+    const list = Array.isArray(entries) ? entries : [entries];
+    const rows = list.map(e => ({ ...e, changed_by: uid }));
+    await (supabase as any).from('room_assignment_audit').insert(rows);
+  } catch (err) {
+    console.error('Audit log failed:', err);
+  }
+}
 
 interface Passenger {
   id: string;
