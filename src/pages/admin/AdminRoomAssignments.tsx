@@ -534,7 +534,7 @@ export default function AdminRoomAssignments() {
                               <span key={p.id} className="text-sm">{p.customer?.full_name}</span>
                             )).reduce((prev, curr, i) => i === 0 ? [curr] : [...prev, <span key={`sep-${i}`} className="text-muted-foreground">&</span>, curr], [] as any)}
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => unpairMutation.mutate(group[0].id)} disabled={unpairMutation.isPending}>
+                          <Button variant="ghost" size="sm" onClick={() => { setUnpairTarget(group[0].id); setUnpairReason(""); setUnpairReasonOpen(true); }} disabled={unpairMutation.isPending}>
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
