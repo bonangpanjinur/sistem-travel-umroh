@@ -4,15 +4,13 @@
  * `(supabase as any).from(<table>)` to keep proper TypeScript types at call
  * sites.
  *
- * Implementation notes:
- * - We use `PostgrestQueryBuilder` directly from `@supabase/postgrest-js` and
- *   inject our manually-defined Row/Insert/Update so TS keeps full intellisense
- *   on `.select()`, `.insert()`, `.update()`, `.upsert()`.
- * - The runtime call still goes through the regular supabase client; we only
- *   bypass the generated `Database` types via a single `as any` cast at the
- *   client level.
+ * Implementation:
+ * - We construct a synthetic `Database`-shaped type (`ExtraDatabase`) whose
+ *   `public.Tables` map matches our manually-defined Row/Insert/Update.
+ * - We cast the supabase client to `SupabaseClient<ExtraDatabase>` so
+ *   `.from(table)` returns a properly typed query builder for those tables.
  */
-import type { PostgrestQueryBuilder } from '@supabase/postgrest-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   ExtraTables,
@@ -32,19 +30,31 @@ import type {
   SalesTargetRow,
 } from '@/types/dashboard-tables';
 
-type ExtraSchema<T extends ExtraTableName> = {
-  Row: ExtraTables[T]['Row'];
-  Insert: ExtraTables[T]['Insert'];
-  Update: ExtraTables[T]['Update'];
-  Relationships: [];
+// Build a synthetic Database that exposes our manually-typed tables.
+type ExtraTablesShape = {
+  [K in ExtraTableName]: {
+    Row: ExtraTables[K]['Row'];
+    Insert: ExtraTables[K]['Insert'];
+    Update: ExtraTables[K]['Update'];
+    Relationships: [];
+  };
 };
 
-export function fromExtra<T extends ExtraTableName>(
-  table: T,
-): PostgrestQueryBuilder<any, ExtraSchema<T>, T> {
-  // Cast through `any` to bypass the generated Database types, then re-attach
-  // the proper schema via the return type so call sites get full typing.
-  return (supabase as any).from(table) as PostgrestQueryBuilder<any, ExtraSchema<T>, T>;
+type ExtraDatabase = {
+  public: {
+    Tables: ExtraTablesShape;
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+
+// Cast the existing client to a typed view that exposes the extra tables.
+const extraClient = supabase as unknown as SupabaseClient<ExtraDatabase>;
+
+export function fromExtra<T extends ExtraTableName>(table: T) {
+  return extraClient.from(table);
 }
 
 export type {
