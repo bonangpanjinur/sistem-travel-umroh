@@ -49,6 +49,15 @@ type WorkSchedule = Database["public"]["Tables"]["work_schedules"]["Row"];
 type WorkScheduleInsert = Database["public"]["Tables"]["work_schedules"]["Insert"];
 type WorkScheduleUpdate = Database["public"]["Tables"]["work_schedules"]["Update"];
 
+type EmployeeSyncIssue = {
+  issue_type: string;
+  employee_id: string | null;
+  user_id: string | null;
+  full_name: string | null;
+  employee_code: string | null;
+  description: string | null;
+};
+
 const dayLabels = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 // Helper function to generate employee code
@@ -180,15 +189,12 @@ export default function AdminHR() {
     },
   });
 
-  const { data: syncIssues = [], refetch: refetchSyncIssues, error: syncError } = useQuery({
+  const { data: syncIssues = [], refetch: refetchSyncIssues, error: syncError } = useQuery<EmployeeSyncIssue[]>({
     queryKey: ["employee-sync-issues"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("validate_employee_user_sync" as any);
-      if (error) {
-        console.warn('[AdminHR] validate_employee_user_sync error:', error);
-        return [];
-      }
-      return data || [];
+      const { data, error } = await supabase.rpc("validate_employee_user_sync");
+      if (error) throw error;
+      return (data || []) as EmployeeSyncIssue[];
     },
     retry: 1,
   });
