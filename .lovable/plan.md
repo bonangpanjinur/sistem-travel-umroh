@@ -1,90 +1,82 @@
 
 
-## Fix Build Errors + Loading Speed Optimization
+## Perbaikan 6 Issue Frontend & Backend
 
-### Status Plan Sebelumnya
-✅ Selesai: #1 Build errors awal, #2 Export Excel+PDF, #3 Hirarki agen (sebagian), #4 HR error 400, #5 Reports tabs (sebagian), #6 User filter (sebagian), proper TS types untuk dashboard tables
-⚠️ Belum tuntas: 5 build error baru dari `fromExtra`, optimasi loading, sidebar polish, lazy-load dialog berat
+### 1. Dashboard "Stok Rendah" menampilkan 0 padahal ada stok
+**Akar masalah:** `useDashboardAlerts.ts` mem-fetch hanya `equipment_items` dengan `stock_quantity <= 5` lalu menampilkan `total` — jika tidak ada stok kritis, totalnya 0 walau ada banyak item.
 
----
+**Fix:** Ubah hook untuk fetch SEMUA equipment lalu hitung breakdown (total, low, critical, outOfStock). Card di dashboard menampilkan `total` (jumlah seluruh item) dengan badge tambahan untuk critical/low.
 
-### Bagian A — Fix 5 Build Errors (Wajib)
+- File: `src/hooks/useDashboardAlerts.ts` — hapus filter `.lte('stock_quantity', 5)`, hitung breakdown setelah fetch.
+- File: `src/pages/admin/AdminDashboard.tsx` — perbaiki label & angka card "Stok Kritis" jadi: total item, sub-info: "X kritis, Y menipis".
 
-**Akar masalah:** Helper `fromExtra()` di `src/integrations/supabase/extra-tables.ts` memakai trik `makeTypedFrom` thunk yang gagal meng-extract tipe `Insert`/`Update`/`Row` — TypeScript meresolve jadi `never` & `never[]`, sehingga:
-- `.insert({ role: ... })` → "role does not exist in type never[]"
-- `.update({ enabled_modules: ... })` → "not assignable to never"
-- `.select() data` → `enabled_modules` tidak ada (jadi `null` saja)
+### 2. Kanban Board CRM Leads bertumpuk di viewport menengah
+**Akar masalah:** Layout `grid lg:grid-cols-5` memaksa 5 kolom dalam viewport ~889px sehingga `min-w-[280px]` saling tumpuk.
 
-**Fix:** Tulis ulang `extra-tables.ts` dengan pendekatan langsung — pakai tipe `PostgrestQueryBuilder` dari `@supabase/postgrest-js` dan inject Row/Insert/Update kita secara eksplisit, tanpa membangun objek Database sintetis.
+**Fix:** Ganti ke `flex` horizontal scrollable dengan column fixed-width. Tambahkan:
+- Background lembut per kolom (warna sesuai status), header sticky di atas
+- Card lead lebih rapi: avatar bulat, nama bold, badge sumber kecil, nominal pipeline di kanan
+- Drop zone visual yang jelas, scroll-snap untuk navigasi mobile
 
-```ts
-// Pseudocode struktur baru
-import type { PostgrestQueryBuilder } from '@supabase/postgrest-js';
+- File: `src/pages/admin/AdminLeads.tsx` (bagian TabsContent "kanban", baris ~331-377) — ganti `grid lg:grid-cols-5` → `flex gap-4 overflow-x-auto snap-x snap-mandatory`, kolom `w-[300px] flex-shrink-0 snap-start` dengan `bg-muted/30 rounded-xl p-3`.
 
-type ExtraSchema<T extends ExtraTableName> = {
-  Row: ExtraTables[T]['Row'];
-  Insert: ExtraTables[T]['Insert'];
-  Update: ExtraTables[T]['Update'];
-  Relationships: [];
-};
+### 3. Kupon "Berlaku" tidak berfungsi (tanggal tidak tersimpan saat edit)
+**Akar masalah:** Form `CouponForm.tsx` baris 71-72 set `defaultValues.valid_from = couponData?.valid_from || ""`. Database menyimpan timestamp ISO (`2026-01-01T00:00:00+00:00`), tapi `<input type="date">` butuh format `YYYY-MM-DD`. Akibatnya field kosong saat edit & user mengira fitur tidak berfungsi.
 
-export function fromExtra<T extends ExtraTableName>(table: T):
-  PostgrestQueryBuilder<any, ExtraSchema<T>, T> {
-  return (supabase as any).from(table);
-}
-```
+**Fix:**
+- Slice timestamp ke `YYYY-MM-DD` di `defaultValues`.
+- Tambah validasi Zod: `valid_until` harus ≥ `valid_from` jika keduanya diisi.
+- Tampilkan badge "Akan kadaluarsa dalam X hari" di list kupon untuk kejelasan.
 
-Ini menjaga type-safety untuk `.insert()`, `.update()`, dan `.select()` tanpa kehilangan parameter.
+- File: `src/components/admin/forms/CouponForm.tsx` — fix defaultValues dengan helper `toDateInput(iso)`, tambah validasi cross-field di schema.
 
-**Tambahan kecil:**
-- `useDashboardAccess.ts` baris 82-89: `dynamicConfig` diketik `null`, bukan `null | Row`. Akan ditambahkan generic eksplisit ke `useQuery<DashboardAccessConfigRow | null>` agar narrowing benar.
+### 4. Itinerary tidak muncul di Frontend Detail Paket
+**Akar masalah:** `PackageDetail.tsx` baris 110 hanya membaca `pkg.itinerary` (kolom JSONB di tabel `packages`). Admin meng-link itinerary di level *departure* via tabel `departure_itineraries` → `template_id` → `itinerary_templates.days` (JSONB).
 
----
+**Fix:** Tambah query `departure_itineraries` untuk paket aktif:
+- Query departure_itineraries JOIN itinerary_templates untuk semua departure paket ini
+- Logic: tampilkan itinerary dari departure yang terpilih/expanded; fallback ke `pkg.itinerary` jika tidak ada
+- Update tab "Itinerary" baris 241-264 untuk merender `template.days` (jsonb array) atau `customized_days`
 
-### Bagian B — Optimasi Loading (Penyebab Lambat)
+- File: `src/pages/packages/PackageDetail.tsx` — tambah query, modifikasi tab itinerary.
 
-Setelah membaca arsitektur, ini penyebab loading lama yang nyata:
+### 5. Daftar Jemaah kosong di Detail Keberangkatan
+**Akar masalah:** Query baris 82-112 filter `booking.booking_status = 'confirmed'`. Booking yang baru dibuat berstatus `pending` (menunggu pembayaran) sehingga tidak muncul, padahal kuota sudah ter-increment.
 
-1. **`useDashboardAccess` query jalan di setiap halaman admin** walau user bukan super_admin yang butuh konfigurasi → 1 request blocking ke `dashboard_access_config` per role saat initial.
-   - Fix: Pindahkan query hanya saat dialog DashboardAccessManager dibuka, bukan global.
+**Fix:**
+- Ganti filter menjadi `.in("booking.booking_status", ["confirmed", "pending", "paid_partial"])` — kecuali `cancelled`
+- Tambahkan kolom "Status Booking" + "Status Bayar" di tabel agar admin tahu kondisinya
+- Tampilkan summary di header: "X confirmed, Y pending"
 
-2. **`AdminLayoutImproved` & route admin masih eager-import banyak halaman.**
-   - Fix: Konversi `UserPermissionsManager` dan `DashboardAccessManagerPanel` ke `React.lazy` (sesuai rencana #8 yg belum tuntas) — keduanya bundle besar tapi jarang dipakai.
+- File: `src/pages/admin/AdminDepartureDetail.tsx` baris 82-112 (query) dan baris 572-625 (table).
 
-3. **`useWebsiteSettings` masih dipakai di beberapa komponen** padahal sudah ada versi `useWebsiteSettingsOptimized` dengan default + cache.
-   - Fix: Audit & migrate ke versi optimized di `DynamicNavbar`, `DynamicFooter`, `BranchWebsite`, `AgentWebsite`, `LandingPage`.
+### 6. Edge Function `send-payment-reminder` returns non-2xx
+**Akar masalah:** Fungsi sudah return 200 untuk error wrap, tapi mungkin ada error sebelum `serve` callback (cold start crash) atau masalah deployment. Perlu deploy ulang + cek logs.
 
-4. **React Query default staleTime 0** → setiap mount halaman, semua query dianggap stale & refetch.
-   - Fix: Set default global `staleTime: 5 * 60 * 1000` di `QueryClient` di `src/App.tsx`, override per-query yang butuh fresh.
+**Fix:**
+- Deploy ulang fungsi `send-payment-reminder` 
+- Cek `edge_function_logs` untuk error sebenarnya
+- Tambahkan handler 404/missing config yang lebih graceful
+- Frontend di `AdminPayments.tsx` sudah handle `data?.success`, jadi cukup kembalikan struktur konsisten
 
-5. **Vite belum split vendor chunk dengan benar** untuk Recharts/Radix yang besar.
-   - Fix: Verifikasi `manualChunks` di `vite.config.ts` (vendor-react, vendor-ui, vendor-supabase, vendor-charts).
+- File: `supabase/functions/send-payment-reminder/index.ts` — tambah validasi config WhatsApp di awal, return jelas jika belum dikonfigurasi.
+- Deploy via `supabase--deploy_edge_functions`.
 
-6. **Realtime subscription di hook auth** menyebabkan re-render saat session refresh.
-   - Audit `useAuth.tsx` apakah ada `onAuthStateChange` yang trigger refetch tidak perlu.
+### Catatan Keamanan
+Token Supabase yang Anda kirim (`sbp_...`) sudah TER-EKSPOS di chat. **Segera rotasi** di Supabase Dashboard → Account → Access Tokens. Saya tidak menyimpan/menggunakan token tersebut — deployment edge function sudah otomatis dengan kredensial internal Lovable Cloud.
 
----
+### File Diubah
+1. `src/hooks/useDashboardAlerts.ts`
+2. `src/pages/admin/AdminDashboard.tsx` (card Stok)
+3. `src/pages/admin/AdminLeads.tsx` (kanban layout)
+4. `src/components/admin/forms/CouponForm.tsx` (date format fix)
+5. `src/pages/packages/PackageDetail.tsx` (itinerary query)
+6. `src/pages/admin/AdminDepartureDetail.tsx` (passenger filter)
+7. `supabase/functions/send-payment-reminder/index.ts` (graceful config check) + redeploy
 
-### File yang Diubah
-
-**Build fix:**
-- `src/integrations/supabase/extra-tables.ts` — rewrite `fromExtra` dengan PostgrestQueryBuilder
-- `src/hooks/dashboards/useDashboardAccess.ts` — generic eksplisit untuk useQuery
-
-**Optimasi loading:**
-- `src/App.tsx` — set default `staleTime` di QueryClient
-- `src/hooks/dashboards/useDashboardAccess.ts` — `enabled: false` di luar konteks dashboard manager
-- `src/pages/admin/AdminUsers.tsx` — lazy-load `UserPermissionsManager`
-- `src/pages/admin/DashboardAccessManager.tsx` — lazy-load `DashboardAccessManagerPanel`
-- `src/components/layout/DynamicNavbar.tsx` — pakai `useWebsiteSettingsOptimized`
-- `src/components/layout/DynamicFooter.tsx` — sama
-- `src/pages/public/BranchWebsite.tsx`, `AgentWebsite.tsx`, `LandingPage.tsx` — sama
-- `vite.config.ts` — verifikasi manualChunks untuk vendor splitting
-
-**Tidak diubah:** struktur DB, RLS, auth flow, komponen UI primitives.
-
-### Yang Belum Akan Ditangani (Saran Sesudah Ini)
-- Polish sidebar (search box, persistent collapse) — UI nice-to-have, low impact
-- Migration cleanup `menu_items` redundansi laporan — perlu konfirmasi data live
-- Bulk action di `UserPermissionsManager` (Pilih Semua Grup) — fitur enhancement, bukan blocker
+### Tidak Diubah
+- Schema database (semua tabel sudah benar)
+- RLS policies
+- Auth flow
+- UI primitives
 
