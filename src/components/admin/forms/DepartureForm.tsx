@@ -690,10 +690,109 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="muthawif_id"
+          {/* Additional Hotels (Transit, Umroh Plus, Haji, dll) */}
+          <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-sm">Hotel Tambahan</h4>
+                <p className="text-xs text-muted-foreground">Untuk hotel transit, Umroh Plus, Haji, atau city tour</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setAdditionalHotels((prev) => [
+                    ...prev,
+                    { hotel_id: "", hotel_role: "transit", check_in_date: "", check_out_date: "", nights: null, notes: "" },
+                  ])
+                }
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Tambah Hotel
+              </Button>
+            </div>
+
+            {additionalHotels.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Belum ada hotel tambahan.</p>
+            ) : (
+              <div className="space-y-3">
+                {additionalHotels.map((row, idx) => (
+                  <div key={idx} className="grid gap-2 sm:grid-cols-12 items-end p-3 rounded-md border bg-background">
+                    <div className="sm:col-span-4">
+                      <label className="text-xs text-muted-foreground">Hotel</label>
+                      <Select
+                        value={row.hotel_id || undefined}
+                        onValueChange={(v) =>
+                          setAdditionalHotels((prev) => prev.map((r, i) => (i === idx ? { ...r, hotel_id: v } : r)))
+                        }
+                      >
+                        <SelectTrigger><SelectValue placeholder="Pilih hotel" /></SelectTrigger>
+                        <SelectContent>
+                          {hotels?.map((h) => (
+                            <SelectItem key={h.id} value={h.id}>
+                              {h.name} — {h.city} ({h.star_rating}★)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="text-xs text-muted-foreground">Peran</label>
+                      <Select
+                        value={row.hotel_role}
+                        onValueChange={(v) =>
+                          setAdditionalHotels((prev) => prev.map((r, i) => (i === idx ? { ...r, hotel_role: v } : r)))
+                        }
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="transit">Transit</SelectItem>
+                          <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
+                          <SelectItem value="haji">Haji</SelectItem>
+                          <SelectItem value="city_tour">City Tour</SelectItem>
+                          <SelectItem value="additional">Tambahan</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-xs text-muted-foreground">Check-in</label>
+                      <Input
+                        type="date"
+                        value={row.check_in_date || ""}
+                        onChange={(e) =>
+                          setAdditionalHotels((prev) => prev.map((r, i) => (i === idx ? { ...r, check_in_date: e.target.value } : r)))
+                        }
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-xs text-muted-foreground">Malam</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={row.nights ?? ""}
+                        onChange={(e) =>
+                          setAdditionalHotels((prev) => prev.map((r, i) => (i === idx ? { ...r, nights: e.target.value ? Number(e.target.value) : null } : r)))
+                        }
+                      />
+                    </div>
+                    <div className="sm:col-span-1 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setAdditionalHotels((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <XIcon className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Muthawif</FormLabel>
