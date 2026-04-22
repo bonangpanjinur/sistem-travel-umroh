@@ -74,6 +74,21 @@ export default function AdminRoomAssignments() {
   const [unpairReasonOpen, setUnpairReasonOpen] = useState(false);
   const [unpairTarget, setUnpairTarget] = useState<string | null>(null);
   const [unpairReason, setUnpairReason] = useState("");
+  // Audit filter state
+  const [auditDateFrom, setAuditDateFrom] = useState<string>("");
+  const [auditDateTo, setAuditDateTo] = useState<string>("");
+  const [auditAction, setAuditAction] = useState<string>("all");
+  const [auditBranch, setAuditBranch] = useState<string>("current");
+
+  const { data: branches } = useQuery({
+    queryKey: ['branches-for-audit-filter'],
+    enabled: historyOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('branches').select('id, name, code').eq('is_active', true).order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: packages } = useQuery({
     queryKey: ['packages-for-rooms'],
@@ -290,38 +305,116 @@ export default function AdminRoomAssignments() {
     onError: (err) => toast.error("Gagal: " + err.message),
   });
 
-  // Audit log query
+  // Audit log query (with filters)
   const { data: auditLogs } = useQuery({
-    queryKey: ['room-assignment-audit', selectedDeparture],
-    enabled: !!selectedDeparture && historyOpen,
+    queryKey: ['room-assignment-audit', selectedDeparture, auditBranch, auditAction, auditDateFrom, auditDateTo],
+    enabled: historyOpen && (auditBranch !== 'current' || !!selectedDeparture),
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      // Resolve which departure_ids to include
+      let departureIds: string[] | null = null;
+      if (auditBranch === 'current') {
+        departureIds = selectedDeparture ? [selectedDeparture] : [];
+      } else if (auditBranch !== 'all') {
+        // Filter by branch: get all departures via packages.branch_id OR via bookings.branch_id
+        const { data: depsViaPkg } = await supabase
+          .from('departures')
+          .select('id, package:packages!inner(branch_id)')
+          .eq('package.branch_id', auditBranch);
+        departureIds = (depsViaPkg || []).map((d: any) => d.id);
+      }
+
+      let q = (supabase as any)
         .from('room_assignment_audit')
         .select('*')
-        .eq('departure_id', selectedDeparture)
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(500);
+
+      if (departureIds) {
+        if (departureIds.length === 0) return [];
+        q = q.in('departure_id', departureIds);
+      }
+      if (auditAction !== 'all') q = q.eq('action', auditAction);
+      if (auditDateFrom) q = q.gte('created_at', `${auditDateFrom}T00:00:00`);
+      if (auditDateTo) q = q.lte('created_at', `${auditDateTo}T23:59:59`);
+
+      const { data, error } = await q;
       if (error) throw error;
 
       const userIds = Array.from(new Set((data || []).map((r: any) => r.changed_by).filter(Boolean)));
       const passengerIds = Array.from(new Set((data || []).flatMap((r: any) => [r.passenger_id, r.old_roommate_id, r.new_roommate_id]).filter(Boolean)));
+      const depIds = Array.from(new Set((data || []).map((r: any) => r.departure_id).filter(Boolean)));
 
-      const [profilesRes, passengersRes] = await Promise.all([
+      const [profilesRes, passengersRes, depsRes] = await Promise.all([
         userIds.length ? supabase.from('profiles').select('user_id, full_name').in('user_id', userIds as string[]) : Promise.resolve({ data: [] as any[] }),
         passengerIds.length ? supabase.from('booking_passengers').select('id, customer:customers(full_name)').in('id', passengerIds as string[]) : Promise.resolve({ data: [] as any[] }),
+        depIds.length ? supabase.from('departures').select('id, departure_date, package:packages(name, code, branch:branches(name))').in('id', depIds as string[]) : Promise.resolve({ data: [] as any[] }),
       ]);
       const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.user_id, p.full_name]));
       const paxMap = new Map((passengersRes.data || []).map((p: any) => [p.id, p.customer?.full_name || '-']));
+      const depMap = new Map((depsRes.data || []).map((d: any) => [d.id, d]));
 
-      return (data || []).map((r: any) => ({
-        ...r,
-        changed_by_name: r.changed_by ? (profileMap.get(r.changed_by) || 'Unknown') : 'System',
-        passenger_name: paxMap.get(r.passenger_id) || '-',
-        old_roommate_name: r.old_roommate_id ? paxMap.get(r.old_roommate_id) || '-' : null,
-        new_roommate_name: r.new_roommate_id ? paxMap.get(r.new_roommate_id) || '-' : null,
-      }));
+      return (data || []).map((r: any) => {
+        const dep: any = depMap.get(r.departure_id);
+        return {
+          ...r,
+          changed_by_name: r.changed_by ? (profileMap.get(r.changed_by) || 'Unknown') : 'System',
+          passenger_name: paxMap.get(r.passenger_id) || '-',
+          old_roommate_name: r.old_roommate_id ? paxMap.get(r.old_roommate_id) || '-' : null,
+          new_roommate_name: r.new_roommate_id ? paxMap.get(r.new_roommate_id) || '-' : null,
+          package_name: dep?.package?.name || '-',
+          package_code: dep?.package?.code || '-',
+          branch_name: dep?.package?.branch?.name || '-',
+          departure_date: dep?.departure_date || null,
+        };
+      });
     },
   });
+
+  const handleExportAuditCSV = () => {
+    if (!auditLogs || auditLogs.length === 0) {
+      toast.error('Tidak ada data riwayat untuk diekspor');
+      return;
+    }
+    const actionLabel: Record<string, string> = {
+      pair: 'Pasangkan',
+      unpair: 'Batalkan Pasangan',
+      update_room_number: 'Ubah Nomor Kamar',
+      auto_assign: 'Auto-Kelompokkan',
+    };
+    const headers = [
+      'Waktu', 'Aksi', 'Jamaah', 'No Kamar Lama', 'No Kamar Baru',
+      'Pasangan Lama', 'Pasangan Baru', 'Diubah Oleh', 'Alasan',
+      'Cabang', 'Paket', 'Tanggal Berangkat',
+    ];
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = auditLogs.map((log: any) => [
+      new Date(log.created_at).toLocaleString('id-ID'),
+      actionLabel[log.action] || log.action,
+      log.passenger_name,
+      log.old_room_number || '',
+      log.new_room_number || '',
+      log.old_roommate_name || '',
+      log.new_roommate_name || '',
+      log.changed_by_name,
+      log.reason || '',
+      log.branch_name,
+      `${log.package_name} (${log.package_code})`,
+      log.departure_date || '',
+    ].map(escape).join(','));
+    const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-kamar-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Berhasil ekspor ${auditLogs.length} baris riwayat`);
+  };
+
 
 
   // Paired groups
@@ -644,14 +737,64 @@ export default function AdminRoomAssignments() {
 
       {/* Audit History Dialog */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5" /> Riwayat Perubahan Kamar
             </DialogTitle>
           </DialogHeader>
+
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-3 bg-muted/30 rounded-lg border">
+            <div>
+              <Label className="text-xs">Cabang</Label>
+              <Select value={auditBranch} onValueChange={setAuditBranch}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Keberangkatan Aktif</SelectItem>
+                  <SelectItem value="all">Semua Cabang</SelectItem>
+                  {branches?.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Aksi</Label>
+              <Select value={auditAction} onValueChange={setAuditAction}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Aksi</SelectItem>
+                  <SelectItem value="pair">Pasangkan</SelectItem>
+                  <SelectItem value="unpair">Batalkan Pasangan</SelectItem>
+                  <SelectItem value="update_room_number">Ubah Nomor Kamar</SelectItem>
+                  <SelectItem value="auto_assign">Auto-Kelompokkan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Dari Tanggal</Label>
+              <Input type="date" className="h-9" value={auditDateFrom} onChange={e => setAuditDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Sampai Tanggal</Label>
+              <Input type="date" className="h-9" value={auditDateTo} onChange={e => setAuditDateTo(e.target.value)} />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button variant="outline" size="sm" className="h-9" onClick={() => { setAuditAction('all'); setAuditDateFrom(''); setAuditDateTo(''); setAuditBranch('current'); }}>
+                Reset
+              </Button>
+              <Button size="sm" className="h-9" onClick={handleExportAuditCSV} disabled={!auditLogs?.length}>
+                <Download className="h-4 w-4 mr-1" /> CSV
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            Menampilkan <span className="font-medium text-foreground">{auditLogs?.length || 0}</span> baris riwayat
+            {auditBranch === 'current' && !selectedDeparture && ' — pilih keberangkatan terlebih dahulu atau ubah filter Cabang'}
+          </div>
+
           {!auditLogs || auditLogs.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Belum ada riwayat perubahan untuk keberangkatan ini.</p>
+            <p className="text-center text-muted-foreground py-8">Tidak ada riwayat sesuai filter.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -661,6 +804,7 @@ export default function AdminRoomAssignments() {
                   <TableHead>Jamaah</TableHead>
                   <TableHead>Kamar</TableHead>
                   <TableHead>Pasangan</TableHead>
+                  {auditBranch !== 'current' && <TableHead>Cabang / Paket</TableHead>}
                   <TableHead>Diubah Oleh</TableHead>
                   <TableHead>Alasan</TableHead>
                 </TableRow>
@@ -687,6 +831,12 @@ export default function AdminRoomAssignments() {
                       <TableCell className="text-xs">
                         {log.old_roommate_name || '—'} → <span className="font-medium">{log.new_roommate_name || '—'}</span>
                       </TableCell>
+                      {auditBranch !== 'current' && (
+                        <TableCell className="text-xs">
+                          <div className="font-medium">{log.branch_name}</div>
+                          <div className="text-muted-foreground">{log.package_code}</div>
+                        </TableCell>
+                      )}
                       <TableCell className="text-xs">{log.changed_by_name}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px]">{log.reason || '-'}</TableCell>
                     </TableRow>
