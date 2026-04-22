@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function respond(payload: Record<string, unknown>): Response {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 interface Booking {
   id: string;
   booking_code: string;
@@ -197,7 +204,24 @@ serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
+      if (!b.departure?.departure_date) {
+        results.push({
+          booking_code: b.booking_code,
+          status: "skipped",
+          error: "Missing departure data"
+        });
+        continue;
+      }
+
       const daysUntil = getDaysUntilDeparture(b.departure.departure_date);
+      if (Number.isNaN(daysUntil)) {
+        results.push({
+          booking_code: b.booking_code,
+          status: "skipped",
+          error: "Invalid departure date"
+        });
+        continue;
+      }
       
       let shouldSend = false;
       let messageType = "";
@@ -267,22 +291,25 @@ serve(async (req: Request): Promise<Response> => {
       skipped: results.filter(r => r.status === "skipped").length,
     };
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Processed ${summary.total} bookings: ${summary.sent} sent, ${summary.failed} failed, ${summary.skipped} skipped`,
-        summary,
-        details: results 
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return respond({ 
+      success: true, 
+      message: `Processed ${summary.total} bookings: ${summary.sent} sent, ${summary.failed} failed, ${summary.skipped} skipped`,
+      summary,
+      details: results 
+    });
 
   } catch (error: unknown) {
     console.error("Payment reminder error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return respond({
+      success: false,
+      error: errorMessage,
+      summary: { total: 0, sent: 0, failed: 0, skipped: 0 },
+      details: [],
+      diagnostics: {
+        function_name: "send-payment-reminder",
+        timestamp: new Date().toISOString(),
+      },
+    });
   }
 });
