@@ -27,8 +27,9 @@ import { exportToExcel } from "@/lib/export-utils";
 import { useState, useMemo, useEffect } from "react";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
-  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2
+  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp
 } from "lucide-react";
+import { startOfDay, startOfWeek, startOfMonth, subMonths, endOfDay } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
