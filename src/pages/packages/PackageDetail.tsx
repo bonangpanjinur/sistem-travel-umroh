@@ -493,7 +493,11 @@ export default function PackageDetail() {
                               )}
                             >
                               <button
-                                onClick={() => setOpenDepartureId(isOpen ? null : dep.id)}
+                                onClick={() => {
+                                  const next = isOpen ? null : dep.id;
+                                  setOpenDepartureId(next);
+                                  if (next) setActiveTab("itinerary");
+                                }}
                                 className="w-full flex items-center justify-between p-4 bg-white hover:bg-muted/30 transition-colors"
                               >
                                 <div className="flex items-center gap-4">
