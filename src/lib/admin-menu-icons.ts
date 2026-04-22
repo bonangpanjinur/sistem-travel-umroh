@@ -5,22 +5,22 @@
  */
 
 import {
-  LayoutDashboard, BarChart3, Package, CalendarDays, BookOpen, Backpack,
-  Map, Wallet, BedDouble, Users, UserSquare2, Network, Gift, Share2,
-  Star, GraduationCap, StickyNote, CreditCard, Coins, TrendingUp,
-  TrendingDown, PieChart, UserPlus, Ticket, Globe, Contact2, Banknote,
-  FileCheck, FileText, Plane, Building, Hotel, UserCheck, Bus, Store,
+  LayoutDashboard, BarChart3, BarChart2, Package, CalendarDays, CalendarClock,
+  BookOpen, BookMarked, Backpack, Map, Wallet, BedDouble, Users, UserSquare2,
+  Network, Gift, Share2, Star, GraduationCap, StickyNote, CreditCard, Coins,
+  TrendingUp, TrendingDown, PieChart, UserPlus, Ticket, Globe, Contact2,
+  Banknote, FileCheck, FileText, Plane, Building, Hotel, UserCheck, Bus, Store,
   LifeBuoy, MessageSquare, Megaphone, FileBarChart, UserCog, ShieldAlert,
   KeyRound, Palette, MessageCircle, Layers, Settings, Circle,
   type LucideIcon,
 } from 'lucide-react';
 
 export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
-  LayoutDashboard, BarChart3, Package, CalendarDays, BookOpen, Backpack,
-  Map, Wallet, BedDouble, Users, UserSquare2, Network, Gift, Share2,
-  Star, GraduationCap, StickyNote, CreditCard, Coins, TrendingUp,
-  TrendingDown, PieChart, UserPlus, Ticket, Globe, Contact2, Banknote,
-  FileCheck, FileText, Plane, Building, Hotel, UserCheck, Bus, Store,
+  LayoutDashboard, BarChart3, BarChart2, Package, CalendarDays, CalendarClock,
+  BookOpen, BookMarked, Backpack, Map, Wallet, BedDouble, Users, UserSquare2,
+  Network, Gift, Share2, Star, GraduationCap, StickyNote, CreditCard, Coins,
+  TrendingUp, TrendingDown, PieChart, UserPlus, Ticket, Globe, Contact2,
+  Banknote, FileCheck, FileText, Plane, Building, Hotel, UserCheck, Bus, Store,
   LifeBuoy, MessageSquare, Megaphone, FileBarChart, UserCog, ShieldAlert,
   KeyRound, Palette, MessageCircle, Layers, Settings,
 };
