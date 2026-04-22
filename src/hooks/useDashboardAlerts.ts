@@ -17,8 +17,7 @@ export function useDashboardAlerts() {
       ] = await Promise.all([
         supabase
           .from('equipment_items')
-          .select('id, stock_quantity')
-          .lte('stock_quantity', 5),
+          .select('id, stock_quantity'),
         supabase
           .from('customer_documents')
           .select('*', { count: 'exact', head: true })
@@ -31,16 +30,19 @@ export function useDashboardAlerts() {
       ]);
 
       const items = stockData || [];
-      const critical = items.filter((i: any) => i.stock_quantity === 0).length;
-      const low = items.filter((i: any) => i.stock_quantity > 0 && i.stock_quantity <= 5).length;
+      const total = items.length;
+      const outOfStock = items.filter((i: any) => (i.stock_quantity ?? 0) === 0).length;
+      const critical = outOfStock; // alias kept for backward compat
+      const low = items.filter((i: any) => (i.stock_quantity ?? 0) > 0 && (i.stock_quantity ?? 0) <= 5).length;
+      const healthy = total - outOfStock - low;
 
       return {
-        stockAlerts: { critical, low, total: items.length },
+        stockAlerts: { critical, low, outOfStock, healthy, total },
         pendingDocuments: pendingCount || 0,
         recentAudits: auditsData || [],
       };
     },
-    staleTime: 1000 * 60 * 15, // 15 minutes
+    staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
   });
 }

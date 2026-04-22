@@ -240,7 +240,7 @@ export default function AdminDashboard() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-600">
-                <AlertCircle className="h-4 w-4" /> STOK KRITIS
+                <AlertCircle className="h-4 w-4" /> STOK PERLENGKAPAN
               </CardTitle>
               <Link to="/admin/equipment" className="text-xs font-medium text-red-600 hover:underline flex items-center gap-1">
                 Cek <ArrowRight className="h-3 w-3" />
@@ -252,7 +252,21 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-red-700">
                 {loadingAlerts ? <Skeleton className="h-8 w-24" /> : (alerts?.stockAlerts?.total || 0)}
               </p>
-              <p className="text-sm text-red-600/80 font-medium">Stok Rendah</p>
+              <p className="text-sm text-red-600/80 font-medium">Total Item</p>
+              {!loadingAlerts && alerts?.stockAlerts && (alerts.stockAlerts.outOfStock > 0 || alerts.stockAlerts.low > 0) && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {alerts.stockAlerts.outOfStock > 0 && (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                      {alerts.stockAlerts.outOfStock} habis
+                    </Badge>
+                  )}
+                  {alerts.stockAlerts.low > 0 && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700 bg-amber-50">
+                      {alerts.stockAlerts.low} menipis
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
