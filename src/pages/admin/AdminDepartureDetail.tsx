@@ -66,7 +66,11 @@ export default function AdminDepartureDetail() {
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isItineraryOpen, setIsItineraryOpen] = useState(false);
+  const [isCheckinOpen, setIsCheckinOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [debugOpen, setDebugOpen] = useState(false);
 
   // Fetch departure detail
   const { data: departure, isLoading: departureLoading } = useQuery({
