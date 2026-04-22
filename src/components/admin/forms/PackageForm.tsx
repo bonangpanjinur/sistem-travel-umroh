@@ -474,7 +474,30 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
 
             <FormField
               control={form.control}
-              name="is_active"
+              name="is_popular"
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-2">
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="!mt-0">Paket Terpopuler</FormLabel>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="is_cheapest"
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-2">
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="!mt-0">Paket Termurah</FormLabel>
+                </FormItem>
+              )}
+            />
+
               render={({ field }) => (
                 <FormItem className="flex items-center gap-2">
                   <FormControl>
