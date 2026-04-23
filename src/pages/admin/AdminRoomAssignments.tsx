@@ -53,10 +53,14 @@ interface Passenger {
     full_name: string;
     gender: string | null;
     phone: string | null;
+    birth_date?: string | null;
+    passport_number?: string | null;
+    passport_expiry?: string | null;
   };
   booking: {
     id: string;
     booking_code: string;
+    room_type?: string | null;
   };
 }
 
