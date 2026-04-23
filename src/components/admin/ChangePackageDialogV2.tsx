@@ -183,9 +183,16 @@ export function ChangePackageDialogV2({
       const currentPrices = currentBooking?.departure || {};
       const newPrices = newDeparture || {};
       
+      console.log("[ChangePackage] currentPrices:", currentPrices);
+      console.log("[ChangePackage] newPrices:", newPrices);
+      console.log("[ChangePackage] passengers:", passengers);
+      
       // Get prices from departure first, fallback to package
       const getPrice = (type: string, prices: any) => {
-        return prices[`price_${type}`] || prices.package?.[`price_${type}`] || 0;
+        const fromDeparture = prices[`price_${type}`] || 0;
+        const fromPackage = prices.package?.[`price_${type}`] || 0;
+        console.log(`[ChangePackage] getPrice(${type}): departure=${fromDeparture}, package=${fromPackage}`);
+        return fromDeparture || fromPackage || 0;
       };
       
       // Calculate new total based on each passenger's room type
@@ -204,6 +211,8 @@ export function ChangePackageDialogV2({
       const oldTotal = currentBooking?.total_price || 0;
       const priceDiff = newTotal - oldTotal;
       const upgradeFee = priceDiff > 0 ? priceDiff : 0;
+      
+      console.log("[ChangePackage] newTotal:", newTotal, "oldTotal:", oldTotal, "upgradeFee:", upgradeFee);
 
       // 4. Update booking departure_id and total_price
       const { error: updateError } = await supabase
