@@ -132,7 +132,6 @@ export default function SavingsRegister() {
           tenor_months: tenorMonths,
           target_date: targetDateCalc.toISOString().split('T')[0],
           paid_amount: 0,
-          remaining_amount: targetAmount,
           status: 'active',
         })
         .select()

@@ -145,7 +145,6 @@ export default function AgentRegister() {
           adult_count: 1,
           base_price: price,
           total_price: price,
-          remaining_amount: price,
           notes: passengerData.notes,
         })
         .select()
