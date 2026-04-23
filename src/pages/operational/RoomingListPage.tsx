@@ -15,11 +15,12 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
   BedDouble, Users, Plus, Trash2, UserPlus,
-  Download, Hotel, Filter, GripVertical, Printer
+  Download, Hotel, Filter, GripVertical, Printer, FileSpreadsheet, FileText
 } from "lucide-react";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Database } from "@/integrations/supabase/types";
+import { exportRoomingListExcel, exportRoomingListPDF, type RoomingExportData, type RoomingPassenger, type RoomTypeDB } from "@/lib/rooming-list-exporter";
 
 type DepartureRow = Database["public"]["Tables"]["departures"]["Row"];
 type PackageRow = Database["public"]["Tables"]["packages"]["Row"];
