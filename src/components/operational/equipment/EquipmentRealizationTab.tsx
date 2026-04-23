@@ -31,16 +31,30 @@ export function EquipmentRealizationTab({
   const [filterCategory, setFilterCategory] = useState<string>("all");
 
   // Fetch realization data
-  const { data: realizationData, isLoading } = useQuery({
+  const { data: realizationData, isLoading, error } = useQuery({
     queryKey: ["equipment-realization-global", selectedPackage, selectedDeparture],
     queryFn: async () => {
+      // Check if table exists first
+      const { data: tableCheck, error: tableError } = await supabase
+        .from("equipment_items")
+        .select("id")
+        .limit(1);
+      
+      if (tableError) {
+        console.error("equipment_items table error:", tableError);
+        throw new Error(`equipment_items: ${tableError.message}`);
+      }
+
       // Get all equipment items
       const { data: items, error: itemsError } = await supabase
         .from("equipment_items")
         .select("id, name, category, stock_quantity")
         .order("name");
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("equipment_items query error:", itemsError);
+        throw itemsError;
+      }
 
       // Build distribution query
       let distQuery = supabase
@@ -285,6 +299,16 @@ export function EquipmentRealizationTab({
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center text-red-500">
+                <p className="font-semibold">Error memuat data perlengkapan</p>
+                <p className="text-sm mt-1">{error.message}</p>
+                <p className="text-xs mt-2 text-muted-foreground">
+                  Pastikan tabel equipment_items dan equipment_distributions ada di database
+                </p>
+              </div>
             </div>
           ) : filteredData.length > 0 ? (
             <div className="overflow-x-auto">
