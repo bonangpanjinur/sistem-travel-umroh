@@ -483,16 +483,58 @@ export default function AdminRoomAssignments() {
     { header: 'Kode Booking', accessor: (r: Passenger) => r.booking?.booking_code || '-', width: 18 },
   ];
 
+  const buildRoomingExportData = (): RoomingExportData | null => {
+    if (!exportDepartureDetail || !passengers || passengers.length === 0) return null;
+    const dep = exportDepartureDetail;
+    const pax: RoomingPassenger[] = passengers.map((p) => ({
+      id: p.id,
+      passenger_type: p.passenger_type,
+      room_number: p.room_number,
+      roommate_id: p.roommate_id,
+      booking_id: p.booking?.id,
+      booking_room_type: ((p.booking?.room_type || p.room_preference || 'quad') as RoomTypeDB),
+      customer: {
+        full_name: p.customer?.full_name || '-',
+        gender: p.customer?.gender,
+        birth_date: p.customer?.birth_date,
+        passport_number: p.customer?.passport_number,
+        passport_expiry: p.customer?.passport_expiry,
+      },
+    }));
+    const hotels = [
+      dep.hotel_makkah ? { name: dep.hotel_makkah.name, city: dep.hotel_makkah.city } : null,
+      dep.hotel_madinah ? { name: dep.hotel_madinah.name, city: dep.hotel_madinah.city } : null,
+    ].filter(Boolean) as { name: string; city?: string | null }[];
+    return {
+      departureDate: dep.departure_date,
+      returnDate: dep.return_date,
+      airlineName: dep.airlines?.name || '-',
+      airlineCode: dep.airlines?.code,
+      flightNumber: dep.flight_number,
+      departureTime: dep.departure_time,
+      departureAirport: dep.departure_airport,
+      arrivalAirport: dep.arrival_airport,
+      packageName: dep.packages?.name || '-',
+      durationDays: dep.packages?.duration_days,
+      welcomeBoard: dep.packages?.name || '-',
+      timeLimit: '',
+      tourLeaderName: dep.muthawif?.name,
+      tourLeaderPhone: dep.muthawif?.phone,
+      hotels,
+      passengers: pax,
+    };
+  };
+
   const handleExportExcel = () => {
-    if (!filteredPassengers.length) return toast.error('Tidak ada data');
-    exportToExcel(filteredPassengers, exportColumns, `kamar-${selectedDeparture}`, 'Data Kamar');
+    const data = buildRoomingExportData();
+    if (!data) return toast.error('Tidak ada data');
+    exportRoomingListExcel(data);
   };
 
   const handleExportPDF = () => {
-    if (!filteredPassengers.length) return toast.error('Tidak ada data');
-    const pkg = packages?.find(p => p.id === selectedPackage);
-    const dep = departures?.find(d => d.id === selectedDeparture);
-    exportToPDF(filteredPassengers, exportColumns, `kamar-${selectedDeparture}`, 'Data Kamar', `${pkg?.name || ''} - ${dep ? formatDate(dep.departure_date) : ''}`);
+    const data = buildRoomingExportData();
+    if (!data) return toast.error('Tidak ada data');
+    exportRoomingListPDF(data);
   };
 
   return (
