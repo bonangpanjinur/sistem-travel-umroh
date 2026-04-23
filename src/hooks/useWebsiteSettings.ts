@@ -274,21 +274,28 @@ export function useUpdateWebsiteSettings() {
         dbUpdates.footer_links = JSON.parse(JSON.stringify(updates.footer_links));
       }
 
-      const { data, error } = await supabase
+      // Try update first
+      const { data: updated, error: updateError } = await supabase
         .from("website_settings")
         .update(dbUpdates)
         .eq("id", SETTINGS_ID)
         .select();
 
-      if (error) throw error;
-      
-      if (!data || data.length === 0) {
-        // If no row was updated, it might be because the row doesn't exist yet
-        // In some cases we might want to insert, but for settings we usually expect it to exist
-        throw new Error("Pengaturan tidak ditemukan di database.");
+      if (updateError) throw updateError;
+
+      if (updated && updated.length > 0) {
+        return updated[0];
       }
-      
-      return data[0];
+
+      // Row does not exist yet → insert with the canonical SETTINGS_ID
+      const { data: inserted, error: insertError } = await supabase
+        .from("website_settings")
+        .insert([{ id: SETTINGS_ID, ...dbUpdates }])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      return inserted;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["website-settings"] });
