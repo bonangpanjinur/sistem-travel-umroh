@@ -193,7 +193,6 @@ export default function AgentRegisterGroup() {
           infant_count: infantCount,
           base_price: price,
           total_price: totalPrice,
-          remaining_amount: totalPrice,
         })
         .select()
         .single();

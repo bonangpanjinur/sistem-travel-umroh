@@ -202,7 +202,6 @@ export default function AdminSavingsPlans() {
       const newStatus = newPaid >= manualPaymentPlan.target_amount ? 'completed' : 'active';
       await supabase.from('savings_plans').update({
         paid_amount: newPaid,
-        remaining_amount: Math.max(0, manualPaymentPlan.target_amount - newPaid),
         status: newStatus,
       }).eq('id', manualPaymentPlan.id);
     },

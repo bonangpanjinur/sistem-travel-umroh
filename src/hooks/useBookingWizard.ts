@@ -174,7 +174,6 @@ export function useBookingWizard(packageId: string, initialDepartureId?: string)
           infant_count: infantCount,
           base_price: basePrice,
           total_price: totalPrice,
-          remaining_amount: totalPrice,
           notes: formData.notes,
         })
         .select('id, booking_code')

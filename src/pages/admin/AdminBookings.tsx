@@ -27,7 +27,7 @@ import { exportToExcel } from "@/lib/export-utils";
 import { useState, useMemo, useEffect } from "react";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
-  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp
+  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare
 } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth, subMonths, endOfDay } from "date-fns";
 import {
@@ -783,6 +783,32 @@ export default function AdminBookings() {
                             Detail
                           </Link>
                         </Button>
+                        {(paymentStatus === 'pending' || paymentStatus === 'partial') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-950/30"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              try {
+                                const { data, error } = await supabase.functions.invoke('send-payment-reminder', {
+                                  body: { booking_id: booking.id }
+                                });
+                                if (error) throw error;
+                                if (data?.success) {
+                                  toast({ title: "Reminder terkirim", description: `WhatsApp tagihan dikirim ke ${customer?.full_name}` });
+                                } else {
+                                  toast({ title: "Gagal mengirim", description: data?.error || data?.message || 'Periksa konfigurasi WhatsApp', variant: "destructive" });
+                                }
+                              } catch (err: any) {
+                                toast({ title: "Gagal", description: err.message || 'Tidak dapat mengirim reminder', variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            Tagih
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

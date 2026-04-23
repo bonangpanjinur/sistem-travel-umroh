@@ -49,8 +49,10 @@ import {
   CheckCircle, XCircle, Eye, Clock, 
   CreditCard, User, Calendar,
   Search, Filter, Download, AlertCircle, X, ImageIcon,
-  Bell, Loader2
+  Bell, Loader2, PiggyBank, FileWarning, Plus
 } from "lucide-react";
+import { AddManualPaymentDialog } from "@/components/admin/AddManualPaymentDialog";
+import { Link } from "react-router-dom";
 
 const PAGE_SIZE = 20;
 
@@ -90,6 +92,50 @@ export default function AdminPayments() {
 
       if (error) throw error;
       return data as unknown as Payment[];
+    },
+  });
+
+  // Pembayaran tabungan (savings_payments)
+  const { data: savingsPayments, isLoading: isLoadingSavings } = useQuery({
+    queryKey: ['admin-savings-payments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('savings_payments')
+        .select(`
+          *,
+          savings_plan:savings_plans(
+            id,
+            target_amount,
+            paid_amount,
+            customer:customers(id, full_name, phone, email),
+            package:packages(name)
+          )
+        `)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Booking yang sama sekali belum punya record payments
+  const { data: bookingsNoPayment } = useQuery({
+    queryKey: ['admin-bookings-no-payment'],
+    queryFn: async () => {
+      const { data: paymentBookings } = await supabase
+        .from('payments')
+        .select('booking_id');
+      const paidIds = new Set((paymentBookings || []).map((p: any) => p.booking_id));
+
+      const { data: allBookings, error } = await supabase
+        .from('bookings')
+        .select(`
+          id, booking_code, total_price, paid_amount, remaining_amount, payment_status, created_at,
+          customer:customers(full_name, phone)
+        `)
+        .neq('booking_status', 'cancelled')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (allBookings || []).filter((b: any) => !paidIds.has(b.id));
     },
   });
 
@@ -246,6 +292,7 @@ export default function AdminPayments() {
           <p className="text-muted-foreground">Kelola dan verifikasi bukti pembayaran</p>
         </div>
         <div className="flex gap-2">
+          <AddManualPaymentDialog />
           <Button 
             variant="outline" 
             onClick={async () => {
@@ -365,6 +412,26 @@ export default function AdminPayments() {
         </Card>
       </div>
 
+      {/* Booking tanpa pembayaran warning */}
+      {bookingsNoPayment && bookingsNoPayment.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
+          <CardContent className="p-4 flex items-start gap-3">
+            <FileWarning className="h-5 w-5 text-orange-600 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-orange-900 dark:text-orange-200">
+                {bookingsNoPayment.length} Booking belum ada pembayaran tercatat
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Booking offline / via admin yang belum di-input pembayarannya. Klik "Catat Pembayaran" di header untuk menambah.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/bookings?payment=pending">Lihat</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Method breakdown */}
       {methodStats.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -388,6 +455,10 @@ export default function AdminPayments() {
             Menunggu ({stats.pending})
           </TabsTrigger>
           <TabsTrigger value="all">Semua Pembayaran</TabsTrigger>
+          <TabsTrigger value="savings" className="gap-2">
+            <PiggyBank className="h-4 w-4" />
+            Tabungan ({savingsPayments?.length || 0})
+          </TabsTrigger>
         </TabsList>
 
         {/* Pending Tab */}
@@ -400,7 +471,16 @@ export default function AdminPayments() {
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
-                <p className="text-muted-foreground">Tidak ada pembayaran yang menunggu verifikasi</p>
+                <p className="text-muted-foreground mb-4">Tidak ada pembayaran yang menunggu verifikasi</p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const tab = document.querySelector('[data-state][value="all"]') as HTMLElement;
+                    tab?.click();
+                  }}
+                >
+                  Lihat Semua Pembayaran
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -713,6 +793,63 @@ export default function AdminPayments() {
               Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, filteredPayments.length)} dari {filteredPayments.length} pembayaran
             </p>
           )}
+        </TabsContent>
+
+        {/* Savings Tab */}
+        <TabsContent value="savings" className="space-y-4">
+          <Card>
+            <CardContent className="p-0">
+              {isLoadingSavings ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}
+                </div>
+              ) : !savingsPayments || savingsPayments.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <PiggyBank className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                  <p>Belum ada pembayaran tabungan</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kode</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Paket Tabungan</TableHead>
+                        <TableHead>Metode</TableHead>
+                        <TableHead className="text-right">Jumlah</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {savingsPayments.map((sp: any) => {
+                        const plan = sp.savings_plan as any;
+                        return (
+                          <TableRow key={sp.id}>
+                            <TableCell className="font-mono text-sm">{sp.payment_code}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{plan?.customer?.full_name || '-'}</p>
+                                <p className="text-xs text-muted-foreground">{plan?.customer?.phone}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm">{plan?.package?.name || '-'}</TableCell>
+                            <TableCell className="text-sm">{sp.payment_method || '-'}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatCurrency(sp.amount)}</TableCell>
+                            <TableCell>{getStatusBadge(sp.status || 'pending')}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatDate(sp.payment_date || sp.created_at)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
