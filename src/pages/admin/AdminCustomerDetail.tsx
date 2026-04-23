@@ -243,6 +243,7 @@ export default function AdminCustomerDetail() {
           notes,
           created_at,
           verified_at,
+          document_type_id,
           document_type:document_types(id, name, code)
         `)
         .eq('customer_id', customerId)
@@ -252,6 +253,66 @@ export default function AdminCustomerDetail() {
       return data;
     },
   });
+
+  // Fetch all document types so we can offer upload for any missing one
+  const { data: documentTypes } = useQuery({
+    queryKey: ['document-types-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('document_types')
+        .select('*')
+        .order('is_required', { ascending: false })
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Upload handler — used by both "upload missing" + "replace existing"
+  const handleUploadDocument = async (file: File, documentTypeId: string) => {
+    if (!customerId) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5MB');
+      return;
+    }
+    setUploadingDocType(documentTypeId);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${customerId}/${documentTypeId}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('customer-documents')
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from('customer-documents')
+        .getPublicUrl(fileName);
+
+      const existing = documents?.find((d: any) => d.document_type_id === documentTypeId);
+      if (existing) {
+        const { error: updErr } = await supabase
+          .from('customer_documents')
+          .update({ file_url: urlData.publicUrl, file_name: file.name, status: 'uploaded', updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+        if (updErr) throw updErr;
+      } else {
+        const { error: insErr } = await supabase.from('customer_documents').insert({
+          customer_id: customerId,
+          document_type_id: documentTypeId,
+          file_url: urlData.publicUrl,
+          file_name: file.name,
+          status: 'uploaded',
+        });
+        if (insErr) throw insErr;
+      }
+      toast.success('Dokumen berhasil diupload');
+      queryClient.invalidateQueries({ queryKey: ['admin-customer-documents', customerId] });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Gagal upload dokumen');
+    } finally {
+      setUploadingDocType(null);
+    }
+  };
 
   // Fetch customer bookings
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
