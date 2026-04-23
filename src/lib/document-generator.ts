@@ -11,6 +11,7 @@ interface CompanyInfo {
   email: string;
   website?: string;
   logo?: string;
+  city?: string;
 }
 
 // Letter data interfaces
@@ -210,7 +211,7 @@ Demikian surat permohonan cuti ini saya ajukan. Atas perhatian dan persetujuan B
   y += lines.length * 6 + 20;
   
   // Signature
-  doc.text(`Jakarta, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
+  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
   y += 6;
   doc.text('Hormat saya,', pageWidth - 60, y);
   y += 25;
@@ -305,7 +306,7 @@ Demikian surat keterangan ini kami sampaikan. Atas perhatian dan kerjasamanya, k
   y += lines.length * 5 + 20;
   
   // Signature
-  doc.text(`Jakarta, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y);
+  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y);
   y += 6;
   doc.text('Hormat kami,', pageWidth - 70, y);
   y += 6;
@@ -384,7 +385,7 @@ Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerjasamanya, k
   y += lines.length * 5 + 20;
   
   // Signature
-  doc.text(`Jakarta, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y);
+  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y);
   y += 6;
   doc.text('Hormat kami,', pageWidth - 70, y);
   y += 6;
@@ -490,17 +491,18 @@ export function generateInvoice(
   y += 20;
   
   // Bank info
-  if (data.bankInfo) {
+  const bankInfo = data.bankInfo;
+  if (bankInfo) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('Pembayaran dapat ditransfer ke:', 14, y);
     y += 6;
     doc.setFont('helvetica', 'normal');
-    doc.text(`Bank: ${data.bankInfo.bankName}`, 14, y);
+    doc.text(`Bank: ${bankInfo.bankName}`, 14, y);
     y += 5;
-    doc.text(`No. Rekening: ${data.bankInfo.accountNumber}`, 14, y);
+    doc.text(`No. Rekening: ${bankInfo.accountNumber}`, 14, y);
     y += 5;
-    doc.text(`Atas Nama: ${data.bankInfo.accountName}`, 14, y);
+    doc.text(`Atas Nama: ${bankInfo.accountName}`, 14, y);
   }
   
   // Notes
@@ -577,7 +579,7 @@ export function generateGeneralLetter(
   y += 20;
   
   // Signature
-  doc.text(`Jakarta, ${format(data.letterDate, 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y);
+  doc.text(`${company.city || 'Jakarta'}, ${format(data.letterDate, 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y);
   y += 6;
   doc.text('Hormat kami,', pageWidth - 70, y);
   y += 25;
@@ -852,7 +854,7 @@ export function generateUmrahCertificate(
   // Signature section
   y = pageHeight - 55;
   doc.setFontSize(10);
-  doc.text(`Jakarta, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y, { align: 'center' });
+  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y, { align: 'center' });
   y += 6;
   doc.text(company.name, pageWidth - 70, y, { align: 'center' });
   y += 20;

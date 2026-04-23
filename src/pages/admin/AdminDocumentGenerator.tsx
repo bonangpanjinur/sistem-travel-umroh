@@ -19,6 +19,7 @@ import {
   User, Users, Briefcase, Ticket, Award, Package, Filter, Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import {
   generateLeaveLetter, generateJamaahLeaveLetter, generatePassportLetter,
   generateInvoice, generateGeneralLetter, generateETicket, generateUmrahCertificate,
@@ -148,6 +149,7 @@ function PackageDepartureFilter({
 }
 
 const AdminDocumentGenerator = () => {
+  const { company, bankAccount } = useCompanyInfo();
   const [activeTab, setActiveTab] = useState('jamaah-leave');
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
@@ -408,7 +410,7 @@ const AdminDocumentGenerator = () => {
       reason: employeeLeaveForm.reason,
       destination: employeeLeaveForm.destination
     };
-    return { generate: async () => generateLeaveLetter(data, await getLetterNumber('cuti_karyawan', 'CUTI-KRY')) };
+    return { generate: async () => generateLeaveLetter(data, await getLetterNumber('cuti_karyawan', 'CUTI-KRY'), company) };
   };
 
   const handleGenerateJamaahLeaveLetter = () => {
@@ -431,7 +433,7 @@ const AdminDocumentGenerator = () => {
       endDate: new Date(departure.return_date),
       purpose: jamaahLeaveForm.purpose
     };
-    return { generate: async () => generateJamaahLeaveLetter(data, await getLetterNumber('cuti_jamaah', 'CUTI-JMH')) };
+    return { generate: async () => generateJamaahLeaveLetter(data, await getLetterNumber('cuti_jamaah', 'CUTI-JMH'), company) };
   };
 
   const handleGeneratePassportLetter = () => {
@@ -448,7 +450,7 @@ const AdminDocumentGenerator = () => {
       purpose: passportForm.purpose,
       departureDate: departure ? new Date(departure.departure_date) : undefined
     };
-    return { generate: async () => generatePassportLetter(data, await getLetterNumber('paspor', 'PASPOR')) };
+    return { generate: async () => generatePassportLetter(data, await getLetterNumber('paspor', 'PASPOR'), company) };
   };
 
   const handleGenerateInvoice = () => {
@@ -467,9 +469,13 @@ const AdminDocumentGenerator = () => {
       discount: booking.discount_amount || 0,
       total: booking.total_price,
       notes: invoiceForm.notes || 'Pembayaran dapat dilakukan secara bertahap. Pelunasan paling lambat 2 minggu sebelum keberangkatan.',
-      bankInfo: { bankName: 'Bank Syariah Indonesia (BSI)', accountNumber: '1234567890', accountName: 'PT. Umrah Haji Travel' }
+      bankInfo: bankAccount ? { 
+        bankName: bankAccount.bank_name, 
+        accountNumber: bankAccount.account_number, 
+        accountName: bankAccount.account_name 
+      } : undefined
     };
-    return { generate: async () => generateInvoice(data) };
+    return { generate: async () => generateInvoice(data, company) };
   };
 
   const handleGenerateETicket = () => {
@@ -500,7 +506,7 @@ const AdminDocumentGenerator = () => {
       hotelMadinah: hotelMadinah?.name,
       roomType: roomTypeLabels[booking.room_type] || booking.room_type
     };
-    return { generate: async () => generateETicket(data) };
+    return { generate: async () => generateETicket(data, company) };
   };
 
   const handleGenerateCertificate = () => {
@@ -519,7 +525,7 @@ const AdminDocumentGenerator = () => {
       returnDate: new Date(departure?.return_date),
       certificateNumber: `CERT-${booking.booking_code}`
     };
-    return { generate: async () => generateUmrahCertificate(data) };
+    return { generate: async () => generateUmrahCertificate(data, company) };
   };
 
   const handleGenerateGeneralLetter = () => {
@@ -532,8 +538,8 @@ const AdminDocumentGenerator = () => {
         letterNumber, letterDate: new Date(),
         recipient: { name: generalForm.recipientName, position: generalForm.recipientPosition, institution: generalForm.recipientInstitution, address: generalForm.recipientAddress },
         subject: generalForm.subject, content: generalForm.content,
-        signatory: { name: generalForm.signatoryName || 'Direktur Utama', position: generalForm.signatoryPosition || 'PT. Umrah Haji Travel' }
-      });
+        signatory: { name: generalForm.signatoryName || 'Direktur Utama', position: generalForm.signatoryPosition || company.name }
+      }, company);
     }};
   };
 
