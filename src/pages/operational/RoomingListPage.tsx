@@ -60,6 +60,10 @@ export default function RoomingListPage() {
     room_type: "quad",
     floor: "",
   });
+  // Export config (Welcome Board / Time Limit / hotel scope)
+  const [welcomeBoard, setWelcomeBoard] = useState<string>("");
+  const [timeLimit, setTimeLimit] = useState<string>("");
+  const [exportHotelScope, setExportHotelScope] = useState<"both" | "makkah" | "madinah">("both");
 
   // Get upcoming departures
   const { data: departures } = useQuery<ExtendedDeparture[]>({ // Added type annotation
