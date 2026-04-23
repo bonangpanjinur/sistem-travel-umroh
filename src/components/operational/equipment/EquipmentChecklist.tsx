@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Package, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,7 +43,6 @@ export function EquipmentChecklist({
     new Map(existingDistributions.map((d) => [d.equipment_id, { equipmentId: d.equipment_id, quantity: 1 }]))
   );
   const [isSaving, setIsSaving] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Mutation for saving distributions
   const saveMutation = useMutation({
@@ -140,7 +138,6 @@ export function EquipmentChecklist({
       });
       queryClient.invalidateQueries({ queryKey: ["distribution-summary"] });
       setIsSaving(false);
-      setShowConfirmDialog(false);
     },
     onError: (error) => {
       toast.error(`❌ Gagal menyimpan perlengkapan: ${error.message}`);
@@ -184,7 +181,7 @@ export function EquipmentChecklist({
   };
 
   const handleSave = () => {
-    setShowConfirmDialog(true);
+    saveMutation.mutate();
   };
 
   if (equipmentItems.length === 0) {
