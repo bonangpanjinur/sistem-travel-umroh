@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { WebsiteSettings, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { Image, Save, Upload, Loader2, Settings2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -63,24 +64,28 @@ export function BrandingSettings({ settings }: BrandingSettingsProps) {
     meta_description: settings.meta_description || "",
   });
 
+  const { getSetting, isLoading: loadingCompany } = useCompanySettings();
+
   useEffect(() => {
-    setFormData({
-      company_name: settings.company_name || "",
-      tagline: settings.tagline || "",
-      logo_url: settings.logo_url || "",
-      favicon_url: settings.favicon_url || "",
-      footer_address: settings.footer_address || "",
-      footer_phone: settings.footer_phone || "",
-      footer_email: settings.footer_email || "",
-      footer_whatsapp: settings.footer_whatsapp || "",
-      social_instagram: settings.social_instagram || "",
-      social_facebook: settings.social_facebook || "",
-      social_youtube: settings.social_youtube || "",
-      social_tiktok: settings.social_tiktok || "",
-      meta_title: settings.meta_title || "",
-      meta_description: settings.meta_description || "",
-    });
-  }, [settings]);
+    if (!loadingCompany) {
+      setFormData({
+        company_name: getSetting("company_name") || settings.company_name || "",
+        tagline: settings.tagline || "",
+        logo_url: settings.logo_url || "",
+        favicon_url: settings.favicon_url || "",
+        footer_address: getSetting("company_address") || settings.footer_address || "",
+        footer_phone: getSetting("company_phone") || settings.footer_phone || "",
+        footer_email: getSetting("company_email") || settings.footer_email || "",
+        footer_whatsapp: settings.footer_whatsapp || "",
+        social_instagram: settings.social_instagram || "",
+        social_facebook: settings.social_facebook || "",
+        social_youtube: settings.social_youtube || "",
+        social_tiktok: settings.social_tiktok || "",
+        meta_title: settings.meta_title || "",
+        meta_description: settings.meta_description || "",
+      });
+    }
+  }, [settings, loadingCompany, getSetting]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -406,13 +411,17 @@ export function BrandingSettings({ settings }: BrandingSettingsProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Informasi Perusahaan</CardTitle>
+            <CardDescription className="text-xs text-amber-600 font-medium">
+              Data ini diambil dari Master Data Informasi Perusahaan. Silakan edit melalui tab "Informasi Perusahaan".
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Nama Perusahaan</Label>
               <Input
                 value={formData.company_name}
-                onChange={(e) => handleChange("company_name", e.target.value)}
+                disabled
+                className="bg-muted"
                 placeholder="Extraordinary Umroh"
               />
             </div>
@@ -431,13 +440,17 @@ export function BrandingSettings({ settings }: BrandingSettingsProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Informasi Kontak</CardTitle>
+            <CardDescription className="text-xs text-amber-600 font-medium">
+              Data ini diambil dari Master Data Informasi Perusahaan. Silakan edit melalui tab "Informasi Perusahaan".
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Alamat</Label>
               <Textarea
                 value={formData.footer_address}
-                onChange={(e) => handleChange("footer_address", e.target.value)}
+                disabled
+                className="bg-muted"
                 placeholder="Jl. Contoh No. 123, Jakarta"
                 rows={2}
               />
@@ -447,7 +460,8 @@ export function BrandingSettings({ settings }: BrandingSettingsProps) {
                 <Label>Telepon</Label>
                 <Input
                   value={formData.footer_phone}
-                  onChange={(e) => handleChange("footer_phone", e.target.value)}
+                  disabled
+                  className="bg-muted"
                   placeholder="+62 21 1234567"
                 />
               </div>
@@ -455,7 +469,8 @@ export function BrandingSettings({ settings }: BrandingSettingsProps) {
                 <Label>WhatsApp</Label>
                 <Input
                   value={formData.footer_whatsapp}
-                  onChange={(e) => handleChange("footer_whatsapp", e.target.value)}
+                  disabled
+                  className="bg-muted"
                   placeholder="+62 812 3456 7890"
                 />
               </div>
@@ -465,7 +480,8 @@ export function BrandingSettings({ settings }: BrandingSettingsProps) {
               <Input
                 type="email"
                 value={formData.footer_email}
-                onChange={(e) => handleChange("footer_email", e.target.value)}
+                disabled
+                className="bg-muted"
                 placeholder="info@example.com"
               />
             </div>

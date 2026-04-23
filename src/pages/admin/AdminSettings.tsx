@@ -43,14 +43,7 @@ const bankSchema = z.object({
 
 type BankFormData = z.infer<typeof bankSchema>;
 
-const certificateSchema = z.object({
-  certificate_cost_per_owner: z.preprocess(
-    (val) => Number(String(val).replace(/[^0-9]/g, "")),
-    z.number().min(0, "Biaya sertifikat tidak boleh negatif").optional()
-  ),
-});
 
-type CertificateFormData = z.infer<typeof certificateSchema>;
 
 
 
@@ -90,12 +83,7 @@ export default function AdminSettings() {
     },
   });
 
-  const certificateForm = useForm<CertificateFormData>({
-    resolver: zodResolver(certificateSchema),
-    defaultValues: {
-      certificate_cost_per_owner: 0,
-    },
-  });
+
 
 
 
@@ -136,16 +124,7 @@ export default function AdminSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingBank]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!isLoading) {
-      certificateForm.reset({
-        certificate_cost_per_owner: parseFloat(getSetting("certificate_cost_per_owner")) || 0,
-      });
 
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading]);
 
   const onSaveCompany = (data: CompanyFormData) => {
     updateMultipleSettings([
@@ -172,11 +151,7 @@ export default function AdminSettings() {
     setEditingBank(null);
   };
 
-  const onSaveCertificate = (data: CertificateFormData) => {
-    updateMultipleSettings([
-      { key: "certificate_cost_per_owner", value: data.certificate_cost_per_owner },
-    ]);
-  };
+
 
 
 
@@ -198,8 +173,8 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold">Pengaturan</h1>
-        <p className="text-muted-foreground">Kelola pengaturan sistem dan akun</p>
+        <h1 className="text-2xl font-bold">Edit Profil</h1>
+        <p className="text-muted-foreground">Kelola profil pengguna dan keamanan akun</p>
       </div>
 
       {/* User Profile */}
@@ -208,134 +183,7 @@ export default function AdminSettings() {
       {/* Change Password */}
       <ChangePassword />
 
-      {/* Document & Letterhead Settings */}
-      <DocumentSettingsForm />
 
-      {/* Certificate Settings (Super Admin Only) */}
-      {isSuperAdmin() && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Pengaturan Sertifikat
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Memuat pengaturan...
-              </div>
-            ) : (
-              <Form {...certificateForm}>
-                <form onSubmit={certificateForm.handleSubmit(onSaveCertificate)} className="space-y-4">
-                  <FormField
-                    control={certificateForm.control}
-                    name="certificate_cost_per_owner"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Biaya per-sertifikat untuk Owner</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="0"
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Simpan Perubahan
-                  </Button>
-                </form>
-              </Form>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Company Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Informasi Perusahaan
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground py-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Memuat pengaturan...
-            </div>
-          ) : (
-            <Form {...companyForm}>
-              <form onSubmit={companyForm.handleSubmit(onSaveCompany)} className="space-y-4">
-                <FormField
-                  control={companyForm.control}
-                  name="company_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nama Perusahaan</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nama perusahaan" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={companyForm.control}
-                  name="company_phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>No. Telepon</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Contoh: 0211234567" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={companyForm.control}
-                  name="company_email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="email@perusahaan.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={companyForm.control}
-                  name="company_address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Alamat</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Alamat lengkap perusahaan" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" disabled={isUpdating}>
-                  {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Simpan Perubahan
-                </Button>
-              </form>
-            </Form>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Bank Accounts */}
       <Card>

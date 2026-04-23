@@ -47,7 +47,7 @@ const PATH_LABELS: Record<string, string> = {
   "2fa": "2FA Settings",
   whatsapp: "WhatsApp",
   appearance: "Tampilan",
-  settings: "Pengaturan",
+  settings: "Edit Profil",
   "package-types": "Tipe Paket",
   airlines: "Maskapai",
   airports: "Bandara",

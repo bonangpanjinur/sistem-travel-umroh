@@ -132,6 +132,9 @@ export function DocumentSettingsForm() {
                     </FormItem>
                   )}
                 />
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                  <strong>Catatan:</strong> Nama, Alamat, Telepon, dan Email perusahaan diambil dari <strong>Master Data Informasi Perusahaan</strong> untuk menjaga konsistensi dokumen.
+                </div>
 
                 <FormField
                   control={form.control}

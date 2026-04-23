@@ -89,7 +89,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: '2fa-settings', label: '2FA Settings', path: '/admin/2fa', icon: 'KeyRound', group_name: 'Pengaturan', sort_order: 3, required_permission: '2fa-settings' },
   { key: 'appearance', label: 'Tampilan', path: '/admin/appearance', icon: 'Palette', group_name: 'Pengaturan', sort_order: 4, required_permission: 'appearance' },
   { key: 'package-types', label: 'Tipe Paket', path: '/admin/package-types', icon: 'Layers', group_name: 'Pengaturan', sort_order: 5, required_permission: 'package-types' },
-  { key: 'settings', label: 'Pengaturan', path: '/admin/settings', icon: 'Settings', group_name: 'Pengaturan', sort_order: 6, required_permission: 'settings' },
+  { key: 'settings', label: 'Edit Profil', path: '/admin/settings', icon: 'User', group_name: 'Pengaturan', sort_order: 6, required_permission: 'settings' },
 ];
 
 /**

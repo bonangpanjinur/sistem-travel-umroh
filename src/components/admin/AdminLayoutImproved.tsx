@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Search,
   ChevronLeft,
+  User,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef, memo } from 'react';
@@ -341,7 +342,7 @@ function AdminLayoutImproved() {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 h-8 text-[10px] gap-1.5" onClick={() => navigate('/admin/settings')}>
-                    <Settings className="w-3 h-3" /> Pengaturan
+                    <User className="w-3 h-3" /> Edit Profil
                   </Button>
                   <Button variant="destructive" size="sm" className="flex-1 h-8 text-[10px] gap-1.5" onClick={handleLogout}>
                     <LogOut className="w-3 h-3" /> Logout
@@ -353,10 +354,10 @@ function AdminLayoutImproved() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button onClick={() => navigate('/admin/settings')} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
-                      <Settings className="w-5 h-5" />
+                      <User className="w-5 h-5" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">Pengaturan</TooltipContent>
+                  <TooltipContent side="right">Edit Profil</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>

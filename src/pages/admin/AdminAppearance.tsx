@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu, Wallet, MessageCircle, Users, Search, MessageSquare, HelpCircle, Bell, Settings, FileText, MessageCircleMore, Package } from "lucide-react";
+import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu, Wallet, MessageCircle, Users, Search, MessageSquare, HelpCircle, Bell, Settings, FileText, MessageCircleMore, Package, CreditCard, Building2 } from "lucide-react";
 import { ThemeSelector } from "@/components/admin/appearance/ThemeSelector";
 import { ColorSettings } from "@/components/admin/appearance/ColorSettings";
 import { TypographySettings } from "@/components/admin/appearance/TypographySettings";
@@ -22,18 +22,68 @@ import { HeaderFooterSettings } from "@/components/admin/appearance/HeaderFooter
 import { LegalPagesGenerator } from "@/components/admin/appearance/LegalPagesGenerator";
 import { WhatsAppButtonSettings } from "@/components/admin/appearance/WhatsAppButtonSettings";
 import { PackageListCustomization } from "@/components/admin/appearance/PackageListCustomization";
+import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
 import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 
+const companySchema = z.object({
+  company_name: z.string().min(3, "Nama perusahaan minimal 3 karakter"),
+  company_phone: z.string().min(10, "Nomor telepon minimal 10 digit").regex(/^[0-9+]+$/, "Nomor telepon tidak valid"),
+  company_email: z.string().email("Format email tidak valid"),
+  company_address: z.string().min(5, "Alamat minimal 5 karakter"),
+});
+
+type CompanyFormData = z.infer<typeof companySchema>;
+
 export default function AdminAppearance() {
   const { data: settings, isLoading: loadingSettings } = useWebsiteSettings();
   const { data: presets, isLoading: loadingPresets } = useThemePresets();
+  const { getSetting, updateMultipleSettings, isLoading: loadingCompany, isUpdating: isUpdatingCompany } = useCompanySettings();
   const [activeTab, setActiveTab] = useState("template");
   const [showPreview, setShowPreview] = useState(false);
 
-  if (loadingSettings || loadingPresets) {
+  const companyForm = useForm<CompanyFormData>({
+    resolver: zodResolver(companySchema),
+    defaultValues: {
+      company_name: "",
+      company_phone: "",
+      company_email: "",
+      company_address: "",
+    },
+  });
+
+  useEffect(() => {
+    if (!loadingCompany) {
+      companyForm.reset({
+        company_name: getSetting("company_name") || "",
+        company_phone: getSetting("company_phone") || "",
+        company_email: getSetting("company_email") || "",
+        company_address: getSetting("company_address") || "",
+      });
+    }
+  }, [loadingCompany, getSetting, companyForm]);
+
+  const onSaveCompany = (data: CompanyFormData) => {
+    updateMultipleSettings([
+      { key: "company_name", value: data.company_name },
+      { key: "company_phone", value: data.company_phone },
+      { key: "company_email", value: data.company_email },
+      { key: "company_address", value: data.company_address },
+    ]);
+  };
+
+  if (loadingSettings || loadingPresets || loadingCompany) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -152,6 +202,14 @@ export default function AdminAppearance() {
             <Package className="h-4 w-4" />
             <span>Daftar Paket</span>
           </TabsTrigger>
+          <TabsTrigger value="company-info" className="gap-2 py-2">
+            <Building2 className="h-4 w-4" />
+            <span>Informasi Perusahaan</span>
+          </TabsTrigger>
+          <TabsTrigger value="document-settings" className="gap-2 py-2">
+            <FileText className="h-4 w-4" />
+            <span>Dokumen & Invoice</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="template">
@@ -232,6 +290,83 @@ export default function AdminAppearance() {
 
         <TabsContent value="package-list">
           {settings && <PackageListCustomization settings={settings} />}
+        </TabsContent>
+
+        <TabsContent value="company-info">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Informasi Perusahaan (Master Data)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...companyForm}>
+                <form onSubmit={companyForm.handleSubmit(onSaveCompany)} className="space-y-4">
+                  <FormField
+                    control={companyForm.control}
+                    name="company_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nama Perusahaan</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nama perusahaan" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={companyForm.control}
+                    name="company_phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>No. Telepon</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Contoh: 021-1234567" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={companyForm.control}
+                    name="company_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Perusahaan</FormLabel>
+                        <FormControl>
+                          <Input placeholder="info@perusahaan.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={companyForm.control}
+                    name="company_address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Alamat Perusahaan</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Alamat lengkap" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" disabled={isUpdatingCompany}>
+                    {isUpdatingCompany && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Simpan Perubahan
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="document-settings">
+          <DocumentSettingsForm />
         </TabsContent>
       </Tabs>
     </div>
