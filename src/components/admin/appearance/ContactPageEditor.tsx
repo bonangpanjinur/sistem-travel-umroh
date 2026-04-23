@@ -86,16 +86,28 @@ export function ContactPageEditor() {
       const existing = (existingData && existingData.length > 0) ? existingData[0] : null;
 
       if (existing?.id) {
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('contact_page_content')
           .update(payload)
-          .eq('id', existing.id);
+          .eq('id', existing.id)
+          .select();
         if (error) throw error;
+        if (!updated || updated.length === 0) {
+          throw new Error(
+            'Tidak memiliki izin menyimpan konten halaman kontak. Akun Anda perlu peran admin (super_admin/owner/branch_manager).'
+          );
+        }
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from('contact_page_content')
-          .insert([payload]);
+          .insert([payload])
+          .select();
         if (error) throw error;
+        if (!inserted || inserted.length === 0) {
+          throw new Error(
+            'Tidak memiliki izin menyimpan konten halaman kontak. Akun Anda perlu peran admin (super_admin/owner/branch_manager).'
+          );
+        }
       }
     },
     onSuccess: () => {

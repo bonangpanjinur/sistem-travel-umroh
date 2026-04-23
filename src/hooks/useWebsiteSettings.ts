@@ -287,7 +287,24 @@ export function useUpdateWebsiteSettings() {
         return updated[0];
       }
 
-      // Row does not exist yet → insert with the canonical SETTINGS_ID
+      // Confirm whether the row exists at all (separate read so we can distinguish
+      // "row missing" from "RLS blocked the update").
+      const { data: existing, error: existingError } = await supabase
+        .from("website_settings")
+        .select("id")
+        .eq("id", SETTINGS_ID)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+
+      if (existing) {
+        // Row exists but UPDATE returned 0 rows → RLS blocked the write silently.
+        throw new Error(
+          "Tidak memiliki izin untuk menyimpan pengaturan website. Pastikan akun Anda memiliki peran admin (super_admin/owner/branch_manager)."
+        );
+      }
+
+      // Row truly does not exist yet → try insert.
       const { data: inserted, error: insertError } = await supabase
         .from("website_settings")
         .insert([{ id: SETTINGS_ID, ...dbUpdates }])
