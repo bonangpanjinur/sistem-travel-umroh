@@ -29,7 +29,8 @@ USING (public.is_super_admin(auth.uid()))
 WITH CHECK (public.is_super_admin(auth.uid()));
 
 -- Function to update updated_at
+-- Using public.update_updated_at_column() as found in existing migrations
 CREATE TRIGGER set_updated_at_package_change_rules
 BEFORE UPDATE ON public.package_change_rules
 FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+EXECUTE FUNCTION public.update_updated_at_column();
