@@ -4,7 +4,7 @@ CREATE TABLE public.package_change_rules (
     package_id UUID REFERENCES public.packages(id) ON DELETE CASCADE,
     min_days_before_departure INTEGER NOT NULL, -- H-X
     penalty_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
-    penalty_type VARCHAR(20) DEFAULT 'fixed', -- 'fixed' or 'percentage' (future proofing)
+    penalty_type VARCHAR(20) DEFAULT 'fixed', -- 'fixed' or 'percentage'
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
@@ -14,7 +14,6 @@ CREATE TABLE public.package_change_rules (
 CREATE INDEX idx_package_change_rules_package_id ON public.package_change_rules(package_id);
 
 -- Enable RLS
-ALTER TABLE public.package_change_rules ENABLE CONTROLLED; -- Or just ENABLE ROW LEVEL SECURITY
 ALTER TABLE public.package_change_rules ENABLE ROW LEVEL SECURITY;
 
 -- Add RLS Policies
