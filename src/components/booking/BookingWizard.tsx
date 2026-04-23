@@ -79,7 +79,7 @@ export function BookingWizard() {
   const { data: departureInfo } = useQuery({
     queryKey: ['departure-info', initialDepartureId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant').eq('id', initialDepartureId).single();
+      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single').eq('id', initialDepartureId).single();
       if (error) throw error;
       return data;
     },
@@ -249,9 +249,6 @@ export function BookingWizard() {
                 price_triple: departureInfo.price_triple ?? 0,
                 price_double: departureInfo.price_double ?? 0,
                 price_single: departureInfo.price_single ?? 0,
-                price_adult: (departureInfo as any).price_adult ?? 0,
-                price_child: (departureInfo as any).price_child ?? 0,
-                price_infant: (departureInfo as any).price_infant ?? 0,
               } : undefined}
               onCouponApplied={(discount, code) => updateFormData({ notes: `coupon:${code}` })}
               onUpdatePassengers={(passengers) => updateFormData({ passengers })}

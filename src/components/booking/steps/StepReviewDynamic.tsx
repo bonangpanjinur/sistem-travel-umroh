@@ -35,9 +35,6 @@ interface StepReviewDynamicProps {
     price_triple: number;
     price_double: number;
     price_single: number;
-    price_adult?: number;
-    price_child?: number;
-    price_infant?: number;
   };
   onCouponApplied?: (discount: number, code: string) => void;
   onReferralApplied?: (code: string) => void;
@@ -60,17 +57,12 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
   // Use departure prices (if available), fallback to package prices
   const priceSource = departurePrices || packageInfo;
   
-  // Check if age-based pricing is available
-  const hasAgeBasedPricing = departurePrices && (
-    (departurePrices.price_adult && departurePrices.price_adult > 0) ||
-    (departurePrices.price_child && departurePrices.price_child > 0) ||
-    (departurePrices.price_infant && departurePrices.price_infant > 0)
-  );
+  const hasAgeBasedPricing = false;
   
   // Get age-based prices if available, otherwise use room prices
-  const adultPrice = hasAgeBasedPricing ? (departurePrices.price_adult || 0) : 0;
-  const childPrice = hasAgeBasedPricing ? (departurePrices.price_child || 0) : 0;
-  const infantPrice = hasAgeBasedPricing ? (departurePrices.price_infant || 0) : 0;
+  const adultPrice = 0;
+  const childPrice = 0;
+  const infantPrice = 0;
   
   const priceMap: Record<RoomType, number> = {
     quad: priceSource.price_quad,
