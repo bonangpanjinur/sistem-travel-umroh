@@ -100,7 +100,7 @@ export default function AdminCustomerDetail() {
         endDate: leaveForm.endDate ? new Date(leaveForm.endDate) : new Date(),
         purpose: leaveForm.purpose,
       };
-      const doc = generateJamaahLeaveLetter(data, `CUTI-JMH/${new Date().getFullYear()}`);
+      const doc = generateJamaahLeaveLetter(data, `CUTI-JMH/${new Date().getFullYear()}`, companyInfo);
       doc.save(`surat-cuti-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
       toast.success('Surat cuti jamaah berhasil diunduh');
       setLeaveLetterOpen(false);
@@ -122,7 +122,7 @@ export default function AdminCustomerDetail() {
         phone: customer.phone || '-',
         purpose: 'Ibadah Umrah',
       };
-      const doc = generatePassportLetter(data, `PASPOR/${new Date().getFullYear()}`);
+      const doc = generatePassportLetter(data, `PASPOR/${new Date().getFullYear()}`, companyInfo);
       doc.save(`surat-paspor-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
       toast.success('Surat permohonan paspor berhasil diunduh');
     } catch (err) {
