@@ -38,6 +38,8 @@ import {
   generateJamaahLeaveLetter, generatePassportLetter,
   type JamaahLeaveLetterData, type PassportLetterData
 } from "@/lib/document-generator";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { Upload } from "lucide-react";
 
 const STATUS_CONFIG = {
   pending: { label: "Menunggu", color: "bg-amber-100 text-amber-800", icon: Clock },
@@ -60,6 +62,7 @@ export default function AdminCustomerDetail() {
   const { id: customerId } = useParams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { company: companyInfo } = useCompanyInfo();
   
   // State for document verification
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -68,6 +71,7 @@ export default function AdminCustomerDetail() {
   const [rejectReason, setRejectReason] = useState("");
   const [leaveLetterOpen, setLeaveLetterOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
   const [leaveForm, setLeaveForm] = useState({
     employerName: "", employerPosition: "", employerInstitution: "", employerAddress: "",
     startDate: "", endDate: "", purpose: "Umrah"
