@@ -277,7 +277,6 @@ export default function PaymentUpload() {
                             setProofFile(file);
                           }
                         }}
-                        required
                       />
                     </label>
                   </div>
