@@ -359,40 +359,6 @@ export function EquipmentChecklist({
           {isSaving || saveMutation.isPending ? "Menyimpan..." : "Simpan Distribusi"}
         </Button>
       </div>
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Penyimpanan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Anda akan menyimpan distribusi perlengkapan untuk {distributedCount} item. Stok akan dikurangi secara otomatis. Lanjutkan?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4 p-3 bg-blue-50 rounded-md">
-            <p className="text-sm font-medium text-blue-900">Ringkasan Perubahan:</p>
-            <ul className="text-xs text-blue-800 mt-2 space-y-1">
-              {Array.from(checkedItems.entries()).map(([equipmentId, item]) => {
-                const equipment = equipmentItems.find((e) => e.id === equipmentId);
-                return (
-                  <li key={equipmentId}>
-                    • {equipment?.name}: {item.quantity}x
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-          <div className="flex gap-3">
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => saveMutation.mutate()}
-              disabled={isSaving || saveMutation.isPending}
-            >
-              {isSaving || saveMutation.isPending ? "Menyimpan..." : "Konfirmasi"}
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
