@@ -625,6 +625,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="suami">Suami</SelectItem>
+                      <SelectItem value="istri">Istri</SelectItem>
                       <SelectItem value="ayah">Ayah</SelectItem>
                       <SelectItem value="anak">Anak Laki-laki</SelectItem>
                       <SelectItem value="saudara">Saudara Kandung</SelectItem>

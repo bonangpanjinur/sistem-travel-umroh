@@ -997,7 +997,18 @@ export default function AdminDepartureDetail() {
                             </TableCell>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
-                                {p.customer?.full_name}
+                                {p.customer?.id ? (
+                                  <Link
+                                    to={`/admin/customers/${p.customer.id}`}
+                                    className="text-primary hover:underline"
+                                  >
+                                    {p.customer.full_name}
+                                  </Link>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    {p.customer?.full_name || "-"}
+                                  </span>
+                                )}
                                 {p.is_main_passenger && (
                                   <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                                     Utama
