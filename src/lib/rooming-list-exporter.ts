@@ -439,6 +439,19 @@ export function exportRoomingListPDF(data: RoomingExportData): void {
   doc.save(fname);
 }
 
+// Preview function - returns PDF as data URL for display
+export function previewRoomingListPDF(data: RoomingExportData): string {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const hotels = data.hotels.length > 0 ? data.hotels : [{ name: '', city: '' }];
+
+  hotels.forEach((hotel, idx) => {
+    if (idx > 0) doc.addPage();
+    renderHotelPage(doc, data, hotel);
+  });
+
+  return doc.output('datauristring');
+}
+
 function renderHotelPage(doc: jsPDF, data: RoomingExportData, hotel: RoomingHotel): void {
   const groups = groupOccupantsByRoom(data.passengers);
   const rows = buildRows(groups, data.departureDate);

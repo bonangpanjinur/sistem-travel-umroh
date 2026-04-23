@@ -20,7 +20,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Database } from "@/integrations/supabase/types";
-import { exportRoomingListExcel, exportRoomingListPDF, type RoomingExportData, type RoomingPassenger, type RoomTypeDB } from "@/lib/rooming-list-exporter";
+import { exportRoomingListExcel, exportRoomingListPDF, previewRoomingListPDF, type RoomingExportData, type RoomingPassenger, type RoomTypeDB } from "@/lib/rooming-list-exporter";
 
 type DepartureRow = Database["public"]["Tables"]["departures"]["Row"];
 type PackageRow = Database["public"]["Tables"]["packages"]["Row"];
@@ -55,6 +55,8 @@ export default function RoomingListPage() {
   const [addRoomDialogOpen, setAddRoomDialogOpen] = useState(false);
   const [assignPassengerDialogOpen, setAssignPassengerDialogOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<ExtendedRoomAssignment | null>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string>("");
   const [roomFormData, setRoomFormData] = useState({
     room_number: "",
     room_type: "quad",
@@ -325,6 +327,15 @@ export default function RoomingListPage() {
     toast.success('Rooming List PDF berhasil di-download');
   };
 
+  const handlePreviewPDF = () => {
+    const data = buildExportData();
+    if (!data) return toast.error('Data belum siap');
+    if (data.passengers.length === 0) return toast.error('Tidak ada jamaah pada keberangkatan ini');
+    const pdfUrl = previewRoomingListPDF(data);
+    setPreviewPdfUrl(pdfUrl);
+    setPreviewDialogOpen(true);
+  };
+
   const totalRooms = rooms?.length || 0;
   const totalCapacity = rooms?.reduce((sum, r) => sum + r.capacity, 0) || 0;
   const totalOccupied = rooms?.reduce((sum, r) => sum + (r.occupants?.length || 0), 0) || 0;
@@ -483,11 +494,14 @@ export default function RoomingListPage() {
               </Select>
             </div>
             <div className="md:col-span-3 flex flex-wrap gap-2 justify-end">
+              <Button variant="outline" onClick={handlePreviewPDF}>
+                <FileText className="h-4 w-4 mr-2" /> Preview PDF
+              </Button>
               <Button variant="outline" onClick={handleExportTemplateExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
               </Button>
               <Button onClick={handleExportTemplatePDF}>
-                <FileText className="h-4 w-4 mr-2" /> Cetak PDF
+                <FileText className="h-4 w-4 mr-2" /> Download PDF
               </Button>
             </div>
           </CardContent>
@@ -686,6 +700,41 @@ export default function RoomingListPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignPassengerDialogOpen(false)}>Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview PDF Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Preview Rooming List</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {previewPdfUrl ? (
+              <iframe
+                src={previewPdfUrl}
+                className="w-full h-[70vh] border rounded-md"
+                title="Rooming List Preview"
+              />
+            ) : (
+              <p className="text-center text-muted-foreground py-8">Memuat preview...</p>
+            )}
+          </div>
+          <DialogFooter className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = previewPdfUrl;
+                link.download = `RoomingList_Preview.pdf`;
+                link.click();
+              }}
+              disabled={!previewPdfUrl}
+            >
+              <Download className="h-4 w-4 mr-2" /> Download PDF
+            </Button>
+            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
