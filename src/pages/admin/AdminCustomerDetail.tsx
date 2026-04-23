@@ -38,6 +38,8 @@ import {
   generateJamaahLeaveLetter, generatePassportLetter,
   type JamaahLeaveLetterData, type PassportLetterData
 } from "@/lib/document-generator";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { Upload } from "lucide-react";
 
 const STATUS_CONFIG = {
   pending: { label: "Menunggu", color: "bg-amber-100 text-amber-800", icon: Clock },
@@ -60,6 +62,7 @@ export default function AdminCustomerDetail() {
   const { id: customerId } = useParams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { company: companyInfo } = useCompanyInfo();
   
   // State for document verification
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -68,6 +71,7 @@ export default function AdminCustomerDetail() {
   const [rejectReason, setRejectReason] = useState("");
   const [leaveLetterOpen, setLeaveLetterOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
   const [leaveForm, setLeaveForm] = useState({
     employerName: "", employerPosition: "", employerInstitution: "", employerAddress: "",
     startDate: "", endDate: "", purpose: "Umrah"
@@ -96,7 +100,7 @@ export default function AdminCustomerDetail() {
         endDate: leaveForm.endDate ? new Date(leaveForm.endDate) : new Date(),
         purpose: leaveForm.purpose,
       };
-      const doc = generateJamaahLeaveLetter(data, `CUTI-JMH/${new Date().getFullYear()}`);
+      const doc = generateJamaahLeaveLetter(data, `CUTI-JMH/${new Date().getFullYear()}`, companyInfo);
       doc.save(`surat-cuti-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
       toast.success('Surat cuti jamaah berhasil diunduh');
       setLeaveLetterOpen(false);
@@ -118,7 +122,7 @@ export default function AdminCustomerDetail() {
         phone: customer.phone || '-',
         purpose: 'Ibadah Umrah',
       };
-      const doc = generatePassportLetter(data, `PASPOR/${new Date().getFullYear()}`);
+      const doc = generatePassportLetter(data, `PASPOR/${new Date().getFullYear()}`, companyInfo);
       doc.save(`surat-paspor-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
       toast.success('Surat permohonan paspor berhasil diunduh');
     } catch (err) {
@@ -239,6 +243,7 @@ export default function AdminCustomerDetail() {
           notes,
           created_at,
           verified_at,
+          document_type_id,
           document_type:document_types(id, name, code)
         `)
         .eq('customer_id', customerId)
@@ -248,6 +253,66 @@ export default function AdminCustomerDetail() {
       return data;
     },
   });
+
+  // Fetch all document types so we can offer upload for any missing one
+  const { data: documentTypes } = useQuery({
+    queryKey: ['document-types-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('document_types')
+        .select('*')
+        .order('is_required', { ascending: false })
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Upload handler — used by both "upload missing" + "replace existing"
+  const handleUploadDocument = async (file: File, documentTypeId: string) => {
+    if (!customerId) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5MB');
+      return;
+    }
+    setUploadingDocType(documentTypeId);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${customerId}/${documentTypeId}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('customer-documents')
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from('customer-documents')
+        .getPublicUrl(fileName);
+
+      const existing = documents?.find((d: any) => d.document_type_id === documentTypeId);
+      if (existing) {
+        const { error: updErr } = await supabase
+          .from('customer_documents')
+          .update({ file_url: urlData.publicUrl, file_name: file.name, status: 'uploaded', updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+        if (updErr) throw updErr;
+      } else {
+        const { error: insErr } = await supabase.from('customer_documents').insert({
+          customer_id: customerId,
+          document_type_id: documentTypeId,
+          file_url: urlData.publicUrl,
+          file_name: file.name,
+          status: 'uploaded',
+        });
+        if (insErr) throw insErr;
+      }
+      toast.success('Dokumen berhasil diupload');
+      queryClient.invalidateQueries({ queryKey: ['admin-customer-documents', customerId] });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Gagal upload dokumen');
+    } finally {
+      setUploadingDocType(null);
+    }
+  };
 
   // Fetch customer bookings
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
@@ -425,18 +490,107 @@ export default function AdminCustomerDetail() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg">Dokumen Persyaratan</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   {documentsLoading ? (
                     <div className="space-y-2">
                       <Skeleton className="h-12 w-full" />
                       <Skeleton className="h-12 w-full" />
                     </div>
-                  ) : !documents || documents.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                      <p>Belum ada dokumen yang diunggah</p>
-                    </div>
                   ) : (
+                    <>
+                    {/* Per-type upload grid */}
+                    <div className="space-y-3">
+                      {documentTypes?.map((dt: any) => {
+                        const existing = documents?.find((d: any) => d.document_type_id === dt.id);
+                        const isUploading = uploadingDocType === dt.id;
+                        const status = existing ? (STATUS_CONFIG[existing.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending) : null;
+                        const StatusIcon = status?.icon;
+                        return (
+                          <div key={dt.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm truncate">{dt.name}</p>
+                                {dt.is_required && <Badge variant="outline" className="text-[10px]">Wajib</Badge>}
+                                {existing && status && StatusIcon && (
+                                  <Badge className={status.color} variant="outline">
+                                    <StatusIcon className="h-3 w-3 mr-1" />
+                                    {status.label}
+                                  </Badge>
+                                )}
+                              </div>
+                              {existing?.file_name && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{existing.file_name}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {existing && (
+                                <>
+                                  <Button variant="outline" size="icon" asChild title="Lihat">
+                                    <a href={existing.file_url} target="_blank" rel="noopener noreferrer">
+                                      <Eye className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="outline" size="icon" title="Verifikasi">
+                                        <CheckCircle className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => { setSelectedDoc(existing); setVerifyDialogOpen(true); }}>
+                                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> Verifikasi
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => { setSelectedDoc(existing); setRejectDialogOpen(true); }}>
+                                        <XCircle className="h-4 w-4 mr-2 text-red-600" /> Tolak
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </>
+                              )}
+                              <Label htmlFor={`doc-upload-${dt.id}`} className="cursor-pointer">
+                                <Button type="button" variant={existing ? 'outline' : 'default'} size="sm" asChild disabled={isUploading}>
+                                  <span>
+                                    {isUploading ? (
+                                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Upload...</>
+                                    ) : (
+                                      <><Upload className="h-4 w-4 mr-1" /> {existing ? 'Ganti' : 'Upload'}</>
+                                    )}
+                                  </span>
+                                </Button>
+                              </Label>
+                              <input
+                                id={`doc-upload-${dt.id}`}
+                                type="file"
+                                accept="image/*,.pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadDocument(file, dt.id);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(!documentTypes || documentTypes.length === 0) && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                          <p>Belum ada jenis dokumen yang dikonfigurasi</p>
+                        </div>
+                      )}
+                    </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Legacy detail table — keep historical uploads in one place */}
+              {documents && documents.length > 0 && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle className="text-base">Riwayat Upload</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -472,29 +626,6 @@ export default function AdminCustomerDetail() {
                                       <Eye className="h-4 w-4" />
                                     </a>
                                   </Button>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" size="icon">
-                                        <CheckCircle className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedDoc(doc);
-                                        setVerifyDialogOpen(true);
-                                      }}>
-                                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                                        Verifikasi
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedDoc(doc);
-                                        setRejectDialogOpen(true);
-                                      }}>
-                                        <XCircle className="h-4 w-4 mr-2 text-red-600" />
-                                        Tolak
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -502,9 +633,9 @@ export default function AdminCustomerDetail() {
                         })}
                       </TableBody>
                     </Table>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Bookings Tab */}

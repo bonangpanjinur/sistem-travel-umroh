@@ -258,7 +258,7 @@ export default function AdminBookingDetail() {
       } : undefined,
     };
 
-    const doc = generateInvoice(invoiceData);
+    const doc = generateInvoice(invoiceData, companyInfo);
     doc.save(`Invoice-${booking.booking_code}.pdf`);
     toast.success('Invoice berhasil di-download');
   };

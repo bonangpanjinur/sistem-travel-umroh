@@ -735,6 +735,13 @@ export default function AdminRoomAssignments() {
                     <TableBody>
                       {filteredPassengers.map(p => {
                         const roommate = p.roommate_id ? passengers?.find(x => x.id === p.roommate_id) : null;
+                        // Candidates: same room_preference + same gender + not self + not already paired with someone else
+                        const candidates = (passengers || []).filter(x =>
+                          x.id !== p.id &&
+                          x.room_preference === p.room_preference &&
+                          x.customer?.gender === p.customer?.gender &&
+                          (!x.roommate_id || x.roommate_id === p.id)
+                        );
                         return (
                           <TableRow key={p.id}>
                             <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
@@ -751,7 +758,32 @@ export default function AdminRoomAssignments() {
                                 onSave={(val) => updateRoomMutation.mutate({ passengerId: p.id, roomNumber: val })}
                               />
                             </TableCell>
-                            <TableCell>{roommate?.customer?.full_name || '-'}</TableCell>
+                            <TableCell>
+                              <Select
+                                value={p.roommate_id || 'none'}
+                                onValueChange={(val) => {
+                                  if (val === 'none') {
+                                    if (p.roommate_id) {
+                                      setUnpairTarget(p.id);
+                                      setUnpairReason('');
+                                      setUnpairReasonOpen(true);
+                                    }
+                                  } else {
+                                    pairMutation.mutate({ passengerId: p.id, roommateId: val, roomNumber: p.room_number || undefined });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-8 min-w-[180px] text-xs">
+                                  <SelectValue placeholder="Pilih teman sekamar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">— Belum dipasangkan —</SelectItem>
+                                  {candidates.map(c => (
+                                    <SelectItem key={c.id} value={c.id}>{c.customer?.full_name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
                             <TableCell><Badge variant="outline">{p.booking?.booking_code}</Badge></TableCell>
                           </TableRow>
                         );
