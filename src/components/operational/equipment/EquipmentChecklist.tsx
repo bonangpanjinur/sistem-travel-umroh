@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Package, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,7 +43,6 @@ export function EquipmentChecklist({
     new Map(existingDistributions.map((d) => [d.equipment_id, { equipmentId: d.equipment_id, quantity: 1 }]))
   );
   const [isSaving, setIsSaving] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Mutation for saving distributions
   const saveMutation = useMutation({
@@ -140,7 +138,6 @@ export function EquipmentChecklist({
       });
       queryClient.invalidateQueries({ queryKey: ["distribution-summary"] });
       setIsSaving(false);
-      setShowConfirmDialog(false);
     },
     onError: (error) => {
       toast.error(`❌ Gagal menyimpan perlengkapan: ${error.message}`);
@@ -184,7 +181,7 @@ export function EquipmentChecklist({
   };
 
   const handleSave = () => {
-    setShowConfirmDialog(true);
+    saveMutation.mutate();
   };
 
   if (equipmentItems.length === 0) {
@@ -362,40 +359,6 @@ export function EquipmentChecklist({
           {isSaving || saveMutation.isPending ? "Menyimpan..." : "Simpan Distribusi"}
         </Button>
       </div>
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Penyimpanan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Anda akan menyimpan distribusi perlengkapan untuk {distributedCount} item. Stok akan dikurangi secara otomatis. Lanjutkan?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4 p-3 bg-blue-50 rounded-md">
-            <p className="text-sm font-medium text-blue-900">Ringkasan Perubahan:</p>
-            <ul className="text-xs text-blue-800 mt-2 space-y-1">
-              {Array.from(checkedItems.entries()).map(([equipmentId, item]) => {
-                const equipment = equipmentItems.find((e) => e.id === equipmentId);
-                return (
-                  <li key={equipmentId}>
-                    • {equipment?.name}: {item.quantity}x
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-          <div className="flex gap-3">
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => saveMutation.mutate()}
-              disabled={isSaving || saveMutation.isPending}
-            >
-              {isSaving || saveMutation.isPending ? "Menyimpan..." : "Konfirmasi"}
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
