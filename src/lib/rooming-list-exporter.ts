@@ -527,7 +527,9 @@ function renderHotelPage(doc: jsPDF, data: RoomingExportData, hotel: RoomingHote
         const nextRow = rows[rowIdx + 1];
         const isLastInGroup = !nextRow || nextRow.groupSpan !== 0;
         if (!isLastInGroup) {
-          hookData.cell.styles.lineWidth = { top: hookData.cell.styles.lineWidth?.top ?? 0.1, right: 0.1, bottom: 0, left: 0.1 } as any;
+          const lw = hookData.cell.styles.lineWidth as any;
+          const topLw = (typeof lw === 'object' && lw && 'top' in lw) ? lw.top : 0.1;
+          hookData.cell.styles.lineWidth = { top: topLw, right: 0.1, bottom: 0, left: 0.1 } as any;
         }
       }
     },
