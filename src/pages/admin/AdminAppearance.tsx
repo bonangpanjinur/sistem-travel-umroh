@@ -22,6 +22,8 @@ import { HeaderFooterSettings } from "@/components/admin/appearance/HeaderFooter
 import { LegalPagesGenerator } from "@/components/admin/appearance/LegalPagesGenerator";
 import { WhatsAppButtonSettings } from "@/components/admin/appearance/WhatsAppButtonSettings";
 import { PackageListCustomization } from "@/components/admin/appearance/PackageListCustomization";
+import { BankAccountsSettings } from "@/components/admin/appearance/BankAccountsSettings";
+import { DocumentLayoutEditor } from "@/components/admin/appearance/DocumentLayoutEditor";
 import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
 import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -210,6 +212,14 @@ export default function AdminAppearance() {
             <FileText className="h-4 w-4" />
             <span>Dokumen & Invoice</span>
           </TabsTrigger>
+          <TabsTrigger value="document-layout" className="gap-2 py-2">
+            <LayoutTemplate className="h-4 w-4" />
+            <span>Layout Dokumen</span>
+          </TabsTrigger>
+          <TabsTrigger value="bank-accounts" className="gap-2 py-2">
+            <CreditCard className="h-4 w-4" />
+            <span>Rekening Bank</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="template">
@@ -367,6 +377,14 @@ export default function AdminAppearance() {
 
         <TabsContent value="document-settings">
           <DocumentSettingsForm />
+        </TabsContent>
+
+        <TabsContent value="document-layout">
+          <DocumentLayoutEditor />
+        </TabsContent>
+
+        <TabsContent value="bank-accounts">
+          <BankAccountsSettings />
         </TabsContent>
       </Tabs>
     </div>

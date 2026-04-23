@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Save, RotateCcw, MapPin, Phone, Mail, MessageCircle } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw, MapPin, Phone, Mail, MessageCircle, Building2, Info } from 'lucide-react';
 import { useContactPageContent, ContactPageContent } from '@/hooks/useContactPageContent';
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useCompanySettings } from '@/hooks/useCompanySettings';
 import { extractIframeUrl } from '@/lib/utils';
 
 const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
@@ -20,7 +21,7 @@ export function ContactPageEditor() {
   const queryClient = useQueryClient();
   const { data: content, isLoading: contentLoading } = useContactPageContent(SETTINGS_ID);
   const { data: settings, isLoading: settingsLoading } = useWebsiteSettings();
-  const updateSettingsMutation = useUpdateWebsiteSettings();
+  const { getSetting } = useCompanySettings();
   
   const [formData, setFormData] = useState<Partial<ContactPageContent>>({
     hero_title: '',
@@ -30,12 +31,13 @@ export function ContactPageEditor() {
     map_url: '',
   });
 
-  const [contactData, setContactData] = useState({
-    footer_address: '',
-    footer_phone: '',
-    footer_email: '',
-    footer_whatsapp: '',
-  });
+  // Master data dari Informasi Perusahaan (read-only)
+  const companyData = {
+    footer_address: getSetting("company_address") || getSetting("footer_address") || '',
+    footer_phone: getSetting("company_phone") || getSetting("footer_phone") || '',
+    footer_email: getSetting("company_email") || getSetting("footer_email") || '',
+    footer_whatsapp: getSetting("footer_whatsapp") || '',
+  };
 
   // Initialize form when content loads
   useEffect(() => {
@@ -50,17 +52,7 @@ export function ContactPageEditor() {
     }
   }, [content]);
 
-  // Initialize contact data when settings load
-  useEffect(() => {
-    if (settings) {
-      setContactData({
-        footer_address: settings.footer_address || '',
-        footer_phone: settings.footer_phone || '',
-        footer_email: settings.footer_email || '',
-        footer_whatsapp: settings.footer_whatsapp || '',
-      });
-    }
-  }, [settings]);
+  // Master data untuk informasi kontak (diambil otomatis dari Informasi Perusahaan)
 
   // Mutation for saving page content
   const saveContentMutation = useMutation({
@@ -139,15 +131,12 @@ export function ContactPageEditor() {
 
   const handleSave = async () => {
     try {
-      // Save page content
+      // Save page content only (contact info comes from master data)
       await saveContentMutation.mutateAsync(formData);
-      
-      // Save contact info to website_settings
-      await updateSettingsMutation.mutateAsync(contactData);
       
       toast({
         title: 'Berhasil',
-        description: 'Semua perubahan konten kontak berhasil disimpan',
+        description: 'Konten halaman kontak berhasil disimpan. Informasi kontak diambil otomatis dari Informasi Perusahaan.',
       });
     } catch (error: any) {
       toast({
@@ -166,14 +155,6 @@ export function ContactPageEditor() {
         form_title: content.form_title || '',
         operating_hours: content.operating_hours || [],
         map_url: content.map_url || '',
-      });
-    }
-    if (settings) {
-      setContactData({
-        footer_address: settings.footer_address || '',
-        footer_phone: settings.footer_phone || '',
-        footer_email: settings.footer_email || '',
-        footer_whatsapp: settings.footer_whatsapp || '',
       });
     }
     toast({
@@ -279,55 +260,76 @@ export function ContactPageEditor() {
         </div>
 
         <div className="space-y-6">
-          {/* Contact Info Cards (Sidebar in Frontend) */}
-          <Card>
+          {/* Contact Info Cards (from Master Data - Read Only) */}
+          <Card className="border-primary/20 bg-primary/5">
             <CardHeader>
-              <CardTitle>Informasi Kontak Utama</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Informasi Kontak
+                <Badge variant="secondary" className="ml-auto">Master Data</Badge>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+                  <p className="text-sm text-blue-700">
+                    Informasi kontak diambil otomatis dari <strong>Informasi Perusahaan</strong>. 
+                    Untuk mengubah, silakan edit di tab <strong>Informasi Perusahaan</strong>.
+                  </p>
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-primary" />
+                <Label className="flex items-center gap-2 text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
                   Alamat Kantor
                 </Label>
                 <Textarea
-                  value={contactData.footer_address}
-                  onChange={(e) => setContactData({ ...contactData, footer_address: e.target.value })}
-                  placeholder="Jl. Masjid Agung No. 123..."
+                  value={companyData.footer_address}
+                  readOnly
+                  disabled
+                  placeholder="Tidak ada alamat"
                   rows={2}
+                  className="bg-muted/50"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-primary" />
+                <Label className="flex items-center gap-2 text-muted-foreground">
+                  <Phone className="h-4 w-4" />
                   Nomor Telepon
                 </Label>
                 <Input
-                  value={contactData.footer_phone}
-                  onChange={(e) => setContactData({ ...contactData, footer_phone: e.target.value })}
-                  placeholder="+62 21 1234567"
+                  value={companyData.footer_phone}
+                  readOnly
+                  disabled
+                  placeholder="Tidak ada telepon"
+                  className="bg-muted/50"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary" />
+                <Label className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="h-4 w-4" />
                   Email
                 </Label>
                 <Input
-                  value={contactData.footer_email}
-                  onChange={(e) => setContactData({ ...contactData, footer_email: e.target.value })}
-                  placeholder="info@example.com"
+                  value={companyData.footer_email}
+                  readOnly
+                  disabled
+                  placeholder="Tidak ada email"
+                  className="bg-muted/50"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-primary" />
+                <Label className="flex items-center gap-2 text-muted-foreground">
+                  <MessageCircle className="h-4 w-4" />
                   WhatsApp
                 </Label>
                 <Input
-                  value={contactData.footer_whatsapp}
-                  onChange={(e) => setContactData({ ...contactData, footer_whatsapp: e.target.value })}
-                  placeholder="6281234567890"
+                  value={companyData.footer_whatsapp || '-'}
+                  readOnly
+                  disabled
+                  placeholder="Tidak ada WhatsApp"
+                  className="bg-muted/50"
                 />
               </div>
             </CardContent>
