@@ -441,6 +441,59 @@ export default function RoomingListPage() {
         </CardContent>
       </Card>
 
+      {/* Export sesuai template */}
+      {selectedDepartureId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5" />
+              Cetak Rooming List (Format Resmi)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label htmlFor="welcome-board">Welcome Board</Label>
+              <Input
+                id="welcome-board"
+                value={welcomeBoard}
+                onChange={(e) => setWelcomeBoard(e.target.value)}
+                placeholder="Default: nama paket"
+              />
+            </div>
+            <div>
+              <Label htmlFor="time-limit">Time Limit</Label>
+              <Input
+                id="time-limit"
+                value={timeLimit}
+                onChange={(e) => setTimeLimit(e.target.value)}
+                placeholder="cth: 03:00 PM"
+              />
+            </div>
+            <div>
+              <Label htmlFor="hotel-scope">Hotel</Label>
+              <Select value={exportHotelScope} onValueChange={(v) => setExportHotelScope(v as "both" | "makkah" | "madinah")}>
+                <SelectTrigger id="hotel-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="both">Makkah &amp; Madinah</SelectItem>
+                  <SelectItem value="makkah">Hanya Makkah</SelectItem>
+                  <SelectItem value="madinah">Hanya Madinah</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-3 flex flex-wrap gap-2 justify-end">
+              <Button variant="outline" onClick={handleExportTemplateExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
+              </Button>
+              <Button onClick={handleExportTemplatePDF}>
+                <FileText className="h-4 w-4 mr-2" /> Cetak PDF
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {selectedDepartureId && selectedHotelId && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
