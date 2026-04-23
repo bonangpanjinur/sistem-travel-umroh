@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Save, RotateCcw, MapPin, Phone, Mail, MessageCircle, Building2, Info } from 'lucide-react';
 import { useContactPageContent, ContactPageContent } from '@/hooks/useContactPageContent';
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useState, useEffect } from 'react';
 import { useCompanySettings } from '@/hooks/useCompanySettings';
 import { extractIframeUrl } from '@/lib/utils';
 
@@ -21,6 +22,7 @@ export function ContactPageEditor() {
   const queryClient = useQueryClient();
   const { data: content, isLoading: contentLoading } = useContactPageContent(SETTINGS_ID);
   const { data: settings, isLoading: settingsLoading } = useWebsiteSettings();
+  const updateSettingsMutation = useUpdateWebsiteSettings();
   const { getSetting } = useCompanySettings();
   
   const [formData, setFormData] = useState<Partial<ContactPageContent>>({
@@ -190,32 +192,80 @@ export function ContactPageEditor() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="space-y-6">
+          {/* Identitas Kantor & Kontak (Master Data) */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Identitas Kantor & Kontak
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Data ini diambil dari <strong>Informasi Perusahaan</strong> dan akan ditampilkan di halaman kontak serta footer.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> Alamat Kantor
+                  </Label>
+                  <p className="text-sm font-medium leading-relaxed">{companyData.footer_address || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> No. Telepon
+                  </Label>
+                  <p className="text-sm font-medium">{companyData.footer_phone || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> Email
+                  </Label>
+                  <p className="text-sm font-medium">{companyData.footer_email || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" /> WhatsApp
+                  </Label>
+                  <p className="text-sm font-medium">{companyData.footer_whatsapp || '-'}</p>
+                </div>
+              </div>
+              <Separator />
+              <div className="flex items-center gap-2 p-2 bg-blue-50 text-blue-700 rounded-md text-[11px] border border-blue-100">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                <p>
+                  Untuk mengubah data di atas, silakan buka tab <strong>Informasi Perusahaan</strong>.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Hero Section */}
           <Card>
             <CardHeader>
-              <CardTitle>Bagian Hero</CardTitle>
+              <CardTitle>Konten Halaman Kontak</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="hero_title">Judul Hero</Label>
                 <Input
                   id="hero_title"
-                  value={formData.hero_title || ''}
+                  value={formData.hero_title}
                   onChange={(e) => setFormData({ ...formData, hero_title: e.target.value })}
-                  placeholder="Ada Pertanyaan?"
+                  placeholder="Contoh: Hubungi Kami"
                 />
               </div>
               <div>
-                <Label htmlFor="hero_subtitle">Subtitle Hero</Label>
+                <Label htmlFor="hero_subtitle">Sub-judul Hero</Label>
                 <Textarea
                   id="hero_subtitle"
-                  value={formData.hero_subtitle || ''}
+                  value={formData.hero_subtitle}
                   onChange={(e) => setFormData({ ...formData, hero_subtitle: e.target.value })}
-                  placeholder="Tim kami siap membantu merencanakan perjalanan ibadah Anda..."
-                  rows={3}
+                  placeholder="Contoh: Kami siap membantu merencanakan perjalanan ibadah Anda"
                 />
               </div>
             </CardContent>
+          </Card></CardContent>
           </Card>
 
           {/* Form Section */}

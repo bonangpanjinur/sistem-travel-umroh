@@ -1024,12 +1024,12 @@ export default function AdminDepartureDetail() {
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 {p.customer?.id ? (
-                                  <button
-                                    onClick={() => setEditingPassenger(p.customer)}
+                                  <Link
+                                    to={`/admin/customers/${p.customer.id}`}
                                     className="text-primary hover:underline cursor-pointer"
                                   >
                                     {p.customer.full_name}
-                                  </button>
+                                  </Link>
                                 ) : (
                                   <span className="text-muted-foreground">
                                     {p.customer?.full_name || "-"}

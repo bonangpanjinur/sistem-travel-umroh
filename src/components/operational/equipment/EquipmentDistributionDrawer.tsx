@@ -110,15 +110,14 @@ export function EquipmentDistributionDialog({
         const { error } = await supabase.from("equipment_distributions").insert(insertData);
         if (error) throw error;
         
-        // Bulk update stock (decrease)
-        const stockUpdates = itemsToAdd.map((equipmentId) => {
+        // Update stock (decrease)
+        await Promise.all(itemsToAdd.map(async (equipmentId) => {
           const item = allEquipmentItems?.find((e) => e.id === equipmentId);
           const qty = checkedItems.get(equipmentId)?.quantity || 1;
-          return { id: equipmentId, newStock: Math.max(0, (item?.stock_quantity || 0) - qty) };
-        });
-        for (const update of stockUpdates) {
-          await supabase.from("equipment_items").update({ stock_quantity: update.newStock }).eq("id", update.id);
-        }
+          const newStock = Math.max(0, (item?.stock_quantity || 0) - qty);
+          const { error } = await supabase.from("equipment_items").update({ stock_quantity: newStock }).eq("id", equipmentId);
+          if (error) throw error;
+        }));
       }
 
       if (itemsToRemove.length > 0) {
@@ -135,13 +134,14 @@ export function EquipmentDistributionDialog({
           const distIds = distToRemove.map((d) => d.id);
           await supabase.from("equipment_distributions").delete().in("id", distIds);
           
-          // Bulk restore stock
-          for (const dist of distToRemove) {
+          // Restore stock (increase)
+          await Promise.all(distToRemove.map(async (dist) => {
             const item = allEquipmentItems?.find((e) => e.id === dist.equipment_id);
             if (item) {
-              await supabase.from("equipment_items").update({ stock_quantity: (item.stock_quantity || 0) + (dist.quantity || 1) }).eq("id", dist.equipment_id);
+              const { error } = await supabase.from("equipment_items").update({ stock_quantity: (item.stock_quantity || 0) + (dist.quantity || 1) }).eq("id", dist.equipment_id);
+              if (error) throw error;
             }
-          }
+          }));
         }
       }
     },
@@ -150,10 +150,17 @@ export function EquipmentDistributionDialog({
       queryClient.invalidateQueries({ queryKey: ["equipment-distributions"] });
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
       queryClient.invalidateQueries({ queryKey: ["customer-distributions", jamaahId, departureId] });
+      
+      // Close confirm dialog first, then main dialog with a small delay to prevent Radix UI freeze
       setShowConfirmDialog(false);
-      onOpenChange(false);
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 100);
     },
-    onError: (error) => toast.error(`Gagal menyimpan: ${error.message}`),
+    onError: (error) => {
+      toast.error(`Gagal menyimpan: ${error.message}`);
+      setShowConfirmDialog(false);
+    },
   });
 
   const handleCheckItem = (id: string) => {

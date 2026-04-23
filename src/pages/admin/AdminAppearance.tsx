@@ -124,41 +124,54 @@ export default function AdminAppearance() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 bg-muted/50 p-1">
+          <div className="w-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Identitas & Kontak</div>
+          <TabsTrigger value="company-info" className="gap-2 py-2">
+            <Building2 className="h-4 w-4" />
+            <span>Informasi Perusahaan</span>
+          </TabsTrigger>
+          <TabsTrigger value="contact-page" className="gap-2 py-2">
+            <MessageCircle className="h-4 w-4" />
+            <span>Editor Hal. Kontak</span>
+          </TabsTrigger>
+          <TabsTrigger value="bank-accounts" className="gap-2 py-2">
+            <CreditCard className="h-4 w-4" />
+            <span>Rekening Bank</span>
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="gap-2 py-2">
+            <MessageCircleMore className="h-4 w-4" />
+            <span>WhatsApp</span>
+          </TabsTrigger>
+
+          <div className="w-full px-2 py-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Tema & Branding</div>
           <TabsTrigger value="template" className="gap-2 py-2">
             <LayoutTemplate className="h-4 w-4" />
             <span>Template</span>
           </TabsTrigger>
           <TabsTrigger value="themes" className="gap-2 py-2">
             <Palette className="h-4 w-4" />
-            <span>Tema</span>
+            <span>Tema Preset</span>
+          </TabsTrigger>
+          <TabsTrigger value="branding" className="gap-2 py-2">
+            <Image className="h-4 w-4" />
+            <span>Logo & Favicon</span>
           </TabsTrigger>
           <TabsTrigger value="colors" className="gap-2 py-2">
             <Settings2 className="h-4 w-4" />
-            <span>Warna</span>
+            <span>Kustom Warna</span>
           </TabsTrigger>
           <TabsTrigger value="typography" className="gap-2 py-2">
             <Type className="h-4 w-4" />
             <span>Font</span>
           </TabsTrigger>
-          <TabsTrigger value="branding" className="gap-2 py-2">
-            <Image className="h-4 w-4" />
-            <span>Branding</span>
-          </TabsTrigger>
+
+          <div className="w-full px-2 py-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Konten & Halaman</div>
           <TabsTrigger value="layout" className="gap-2 py-2">
             <Layout className="h-4 w-4" />
-            <span>Layout</span>
+            <span>Beranda</span>
           </TabsTrigger>
           <TabsTrigger value="sections" className="gap-2 py-2">
             <Sliders className="h-4 w-4" />
-            <span>Sections</span>
-          </TabsTrigger>
-          <TabsTrigger value="package-design" className="gap-2 py-2">
-            <Square className="h-4 w-4" />
-            <span>Card Paket</span>
-          </TabsTrigger>
-          <TabsTrigger value="nav-menu" className="gap-2 py-2">
-            <Menu className="h-4 w-4" />
-            <span>Menu Header</span>
+            <span>Custom Section</span>
           </TabsTrigger>
           <TabsTrigger value="about-page" className="gap-2 py-2">
             <Users className="h-4 w-4" />
@@ -166,15 +179,7 @@ export default function AdminAppearance() {
           </TabsTrigger>
           <TabsTrigger value="savings-page" className="gap-2 py-2">
             <Wallet className="h-4 w-4" />
-            <span>Tabungan</span>
-          </TabsTrigger>
-          <TabsTrigger value="contact-page" className="gap-2 py-2">
-            <MessageCircle className="h-4 w-4" />
-            <span>Hubungi</span>
-          </TabsTrigger>
-          <TabsTrigger value="seo" className="gap-2 py-2">
-            <Search className="h-4 w-4" />
-            <span>SEO</span>
+            <span>Program Tabungan</span>
           </TabsTrigger>
           <TabsTrigger value="testimonials" className="gap-2 py-2">
             <MessageSquare className="h-4 w-4" />
@@ -188,6 +193,12 @@ export default function AdminAppearance() {
             <Bell className="h-4 w-4" />
             <span>Pengumuman</span>
           </TabsTrigger>
+
+          <div className="w-full px-2 py-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Navigasi & Footer</div>
+          <TabsTrigger value="nav-menu" className="gap-2 py-2">
+            <Menu className="h-4 w-4" />
+            <span>Menu Header</span>
+          </TabsTrigger>
           <TabsTrigger value="header-footer" className="gap-2 py-2">
             <Settings className="h-4 w-4" />
             <span>Header & Footer</span>
@@ -196,29 +207,27 @@ export default function AdminAppearance() {
             <FileText className="h-4 w-4" />
             <span>Halaman Legal</span>
           </TabsTrigger>
-          <TabsTrigger value="whatsapp" className="gap-2 py-2">
-            <MessageCircleMore className="h-4 w-4" />
-            <span>WhatsApp</span>
+          <TabsTrigger value="seo" className="gap-2 py-2">
+            <Search className="h-4 w-4" />
+            <span>SEO & Meta</span>
           </TabsTrigger>
+
+          <div className="w-full px-2 py-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Desain Paket & Dokumen</div>
           <TabsTrigger value="package-list" className="gap-2 py-2">
             <Package className="h-4 w-4" />
             <span>Daftar Paket</span>
           </TabsTrigger>
-          <TabsTrigger value="company-info" className="gap-2 py-2">
-            <Building2 className="h-4 w-4" />
-            <span>Informasi Perusahaan</span>
+          <TabsTrigger value="package-design" className="gap-2 py-2">
+            <Square className="h-4 w-4" />
+            <span>Card Paket</span>
           </TabsTrigger>
           <TabsTrigger value="document-settings" className="gap-2 py-2">
             <FileText className="h-4 w-4" />
-            <span>Dokumen & Invoice</span>
+            <span>Pengaturan Invoice</span>
           </TabsTrigger>
           <TabsTrigger value="document-layout" className="gap-2 py-2">
             <LayoutTemplate className="h-4 w-4" />
             <span>Layout Dokumen</span>
-          </TabsTrigger>
-          <TabsTrigger value="bank-accounts" className="gap-2 py-2">
-            <CreditCard className="h-4 w-4" />
-            <span>Rekening Bank</span>
           </TabsTrigger>
         </TabsList>
 

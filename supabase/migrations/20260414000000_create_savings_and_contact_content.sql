@@ -34,26 +34,14 @@ ALTER TABLE public.contact_page_content ENABLE ROW LEVEL SECURITY;
 
 -- Policies for savings_page_content
 CREATE POLICY "Public read savings content" ON public.savings_page_content FOR SELECT USING (true);
-CREATE POLICY "Insert savings content" ON public.savings_page_content FOR INSERT WITH CHECK (
-  auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
-);
-CREATE POLICY "Update own savings content" ON public.savings_page_content FOR UPDATE USING (
-  auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
-);
-CREATE POLICY "Delete own savings content" ON public.savings_page_content FOR DELETE USING (
-  auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
+CREATE POLICY "Manage savings content" ON public.savings_page_content FOR ALL USING (
+  public.is_admin(auth.uid()) OR auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
 );
 
 -- Policies for contact_page_content
 CREATE POLICY "Public read contact content" ON public.contact_page_content FOR SELECT USING (true);
-CREATE POLICY "Insert contact content" ON public.contact_page_content FOR INSERT WITH CHECK (
-  auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
-);
-CREATE POLICY "Update own contact content" ON public.contact_page_content FOR UPDATE USING (
-  auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
-);
-CREATE POLICY "Delete own contact content" ON public.contact_page_content FOR DELETE USING (
-  auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
+CREATE POLICY "Manage contact content" ON public.contact_page_content FOR ALL USING (
+  public.is_admin(auth.uid()) OR auth.uid() = (SELECT ws.user_id FROM public.website_settings ws WHERE ws.id = settings_id)
 );
 
 -- Triggers for updated_at
