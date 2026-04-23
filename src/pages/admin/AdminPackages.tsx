@@ -70,7 +70,10 @@ import {
 } from "@/lib/export-utils-enhanced";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Share2 } from "lucide-react";
+import { Share2, Settings2 } from "lucide-react";
+import { PackageChangeSettingsDialog } from "@/components/admin/packages/PackageChangeSettingsDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useDynamicMenus } from "@/hooks/useDynamicMenus";
 
 export default function AdminPackages() {
   const getUpcomingDepartures = (departures: any[]) => {
@@ -100,8 +103,13 @@ export default function AdminPackages() {
   const [isExporting, setIsExporting] = useState(false);
   const [isManifestDialogOpen, setIsManifestDialogOpen] = useState(false);
   const [selectedPackageForManifest, setSelectedPackageForManifest] = useState<any>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const queryClient = useQueryClient();
+  const { isSuperAdmin, hasRole } = useAuth();
+  const { revokedKeys } = useDynamicMenus();
+  
+  const canManagePackageChange = isSuperAdmin() || hasRole('owner') || !revokedKeys.includes('settings-package-change');
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
   const { data: analytics, isLoading: isAnalyticsLoading } = usePackageAnalytics();
   
@@ -513,6 +521,16 @@ export default function AdminPackages() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {canManagePackageChange && (
+              <Button 
+                variant="outline"
+                onClick={() => setIsSettingsOpen(true)}
+                className="gap-2 shadow-sm rounded-xl border-primary/20 text-primary"
+              >
+                <Settings2 className="h-4 w-4" />
+                Atur Denda Pindah
+              </Button>
+            )}
             <Button onClick={() => handleAddPackage("regular")} className="gap-2 shadow-sm bg-primary hover:bg-primary/90 rounded-xl">
               <Plus className="h-4 w-4" />
               Paket Reguler
@@ -1331,6 +1349,11 @@ export default function AdminPackages() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <PackageChangeSettingsDialog 
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
       </div>
     </TooltipProvider>
   );

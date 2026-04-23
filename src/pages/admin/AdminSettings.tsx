@@ -51,18 +51,7 @@ const certificateSchema = z.object({
 
 type CertificateFormData = z.infer<typeof certificateSchema>;
 
-const packageChangeSchema = z.object({
-  package_change_deadline_days: z.preprocess(
-    (val) => Number(String(val).replace(/[^0-9]/g, "")),
-    z.number().min(0, "Batas hari tidak boleh negatif")
-  ),
-  package_change_penalty_fee: z.preprocess(
-    (val) => Number(String(val).replace(/[^0-9]/g, "")),
-    z.number().min(0, "Denda tidak boleh negatif")
-  ),
-});
 
-type PackageChangeFormData = z.infer<typeof packageChangeSchema>;
 
 export default function AdminSettings() {
   const { getSetting, updateMultipleSettings, resetDatabase, isLoading, isUpdating } = useCompanySettings();
@@ -77,7 +66,7 @@ export default function AdminSettings() {
 
   const { isSuperAdmin, hasRole } = useAuth();
   
-  const canManagePackageChange = isSuperAdmin() || hasRole('owner') || !revokedKeys.includes('settings-package-change');
+
 
   const companyForm = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -107,13 +96,7 @@ export default function AdminSettings() {
     },
   });
 
-  const packageChangeForm = useForm<PackageChangeFormData>({
-    resolver: zodResolver(packageChangeSchema),
-    defaultValues: {
-      package_change_deadline_days: 60,
-      package_change_penalty_fee: 0,
-    },
-  });
+
 
   // Initialize company form when settings load (deps must be stable to avoid infinite loop)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,10 +141,7 @@ export default function AdminSettings() {
       certificateForm.reset({
         certificate_cost_per_owner: parseFloat(getSetting("certificate_cost_per_owner")) || 0,
       });
-      packageChangeForm.reset({
-        package_change_deadline_days: parseInt(getSetting("package_change_deadline_days")) || 60,
-        package_change_penalty_fee: parseFloat(getSetting("package_change_penalty_fee")) || 0,
-      });
+
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
@@ -197,12 +177,7 @@ export default function AdminSettings() {
     ]);
   };
 
-  const onSavePackageChange = (data: PackageChangeFormData) => {
-    updateMultipleSettings([
-      { key: "package_change_deadline_days", value: data.package_change_deadline_days },
-      { key: "package_change_penalty_fee", value: data.package_change_penalty_fee },
-    ]);
-  };
+
 
   const handleResetDatabase = async () => {
     if (resetConfirm !== "RESET DATABASE SEKARANG") return;
@@ -232,76 +207,7 @@ export default function AdminSettings() {
       {/* Change Password */}
       <ChangePassword />
 
-      {/* Package Change Settings */}
-      {canManagePackageChange && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Plane className="h-5 w-5" />
-              Pengaturan Pindah Paket
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Memuat pengaturan...
-              </div>
-            ) : (
-              <Form {...packageChangeForm}>
-                <form onSubmit={packageChangeForm.handleSubmit(onSavePackageChange)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={packageChangeForm.control}
-                      name="package_change_deadline_days"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Batas Hari Pindah Paket (H-X)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="60"
-                              {...field}
-                            />
-                          </FormControl>
-                          <p className="text-[10px] text-muted-foreground">
-                            Gratis biaya pindah jika dilakukan sebelum H-X hari keberangkatan.
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={packageChangeForm.control}
-                      name="package_change_penalty_fee"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Denda Pindah Paket (Rp)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="0"
-                              {...field}
-                            />
-                          </FormControl>
-                          <p className="text-[10px] text-muted-foreground">
-                            Biaya tambahan jika pindah paket kurang dari batas hari yang ditentukan.
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Simpan Perubahan
-                  </Button>
-                </form>
-              </Form>
-            )}
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Certificate Settings (Super Admin Only) */}
       {isSuperAdmin() && (
