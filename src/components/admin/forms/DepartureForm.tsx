@@ -63,6 +63,10 @@ const departureSchema = z.object({
   price_triple: z.coerce.number().min(0).default(0),
   price_double: z.coerce.number().min(0).default(0),
   price_single: z.coerce.number().min(0).default(0),
+  // Age-based pricing
+  price_adult: z.coerce.number().min(0).default(0),
+  price_child: z.coerce.number().min(0).default(0),
+  price_infant: z.coerce.number().min(0).default(0),
   // Phase 3: Milestone & Deadline Alert Tracker
   document_deadline: z.string().optional().nullable(),
   payment_deadline: z.string().optional().nullable(),
@@ -205,6 +209,9 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
       price_triple: departureData?.price_triple || 0,
       price_double: departureData?.price_double || 0,
       price_single: departureData?.price_single || 0,
+      price_adult: (departureData as any)?.price_adult || 0,
+      price_child: (departureData as any)?.price_child || 0,
+      price_infant: (departureData as any)?.price_infant || 0,
       document_deadline: (departureData as any)?.document_deadline || "",
       payment_deadline: (departureData as any)?.payment_deadline || "",
       visa_deadline: (departureData as any)?.visa_deadline || "",
@@ -928,6 +935,58 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs">Single (1)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Age-based Pricing */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-sm text-muted-foreground">Harga Berdasarkan Usia</h3>
+            <p className="text-[10px] text-muted-foreground italic">* Kosongkan atau set 0 untuk tidak menggunakan harga usia</p>
+          </div>
+          
+          <div className="grid gap-4 grid-cols-3">
+            <FormField
+              control={form.control}
+              name="price_adult"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Dewasa (&gt; 12 th)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price_child"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Anak (2-12 th)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price_infant"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Balita (&lt; 2 th)</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} />
                   </FormControl>

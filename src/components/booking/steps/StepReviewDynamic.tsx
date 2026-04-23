@@ -35,6 +35,9 @@ interface StepReviewDynamicProps {
     price_triple: number;
     price_double: number;
     price_single: number;
+    price_adult?: number;
+    price_child?: number;
+    price_infant?: number;
   };
   onCouponApplied?: (discount: number, code: string) => void;
   onReferralApplied?: (code: string) => void;
@@ -56,6 +59,19 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
 
   // Use departure prices (if available), fallback to package prices
   const priceSource = departurePrices || packageInfo;
+  
+  // Check if age-based pricing is available
+  const hasAgeBasedPricing = departurePrices && (
+    (departurePrices.price_adult && departurePrices.price_adult > 0) ||
+    (departurePrices.price_child && departurePrices.price_child > 0) ||
+    (departurePrices.price_infant && departurePrices.price_infant > 0)
+  );
+  
+  // Get age-based prices if available, otherwise use room prices
+  const adultPrice = hasAgeBasedPricing ? (departurePrices.price_adult || 0) : 0;
+  const childPrice = hasAgeBasedPricing ? (departurePrices.price_child || 0) : 0;
+  const infantPrice = hasAgeBasedPricing ? (departurePrices.price_infant || 0) : 0;
+  
   const priceMap: Record<RoomType, number> = {
     quad: priceSource.price_quad,
     triple: priceSource.price_triple,
@@ -63,18 +79,34 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
     single: priceSource.price_single,
   };
 
-  // Calculate price breakdown by room type
+  // Get price based on passenger type (adult/child/infant) or room type
+  const getPassengerPrice = (passenger: any) => {
+    if (hasAgeBasedPricing && passenger.passengerType) {
+      switch (passenger.passengerType) {
+        case 'adult': return adultPrice;
+        case 'child': return childPrice;
+        case 'infant': return infantPrice;
+        default: return priceMap[passenger.roomType] || 0;
+      }
+    }
+    return priceMap[passenger.roomType] || 0;
+  };
+
+  // Calculate price breakdown by room type and passenger type
   const priceBreakdown = formData.passengers.reduce((acc, p) => {
     const roomType = p.roomType;
-    if (!acc[roomType]) {
-      acc[roomType] = { count: 0, price: priceMap[roomType], total: 0 };
+    const passengerType = p.passengerType || 'adult';
+    const key = `${roomType}-${passengerType}`;
+    if (!acc[key]) {
+      acc[key] = { count: 0, price: getPassengerPrice(p), total: 0, roomType, passengerType };
     }
-    acc[roomType].count++;
-    acc[roomType].total += priceMap[roomType];
+    acc[key].count++;
+    acc[key].total += getPassengerPrice(p);
     return acc;
-  }, {} as Record<RoomType, { count: number; price: number; total: number }>);
+  }, {} as Record<string, { count: number; price: number; total: number; roomType: string; passengerType: string }>);
 
-  const subtotal = formData.passengers.reduce((sum, p) => sum + priceMap[p.roomType], 0);
+  // Calculate subtotal with age-based pricing if available
+  const subtotal = formData.passengers.reduce((sum, p) => sum + getPassengerPrice(p), 0);
   const discountAmount = couponResult?.valid ? couponResult.discount : 0;
   const totalPrice = Math.max(0, subtotal - discountAmount);
 

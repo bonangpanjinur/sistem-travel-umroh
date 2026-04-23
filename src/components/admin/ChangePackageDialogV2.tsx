@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { Loader2, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertTriangle, Info, CheckCircle2, TrendingUp } from "lucide-react";
 import { useCalculatePackageChangePenalty } from "@/hooks/usePackageChangeRules";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -43,6 +43,52 @@ export function ChangePackageDialogV2({
   const queryClient = useQueryClient();
   const [selectedDepartureId, setSelectedDepartureId] = useState<string>("");
   const [daysToDeparture, setDaysToDeparture] = useState<number>(0);
+  const [upgradeFee, setUpgradeFee] = useState<number>(0);
+
+  // Fetch current departure price to compare
+  const { data: currentDeparture } = useQuery({
+    queryKey: ["current-departure-price", currentDepartureId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departures")
+        .select("id, price_quad, price_triple, price_double, price_single, package:packages(id, name, price_quad, price_triple, price_double, price_single)")
+        .eq("id", currentDepartureId)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!currentDepartureId,
+  });
+
+  // Fetch new departure price when selected
+  const { data: newDeparturePrices } = useQuery({
+    queryKey: ["new-departure-prices", selectedDepartureId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departures")
+        .select("id, price_quad, price_triple, price_double, price_single")
+        .eq("id", selectedDepartureId)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!selectedDepartureId,
+  });
+
+  // Calculate upgrade fee when new departure is selected
+  useEffect(() => {
+    if (selectedDepartureId && currentDeparture && newDeparturePrices) {
+      const currentPrice = currentDeparture.price_quad || currentDeparture.package?.price_quad || 0;
+      const newPrice = newDeparturePrices.price_quad || 0;
+      if (newPrice > currentPrice) {
+        setUpgradeFee(newPrice - currentPrice);
+      } else {
+        setUpgradeFee(0);
+      }
+    } else {
+      setUpgradeFee(0);
+    }
+  }, [selectedDepartureId, currentDeparture, newDeparturePrices]);
 
   // Fetch penalty info for current package
   const { data: penaltyInfo, isLoading: isLoadingPenalty } =
@@ -84,7 +130,51 @@ export function ChangePackageDialogV2({
     mutationFn: async () => {
       if (!selectedDepartureId) throw new Error("Pilih paket tujuan terlebih dahulu");
 
-      // 1. Update booking departure_id
+      // 1. Get current booking info to find current package price
+      const { data: currentBooking, error: bookingError } = await supabase
+        .from("bookings")
+        .select(`
+          id,
+          departure:departures(
+            id,
+            package_id,
+            price_quad,
+            price_triple,
+            price_double,
+            price_single
+          )
+        `)
+        .eq("id", bookingId)
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      // 2. Get new departure/package price info
+      const { data: newDeparture, error: newDepError } = await supabase
+        .from("departures")
+        .select(`
+          id,
+          package:packages(id, name, price_quad, price_triple, price_double, price_single)
+        `)
+        .eq("id", selectedDepartureId)
+        .single();
+
+      if (newDepError) throw newDepError;
+
+      // 3. Calculate upgrade fee if new package is more expensive
+      let upgradeFee = 0;
+      const currentPackagePrices = currentBooking?.departure?.package || {};
+      const newPackagePrices = newDeparture?.package || {};
+      
+      // Get the lowest price available (assuming quad as baseline)
+      const currentPrice = currentBooking?.departure?.price_quad || currentPackagePrices.price_quad || 0;
+      const newPrice = newDeparture?.price_quad || newPackagePrices.price_quad || 0;
+      
+      if (newPrice > currentPrice) {
+        upgradeFee = newPrice - currentPrice;
+      }
+
+      // 4. Update booking departure_id
       const { error: updateError } = await supabase
         .from("bookings")
         .update({
@@ -95,7 +185,7 @@ export function ChangePackageDialogV2({
 
       if (updateError) throw updateError;
 
-      // 2. If there's a penalty, create a payment record
+      // 5. If there's a penalty, create a payment record
       if (penaltyInfo?.applicable && penaltyInfo.penaltyAmount > 0) {
         const { error: paymentError } = await supabase
           .from("payments")
@@ -111,7 +201,23 @@ export function ChangePackageDialogV2({
         if (paymentError) console.error("Gagal mencatat denda:", paymentError);
       }
 
-      return true;
+      // 6. If there's an upgrade fee, create a payment record
+      if (upgradeFee > 0) {
+        const { error: upgradeError } = await supabase
+          .from("payments")
+          .insert({
+            booking_id: bookingId,
+            amount: upgradeFee,
+            payment_method: "manual",
+            payment_type: "other",
+            status: "pending",
+            notes: `Selisih upgrade paket (dari Rp ${formatCurrency(currentPrice)} ke Rp ${formatCurrency(newPrice)})`,
+          });
+
+        if (upgradeError) console.error("Gagal mencatat upgrade fee:", upgradeError);
+      }
+
+      return { upgradeFee, penaltyAmount: penaltyInfo?.penaltyAmount || 0 };
     },
     onSuccess: () => {
       toast.success("Paket berhasil dipindahkan");
@@ -179,6 +285,41 @@ export function ChangePackageDialogV2({
                 Anda masih dalam periode bebas denda pindah paket.
               </p>
             </div>
+          )}
+
+          {/* Upgrade Fee Information */}
+          {selectedDepartureId && (
+            <>
+              {upgradeFee > 0 ? (
+                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
+                  <div className="flex items-center gap-2 text-blue-800 font-semibold text-sm">
+                    <TrendingUp className="h-4 w-4" />
+                    Biaya Upgrade Paket
+                  </div>
+                  <div className="space-y-1 text-xs text-blue-700">
+                    <p>
+                      Paket baru lebih mahal dari paket sebelumnya.
+                    </p>
+                    <p>
+                      <strong>Selisih Harga:</strong> {formatCurrency(upgradeFee)}
+                    </p>
+                    <p className="italic text-blue-600">
+                      Biaya upgrade akan ditambahkan ke tagihan booking.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-lg bg-green-50 border border-green-200 space-y-2">
+                  <div className="flex items-center gap-2 text-green-800 font-semibold text-sm">
+                    <TrendingUp className="h-4 w-4" />
+                    Paket Sama atau Lebih Murah
+                  </div>
+                  <p className="text-xs text-green-700">
+                    Paket baru tidak lebih mahal atau biaya upgrade tidak berlaku.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Package Selection */}
