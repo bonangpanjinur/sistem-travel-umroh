@@ -156,7 +156,7 @@ export function ChangePackageDialogV2({
       // 2. Get passengers separately
       const { data: passengersData, error: passengersError } = await supabase
         .from("booking_passengers")
-        .select("room_type, passenger_type")
+        .select("room_preference, passenger_type")
         .eq("booking_id", bookingId);
 
       if (passengersError) throw passengersError;
@@ -186,6 +186,7 @@ export function ChangePackageDialogV2({
       console.log("[ChangePackage] currentPrices:", currentPrices);
       console.log("[ChangePackage] newPrices:", newPrices);
       console.log("[ChangePackage] passengers:", passengers);
+      console.log("[ChangePackage] passenger count:", passengers?.length);
       
       // Get prices from departure first, fallback to package
       const getPrice = (type: string, prices: any) => {
@@ -198,7 +199,7 @@ export function ChangePackageDialogV2({
       // Calculate new total based on each passenger's room type
       let newTotal = 0;
       for (const p of passengers) {
-        const roomType = p.room_type || 'quad';
+        const roomType = p.room_preference || 'quad';
         newTotal += getPrice(roomType, newPrices);
       }
 
@@ -213,6 +214,7 @@ export function ChangePackageDialogV2({
       const upgradeFee = priceDiff > 0 ? priceDiff : 0;
       
       console.log("[ChangePackage] newTotal:", newTotal, "oldTotal:", oldTotal, "upgradeFee:", upgradeFee);
+      console.log("[ChangePackage] Using room_preference from passengers");
 
       // 4. Update booking departure_id and total_price
       const { error: updateError } = await supabase
