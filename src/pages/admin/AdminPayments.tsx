@@ -292,6 +292,7 @@ export default function AdminPayments() {
           <p className="text-muted-foreground">Kelola dan verifikasi bukti pembayaran</p>
         </div>
         <div className="flex gap-2">
+          <AddManualPaymentDialog />
           <Button 
             variant="outline" 
             onClick={async () => {
@@ -411,6 +412,26 @@ export default function AdminPayments() {
         </Card>
       </div>
 
+      {/* Booking tanpa pembayaran warning */}
+      {bookingsNoPayment && bookingsNoPayment.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
+          <CardContent className="p-4 flex items-start gap-3">
+            <FileWarning className="h-5 w-5 text-orange-600 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-orange-900 dark:text-orange-200">
+                {bookingsNoPayment.length} Booking belum ada pembayaran tercatat
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Booking offline / via admin yang belum di-input pembayarannya. Klik "Catat Pembayaran" di header untuk menambah.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/bookings?payment=pending">Lihat</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Method breakdown */}
       {methodStats.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -434,6 +455,10 @@ export default function AdminPayments() {
             Menunggu ({stats.pending})
           </TabsTrigger>
           <TabsTrigger value="all">Semua Pembayaran</TabsTrigger>
+          <TabsTrigger value="savings" className="gap-2">
+            <PiggyBank className="h-4 w-4" />
+            Tabungan ({savingsPayments?.length || 0})
+          </TabsTrigger>
         </TabsList>
 
         {/* Pending Tab */}
@@ -446,7 +471,16 @@ export default function AdminPayments() {
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
-                <p className="text-muted-foreground">Tidak ada pembayaran yang menunggu verifikasi</p>
+                <p className="text-muted-foreground mb-4">Tidak ada pembayaran yang menunggu verifikasi</p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const tab = document.querySelector('[data-state][value="all"]') as HTMLElement;
+                    tab?.click();
+                  }}
+                >
+                  Lihat Semua Pembayaran
+                </Button>
               </CardContent>
             </Card>
           ) : (
