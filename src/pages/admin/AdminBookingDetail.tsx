@@ -52,7 +52,7 @@ import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
-import { ChangePackageDialog } from "@/components/admin/ChangePackageDialog";
+import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -835,12 +835,13 @@ export default function AdminBookingDetail() {
       />
 
       {booking && (
-        <ChangePackageDialog
+        <ChangePackageDialogV2
           isOpen={showChangePackageDialog}
           onClose={() => setShowChangePackageDialog(false)}
-          bookingId={id!}
-          currentDepartureId={booking.departure_id}
-          currentDepartureDate={booking.departure?.departure_date}
+          bookingId={id || ""}
+          currentPackageId={booking?.departure?.package_id || ""}
+          currentDepartureId={booking?.departure_id || ""}
+          currentDepartureDate={booking?.departure?.departure_date || ""}
         />
       )}
     </div>

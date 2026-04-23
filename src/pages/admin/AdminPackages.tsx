@@ -72,6 +72,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Share2, Settings2 } from "lucide-react";
 import { PackageChangeSettingsDialog } from "@/components/admin/packages/PackageChangeSettingsDialog";
+import { PackageChangeRulesManager } from "@/components/admin/packages/PackageChangeRulesManager";
 import { useAuth } from "@/hooks/useAuth";
 import { useDynamicMenus } from "@/hooks/useDynamicMenus";
 
@@ -104,6 +105,8 @@ export default function AdminPackages() {
   const [isManifestDialogOpen, setIsManifestDialogOpen] = useState(false);
   const [selectedPackageForManifest, setSelectedPackageForManifest] = useState<any>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [selectedPackageForRules, setSelectedPackageForRules] = useState<any>(null);
   
   const queryClient = useQueryClient();
   const { isSuperAdmin, hasRole } = useAuth();
@@ -1134,6 +1137,15 @@ export default function AdminPackages() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => {
+                                  setSelectedPackageForRules(pkg);
+                                  setIsRulesOpen(true);
+                                }}
+                              >
+                                <AlertCircle className="h-4 w-4 text-blue-500" /> Aturan Denda
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
                                 onClick={() => setDeletePackage(pkg)}
                               >
@@ -1348,13 +1360,24 @@ export default function AdminPackages() {
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
+       {/* Settings Dialog */}
+      <PackageChangeSettingsDialog 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
 
-        <PackageChangeSettingsDialog 
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+      {/* Package Change Rules Manager */}
+      {selectedPackageForRules && (
+        <PackageChangeRulesManager
+          packageId={selectedPackageForRules.id}
+          packageName={selectedPackageForRules.name}
+          isOpen={isRulesOpen}
+          onClose={() => {
+            setIsRulesOpen(false);
+            setSelectedPackageForRules(null);
+          }}
         />
-      </div>
+      )}      </div>
     </TooltipProvider>
   );
 }
