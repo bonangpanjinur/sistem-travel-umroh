@@ -1,94 +1,76 @@
 
 
-## Analisis: Kenapa Daftar Jemaah Kosong di Detail Keberangkatan
+## Format Rooming List Baru — Sesuai Template Referensi
 
-### Temuan Awal
-Saya sudah memeriksa kode `AdminDepartureDetail.tsx` (query passenger di baris 82-112) dan struktur database. Berikut kemungkinan penyebabnya, diurut dari yang paling mungkin:
+Saya cek struktur DB: semua relasi sudah ada (`departures.muthawif_id`, `booking_passengers.roommate_id` & `room_number`, dll). Tidak perlu migration.
 
-### Kemungkinan 1: Filter PostgREST nested join salah perilaku (PALING MUNGKIN)
-Query saat ini:
-```ts
-.from("booking_passengers")
-.select("..., booking:bookings!inner(..., departure_id)")
-.eq("booking.departure_id", id)
-.in("booking.booking_status", ["confirmed","pending","processing","completed"])
+### Alur Data
+1. User pilih Keberangkatan di halaman Rooming List
+2. 1 query departure (join packages, airlines, airports, hotels Makkah & Madinah, muthawif/Tour Leader)
+3. 1 query passengers (join booking + customer, exclude cancelled)
+4. Auto-grouping client-side: kelompok per `room_number` (atau `roommate_id` bila belum di-assign), urut per `room_type`, lalu beri label sequence (TWIN BED-1, TWIN BED-2, ...)
+5. User isi field opsional **Welcome Board** (default = nama paket) & **Time Limit** (state lokal)
+6. Klik Export → Excel (xlsx-js-style) atau PDF (jspdf + autotable)
+
+### Output Visual
+```text
+╔══════════════════════════════════════════════════════════════╗
+║  ROOMING LIST {departure_date} BY {airlines.name}            ║ header hitam
+║  PROGRAM {duration_days} HARI {packages.name}                ║ judul merah
+╠══════════════════════════════════════════════════════════════╣
+║ FLIGHT INFO  : {flight_number} {dep.code}-{arr.code} {time}  ║
+║ WELCOME BOARD: {input / default = packages.name}             ║
+║ TOUR LEADER  : {muthawifs.name}    TIME LIMIT: {input}       ║
+║ NOMER TL     : {muthawifs.phone}                             ║
+╠══════════════════════════════════════════════════════════════╣
+║ No│ NAMA │ SEX │ TYPE │ DOB │ PASSPORT │ ROOM TYPE │ NO ROOM │ AGE
+║ 1 │ ISMINAH      │F│ADULT│21-Feb-73│X6811905│┐         │   │ 52
+║ 2 │ SOEWARNI A.  │F│ADULT│ 6-Nov-53│E6531425│TWIN BED 1│   │ 71
+║ 3 │ DYAH WAHJUNI │F│ADULT│18-Feb-71│E4054246│┐         │   │ 54
+║ 4 │ BIANCA P.    │F│ADULT│ 3-Dec-95│E4873509│TWIN BED 2│   │ 29
+║ ... (ROOM TYPE & NO ROOM merge per pasangan)                 ║
+╠══════════════════════════════════════════════════════════════╣
+║ TOTAL HOTEL                                  ← background kuning
+║ KAMAR DOUBLE BED               =COUNTIF(double) ROOM         ║
+║ KAMAR TWIN SHARING             =COUNTIF(twin)   ROOM         ║
+║ KAMAR TWIN SHARING + EXTRA BED =COUNTIF(extra)  ROOM         ║
+║                                TOTAL            ROOM         ║
+╚══════════════════════════════════════════════════════════════╝
 ```
+Multi-hotel: jika departure punya hotel Makkah & Madinah → 2 sheet Excel atau 2 halaman PDF.
 
-Masalah: di PostgREST, `.eq("booking.departure_id", ...)` pada relasi nested **hanya mem-filter baris di dalam join**, bukan baris induk. Walau ada `!inner`, kombinasi `.eq` + `.in` pada kolom relasi sering menghasilkan nol baris karena kondisi tidak ter-AND dengan benar pada engine. Akibatnya semua passenger ter-filter habis.
+### File yang Diubah / Dibuat
 
-### Kemungkinan 2: `booking_passengers` tidak terisi saat booking dibuat
-Booking utama (1 jamaah utama) tersimpan di `bookings.customer_id`, tapi baris di `booking_passengers` baru dibuat untuk passenger tambahan. Kalau wizard hanya membuat booking 1 pax tanpa insert ke `booking_passengers`, tabel jemaah akan kosong walau booking sudah confirmed. Perlu diverifikasi di `useBookingWizard.ts`, `useBookingWizardSimple.ts`, dan `useBookingWizardDynamic.ts`.
+**Baru:**
+- `src/lib/rooming-list-exporter.ts`
+  - `exportRoomingListExcel(data)` — `xlsx-js-style` untuk styling header hitam, judul merah, baris kuning total, merge cells ROOM TYPE/NO ROOM
+  - `exportRoomingListPDF(data)` — `jspdf` + `jspdf-autotable` landscape A4 dengan `didDrawCell` untuk merge sel
+  - Helper: `groupOccupantsByRoom()`, `calculateAge()`, `formatDOB()`
 
-### Kemungkinan 3: Status booking tidak ter-cover
-Filter hanya menerima: `confirmed, pending, processing, completed`. Kalau status setelah konfirmasi adalah `paid`, `active`, `verified`, atau lainnya, baris akan ter-skip.
+**Diubah:**
+- `src/hooks/useDepartures.ts` — perluas `useDeparture()` untuk return `muthawifs(name, phone)` (sudah ambil airports & hotels)
+- `src/pages/operational/RoomingListPage.tsx` — tambah input Welcome Board & Time Limit, dropdown pilih hotel (Makkah/Madinah/Keduanya), tombol Export Excel & PDF baru
+- `src/pages/admin/AdminRoomAssignments.tsx` — replace `handleExportPDF` & `handleExportExcel` ke exporter baru
 
-### Kemungkinan 4: RLS policy
-Policy `Staff can view all passengers` menerima role `super_admin, owner, branch_manager, sales, finance, operational`. Kalau user login dengan role lain (mis. `admin` saja, `marketing`), passengers tidak akan terlihat.
+**Library tambahan:** `xlsx-js-style` (varian `xlsx` dengan dukungan styling sel)
 
-### Kemungkinan 5: Ordering salah (`booking.booking_code`)
-`.order('booking.booking_code')` pada relasi nested di PostgREST butuh sintaks `{ foreignTable: 'booking' }`. Tanpa itu, query bisa error atau dijalankan dengan urutan yang membuat `inner join` gagal mengikat.
+**Tidak diubah:** struktur DB, RLS, alur booking & room assignment.
 
----
+### Mapping Kolom
 
-## Rencana Perbaikan
+| Kolom | Sumber |
+|---|---|
+| NAMA | `customers.full_name` |
+| SEX | `customers.gender` → M/F |
+| TYPE | `booking_passengers.passenger_type` → ADULT/CHILD/INFANT |
+| DOB | `customers.birth_date` → `dd-MMM-yy` |
+| PASSPORT | `customers.passport_number` |
+| ROOM TYPE | `bookings.room_type` → quad→QUAD-N, triple→TRIPLE-N, double→TWIN BED-N, single→SINGLE-N |
+| NO ROOM | `booking_passengers.room_number` (kosong = belum assigned) |
+| AGE | `floor((departure_date - birth_date)/365.25)` |
 
-### Langkah 1: Refactor query passenger (paling penting)
-Ganti pendekatan dari "ambil semua passenger lalu filter via nested" menjadi "ambil booking_id dari departure dulu, lalu ambil passenger berdasarkan booking_id":
-
-```ts
-// 1) Ambil semua booking pada departure ini
-const { data: bookings } = await supabase
-  .from("bookings")
-  .select("id, booking_code, room_type, booking_status, payment_status")
-  .eq("departure_id", id)
-  .not("booking_status", "in", "(cancelled,refunded)"); 
-  // include semua status aktif (confirmed/pending/processing/paid/completed)
-
-// 2) Ambil passengers via booking_id list
-const { data: passengers } = await supabase
-  .from("booking_passengers")
-  .select("id, is_main_passenger, room_preference, passenger_type, customer:customers(...)")
-  .in("booking_id", bookings.map(b => b.id))
-  .order("is_main_passenger", { ascending: false });
-```
-
-Lalu gabungkan booking dan passenger di sisi client. Pendekatan ini menghilangkan ambiguitas filter nested PostgREST.
-
-### Langkah 2: Fallback untuk booking tanpa passenger row
-Kalau booking utama tidak punya baris `booking_passengers` (1 pax saja), buat virtual passenger dari `bookings.customer_id` agar tetap muncul di tabel jemaah dan manifest PDF.
-
-### Langkah 3: Perluas daftar status yang dianggap "aktif"
-Ganti whitelist menjadi blacklist: tampilkan semua kecuali `cancelled` dan `refunded`. Ini lebih tahan terhadap variasi status.
-
-### Langkah 4: Diagnosa data aktual
-Tambah panel debug ringkas (sementara) atau gunakan query langsung untuk memverifikasi:
-- Apakah `bookings` punya `departure_id` yang benar?
-- Apakah `booking_passengers.booking_id` terisi?
-- Apa status booking yang sebenarnya setelah konfirmasi?
-
-### Langkah 5: Verifikasi flow konfirmasi booking
-Cek `AdminBookings.tsx` (baris 286-289) — bulk confirm hanya update `booking_status = 'confirmed'` tapi tidak menyentuh `booking_passengers`. Pastikan saat booking dibuat, semua pax (termasuk yang utama) di-insert ke `booking_passengers`. Jika tidak, perlu trigger DB atau penyesuaian wizard.
-
-### Langkah 6: Perbaiki ordering nested
-Ganti:
-```ts
-.order('booking.booking_code', ...)
-```
-menjadi:
-```ts
-.order('booking_code', { foreignTable: 'booking', ascending: true })
-```
-(jika tetap memakai pendekatan nested join).
-
----
-
-## File yang Akan Disentuh
-- `src/pages/admin/AdminDepartureDetail.tsx` — refactor query passenger, fallback virtual passenger, perluas status
-- `src/hooks/useBookingWizard.ts`, `useBookingWizardSimple.ts`, `useBookingWizardDynamic.ts` — pastikan jamaah utama selalu di-insert ke `booking_passengers`
-- (opsional) Migration: trigger `after insert on bookings` untuk auto-create `booking_passengers` baris jamaah utama jika belum ada
-
-## Hasil yang Diharapkan
-- Tab "Jemaah" menampilkan seluruh peserta dari semua booking pada keberangkatan tersebut, terlepas dari status pembayaran (selain cancelled/refunded)
-- Manifest PDF dan Rooming List PDF berisi data jamaah yang lengkap
-- Counter `Kuota & Jemaah` cocok dengan jumlah baris di tabel jemaah
+### Tidak Akan Dibuat
+- Penyimpanan template export ke DB
+- WYSIWYG editor rooming list
+- Toggle kolom AGE (selalu tampil sesuai referensi)
 
