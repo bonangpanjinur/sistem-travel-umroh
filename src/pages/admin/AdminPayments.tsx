@@ -794,6 +794,63 @@ export default function AdminPayments() {
             </p>
           )}
         </TabsContent>
+
+        {/* Savings Tab */}
+        <TabsContent value="savings" className="space-y-4">
+          <Card>
+            <CardContent className="p-0">
+              {isLoadingSavings ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}
+                </div>
+              ) : !savingsPayments || savingsPayments.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <PiggyBank className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                  <p>Belum ada pembayaran tabungan</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kode</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Paket Tabungan</TableHead>
+                        <TableHead>Metode</TableHead>
+                        <TableHead className="text-right">Jumlah</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {savingsPayments.map((sp: any) => {
+                        const plan = sp.savings_plan as any;
+                        return (
+                          <TableRow key={sp.id}>
+                            <TableCell className="font-mono text-sm">{sp.payment_code}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{plan?.customer?.full_name || '-'}</p>
+                                <p className="text-xs text-muted-foreground">{plan?.customer?.phone}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm">{plan?.package?.name || '-'}</TableCell>
+                            <TableCell className="text-sm">{sp.payment_method || '-'}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatCurrency(sp.amount)}</TableCell>
+                            <TableCell>{getStatusBadge(sp.status || 'pending')}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatDate(sp.payment_date || sp.created_at)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Proof Dialog */}
