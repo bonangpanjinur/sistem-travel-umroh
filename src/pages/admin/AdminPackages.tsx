@@ -1360,6 +1360,8 @@ export default function AdminPackages() {
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
+        </AlertDialog>
+
        {/* Settings Dialog */}
       <PackageChangeSettingsDialog 
         isOpen={isSettingsOpen} 
@@ -1377,7 +1379,8 @@ export default function AdminPackages() {
             setSelectedPackageForRules(null);
           }}
         />
-      )}      </div>
+      )}
+      </div>
     </TooltipProvider>
   );
 }
