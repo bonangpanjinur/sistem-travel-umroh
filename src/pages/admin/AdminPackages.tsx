@@ -524,16 +524,6 @@ export default function AdminPackages() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {canManagePackageChange && (
-              <Button 
-                variant="outline"
-                onClick={() => setIsSettingsOpen(true)}
-                className="gap-2 shadow-sm rounded-xl border-primary/20 text-primary"
-              >
-                <Settings2 className="h-4 w-4" />
-                Atur Denda Pindah
-              </Button>
-            )}
             <Button onClick={() => handleAddPackage("regular")} className="gap-2 shadow-sm bg-primary hover:bg-primary/90 rounded-xl">
               <Plus className="h-4 w-4" />
               Paket Reguler
