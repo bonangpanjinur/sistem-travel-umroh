@@ -46,7 +46,7 @@ export function ManagePaymentModal({
   bookingCode,
   customerName,
   canAddPayment = true,
-  canVerifyPayment = true,
+  canVerifyPayment = false,
 }: ManagePaymentModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();

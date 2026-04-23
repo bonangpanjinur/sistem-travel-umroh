@@ -71,8 +71,9 @@ export default function AdminBookingDetail() {
   const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
   
-  // Permission check - staff and above can manage payments
-  const canManagePayment = hasRole('super_admin') || hasRole('owner') || hasRole('branch_manager') || hasRole('staff');
+  // Permission check
+  const canVerifyPayment = hasRole('super_admin') || hasRole('owner') || hasRole('staff');
+  const canAddPayment = hasRole('super_admin') || hasRole('owner') || hasRole('staff') || hasRole('branch_manager') || hasRole('agent');
   
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
@@ -835,7 +836,8 @@ export default function AdminBookingDetail() {
         bookingId={id!}
         bookingCode={booking.booking_code}
         customerName={customer?.full_name || '-'}
-        canAddPayment={canManagePayment}
+        canAddPayment={canAddPayment}
+        canVerifyPayment={canVerifyPayment}
       />
 
       {booking && (
