@@ -13,6 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -397,5 +398,3 @@ export function AddManualPaymentDialog({ trigger }: AddManualPaymentDialogProps)
     </Dialog>
   );
 }
-
-import { DialogTrigger } from "@/components/ui/dialog";
