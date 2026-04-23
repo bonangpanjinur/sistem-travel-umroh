@@ -163,7 +163,7 @@ export default function BookingDetail() {
 
       if (dbError) throw dbError;
 
-      toast.success(`${docTypeCode === 'KTP' ? 'KTP' : 'Paspor'} berhasil diupload!`);
+      toast.success(`${docTypeCode === 'ktp' ? 'KTP' : 'Paspor'} berhasil diupload!`);
       queryClient.invalidateQueries({ queryKey: ['customer-docs', customerId] });
     } catch (err: any) {
       toast.error(err.message || 'Gagal mengupload dokumen');
@@ -407,7 +407,7 @@ export default function BookingDetail() {
                   {/* KTP Upload */}
                   <div className="p-4 border border-dashed rounded-lg flex flex-col items-center justify-center text-center gap-2">
                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                      {customerDocs?.some((d: any) => d.document_type?.code === 'KTP') ? (
+                      {customerDocs?.some((d: any) => d.document_type?.code === 'ktp') ? (
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                       ) : (
                         <FileText className="h-5 w-5 text-muted-foreground" />
@@ -424,7 +424,7 @@ export default function BookingDetail() {
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleDocUpload(file, 'KTP');
+                        if (file) handleDocUpload(file, 'ktp');
                         e.target.value = '';
                       }}
                     />
@@ -432,13 +432,13 @@ export default function BookingDetail() {
                       variant="outline"
                       size="sm"
                       className="w-full mt-2"
-                      disabled={uploadingDoc === 'KTP'}
+                      disabled={uploadingDoc === 'ktp'}
                       onClick={() => ktpInputRef.current?.click()}
                     >
-                      {uploadingDoc === 'KTP' ? (
+                      {uploadingDoc === 'ktp' ? (
                         <><Loader2 className="h-3 w-3 mr-2 animate-spin" />Uploading...</>
                       ) : (
-                        <><Upload className="h-3 w-3 mr-2" />{customerDocs?.some((d: any) => d.document_type?.code === 'KTP') ? 'Ganti KTP' : 'Upload KTP'}</>
+                        <><Upload className="h-3 w-3 mr-2" />{customerDocs?.some((d: any) => d.document_type?.code === 'ktp') ? 'Ganti KTP' : 'Upload KTP'}</>
                       )}
                     </Button>
                   </div>
@@ -446,7 +446,7 @@ export default function BookingDetail() {
                   {/* Passport Upload */}
                   <div className="p-4 border border-dashed rounded-lg flex flex-col items-center justify-center text-center gap-2">
                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                      {customerDocs?.some((d: any) => d.document_type?.code === 'PASSPORT') ? (
+                      {customerDocs?.some((d: any) => d.document_type?.code === 'passport') ? (
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                       ) : (
                         <FileText className="h-5 w-5 text-muted-foreground" />
@@ -463,7 +463,7 @@ export default function BookingDetail() {
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleDocUpload(file, 'PASSPORT');
+                        if (file) handleDocUpload(file, 'passport');
                         e.target.value = '';
                       }}
                     />
@@ -471,13 +471,13 @@ export default function BookingDetail() {
                       variant="outline"
                       size="sm"
                       className="w-full mt-2"
-                      disabled={uploadingDoc === 'PASSPORT'}
+                      disabled={uploadingDoc === 'passport'}
                       onClick={() => passportInputRef.current?.click()}
                     >
-                      {uploadingDoc === 'PASSPORT' ? (
+                      {uploadingDoc === 'passport' ? (
                         <><Loader2 className="h-3 w-3 mr-2 animate-spin" />Uploading...</>
                       ) : (
-                        <><Upload className="h-3 w-3 mr-2" />{customerDocs?.some((d: any) => d.document_type?.code === 'PASSPORT') ? 'Ganti Paspor' : 'Upload Paspor'}</>
+                        <><Upload className="h-3 w-3 mr-2" />{customerDocs?.some((d: any) => d.document_type?.code === 'passport') ? 'Ganti Paspor' : 'Upload Paspor'}</>
                       )}
                     </Button>
                   </div>
