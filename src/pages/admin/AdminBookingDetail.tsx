@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
@@ -66,6 +67,7 @@ const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
 export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
   
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
