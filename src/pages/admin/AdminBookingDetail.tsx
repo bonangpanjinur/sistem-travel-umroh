@@ -67,6 +67,7 @@ const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
 export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
   
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
