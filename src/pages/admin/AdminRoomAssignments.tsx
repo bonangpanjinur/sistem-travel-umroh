@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
 import { Users, UserPlus, BedDouble, Search, Check, X, Download, FileSpreadsheet, FileText, Wand2, History } from "lucide-react";
-import { exportToExcel, exportToPDF } from "@/lib/export-utils";
+import { exportRoomingListExcel, exportRoomingListPDF, type RoomingExportData, type RoomingPassenger, type RoomTypeDB } from "@/lib/rooming-list-exporter";
 import { ROOM_TYPE_LABELS, GENDER_LABELS } from "@/lib/constants";
 import { Textarea } from "@/components/ui/textarea";
 
