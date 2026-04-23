@@ -124,7 +124,7 @@ export default function AdminRoomAssignments() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('booking_passengers')
-        .select(`id, room_preference, passenger_type, room_number, roommate_id, customer:customers(id, full_name, gender, phone), booking:bookings!inner(id, booking_code, departure_id, booking_status)`)
+        .select(`id, room_preference, passenger_type, room_number, roommate_id, customer:customers(id, full_name, gender, phone, birth_date, passport_number, passport_expiry), booking:bookings!inner(id, booking_code, room_type, departure_id, booking_status)`)
         .eq('booking.departure_id', selectedDeparture)
         .in('booking.booking_status', ['confirmed', 'pending']);
       if (error) throw error;
