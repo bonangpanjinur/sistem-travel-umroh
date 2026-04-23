@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Search, Loader2 } from "lucide-react";
+import { Users, Search, Loader2, RotateCcw, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Distribution } from "@/pages/operational/EquipmentPage";
@@ -22,8 +22,8 @@ interface DistributionTabProps {
 interface Passenger {
   id: string;
   customer_id: string;
-  customer: { id: string; full_name: string };
-  booking: { departure_id: string };
+  customer: { id: string; full_name: string; passport_number?: string };
+  booking: { id: string; departure_id: string; booking_code?: string };
   is_main_passenger: boolean;
   passenger_type: string;
 }
@@ -38,9 +38,9 @@ export function DistributionTab({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"distribution" | "returns">("distribution");
 
-  // Fetch passengers for selected departure
+  // Fetch passengers for selected departure with more fields for search
   const { data: passengers, isLoading: loadingPassengers } = useQuery({
-    queryKey: ["passengers-for-departure", selectedDeparture],
+    queryKey: ["passengers-for-departure-enhanced", selectedDeparture],
     queryFn: async () => {
       if (selectedDeparture === "all") return [];
       
@@ -49,8 +49,8 @@ export function DistributionTab({
         .select(`
           id,
           customer_id,
-          customer:customers(id, full_name),
-          booking:bookings!inner(departure_id),
+          customer:customers(id, full_name, passport_number),
+          booking:bookings!inner(id, departure_id, booking_code),
           is_main_passenger,
           passenger_type
         `)
@@ -93,14 +93,16 @@ export function DistributionTab({
     enabled: !!selectedCustomerId && selectedDeparture !== "all",
   });
 
-  // Filter passengers based on search
+  // Filter passengers based on search (Name, Passport, or Booking Code)
   const filteredPassengers = useMemo(() => {
     if (!passengers) return [];
     if (!searchPassenger.trim()) return passengers;
     
     const lowerSearch = searchPassenger.toLowerCase();
     return passengers.filter((p) =>
-      p.customer.full_name.toLowerCase().includes(lowerSearch)
+      p.customer.full_name.toLowerCase().includes(lowerSearch) ||
+      p.customer.passport_number?.toLowerCase().includes(lowerSearch) ||
+      p.booking.booking_code?.toLowerCase().includes(lowerSearch)
     );
   }, [passengers, searchPassenger]);
 
@@ -154,7 +156,7 @@ export function DistributionTab({
           onClick={() => setActiveTab("returns")}
           className="gap-2"
         >
-          <Users className="h-4 w-4" />
+          <RotateCcw className="h-4 w-4" />
           Pengembalian ({returnedItems.length})
         </Button>
       </div>
@@ -174,7 +176,7 @@ export function DistributionTab({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Cari nama jamaah..."
+                  placeholder="Cari nama, paspor, atau kode booking..."
                   value={searchPassenger}
                   onChange={(e) => setSearchPassenger(e.target.value)}
                   className="pl-10"
@@ -203,11 +205,23 @@ export function DistributionTab({
                             <p className="font-semibold text-sm truncate">
                               {passenger.customer.full_name}
                             </p>
-                            {passenger.is_main_passenger && (
-                              <Badge variant="secondary" className="text-xs mt-1">
-                                Penumpang Utama
-                              </Badge>
-                            )}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {passenger.is_main_passenger && (
+                                <Badge variant="secondary" className="text-[10px] h-4">
+                                  Utama
+                                </Badge>
+                              )}
+                              {passenger.booking.booking_code && (
+                                <Badge variant="outline" className="text-[10px] h-4">
+                                  {passenger.booking.booking_code}
+                                </Badge>
+                              )}
+                              {passenger.customer.passport_number && (
+                                <Badge variant="outline" className="text-[10px] h-4">
+                                  {passenger.customer.passport_number}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </button>
@@ -259,7 +273,10 @@ export function DistributionTab({
       {activeTab === "returns" && (
         <Card>
           <CardHeader>
-            <CardTitle>Daftar Pengembalian Perlengkapan</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-amber-500" />
+              Daftar Pengembalian Perlengkapan
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {returnedItems && returnedItems.length > 0 ? (
@@ -267,24 +284,38 @@ export function DistributionTab({
                 {returnedItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
+                    className="flex items-center justify-between p-4 bg-amber-50/30 rounded-lg border border-amber-100"
                   >
-                    <div>
-                      <p className="font-semibold text-sm">
-                        {item.equipment?.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.customer?.full_name} • {item.quantity}x
-                      </p>
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-amber-100 rounded-full">
+                        <RotateCcw className="h-4 w-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">
+                          {item.equipment?.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Jamaah: {item.customer?.full_name} • Jumlah: {item.quantity}x
+                        </p>
+                      </div>
                     </div>
-                    <Badge variant="outline" className="bg-green-50">
-                      Dikembalikan
-                    </Badge>
+                    <div className="text-right">
+                      <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 mb-1">
+                        Dikembalikan
+                      </Badge>
+                      {(item as any).returned_at && (
+                        <p className="text-[10px] text-muted-foreground flex items-center justify-end gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date((item as any).returned_at), "dd MMM yyyy HH:mm", { locale: localeId })}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
+              <div className="text-center py-12">
+                <RotateCcw className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
                 <p className="text-muted-foreground">
                   Belum ada perlengkapan yang dikembalikan untuk keberangkatan ini
                 </p>

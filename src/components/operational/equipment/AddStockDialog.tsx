@@ -5,17 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, Package, Loader2 } from "lucide-react";
+import { Plus, Minus, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-
-interface EquipmentItem {
-  id: string;
-  name: string;
-  description?: string;
-  stock_quantity: number;
-  category?: string;
-}
+import { EquipmentItem } from "@/pages/operational/EquipmentPage";
 
 interface AddStockDialogProps {
   open: boolean;
@@ -27,11 +19,17 @@ interface AddStockDialogProps {
 export function AddStockDialog({ open, onOpenChange, items, preselectedItemId }: AddStockDialogProps) {
   const queryClient = useQueryClient();
   const [stockUpdates, setStockUpdates] = useState<Map<string, number>>(new Map());
+  const [isCorrectionMode, setIsCorrectionMode] = useState(false);
 
   const updateQty = (itemId: string, delta: number) => {
     const newMap = new Map(stockUpdates);
     const current = newMap.get(itemId) || 0;
-    const newVal = Math.max(0, current + delta);
+    const newVal = current + delta;
+    
+    // In normal mode, don't allow negative updates (only adding stock)
+    // In correction mode, allow negative updates (reducing stock)
+    if (!isCorrectionMode && newVal < 0) return;
+    
     if (newVal === 0) newMap.delete(itemId);
     else newMap.set(itemId, newVal);
     setStockUpdates(newMap);
@@ -39,25 +37,25 @@ export function AddStockDialog({ open, onOpenChange, items, preselectedItemId }:
 
   const setQty = (itemId: string, val: number) => {
     const newMap = new Map(stockUpdates);
-    if (val <= 0) newMap.delete(itemId);
+    if (val === 0) newMap.delete(itemId);
     else newMap.set(itemId, val);
     setStockUpdates(newMap);
   };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      for (const [itemId, addQty] of stockUpdates) {
-        const item = items.find(i => i.id === itemId);
-        if (!item) continue;
-        const { error } = await supabase
-          .from("equipment_items")
-          .update({ stock_quantity: (item.stock_quantity || 0) + addQty })
-          .eq("id", itemId);
+      for (const [itemId, amount] of stockUpdates) {
+        const rpcName = amount > 0 ? 'increment_equipment_stock' : 'decrement_equipment_stock';
+        const { error } = await supabase.rpc(rpcName, { 
+          item_id: itemId, 
+          amount: Math.abs(amount) 
+        });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      toast.success(`Stok berhasil ditambahkan untuk ${stockUpdates.size} item`);
+      const modeText = isCorrectionMode ? "Koreksi" : "Penambahan";
+      toast.success(`${modeText} stok berhasil untuk ${stockUpdates.size} item`);
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
       setStockUpdates(new Map());
       onOpenChange(false);
@@ -67,7 +65,6 @@ export function AddStockDialog({ open, onOpenChange, items, preselectedItemId }:
 
   const totalChanges = stockUpdates.size;
 
-  // Sort items: preselected first, then by name
   const sortedItems = [...items].sort((a, b) => {
     if (a.id === preselectedItemId) return -1;
     if (b.id === preselectedItemId) return 1;
@@ -75,23 +72,45 @@ export function AddStockDialog({ open, onOpenChange, items, preselectedItemId }:
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => {
+      if (!val) {
+        setStockUpdates(new Map());
+        setIsCorrectionMode(false);
+      }
+      onOpenChange(val);
+    }}>
       <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between pr-6">
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" /> Tambah Stok Perlengkapan
+            {isCorrectionMode ? <RefreshCw className="h-5 w-5 text-amber-500" /> : <Plus className="h-5 w-5" />}
+            {isCorrectionMode ? "Koreksi Stok Perlengkapan" : "Tambah Stok Perlengkapan"}
           </DialogTitle>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`text-xs h-7 ${isCorrectionMode ? 'text-amber-600 bg-amber-50' : 'text-muted-foreground'}`}
+            onClick={() => {
+              setIsCorrectionMode(!isCorrectionMode);
+              setStockUpdates(new Map());
+            }}
+          >
+            {isCorrectionMode ? "Mode Koreksi Aktif" : "Aktifkan Koreksi"}
+          </Button>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-2 py-2">
           {sortedItems.map(item => {
-            const addQty = stockUpdates.get(item.id) || 0;
+            const amount = stockUpdates.get(item.id) || 0;
             const catEmoji = item.category === 'male_only' ? '♂' : item.category === 'female_only' ? '♀' : item.category === 'child_only' ? '👶' : '';
 
             return (
               <div
                 key={item.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${addQty > 0 ? 'bg-primary/5 border-primary/30' : 'bg-card'}`}
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                  amount !== 0 
+                    ? (amount > 0 ? 'bg-primary/5 border-primary/30' : 'bg-amber-50 border-amber-200') 
+                    : 'bg-card'
+                }`}
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
@@ -104,13 +123,13 @@ export function AddStockDialog({ open, onOpenChange, items, preselectedItemId }:
                   <Button
                     variant="outline" size="icon" className="h-7 w-7"
                     onClick={() => updateQty(item.id, -1)}
-                    disabled={addQty === 0}
+                    disabled={!isCorrectionMode && amount === 0}
                   >
                     <Minus className="h-3 w-3" />
                   </Button>
                   <Input
-                    type="number" min={0}
-                    value={addQty || ''}
+                    type="number"
+                    value={amount || ''}
                     onChange={(e) => setQty(item.id, parseInt(e.target.value) || 0)}
                     className="w-16 h-7 text-center text-sm"
                     placeholder="0"
@@ -137,9 +156,10 @@ export function AddStockDialog({ open, onOpenChange, items, preselectedItemId }:
               <Button
                 onClick={() => saveMutation.mutate()}
                 disabled={totalChanges === 0 || saveMutation.isPending}
+                className={isCorrectionMode && totalChanges > 0 ? "bg-amber-600 hover:bg-amber-700" : ""}
               >
                 {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                Simpan
+                {isCorrectionMode ? "Simpan Koreksi" : "Simpan Stok"}
               </Button>
             </div>
           </div>

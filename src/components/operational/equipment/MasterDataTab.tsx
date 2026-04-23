@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -28,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit2, Trash2, Package, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Trash2, Package, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EquipmentItem } from "@/pages/operational/EquipmentPage";
 
@@ -37,7 +39,7 @@ interface MasterDataTabProps {
 }
 
 export function MasterDataTab({ items }: MasterDataTabProps) {
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
@@ -45,12 +47,19 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    category: "accessories",
-    lowStockThreshold: "10",
+    category: "general",
+    low_stock_threshold: 10,
   });
 
   const handleAddNew = () => {
-    navigate("/admin/master-data?tab=equipment");
+    setSelectedItem(null);
+    setFormData({
+      name: "",
+      description: "",
+      category: "general",
+      low_stock_threshold: 10,
+    });
+    setEditDialogOpen(true);
   };
 
   const handleEdit = (item: EquipmentItem) => {
@@ -58,8 +67,8 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
     setFormData({
       name: item.name,
       description: item.description || "",
-      category: "accessories",
-      lowStockThreshold: "10",
+      category: item.category || "general",
+      low_stock_threshold: item.low_stock_threshold || 10,
     });
     setEditDialogOpen(true);
   };
@@ -69,18 +78,59 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
     setDeleteAlertOpen(true);
   };
 
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        name: formData.name,
+        description: formData.description || null,
+        category: formData.category,
+        low_stock_threshold: formData.low_stock_threshold,
+      };
+
+      if (selectedItem) {
+        const { error } = await supabase
+          .from("equipment_items")
+          .update(payload)
+          .eq("id", selectedItem.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("equipment_items")
+          .insert({ ...payload, stock_quantity: 0 });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success(selectedItem ? "✅ Item berhasil diperbarui" : "✅ Item berhasil ditambahkan");
+      queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
+      setEditDialogOpen(false);
+    },
+    onError: (err: Error) => toast.error(`Gagal menyimpan: ${err.message}`),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedItem) return;
+      const { error } = await supabase
+        .from("equipment_items")
+        .delete()
+        .eq("id", selectedItem.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("✅ Item berhasil dihapus");
+      queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
+      setDeleteAlertOpen(false);
+    },
+    onError: (err: Error) => toast.error(`Gagal menghapus: ${err.message}`),
+  });
+
   const handleSaveEdit = () => {
     if (!formData.name.trim()) {
       toast.error("Nama item tidak boleh kosong");
       return;
     }
-    toast.success("✅ Item berhasil diperbarui");
-    setEditDialogOpen(false);
-  };
-
-  const handleConfirmDelete = () => {
-    toast.success("✅ Item berhasil dihapus");
-    setDeleteAlertOpen(false);
+    saveMutation.mutate();
   };
 
   return (
@@ -118,81 +168,93 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
       {/* Items Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items && items.length > 0 ? (
-          items.map((item) => (
-            <Card
-              key={item.id}
-              className="hover:shadow-lg transition-shadow duration-200 flex flex-col"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Package className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-sm leading-tight truncate">
-                        {item.name}
-                      </CardTitle>
+          items.map((item) => {
+            const threshold = item.low_stock_threshold || 10;
+            const isLowStock = (item.stock_quantity || 0) <= threshold;
+            const isOutStock = (item.stock_quantity || 0) === 0;
+
+            return (
+              <Card
+                key={item.id}
+                className="hover:shadow-lg transition-shadow duration-200 flex flex-col"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Package className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-sm leading-tight truncate">
+                          {item.name}
+                        </CardTitle>
+                        <Badge variant="outline" className="mt-1 text-[10px] h-4">
+                          {item.category || 'general'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-3">
-                {item.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {item.description}
-                  </p>
-                )}
+                </CardHeader>
+                <CardContent className="flex-1 space-y-3">
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
 
-                {/* Stock Status */}
-                <div className="p-2 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Stok Saat Ini</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-primary">
-                      {item.stock_quantity}
-                    </span>
-                    <Badge
-                      variant={
-                        item.stock_quantity > 10
-                          ? "default"
-                          : item.stock_quantity > 0
-                          ? "secondary"
-                          : "destructive"
-                      }
+                  {/* Stock Status */}
+                  <div className="p-2 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-1">Stok Saat Ini</p>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-lg font-bold ${isLowStock ? 'text-destructive' : 'text-primary'}`}>
+                        {item.stock_quantity}
+                      </span>
+                      <Badge
+                        variant={
+                          isOutStock
+                            ? "destructive"
+                            : isLowStock
+                            ? "secondary"
+                            : "default"
+                        }
+                      >
+                        {isOutStock
+                          ? "Habis"
+                          : isLowStock
+                          ? "Menipis"
+                          : "Aman"}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Batas minimal: {threshold}
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleEdit(item)}
                     >
-                      {item.stock_quantity > 10
-                        ? "Aman"
-                        : item.stock_quantity > 0
-                        ? "Menipis"
-                        : "Habis"}
-                    </Badge>
+                      <Edit2 className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => handleDelete(item)}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Hapus
+                    </Button>
                   </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => handleEdit(item)}
-                  >
-                    <Edit2 className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="flex-1"
-                    onClick={() => handleDelete(item)}
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Hapus
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         ) : (
           <div className="col-span-full text-center py-12">
             <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
@@ -207,11 +269,11 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
         )}
       </div>
 
-      {/* Edit Item Dialog */}
+      {/* Edit/Add Item Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Item: {selectedItem?.name}</DialogTitle>
+            <DialogTitle>{selectedItem ? `Edit Item: ${selectedItem.name}` : "Tambah Item Baru"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -222,6 +284,7 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
+                placeholder="Contoh: Koper, Ihram, Mukena..."
               />
             </div>
             <div className="space-y-2">
@@ -232,6 +295,7 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
+                placeholder="Deskripsi opsional..."
               />
             </div>
             <div className="space-y-2">
@@ -246,9 +310,10 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="luggage">Tas & Koper</SelectItem>
-                  <SelectItem value="clothing">Pakaian</SelectItem>
-                  <SelectItem value="accessories">Aksesoris</SelectItem>
+                  <SelectItem value="general">Umum (Semua)</SelectItem>
+                  <SelectItem value="male_only">Laki-laki Saja</SelectItem>
+                  <SelectItem value="female_only">Perempuan Saja</SelectItem>
+                  <SelectItem value="child_only">Anak-anak Saja</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -257,10 +322,10 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
               <Input
                 id="edit-threshold"
                 type="number"
-                min="1"
-                value={formData.lowStockThreshold}
+                min="0"
+                value={formData.low_stock_threshold}
                 onChange={(e) =>
-                  setFormData({ ...formData, lowStockThreshold: e.target.value })
+                  setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 0 })
                 }
               />
             </div>
@@ -269,11 +334,13 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
             <Button
               variant="outline"
               onClick={() => setEditDialogOpen(false)}
+              disabled={saveMutation.isPending}
             >
               Batal
             </Button>
-            <Button onClick={handleSaveEdit}>
-              Simpan Perubahan
+            <Button onClick={handleSaveEdit} disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {selectedItem ? "Simpan Perubahan" : "Tambah Item"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -288,15 +355,20 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
               Tindakan ini tidak dapat dibatalkan. Item "{selectedItem?.name}" akan dihapus permanen dari sistem.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <DialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Batal</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
+              onClick={(e) => {
+                e.preventDefault();
+                deleteMutation.mutate();
+              }}
+              disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Hapus Item
             </AlertDialogAction>
-          </DialogFooter>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

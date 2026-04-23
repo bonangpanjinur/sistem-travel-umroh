@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Package, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface EquipmentItem {
   id: string;
@@ -27,7 +27,7 @@ interface QuickDistributionDialogProps {
 interface Passenger {
   id: string;
   customer_id: string;
-  customer: { id: string; full_name: string };
+  customer: { id: string; full_name: string; passport_number?: string };
 }
 
 export function QuickDistributionDialog({
@@ -53,7 +53,7 @@ export function QuickDistributionDialog({
         .select(`
           id,
           customer_id,
-          customer:customers(id, full_name)
+          customer:customers(id, full_name, passport_number)
         `)
         .eq("booking.departure_id", selectedDeparture)
         .order("customer.full_name");
@@ -64,12 +64,13 @@ export function QuickDistributionDialog({
     enabled: open && selectedDeparture !== "all" && !!selectedDeparture,
   });
 
-  // Filter passengers based on search
+  // Filter passengers based on search (Name or Passport)
   const filteredPassengers = passengers?.filter((p) =>
-    p.customer.full_name.toLowerCase().includes(searchPassenger.toLowerCase())
+    p.customer.full_name.toLowerCase().includes(searchPassenger.toLowerCase()) ||
+    p.customer.passport_number?.toLowerCase().includes(searchPassenger.toLowerCase())
   ) || [];
 
-  // Distribute equipment mutation
+  // Distribute equipment mutation using atomic RPC
   const distributeMutation = useMutation({
     mutationFn: async () => {
       if (!item || !selectedCustomerId || quantity <= 0) {
@@ -80,27 +81,17 @@ export function QuickDistributionDialog({
         throw new Error("Stok tidak cukup");
       }
 
-      // Insert distribution record
-      const { error: insertError } = await supabase
-        .from("equipment_distributions")
-        .insert({
+      // Use bulk RPC for atomic distribution and stock update
+      const { error } = await supabase.rpc('bulk_distribute_equipment', {
+        p_departure_id: selectedDeparture,
+        p_distributions: [{
           equipment_id: item.id,
           customer_id: selectedCustomerId,
-          departure_id: selectedDeparture !== "all" ? selectedDeparture : null,
-          quantity,
-          status: "distributed",
-          distributed_at: new Date().toISOString(),
-        });
+          quantity: quantity
+        }]
+      });
 
-      if (insertError) throw insertError;
-
-      // Update stock quantity
-      const { error: updateError } = await supabase
-        .from("equipment_items")
-        .update({ stock_quantity: item.stock_quantity - quantity })
-        .eq("id", item.id);
-
-      if (updateError) throw updateError;
+      if (error) throw error;
     },
     onSuccess: () => {
       const passenger = passengers?.find((p) => p.customer_id === selectedCustomerId);
@@ -143,15 +134,21 @@ export function QuickDistributionDialog({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
               Distribusi Cepat: {item?.name}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             {/* Stok Info */}
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm font-medium text-blue-900">Stok Tersedia</p>
-              <p className="text-2xl font-bold text-blue-600">{item?.stock_quantity || 0} unit</p>
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex justify-between items-center">
+              <div>
+                <p className="text-xs font-medium text-blue-900">Stok Tersedia</p>
+                <p className="text-2xl font-bold text-blue-600">{item?.stock_quantity || 0} unit</p>
+              </div>
+              {item && item.stock_quantity <= 5 && (
+                <Badge variant="destructive" className="animate-pulse">Stok Menipis</Badge>
+              )}
             </div>
 
             {/* Passenger Search and Selection */}
@@ -160,7 +157,7 @@ export function QuickDistributionDialog({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Ketik nama jamaah..."
+                  placeholder="Nama atau nomor paspor..."
                   value={searchPassenger}
                   onChange={(e) => setSearchPassenger(e.target.value)}
                   className="pl-10"
@@ -183,7 +180,7 @@ export function QuickDistributionDialog({
                   <SelectContent>
                     {filteredPassengers.map((passenger) => (
                       <SelectItem key={passenger.id} value={passenger.customer_id}>
-                        {passenger.customer.full_name}
+                        {passenger.customer.full_name} {passenger.customer.passport_number ? `(${passenger.customer.passport_number})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -237,7 +234,7 @@ export function QuickDistributionDialog({
             </Button>
             <Button
               onClick={handleDistribute}
-              disabled={!selectedCustomerId || distributeMutation.isPending}
+              disabled={!selectedCustomerId || distributeMutation.isPending || (item ? quantity > item.stock_quantity : true)}
             >
               {distributeMutation.isPending ? (
                 <>
@@ -245,7 +242,7 @@ export function QuickDistributionDialog({
                   Memproses...
                 </>
               ) : (
-                "Distribusi"
+                <><CheckCircle2 className="h-4 w-4 mr-2" /> Distribusi</>
               )}
             </Button>
           </DialogFooter>
@@ -268,7 +265,7 @@ export function QuickDistributionDialog({
               {(item?.stock_quantity || 0) - quantity} unit
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 justify-end">
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => distributeMutation.mutate()}

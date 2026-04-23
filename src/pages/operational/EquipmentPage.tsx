@@ -31,6 +31,7 @@ export interface EquipmentItem {
   description?: string;
   stock_quantity: number;
   category?: string;
+  low_stock_threshold?: number;
 }
 
 export interface Distribution {
@@ -189,42 +190,41 @@ export default function EquipmentPage() {
     mutationFn: async () => {
       if (!validPassengers.length || !items) return 0;
       const inserts: any[] = [];
+      
+      // Track virtual stock to prevent over-distribution in one bulk operation
+      const virtualStock = new Map<string, number>();
+      items.forEach(i => virtualStock.set(i.id, i.stock_quantity || 0));
+
       for (const p of validPassengers) {
         const applicable = getApplicableItems(p.customer?.gender, p.passenger_type);
         const existingIds = new Set(
           (distributions || []).filter(d => d.customer_id === p.customer_id).map(d => d.equipment_id)
         );
         for (const item of applicable) {
-          if (!existingIds.has(item.id) && (item.stock_quantity || 0) > 0) {
+          const currentStock = virtualStock.get(item.id) || 0;
+          if (!existingIds.has(item.id) && currentStock > 0) {
             inserts.push({
               equipment_id: item.id,
               customer_id: p.customer_id,
-              departure_id: selectedDeparture,
               quantity: 1,
-              status: "distributed",
-              distributed_at: new Date().toISOString(),
             });
+            virtualStock.set(item.id, currentStock - 1);
           }
         }
       }
+      
       if (inserts.length === 0) throw new Error("Semua jamaah sudah lengkap atau stok habis");
-      const { error } = await supabase.from("equipment_distributions").insert(inserts);
+      
+      const { data, error } = await supabase.rpc('bulk_distribute_equipment', {
+        p_departure_id: selectedDeparture,
+        p_distributions: inserts
+      });
+      
       if (error) throw error;
-      // Reduce stock atomically
-      const stockMap = new Map<string, number>();
-      inserts.forEach(ins => stockMap.set(ins.equipment_id, (stockMap.get(ins.equipment_id) || 0) + 1));
-      for (const [eqId, qty] of stockMap) {
-        const item = items.find(i => i.id === eqId);
-        if (item) {
-          await supabase.from("equipment_items").update({
-            stock_quantity: Math.max(0, (item.stock_quantity || 0) - qty),
-          }).eq("id", eqId);
-        }
-      }
-      return inserts.length;
+      return data;
     },
     onSuccess: (count) => {
-      toast.success(`${count} item berhasil didistribusikan`);
+      toast.success(`${count} item berhasil didistribusikan secara massal`);
       queryClient.invalidateQueries({ queryKey: ["equipment-distributions"] });
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
     },
@@ -266,376 +266,271 @@ export default function EquipmentPage() {
         </div>
       </div>
 
-      {/* Step selectors */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-            {/* Step 1: Package */}
-            <div className="flex-1 space-y-1.5 w-full">
-              <div className="flex items-center gap-2">
-                <Badge variant={selectedPackage ? "default" : "secondary"} className="text-xs tabular-nums">1</Badge>
-                <label className="text-sm font-medium">Pilih Paket</label>
-              </div>
-              <Select value={selectedPackage} onValueChange={(v) => { setSelectedPackage(v); setSelectedDeparture(""); }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih paket umrah/haji..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {packages?.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} <span className="text-muted-foreground ml-1">({p.package_type})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <ChevronRight className="h-5 w-5 text-muted-foreground hidden sm:block mt-6" />
-
-            {/* Step 2: Departure */}
-            <div className="flex-1 space-y-1.5 w-full">
-              <div className="flex items-center gap-2">
-                <Badge variant={selectedDeparture ? "default" : "secondary"} className="text-xs tabular-nums">2</Badge>
-                <label className="text-sm font-medium">Pilih Keberangkatan</label>
-              </div>
-              <Select
-                value={selectedDeparture}
-                onValueChange={setSelectedDeparture}
-                disabled={!selectedPackage}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={selectedPackage ? "Pilih tanggal..." : "Pilih paket dulu"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {departures?.map(d => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {format(new Date(d.departure_date), "dd MMM yyyy", { locale: localeId })}
-                      {" — "}
-                      {format(new Date(d.return_date), "dd MMM yyyy", { locale: localeId })}
-                      <span className="text-muted-foreground ml-1">({d.booked_count || 0}/{d.quota} pax)</span>
-                    </SelectItem>
-                  ))}
-                  {departures?.length === 0 && (
-                    <div className="p-3 text-sm text-muted-foreground text-center">Tidak ada keberangkatan</div>
-                  )}
-                </SelectContent>
-              </Select>
+      {/* Filters */}
+      <Card className="bg-muted/30 border-none shadow-none">
+        <CardContent className="p-4 flex flex-col md:flex-row gap-4">
+          <div className="flex-1 space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Pilih Paket</label>
+            <Select value={selectedPackage} onValueChange={(v) => { setSelectedPackage(v); setSelectedDeparture(""); }}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Pilih Paket Umroh" />
+              </SelectTrigger>
+              <SelectContent>
+                {packages?.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Pilih Keberangkatan</label>
+            <Select value={selectedDeparture} onValueChange={setSelectedDeparture} disabled={!selectedPackage}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder={selectedPackage ? "Pilih Tanggal" : "Pilih paket dahulu"} />
+              </SelectTrigger>
+              <SelectContent>
+                {departures?.map(d => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {format(new Date(d.departure_date), "dd MMMM yyyy", { locale: localeId })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Cari Jamaah</label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Nama jamaah..."
+                className="pl-9 bg-background"
+                value={searchJamaah}
+                onChange={(e) => setSearchJamaah(e.target.value)}
+                disabled={!hasDeparture}
+              />
             </div>
           </div>
-
-          {/* Breadcrumb */}
-          {selectedPkgName && (
-            <div className="mt-3 pt-3 border-t flex items-center gap-2 text-sm text-muted-foreground">
-              <PackageIcon className="h-4 w-4" />
-              <span>{selectedPkgName}</span>
-              {selectedDepDate && (
-                <>
-                  <ChevronRight className="h-3 w-3" />
-                  <span>{format(new Date(selectedDepDate.departure_date), "dd MMM yyyy", { locale: localeId })}</span>
-                </>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Dashboard - only show when departure selected */}
-      {hasDeparture && (
-        <>
-          {/* Summary cards */}
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950">
-                    <Users className="h-5 w-5 text-blue-600" />
+      {!hasDeparture ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-muted/10 rounded-xl border-2 border-dashed">
+          <div className="p-4 bg-background rounded-full shadow-sm">
+            <Box className="h-10 w-10 text-muted-foreground/40" />
+          </div>
+          <div className="max-w-xs">
+            <h3 className="font-semibold text-lg">Belum Ada Data</h3>
+            <p className="text-sm text-muted-foreground">Silakan pilih paket dan tanggal keberangkatan untuk mengelola perlengkapan.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: Summary & Items */}
+          <div className="lg:col-span-1 space-y-6">
+            <Card className="overflow-hidden border-none shadow-md">
+              <CardHeader className="bg-primary text-primary-foreground pb-8">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" /> Ringkasan Distribusi
+                </CardTitle>
+                <p className="text-primary-foreground/70 text-xs">
+                  {selectedPkgName} - {selectedDepDate && format(new Date(selectedDepDate.departure_date), "dd MMM yyyy")}
+                </p>
+              </CardHeader>
+              <CardContent className="-mt-6">
+                <div className="bg-background rounded-xl p-4 shadow-sm border space-y-4">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-3xl font-bold">{overallPct}%</p>
+                      <p className="text-xs text-muted-foreground">Total Kelengkapan</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{jamaahComplete}/{totalJamaah}</p>
+                      <p className="text-xs text-muted-foreground">Jamaah Selesai</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalJamaah}</p>
-                    <p className="text-xs text-muted-foreground">Total Jamaah</p>
+                  <Progress value={overallPct} className="h-2" />
+                  
+                  <div className="pt-2">
+                    <Button 
+                      className="w-full gap-2" 
+                      onClick={() => bulkMutation.mutate()}
+                      disabled={bulkMutation.isPending || overallPct === 100}
+                    >
+                      {bulkMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Bagikan Semua (Massal)
+                    </Button>
+                    <p className="text-[10px] text-center text-muted-foreground mt-2">
+                      *Hanya membagikan item yang masih memiliki stok
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950">
-                    <Box className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalItems}</p>
-                    <p className="text-xs text-muted-foreground">Jenis Item</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950">
-                    <BarChart3 className="h-5 w-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalDistributed}</p>
-                    <p className="text-xs text-muted-foreground">Terdistribusi</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-950">
-                    <Check className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">{overallPct}%</p>
-                    <p className="text-xs text-muted-foreground">{jamaahComplete}/{totalJamaah} Lengkap</p>
-                  </div>
-                </div>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <PackageIcon className="h-4 w-4 text-primary" /> Status Stok Item
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {items?.map(item => {
+                  const distCount = getItemDistCount(item.id);
+                  const threshold = item.low_stock_threshold || 10;
+                  const isLow = item.stock_quantity <= threshold;
+                  
+                  return (
+                    <div key={item.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{item.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge variant="outline" className="text-[10px] px-1 h-4">{distCount} Terbagi</Badge>
+                          {isLow && <Badge variant="destructive" className="text-[10px] px-1 h-4 animate-pulse">Low</Badge>}
+                        </div>
+                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className={`h-8 px-2 font-bold ${isLow ? 'text-destructive' : 'text-primary'}`}
+                              onClick={() => handleStockClick(item.id)}
+                            >
+                              {item.stock_quantity}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Klik untuk tambah stok</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           </div>
 
-          {/* Stock summary */}
-          {items && items.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Ringkasan Stok</h3>
-              <TooltipProvider>
-                <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {items.map(item => {
-                    const distributed = getItemDistCount(item.id);
-                    const stock = item.stock_quantity || 0;
-                    const total = stock + distributed;
-                    const pct = total > 0 ? (distributed / total) * 100 : 0;
-                    const stockPct = total > 0 ? (stock / total) * 100 : 100;
-                    const isLow = stock <= 5 && stock > 0;
-                    const isEmpty = stock === 0;
-                    const catEmoji = item.category === 'male_only' ? '♂ ' : item.category === 'female_only' ? '♀ ' : item.category === 'child_only' ? '👶 ' : '';
-
-                    return (
-                      <Tooltip key={item.id}>
-                        <TooltipTrigger asChild>
-                          <Card
-                            className={`cursor-pointer hover:border-primary/50 transition-colors ${isEmpty ? 'border-red-200 bg-red-50/50 dark:bg-red-950/20' : isLow ? 'border-amber-200 bg-amber-50/50 dark:bg-amber-950/20' : ''}`}
-                            onClick={() => handleStockClick(item.id)}
-                          >
-                            <CardContent className="p-3">
-                              <p className="text-xs font-medium truncate mb-1">{catEmoji}{item.name}</p>
-                              <div className="flex items-baseline justify-between mb-1.5">
-                                <span className={`text-lg font-bold ${isEmpty ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-green-600'}`}>
-                                  {stock}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">{distributed} terpakai</span>
-                              </div>
-                              <Progress value={stockPct} className={`h-1 ${isEmpty ? '[&>div]:bg-red-500' : isLow ? '[&>div]:bg-amber-500' : '[&>div]:bg-green-500'}`} />
-                            </CardContent>
-                          </Card>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{item.name}: Sisa {stock}, Terpakai {distributed}. Klik untuk tambah stok.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
+          {/* Right: Passenger List */}
+          <div className="lg:col-span-2">
+            <Card className="h-full flex flex-col">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Daftar Jamaah</CardTitle>
+                  <p className="text-xs text-muted-foreground">Kelola distribusi per individu</p>
                 </div>
-              </TooltipProvider>
-            </div>
-          )}
-
-          {/* Jamaah list */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Users className="h-5 w-5" /> Daftar Jamaah
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari jamaah..."
-                      value={searchJamaah}
-                      onChange={(e) => setSearchJamaah(e.target.value)}
-                      className="pl-8 h-9 w-48"
-                    />
-                  </div>
-                  {validPassengers.length > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => bulkMutation.mutate()}
-                      disabled={bulkMutation.isPending || jamaahComplete === totalJamaah}
-                    >
-                      {bulkMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <PackageIcon className="h-4 w-4 mr-1" />}
-                      Bagikan Semua
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loadingPassengers ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredPassengers.length > 0 ? (
+                <Badge variant="secondary">{filteredPassengers.length} Orang</Badge>
+              </CardHeader>
+              <CardContent className="flex-1 p-0">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Jamaah</TableHead>
-                        <TableHead className="w-[100px]">Gender</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[140px]">Progress</TableHead>
-                        <TableHead className="text-right w-[100px]">Aksi</TableHead>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="w-[250px]">Nama Jamaah</TableHead>
+                        <TableHead>Progress</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPassengers.map((p) => {
-                        const gender = p.customer?.gender;
-                        const status = getJamaahStatus(p.customer_id, gender, p.passenger_type);
-                        const isComplete = status.completed === status.total && status.total > 0;
-                        const isPartial = status.completed > 0 && !isComplete;
-
-                        return (
-                          <TableRow
-                            key={p.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => handleOpenDist(p)}
-                          >
-                            <TableCell>
-                              <div className="flex items-center gap-2.5">
-                                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                                  gender === 'male' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' :
-                                  gender === 'female' ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-400' :
-                                  'bg-muted text-muted-foreground'
-                                }`}>
-                                  {gender === 'male' ? 'L' : gender === 'female' ? 'P' : p.passenger_type === 'child' ? 'A' : '-'}
+                      {loadingPassengers ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="h-32 text-center">
+                            <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground mt-2">Memuat data jamaah...</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredPassengers.length > 0 ? (
+                        filteredPassengers.map((p) => {
+                          const status = getJamaahStatus(p.customer_id, p.customer?.gender, p.passenger_type);
+                          const isComplete = status.completed === status.total && status.total > 0;
+                          
+                          return (
+                            <TableRow key={p.id} className="group hover:bg-muted/30 transition-colors">
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    p.customer?.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
+                                  }`}>
+                                    {p.customer.full_name.charAt(0)}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium truncate">{p.customer.full_name}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                      {p.passenger_type} • {p.customer?.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-medium text-sm">{p.customer.full_name}</p>
-                                  {p.is_main_passenger && (
-                                    <Badge variant="secondary" className="text-[10px] h-4 mt-0.5">Utama</Badge>
-                                  )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="w-full max-w-[120px] space-y-1.5">
+                                  <div className="flex justify-between text-[10px]">
+                                    <span className={isComplete ? "text-green-600 font-bold" : "text-muted-foreground"}>
+                                      {status.completed}/{status.total} Item
+                                    </span>
+                                    <span>{Math.round(status.pct)}%</span>
+                                  </div>
+                                  <Progress value={status.pct} className={`h-1.5 ${isComplete ? "bg-green-100" : ""}`} />
                                 </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-xs text-muted-foreground">
-                                {p.passenger_type === 'child' ? 'Anak' : gender === 'male' ? 'Laki-laki' : gender === 'female' ? 'Perempuan' : '-'}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium tabular-nums">{status.completed}/{status.total}</span>
-                                {isComplete ? (
-                                  <Badge className="bg-green-100 text-green-800 border-green-200 text-[10px] dark:bg-green-950 dark:text-green-400">
-                                    <Check className="h-3 w-3 mr-0.5" /> Lengkap
-                                  </Badge>
-                                ) : isPartial ? (
-                                  <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/30">
-                                    Belum Lengkap
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-[10px] border-red-200 text-red-600 bg-red-50 dark:bg-red-950/30">
-                                    Belum Ada
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Progress value={status.pct} className="h-2" />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="gap-1">
-                                Detail <ChevronRight className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  size="sm" 
+                                  variant={isComplete ? "outline" : "default"}
+                                  className={`h-8 px-3 ${isComplete ? 'border-green-200 text-green-700 hover:bg-green-50' : ''}`}
+                                  onClick={() => handleOpenDist(p)}
+                                >
+                                  {isComplete ? <Check className="h-3.5 w-3.5 mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                                  {isComplete ? 'Lengkap' : 'Kelola'}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
+                            <Users className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                            <p className="text-sm">Jamaah tidak ditemukan</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
-              ) : (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-center">
-                    <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-                    <p className="text-sm text-muted-foreground">
-                      {searchJamaah ? "Tidak ada jamaah yang cocok" : "Tidak ada jamaah untuk keberangkatan ini"}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
 
-      {/* Empty state when no departure selected */}
-      {!hasDeparture && (
-        <Card>
-          <CardContent className="py-16">
-            <div className="text-center">
-              <PackageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-              <h3 className="font-semibold text-lg mb-1">Pilih Paket & Keberangkatan</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Pilih paket dan tanggal keberangkatan di atas untuk melihat daftar jamaah dan mengelola distribusi perlengkapan.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Distribution Dialog */}
+      {/* Dialogs */}
       {selectedJamaah && (
         <EquipmentDistributionDialog
           open={isDistDialogOpen}
           onOpenChange={setIsDistDialogOpen}
           jamaahId={selectedJamaah.customer_id}
           jamaahName={selectedJamaah.customer.full_name}
-          jamaahGender={selectedJamaah.customer?.gender || undefined}
+          jamaahGender={selectedJamaah.customer.gender || undefined}
           jamaahType={selectedJamaah.passenger_type}
           departureId={selectedDeparture}
         />
       )}
 
-      {/* Add Stock Dialog */}
-      {items && (
-        <AddStockDialog
-          open={isAddStockOpen}
-          onOpenChange={setIsAddStockOpen}
-          items={items}
-          preselectedItemId={addStockPreselect}
-        />
-      )}
+      <AddStockDialog
+        open={isAddStockOpen}
+        onOpenChange={setIsAddStockOpen}
+        items={items || []}
+        preselectedItemId={addStockPreselect}
+      />
 
-      {/* Realization Dialog */}
-      <Dialog open={showRealization} onOpenChange={setShowRealization}>
-        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" /> Realisasi Perlengkapan
-            </DialogTitle>
-          </DialogHeader>
-          <EquipmentRealizationTab
-            selectedPackage={selectedPackage}
-            selectedDeparture={selectedDeparture}
-          />
+      <Dialog open={showMasterData} onOpenChange={setShowMasterData}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <MasterDataTab items={items} />
         </DialogContent>
       </Dialog>
 
-      {/* Master Data Dialog */}
-      <Dialog open={showMasterData} onOpenChange={setShowMasterData}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" /> Master Data Perlengkapan
-            </DialogTitle>
-          </DialogHeader>
-          <MasterDataTab items={items} />
+      <Dialog open={showRealization} onOpenChange={setShowRealization}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <EquipmentRealizationTab />
         </DialogContent>
       </Dialog>
     </div>

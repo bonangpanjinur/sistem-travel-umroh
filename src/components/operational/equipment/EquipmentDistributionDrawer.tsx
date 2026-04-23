@@ -2,15 +2,12 @@ import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Separator } from "@/components/ui/separator";
-import { Package, CheckCircle2, AlertTriangle, Loader2, User } from "lucide-react";
+import { Package, CheckCircle2, Loader2, User, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 interface EquipmentItem {
@@ -19,6 +16,7 @@ interface EquipmentItem {
   description?: string;
   stock_quantity?: number;
   category?: string;
+  low_stock_threshold?: number;
 }
 
 interface ChecklistItem {
@@ -69,7 +67,7 @@ export function EquipmentDistributionDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("equipment_distributions")
-        .select("equipment_id, quantity")
+        .select("equipment_id, quantity, status")
         .eq("customer_id", jamaahId)
         .eq("departure_id", departureId)
         .eq("status", "distributed");
@@ -95,63 +93,65 @@ export function EquipmentDistributionDialog({
     mutationFn: async () => {
       const existingIds = new Set(existingDistributions?.map((d: any) => d.equipment_id) || []);
       const newCheckedIds = new Set(checkedItems.keys());
+      
       const itemsToAdd = Array.from(newCheckedIds).filter((id) => !existingIds.has(id));
       const itemsToRemove = Array.from(existingIds).filter((id) => !newCheckedIds.has(id));
 
+      // 1. Handle Additions (Atomic)
       if (itemsToAdd.length > 0) {
-        const insertData = itemsToAdd.map((equipmentId) => ({
-          equipment_id: equipmentId,
+        const distributions = itemsToAdd.map(id => ({
+          equipment_id: id,
           customer_id: jamaahId,
-          departure_id: departureId,
-          quantity: checkedItems.get(equipmentId)?.quantity || 1,
-          status: "distributed",
-          distributed_at: new Date().toISOString(),
+          quantity: checkedItems.get(id)?.quantity || 1
         }));
-        const { error } = await supabase.from("equipment_distributions").insert(insertData);
+
+        const { error } = await supabase.rpc('bulk_distribute_equipment', {
+          p_departure_id: departureId,
+          p_distributions: distributions
+        });
         if (error) throw error;
-        
-        // Update stock (decrease)
-        await Promise.all(itemsToAdd.map(async (equipmentId) => {
-          const item = allEquipmentItems?.find((e) => e.id === equipmentId);
-          const qty = checkedItems.get(equipmentId)?.quantity || 1;
-          const newStock = Math.max(0, (item?.stock_quantity || 0) - qty);
-          const { error } = await supabase.from("equipment_items").update({ stock_quantity: newStock }).eq("id", equipmentId);
-          if (error) throw error;
-        }));
       }
 
+      // 2. Handle Removals (Atomic Return)
       if (itemsToRemove.length > 0) {
-        // Get all distributions to remove
-        const { data: distToRemove } = await supabase
-          .from("equipment_distributions")
-          .select("id, equipment_id, quantity")
-          .in("equipment_id", itemsToRemove)
-          .eq("customer_id", jamaahId)
-          .eq("departure_id", departureId)
-          .eq("status", "distributed");
-        
-        if (distToRemove && distToRemove.length > 0) {
-          const distIds = distToRemove.map((d) => d.id);
-          await supabase.from("equipment_distributions").delete().in("id", distIds);
+        for (const equipmentId of itemsToRemove) {
+          // Update status to 'returned' instead of deleting
+          const { data: dist, error: fetchError } = await supabase
+            .from("equipment_distributions")
+            .select("id, quantity")
+            .eq("customer_id", jamaahId)
+            .eq("departure_id", departureId)
+            .eq("equipment_id", equipmentId)
+            .eq("status", "distributed")
+            .single();
           
-          // Restore stock (increase)
-          await Promise.all(distToRemove.map(async (dist) => {
-            const item = allEquipmentItems?.find((e) => e.id === dist.equipment_id);
-            if (item) {
-              const { error } = await supabase.from("equipment_items").update({ stock_quantity: (item.stock_quantity || 0) + (dist.quantity || 1) }).eq("id", dist.equipment_id);
-              if (error) throw error;
-            }
-          }));
+          if (fetchError) throw fetchError;
+
+          const { error: updateError } = await supabase
+            .from("equipment_distributions")
+            .update({ 
+              status: 'returned', 
+              returned_at: new Date().toISOString() 
+            })
+            .eq("id", dist.id);
+          
+          if (updateError) throw updateError;
+
+          // Increment stock atomically
+          const { error: rpcError } = await supabase.rpc('increment_equipment_stock', {
+            item_id: equipmentId,
+            amount: dist.quantity || 1
+          });
+          if (rpcError) throw rpcError;
         }
       }
     },
     onSuccess: () => {
-      toast.success(`Perlengkapan ${jamaahName} berhasil disimpan`);
+      toast.success(`Perlengkapan ${jamaahName} berhasil diperbarui`);
       queryClient.invalidateQueries({ queryKey: ["equipment-distributions"] });
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
       queryClient.invalidateQueries({ queryKey: ["customer-distributions", jamaahId, departureId] });
       
-      // Close confirm dialog first, then main dialog with a small delay to prevent Radix UI freeze
       setShowConfirmDialog(false);
       setTimeout(() => {
         onOpenChange(false);
@@ -164,15 +164,38 @@ export function EquipmentDistributionDialog({
   });
 
   const handleCheckItem = (id: string) => {
+    const item = allEquipmentItems?.find(i => i.id === id);
+    const isChecked = checkedItems.has(id);
+    
+    // Validation: Check stock if adding
+    if (!isChecked && (item?.stock_quantity || 0) <= 0) {
+      toast.error(`Stok ${item?.name} habis!`);
+      return;
+    }
+
     const newChecked = new Map(checkedItems);
-    if (newChecked.has(id)) newChecked.delete(id);
+    if (isChecked) newChecked.delete(id);
     else newChecked.set(id, { equipmentId: id, quantity: 1 });
     setCheckedItems(newChecked);
   };
 
   const handleSelectAll = () => {
-    const newChecked = new Map<string, ChecklistItem>();
-    equipmentItems?.forEach((item) => newChecked.set(item.id, { equipmentId: item.id, quantity: 1 }));
+    const newChecked = new Map(checkedItems);
+    let skipped = 0;
+    
+    equipmentItems?.forEach((item) => {
+      if (!newChecked.has(item.id)) {
+        if ((item.stock_quantity || 0) > 0) {
+          newChecked.set(item.id, { equipmentId: item.id, quantity: 1 });
+        } else {
+          skipped++;
+        }
+      }
+    });
+    
+    if (skipped > 0) {
+      toast.warning(`${skipped} item dilewati karena stok habis`);
+    }
     setCheckedItems(newChecked);
   };
 
@@ -189,7 +212,6 @@ export function EquipmentDistributionDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
-          {/* Header with jamaah info */}
           <div className="p-6 pb-4 border-b bg-muted/30">
             <DialogHeader>
               <DialogTitle className="text-lg">Detail Perlengkapan Jamaah</DialogTitle>
@@ -213,7 +235,6 @@ export function EquipmentDistributionDialog({
             <Progress value={progressPercentage} className="h-2 mt-3" />
           </div>
 
-          {/* Checklist */}
           <div className="flex-1 overflow-y-auto p-6 pt-4">
             {loadingItems ? (
               <div className="flex items-center justify-center py-12">
@@ -237,6 +258,7 @@ export function EquipmentDistributionDialog({
                   {equipmentItems.map((item) => {
                     const isChecked = checkedItems.has(item.id);
                     const stock = item.stock_quantity || 0;
+                    const threshold = item.low_stock_threshold || 5;
                     const catEmoji = item.category === 'male_only' ? '♂' : item.category === 'female_only' ? '♀' : item.category === 'child_only' ? '👶' : '';
 
                     return (
@@ -246,7 +268,9 @@ export function EquipmentDistributionDialog({
                         className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                           isChecked
                             ? 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-700'
-                            : 'hover:border-primary/50'
+                            : stock === 0 
+                              ? 'bg-muted/50 opacity-70 cursor-not-allowed'
+                              : 'hover:border-primary/50'
                         }`}
                       >
                         <Checkbox checked={isChecked} className="h-5 w-5 pointer-events-none" />
@@ -264,7 +288,7 @@ export function EquipmentDistributionDialog({
                           variant="outline"
                           className={`text-xs shrink-0 ${
                             stock === 0 ? 'bg-red-50 text-red-700 border-red-200' :
-                            stock <= 5 ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            stock <= threshold ? 'bg-amber-50 text-amber-700 border-amber-200' :
                             'bg-green-50 text-green-700 border-green-200'
                           }`}
                         >
@@ -284,7 +308,6 @@ export function EquipmentDistributionDialog({
             )}
           </div>
 
-          {/* Footer */}
           <DialogFooter className="p-6 pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
             <Button
@@ -309,10 +332,27 @@ export function EquipmentDistributionDialog({
               Simpan distribusi {distributedCount} item untuk {jamaahName}?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="my-3 p-3 bg-muted rounded-md text-sm space-y-1">
+          <div className="my-3 p-3 bg-muted rounded-md text-sm space-y-1 max-h-[200px] overflow-y-auto">
             {Array.from(checkedItems.entries()).map(([eqId]) => {
               const eq = allEquipmentItems?.find(e => e.id === eqId);
-              return <p key={eqId}>• {eq?.name}</p>;
+              const isNew = !existingDistributions?.some(d => d.equipment_id === eqId);
+              return (
+                <p key={eqId} className="flex items-center justify-between">
+                  <span>• {eq?.name}</span>
+                  {isNew && <Badge className="text-[10px] h-4 bg-green-100 text-green-700 border-green-200">Baru</Badge>}
+                </p>
+              );
+            })}
+            {existingDistributions?.filter(d => !checkedItems.has(d.equipment_id)).map(d => {
+              const eq = allEquipmentItems?.find(e => e.id === d.equipment_id);
+              return (
+                <p key={d.equipment_id} className="flex items-center justify-between text-destructive">
+                  <span>• {eq?.name}</span>
+                  <Badge variant="outline" className="text-[10px] h-4 text-destructive border-destructive/30 flex gap-1">
+                    <RotateCcw className="h-2 w-2" /> Retur
+                  </Badge>
+                </p>
+              );
             })}
           </div>
           <div className="flex gap-2 justify-end">
