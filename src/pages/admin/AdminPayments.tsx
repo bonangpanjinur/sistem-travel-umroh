@@ -95,6 +95,50 @@ export default function AdminPayments() {
     },
   });
 
+  // Pembayaran tabungan (savings_payments)
+  const { data: savingsPayments, isLoading: isLoadingSavings } = useQuery({
+    queryKey: ['admin-savings-payments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('savings_payments')
+        .select(`
+          *,
+          savings_plan:savings_plans(
+            id,
+            target_amount,
+            paid_amount,
+            customer:customers(id, full_name, phone, email),
+            package:packages(name)
+          )
+        `)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Booking yang sama sekali belum punya record payments
+  const { data: bookingsNoPayment } = useQuery({
+    queryKey: ['admin-bookings-no-payment'],
+    queryFn: async () => {
+      const { data: paymentBookings } = await supabase
+        .from('payments')
+        .select('booking_id');
+      const paidIds = new Set((paymentBookings || []).map((p: any) => p.booking_id));
+
+      const { data: allBookings, error } = await supabase
+        .from('bookings')
+        .select(`
+          id, booking_code, total_price, paid_amount, remaining_amount, payment_status, created_at,
+          customer:customers(full_name, phone)
+        `)
+        .neq('booking_status', 'cancelled')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (allBookings || []).filter((b: any) => !paidIds.has(b.id));
+    },
+  });
+
   const verifyMutation = useMutation({
     mutationFn: async ({ paymentId, status, notes }: { paymentId: string; status: 'paid' | 'failed'; notes?: string }) => {
       const { data: payment, error: paymentError } = await supabase
