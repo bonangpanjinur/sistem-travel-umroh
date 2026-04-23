@@ -52,6 +52,7 @@ import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
+import { ChangePackageDialog } from "@/components/admin/ChangePackageDialog";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -77,6 +78,7 @@ export default function AdminBookingDetail() {
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [showProofDialog, setShowProofDialog] = useState(false);
   const [showManagePaymentModal, setShowManagePaymentModal] = useState(false);
+  const [showChangePackageDialog, setShowChangePackageDialog] = useState(false);
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['admin-booking', id],
@@ -447,7 +449,18 @@ export default function AdminBookingDetail() {
                 <div className="space-y-4">
                   <div className="p-3 rounded-lg bg-muted/30 border border-dashed">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Nama Paket</p>
-                    <p className="text-base font-bold text-primary">{pkg?.name || '-'}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-base font-bold text-primary">{pkg?.name || '-'}</p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 text-[10px] gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                        onClick={() => setShowChangePackageDialog(true)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Pindah Paket
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -820,6 +833,16 @@ export default function AdminBookingDetail() {
         bookingCode={booking.booking_code}
         customerName={customer?.full_name || '-'}
       />
+
+      {booking && (
+        <ChangePackageDialog
+          isOpen={showChangePackageDialog}
+          onClose={() => setShowChangePackageDialog(false)}
+          bookingId={id!}
+          currentDepartureId={booking.departure_id}
+          currentDepartureDate={booking.departure?.departure_date}
+        />
+      )}
     </div>
   );
 }
