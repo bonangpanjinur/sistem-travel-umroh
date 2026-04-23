@@ -14,23 +14,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit2, Trash2, Package, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Package, AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { EquipmentItem } from "@/pages/operational/EquipmentPage";
 
@@ -41,7 +31,7 @@ interface MasterDataTabProps {
 export function MasterDataTab({ items }: MasterDataTabProps) {
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
 
   const [formData, setFormData] = useState({
@@ -70,12 +60,14 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
       category: item.category || "general",
       low_stock_threshold: item.low_stock_threshold || 10,
     });
+    setDeleteMode(false);
     setEditDialogOpen(true);
   };
 
   const handleDelete = (item: EquipmentItem) => {
     setSelectedItem(item);
-    setDeleteAlertOpen(true);
+    setDeleteMode(true);
+    setEditDialogOpen(true);
   };
 
   const saveMutation = useMutation({
@@ -104,6 +96,7 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
       toast.success(selectedItem ? "✅ Item berhasil diperbarui" : "✅ Item berhasil ditambahkan");
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
       setEditDialogOpen(false);
+      setDeleteMode(false);
     },
     onError: (err: Error) => toast.error(`Gagal menyimpan: ${err.message}`),
   });
@@ -120,7 +113,8 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
     onSuccess: () => {
       toast.success("✅ Item berhasil dihapus");
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
-      setDeleteAlertOpen(false);
+      setEditDialogOpen(false);
+      setDeleteMode(false);
     },
     onError: (err: Error) => toast.error(`Gagal menghapus: ${err.message}`),
   });
@@ -131,6 +125,10 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
       return;
     }
     saveMutation.mutate();
+  };
+
+  const handleConfirmDelete = () => {
+    deleteMutation.mutate();
   };
 
   return (
@@ -269,108 +267,122 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
         )}
       </div>
 
-      {/* Edit/Add Item Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      {/* Edit/Add/Delete Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setDeleteMode(false);
+        }
+        setEditDialogOpen(open);
+      }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{selectedItem ? `Edit Item: ${selectedItem.name}` : "Tambah Item Baru"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Nama Item *</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Contoh: Koper, Ihram, Mukena..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Deskripsi</Label>
-              <Input
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder="Deskripsi opsional..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-category">Kategori</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, category: value })
-                }
-              >
-                <SelectTrigger id="edit-category">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">Umum (Semua)</SelectItem>
-                  <SelectItem value="male_only">Laki-laki Saja</SelectItem>
-                  <SelectItem value="female_only">Perempuan Saja</SelectItem>
-                  <SelectItem value="child_only">Anak-anak Saja</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-threshold">Batas Stok Minimal</Label>
-              <Input
-                id="edit-threshold"
-                type="number"
-                min="0"
-                value={formData.low_stock_threshold}
-                onChange={(e) =>
-                  setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 0 })
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditDialogOpen(false)}
-              disabled={saveMutation.isPending}
-            >
-              Batal
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={saveMutation.isPending}>
-              {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {selectedItem ? "Simpan Perubahan" : "Tambah Item"}
-            </Button>
-          </DialogFooter>
+          {deleteMode ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  Apakah Anda yakin?
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Tindakan ini tidak dapat dibatalkan. Item <strong>"{selectedItem?.name}"</strong> akan dihapus permanen dari sistem.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteMode(false)}
+                  disabled={deleteMutation.isPending}
+                >
+                  Batal
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmDelete}
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Hapus Item
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedItem ? `Edit Item: ${selectedItem.name}` : "Tambah Item Baru"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Nama Item *</Label>
+                  <Input
+                    id="edit-name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    placeholder="Contoh: Koper, Ihram, Mukena..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Deskripsi</Label>
+                  <Input
+                    id="edit-description"
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    placeholder="Deskripsi opsional..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category">Kategori</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, category: value })
+                    }
+                  >
+                    <SelectTrigger id="edit-category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">Umum (Semua)</SelectItem>
+                      <SelectItem value="male_only">Laki-laki Saja</SelectItem>
+                      <SelectItem value="female_only">Perempuan Saja</SelectItem>
+                      <SelectItem value="child_only">Anak-anak Saja</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-threshold">Batas Stok Minimal</Label>
+                  <Input
+                    id="edit-threshold"
+                    type="number"
+                    min="0"
+                    value={formData.low_stock_threshold}
+                    onChange={(e) =>
+                      setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 0 })
+                    }
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditDialogOpen(false)}
+                  disabled={saveMutation.isPending}
+                >
+                  Batal
+                </Button>
+                <Button onClick={handleSaveEdit} disabled={saveMutation.isPending}>
+                  {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {selectedItem ? "Simpan Perubahan" : "Tambah Item"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
-
-      {/* Delete Alert */}
-      <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Item "{selectedItem?.name}" akan dihapus permanen dari sistem.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                deleteMutation.mutate();
-              }}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Hapus Item
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

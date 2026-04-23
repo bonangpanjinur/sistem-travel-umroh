@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Package, CheckCircle2, Loader2, User, RotateCcw } from "lucide-react";
+import { Package, CheckCircle2, Loader2, User, RotateCcw, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface EquipmentItem {
@@ -89,6 +88,13 @@ export function EquipmentDistributionDialog({
     }
   }, [existingDistributions]);
 
+  // Reset confirm state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setShowConfirmDialog(false);
+    }
+  }, [open]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const existingIds = new Set(existingDistributions?.map((d: any) => d.equipment_id) || []);
@@ -152,10 +158,10 @@ export function EquipmentDistributionDialog({
       queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
       queryClient.invalidateQueries({ queryKey: ["customer-distributions", jamaahId, departureId] });
       
+      // Reset state immediately before closing
       setShowConfirmDialog(false);
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 100);
+      setCheckedItems(new Map());
+      onOpenChange(false);
     },
     onError: (error) => {
       toast.error(`Gagal menyimpan: ${error.message}`);
@@ -208,161 +214,184 @@ export function EquipmentDistributionDialog({
   const genderLabel = jamaahGender === 'male' ? 'Laki-laki' : jamaahGender === 'female' ? 'Perempuan' : jamaahType === 'child' ? 'Anak' : '-';
   const genderColor = jamaahGender === 'male' ? 'text-blue-600 bg-blue-50 border-blue-200' : jamaahGender === 'female' ? 'text-pink-600 bg-pink-50 border-pink-200' : 'text-muted-foreground bg-muted';
 
-  return (
-    <>
+  // Inline confirmation view instead of nested AlertDialog
+  if (showConfirmDialog) {
+    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
-          <div className="p-6 pb-4 border-b bg-muted/30">
-            <DialogHeader>
-              <DialogTitle className="text-lg">Detail Perlengkapan Jamaah</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4 flex items-center gap-4">
-              <div className={`h-12 w-12 rounded-full flex items-center justify-center border ${genderColor}`}>
-                <User className="h-6 w-6" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-base">{jamaahName}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className={`text-xs ${genderColor}`}>{genderLabel}</Badge>
-                  {jamaahType === 'child' && <Badge variant="outline" className="text-xs">Anak</Badge>}
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold">{distributedCount}/{totalCount}</p>
-                <p className="text-xs text-muted-foreground">{Math.round(progressPercentage)}% selesai</p>
-              </div>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Konfirmasi Penyimpanan
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Simpan distribusi <strong>{distributedCount}</strong> item untuk <strong>{jamaahName}</strong>?
+            </p>
+            
+            <div className="p-3 bg-muted rounded-md text-sm space-y-1 max-h-[300px] overflow-y-auto">
+              {Array.from(checkedItems.entries()).map(([eqId]) => {
+                const eq = allEquipmentItems?.find(e => e.id === eqId);
+                const isNew = !existingDistributions?.some(d => d.equipment_id === eqId);
+                return (
+                  <p key={eqId} className="flex items-center justify-between">
+                    <span>• {eq?.name}</span>
+                    {isNew && <Badge className="text-[10px] h-4 bg-green-100 text-green-700 border-green-200">Baru</Badge>}
+                  </p>
+                );
+              })}
+              {existingDistributions?.filter(d => !checkedItems.has(d.equipment_id)).map(d => {
+                const eq = allEquipmentItems?.find(e => e.id === d.equipment_id);
+                return (
+                  <p key={d.equipment_id} className="flex items-center justify-between text-destructive">
+                    <span>• {eq?.name}</span>
+                    <Badge variant="outline" className="text-[10px] h-4 text-destructive border-destructive/30 flex gap-1">
+                      <RotateCcw className="h-2 w-2" /> Retur
+                    </Badge>
+                  </p>
+                );
+              })}
             </div>
-            <Progress value={progressPercentage} className="h-2 mt-3" />
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 pt-4">
-            {loadingItems ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : equipmentItems && equipmentItems.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-muted-foreground">Checklist Perlengkapan</p>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={handleSelectAll} disabled={distributedCount === totalCount}>
-                      Pilih Semua
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleDeselectAll} disabled={distributedCount === 0}>
-                      Hapus Semua
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {equipmentItems.map((item) => {
-                    const isChecked = checkedItems.has(item.id);
-                    const stock = item.stock_quantity || 0;
-                    const threshold = item.low_stock_threshold || 5;
-                    const catEmoji = item.category === 'male_only' ? '♂' : item.category === 'female_only' ? '♀' : item.category === 'child_only' ? '👶' : '';
-
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => handleCheckItem(item.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                          isChecked
-                            ? 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-700'
-                            : stock === 0 
-                              ? 'bg-muted/50 opacity-70 cursor-not-allowed'
-                              : 'hover:border-primary/50'
-                        }`}
-                      >
-                        <Checkbox checked={isChecked} className="h-5 w-5 pointer-events-none" />
-                        <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">
-                            {catEmoji && <span className="mr-1">{catEmoji}</span>}
-                            {item.name}
-                          </p>
-                          {item.description && (
-                            <p className="text-xs text-muted-foreground truncate">{item.description}</p>
-                          )}
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={`text-xs shrink-0 ${
-                            stock === 0 ? 'bg-red-50 text-red-700 border-red-200' :
-                            stock <= threshold ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            'bg-green-50 text-green-700 border-green-200'
-                          }`}
-                        >
-                          Stok: {stock}
-                        </Badge>
-                        {isChecked && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground">Tidak ada perlengkapan yang sesuai</p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="p-6 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
-            <Button
-              onClick={() => setShowConfirmDialog(true)}
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={saveMutation.isPending}
+            >
+              Batal
+            </Button>
+            <Button 
+              onClick={() => saveMutation.mutate()} 
               disabled={saveMutation.isPending}
             >
               {saveMutation.isPending ? (
                 <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Menyimpan...</>
               ) : (
-                'Simpan Distribusi'
+                'Simpan'
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    );
+  }
 
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Penyimpanan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Simpan distribusi {distributedCount} item untuk {jamaahName}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-3 p-3 bg-muted rounded-md text-sm space-y-1 max-h-[200px] overflow-y-auto">
-            {Array.from(checkedItems.entries()).map(([eqId]) => {
-              const eq = allEquipmentItems?.find(e => e.id === eqId);
-              const isNew = !existingDistributions?.some(d => d.equipment_id === eqId);
-              return (
-                <p key={eqId} className="flex items-center justify-between">
-                  <span>• {eq?.name}</span>
-                  {isNew && <Badge className="text-[10px] h-4 bg-green-100 text-green-700 border-green-200">Baru</Badge>}
-                </p>
-              );
-            })}
-            {existingDistributions?.filter(d => !checkedItems.has(d.equipment_id)).map(d => {
-              const eq = allEquipmentItems?.find(e => e.id === d.equipment_id);
-              return (
-                <p key={d.equipment_id} className="flex items-center justify-between text-destructive">
-                  <span>• {eq?.name}</span>
-                  <Badge variant="outline" className="text-[10px] h-4 text-destructive border-destructive/30 flex gap-1">
-                    <RotateCcw className="h-2 w-2" /> Retur
-                  </Badge>
-                </p>
-              );
-            })}
+  // Main dialog view
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+        <div className="p-6 pb-4 border-b bg-muted/30">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Detail Perlengkapan Jamaah</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 flex items-center gap-4">
+            <div className={`h-12 w-12 rounded-full flex items-center justify-center border ${genderColor}`}>
+              <User className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-base">{jamaahName}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className={`text-xs ${genderColor}`}>{genderLabel}</Badge>
+                {jamaahType === 'child' && <Badge variant="outline" className="text-xs">Anak</Badge>}
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold">{distributedCount}/{totalCount}</p>
+              <p className="text-xs text-muted-foreground">{Math.round(progressPercentage)}% selesai</p>
+            </div>
           </div>
-          <div className="flex gap-2 justify-end">
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Menyimpan..." : "Simpan"}
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+          <Progress value={progressPercentage} className="h-2 mt-3" />
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 pt-4">
+          {loadingItems ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : equipmentItems && equipmentItems.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">Checklist Perlengkapan</p>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleSelectAll} disabled={distributedCount === totalCount}>
+                    Pilih Semua
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleDeselectAll} disabled={distributedCount === 0}>
+                    Hapus Semua
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {equipmentItems.map((item) => {
+                  const isChecked = checkedItems.has(item.id);
+                  const stock = item.stock_quantity || 0;
+                  const threshold = item.low_stock_threshold || 5;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleCheckItem(item.id)}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        isChecked
+                          ? 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-700'
+                          : stock === 0 
+                            ? 'bg-muted/50 opacity-70 cursor-not-allowed'
+                            : 'hover:border-primary/50'
+                      }`}
+                    >
+                      <Checkbox checked={isChecked} className="h-5 w-5 pointer-events-none" />
+                      <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {item.name}
+                        </p>
+                        {item.description && (
+                          <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                        )}
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs shrink-0 ${
+                          stock === 0 ? 'bg-red-50 text-red-700 border-red-200' :
+                          stock <= threshold ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          'bg-green-50 text-green-700 border-green-200'
+                        }`}
+                      >
+                        Stok: {stock}
+                      </Badge>
+                      {isChecked && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <p className="text-muted-foreground">Tidak ada perlengkapan yang sesuai</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="p-6 pt-4 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
+          <Button
+            onClick={() => setShowConfirmDialog(true)}
+            disabled={saveMutation.isPending || checkedItems.size === 0}
+          >
+            {saveMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Menyimpan...</>
+            ) : (
+              'Simpan Distribusi'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
