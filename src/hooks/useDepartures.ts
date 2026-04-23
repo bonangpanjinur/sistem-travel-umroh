@@ -35,7 +35,7 @@ export function useDeparture(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('departures')
-        .select('*, packages(*), airlines(*), departure_airport:airports!departures_departure_airport_id_fkey(*), arrival_airport:airports!departures_arrival_airport_id_fkey(*), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*), muthawifs:muthawif_id(*)')
+        .select('*, packages(*), airlines(*), departure_airport:airports!departures_departure_airport_id_fkey(*), arrival_airport:airports!departures_arrival_airport_id_fkey(*), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*), muthawif:muthawifs!departures_muthawif_id_fkey(*)')
         .eq('id', id!)
         .single();
       if (error) throw error;
