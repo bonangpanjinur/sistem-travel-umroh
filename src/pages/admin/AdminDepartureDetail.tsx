@@ -126,8 +126,15 @@ export default function AdminDepartureDetail() {
         .select("id, booking_code, room_type, booking_status, payment_status, customer_id")
         .eq("departure_id", id!);
 
-      if (bookingsError) throw bookingsError;
-      if (!bookings || bookings.length === 0) return [];
+      if (bookingsError) {
+        console.error("Bookings error:", bookingsError);
+        throw bookingsError;
+      }
+      if (!bookings || bookings.length === 0) {
+        console.log("No bookings for departure:", id);
+        return [];
+      }
+      console.log("Bookings found:", bookings.length, bookings);
 
       const bookingIds = bookings.map((b) => b.id);
       const bookingMap = new Map(bookings.map((b) => [b.id, b]));
@@ -151,7 +158,11 @@ export default function AdminDepartureDetail() {
         .in("booking_id", bookingIds)
         .order("is_main_passenger", { ascending: false });
 
-      if (bpsError) throw bpsError;
+      if (bpsError) {
+        console.error("booking_passengers error:", bpsError);
+        throw bpsError;
+      }
+      console.log("booking_passengers found:", bps?.length || 0, bps);
 
       // Step 3: Identify bookings missing a main_passenger row → build virtual passenger from booking.customer_id
       const bookingsWithMain = new Set(
