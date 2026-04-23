@@ -225,6 +225,106 @@ export default function RoomingListPage() {
     selectedDeparture.hotel_madinah,
   ].filter(Boolean) : [];
 
+  // === Data lengkap untuk export sesuai template referensi ===
+  const { data: exportDeparture } = useQuery({
+    queryKey: ["rooming-export-departure", selectedDepartureId],
+    enabled: !!selectedDepartureId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departures")
+        .select(`
+          id, departure_date, return_date, departure_time, flight_number,
+          packages:package_id(name, code, duration_days),
+          airlines:airline_id(name, code),
+          departure_airport:airports!departures_departure_airport_id_fkey(code, name),
+          arrival_airport:airports!departures_arrival_airport_id_fkey(code, name),
+          hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id, name, city),
+          hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, city),
+          muthawif:muthawifs!departures_muthawif_id_fkey(name, phone)
+        `)
+        .eq("id", selectedDepartureId)
+        .single();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const { data: exportPassengers } = useQuery({
+    queryKey: ["rooming-export-passengers", selectedDepartureId],
+    enabled: !!selectedDepartureId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_passengers")
+        .select(`
+          id, passenger_type, room_number, roommate_id,
+          booking:bookings!inner(id, room_type, departure_id, booking_status),
+          customer:customers(full_name, gender, birth_date, passport_number, passport_expiry)
+        `)
+        .eq("booking.departure_id", selectedDepartureId)
+        .neq("booking.booking_status", "cancelled");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const buildExportData = (): RoomingExportData | null => {
+    if (!exportDeparture || !exportPassengers) return null;
+    const dep = exportDeparture;
+    const pax: RoomingPassenger[] = (exportPassengers || []).map((p: any) => ({
+      id: p.id,
+      passenger_type: p.passenger_type,
+      room_number: p.room_number,
+      roommate_id: p.roommate_id,
+      booking_id: p.booking?.id,
+      booking_room_type: (p.booking?.room_type || 'quad') as RoomTypeDB,
+      customer: {
+        full_name: p.customer?.full_name || '-',
+        gender: p.customer?.gender,
+        birth_date: p.customer?.birth_date,
+        passport_number: p.customer?.passport_number,
+        passport_expiry: p.customer?.passport_expiry,
+      },
+    }));
+    const allHotels = [
+      exportHotelScope !== 'madinah' && dep.hotel_makkah ? { name: dep.hotel_makkah.name, city: dep.hotel_makkah.city } : null,
+      exportHotelScope !== 'makkah' && dep.hotel_madinah ? { name: dep.hotel_madinah.name, city: dep.hotel_madinah.city } : null,
+    ].filter(Boolean) as { name: string; city?: string | null }[];
+    return {
+      departureDate: dep.departure_date,
+      returnDate: dep.return_date,
+      airlineName: dep.airlines?.name || '-',
+      airlineCode: dep.airlines?.code,
+      flightNumber: dep.flight_number,
+      departureTime: dep.departure_time,
+      departureAirport: dep.departure_airport,
+      arrivalAirport: dep.arrival_airport,
+      packageName: dep.packages?.name || '-',
+      durationDays: dep.packages?.duration_days,
+      welcomeBoard: welcomeBoard || dep.packages?.name || '-',
+      timeLimit,
+      tourLeaderName: dep.muthawif?.name,
+      tourLeaderPhone: dep.muthawif?.phone,
+      hotels: allHotels,
+      passengers: pax,
+    };
+  };
+
+  const handleExportTemplateExcel = () => {
+    const data = buildExportData();
+    if (!data) return toast.error('Data belum siap');
+    if (data.passengers.length === 0) return toast.error('Tidak ada jamaah pada keberangkatan ini');
+    exportRoomingListExcel(data);
+    toast.success('Rooming List Excel berhasil di-download');
+  };
+
+  const handleExportTemplatePDF = () => {
+    const data = buildExportData();
+    if (!data) return toast.error('Data belum siap');
+    if (data.passengers.length === 0) return toast.error('Tidak ada jamaah pada keberangkatan ini');
+    exportRoomingListPDF(data);
+    toast.success('Rooming List PDF berhasil di-download');
+  };
+
   const totalRooms = rooms?.length || 0;
   const totalCapacity = rooms?.reduce((sum, r) => sum + r.capacity, 0) || 0;
   const totalOccupied = rooms?.reduce((sum, r) => sum + (r.occupants?.length || 0), 0) || 0;
