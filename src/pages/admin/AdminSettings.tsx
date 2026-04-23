@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/form";
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
+import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useDynamicMenus } from "@/hooks/useDynamicMenus";
@@ -207,7 +208,8 @@ export default function AdminSettings() {
       {/* Change Password */}
       <ChangePassword />
 
-
+      {/* Document & Letterhead Settings */}
+      <DocumentSettingsForm />
 
       {/* Certificate Settings (Super Admin Only) */}
       {isSuperAdmin() && (
