@@ -21,6 +21,7 @@ import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
+import { useDynamicMenus } from "@/hooks/useDynamicMenus";
 
 const companySchema = z.object({
   company_name: z.string().min(3, "Nama perusahaan minimal 3 karakter"),
@@ -66,6 +67,7 @@ type PackageChangeFormData = z.infer<typeof packageChangeSchema>;
 export default function AdminSettings() {
   const { getSetting, updateMultipleSettings, resetDatabase, isLoading, isUpdating } = useCompanySettings();
   const { accounts, createAccount, updateAccount, deleteAccount, isLoading: loadingAccounts } = useBankAccounts();
+  const { revokedKeys } = useDynamicMenus();
   
   const [resetConfirm, setResetConfirm] = useState("");
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -73,7 +75,9 @@ export default function AdminSettings() {
   const [isBankDialogOpen, setIsBankDialogOpen] = useState(false);
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null);
 
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, hasRole } = useAuth();
+  
+  const canManagePackageChange = isSuperAdmin() || hasRole('owner') || !revokedKeys.includes('settings-package-change');
 
   const companyForm = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -228,8 +232,8 @@ export default function AdminSettings() {
       {/* Change Password */}
       <ChangePassword />
 
-      {/* Package Change Settings (Super Admin Only) */}
-      {isSuperAdmin() && (
+      {/* Package Change Settings */}
+      {canManagePackageChange && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
