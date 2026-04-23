@@ -52,7 +52,8 @@ export function LinkDepartureForm({
           airline:airlines(code, name),
           hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name, star_rating),
           hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, star_rating),
-          package:packages(id, name)
+          package:packages(id, name, package_types(code, name)),
+          departure_hotels(hotel_id, hotel_role, hotels(name))
         `)
         .or(`package_id.is.null,package_id.eq.${packageId}`)
         .order('departure_date', { ascending: true });
@@ -247,15 +248,21 @@ function DepartureItem({
         </div>
 
         {/* Hotel info */}
-        {(departure.hotel_makkah || departure.hotel_madinah) && (
+        {(departure.hotel_makkah || departure.hotel_madinah || (departure.package?.package_types?.code?.toLowerCase() === 'tour' && departure.departure_hotels?.length > 0)) && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Hotel className="h-3 w-3" />
-            {departure.hotel_makkah && (
-              <span>M: {departure.hotel_makkah.name}</span>
-            )}
-            {departure.hotel_makkah && departure.hotel_madinah && <span>•</span>}
-            {departure.hotel_madinah && (
-              <span>D: {departure.hotel_madinah.name}</span>
+            {departure.package?.package_types?.code?.toLowerCase() === 'tour' ? (
+              <span>{departure.departure_hotels?.length} Hotel</span>
+            ) : (
+              <>
+                {departure.hotel_makkah && (
+                  <span>M: {departure.hotel_makkah.name}</span>
+                )}
+                {departure.hotel_makkah && departure.hotel_madinah && <span>•</span>}
+                {departure.hotel_madinah && (
+                  <span>D: {departure.hotel_madinah.name}</span>
+                )}
+              </>
             )}
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -109,7 +109,10 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
   const { data: packages } = useQuery({
     queryKey: ["packages-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("packages").select("id, code, name").eq("is_active", true);
+      const { data } = await supabase
+        .from("packages")
+        .select("id, code, name, package_type_id, package_types(code, name)")
+        .eq("is_active", true);
       return data || [];
     },
   });
@@ -212,6 +215,16 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
 
   const watchedDepartureDate = form.watch("departure_date");
   const watchedMonth = form.watch("month");
+  const watchedPackageId = form.watch("package_id");
+
+  const selectedPackage = useMemo(() => {
+    return packages?.find(p => p.id === watchedPackageId);
+  }, [packages, watchedPackageId]);
+
+  const isTourPackage = useMemo(() => {
+    const typeCode = (selectedPackage as any)?.package_types?.code?.toLowerCase();
+    return typeCode === 'tour';
+  }, [selectedPackage]);
 
   const mutation = useMutation({
     mutationFn: async (values: DepartureFormValues) => {
@@ -222,11 +235,11 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         arrival_airport_id: values.arrival_airport_id || null,
         flight_number: values.flight_number || null,
         departure_time: values.departure_time || null,
-        muthawif_id: values.muthawif_id || null,
-        team_leader_id: values.team_leader_id || null,
         airline_id: values.airline_id || null,
-        hotel_makkah_id: values.hotel_makkah_id || null,
-        hotel_madinah_id: values.hotel_madinah_id || null,
+        hotel_makkah_id: isTourPackage ? null : (values.hotel_makkah_id || null),
+        hotel_madinah_id: isTourPackage ? null : (values.hotel_madinah_id || null),
+        muthawif_id: isTourPackage ? null : (values.muthawif_id || null),
+        team_leader_id: isTourPackage ? null : (values.team_leader_id || null),
         document_deadline: values.document_deadline || null,
         payment_deadline: values.payment_deadline || null,
         visa_deadline: values.visa_deadline || null,
@@ -256,7 +269,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         const rows = validAdditional.map((h, idx) => ({
           departure_id: departureId,
           hotel_id: h.hotel_id,
-          hotel_role: h.hotel_role || 'additional',
+          hotel_role: isTourPackage ? 'tour' : (h.hotel_role || 'additional'),
           check_in_date: h.check_in_date || null,
           check_out_date: h.check_out_date || null,
           nights: h.nights || null,
@@ -638,64 +651,70 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         <div className="space-y-4">
           <h3 className="font-medium text-sm text-muted-foreground">Hotel & Petugas</h3>
           
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="hotel_makkah_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Hotel Makkah</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih hotel" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {makkahHotels.map((hotel) => (
-                        <SelectItem key={hotel.id} value={hotel.id}>
-                          {hotel.name} ({hotel.star_rating}★)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {!isTourPackage && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="hotel_makkah_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hotel Makkah</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih hotel" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {makkahHotels.map((hotel) => (
+                          <SelectItem key={hotel.id} value={hotel.id}>
+                            {hotel.name} ({hotel.star_rating}★)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="hotel_madinah_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Hotel Madinah</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih hotel" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {madinahHotels.map((hotel) => (
-                        <SelectItem key={hotel.id} value={hotel.id}>
-                          {hotel.name} ({hotel.star_rating}★)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+              <FormField
+                control={form.control}
+                name="hotel_madinah_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hotel Madinah</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih hotel" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {madinahHotels.map((hotel) => (
+                          <SelectItem key={hotel.id} value={hotel.id}>
+                            {hotel.name} ({hotel.star_rating}★)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
 
           {/* Additional Hotels (Transit, Umroh Plus, Haji, dll) */}
           <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-sm">Hotel Tambahan</h4>
-                <p className="text-xs text-muted-foreground">Untuk hotel transit, Umroh Plus, Haji, atau city tour</p>
+                <h4 className="font-medium text-sm">{isTourPackage ? "Daftar Hotel" : "Hotel Tambahan"}</h4>
+                <p className="text-xs text-muted-foreground">
+                  {isTourPackage 
+                    ? "Daftar hotel yang akan digunakan selama tour" 
+                    : "Untuk hotel transit, Umroh Plus, Haji, atau city tour"}
+                </p>
               </div>
               <Button
                 type="button"
@@ -714,12 +733,14 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
             </div>
 
             {additionalHotels.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">Belum ada hotel tambahan.</p>
+              <p className="text-xs text-muted-foreground italic">
+                {isTourPackage ? "Belum ada hotel yang ditambahkan." : "Belum ada hotel tambahan."}
+              </p>
             ) : (
               <div className="space-y-3">
                 {additionalHotels.map((row, idx) => (
                   <div key={idx} className="grid gap-2 sm:grid-cols-12 items-end p-3 rounded-md border bg-background">
-                    <div className="sm:col-span-4">
+                    <div className={isTourPackage ? "sm:col-span-7" : "sm:col-span-4"}>
                       <label className="text-xs text-muted-foreground">Hotel</label>
                       <Select
                         value={row.hotel_id || undefined}
@@ -737,24 +758,26 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="sm:col-span-3">
-                      <label className="text-xs text-muted-foreground">Peran</label>
-                      <Select
-                        value={row.hotel_role}
-                        onValueChange={(v) =>
-                          setAdditionalHotels((prev) => prev.map((r, i) => (i === idx ? { ...r, hotel_role: v } : r)))
-                        }
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="transit">Transit</SelectItem>
-                          <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
-                          <SelectItem value="haji">Haji</SelectItem>
-                          <SelectItem value="city_tour">City Tour</SelectItem>
-                          <SelectItem value="additional">Tambahan</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {!isTourPackage && (
+                      <div className="sm:col-span-3">
+                        <label className="text-xs text-muted-foreground">Peran</label>
+                        <Select
+                          value={row.hotel_role}
+                          onValueChange={(v) =>
+                            setAdditionalHotels((prev) => prev.map((r, i) => (i === idx ? { ...r, hotel_role: v } : r)))
+                          }
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="transit">Transit</SelectItem>
+                            <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
+                            <SelectItem value="haji">Haji</SelectItem>
+                            <SelectItem value="city_tour">City Tour</SelectItem>
+                            <SelectItem value="additional">Tambahan</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className="sm:col-span-2">
                       <label className="text-xs text-muted-foreground">Check-in</label>
                       <Input
@@ -792,57 +815,59 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="muthawif_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Muthawif</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih muthawif" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {muthawifs?.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {!isTourPackage && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="muthawif_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Muthawif</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih muthawif" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {muthawifs?.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="team_leader_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tour Leader</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih tour leader" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {tourLeaders?.map((tl) => (
-                        <SelectItem key={tl.id} value={tl.id}>
-                          {tl.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+              <FormField
+                control={form.control}
+                name="team_leader_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tour Leader</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih tour leader" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {tourLeaders?.map((tl) => (
+                          <SelectItem key={tl.id} value={tl.id}>
+                            {tl.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
         </div>
 
         <Separator />
