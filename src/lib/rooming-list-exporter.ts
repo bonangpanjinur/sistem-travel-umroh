@@ -319,7 +319,7 @@ function buildSheetForHotel(data: RoomingExportData, hotelLabel: string): XLSX.W
   r++;
 
   // Table header
-  const headers = ['No', 'NAMA', 'SEX', 'TYPE', 'DOB', 'PASSPORT', 'ROOM TYPE', 'NO ROOM', 'AGE'];
+  const headers = ['NO', 'NAMA LENGKAP', 'GENDER', 'TYPE', 'DATE OF BIRTH', 'PASSPORT', 'ROOM TYPE', 'ROOM NUMBER', 'AGE'];
   headers.forEach((h, i) => {
     ws[`${colLetters[i]}${r + 1}`] = {
       v: h, t: 's',
@@ -490,7 +490,7 @@ function renderHotelPage(doc: jsPDF, data: RoomingExportData, hotel: RoomingHote
   writeKV('NOMER TL', data.tourLeaderPhone || '-'); y += lineH + 1;
 
   // Build autoTable
-  const head = [['No', 'NAMA', 'SEX', 'TYPE', 'DOB', 'PASSPORT', 'ROOM TYPE', 'NO ROOM', 'AGE']];
+  const head = [['NO', 'NAMA LENGKAP', 'GENDER', 'TYPE', 'DATE OF BIRTH', 'PASSPORT', 'ROOM TYPE', 'ROOM NUMBER', 'AGE']];
   const body = rows.map(r => [
     r.no, r.name, r.sex, r.type, r.dob, r.passport, r.roomTypeLabel, r.roomNumber, r.age
   ]);
