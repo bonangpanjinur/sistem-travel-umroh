@@ -76,10 +76,13 @@ export function ChangePackageDialogV2({
   });
 
   // Calculate upgrade fee when new departure is selected
+  // This calculates based on departure prices - actual calculation happens on submit
   useEffect(() => {
     if (selectedDepartureId && currentDeparture && newDeparturePrices) {
+      // Get current departure prices (using quad as baseline)
       const currentPrice = currentDeparture.price_quad || currentDeparture.package?.price_quad || 0;
-      const newPrice = newDeparturePrices.price_quad || 0;
+      // Get new departure prices (using quad as baseline)
+      const newPrice = newDeparturePrices.price_quad || newDeparturePrices.package?.price_quad || 0;
       if (newPrice > currentPrice) {
         setUpgradeFee(newPrice - currentPrice);
       } else {
@@ -130,11 +133,12 @@ export function ChangePackageDialogV2({
     mutationFn: async () => {
       if (!selectedDepartureId) throw new Error("Pilih paket tujuan terlebih dahulu");
 
-      // 1. Get current booking info to find current package price
+      // 1. Get current booking info with passengers
       const { data: currentBooking, error: bookingError } = await supabase
         .from("bookings")
         .select(`
           id,
+          total_price,
           departure:departures(
             id,
             package_id,
@@ -142,7 +146,8 @@ export function ChangePackageDialogV2({
             price_triple,
             price_double,
             price_single
-          )
+          ),
+          passengers:booking_passengers(room_type, passenger_type)
         `)
         .eq("id", bookingId)
         .single();
@@ -154,6 +159,10 @@ export function ChangePackageDialogV2({
         .from("departures")
         .select(`
           id,
+          price_quad,
+          price_triple,
+          price_double,
+          price_single,
           package:packages(id, name, price_quad, price_triple, price_double, price_single)
         `)
         .eq("id", selectedDepartureId)
@@ -161,24 +170,40 @@ export function ChangePackageDialogV2({
 
       if (newDepError) throw newDepError;
 
-      // 3. Calculate upgrade fee if new package is more expensive
-      let upgradeFee = 0;
-      const currentPackagePrices = currentBooking?.departure?.package || {};
-      const newPackagePrices = newDeparture?.package || {};
+      // 3. Calculate new total based on passengers room types
+      const passengers = currentBooking?.passengers || [];
+      const currentPrices = currentBooking?.departure || {};
+      const newPrices = newDeparture || {};
       
-      // Get the lowest price available (assuming quad as baseline)
-      const currentPrice = currentBooking?.departure?.price_quad || currentPackagePrices.price_quad || 0;
-      const newPrice = newDeparture?.price_quad || newPackagePrices.price_quad || 0;
+      // Get prices from departure first, fallback to package
+      const getPrice = (type: string, prices: any) => {
+        return prices[`price_${type}`] || prices.package?.[`price_${type}`] || 0;
+      };
       
-      if (newPrice > currentPrice) {
-        upgradeFee = newPrice - currentPrice;
+      // Calculate new total based on each passenger's room type
+      let newTotal = 0;
+      for (const p of passengers) {
+        const roomType = p.room_type || 'quad';
+        newTotal += getPrice(roomType, newPrices);
       }
 
-      // 4. Update booking departure_id
+      // If no passengers or no room type, use quad price
+      if (newTotal === 0) {
+        newTotal = getPrice('quad', newPrices);
+      }
+
+      // Calculate upgrade fee (difference per passenger)
+      const currentPassengers = currentBooking?.passengers?.length || 1;
+      const oldTotal = currentBooking?.total_price || (currentPrices.price_quad * currentPassengers);
+      const priceDiff = newTotal - oldTotal;
+      const upgradeFee = priceDiff > 0 ? priceDiff : 0;
+
+      // 4. Update booking departure_id and total_price
       const { error: updateError } = await supabase
         .from("bookings")
         .update({
           departure_id: selectedDepartureId,
+          total_price: newTotal,
           updated_at: new Date().toISOString(),
         })
         .eq("id", bookingId);
