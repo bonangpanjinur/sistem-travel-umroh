@@ -49,8 +49,10 @@ import {
   CheckCircle, XCircle, Eye, Clock, 
   CreditCard, User, Calendar,
   Search, Filter, Download, AlertCircle, X, ImageIcon,
-  Bell, Loader2
+  Bell, Loader2, PiggyBank, FileWarning, Plus
 } from "lucide-react";
+import { AddManualPaymentDialog } from "@/components/admin/AddManualPaymentDialog";
+import { Link } from "react-router-dom";
 
 const PAGE_SIZE = 20;
 
