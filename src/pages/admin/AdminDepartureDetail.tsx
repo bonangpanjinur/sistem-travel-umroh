@@ -64,6 +64,10 @@ import { id as localeId } from "date-fns/locale";
 
 export default function AdminDepartureDetail() {
   const { id } = useParams<{ id: string }>();
+  
+  // Debug: log the id
+  console.log("DepartureDetail - id from params:", id);
+
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isItineraryOpen, setIsItineraryOpen] = useState(false);
@@ -73,6 +77,16 @@ export default function AdminDepartureDetail() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [debugOpen, setDebugOpen] = useState(false);
   const [editingPassenger, setEditingPassenger] = useState<any>(null);
+
+  // If no id, show error
+  if (!id) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500">Error: ID tidak ditemukan di URL</p>
+        <p className="text-sm text-muted-foreground mt-2">Pastikan URL memiliki format: /admin/departures/[ID]</p>
+      </div>
+    );
+  }
 
   // Fetch departure detail
   const { data: departure, isLoading: departureLoading } = useQuery({
