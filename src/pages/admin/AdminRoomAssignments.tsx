@@ -113,6 +113,29 @@ export default function AdminRoomAssignments() {
     },
   });
 
+  const { data: exportDepartureDetail } = useQuery({
+    queryKey: ['rooming-export-departure-admin', selectedDeparture],
+    enabled: !!selectedDeparture,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departures')
+        .select(`
+          id, departure_date, return_date, departure_time, flight_number,
+          packages:package_id(name, code, duration_days),
+          airlines:airline_id(name, code),
+          departure_airport:airports!departures_departure_airport_id_fkey(code, name),
+          arrival_airport:airports!departures_arrival_airport_id_fkey(code, name),
+          hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id, name, city),
+          hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, city),
+          muthawif:muthawifs!departures_muthawif_id_fkey(name, phone)
+        `)
+        .eq('id', selectedDeparture)
+        .single();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
   const handlePackageChange = (packageId: string) => {
     setSelectedPackage(packageId);
     setSelectedDeparture("");
