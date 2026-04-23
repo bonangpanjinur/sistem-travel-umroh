@@ -163,7 +163,7 @@ export default function BookingDetail() {
 
       if (dbError) throw dbError;
 
-      toast.success(`${docTypeCode === 'ktp' ? 'ktp' : 'Paspor'} berhasil diupload!`);
+      toast.success(`${docTypeCode === 'ktp' ? 'KTP' : 'Paspor'} berhasil diupload!`);
       queryClient.invalidateQueries({ queryKey: ['customer-docs', customerId] });
     } catch (err: any) {
       toast.error(err.message || 'Gagal mengupload dokumen');
