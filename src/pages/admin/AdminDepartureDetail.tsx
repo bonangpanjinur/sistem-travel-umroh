@@ -55,6 +55,7 @@ import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
+import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -71,6 +72,7 @@ export default function AdminDepartureDetail() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [debugOpen, setDebugOpen] = useState(false);
+  const [editingPassenger, setEditingPassenger] = useState<any>(null);
 
   // Fetch departure detail
   const { data: departure, isLoading: departureLoading } = useQuery({
@@ -998,12 +1000,12 @@ export default function AdminDepartureDetail() {
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 {p.customer?.id ? (
-                                  <Link
-                                    to={`/admin/customers/${p.customer.id}`}
-                                    className="text-primary hover:underline"
+                                  <button
+                                    onClick={() => setEditingPassenger(p.customer)}
+                                    className="text-primary hover:underline cursor-pointer"
                                   >
                                     {p.customer.full_name}
-                                  </Link>
+                                  </button>
                                 ) : (
                                   <span className="text-muted-foreground">
                                     {p.customer?.full_name || "-"}
@@ -1193,6 +1195,19 @@ export default function AdminDepartureDetail() {
         departureId={id || ""}
         passengers={(passengers || []) as any}
       />
+
+      {/* Edit Passenger Dialog */}
+      {editingPassenger && (
+        <EditCustomerDialog
+          customer={editingPassenger}
+          onSuccess={() => {
+            setEditingPassenger(null);
+            queryClient.invalidateQueries({
+              queryKey: ["departure-passengers", id],
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
