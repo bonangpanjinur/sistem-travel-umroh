@@ -109,26 +109,37 @@ export function EquipmentDistributionDialog({
         }));
         const { error } = await supabase.from("equipment_distributions").insert(insertData);
         if (error) throw error;
-        for (const equipmentId of itemsToAdd) {
+        
+        // Bulk update stock (decrease)
+        const stockUpdates = itemsToAdd.map((equipmentId) => {
           const item = allEquipmentItems?.find((e) => e.id === equipmentId);
           const qty = checkedItems.get(equipmentId)?.quantity || 1;
-          if (item) {
-            await supabase.from("equipment_items").update({ stock_quantity: Math.max(0, (item.stock_quantity || 0) - qty) }).eq("id", equipmentId);
-          }
+          return { id: equipmentId, newStock: Math.max(0, (item?.stock_quantity || 0) - qty) };
+        });
+        for (const update of stockUpdates) {
+          await supabase.from("equipment_items").update({ stock_quantity: update.newStock }).eq("id", update.id);
         }
       }
 
       if (itemsToRemove.length > 0) {
-        for (const equipmentId of itemsToRemove) {
-          const { data: distData } = await supabase
-            .from("equipment_distributions").select("id, quantity")
-            .eq("equipment_id", equipmentId).eq("customer_id", jamaahId)
-            .eq("departure_id", departureId).eq("status", "distributed").single();
-          if (distData) {
-            await supabase.from("equipment_distributions").delete().eq("id", distData.id);
-            const item = allEquipmentItems?.find((e) => e.id === equipmentId);
+        // Get all distributions to remove
+        const { data: distToRemove } = await supabase
+          .from("equipment_distributions")
+          .select("id, equipment_id, quantity")
+          .in("equipment_id", itemsToRemove)
+          .eq("customer_id", jamaahId)
+          .eq("departure_id", departureId)
+          .eq("status", "distributed");
+        
+        if (distToRemove && distToRemove.length > 0) {
+          const distIds = distToRemove.map((d) => d.id);
+          await supabase.from("equipment_distributions").delete().in("id", distIds);
+          
+          // Bulk restore stock
+          for (const dist of distToRemove) {
+            const item = allEquipmentItems?.find((e) => e.id === dist.equipment_id);
             if (item) {
-              await supabase.from("equipment_items").update({ stock_quantity: (item.stock_quantity || 0) + (distData.quantity || 1) }).eq("id", equipmentId);
+              await supabase.from("equipment_items").update({ stock_quantity: (item.stock_quantity || 0) + (dist.quantity || 1) }).eq("id", dist.equipment_id);
             }
           }
         }
