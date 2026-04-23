@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
 import { Users, UserPlus, BedDouble, Search, Check, X, Download, FileSpreadsheet, FileText, Wand2, History } from "lucide-react";
-import { exportToExcel, exportToPDF } from "@/lib/export-utils";
+import { exportRoomingListExcel, exportRoomingListPDF, type RoomingExportData, type RoomingPassenger, type RoomTypeDB } from "@/lib/rooming-list-exporter";
 import { ROOM_TYPE_LABELS, GENDER_LABELS } from "@/lib/constants";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -53,10 +53,14 @@ interface Passenger {
     full_name: string;
     gender: string | null;
     phone: string | null;
+    birth_date?: string | null;
+    passport_number?: string | null;
+    passport_expiry?: string | null;
   };
   booking: {
     id: string;
     booking_code: string;
+    room_type?: string | null;
   };
 }
 
@@ -109,6 +113,29 @@ export default function AdminRoomAssignments() {
     },
   });
 
+  const { data: exportDepartureDetail } = useQuery({
+    queryKey: ['rooming-export-departure-admin', selectedDeparture],
+    enabled: !!selectedDeparture,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departures')
+        .select(`
+          id, departure_date, return_date, departure_time, flight_number,
+          packages:package_id(name, code, duration_days),
+          airlines:airline_id(name, code),
+          departure_airport:airports!departures_departure_airport_id_fkey(code, name),
+          arrival_airport:airports!departures_arrival_airport_id_fkey(code, name),
+          hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id, name, city),
+          hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, city),
+          muthawif:muthawifs!departures_muthawif_id_fkey(name, phone)
+        `)
+        .eq('id', selectedDeparture)
+        .single();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
   const handlePackageChange = (packageId: string) => {
     setSelectedPackage(packageId);
     setSelectedDeparture("");
@@ -120,7 +147,7 @@ export default function AdminRoomAssignments() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('booking_passengers')
-        .select(`id, room_preference, passenger_type, room_number, roommate_id, customer:customers(id, full_name, gender, phone), booking:bookings!inner(id, booking_code, departure_id, booking_status)`)
+        .select(`id, room_preference, passenger_type, room_number, roommate_id, customer:customers(id, full_name, gender, phone, birth_date, passport_number, passport_expiry), booking:bookings!inner(id, booking_code, room_type, departure_id, booking_status)`)
         .eq('booking.departure_id', selectedDeparture)
         .in('booking.booking_status', ['confirmed', 'pending']);
       if (error) throw error;
@@ -456,16 +483,58 @@ export default function AdminRoomAssignments() {
     { header: 'Kode Booking', accessor: (r: Passenger) => r.booking?.booking_code || '-', width: 18 },
   ];
 
+  const buildRoomingExportData = (): RoomingExportData | null => {
+    if (!exportDepartureDetail || !passengers || passengers.length === 0) return null;
+    const dep = exportDepartureDetail;
+    const pax: RoomingPassenger[] = passengers.map((p) => ({
+      id: p.id,
+      passenger_type: p.passenger_type,
+      room_number: p.room_number,
+      roommate_id: p.roommate_id,
+      booking_id: p.booking?.id,
+      booking_room_type: ((p.booking?.room_type || p.room_preference || 'quad') as RoomTypeDB),
+      customer: {
+        full_name: p.customer?.full_name || '-',
+        gender: p.customer?.gender,
+        birth_date: p.customer?.birth_date,
+        passport_number: p.customer?.passport_number,
+        passport_expiry: p.customer?.passport_expiry,
+      },
+    }));
+    const hotels = [
+      dep.hotel_makkah ? { name: dep.hotel_makkah.name, city: dep.hotel_makkah.city } : null,
+      dep.hotel_madinah ? { name: dep.hotel_madinah.name, city: dep.hotel_madinah.city } : null,
+    ].filter(Boolean) as { name: string; city?: string | null }[];
+    return {
+      departureDate: dep.departure_date,
+      returnDate: dep.return_date,
+      airlineName: dep.airlines?.name || '-',
+      airlineCode: dep.airlines?.code,
+      flightNumber: dep.flight_number,
+      departureTime: dep.departure_time,
+      departureAirport: dep.departure_airport,
+      arrivalAirport: dep.arrival_airport,
+      packageName: dep.packages?.name || '-',
+      durationDays: dep.packages?.duration_days,
+      welcomeBoard: dep.packages?.name || '-',
+      timeLimit: '',
+      tourLeaderName: dep.muthawif?.name,
+      tourLeaderPhone: dep.muthawif?.phone,
+      hotels,
+      passengers: pax,
+    };
+  };
+
   const handleExportExcel = () => {
-    if (!filteredPassengers.length) return toast.error('Tidak ada data');
-    exportToExcel(filteredPassengers, exportColumns, `kamar-${selectedDeparture}`, 'Data Kamar');
+    const data = buildRoomingExportData();
+    if (!data) return toast.error('Tidak ada data');
+    exportRoomingListExcel(data);
   };
 
   const handleExportPDF = () => {
-    if (!filteredPassengers.length) return toast.error('Tidak ada data');
-    const pkg = packages?.find(p => p.id === selectedPackage);
-    const dep = departures?.find(d => d.id === selectedDeparture);
-    exportToPDF(filteredPassengers, exportColumns, `kamar-${selectedDeparture}`, 'Data Kamar', `${pkg?.name || ''} - ${dep ? formatDate(dep.departure_date) : ''}`);
+    const data = buildRoomingExportData();
+    if (!data) return toast.error('Tidak ada data');
+    exportRoomingListPDF(data);
   };
 
   return (

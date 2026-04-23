@@ -70,6 +70,7 @@
     "vite-plugin-pwa": "^1.2.0",
     "workbox-window": "^7.4.0",
     "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
