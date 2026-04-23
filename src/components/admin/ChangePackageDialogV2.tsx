@@ -146,13 +146,22 @@ export function ChangePackageDialogV2({
             price_triple,
             price_double,
             price_single
-          ),
-          passengers:booking_passengers(room_type, passenger_type)
+          )
         `)
         .eq("id", bookingId)
         .single();
 
       if (bookingError) throw bookingError;
+
+      // 2. Get passengers separately
+      const { data: passengersData, error: passengersError } = await supabase
+        .from("booking_passengers")
+        .select("room_type, passenger_type")
+        .eq("booking_id", bookingId);
+
+      if (passengersError) throw passengersError;
+
+      const passengers = passengersData || [];
 
       // 2. Get new departure/package price info
       const { data: newDeparture, error: newDepError } = await supabase
@@ -171,7 +180,6 @@ export function ChangePackageDialogV2({
       if (newDepError) throw newDepError;
 
       // 3. Calculate new total based on passengers room types
-      const passengers = currentBooking?.passengers || [];
       const currentPrices = currentBooking?.departure || {};
       const newPrices = newDeparture || {};
       
@@ -192,9 +200,8 @@ export function ChangePackageDialogV2({
         newTotal = getPrice('quad', newPrices);
       }
 
-      // Calculate upgrade fee (difference per passenger)
-      const currentPassengers = currentBooking?.passengers?.length || 1;
-      const oldTotal = currentBooking?.total_price || (currentPrices.price_quad * currentPassengers);
+      // Calculate upgrade fee (difference)
+      const oldTotal = currentBooking?.total_price || 0;
       const priceDiff = newTotal - oldTotal;
       const upgradeFee = priceDiff > 0 ? priceDiff : 0;
 
