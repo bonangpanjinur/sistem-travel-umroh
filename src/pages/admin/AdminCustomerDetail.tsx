@@ -490,18 +490,107 @@ export default function AdminCustomerDetail() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg">Dokumen Persyaratan</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   {documentsLoading ? (
                     <div className="space-y-2">
                       <Skeleton className="h-12 w-full" />
                       <Skeleton className="h-12 w-full" />
                     </div>
-                  ) : !documents || documents.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                      <p>Belum ada dokumen yang diunggah</p>
-                    </div>
                   ) : (
+                    <>
+                    {/* Per-type upload grid */}
+                    <div className="space-y-3">
+                      {documentTypes?.map((dt: any) => {
+                        const existing = documents?.find((d: any) => d.document_type_id === dt.id);
+                        const isUploading = uploadingDocType === dt.id;
+                        const status = existing ? (STATUS_CONFIG[existing.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending) : null;
+                        const StatusIcon = status?.icon;
+                        return (
+                          <div key={dt.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm truncate">{dt.name}</p>
+                                {dt.is_required && <Badge variant="outline" className="text-[10px]">Wajib</Badge>}
+                                {existing && status && StatusIcon && (
+                                  <Badge className={status.color} variant="outline">
+                                    <StatusIcon className="h-3 w-3 mr-1" />
+                                    {status.label}
+                                  </Badge>
+                                )}
+                              </div>
+                              {existing?.file_name && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{existing.file_name}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {existing && (
+                                <>
+                                  <Button variant="outline" size="icon" asChild title="Lihat">
+                                    <a href={existing.file_url} target="_blank" rel="noopener noreferrer">
+                                      <Eye className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="outline" size="icon" title="Verifikasi">
+                                        <CheckCircle className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => { setSelectedDoc(existing); setVerifyDialogOpen(true); }}>
+                                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" /> Verifikasi
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => { setSelectedDoc(existing); setRejectDialogOpen(true); }}>
+                                        <XCircle className="h-4 w-4 mr-2 text-red-600" /> Tolak
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </>
+                              )}
+                              <Label htmlFor={`doc-upload-${dt.id}`} className="cursor-pointer">
+                                <Button type="button" variant={existing ? 'outline' : 'default'} size="sm" asChild disabled={isUploading}>
+                                  <span>
+                                    {isUploading ? (
+                                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Upload...</>
+                                    ) : (
+                                      <><Upload className="h-4 w-4 mr-1" /> {existing ? 'Ganti' : 'Upload'}</>
+                                    )}
+                                  </span>
+                                </Button>
+                              </Label>
+                              <input
+                                id={`doc-upload-${dt.id}`}
+                                type="file"
+                                accept="image/*,.pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadDocument(file, dt.id);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(!documentTypes || documentTypes.length === 0) && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                          <p>Belum ada jenis dokumen yang dikonfigurasi</p>
+                        </div>
+                      )}
+                    </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Legacy detail table — keep historical uploads in one place */}
+              {documents && documents.length > 0 && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle className="text-base">Riwayat Upload</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -537,29 +626,6 @@ export default function AdminCustomerDetail() {
                                       <Eye className="h-4 w-4" />
                                     </a>
                                   </Button>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" size="icon">
-                                        <CheckCircle className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedDoc(doc);
-                                        setVerifyDialogOpen(true);
-                                      }}>
-                                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                                        Verifikasi
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        setSelectedDoc(doc);
-                                        setRejectDialogOpen(true);
-                                      }}>
-                                        <XCircle className="h-4 w-4 mr-2 text-red-600" />
-                                        Tolak
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -567,9 +633,9 @@ export default function AdminCustomerDetail() {
                         })}
                       </TableBody>
                     </Table>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Bookings Tab */}
