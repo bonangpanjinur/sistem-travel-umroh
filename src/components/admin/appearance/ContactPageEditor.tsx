@@ -1,19 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Save, RotateCcw, MapPin, Phone, Mail, MessageCircle, Building2, Info } from 'lucide-react';
 import { useContactPageContent, ContactPageContent } from '@/hooks/useContactPageContent';
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '@/hooks/useWebsiteSettings';
-import { useState, useEffect } from 'react';
-import { useCompanySettings } from '@/hooks/useCompanySettings';
-import { extractIframeUrl } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Save, 
+  RotateCcw, 
+  Building2, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  MessageCircle, 
+  Plus, 
+  Trash2, 
+  Info
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -23,9 +32,8 @@ export function ContactPageEditor() {
   const { data: content, isLoading: contentLoading } = useContactPageContent(SETTINGS_ID);
   const { data: settings, isLoading: settingsLoading } = useWebsiteSettings();
   const updateSettingsMutation = useUpdateWebsiteSettings();
-  const { getSetting } = useCompanySettings();
-  
-  const [formData, setFormData] = useState<Partial<ContactPageContent>>({
+
+  const [formData, setFormData] = useState<any>({
     hero_title: '',
     hero_subtitle: '',
     form_title: '',
@@ -33,15 +41,8 @@ export function ContactPageEditor() {
     map_url: '',
   });
 
-  // Master data dari Informasi Perusahaan (read-only)
-  const companyData = {
-    footer_address: getSetting("company_address") || getSetting("footer_address") || '',
-    footer_phone: getSetting("company_phone") || getSetting("footer_phone") || '',
-    footer_email: getSetting("company_email") || getSetting("footer_email") || '',
-    footer_whatsapp: getSetting("footer_whatsapp") || '',
-  };
+  const companyData = settings || {};
 
-  // Initialize form when content loads
   useEffect(() => {
     if (content) {
       setFormData({
@@ -54,21 +55,17 @@ export function ContactPageEditor() {
     }
   }, [content]);
 
-  // Master data untuk informasi kontak (diambil otomatis dari Informasi Perusahaan)
-
-  // Mutation for saving page content
-  const saveContentMutation = useMutation({
-    mutationFn: async (data: Partial<ContactPageContent>) => {
+  const saveMutation = useMutation({
+    mutationFn: async (data: any) => {
       const payload = {
         settings_id: SETTINGS_ID,
         hero_title: data.hero_title,
         hero_subtitle: data.hero_subtitle,
         form_title: data.form_title,
         operating_hours: data.operating_hours,
-        map_url: extractIframeUrl(data.map_url || ''),
+        map_url: data.map_url,
       };
 
-      // Check if record exists in DB
       const { data: existingData, error: checkError } = await supabase
         .from('contact_page_content')
         .select('id')
@@ -80,73 +77,61 @@ export function ContactPageEditor() {
       const existing = (existingData && existingData.length > 0) ? existingData[0] : null;
 
       if (existing?.id) {
-        const { data: updated, error } = await supabase
+        const { error } = await supabase
           .from('contact_page_content')
           .update(payload)
-          .eq('id', existing.id)
-          .select();
+          .eq('id', existing.id);
         if (error) throw error;
-        if (!updated || updated.length === 0) {
-          throw new Error(
-            'Tidak memiliki izin menyimpan konten halaman kontak. Akun Anda perlu peran admin (super_admin/owner/branch_manager).'
-          );
-        }
       } else {
-        const { data: inserted, error } = await supabase
+        const { error } = await supabase
           .from('contact_page_content')
-          .insert([payload])
-          .select();
+          .insert([payload]);
         if (error) throw error;
-        if (!inserted || inserted.length === 0) {
-          throw new Error(
-            'Tidak memiliki izin menyimpan konten halaman kontak. Akun Anda perlu peran admin (super_admin/owner/branch_manager).'
-          );
-        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contact-page-content'] });
+      toast({
+        title: 'Berhasil',
+        description: 'Konten halaman kontak telah diperbarui',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Gagal',
+        description: error.message || 'Terjadi kesalahan saat menyimpan konten',
+        variant: 'destructive',
+      });
     },
   });
 
+  const handleSave = async () => {
+    saveMutation.mutate(formData);
+  };
+
   const addOperatingHour = () => {
-    const hours = formData.operating_hours || [];
-    setFormData({
-      ...formData,
-      operating_hours: [...hours, { label: '', value: '' }],
-    });
+    const newHours = [...(formData.operating_hours || []), { label: '', value: '' }];
+    setFormData({ ...formData, operating_hours: newHours });
   };
 
   const removeOperatingHour = (index: number) => {
-    const hours = formData.operating_hours || [];
-    setFormData({
-      ...formData,
-      operating_hours: hours.filter((_: any, i: number) => i !== index),
-    });
+    const newHours = [...formData.operating_hours];
+    newHours.splice(index, 1);
+    setFormData({ ...formData, operating_hours: newHours });
   };
 
   const updateOperatingHour = (index: number, field: string, value: string) => {
-    const hours = [...(formData.operating_hours || [])];
-    hours[index] = { ...hours[index], [field]: value };
-    setFormData({ ...formData, operating_hours: hours });
+    const newHours = [...formData.operating_hours];
+    newHours[index] = { ...newHours[index], [field]: value };
+    setFormData({ ...formData, operating_hours: newHours });
   };
 
-  const handleSave = async () => {
-    try {
-      // Save page content only (contact info comes from master data)
-      await saveContentMutation.mutateAsync(formData);
-      
-      toast({
-        title: 'Berhasil',
-        description: 'Konten halaman kontak berhasil disimpan. Informasi kontak diambil otomatis dari Informasi Perusahaan.',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Gagal',
-        description: error.message || 'Terjadi kesalahan saat menyimpan',
-        variant: 'destructive',
-      });
-    }
+  const extractIframeUrl = (html: string) => {
+    if (!html) return '';
+    if (html.startsWith('http')) return html;
+    
+    const match = html.match(/src="([^"]+)"/);
+    return match ? match[1] : html;
   };
 
   const handleReset = () => {
@@ -168,7 +153,7 @@ export function ContactPageEditor() {
     return <div className="text-center py-8">Memuat...</div>;
   }
 
-  const isPending = saveContentMutation.isPending || updateSettingsMutation.isPending;
+  const isPending = saveMutation.isPending || updateSettingsMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -265,7 +250,6 @@ export function ContactPageEditor() {
                 />
               </div>
             </CardContent>
-          </Card></CardContent>
           </Card>
 
           {/* Form Section */}
