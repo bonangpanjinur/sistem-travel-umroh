@@ -213,8 +213,14 @@ export function ChangePackageDialogV2({
       const priceDiff = newTotal - oldTotal;
       const upgradeFee = priceDiff > 0 ? priceDiff : 0;
       
+      // Get current and new price for notes
+      const getCurrentPrice = () => currentPrices.price_quad || (currentPrices.package?.price_quad) || 0;
+      const getNewPrice = () => newPrices.price_quad || (newPrices.package?.price_quad) || newTotal;
+      const oldPriceVal = getCurrentPrice();
+      const newPriceVal = getNewPrice();
+      
       console.log("[ChangePackage] newTotal:", newTotal, "oldTotal:", oldTotal, "upgradeFee:", upgradeFee);
-      console.log("[ChangePackage] Using room_preference from passengers");
+      console.log("[ChangePackage] oldPrice for notes:", oldPriceVal, "newPrice for notes:", newPriceVal);
 
       // 4. Update booking departure_id and total_price
       const { error: updateError } = await supabase
@@ -254,7 +260,7 @@ export function ChangePackageDialogV2({
             payment_method: "manual",
             payment_type: "other",
             status: "pending",
-            notes: `Selisih upgrade paket (dari Rp ${formatCurrency(currentPrice)} ke Rp ${formatCurrency(newPrice)})`,
+            notes: `Selisih upgrade paket (dari Rp ${formatCurrency(oldPriceVal)} ke Rp ${formatCurrency(newPriceVal)})`,
           });
 
         if (upgradeError) console.error("Gagal mencatat upgrade fee:", upgradeError);
