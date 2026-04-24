@@ -72,8 +72,8 @@ export default function AdminBookingDetail() {
   const queryClient = useQueryClient();
   
   // Permission check
-  const canVerifyPayment = hasRole('super_admin') || hasRole('owner') || hasRole('staff');
-  const canAddPayment = hasRole('super_admin') || hasRole('owner') || hasRole('staff') || hasRole('branch_manager') || hasRole('agent');
+  const canVerifyPayment = hasRole('super_admin') || hasRole('owner') || hasRole('finance');
+  const canAddPayment = hasRole('super_admin') || hasRole('owner') || hasRole('finance') || hasRole('branch_manager') || hasRole('agent');
   
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);

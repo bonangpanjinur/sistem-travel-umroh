@@ -118,7 +118,8 @@ export function ManagePaymentModal({
 
   // Add payment mutation
   const addPaymentMutation = useMutation({
-    mutationFn: async (data: { amount: number; payment_method: string; bank_name?: string; account_number?: string; notes?: string }, proofUrl?: string) => {
+    mutationFn: async (data: { amount: number; payment_method: string; bank_name?: string; account_number?: string; notes?: string; proofUrl?: string }) => {
+      const proofUrl = data.proofUrl;
       const paymentCode = `PAY-${Date.now()}`;
       const { error } = await supabase.from('payments').insert({
         booking_id: bookingId,
@@ -178,7 +179,7 @@ export function ManagePaymentModal({
       }
     }
 
-    addPaymentMutation.mutate({ ...newPayment, amount }, proofUrl);
+    addPaymentMutation.mutate({ ...newPayment, amount, proofUrl });
   };
 
   const handleRejectPayment = () => {

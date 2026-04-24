@@ -13,7 +13,7 @@ export async function getPackageChangeRules(packageId: string): Promise<PackageC
     .order("min_days_before_departure", { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  return (data || []) as unknown as PackageChangeRule[];
 }
 
 /**
@@ -29,7 +29,7 @@ export async function getAllPackageChangeRules(): Promise<PackageChangeRule[]> {
     .order("min_days_before_departure", { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  return (data || []) as unknown as PackageChangeRule[];
 }
 
 /**
@@ -113,7 +113,7 @@ export async function createPackageChangeRule(
     .single();
 
   if (error) throw error;
-  return data;
+  return data as unknown as PackageChangeRule;
 }
 
 /**
@@ -131,7 +131,7 @@ export async function updatePackageChangeRule(
     .single();
 
   if (error) throw error;
-  return data;
+  return data as unknown as PackageChangeRule;
 }
 
 /**

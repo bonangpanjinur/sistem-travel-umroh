@@ -41,7 +41,7 @@ export function ContactPageEditor() {
     map_url: '',
   });
 
-  const companyData = settings || {};
+  const companyData: any = settings || {};
 
   useEffect(() => {
     if (content) {
