@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Package, Search, AlertTriangle } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Search, AlertTriangle, Download } from "lucide-react";
 
 interface EquipmentItem {
   id: string;
@@ -27,6 +27,7 @@ interface EquipmentItem {
 export default function AdminEquipmentMaster() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<EquipmentItem | null>(null);
@@ -34,7 +35,7 @@ export default function AdminEquipmentMaster() {
     name: "", 
     description: "", 
     stock_quantity: 0,
-    category: "general",
+    category: "Pakaian Ihram",
     low_stock_threshold: 10
   });
 
@@ -50,6 +51,19 @@ export default function AdminEquipmentMaster() {
     },
   });
 
+  // Query categories for dropdown
+  const { data: categories } = useQuery({
+    queryKey: ["equipment-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("equipment_categories")
+        .select("*")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = { 
@@ -61,16 +75,52 @@ export default function AdminEquipmentMaster() {
       };
 
       if (editingItem) {
+        // Check if stock changed - log to history
+        const stockChanged = editingItem.stock_quantity !== formData.stock_quantity;
+        const previousQty = editingItem.stock_quantity || 0;
+        
         const { error } = await supabase
           .from("equipment_items")
           .update(payload)
           .eq("id", editingItem.id);
         if (error) throw error;
+
+        // Log stock change
+        if (stockChanged) {
+          const changeQty = formData.stock_quantity - previousQty;
+          await supabase.from("equipment_stock_history").insert({
+            equipment_item_id: editingItem.id,
+            change_type: changeQty > 0 ? 'in' : 'out',
+            quantity_change: changeQty,
+            previous_quantity: previousQty,
+            new_quantity: formData.stock_quantity,
+            notes: editingItem ? 'Update dari Master Data' : 'Penambahan baru'
+          });
+        }
       } else {
         const { error } = await supabase
           .from("equipment_items")
           .insert(payload);
         if (error) throw error;
+
+        // Log initial stock
+        if (formData.stock_quantity > 0) {
+          const { data: newItem } = await supabase
+            .from("equipment_items")
+            .select("id")
+            .eq("name", formData.name)
+            .single();
+          if (newItem) {
+            await supabase.from("equipment_stock_history").insert({
+              equipment_item_id: newItem.id,
+              change_type: 'in',
+              quantity_change: formData.stock_quantity,
+              previous_quantity: 0,
+              new_quantity: formData.stock_quantity,
+              notes: 'Stok awal dari Master Data'
+            });
+          }
+        }
       }
     },
     onSuccess: () => {
@@ -103,7 +153,7 @@ export default function AdminEquipmentMaster() {
         name: item.name, 
         description: item.description || "", 
         stock_quantity: item.stock_quantity || 0,
-        category: item.category || "general",
+        category: item.category || "Pakaian Ihram",
         low_stock_threshold: item.low_stock_threshold || 10
       });
     } else {
@@ -112,7 +162,7 @@ export default function AdminEquipmentMaster() {
         name: "", 
         description: "", 
         stock_quantity: 0,
-        category: "general",
+        category: "Pakaian Ihram",
         low_stock_threshold: 10
       });
     }
@@ -124,22 +174,70 @@ export default function AdminEquipmentMaster() {
     setEditingItem(null);
   };
 
-  const filtered = items?.filter(i => 
-    i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Export to CSV
+  const handleExport = () => {
+    if (!filtered?.length) {
+      toast.error("Tidak ada data untuk diexport");
+      return;
+    }
+    const headers = ["Nama", "Kategori", "Deskripsi", "Stok", "Batas Minimal", "Status"];
+    const rows = filtered.map(i => [
+      i.name,
+      i.category,
+      i.description || "",
+      i.stock_quantity || 0,
+      i.low_stock_threshold || 10,
+      (i.stock_quantity || 0) <= (i.low_stock_threshold || 10) 
+        ? ((i.stock_quantity || 0) === 0 ? "Habis" : "Menipis") 
+        : "Tersedia"
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `perlengkapan_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Data diexport ke CSV");
+  };
+
+  const filtered = items?.filter(i => {
+    const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || i.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Cari nama atau kategori..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+        <div className="flex gap-2 flex-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Cari nama..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Semua Kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Kategori</SelectItem>
+              {categories?.map(cat => (
+                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Button onClick={() => handleOpen()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah Perlengkapan
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={() => handleOpen()}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah Perlengkapan
+          </Button>
       </div>
 
       <Card>
@@ -228,13 +326,13 @@ export default function AdminEquipmentMaster() {
                 <Label>Kategori</Label>
                 <Select value={formData.category} onValueChange={v => setFormData(p => ({ ...p, category: v }))}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Pilih kategori" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="general">Umum (Semua)</SelectItem>
-                    <SelectItem value="male_only">Laki-laki Saja</SelectItem>
-                    <SelectItem value="female_only">Perempuan Saja</SelectItem>
-                    <SelectItem value="child_only">Anak-anak Saja</SelectItem>
+                    {categories?.map(cat => (
+                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    ))}
+                    <SelectItem value="Lainnya">Lainnya</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
