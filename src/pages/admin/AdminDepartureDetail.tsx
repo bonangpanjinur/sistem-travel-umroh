@@ -1032,7 +1032,12 @@ export default function AdminDepartureDetail() {
                         return (
                           <TableRow key={p.id}>
                             <TableCell className="font-mono text-xs">
-                              {p.booking?.booking_code || "-"}
+                              <Link
+                                to={`/admin/bookings/${p.booking_id}`}
+                                className="text-primary hover:underline"
+                              >
+                                {p.booking?.booking_code || "-"}
+                              </Link>
                             </TableCell>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
