@@ -227,7 +227,11 @@ export default function EquipmentPage() {
         p_distributions: inserts
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("bulk_distribute error:", error);
+        throw error;
+      }
+      console.log("bulk_distribute result:", data);
       return data;
     },
     onSuccess: (count) => {
