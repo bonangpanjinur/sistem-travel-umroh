@@ -67,7 +67,7 @@ const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
 
 export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user, hasRole } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
   
@@ -480,15 +480,17 @@ export default function AdminBookingDetail() {
                         <Pencil className="h-3 w-3" />
                         Pindah Paket
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-[10px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setShowDeleteConfirm(true)}
-                      >
-                        <Trash className="h-3 w-3" />
-                        Hapus
-                      </Button>
+                      {(isAdmin() || isSuperAdmin()) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-[10px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setShowDeleteConfirm(true)}
+                        >
+                          <Trash className="h-3 w-3" />
+                          Hapus
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
