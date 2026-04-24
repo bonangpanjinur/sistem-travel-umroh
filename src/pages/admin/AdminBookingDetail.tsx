@@ -41,7 +41,7 @@ import { formatCurrency, formatDate, getRoomTypeLabel, getBookingStatusLabel, ge
 import { 
   ArrowLeft, User, Calendar, Plane, CreditCard, FileText, 
   Users, Phone, Mail, MapPin, Printer, Send, CheckCircle, 
-  XCircle, Eye, AlertCircle, Loader2, Pencil 
+  XCircle, Eye, AlertCircle, Loader2, Pencil, Trash 
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -83,6 +83,22 @@ export default function AdminBookingDetail() {
   const [showProofDialog, setShowProofDialog] = useState(false);
   const [showManagePaymentModal, setShowManagePaymentModal] = useState(false);
   const [showChangePackageDialog, setShowChangePackageDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("bookings").delete().eq("id", id);
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      toast.success("Booking berhasil dihapus");
+      navigate("/admin/bookings");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Gagal menghapus booking");
+    },
+  });
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['admin-booking', id],
@@ -463,6 +479,15 @@ export default function AdminBookingDetail() {
                       >
                         <Pencil className="h-3 w-3" />
                         Pindah Paket
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[10px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setShowDeleteConfirm(true)}
+                      >
+                        <Trash className="h-3 w-3" />
+                        Hapus
                       </Button>
                     </div>
                   </div>
@@ -850,6 +875,28 @@ export default function AdminBookingDetail() {
           currentDepartureDate={booking?.departure?.departure_date || ""}
         />
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus booking ini? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait termasuk penumpang dan pembayaran.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Menghapus..." : "Hapus"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
