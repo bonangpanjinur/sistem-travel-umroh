@@ -55,8 +55,8 @@ export function EquipmentDistributionDialog({
     return allEquipmentItems.filter(item => {
       const cat = item.category || 'general';
       if (cat === 'general') return true;
-      if (cat === 'male_only' && jamaahGender === 'male') return true;
-      if (cat === 'female_only' && jamaahGender === 'female') return true;
+      if (cat === 'male_only' && (jamaahGender === 'male' || jamaahGender === 'Laki-laki')) return true;
+      if (cat === 'female_only' && (jamaahGender === 'female' || jamaahGender === 'Perempuan')) return true;
       if (cat === 'child_only' && jamaahType === 'child') return true;
       return false;
     });
@@ -226,8 +226,10 @@ export function EquipmentDistributionDialog({
   const totalCount = equipmentItems?.length || 0;
   const progressPercentage = totalCount > 0 ? (distributedCount / totalCount) * 100 : 0;
 
-  const genderLabel = jamaahGender === 'male' ? 'Laki-laki' : jamaahGender === 'female' ? 'Perempuan' : jamaahType === 'child' ? 'Anak' : '-';
-  const genderColor = jamaahGender === 'male' ? 'text-blue-600 bg-blue-50 border-blue-200' : jamaahGender === 'female' ? 'text-pink-600 bg-pink-50 border-pink-200' : 'text-muted-foreground bg-muted';
+  const isMale = jamaahGender === 'male' || jamaahGender === 'Laki-laki';
+  const isFemale = jamaahGender === 'female' || jamaahGender === 'Perempuan';
+  const genderLabel = isMale ? 'Laki-laki' : isFemale ? 'Perempuan' : jamaahType === 'child' ? 'Anak' : '-';
+  const genderColor = isMale ? 'text-blue-600 bg-blue-50 border-blue-200' : isFemale ? 'text-pink-600 bg-pink-50 border-pink-200' : 'text-muted-foreground bg-muted';
 
   // Inline confirmation view instead of nested AlertDialog
   if (showConfirmDialog) {

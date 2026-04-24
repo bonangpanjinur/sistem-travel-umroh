@@ -24,6 +24,7 @@ import { EquipmentDistributionDialog } from "@/components/operational/equipment/
 import { AddStockDialog } from "@/components/operational/equipment/AddStockDialog";
 import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab";
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
+import { PrintManifest } from "@/components/operational/equipment/PrintManifest";
 
 export interface EquipmentItem {
   id: string;
@@ -66,6 +67,7 @@ export default function EquipmentPage() {
   const [addStockPreselect, setAddStockPreselect] = useState<string | undefined>();
   const [showMasterData, setShowMasterData] = useState(false);
   const [showRealization, setShowRealization] = useState(false);
+  const [showManifest, setShowManifest] = useState(false);
 
   // Fetch packages
   const { data: packages } = useQuery({
@@ -152,8 +154,8 @@ export default function EquipmentPage() {
     return items.filter(item => {
       const cat = (item as any).category || 'general';
       if (cat === 'general') return true;
-      if (cat === 'male_only' && gender === 'male') return true;
-      if (cat === 'female_only' && gender === 'female') return true;
+      if (cat === 'male_only' && (gender === 'male' || gender === 'Laki-laki')) return true;
+      if (cat === 'female_only' && (gender === 'female' || gender === 'Perempuan')) return true;
       if (cat === 'child_only' && passengerType === 'child') return true;
       return false;
     });
@@ -256,6 +258,9 @@ export default function EquipmentPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowRealization(true)}>
             <BarChart3 className="h-4 w-4 mr-1.5" /> Realisasi
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowManifest(true)} disabled={!selectedDeparture}>
+            <Search className="h-4 w-4 mr-1.5" /> Manifest
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowMasterData(true)}>
             <Database className="h-4 w-4 mr-1.5" /> Kelola Item
@@ -448,14 +453,14 @@ export default function EquipmentPage() {
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                                    p.customer?.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
+                                    p.customer?.gender === 'male' || p.customer?.gender === 'Laki-laki' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
                                   }`}>
                                     {p.customer.full_name.charAt(0)}
                                   </div>
                                   <div className="min-w-0">
                                     <p className="text-sm font-medium truncate">{p.customer.full_name}</p>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                      {p.passenger_type} • {p.customer?.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
+                                      {p.passenger_type} • {p.customer?.gender === 'male' || p.customer?.gender === 'Laki-laki' ? 'Laki-laki' : 'Perempuan'}
                                     </p>
                                   </div>
                                 </div>
@@ -531,6 +536,16 @@ export default function EquipmentPage() {
       <Dialog open={showRealization} onOpenChange={setShowRealization}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <EquipmentRealizationTab />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showManifest} onOpenChange={setShowManifest}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <PrintManifest 
+            distributions={distributions}
+            departureName={selectedPkgName}
+            departureDate={selectedDepDate?.departure_date}
+          />
         </DialogContent>
       </Dialog>
     </div>
