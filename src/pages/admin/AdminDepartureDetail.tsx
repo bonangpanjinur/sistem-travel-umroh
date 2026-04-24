@@ -141,6 +141,7 @@ export default function AdminDepartureDetail() {
 
       const bookingIds = bookings.map((b) => b.id);
       const bookingMap = new Map(bookings.map((b) => [b.id, b]));
+      console.log("Querying booking_passengers with booking_ids:", bookingIds);
 
       // Step 2: Fetch booking_passengers for these bookings
       const { data: bps, error: bpsError } = await supabase
@@ -165,7 +166,10 @@ export default function AdminDepartureDetail() {
         console.error("booking_passengers error:", bpsError);
         throw bpsError;
       }
-      console.log("booking_passengers found:", bps?.length || 0, bps);
+      console.log("booking_passengers found:", bps?.length || 0);
+      if (bps?.length === 0) {
+        console.warn("⚠️ No passengers found! Check RLS or data in booking_passengers table");
+      }
 
       // Step 3: Identify bookings missing a main_passenger row → build virtual passenger from booking.customer_id
       const bookingsWithMain = new Set(
