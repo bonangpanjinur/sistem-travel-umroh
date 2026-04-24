@@ -79,10 +79,10 @@ export function ChangePackageDialogV2({
   // This calculates based on departure prices - actual calculation happens on submit
   useEffect(() => {
     if (selectedDepartureId && currentDeparture && newDeparturePrices) {
-      // Get current departure prices (using quad as baseline)
-      const currentPrice = currentDeparture.price_quad || currentDeparture.package?.price_quad || 0;
-      // Get new departure prices (using quad as baseline)
-      const newPrice = newDeparturePrices.price_quad || newDeparturePrices.package?.price_quad || 0;
+      const cd: any = currentDeparture;
+      const nd: any = newDeparturePrices;
+      const currentPrice = cd.price_quad || cd.package?.price_quad || 0;
+      const newPrice = nd.price_quad || nd.package?.price_quad || 0;
       if (newPrice > currentPrice) {
         setUpgradeFee(newPrice - currentPrice);
       } else {
@@ -180,8 +180,8 @@ export function ChangePackageDialogV2({
       if (newDepError) throw newDepError;
 
       // 3. Calculate new total based on passengers room types
-      const currentPrices = currentBooking?.departure || {};
-      const newPrices = newDeparture || {};
+      const currentPrices: any = currentBooking?.departure || {};
+      const newPrices: any = newDeparture || {};
       
       console.log("[ChangePackage] currentPrices:", currentPrices);
       console.log("[ChangePackage] newPrices:", newPrices);
@@ -240,9 +240,9 @@ export function ChangePackageDialogV2({
           .from("payments")
           .insert({
             booking_id: bookingId,
+            payment_code: `PEN-${Date.now()}`,
             amount: penaltyInfo.penaltyAmount,
             payment_method: "manual",
-            payment_type: "other",
             status: "pending",
             notes: `Denda pindah paket (H-${daysToDeparture} keberangkatan): ${penaltyInfo.reason}`,
           });
@@ -256,9 +256,9 @@ export function ChangePackageDialogV2({
           .from("payments")
           .insert({
             booking_id: bookingId,
+            payment_code: `UPG-${Date.now()}`,
             amount: upgradeFee,
             payment_method: "manual",
-            payment_type: "other",
             status: "pending",
             notes: `Selisih upgrade paket (dari Rp ${formatCurrency(oldPriceVal)} ke Rp ${formatCurrency(newPriceVal)})`,
           });

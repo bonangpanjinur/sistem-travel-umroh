@@ -106,9 +106,9 @@ export function ChangePackageDialog({
           .from("payments")
           .insert({
             booking_id: bookingId,
+            payment_code: `PEN-${Date.now()}`,
             amount: penaltyFee,
             payment_method: "manual",
-            payment_type: "other",
             status: "pending",
             notes: `Denda pindah paket (H-${daysToDeparture} keberangkatan)`,
           });
