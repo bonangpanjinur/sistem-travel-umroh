@@ -222,7 +222,38 @@ export function ChangePackageDialogV2({
       console.log("[ChangePackage] newTotal:", newTotal, "oldTotal:", oldTotal, "upgradeFee:", upgradeFee);
       console.log("[ChangePackage] oldPrice for notes:", oldPriceVal, "newPrice for notes:", newPriceVal);
 
-      // 4. Update booking departure_id and total_price
+      // 4. Auto-create booking_passengers if not exists
+      const existingPassengers = passengers || [];
+      if (existingPassengers.length === 0) {
+        console.log("[ChangePackage] No passengers found, creating default passenger");
+        const { data: bookingData } = await supabase
+          .from("bookings")
+          .select("customer_id, room_type")
+          .eq("id", bookingId)
+          .single();
+        
+        if (bookingData?.customer_id) {
+          const { error: passengerError } = await supabase
+            .from("booking_passengers")
+            .insert({
+              booking_id: bookingId,
+              customer_id: bookingData.customer_id,
+              is_main_passenger: true,
+              passenger_type: "adult",
+              room_preference: bookingData.room_type || "quad",
+            });
+          
+          if (passengerError) {
+            console.error("[ChangePackage] Failed to create passenger:", passengerError);
+            throw passengerError;
+          }
+          console.log("[ChangePackage] Passenger created successfully");
+        }
+      } else {
+        console.log("[ChangePackage] Passengers exist:", existingPassengers.length);
+      }
+
+      // 5. Update booking departure_id and total_price
       const { error: updateError } = await supabase
         .from("bookings")
         .update({
@@ -234,7 +265,7 @@ export function ChangePackageDialogV2({
 
       if (updateError) throw updateError;
 
-      // 5. If there's a penalty, create a payment record
+      // 6. If there's a penalty, create a payment record
       if (penaltyInfo?.applicable && penaltyInfo.penaltyAmount > 0) {
         const { error: paymentError } = await supabase
           .from("payments")
@@ -265,6 +296,10 @@ export function ChangePackageDialogV2({
 
         if (upgradeError) console.error("Gagal mencatat upgrade fee:", upgradeError);
       }
+
+      // 7. Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["departure-passengers"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-booking", bookingId] });
 
       return { upgradeFee, penaltyAmount: penaltyInfo?.penaltyAmount || 0 };
     },
