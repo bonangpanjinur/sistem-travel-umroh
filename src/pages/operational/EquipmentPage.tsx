@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,7 +127,11 @@ export default function EquipmentPage() {
           is_main_passenger, passenger_type
         `)
         .eq("booking.departure_id", selectedDeparture);
-      if (error) throw error;
+      if (error) {
+        console.error("passengers query error:", error);
+        throw error;
+      }
+      console.log("passengers query result:", data);
       return (data || []) as Passenger[];
     },
     enabled: !!selectedDeparture,
@@ -458,7 +463,12 @@ export default function EquipmentPage() {
                                     {p.customer.full_name.charAt(0)}
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-sm font-medium truncate">{p.customer.full_name}</p>
+                                    <Link 
+                                      to={`/admin/customers/${p.customer_id}`} 
+                                      className="text-sm font-medium truncate hover:underline text-primary"
+                                    >
+                                      {p.customer.full_name}
+                                    </Link>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
                                       {p.passenger_type} • {p.customer?.gender === 'male' || p.customer?.gender === 'Laki-laki' ? 'Laki-laki' : 'Perempuan'}
                                     </p>
