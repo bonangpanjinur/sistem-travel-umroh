@@ -273,11 +273,13 @@ export function ChangePackageDialogV2({
       
       // Decrement old departure
       if (currentDepartureId && currentDepartureId !== selectedDepartureId) {
+        console.log("[ChangePackage] Decrementing old departure:", currentDepartureId);
         const { data: oldDep } = await supabase
           .from("departures")
           .select("booked_count")
           .eq("id", currentDepartureId)
           .single();
+        console.log("[ChangePackage] Old departure current count:", oldDep?.booked_count);
         if (oldDep?.booked_count > 0) {
           const { error: decrementError } = await supabase
             .from("departures")
@@ -285,23 +287,29 @@ export function ChangePackageDialogV2({
             .eq("id", currentDepartureId);
           if (decrementError) {
             console.error("[ChangePackage] Failed to decrement old departure:", decrementError);
+          } else {
+            console.log("[ChangePackage] Decremented old departure count");
           }
         }
       }
       
       // Increment new departure
       if (selectedDepartureId && selectedDepartureId !== currentDepartureId) {
+        console.log("[ChangePackage] Incrementing new departure:", selectedDepartureId);
         const { data: newDep } = await supabase
           .from("departures")
           .select("booked_count")
           .eq("id", selectedDepartureId)
           .single();
+        console.log("[ChangePackage] New departure current count:", newDep?.booked_count);
         const { error: incrementError } = await supabase
           .from("departures")
           .update({ booked_count: (newDep?.booked_count || 0) + 1 })
           .eq("id", selectedDepartureId);
         if (incrementError) {
           console.error("[ChangePackage] Failed to increment new departure:", incrementError);
+        } else {
+          console.log("[ChangePackage] Incremented new departure count");
         }
       }
 
