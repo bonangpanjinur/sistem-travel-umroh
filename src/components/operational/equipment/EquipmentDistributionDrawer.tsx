@@ -39,6 +39,7 @@ export function EquipmentDistributionDialog({
   const queryClient = useQueryClient();
   const [checkedItems, setCheckedItems] = useState<Map<string, ChecklistItem>>(new Map());
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showUnsavedReturnsDialog, setShowUnsavedReturnsDialog] = useState(false);
 
   const { data: allEquipmentItems, isLoading: loadingItems } = useQuery({
     queryKey: ["equipment-items"],
@@ -88,12 +89,26 @@ export function EquipmentDistributionDialog({
     }
   }, [existingDistributions]);
 
-  // Reset confirm state when dialog closes
+  // Reset states when dialog closes
   useEffect(() => {
     if (!open) {
       setShowConfirmDialog(false);
+      setShowUnsavedReturnsDialog(false);
     }
   }, [open]);
+
+  const hasUnsavedReturns = useMemo(() => {
+    const existingIds = new Set(existingDistributions?.map((d: any) => d.equipment_id) || []);
+    return Array.from(existingIds).some(id => !checkedItems.has(id));
+  }, [existingDistributions, checkedItems]);
+
+  const handleClose = () => {
+    if (hasUnsavedReturns) {
+      setShowUnsavedReturnsDialog(true);
+    } else {
+      onOpenChange(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -282,8 +297,54 @@ export function EquipmentDistributionDialog({
 
   // Main dialog view
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+        {/* Unsaved Returns Confirmation Modal */}
+        <Dialog open={showUnsavedReturnsDialog} onOpenChange={setShowUnsavedReturnsDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5 text-destructive" />
+                Konfirmasi Pengembalian
+              </DialogTitle>
+              <DialogDescription>
+                Anda telah menghapus centang pada beberapa item. Apakah Anda ingin menyimpan perubahan ini sebagai pengembalian (retur)?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-md text-sm space-y-1 max-h-[200px] overflow-y-auto">
+                <p className="font-semibold text-destructive mb-2">Item yang akan dikembalikan:</p>
+                {existingDistributions?.filter(d => !checkedItems.has(d.equipment_id)).map(d => {
+                  const eq = allEquipmentItems?.find(e => e.id === d.equipment_id);
+                  return (
+                    <p key={d.equipment_id} className="flex items-center justify-between text-destructive">
+                      <span>• {eq?.name}</span>
+                    </p>
+                  );
+                })}
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+              >
+                Tutup Tanpa Simpan
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+              >
+                {saveMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Menyimpan...</>
+                ) : (
+                  'Ya, Simpan Retur'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="p-6 pb-4 border-b bg-muted/30">
           <DialogHeader>
             <DialogTitle className="text-lg">Detail Perlengkapan Jamaah</DialogTitle>
@@ -379,10 +440,10 @@ export function EquipmentDistributionDialog({
         </div>
 
         <DialogFooter className="p-6 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
+          <Button variant="outline" onClick={handleClose}>Tutup</Button>
           <Button
             onClick={() => setShowConfirmDialog(true)}
-            disabled={saveMutation.isPending || checkedItems.size === 0}
+            disabled={saveMutation.isPending}
           >
             {saveMutation.isPending ? (
               <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Menyimpan...</>
