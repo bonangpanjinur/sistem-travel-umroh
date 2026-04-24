@@ -138,6 +138,7 @@ export default function AdminDepartureDetail() {
         return [];
       }
       console.log("Bookings found:", bookings.length, "IDs:", bookings.map(b => b.id));
+      console.log("Bookings details:", JSON.stringify(bookings, null, 2));
       if (bookings.length > 90) {
         console.warn("⚠️ Close to 100 limit! Current bookings:", bookings.length);
       }
