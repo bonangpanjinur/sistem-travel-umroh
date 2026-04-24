@@ -139,7 +139,7 @@ export default function EquipmentPage() {
       if (!selectedDeparture) return [];
       const { data, error } = await supabase
         .from("equipment_distributions")
-        .select(`*, equipment:equipment_items(*), customer:customers(full_name)`)
+        .select(`*, equipment:equipment_items(*), customer:customers(id, full_name, gender)`)
         .eq("departure_id", selectedDeparture)
         .eq("status", "distributed");
       if (error) throw error;
