@@ -238,6 +238,7 @@ export default function AdminEquipmentMaster() {
             <Plus className="h-4 w-4 mr-2" />
             Tambah Perlengkapan
           </Button>
+        </div>
       </div>
 
       <Card>
