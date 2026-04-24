@@ -65,7 +65,9 @@ import { id as localeId } from "date-fns/locale";
 export default function AdminDepartureDetail() {
   const { id } = useParams<{ id: string }>();
   
+  // Debug: log the id and component render
   console.log("DepartureDetail - id from params:", id);
+  console.log("DepartureDetail - component mounted, id:", id);
 
   // Debug: show current ID in UI
   const debugId = id;
