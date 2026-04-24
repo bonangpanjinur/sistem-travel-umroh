@@ -36,6 +36,8 @@ interface CustomerFormData {
   phone: string;
   address: string;
   branch_id: string;
+  marital_status: string;
+  spouse_name: string;
 }
 
 const initialFormData: CustomerFormData = {
@@ -48,6 +50,8 @@ const initialFormData: CustomerFormData = {
   phone: "",
   address: "",
   branch_id: "",
+  marital_status: "single",
+  spouse_name: "",
 };
 
 export function AddCustomerDialog({ trigger }: AddCustomerDialogProps) {
@@ -82,6 +86,8 @@ export function AddCustomerDialog({ trigger }: AddCustomerDialogProps) {
           phone: formData.phone || null,
           address: formData.address || null,
           branch_id: formData.branch_id || null,
+          marital_status: formData.marital_status || 'single',
+          spouse_name: formData.spouse_name || null,
         })
         .select()
         .single();
@@ -249,6 +255,35 @@ export function AddCustomerDialog({ trigger }: AddCustomerDialogProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="marital_status">Status Pernikahan</Label>
+              <Select
+                value={formData.marital_status}
+                onValueChange={v => handleChange("marital_status", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Lajang</SelectItem>
+                  <SelectItem value="married">Menikah</SelectItem>
+                  <SelectItem value="widowed">Janda/Duda</SelectItem>
+                  <SelectItem value="divorced">Cerai</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="spouse_name">Nama Pasangan</Label>
+              <Input
+                id="spouse_name"
+                value={formData.spouse_name}
+                onChange={e => handleChange("spouse_name", e.target.value)}
+                placeholder="Nama suami/istri (jika menikah)"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

@@ -83,6 +83,10 @@ export default function AdminRoomAssignments() {
   const [auditDateTo, setAuditDateTo] = useState<string>("");
   const [auditAction, setAuditAction] = useState<string>("all");
   const [auditBranch, setAuditBranch] = useState<string>("current");
+  // Additional filters
+  const [genderFilter, setGenderFilter] = useState<string>("all");
+  const [roomStatusFilter, setRoomStatusFilter] = useState<string>("all");
+  const [showSpouseSuggestions, setShowSpouseSuggestions] = useState<boolean>(false);
 
   const { data: branches } = useQuery({
     queryKey: ['branches-for-audit-filter'],
@@ -165,6 +169,23 @@ export default function AdminRoomAssignments() {
   const filteredPassengers = selectedRoomType === 'all'
     ? passengers || []
     : roomTypeGroups[selectedRoomType as keyof typeof roomTypeGroups] || [];
+
+  // Apply additional filters
+  const withAdditionalFilters = filteredPassengers.filter(p => {
+    // Gender filter
+    if (genderFilter !== 'all' && p.customer?.gender !== genderFilter) return false;
+    // Room status filter
+    if (roomStatusFilter === 'assigned' && !p.room_number) return false;
+    if (roomStatusFilter === 'unassigned' && p.room_number) return false;
+    // Search query filter
+    if (searchQuery) {
+      const search = searchQuery.toLowerCase();
+      const matchesName = p.customer?.full_name?.toLowerCase().includes(search);
+      const matchesPhone = p.customer?.phone?.includes(search);
+      if (!matchesName && !matchesPhone) return false;
+    }
+    return true;
+  });
 
   const doublePassengers = roomTypeGroups.double;
 
@@ -591,6 +612,17 @@ export default function AdminRoomAssignments() {
 
       {selectedDeparture && (
         <>
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Cari nama atau nomor HP..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              className="pl-10 max-w-sm"
+            />
+          </div>
+
           {/* Combined Stats + Filter Row */}
           <div className="flex flex-wrap items-center gap-2">
             {[
@@ -608,6 +640,40 @@ export default function AdminRoomAssignments() {
                 <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{item.count}</Badge>
               </Button>
             ))}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Gender filter */}
+              {[
+                { key: 'all', label: '👫 Semua' },
+                { key: 'male', label: '👨 Laki-laki' },
+                { key: 'female', label: '👩 Perempuan' },
+              ].map(item => (
+                <Button
+                  key={item.key}
+                  variant={genderFilter === item.key ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setGenderFilter(item.key)}
+                  className="text-xs"
+                >
+                  {item.label}
+                </Button>
+              ))}
+              {/* Room status filter */}
+              {[
+                { key: 'all', label: 'Semua Status' },
+                { key: 'assigned', label: '✅ Sudah Kamar' },
+                { key: 'unassigned', label: '❌ Belum Kamar' },
+              ].map(item => (
+                <Button
+                  key={item.key}
+                  variant={roomStatusFilter === item.key ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setRoomStatusFilter(item.key)}
+                  className="text-xs"
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </div>
             <div className="ml-auto flex items-center gap-3 text-sm text-muted-foreground">
               <span>🛏️ {withRoom}/{totalPassengers} punya nomor kamar</span>
               <span>👥 {paired} terpasang</span>
@@ -718,7 +784,7 @@ export default function AdminRoomAssignments() {
               <CardContent className="pt-6">
                 {loadingPassengers ? (
                   <p className="text-muted-foreground py-8 text-center">Memuat...</p>
-                ) : filteredPassengers.length === 0 ? (
+                ) : withAdditionalFilters.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">Belum ada jamaah.</p>
                 ) : (
                   <Table>
@@ -733,7 +799,7 @@ export default function AdminRoomAssignments() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPassengers.map(p => {
+                      {withAdditionalFilters.map(p => {
                         const roommate = p.roommate_id ? passengers?.find(x => x.id === p.roommate_id) : null;
                         // Candidates: same room_preference + same gender + not self + not already paired with someone else
                         const candidates = (passengers || []).filter(x =>
