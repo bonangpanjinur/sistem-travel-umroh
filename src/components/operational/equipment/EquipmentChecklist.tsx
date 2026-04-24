@@ -137,6 +137,12 @@ export function EquipmentChecklist({
 
   const handleDeselectAll = () => setCheckedItems(new Set());
 
+  const handleReturnAll = () => {
+    // Return all items that are currently distributed
+    setCheckedItems(new Set());
+    toast.info("Semua perlengkapan ditandai untuk dikembalikan (retur)");
+  };
+
   const hasChanges = 
     Array.from(checkedItems).some(id => !existingDistributions.some(d => d.equipment_id === id)) ||
     existingDistributions.some(d => !checkedItems.has(d.equipment_id));
@@ -172,22 +178,33 @@ export function EquipmentChecklist({
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleSelectAll}>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleSelectAll}
+            className="flex-1 sm:flex-none"
+          >
             Pilih Semua
           </Button>
-          <Button variant="outline" size="sm" onClick={handleDeselectAll}>
-            Hapus Semua
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleReturnAll}
+            className="flex-1 sm:flex-none text-destructive hover:text-destructive hover:bg-destructive/5"
+          >
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Retur Semua
           </Button>
         </div>
         <Button 
           onClick={() => saveMutation.mutate()} 
           disabled={!hasChanges || saveMutation.isPending}
-          className="gap-2"
+          className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90"
         >
           {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          Simpan Perubahan
+          Simpan Distribusi
         </Button>
       </div>
 
