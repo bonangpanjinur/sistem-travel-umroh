@@ -56,6 +56,8 @@ interface Passenger {
     birth_date?: string | null;
     passport_number?: string | null;
     passport_expiry?: string | null;
+    marital_status?: string | null;
+    spouse_name?: string | null;
   };
   booking: {
     id: string;
@@ -151,7 +153,7 @@ export default function AdminRoomAssignments() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('booking_passengers')
-        .select(`id, room_preference, passenger_type, room_number, roommate_id, customer:customers(id, full_name, gender, phone, birth_date, passport_number, passport_expiry), booking:bookings!inner(id, booking_code, room_type, departure_id, booking_status)`)
+        .select(`id, room_preference, passenger_type, room_number, roommate_id, customer:customers(id, full_name, gender, phone, birth_date, passport_number, passport_expiry, marital_status, spouse_name), booking:bookings!inner(id, booking_code, room_type, departure_id, booking_status)`)
         .eq('booking.departure_id', selectedDeparture)
         .in('booking.booking_status', ['confirmed', 'pending']);
       if (error) throw error;
@@ -808,6 +810,17 @@ export default function AdminRoomAssignments() {
                           x.customer?.gender === p.customer?.gender &&
                           (!x.roommate_id || x.roommate_id === p.id)
                         );
+                        // Highlight spouse if married
+                        const spouseMatch = candidates.find(c => {
+                          const otherIsMarried = c.customer?.marital_status === 'married';
+                          const selfIsMarried = p.customer?.marital_status === 'married';
+                          if (!otherIsMarried || !selfIsMarried) return false;
+                          // Check if spouse name matches
+                          const spouseName = c.customer?.spouse_name?.toLowerCase() || '';
+                          const myName = p.customer?.full_name?.toLowerCase() || '';
+                          return spouseName.includes(p.customer?.full_name?.split(' ')[0]?.toLowerCase() || '') ||
+                            myName.includes(c.customer?.full_name?.split(' ')[0]?.toLowerCase() || '');
+                        });
                         return (
                           <TableRow key={p.id}>
                             <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
@@ -844,9 +857,16 @@ export default function AdminRoomAssignments() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">— Belum dipasangkan —</SelectItem>
-                                  {candidates.map(c => (
-                                    <SelectItem key={c.id} value={c.id}>{c.customer?.full_name}</SelectItem>
-                                  ))}
+                                  {candidates.map(c => {
+                                    const isSpouse = c.customer?.marital_status === 'married' && 
+                                      (c.customer?.spouse_name?.toLowerCase().includes(p.customer?.full_name?.split(' ')[0]?.toLowerCase() || '') ||
+                                       p.customer?.spouse_name?.toLowerCase().includes(c.customer?.full_name?.split(' ')[0]?.toLowerCase() || ''));
+                                    return (
+                                      <SelectItem key={c.id} value={c.id}>
+                                        {c.customer?.full_name}{isSpouse && <span className="ml-2 text-primary">💑</span>}
+                                      </SelectItem>
+                                    );
+                                  })}
                                 </SelectContent>
                               </Select>
                             </TableCell>
