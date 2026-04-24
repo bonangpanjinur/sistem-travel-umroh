@@ -32,6 +32,8 @@ export default function AdminEquipmentMaster() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [picFilter, setPicFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<EquipmentItem | null>(null);
@@ -257,28 +259,59 @@ export default function AdminEquipmentMaster() {
 
   const filtered = items?.filter(i => {
     const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.category.toLowerCase().includes(searchTerm.toLowerCase());
+      i.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (i.pic && i.pic.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = categoryFilter === "all" || i.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesPic = picFilter === "all" || i.pic_type === picFilter;
+    const qty = i.stock_quantity || 0;
+    const threshold = i.low_stock_threshold || 10;
+    let matchesStatus = true;
+    if (statusFilter === "available") matchesStatus = qty > threshold;
+    else if (statusFilter === "low") matchesStatus = qty > 0 && qty <= threshold;
+    else if (statusFilter === "out") matchesStatus = qty === 0;
+    return matchesSearch && matchesCategory && matchesPic && matchesStatus;
   });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex gap-2 flex-1">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex gap-2 flex-1 flex-wrap">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cari nama..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+            <Input placeholder="Cari nama, PIC..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Semua Kategori" />
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Kategori" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Kategori</SelectItem>
+              <SelectItem value="all">Semua</SelectItem>
               {categories?.map(cat => (
                 <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={picFilter} onValueChange={setPicFilter}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="PIC" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua PIC</SelectItem>
+              <SelectItem value="agent">Agent</SelectItem>
+              <SelectItem value="pusat">Pusat</SelectItem>
+              <SelectItem value="cabang">Cabang</SelectItem>
+              <SelectItem value="lainnya">Lainnya</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="available">Tersedia</SelectItem>
+              <SelectItem value="low">Menipis</SelectItem>
+              <SelectItem value="out">Habis</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -300,6 +333,7 @@ export default function AdminEquipmentMaster() {
             <TableRow>
               <TableHead>Nama & Kategori</TableHead>
               <TableHead>Deskripsi</TableHead>
+              <TableHead>PIC</TableHead>
               <TableHead className="text-center">Stok</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
@@ -326,6 +360,15 @@ export default function AdminEquipmentMaster() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                     {item.description || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {item.pic ? (
+                      <Badge variant="outline" className="text-[10px] h-4 px-1">
+                        {item.pic} ({item.pic_type || '-'})
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex flex-col items-center">
@@ -358,7 +401,7 @@ export default function AdminEquipmentMaster() {
             })}
             {!filtered?.length && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   {searchTerm ? "Tidak ditemukan" : "Belum ada data perlengkapan"}
                 </TableCell>
               </TableRow>
