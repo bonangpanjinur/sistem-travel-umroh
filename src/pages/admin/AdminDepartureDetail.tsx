@@ -125,11 +125,12 @@ export default function AdminDepartureDetail() {
   const { data: passengers, isLoading: passengersLoading } = useQuery({
     queryKey: ["departure-passengers", id],
     queryFn: async () => {
-      // Step 1: Fetch all active bookings for this departure
+      // Step 1: Fetch all active bookings for this departure (exclude cancelled)
       const { data: bookings, error: bookingsError } = await supabase
         .from("bookings")
         .select("id, booking_code, room_type, booking_status, payment_status, customer_id")
-        .eq("departure_id", id!);
+        .eq("departure_id", id!)
+        .neq("booking_status", "cancelled");
 
       if (bookingsError) {
         console.error("Bookings error:", bookingsError);
