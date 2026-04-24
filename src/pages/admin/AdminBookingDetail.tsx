@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
 
 export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
   const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
