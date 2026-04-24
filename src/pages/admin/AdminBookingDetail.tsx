@@ -67,13 +67,14 @@ const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
 
 export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
   const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
   
-  // Permission check
-  const canVerifyPayment = hasRole('super_admin') || hasRole('owner') || hasRole('finance');
-  const canAddPayment = hasRole('super_admin') || hasRole('owner') || hasRole('finance') || hasRole('branch_manager') || hasRole('agent');
+  // Permission check - use isAdmin() which includes super_admin, owner, branch_manager
+  const isFinance = hasRole('finance');
+  const canVerifyPayment = isAdmin() || isFinance;
+  const canAddPayment = isAdmin() || isFinance || hasRole('agent');
   
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
