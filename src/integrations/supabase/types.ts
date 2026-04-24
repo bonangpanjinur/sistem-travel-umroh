@@ -3173,6 +3173,47 @@ export type Database = {
         }
         Relationships: []
       }
+      package_change_rules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          min_days_before_departure: number
+          package_id: string
+          penalty_amount: number
+          penalty_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          min_days_before_departure: number
+          package_id: string
+          penalty_amount?: number
+          penalty_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          min_days_before_departure?: number
+          package_id?: string
+          penalty_amount?: number
+          penalty_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_change_rules_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       package_types: {
         Row: {
           code: string
