@@ -265,7 +265,47 @@ export function ChangePackageDialogV2({
 
       if (updateError) throw updateError;
 
-      // 6. If there's a penalty, create a payment record
+      // 6. Update booked_count on departures
+      console.log("[ChangePackage] Updating booked_count:", {
+        oldDepartureId: currentDepartureId,
+        newDepartureId: selectedDepartureId
+      });
+      
+      // Decrement old departure
+      if (currentDepartureId && currentDepartureId !== selectedDepartureId) {
+        const { data: oldDep } = await supabase
+          .from("departures")
+          .select("booked_count")
+          .eq("id", currentDepartureId)
+          .single();
+        if (oldDep?.booked_count > 0) {
+          const { error: decrementError } = await supabase
+            .from("departures")
+            .update({ booked_count: oldDep.booked_count - 1 })
+            .eq("id", currentDepartureId);
+          if (decrementError) {
+            console.error("[ChangePackage] Failed to decrement old departure:", decrementError);
+          }
+        }
+      }
+      
+      // Increment new departure
+      if (selectedDepartureId && selectedDepartureId !== currentDepartureId) {
+        const { data: newDep } = await supabase
+          .from("departures")
+          .select("booked_count")
+          .eq("id", selectedDepartureId)
+          .single();
+        const { error: incrementError } = await supabase
+          .from("departures")
+          .update({ booked_count: (newDep?.booked_count || 0) + 1 })
+          .eq("id", selectedDepartureId);
+        if (incrementError) {
+          console.error("[ChangePackage] Failed to increment new departure:", incrementError);
+        }
+      }
+
+      // 7. If there's a penalty, create a payment record
       if (penaltyInfo?.applicable && penaltyInfo.penaltyAmount > 0) {
         const { error: paymentError } = await supabase
           .from("payments")
@@ -300,12 +340,14 @@ export function ChangePackageDialogV2({
       // 7. Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["departure-passengers"] });
       queryClient.invalidateQueries({ queryKey: ["admin-booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-departures"] });
 
       return { upgradeFee, penaltyAmount: penaltyInfo?.penaltyAmount || 0 };
     },
     onSuccess: () => {
       toast.success("Paket berhasil dipindahkan");
       queryClient.invalidateQueries({ queryKey: ["admin-booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-departures"] });
       onClose();
       setSelectedDepartureId("");
     },
