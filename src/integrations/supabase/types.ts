@@ -1856,40 +1856,76 @@ export type Database = {
       }
       equipment_distributions: {
         Row: {
+          cancel_admin_fee: number | null
+          cancel_reason: string | null
+          condition_photo_url: string | null
           customer_id: string
+          delivery_date: string | null
+          delivery_proof_url: string | null
+          delivery_type: string | null
           departure_id: string | null
           distributed_at: string | null
           distributed_by: string | null
           equipment_id: string
+          expedition_name: string | null
           id: string
           notes: string | null
           quantity: number | null
+          return_condition: string | null
+          return_notes: string | null
+          return_photo_url: string | null
           returned_at: string | null
           status: string | null
+          tracking_number: string | null
+          variant_id: string | null
         }
         Insert: {
+          cancel_admin_fee?: number | null
+          cancel_reason?: string | null
+          condition_photo_url?: string | null
           customer_id: string
+          delivery_date?: string | null
+          delivery_proof_url?: string | null
+          delivery_type?: string | null
           departure_id?: string | null
           distributed_at?: string | null
           distributed_by?: string | null
           equipment_id: string
+          expedition_name?: string | null
           id?: string
           notes?: string | null
           quantity?: number | null
+          return_condition?: string | null
+          return_notes?: string | null
+          return_photo_url?: string | null
           returned_at?: string | null
           status?: string | null
+          tracking_number?: string | null
+          variant_id?: string | null
         }
         Update: {
+          cancel_admin_fee?: number | null
+          cancel_reason?: string | null
+          condition_photo_url?: string | null
           customer_id?: string
+          delivery_date?: string | null
+          delivery_proof_url?: string | null
+          delivery_type?: string | null
           departure_id?: string | null
           distributed_at?: string | null
           distributed_by?: string | null
           equipment_id?: string
+          expedition_name?: string | null
           id?: string
           notes?: string | null
           quantity?: number | null
+          return_condition?: string | null
+          return_notes?: string | null
+          return_photo_url?: string | null
           returned_at?: string | null
           status?: string | null
+          tracking_number?: string | null
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -1920,6 +1956,13 @@ export type Database = {
             referencedRelation: "equipment_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "equipment_distributions_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_variants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       equipment_items: {
@@ -1927,7 +1970,10 @@ export type Database = {
           category: string
           created_at: string | null
           description: string | null
+          gender_target: string
+          has_variants: boolean
           id: string
+          low_stock_threshold: number
           name: string
           stock_quantity: number | null
         }
@@ -1935,7 +1981,10 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string | null
+          gender_target?: string
+          has_variants?: boolean
           id?: string
+          low_stock_threshold?: number
           name: string
           stock_quantity?: number | null
         }
@@ -1943,11 +1992,61 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string | null
+          gender_target?: string
+          has_variants?: boolean
           id?: string
+          low_stock_threshold?: number
           name?: string
           stock_quantity?: number | null
         }
         Relationships: []
+      }
+      equipment_variants: {
+        Row: {
+          color: string | null
+          created_at: string
+          equipment_id: string
+          id: string
+          low_stock_threshold: number
+          size: string | null
+          sku: string | null
+          stock_damaged: number
+          stock_good: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          equipment_id: string
+          id?: string
+          low_stock_threshold?: number
+          size?: string | null
+          sku?: string | null
+          stock_damaged?: number
+          stock_good?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          equipment_id?: string
+          id?: string
+          low_stock_threshold?: number
+          size?: string | null
+          sku?: string | null
+          stock_damaged?: number
+          stock_good?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_variants_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       haji_registrations: {
         Row: {
@@ -2927,6 +3026,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      office_assets: {
+        Row: {
+          branch_id: string | null
+          category: string
+          condition: string
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          photo_url: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          quantity: number
+          size_or_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          category?: string
+          condition?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          photo_url?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          quantity?: number
+          size_or_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          category?: string
+          condition?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          photo_url?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          quantity?: number
+          size_or_color?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_assets_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       offline_content: {
         Row: {
@@ -5051,9 +5209,21 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_variant_stock: {
+        Args: {
+          p_delta_damaged?: number
+          p_delta_good?: number
+          p_variant_id: string
+        }
+        Returns: undefined
+      }
       agent_can_access_customer: {
         Args: { _customer_id: string; _user_id: string }
         Returns: boolean
+      }
+      bulk_distribute_equipment: {
+        Args: { p_departure_id: string; p_distributions: Json }
+        Returns: undefined
       }
       bulk_sync_menu_items: {
         Args: { _menu_items: string }
@@ -5062,6 +5232,10 @@ export type Database = {
       check_user_permission: {
         Args: { _permission_key: string; _user_id: string }
         Returns: boolean
+      }
+      decrement_equipment_stock: {
+        Args: { amount?: number; item_id: string }
+        Returns: undefined
       }
       estimate_haji_departure_year: {
         Args: {
@@ -5101,6 +5275,10 @@ export type Database = {
         Args: { _departure_id: string; _pax: number }
         Returns: boolean
       }
+      increment_equipment_stock: {
+        Args: { amount?: number; item_id: string }
+        Returns: undefined
+      }
       is_account_locked: { Args: { _email: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       list_users_with_emails: {
@@ -5131,6 +5309,16 @@ export type Database = {
           _table_name: string
         }
         Returns: string
+      }
+      return_equipment_distribution: {
+        Args: {
+          p_admin_fee?: number
+          p_condition: string
+          p_distribution_id: string
+          p_notes?: string
+          p_return_photo_url?: string
+        }
+        Returns: undefined
       }
       user_belongs_to_branch: {
         Args: { _branch_id: string; _user_id: string }
