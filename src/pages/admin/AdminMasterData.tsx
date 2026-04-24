@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hotel, Plane, MapPin, User, Ticket, Bus, Store, Package } from "lucide-react";
+import { Hotel, Plane, MapPin, User, Ticket, Bus, Store, Package, RotateCcw, Settings } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import AdminHotels from "./AdminHotels";
 import AdminAirlines from "./AdminAirlines";
@@ -9,6 +9,8 @@ import AdminCoupons from "./AdminCoupons";
 import AdminBusProviders from "./AdminBusProviders";
 import AdminVendors from "./AdminVendors";
 import AdminEquipmentMaster from "./AdminEquipmentMaster";
+import AdminStockOpname from "./AdminStockOpname";
+import AdminEquipmentSettings from "./AdminEquipmentSettings";
 
 export default function AdminMasterData() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -47,6 +49,14 @@ export default function AdminMasterData() {
             <Package className="h-4 w-4" />
             <span className="hidden sm:inline">Perlengkapan</span>
           </TabsTrigger>
+          <TabsTrigger value="stock-opname" className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            <span className="hidden sm:inline">Stock Opname</span>
+          </TabsTrigger>
+          <TabsTrigger value="equipment-settings" className="gap-2">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Pengaturan</span>
+          </TabsTrigger>
           <TabsTrigger value="coupons" className="gap-2">
             <Ticket className="h-4 w-4" />
             <span className="hidden sm:inline">Kupon</span>
@@ -75,6 +85,12 @@ export default function AdminMasterData() {
         </TabsContent>
         <TabsContent value="equipment">
           <AdminEquipmentMaster />
+        </TabsContent>
+        <TabsContent value="stock-opname">
+          <AdminStockOpname />
+        </TabsContent>
+        <TabsContent value="equipment-settings">
+          <AdminEquipmentSettings />
         </TabsContent>
         <TabsContent value="coupons">
           <AdminCoupons />

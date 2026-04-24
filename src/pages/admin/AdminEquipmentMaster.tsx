@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Package, Search, AlertTriangle, Download } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Search, AlertTriangle, Download, QrCode, Printer } from "lucide-react";
 
 interface EquipmentItem {
   id: string;
@@ -21,6 +21,10 @@ interface EquipmentItem {
   stock_quantity: number | null;
   category: string;
   low_stock_threshold: number | null;
+  qr_code: string | null;
+  pic: string | null;
+  pic_type: string | null;
+  photo_url: string | null;
   created_at: string | null;
 }
 
@@ -36,7 +40,9 @@ export default function AdminEquipmentMaster() {
     description: "", 
     stock_quantity: 0,
     category: "Pakaian Ihram",
-    low_stock_threshold: 10
+    low_stock_threshold: 10,
+    pic: "",
+    pic_type: "lainnya"
   });
 
   const { data: items, isLoading } = useQuery({
@@ -71,7 +77,9 @@ export default function AdminEquipmentMaster() {
         description: formData.description || null, 
         stock_quantity: formData.stock_quantity,
         category: formData.category,
-        low_stock_threshold: formData.low_stock_threshold
+        low_stock_threshold: formData.low_stock_threshold,
+        pic: formData.pic || null,
+        pic_type: formData.pic_type || null
       };
 
       if (editingItem) {
@@ -154,7 +162,9 @@ export default function AdminEquipmentMaster() {
         description: item.description || "", 
         stock_quantity: item.stock_quantity || 0,
         category: item.category || "Pakaian Ihram",
-        low_stock_threshold: item.low_stock_threshold || 10
+        low_stock_threshold: item.low_stock_threshold || 10,
+        pic: item.pic || "",
+        pic_type: item.pic_type || "lainnya"
       });
     } else {
       setEditingItem(null);
@@ -163,7 +173,9 @@ export default function AdminEquipmentMaster() {
         description: "", 
         stock_quantity: 0,
         category: "Pakaian Ihram",
-        low_stock_threshold: 10
+        low_stock_threshold: 10,
+        pic: "",
+        pic_type: "lainnya"
       });
     }
     setIsFormOpen(true);
@@ -200,6 +212,47 @@ export default function AdminEquipmentMaster() {
     link.click();
     URL.revokeObjectURL(url);
     toast.success("Data diexport ke CSV");
+  };
+
+  // QR Code modal state
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedItemQR, setSelectedItemQR] = useState<EquipmentItem | null>(null);
+
+  // Handle print QR
+  const handlePrintQR = (item: EquipmentItem) => {
+    setSelectedItemQR(item);
+    setShowQRModal(true);
+  };
+
+  // Print QR to PDF/Window
+  const printQR = () => {
+    const printContent = document.getElementById('qr-print-area');
+    if (!printContent) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error("Cannot open print window");
+      return;
+    }
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print QR Code - ${selectedItemQR?.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .label { border: 2px solid #000; padding: 15px; margin: 10px; display: inline-block; text-align: center; }
+            .qr { margin-bottom: 10px; }
+            .name { font-weight: bold; font-size: 14px; }
+            .details { font-size: 12px; margin-top: 5px; }
+          </style>
+        </head>
+        <body>${printContent.innerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
   };
 
   const filtered = items?.filter(i => {
@@ -289,6 +342,9 @@ export default function AdminEquipmentMaster() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintQR(item)} title="Print QR Code">
+                        <QrCode className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpen(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -350,6 +406,26 @@ export default function AdminEquipmentMaster() {
               <Label>Jumlah Stok</Label>
               <Input type="number" min={0} value={formData.stock_quantity} onChange={e => setFormData(p => ({ ...p, stock_quantity: parseInt(e.target.value) || 0 }))} />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>PIC (Penanggung Jawab)</Label>
+                <Input value={formData.pic} onChange={e => setFormData(p => ({ ...p, pic: e.target.value }))} placeholder="Nama PIC..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipe PIC</Label>
+                <Select value={formData.pic_type} onValueChange={v => setFormData(p => ({ ...p, pic_type: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih tipe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="agent">Agent</SelectItem>
+                    <SelectItem value="pusat">Pusat</SelectItem>
+                    <SelectItem value="cabang">Cabang</SelectItem>
+                    <SelectItem value="lainnya">Lainnya</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>Batal</Button>
@@ -377,6 +453,37 @@ export default function AdminEquipmentMaster() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QR Code Modal */}
+      <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>QR Code - {selectedItemQR?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4 py-4">
+            <div id="qr-print-area" className="border-2 border-black p-4 rounded-lg">
+              <div className="text-center">
+                {/* Simple QR Code as text for now - using a data URL would require the library */}
+                <div className="w-48 h-48 bg-gray-200 flex items-center justify-center mb-2">
+                  <QrCode className="w-24 h-24 text-gray-600" />
+                </div>
+                <p className="font-bold text-sm">{selectedItemQR?.name}</p>
+                <p className="text-xs text-gray-500">{selectedItemQR?.category}</p>
+                <p className="text-xs">Stok: {selectedItemQR?.stock_quantity || 0}</p>
+                <p className="text-xs">PIC: {selectedItemQR?.pic || '-'}</p>
+                <p className="text-xs text-gray-400">{selectedItemQR?.id?.slice(0, 8)}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowQRModal(false)}>Tutup</Button>
+              <Button onClick={printQR}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
