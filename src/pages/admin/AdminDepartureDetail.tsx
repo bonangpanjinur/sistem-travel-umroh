@@ -134,7 +134,10 @@ export default function AdminDepartureDetail() {
         console.log("No bookings for departure:", id);
         return [];
       }
-      console.log("Bookings found:", bookings.length, bookings);
+      console.log("Bookings found:", bookings.length, "IDs:", bookings.map(b => b.id));
+      if (bookings.length > 90) {
+        console.warn("⚠️ Close to 100 limit! Current bookings:", bookings.length);
+      }
 
       const bookingIds = bookings.map((b) => b.id);
       const bookingMap = new Map(bookings.map((b) => [b.id, b]));
@@ -564,7 +567,7 @@ export default function AdminDepartureDetail() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">
-                {formatDate(departure.departure_date)}
+                {departure.departure_date ? formatDate(departure.departure_date) : <span className="text-orange-500 text-lg">Tanggal belum diatur</span>}
               </h1>
               {getStatusBadge(departure.status)}
             </div>
@@ -616,7 +619,7 @@ export default function AdminDepartureDetail() {
                       Tanggal Kembali
                     </p>
                     <p className="font-semibold">
-                      {formatDate(departure.return_date)}
+                      {departure.return_date ? formatDate(departure.return_date) : <span className="text-muted-foreground">-</span>}
                     </p>
                   </div>
                   <div>
