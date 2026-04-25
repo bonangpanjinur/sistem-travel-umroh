@@ -66,7 +66,7 @@ export default function AdminEquipmentSettings() {
 
   // Update settings mutation
   const updateSettingsMutation = useMutation({
-    mutationFn: async (key: string, value: string) => {
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
       const { error } = await supabase
         .from("equipment_settings")
         .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
@@ -103,7 +103,7 @@ export default function AdminEquipmentSettings() {
 
   const handleSaveManifest = () => {
     Object.entries(settings).forEach(([key, value]) => {
-      updateSettingsMutation.mutate(key, String(value));
+      updateSettingsMutation.mutate({ key, value: String(value) });
     });
   };
 
