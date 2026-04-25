@@ -5351,6 +5351,10 @@ export type Database = {
         }
         Returns: string
       }
+      recalculate_departure_booked_count: {
+        Args: { p_departure_id?: string }
+        Returns: undefined
+      }
       return_equipment_distribution: {
         Args: {
           p_admin_fee?: number

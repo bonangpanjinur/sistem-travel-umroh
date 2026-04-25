@@ -298,19 +298,7 @@ export function useBookingWizardDynamic(
         console.warn('Auto-pair double failed:', e);
       }
 
-      // 7. Update departure booked count
-      const { data: currentDeparture } = await supabase
-        .from('departures')
-        .select('booked_count')
-        .eq('id', formData.departureId)
-        .single();
-
-      if (currentDeparture) {
-        await supabase
-          .from('departures')
-          .update({ booked_count: (currentDeparture.booked_count || 0) + totalPax })
-          .eq('id', formData.departureId);
-      }
+      // 7. booked_count disinkronkan otomatis oleh trigger DB sync_departure_booked_count
 
       // 8. Handle referral code if provided
       if (referralId) {

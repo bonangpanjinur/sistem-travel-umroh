@@ -26,7 +26,7 @@ import {
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
-  ChevronLeft, ChevronRight, Eye
+  ChevronLeft, ChevronRight, Eye, RefreshCw
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
@@ -59,6 +59,23 @@ export default function AdminDepartures() {
   const [deleteDeparture, setDeleteDeparture] = useState<any>(null);
   const [itineraryDeparture, setItineraryDeparture] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Sinkronkan ulang booked_count dari data booking aktif (rekonsiliasi)
+  const recalcMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('recalculate_departure_booked_count' as any, {
+        p_departure_id: null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Kuota keberangkatan berhasil disinkronkan');
+      queryClient.invalidateQueries({ queryKey: ['admin-departures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-departures-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['departures'] });
+    },
+    onError: (e: any) => toast.error('Gagal sinkronkan kuota: ' + (e?.message ?? 'unknown')),
+  });
 
   // Separate query for stats to avoid overhead on every page change
   const { data: statsData } = useQuery({
@@ -231,10 +248,21 @@ export default function AdminDepartures() {
           <h1 className="text-2xl font-bold">Jadwal Keberangkatan</h1>
           <p className="text-muted-foreground">Kelola semua jadwal keberangkatan</p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => recalcMutation.mutate()}
+            disabled={recalcMutation.isPending}
+            title="Hitung ulang kursi terisi dari data pesanan aktif"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${recalcMutation.isPending ? 'animate-spin' : ''}`} />
+            Sinkronkan Kuota
+          </Button>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
