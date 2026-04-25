@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,124 +11,100 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Package, Search, AlertTriangle, Download, QrCode, Printer } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Search, Download, QrCode, Printer } from "lucide-react";
 
-interface EquipmentItem {
-  id: string;
+import {
+  getEquipmentItems,
+  getEquipmentCategories,
+  createEquipmentItem,
+  updateEquipmentItem,
+  deleteEquipmentItem,
+  logStockChange,
+} from "@/features/equipment/queries";
+import type { EquipmentItem } from "@/features/equipment/dto";
+
+interface FormState {
   name: string;
-  description: string | null;
-  stock_quantity: number | null;
+  description: string;
+  stockQuantity: number;
   category: string;
-  low_stock_threshold: number | null;
-  qr_code: string | null;
-  pic: string | null;
-  pic_type: string | null;
-  photo_url: string | null;
-  created_at: string | null;
+  lowStockThreshold: number;
+  pic: string;
+  picType: string;
 }
+
+const EMPTY_FORM: FormState = {
+  name: "",
+  description: "",
+  stockQuantity: 0,
+  category: "Pakaian Ihram",
+  lowStockThreshold: 10,
+  pic: "",
+  picType: "lainnya",
+};
 
 export default function AdminEquipmentMaster() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [picFilter, setPicFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [picFilter, setPicFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<EquipmentItem | null>(null);
-  const [formData, setFormData] = useState({ 
-    name: "", 
-    description: "", 
-    stock_quantity: 0,
-    category: "Pakaian Ihram",
-    low_stock_threshold: 10,
-    pic: "",
-    pic_type: "lainnya"
-  });
+  const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
 
-  const { data: items, isLoading } = useQuery({
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedItemQR, setSelectedItemQR] = useState<EquipmentItem | null>(null);
+
+  const { data: items } = useQuery({
     queryKey: ["equipment-items-master"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("equipment_items")
-        .select("*")
-        .order("name");
-      if (error) throw error;
-      return data as EquipmentItem[];
-    },
+    queryFn: getEquipmentItems,
   });
 
-  // Query categories for dropdown
   const { data: categories } = useQuery({
     queryKey: ["equipment-categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("equipment_categories")
-        .select("*")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: getEquipmentCategories,
   });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = { 
-        name: formData.name, 
-        description: formData.description || null, 
-        stock_quantity: formData.stock_quantity,
+      const payload = {
+        name: formData.name,
+        description: formData.description || null,
+        stock_quantity: formData.stockQuantity,
         category: formData.category,
-        low_stock_threshold: formData.low_stock_threshold,
+        low_stock_threshold: formData.lowStockThreshold,
         pic: formData.pic || null,
-        pic_type: formData.pic_type || null
+        pic_type: formData.picType || null,
       };
 
       if (editingItem) {
-        // Check if stock changed - log to history
-        const stockChanged = editingItem.stock_quantity !== formData.stock_quantity;
-        const previousQty = editingItem.stock_quantity || 0;
-        
-        const { error } = await supabase
-          .from("equipment_items")
-          .update(payload)
-          .eq("id", editingItem.id);
-        if (error) throw error;
-
-        // Log stock change
+        const previousQty = editingItem.stockQuantity;
+        const stockChanged = previousQty !== formData.stockQuantity;
+        await updateEquipmentItem(editingItem.id, payload);
         if (stockChanged) {
-          const changeQty = formData.stock_quantity - previousQty;
-          await supabase.from("equipment_stock_history").insert({
+          const delta = formData.stockQuantity - previousQty;
+          await logStockChange({
             equipment_item_id: editingItem.id,
-            change_type: changeQty > 0 ? 'in' : 'out',
-            quantity_change: changeQty,
+            change_type: delta > 0 ? "in" : "out",
+            quantity_change: delta,
             previous_quantity: previousQty,
-            new_quantity: formData.stock_quantity,
-            notes: editingItem ? 'Update dari Master Data' : 'Penambahan baru'
+            new_quantity: formData.stockQuantity,
+            notes: "Update dari Master Data",
           });
         }
       } else {
-        const { error } = await supabase
-          .from("equipment_items")
-          .insert(payload);
-        if (error) throw error;
-
-        // Log initial stock
-        if (formData.stock_quantity > 0) {
-          const { data: newItem } = await supabase
-            .from("equipment_items")
-            .select("id")
-            .eq("name", formData.name)
-            .single();
-          if (newItem) {
-            await supabase.from("equipment_stock_history").insert({
-              equipment_item_id: newItem.id,
-              change_type: 'in',
-              quantity_change: formData.stock_quantity,
-              previous_quantity: 0,
-              new_quantity: formData.stock_quantity,
-              notes: 'Stok awal dari Master Data'
-            });
-          }
+        const created = await createEquipmentItem(payload);
+        if (formData.stockQuantity > 0) {
+          await logStockChange({
+            equipment_item_id: created.id,
+            change_type: "in",
+            quantity_change: formData.stockQuantity,
+            previous_quantity: 0,
+            new_quantity: formData.stockQuantity,
+            notes: "Stok awal dari Master Data",
+          });
         }
       }
     },
@@ -143,10 +118,7 @@ export default function AdminEquipmentMaster() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("equipment_items").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: deleteEquipmentItem,
     onSuccess: () => {
       toast.success("Perlengkapan dihapus");
       queryClient.invalidateQueries({ queryKey: ["equipment-items-master"] });
@@ -159,26 +131,18 @@ export default function AdminEquipmentMaster() {
   const handleOpen = (item?: EquipmentItem) => {
     if (item) {
       setEditingItem(item);
-      setFormData({ 
-        name: item.name, 
-        description: item.description || "", 
-        stock_quantity: item.stock_quantity || 0,
-        category: item.category || "Pakaian Ihram",
-        low_stock_threshold: item.low_stock_threshold || 10,
-        pic: item.pic || "",
-        pic_type: item.pic_type || "lainnya"
+      setFormData({
+        name: item.name,
+        description: item.description ?? "",
+        stockQuantity: item.stockQuantity,
+        category: item.category,
+        lowStockThreshold: item.lowStockThreshold,
+        pic: item.pic ?? "",
+        picType: item.picType ?? "lainnya",
       });
     } else {
       setEditingItem(null);
-      setFormData({ 
-        name: "", 
-        description: "", 
-        stock_quantity: 0,
-        category: "Pakaian Ihram",
-        low_stock_threshold: 10,
-        pic: "",
-        pic_type: "lainnya"
-      });
+      setFormData(EMPTY_FORM);
     }
     setIsFormOpen(true);
   };
@@ -188,24 +152,44 @@ export default function AdminEquipmentMaster() {
     setEditingItem(null);
   };
 
-  // Export to CSV
+  const filtered = useMemo(() => {
+    return (items ?? []).filter((i) => {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch =
+        i.name.toLowerCase().includes(term) ||
+        i.category.toLowerCase().includes(term) ||
+        (i.pic?.toLowerCase().includes(term) ?? false);
+      const matchesCategory = categoryFilter === "all" || i.category === categoryFilter;
+      const matchesPic = picFilter === "all" || i.picType === picFilter;
+      const qty = i.stockQuantity;
+      const threshold = i.lowStockThreshold;
+      let matchesStatus = true;
+      if (statusFilter === "available") matchesStatus = qty > threshold;
+      else if (statusFilter === "low") matchesStatus = qty > 0 && qty <= threshold;
+      else if (statusFilter === "out") matchesStatus = qty === 0;
+      return matchesSearch && matchesCategory && matchesPic && matchesStatus;
+    });
+  }, [items, searchTerm, categoryFilter, picFilter, statusFilter]);
+
   const handleExport = () => {
-    if (!filtered?.length) {
+    if (!filtered.length) {
       toast.error("Tidak ada data untuk diexport");
       return;
     }
     const headers = ["Nama", "Kategori", "Deskripsi", "Stok", "Batas Minimal", "Status"];
-    const rows = filtered.map(i => [
+    const rows = filtered.map((i) => [
       i.name,
       i.category,
-      i.description || "",
-      i.stock_quantity || 0,
-      i.low_stock_threshold || 10,
-      (i.stock_quantity || 0) <= (i.low_stock_threshold || 10) 
-        ? ((i.stock_quantity || 0) === 0 ? "Habis" : "Menipis") 
-        : "Tersedia"
+      i.description ?? "",
+      i.stockQuantity,
+      i.lowStockThreshold,
+      i.stockQuantity === 0
+        ? "Habis"
+        : i.stockQuantity <= i.lowStockThreshold
+          ? "Menipis"
+          : "Tersedia",
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -216,37 +200,26 @@ export default function AdminEquipmentMaster() {
     toast.success("Data diexport ke CSV");
   };
 
-  // QR Code modal state
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [selectedItemQR, setSelectedItemQR] = useState<EquipmentItem | null>(null);
-
-  // Handle print QR
   const handlePrintQR = (item: EquipmentItem) => {
     setSelectedItemQR(item);
     setShowQRModal(true);
   };
 
-  // Print QR to PDF/Window
   const printQR = () => {
-    const printContent = document.getElementById('qr-print-area');
+    const printContent = document.getElementById("qr-print-area");
     if (!printContent) return;
-    
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     if (!printWindow) {
       toast.error("Cannot open print window");
       return;
     }
-    
     printWindow.document.write(`
       <html>
         <head>
-          <title>Print QR Code - ${selectedItemQR?.name}</title>
+          <title>Print QR Code - ${selectedItemQR?.name ?? ""}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             .label { border: 2px solid #000; padding: 15px; margin: 10px; display: inline-block; text-align: center; }
-            .qr { margin-bottom: 10px; }
-            .name { font-weight: bold; font-size: 14px; }
-            .details { font-size: 12px; margin-top: 5px; }
           </style>
         </head>
         <body>${printContent.innerHTML}</body>
@@ -257,28 +230,18 @@ export default function AdminEquipmentMaster() {
     printWindow.close();
   };
 
-  const filtered = items?.filter(i => {
-    const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (i.pic && i.pic.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = categoryFilter === "all" || i.category === categoryFilter;
-    const matchesPic = picFilter === "all" || i.pic_type === picFilter;
-    const qty = i.stock_quantity || 0;
-    const threshold = i.low_stock_threshold || 10;
-    let matchesStatus = true;
-    if (statusFilter === "available") matchesStatus = qty > threshold;
-    else if (statusFilter === "low") matchesStatus = qty > 0 && qty <= threshold;
-    else if (statusFilter === "out") matchesStatus = qty === 0;
-    return matchesSearch && matchesCategory && matchesPic && matchesStatus;
-  });
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex gap-2 flex-1 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cari nama, PIC..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+            <Input
+              placeholder="Cari nama, PIC..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-[150px]">
@@ -286,8 +249,10 @@ export default function AdminEquipmentMaster() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua</SelectItem>
-              {categories?.map(cat => (
-                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+              {categories?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.name}>
+                  {cat.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -340,11 +305,9 @@ export default function AdminEquipmentMaster() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered?.map(item => {
-              const threshold = item.low_stock_threshold || 10;
-              const isLow = (item.stock_quantity || 0) <= threshold;
-              const isOut = (item.stock_quantity || 0) === 0;
-
+            {filtered.map((item) => {
+              const isOut = item.stockQuantity === 0;
+              const isLow = item.stockQuantity <= item.lowStockThreshold;
               return (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">
@@ -364,7 +327,7 @@ export default function AdminEquipmentMaster() {
                   <TableCell>
                     {item.pic ? (
                       <Badge variant="outline" className="text-[10px] h-4 px-1">
-                        {item.pic} ({item.pic_type || '-'})
+                        {item.pic} ({item.picType ?? "-"})
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
@@ -372,10 +335,12 @@ export default function AdminEquipmentMaster() {
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex flex-col items-center">
-                      <span className={`font-semibold ${isLow ? 'text-destructive' : ''}`}>
-                        {item.stock_quantity || 0}
+                      <span className={`font-semibold ${isLow ? "text-destructive" : ""}`}>
+                        {item.stockQuantity}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">Min: {threshold}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Min: {item.lowStockThreshold}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
@@ -399,7 +364,7 @@ export default function AdminEquipmentMaster() {
                 </TableRow>
               );
             })}
-            {!filtered?.length && (
+            {!filtered.length && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   {searchTerm ? "Tidak ditemukan" : "Belum ada data perlengkapan"}
@@ -410,7 +375,6 @@ export default function AdminEquipmentMaster() {
         </Table>
       </Card>
 
-      {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
@@ -420,17 +384,23 @@ export default function AdminEquipmentMaster() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2">
                 <Label>Nama Perlengkapan *</Label>
-                <Input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} placeholder="Contoh: Koper, Ihram, Mukena..." />
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Contoh: Koper, Ihram, Mukena..."
+                />
               </div>
               <div className="space-y-2">
                 <Label>Kategori</Label>
-                <Select value={formData.category} onValueChange={v => setFormData(p => ({ ...p, category: v }))}>
+                <Select value={formData.category} onValueChange={(v) => setFormData((p) => ({ ...p, category: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih kategori" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories?.map(cat => (
-                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    {categories?.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </SelectItem>
                     ))}
                     <SelectItem value="Lainnya">Lainnya</SelectItem>
                   </SelectContent>
@@ -438,25 +408,43 @@ export default function AdminEquipmentMaster() {
               </div>
               <div className="space-y-2">
                 <Label>Batas Stok Minimal</Label>
-                <Input type="number" min={0} value={formData.low_stock_threshold} onChange={e => setFormData(p => ({ ...p, low_stock_threshold: parseInt(e.target.value) || 0 }))} />
+                <Input
+                  type="number"
+                  min={0}
+                  value={formData.lowStockThreshold}
+                  onChange={(e) => setFormData((p) => ({ ...p, lowStockThreshold: parseInt(e.target.value) || 0 }))}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Deskripsi</Label>
-              <Textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} placeholder="Deskripsi opsional..." />
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+                placeholder="Deskripsi opsional..."
+              />
             </div>
             <div className="space-y-2">
               <Label>Jumlah Stok</Label>
-              <Input type="number" min={0} value={formData.stock_quantity} onChange={e => setFormData(p => ({ ...p, stock_quantity: parseInt(e.target.value) || 0 }))} />
+              <Input
+                type="number"
+                min={0}
+                value={formData.stockQuantity}
+                onChange={(e) => setFormData((p) => ({ ...p, stockQuantity: parseInt(e.target.value) || 0 }))}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>PIC (Penanggung Jawab)</Label>
-                <Input value={formData.pic} onChange={e => setFormData(p => ({ ...p, pic: e.target.value }))} placeholder="Nama PIC..." />
+                <Input
+                  value={formData.pic}
+                  onChange={(e) => setFormData((p) => ({ ...p, pic: e.target.value }))}
+                  placeholder="Nama PIC..."
+                />
               </div>
               <div className="space-y-2">
                 <Label>Tipe PIC</Label>
-                <Select value={formData.pic_type} onValueChange={v => setFormData(p => ({ ...p, pic_type: v }))}>
+                <Select value={formData.picType} onValueChange={(v) => setFormData((p) => ({ ...p, picType: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih tipe" />
                   </SelectTrigger>
@@ -471,7 +459,9 @@ export default function AdminEquipmentMaster() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleClose}>Batal</Button>
+            <Button variant="outline" onClick={handleClose}>
+              Batal
+            </Button>
             <Button onClick={() => saveMutation.mutate()} disabled={!formData.name || saveMutation.isPending}>
               {editingItem ? "Simpan" : "Tambah"}
             </Button>
@@ -479,7 +469,6 @@ export default function AdminEquipmentMaster() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -490,14 +479,16 @@ export default function AdminEquipmentMaster() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => deleteItem && deleteMutation.mutate(deleteItem.id)}>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground"
+              onClick={() => deleteItem && deleteMutation.mutate(deleteItem.id)}
+            >
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* QR Code Modal */}
       <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
         <DialogContent>
           <DialogHeader>
@@ -506,19 +497,20 @@ export default function AdminEquipmentMaster() {
           <div className="flex flex-col items-center space-y-4 py-4">
             <div id="qr-print-area" className="border-2 border-black p-4 rounded-lg">
               <div className="text-center">
-                {/* Simple QR Code as text for now - using a data URL would require the library */}
-                <div className="w-48 h-48 bg-gray-200 flex items-center justify-center mb-2">
-                  <QrCode className="w-24 h-24 text-gray-600" />
+                <div className="w-48 h-48 bg-muted flex items-center justify-center mb-2">
+                  <QrCode className="w-24 h-24 text-muted-foreground" />
                 </div>
                 <p className="font-bold text-sm">{selectedItemQR?.name}</p>
-                <p className="text-xs text-gray-500">{selectedItemQR?.category}</p>
-                <p className="text-xs">Stok: {selectedItemQR?.stock_quantity || 0}</p>
-                <p className="text-xs">PIC: {selectedItemQR?.pic || '-'}</p>
-                <p className="text-xs text-gray-400">{selectedItemQR?.id?.slice(0, 8)}</p>
+                <p className="text-xs text-muted-foreground">{selectedItemQR?.category}</p>
+                <p className="text-xs">Stok: {selectedItemQR?.stockQuantity ?? 0}</p>
+                <p className="text-xs">PIC: {selectedItemQR?.pic ?? "-"}</p>
+                <p className="text-xs text-muted-foreground">{selectedItemQR?.id?.slice(0, 8)}</p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowQRModal(false)}>Tutup</Button>
+              <Button variant="outline" onClick={() => setShowQRModal(false)}>
+                Tutup
+              </Button>
               <Button onClick={printQR}>
                 <Printer className="h-4 w-4 mr-2" />
                 Print
