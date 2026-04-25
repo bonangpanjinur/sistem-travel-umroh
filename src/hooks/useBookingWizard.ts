@@ -219,19 +219,7 @@ export function useBookingWizard(packageId: string, initialDepartureId?: string)
           });
       }
 
-      // 6. Update departure booked count manually
-      const { data: currentDeparture } = await supabase
-        .from('departures')
-        .select('booked_count')
-        .eq('id', formData.departureId)
-        .single();
-
-      if (currentDeparture) {
-        await supabase
-          .from('departures')
-          .update({ booked_count: (currentDeparture.booked_count || 0) + totalPax })
-          .eq('id', formData.departureId);
-      }
+      // 6. booked_count disinkronkan otomatis oleh trigger DB sync_departure_booked_count
 
       toast.success(`Booking berhasil dibuat! Kode: ${booking.booking_code}`);
       return { bookingId: booking.id, bookingCode: booking.booking_code };
