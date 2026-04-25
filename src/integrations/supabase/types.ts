@@ -1854,6 +1854,33 @@ export type Database = {
           },
         ]
       }
+      equipment_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       equipment_distributions: {
         Row: {
           cancel_admin_fee: number | null
@@ -1975,7 +2002,12 @@ export type Database = {
           id: string
           low_stock_threshold: number
           name: string
+          photo_url: string | null
+          pic: string | null
+          pic_type: string | null
+          qr_code: string | null
           stock_quantity: number | null
+          updated_at: string
         }
         Insert: {
           category?: string
@@ -1986,7 +2018,12 @@ export type Database = {
           id?: string
           low_stock_threshold?: number
           name: string
+          photo_url?: string | null
+          pic?: string | null
+          pic_type?: string | null
+          qr_code?: string | null
           stock_quantity?: number | null
+          updated_at?: string
         }
         Update: {
           category?: string
@@ -1997,9 +2034,165 @@ export type Database = {
           id?: string
           low_stock_threshold?: number
           name?: string
+          photo_url?: string | null
+          pic?: string | null
+          pic_type?: string | null
+          qr_code?: string | null
           stock_quantity?: number | null
+          updated_at?: string
         }
         Relationships: []
+      }
+      equipment_notification_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          low_stock_threshold_default: number
+          notify_admins: boolean
+          notify_pic: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          low_stock_threshold_default?: number
+          notify_admins?: boolean
+          notify_pic?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          low_stock_threshold_default?: number
+          notify_admins?: boolean
+          notify_pic?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      equipment_settings: {
+        Row: {
+          created_at: string
+          key: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
+      equipment_stock_history: {
+        Row: {
+          change_type: string
+          changed_by: string | null
+          created_at: string
+          equipment_item_id: string
+          id: string
+          new_quantity: number
+          notes: string | null
+          previous_quantity: number
+          quantity_change: number
+        }
+        Insert: {
+          change_type: string
+          changed_by?: string | null
+          created_at?: string
+          equipment_item_id: string
+          id?: string
+          new_quantity?: number
+          notes?: string | null
+          previous_quantity?: number
+          quantity_change?: number
+        }
+        Update: {
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          equipment_item_id?: string
+          id?: string
+          new_quantity?: number
+          notes?: string | null
+          previous_quantity?: number
+          quantity_change?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_stock_history_equipment_item_id_fkey"
+            columns: ["equipment_item_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_stock_opname: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          difference: number
+          equipment_item_id: string
+          id: string
+          notes: string | null
+          opname_date: string
+          physical_count: number
+          pic_name: string | null
+          pic_type: string | null
+          status: string
+          system_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          difference?: number
+          equipment_item_id: string
+          id?: string
+          notes?: string | null
+          opname_date?: string
+          physical_count?: number
+          pic_name?: string | null
+          pic_type?: string | null
+          status?: string
+          system_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          difference?: number
+          equipment_item_id?: string
+          id?: string
+          notes?: string | null
+          opname_date?: string
+          physical_count?: number
+          pic_name?: string | null
+          pic_type?: string | null
+          status?: string
+          system_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_stock_opname_equipment_item_id_fkey"
+            columns: ["equipment_item_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       equipment_variants: {
         Row: {
