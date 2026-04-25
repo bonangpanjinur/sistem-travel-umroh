@@ -60,6 +60,23 @@ export default function AdminDepartures() {
   const [itineraryDeparture, setItineraryDeparture] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Sinkronkan ulang booked_count dari data booking aktif (rekonsiliasi)
+  const recalcMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('recalculate_departure_booked_count' as any, {
+        p_departure_id: null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Kuota keberangkatan berhasil disinkronkan');
+      queryClient.invalidateQueries({ queryKey: ['admin-departures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-departures-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['departures'] });
+    },
+    onError: (e: any) => toast.error('Gagal sinkronkan kuota: ' + (e?.message ?? 'unknown')),
+  });
+
   // Separate query for stats to avoid overhead on every page change
   const { data: statsData } = useQuery({
     queryKey: ['admin-departures-stats'],
