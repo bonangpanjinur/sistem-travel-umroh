@@ -346,10 +346,7 @@ export default function AdminBookingCreate() {
         .insert(passengerInserts);
       if (passError) throw passError;
 
-      await supabase
-        .from('departures')
-        .update({ booked_count: (selectedDeparture?.booked_count || 0) + passengers.length })
-        .eq('id', departureId);
+      // booked_count disinkronkan otomatis oleh trigger DB sync_departure_booked_count
 
       return booking;
     },
