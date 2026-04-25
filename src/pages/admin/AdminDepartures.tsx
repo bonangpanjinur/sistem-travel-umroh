@@ -248,10 +248,21 @@ export default function AdminDepartures() {
           <h1 className="text-2xl font-bold">Jadwal Keberangkatan</h1>
           <p className="text-muted-foreground">Kelola semua jadwal keberangkatan</p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => recalcMutation.mutate()}
+            disabled={recalcMutation.isPending}
+            title="Hitung ulang kursi terisi dari data pesanan aktif"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${recalcMutation.isPending ? 'animate-spin' : ''}`} />
+            Sinkronkan Kuota
+          </Button>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
