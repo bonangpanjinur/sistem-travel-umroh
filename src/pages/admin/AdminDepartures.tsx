@@ -26,7 +26,7 @@ import {
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
-  ChevronLeft, ChevronRight, Eye
+  ChevronLeft, ChevronRight, Eye, RefreshCw
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
