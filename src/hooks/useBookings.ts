@@ -49,7 +49,13 @@ export function useCreateBooking() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bookings'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      // Trigger DB sudah update booked_count; refresh tampilan keberangkatan.
+      qc.invalidateQueries({ queryKey: ['departures'] });
+      qc.invalidateQueries({ queryKey: ['admin-departures'] });
+      qc.invalidateQueries({ queryKey: ['admin-departures-stats'] });
+    },
   });
 }
 
