@@ -2,19 +2,23 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/format';
+import { toast } from 'sonner';
 import { 
   CheckCircle, Wallet, Calendar, Receipt,
-  Home, User, ArrowRight
+  Home, User, ArrowRight, Building2, Copy
 } from 'lucide-react';
+import { useState } from 'react';
 
 export default function SavingsSuccess() {
   const { planId } = useParams<{ planId: string }>();
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
+  // Fetch plan
   const { data: plan, isLoading } = useQuery({
     queryKey: ['savings-plan', planId],
     queryFn: async () => {
@@ -33,6 +37,29 @@ export default function SavingsSuccess() {
     },
     enabled: !!planId,
   });
+
+  // Fetch bank accounts for payment instructions
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ['bank-accounts', 'primary'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('is_primary', true)
+        .limit(1)
+        .single();
+      
+      if (error) return null;
+      return data;
+    },
+  });
+
+  const copyToClipboard = (text: string, index: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    toast.success('Nomor rekening disalin!');
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
 
   if (isLoading) {
     return (
@@ -131,49 +158,62 @@ export default function SavingsSuccess() {
             </CardContent>
           </Card>
 
-          {/* Next Steps */}
-          <Card className="text-left mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg">Langkah Selanjutnya</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4 items-start">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-bold">1</span>
+          {/* Payment Instructions */}
+          {bankAccounts && (
+            <Card className="text-left mb-8 border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Instruksi Pembayaran
+                </CardTitle>
+                <CardDescription>
+                  Silakan transfer cicilan pertama ke rekening berikut:
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-sm text-muted-foreground mb-1">Bank</p>
+                  <p className="text-lg font-bold">{bankAccounts.bank_name}</p>
+                  
+                  <p className="text-sm text-muted-foreground mt-3 mb-1">Nomor Rekening</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl font-mono font-bold tracking-wider">
+                      {bankAccounts.account_number}
+                    </p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => copyToClipboard(bankAccounts.account_number, 0)}
+                    >
+                      <Copy className={`h-4 w-4 ${copiedIndex === 0 ? 'text-green-600' : ''}`} />
+                    </Button>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground mt-3 mb-1">Nama Rekening</p>
+                  <p className="text-lg font-medium">{bankAccounts.account_name}</p>
                 </div>
-                <div>
-                  <h4 className="font-medium">Lakukan Pembayaran Cicilan Pertama</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Transfer cicilan ke rekening yang tertera di halaman profil Anda
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <strong>Catatan:</strong> Transfer tepat hingga 3 digit terakhir 
+                    agar pembayaran dapat diverifikasi otomatis. Nominal yang harus dibayar:{' '}
+                    <strong className="font-bold">{formatCurrency(plan.monthly_amount)}</strong>
                   </p>
                 </div>
-              </div>
-              
-              <div className="flex gap-4 items-start">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-bold">2</span>
-                </div>
-                <div>
-                  <h4 className="font-medium">Upload Bukti Transfer</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Kirim bukti pembayaran melalui halaman tabungan saya
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-4 items-start">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-bold">3</span>
-                </div>
-                <div>
-                  <h4 className="font-medium">Pantau Progress Tabungan</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Lihat progress dan riwayat pembayaran di dashboard Anda
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+
+                <Button 
+                  className="w-full" 
+                  asChild
+                >
+                  <Link to="/savings/dashboard">
+                    <Wallet className="h-4 w-4 mr-2" />
+                    Upload Bukti Transfer
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
