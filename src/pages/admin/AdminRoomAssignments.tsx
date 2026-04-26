@@ -803,11 +803,30 @@ export default function AdminRoomAssignments() {
                     <TableBody>
                       {withAdditionalFilters.map(p => {
                         const roommate = p.roommate_id ? passengers?.find(x => x.id === p.roommate_id) : null;
-                        // Candidates: same room_preference + same gender + not self + not already paired with someone else
+                        // Candidates: same room_preference + (same gender ATAU mahram = satu booking_id ATAU pasangan suami-istri)
+                        // not self + not already paired with someone else
+                        const isMahramByBooking = (other: any) =>
+                          other.booking?.id && p.booking?.id && other.booking.id === p.booking.id;
+                        const isSpouseByName = (other: any) => {
+                          const otherMarried = other.customer?.marital_status === 'married';
+                          const selfMarried = p.customer?.marital_status === 'married';
+                          if (!otherMarried || !selfMarried) return false;
+                          const otherSpouse = other.customer?.spouse_name?.toLowerCase() || '';
+                          const myName = p.customer?.full_name?.toLowerCase() || '';
+                          const mySpouse = p.customer?.spouse_name?.toLowerCase() || '';
+                          const otherName = other.customer?.full_name?.toLowerCase() || '';
+                          const myFirst = p.customer?.full_name?.split(' ')[0]?.toLowerCase() || '';
+                          const otherFirst = other.customer?.full_name?.split(' ')[0]?.toLowerCase() || '';
+                          return otherSpouse.includes(myFirst) || mySpouse.includes(otherFirst);
+                        };
                         const candidates = (passengers || []).filter(x =>
                           x.id !== p.id &&
                           x.room_preference === p.room_preference &&
-                          x.customer?.gender === p.customer?.gender &&
+                          (
+                            x.customer?.gender === p.customer?.gender ||
+                            isMahramByBooking(x) ||
+                            isSpouseByName(x)
+                          ) &&
                           (!x.roommate_id || x.roommate_id === p.id)
                         );
                         // Highlight spouse if married
@@ -861,9 +880,14 @@ export default function AdminRoomAssignments() {
                                     const isSpouse = c.customer?.marital_status === 'married' && 
                                       (c.customer?.spouse_name?.toLowerCase().includes(p.customer?.full_name?.split(' ')[0]?.toLowerCase() || '') ||
                                        p.customer?.spouse_name?.toLowerCase().includes(c.customer?.full_name?.split(' ')[0]?.toLowerCase() || ''));
+                                    const isFamily = c.booking?.id && p.booking?.id && c.booking.id === p.booking.id;
+                                    const isCrossGender = c.customer?.gender !== p.customer?.gender;
                                     return (
                                       <SelectItem key={c.id} value={c.id}>
-                                        {c.customer?.full_name}{isSpouse && <span className="ml-2 text-primary">💑</span>}
+                                        {c.customer?.full_name}
+                                        {isSpouse && <span className="ml-2 text-primary">💑</span>}
+                                        {!isSpouse && isFamily && isCrossGender && <span className="ml-2 text-primary">👨‍👩‍👧 Mahram</span>}
+                                        {!isSpouse && isFamily && !isCrossGender && <span className="ml-2 text-muted-foreground">(Satu booking)</span>}
                                       </SelectItem>
                                     );
                                   })}

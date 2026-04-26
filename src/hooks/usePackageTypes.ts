@@ -17,6 +17,7 @@ const DEFAULT_PACKAGE_TYPES: PackageType[] = [
   { id: '2', code: 'haji', name: 'Haji Reguler', description: 'Paket haji reguler', is_active: true, display_order: 2, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
   { id: '3', code: 'haji_plus', name: 'Haji Plus', description: 'Paket haji dengan fasilitas tambahan', is_active: true, display_order: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
   { id: '4', code: 'umroh_plus', name: 'Umroh Plus', description: 'Paket umroh dengan fasilitas tambahan', is_active: true, display_order: 4, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: '5', code: 'tabungan', name: 'Paket Tabungan', description: 'Paket dengan skema cicilan tabungan umroh/haji', is_active: true, display_order: 5, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
 export function usePackageTypes() {

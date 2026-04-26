@@ -214,6 +214,46 @@ export default function AdminDepartureDetail() {
         booking: bookingMap.get(p.booking_id) || null,
       }));
 
+      // Step 5: Ambil data nomor kamar dari room_assignments (sumber kebenaran)
+      const customerIds = combined.map((p: any) => p.customer?.id).filter(Boolean);
+      let roomMap = new Map<string, { makkah?: string; madinah?: string; generic?: string }>();
+      if (customerIds.length > 0) {
+        const { data: occupants } = await supabase
+          .from("room_occupants")
+          .select(`
+            customer_id,
+            room_assignment:room_assignments!inner(
+              room_number, room_type, hotel_id, departure_id,
+              hotel:hotels(city)
+            )
+          `)
+          .in("customer_id", customerIds)
+          .eq("room_assignment.departure_id", id!);
+        (occupants || []).forEach((o: any) => {
+          const ra = o.room_assignment;
+          if (!ra) return;
+          const cur = roomMap.get(o.customer_id) || {};
+          const city = (ra.hotel?.city || "").toLowerCase();
+          if (city.includes("mak")) cur.makkah = ra.room_number;
+          else if (city.includes("mad")) cur.madinah = ra.room_number;
+          else cur.generic = ra.room_number;
+          roomMap.set(o.customer_id, cur);
+        });
+      }
+      combined.forEach((p: any) => {
+        const r = p.customer?.id ? roomMap.get(p.customer.id) : undefined;
+        if (r) {
+          const parts = [
+            r.makkah ? `MK:${r.makkah}` : null,
+            r.madinah ? `MD:${r.madinah}` : null,
+            r.generic ?? null,
+          ].filter(Boolean);
+          p.room_number = parts.join(" / ") || "-";
+        } else {
+          p.room_number = "-";
+        }
+      });
+
       combined.sort((a: any, b: any) => {
         const codeA = a.booking?.booking_code || "";
         const codeB = b.booking?.booking_code || "";

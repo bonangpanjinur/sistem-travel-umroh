@@ -1,185 +1,96 @@
-# Rencana Perbaikan: Sinkronisasi Seat Keberangkatan
+# Rencana Perbaikan Produk & Operasional
 
-## Akar Masalah
+Berikut tujuh isu yang dibahas, masing-masing dengan akar masalah dan solusi.
 
-Kolom `departures.booked_count` saat ini di-update **manual** dari berbagai tempat di kode dan **tidak pernah dikurangi** saat ada perubahan, sehingga angka "kursi tersedia" yang tampil di **Jadwal Keberangkatan**, **Form Booking**, dan **Detail Paket** tidak pernah cocok dengan jumlah jemaah yang sesungguhnya terdaftar.
+## 1. Error 401 pada Edge Function (`send-whatsapp-notification` & `send-payment-reminder`)
 
-### Bug yang Teridentifikasi
+**Akar masalah**: Kedua fungsi tidak punya blok konfigurasi di `supabase/config.toml`, sehingga default `verify_jwt = true` aktif. Frontend memanggil via `supabase.functions.invoke` tanpa session yang valid (atau sesi expired) → 401 → response undefined → `Cannot read properties of undefined (reading 'payload')`.
 
-1. **Tidak ada decrement saat booking di-cancel/refund**
-   - `useUpdateBookingStatus` (src/hooks/useBookings.ts) hanya meng-update kolom `booking_status`, tidak menyentuh `departures.booked_count`.
-   - `AdminBookingDetail.tsx` mengubah status ke `cancelled`/`refunded` tanpa mengembalikan kuota.
-   - **Akibat:** booking yang dibatalkan tetap "memakan" seat selamanya.
+**Solusi**:
+- Tambah blok `[functions.send-whatsapp-notification]` dan `[functions.send-payment-reminder]` dengan `verify_jwt = false` di `supabase/config.toml` (kedua fungsi sudah pakai service-role key & bukan endpoint publik berbahaya — hanya dipanggil admin internal).
+- Frontend memanggil via `supabase.functions.invoke` (sudah benar) — tidak perlu ubah call-site.
 
-2. **Tidak ada decrement saat booking dihapus**
-   - Penghapusan booking dari admin tidak mengurangi `booked_count`.
+## 2. Buat Paket Tipe "Tabungan" & Pembedaan di Database
 
-3. **Increment manual tersebar di banyak tempat (race-condition prone)**
-   - 5 lokasi melakukan pola read-then-write tanpa kunci:
-     - `useBookingWizard.ts:222`
-     - `useBookingWizardDynamic.ts:304`
-     - `useBookingWizardSimple.ts:186`
-     - `AdminBookingCreate.tsx:351`
-     - `ChangePackageDialogV2.tsx:269` (update saat ganti paket)
-   - Sudah ada RPC `increment_departure_booked` yang menangani lock, tetapi tidak dipakai.
-   - **Akibat:** dua booking bersamaan bisa membuat hitungan meleset, dan validasi kuota bisa di-bypass.
+**Status**: Enum `package_type` sudah punya nilai `tabungan` dan kolom `savings_target` / `savings_installment` sudah ada di tabel `packages`.
 
-4. **Pindah paket/keberangkatan rentan tidak konsisten**
-   - `ChangePackageDialogV2` mengurangi old & menambah new tanpa transaksi atomik. Kalau salah satu gagal, hitungan rusak.
+**Solusi**:
+- Pastikan default seed di tabel `package_types` mencakup baris `tabungan` (saat ini kosong → frontend pakai 4 default hardcoded tanpa tabungan). Migration: insert `package_types` dengan code = `tabungan`, name = `Paket Tabungan`.
+- Form pembuatan paket di `AdminPackages` (PackageForm) sudah memetakan `package_type`. Tambah kondisional: jika type = `tabungan`, tampilkan field `savings_target` & `savings_installment` (jumlah bulan), serta sembunyikan field harga ihram/quad bila tidak relevan (tetap simpan untuk fallback).
+- Filter di `AdminPackages` sudah memisah `regular` vs `tabungan` (sudah berfungsi via `pkg.package_type !== "tabungan"`).
+- Tambah default `tabungan` di hook `usePackageTypes` `DEFAULT_PACKAGE_TYPES`.
 
-5. **Field `total_pax` tidak selalu sama dengan jumlah baris `booking_passengers`**
-   - Increment memakai `totalPax` dari form, bukan dari count baris penumpang yang benar-benar masuk. Kalau sebagian insert penumpang gagal, angkanya mismatch.
+## 3. Filter Paket di Frontend Tidak Berfungsi
 
-6. **Tidak ada mekanisme rekonsiliasi**
-   - Tidak ada cara bagi admin untuk memperbaiki angka `booked_count` yang sudah terlanjur menyimpang.
+**Akar masalah** di `src/pages/packages/PackageList.tsx`:
+- Filter harga hanya cek `price_quad` — paket yang harganya disimpan di `price_triple/double/single` saja akan dianggap 0 dan ter-exclude saat `minPrice > 0`.
+- Default `minPrice` di `PackageSearch` = `10.000.000` → paket murah/tabungan ter-filter keluar otomatis sebelum user interaksi.
+- Filter durasi hanya match nilai `[9, 12, 14, 21+]` literal — paket berdurasi lain (mis. 10, 13) tidak pernah lolos saat checkbox dipilih.
+- Tipe `tabungan` belum ada di dropdown filter `PackageSearch`.
 
-## Solusi
+**Solusi**:
+- Helper `getStartingPrice(pkg)` = min dari harga yang non-null/non-zero (`price_quad`, `price_triple`, `price_double`, `price_single`); pakai untuk filter & sort `price_asc/desc`.
+- Default `minPrice/maxPrice` di `PackageSearch` & `PackageList` jadi `0` dan `Infinity` (tampilkan slider tetap, tapi jangan apply filter sampai user geser).
+- Indikator "filter aktif" hanya di-apply jika user benar-benar mengubah dari default.
+- Filter durasi: ubah jadi range (≤9, 10–12, 13–14, ≥15) atau tambah opsi "Semua Durasi"; sertakan paket `tabungan` tanpa durasi.
+- Tambah opsi `Tabungan` ke select `Jenis Paket`.
 
-### A. Database (sumber kebenaran tunggal)
+## 4. Daftar Jamaah Keberangkatan: Nomor Kamar Tidak Terintegrasi
 
-Ganti pendekatan "update manual dari aplikasi" menjadi **trigger otomatis** + RPC untuk operasi khusus.
+**Akar masalah** di `AdminDepartureDetail.tsx` (query `booking_passengers` baris 155-170): tidak join ke `room_assignments` / `room_occupants`, sehingga `p.room_number` selalu `"-"` walau admin sudah set di menu Kamar.
 
-1. **Trigger `sync_departure_booked_count`** pada tabel `bookings`:
-   - `AFTER INSERT`: jika `booking_status` aktif (bukan `cancelled`/`refunded`), tambahkan `total_pax` ke `departures.booked_count` keberangkatan terkait.
-   - `AFTER UPDATE`:
-     - Jika `departure_id` berubah → kurangi dari yang lama, tambah ke yang baru.
-     - Jika `booking_status` pindah aktif↔cancelled/refunded → tambah/kurangi sesuai.
-     - Jika `total_pax` berubah → sesuaikan delta.
-   - `AFTER DELETE`: jika sebelumnya aktif, kurangi.
-   - Semua operasi dibungkus `SELECT … FOR UPDATE` agar aman concurrent.
+**Solusi**:
+- Tambah join via `room_occupants` → `room_assignments`:
+  ```
+  room_occupants:room_occupants(
+    room_assignment:room_assignments(room_number, room_type, floor, hotel_id)
+  )
+  ```
+- Mapping: `passenger.room_number = occupant.room_assignment?.room_number`. Untuk multi-hotel (Makkah/Madinah), tampilkan dua kolom atau gabung "MK: 301 / MD: 215".
+- Sama untuk export PDF/Excel di `AdminDepartureDetail` & `RoomingListPage` (sudah pakai `room_number` dari kolom legacy `booking_passengers.room_number` — gantikan dengan data dari `room_assignments` sebagai sumber kebenaran).
 
-2. **RPC `recalculate_departure_booked_count(p_departure_id uuid DEFAULT NULL)`**
-   - Tanpa argumen → recompute semua keberangkatan.
-   - Dengan argumen → recompute satu keberangkatan saja.
-   - Formula:
-     ```sql
-     SUM(total_pax) WHERE booking_status NOT IN ('cancelled','refunded')
-     ```
-   - Dipakai untuk tombol "Sinkronkan Ulang" di UI dan untuk migration data yang sudah terlanjur menyimpang.
+## 5. Statistik Jamaah per Periode Default = "Hari Ini"
 
-3. **Migration data**: Jalankan `recalculate_departure_booked_count()` sekali sebagai bagian dari migration untuk membenarkan angka eksisting.
+**Akar masalah** di `AdminBookings.tsx` baris 78: `useState<string>("today")`. User butuh angka realtime keseluruhan saat pertama buka.
 
-### B. Frontend (pembersihan)
+**Solusi**:
+- Ubah default `periodPreset` ke `"all"`.
+- Tambah `SelectItem value="all">Semua Waktu</SelectItem>` di dropdown.
+- Di `periodRange` useMemo, untuk `"all"` return `{ from: new Date(0), to: endOfDay(now), label: "Semua Waktu" }` (atau skip filter `gte/lte` di query).
 
-1. **Hapus semua update manual `booked_count`** di:
-   - `useBookingWizard.ts`
-   - `useBookingWizardDynamic.ts`
-   - `useBookingWizardSimple.ts`
-   - `AdminBookingCreate.tsx`
-   - `ChangePackageDialogV2.tsx` (cukup update `bookings.departure_id`, trigger urus sisanya)
+## 6. Pairing Kamar Quad — Sesama Jenis & Mahram (Suami/Istri/Anak)
 
-2. **Validasi kuota tetap di sisi aplikasi** (sebelum insert) untuk UX, tetapi jaminan akhir berasal dari trigger/constraint.
+**Status saat ini** (`AdminRoomAssignments.tsx` baris 815-863): Sudah ada deteksi spouse (suami/istri) sebagai mahram lawan jenis, tapi belum mendukung pasangan orangtua-anak dan belum berlaku konsisten untuk kamar Quad (4 orang).
 
-3. **Invalidate React Query** `['departures']` setelah mutasi booking agar tampilan sinkron.
+**Solusi**:
+- Untuk kamar **single/double/triple/quad**: izinkan jenis kelamin sama murni, **atau** semua occupant dalam satu kamar adalah satu kelompok mahram (suami+istri+anak).
+- Tambah deteksi mahram parent-child:
+  - Field referensi mahram di `customers`: gunakan `family_head_id` atau tambah kolom `mahram_customer_id` (uuid, nullable, ref `customers.id`) — ATAU group melalui `booking_passengers.booking_id` yang sama (semua jamaah satu booking dianggap satu keluarga/mahram).
+  - Kriteria pairing yang valid pada satu kamar: (a) semua gender sama, ATAU (b) semua occupant dalam satu `booking_id` (asumsi satu booking = satu keluarga) ATAU (c) sudah ditandai `marital_status='married'` & nama spouse cocok ATAU (d) masuk grup mahram via kolom baru.
+- UI di pairing modal: filter kandidat berdasarkan aturan di atas; tampilkan badge "Mahram" / "Sesama Gender". Validasi auto-assign pakai aturan yang sama.
+- Auto-assign quad: prioritaskan satu booking dulu, isi sisa kuota dengan jamaah sesama gender dari booking lain.
 
-### C. UI Tambahan
+## 7. Error di Menu Perlengkapan
 
-1. Di `AdminDepartures.tsx`, tambahkan tombol **"Sinkronkan Ulang Kuota"** (admin/owner) yang memanggil RPC `recalculate_departure_booked_count()` lalu invalidate cache.
+Error `Cannot read properties of undefined (reading 'payload')` di EquipmentPage berasal dari panggilan `send-payment-reminder` (401) — bukan logika equipment. Setelah perbaikan (1) selesai, error ini hilang otomatis.
 
-2. Pada baris keberangkatan, tampilkan tooltip/badge bila terdeteksi mismatch (opsional fase berikutnya).
+Warning aksesibilitas `DialogContent requires a DialogTitle`: tambahkan `<DialogTitle>` (atau `VisuallyHidden`) ke dialog yang relevan di `EquipmentPage` / sub-komponennya — non-blocking tapi diperbaiki sekalian.
 
-## Detail Teknis
+---
 
-### Migration SQL (ringkas)
+## Detail Teknis (untuk implementasi)
 
-```sql
--- 1. Trigger function
-CREATE OR REPLACE FUNCTION public.sync_departure_booked_count()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public AS $$
-DECLARE
-  v_old_active bool := false;
-  v_new_active bool := false;
-BEGIN
-  IF TG_OP IN ('UPDATE','DELETE') THEN
-    v_old_active := OLD.booking_status NOT IN ('cancelled','refunded');
-  END IF;
-  IF TG_OP IN ('INSERT','UPDATE') THEN
-    v_new_active := NEW.booking_status NOT IN ('cancelled','refunded');
-  END IF;
+**File yang akan diubah**:
+- `supabase/config.toml` — tambah `verify_jwt = false` untuk 2 fungsi
+- `supabase/migrations/...sql` — seed `package_types`, optional kolom `mahram_customer_id`
+- `src/hooks/usePackageTypes.ts` — tambah default tabungan
+- `src/components/admin/forms/PackageForm.tsx` — field tabungan kondisional
+- `src/components/packages/PackageSearch.tsx` — default price 0/Infinity, opsi tabungan, durasi range
+- `src/pages/packages/PackageList.tsx` — helper `getStartingPrice`, fix filter
+- `src/pages/admin/AdminBookings.tsx` — default period "all" + opsi
+- `src/pages/admin/AdminDepartureDetail.tsx` — join `room_occupants` & `room_assignments`
+- `src/pages/operational/RoomingListPage.tsx` — sumber `room_number` dari `room_assignments`
+- `src/pages/admin/AdminRoomAssignments.tsx` — perluasan logic mahram (booking_id-based + parent-child)
+- `src/pages/operational/EquipmentPage.tsx` — tambah `DialogTitle` (a11y)
 
-  -- Kurangi dari old departure jika sebelumnya aktif
-  IF TG_OP = 'DELETE' OR (TG_OP='UPDATE' AND
-      (OLD.departure_id IS DISTINCT FROM NEW.departure_id
-       OR v_old_active <> v_new_active
-       OR OLD.total_pax IS DISTINCT FROM NEW.total_pax)) THEN
-    IF v_old_active AND OLD.departure_id IS NOT NULL THEN
-      UPDATE departures
-        SET booked_count = GREATEST(0, COALESCE(booked_count,0) - COALESCE(OLD.total_pax,0))
-        WHERE id = OLD.departure_id;
-    END IF;
-  END IF;
-
-  -- Tambah ke new departure jika sekarang aktif
-  IF TG_OP = 'INSERT' OR (TG_OP='UPDATE' AND
-      (OLD.departure_id IS DISTINCT FROM NEW.departure_id
-       OR v_old_active <> v_new_active
-       OR OLD.total_pax IS DISTINCT FROM NEW.total_pax)) THEN
-    IF v_new_active AND NEW.departure_id IS NOT NULL THEN
-      UPDATE departures
-        SET booked_count = COALESCE(booked_count,0) + COALESCE(NEW.total_pax,0)
-        WHERE id = NEW.departure_id;
-    END IF;
-  END IF;
-
-  RETURN COALESCE(NEW, OLD);
-END $$;
-
-CREATE TRIGGER trg_sync_departure_booked_count
-AFTER INSERT OR UPDATE OR DELETE ON bookings
-FOR EACH ROW EXECUTE FUNCTION sync_departure_booked_count();
-
--- 2. Recalc RPC
-CREATE OR REPLACE FUNCTION public.recalculate_departure_booked_count(p_departure_id uuid DEFAULT NULL)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public AS $$
-BEGIN
-  UPDATE departures d SET booked_count = sub.cnt
-  FROM (
-    SELECT departure_id, COALESCE(SUM(total_pax),0)::int AS cnt
-    FROM bookings
-    WHERE booking_status NOT IN ('cancelled','refunded')
-      AND (p_departure_id IS NULL OR departure_id = p_departure_id)
-    GROUP BY departure_id
-  ) sub
-  WHERE d.id = sub.departure_id
-    AND (p_departure_id IS NULL OR d.id = p_departure_id);
-
-  -- Departure tanpa booking aktif → 0
-  UPDATE departures
-    SET booked_count = 0
-  WHERE (p_departure_id IS NULL OR id = p_departure_id)
-    AND id NOT IN (
-      SELECT departure_id FROM bookings
-      WHERE booking_status NOT IN ('cancelled','refunded')
-        AND departure_id IS NOT NULL
-    );
-END $$;
-
--- 3. Recalc data eksisting
-SELECT recalculate_departure_booked_count();
-```
-
-### Perubahan File Frontend
-
-- `src/hooks/useBookings.ts` — tidak berubah (status update sudah cukup, trigger urus sisanya).
-- `src/hooks/useBookingWizard.ts` — hapus blok manual update `booked_count` (line 222-234).
-- `src/hooks/useBookingWizardDynamic.ts` — sama, hapus update manual.
-- `src/hooks/useBookingWizardSimple.ts` — sama.
-- `src/pages/admin/AdminBookingCreate.tsx` — hapus update manual line 351.
-- `src/components/admin/ChangePackageDialogV2.tsx` — hapus update manual line 269-310, cukup update `bookings.departure_id`.
-- `src/pages/admin/AdminDepartures.tsx` — tambah tombol "Sinkronkan Ulang Kuota" yang memanggil `supabase.rpc('recalculate_departure_booked_count')`.
-- Pastikan setelah cancel/refund di `AdminBookingDetail`, query `['departures']` di-invalidate.
-
-## Urutan Implementasi
-
-1. Migration SQL (trigger + RPC + recalc data).
-2. Hapus update manual di 5 file frontend.
-3. Tambah tombol "Sinkronkan Ulang Kuota" di `AdminDepartures.tsx`.
-4. Tambah `queryClient.invalidateQueries(['departures'])` di hook update status booking.
-5. QA: buat booking → cek seat berkurang; cancel → cek seat bertambah; ganti paket → cek dua keberangkatan ter-update; klik tombol sinkron → angka konsisten.
-
-## Yang TIDAK Termasuk
-
-- Migrasi `total_pax` agar otomatis = `COUNT(booking_passengers)` (perlu pembahasan terpisah karena bisa mempengaruhi laporan).
-- Penanganan over-quota historis (booking lama yang melebihi kuota tidak akan ditolak, hanya dihitung).
+**Catatan**: Tidak ada perubahan skema breaking; semua filter & default backward-compatible.

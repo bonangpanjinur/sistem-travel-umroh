@@ -543,18 +543,27 @@ export default function EquipmentPage() {
 
       <Dialog open={showMasterData} onOpenChange={setShowMasterData}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Master Data Perlengkapan</DialogTitle>
+          </DialogHeader>
           <MasterDataTab items={items} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={showRealization} onOpenChange={setShowRealization}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Realisasi Perlengkapan</DialogTitle>
+          </DialogHeader>
           <EquipmentRealizationTab />
         </DialogContent>
       </Dialog>
 
       <Dialog open={showManifest} onOpenChange={setShowManifest}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manifest Perlengkapan</DialogTitle>
+          </DialogHeader>
           <PrintManifest 
             distributions={distributions}
             departureName={selectedPkgName}

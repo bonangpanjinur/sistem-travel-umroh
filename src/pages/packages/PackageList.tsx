@@ -32,9 +32,19 @@ export default function PackageList() {
   // Filter from URL params
   const q = searchParams.get('q')?.toLowerCase() || '';
   const typeFilter = searchParams.get('type');
-  const minPrice = Number(searchParams.get('minPrice')) || 0;
-  const maxPrice = Number(searchParams.get('maxPrice')) || Infinity;
+  const minPriceParam = searchParams.get('minPrice');
+  const maxPriceParam = searchParams.get('maxPrice');
+  const minPrice = minPriceParam ? Number(minPriceParam) : 0;
+  const maxPrice = maxPriceParam ? Number(maxPriceParam) : Infinity;
   const durationFilter = searchParams.get('duration')?.split(',').filter(Boolean) || [];
+
+  // Helper: harga termurah dari semua tipe kamar (mengabaikan 0/null)
+  const getStartingPrice = (p: any): number => {
+    const candidates = [p.price_quad, p.price_triple, p.price_double, p.price_single]
+      .map(v => Number(v) || 0)
+      .filter(v => v > 0);
+    return candidates.length > 0 ? Math.min(...candidates) : 0;
+  };
 
   // Apply filters using useMemo for performance
   const filteredPackages = useMemo(() => {
@@ -53,18 +63,27 @@ export default function PackageList() {
       result = result.filter(p => p.package_type === typeFilter);
     }
 
-    // Price range
-    result = result.filter(p => {
-      const price = p.price_quad || 0;
-      return price >= minPrice && price <= maxPrice;
-    });
+    // Price range — pakai harga termurah dan hanya apply bila user mengubah default
+    if (minPrice > 0 || maxPrice !== Infinity) {
+      result = result.filter(p => {
+        const price = getStartingPrice(p);
+        // Paket tabungan tanpa harga jamak tetap ditampilkan jika user tidak set min
+        if (price === 0) return minPrice === 0;
+        return price >= minPrice && price <= maxPrice;
+      });
+    }
 
     // Duration
     if (durationFilter.length > 0) {
       result = result.filter(p => {
-        const d = p.duration_days.toString();
-        if (durationFilter.includes('21') && p.duration_days >= 21) return true;
-        return durationFilter.includes(d);
+        const d = p.duration_days || 0;
+        if (durationFilter.includes('short') && d > 0 && d <= 9) return true;
+        if (durationFilter.includes('21') && d >= 21) return true;
+        if (durationFilter.includes('9') && d === 9) return true;
+        if (durationFilter.includes('12') && d >= 10 && d <= 12) return true;
+        if (durationFilter.includes('14') && d >= 13 && d <= 14) return true;
+        // Paket tabungan (duration 0) dilewati saat filter durasi diaktifkan
+        return false;
       });
     }
 
@@ -72,9 +91,9 @@ export default function PackageList() {
     result.sort((a, b) => {
       switch (sortBy) {
         case 'price_asc':
-          return (a.price_quad || 0) - (b.price_quad || 0);
+          return getStartingPrice(a) - getStartingPrice(b);
         case 'price_desc':
-          return (b.price_quad || 0) - (a.price_quad || 0);
+          return getStartingPrice(b) - getStartingPrice(a);
         case 'duration_asc':
           return a.duration_days - b.duration_days;
         case 'duration_desc':

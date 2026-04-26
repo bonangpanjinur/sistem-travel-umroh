@@ -75,7 +75,7 @@ export default function AdminBookings() {
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
-  const [periodPreset, setPeriodPreset] = useState<string>("today");
+  const [periodPreset, setPeriodPreset] = useState<string>("all");
   const [customPeriodFrom, setCustomPeriodFrom] = useState("");
   const [customPeriodTo, setCustomPeriodTo] = useState("");
   const { toast } = useToast();
@@ -141,6 +141,7 @@ export default function AdminBookings() {
   const periodRange = useMemo(() => {
     const now = new Date();
     switch (periodPreset) {
+      case "all": return { from: new Date(0), to: endOfDay(now), label: "Semua Waktu" };
       case "today": return { from: startOfDay(now), to: endOfDay(now), label: "Hari Ini" };
       case "week": return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfDay(now), label: "Minggu Ini" };
       case "month": return { from: startOfMonth(now), to: endOfDay(now), label: "Bulan Ini" };
@@ -396,6 +397,7 @@ export default function AdminBookings() {
               <Select value={periodPreset} onValueChange={setPeriodPreset}>
                 <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Semua Waktu</SelectItem>
                   <SelectItem value="today">Hari Ini</SelectItem>
                   <SelectItem value="week">Minggu Ini</SelectItem>
                   <SelectItem value="month">Bulan Ini</SelectItem>
