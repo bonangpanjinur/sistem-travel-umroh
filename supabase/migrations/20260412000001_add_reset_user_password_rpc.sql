@@ -16,15 +16,15 @@ DECLARE
     target_user_email TEXT;
     result JSONB;
 BEGIN
-    -- Check if the caller is a super_admin or owner
+    -- Check if the caller is a super_admin only
     SELECT role INTO caller_role
     FROM public.user_roles
     WHERE user_id = auth.uid()
-      AND role IN ('super_admin', 'owner')
+      AND role = 'super_admin'
     LIMIT 1;
 
     IF caller_role IS NULL THEN
-        RAISE EXCEPTION 'Only super_admin or owner can reset user passwords';
+        RAISE EXCEPTION 'Only super_admin can reset user passwords';
     END IF;
 
     -- Prevent self-password-reset (user should use forgot password instead)
@@ -67,15 +67,15 @@ AS $$
 DECLARE
     caller_role TEXT;
 BEGIN
-    -- Check if the caller is a super_admin or owner
+    -- Check if the caller is a super_admin only
     SELECT role INTO caller_role
     FROM public.user_roles
     WHERE user_id = auth.uid()
-      AND role IN ('super_admin', 'owner')
+      AND role = 'super_admin'
     LIMIT 1;
 
     IF caller_role IS NULL THEN
-        RAISE EXCEPTION 'Only super_admin or owner can set user passwords';
+        RAISE EXCEPTION 'Only super_admin can set user passwords';
     END IF;
 
     -- Prevent self-password-change (user should use their own settings)

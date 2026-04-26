@@ -1,5 +1,5 @@
 -- Function to list users with their emails
--- This requires super_admin or owner role
+-- This requires super_admin role only
 -- It returns data from auth.users which is normally protected
 CREATE OR REPLACE FUNCTION public.list_users_with_emails()
 RETURNS TABLE (
@@ -15,15 +15,15 @@ AS $$
 DECLARE
     caller_role TEXT;
 BEGIN
-    -- Check if the caller is a super_admin or owner
+    -- Check if the caller is a super_admin only
     SELECT role INTO caller_role
     FROM public.user_roles
     WHERE user_id = auth.uid()
-      AND role IN ('super_admin', 'owner')
+      AND role = 'super_admin'
     LIMIT 1;
 
     IF caller_role IS NULL THEN
-        RAISE EXCEPTION 'Only super_admin or owner can list users with emails';
+        RAISE EXCEPTION 'Only super_admin can list users with emails';
     END IF;
 
     RETURN QUERY

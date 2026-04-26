@@ -116,7 +116,9 @@ export default function AdminUsers() {
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [showDashboardSettings, setShowDashboardSettings] = useState(false);
   const { hasRole } = useAuth();
-  const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
+  const isSuperAdmin = hasRole('super_admin');
+  const isOwner = hasRole('owner');
+  const isAdmin = isSuperAdmin || isOwner;
 
   // Fetch branches for role assignment
   const { data: branches } = useQuery({
@@ -797,7 +799,7 @@ export default function AdminUsers() {
                   key={selectedUser.user_id}
                   userId={selectedUser.user_id}
                   userName={selectedUser.full_name || ""}
-                  isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin' || r.role === 'owner')}
+                  isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin')}
                 />
               </div>
             </Suspense>

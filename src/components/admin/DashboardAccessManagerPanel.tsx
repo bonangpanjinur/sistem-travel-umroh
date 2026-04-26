@@ -48,8 +48,10 @@ export default function DashboardAccessManagerPanel({
   const [selectedRole, setSelectedRole] = useState<AppRole>('branch_manager');
   const [saving, setSaving] = useState(false);
 
-  // Check if user is super admin or owner
-  const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
+  // Check if user is super admin only
+  const isSuperAdmin = hasRole('super_admin');
+  const isOwner = hasRole('owner');
+  const isAdmin = isSuperAdmin || isOwner;
 
   if (!isSuperAdmin) {
     return (

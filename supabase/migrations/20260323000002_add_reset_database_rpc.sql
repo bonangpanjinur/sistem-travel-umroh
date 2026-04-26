@@ -1,5 +1,5 @@
 -- RPC function to reset database (delete all bookings and related data)
--- Only accessible by super_admin or owner
+-- Only accessible by super_admin
 
 CREATE OR REPLACE FUNCTION public.reset_database(confirm_text TEXT)
 RETURNS JSONB
@@ -13,15 +13,15 @@ DECLARE
     deleted_payments_count INTEGER;
     deleted_leads_count INTEGER;
 BEGIN
-    -- 1. Security Check: Must be super_admin or owner
+    -- 1. Security Check: Must be super_admin only
     SELECT EXISTS (
         SELECT 1 FROM public.user_roles 
         WHERE user_id = current_user_id 
-        AND role IN ('super_admin', 'owner')
+        AND role = 'super_admin'
     ) INTO is_authorized;
 
     IF NOT is_authorized THEN
-        RAISE EXCEPTION 'Unauthorized: Only super_admin or owner can reset the database';
+        RAISE EXCEPTION 'Unauthorized: Only super_admin can reset the database';
     END IF;
 
     -- 2. Confirmation Check: Must provide exact confirmation text
@@ -65,4 +65,5 @@ END;
 $$;
 
 -- Grant access to authenticated users (security check is inside the function)
+-- Note: This is a destructive operation, only super_admin can execute
 GRANT EXECUTE ON FUNCTION public.reset_database(TEXT) TO authenticated;
