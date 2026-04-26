@@ -262,10 +262,18 @@ export default function AdminPackages() {
       }
       
       // Check package_type_id relationship for tabungan filter
+      // Also check for packages that have savings_target set (tabungan packages have this field)
+      const hasSavingsTarget = !!pkg.savings_target;
       const pkgTypeCode = pkg.package_type_ref?.code;
       
-      if (packageTypeFilter === "tabungan" && pkgTypeCode !== "tabungan") return false;
-      if (packageTypeFilter === "regular" && pkgTypeCode === "tabungan") return false;
+      if (packageTypeFilter === "tabungan") {
+        // Tabungan packages: have savings_target OR have package_type_ref.code === 'tabungan'
+        if (!hasSavingsTarget && pkgTypeCode !== 'tabungan') return false;
+      }
+      if (packageTypeFilter === "regular") {
+        // Regular packages: have NO savings_target AND package_type_ref.code !== 'tabungan'
+        if (hasSavingsTarget || pkgTypeCode === 'tabungan') return false;
+      }
 
       if (statusFilter === "active" && !pkg.is_active) return false;
       if (statusFilter === "inactive" && pkg.is_active) return false;
