@@ -81,7 +81,7 @@ export default function SavingsRegister() {
     return { targetAmount: target, monthlyAmount: monthly, targetDate: formattedDate };
   }, [pkg, tenorMonths]);
 
-  // Calculate DP options (10%, 20%, 30% of target)
+  // Calculate DP options (10%, 20%, 25%, 30% of target)
   const dpOptions = useMemo(() => {
     if (!pkg || targetAmount <= 0) return [];
     return [
@@ -97,7 +97,7 @@ export default function SavingsRegister() {
     if (dpOptions.length > 0 && dpAmount === 0) {
       setDpAmount(dpOptions[1]?.value || dpOptions[0]?.value || 0);
     }
-  }, [dpOptions, dpAmount]);
+  }, [dpOptions]);
 
   // Submit mutation
   const submitMutation = useMutation({
@@ -349,6 +349,7 @@ export default function SavingsRegister() {
                         {dpOptions.map((opt) => (
                           <button
                             key={opt.value}
+                            type="button"
                             onClick={() => setDpAmount(opt.value)}
                             className={`px-4 py-2 rounded-lg border-2 transition-colors ${
                               dpAmount === opt.value 
@@ -367,6 +368,10 @@ export default function SavingsRegister() {
                   )}
 
                   <Separator />
+                </CardContent>
+              </Card>
+
+              {/* Personal Data */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
