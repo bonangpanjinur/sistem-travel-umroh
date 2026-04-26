@@ -258,14 +258,37 @@ export default function RoomingListPage() {
       const { data, error } = await supabase
         .from("booking_passengers")
         .select(`
-          id, passenger_type, room_number, roommate_id,
+          id, passenger_type, room_number, roommate_id, customer_id,
           booking:bookings!inner(id, room_type, departure_id, booking_status),
           customer:customers(full_name, gender, birth_date, passport_number, passport_expiry)
         `)
         .eq("booking.departure_id", selectedDepartureId)
         .neq("booking.booking_status", "cancelled");
       if (error) throw error;
-      return data as any[];
+      const passengers = data as any[];
+      // Override room_number dari room_assignments (sumber kebenaran)
+      const customerIds = passengers.map((p: any) => p.customer_id).filter(Boolean);
+      if (customerIds.length > 0) {
+        const { data: occupants } = await supabase
+          .from("room_occupants")
+          .select(`
+            customer_id,
+            room_assignment:room_assignments!inner(room_number, departure_id)
+          `)
+          .in("customer_id", customerIds)
+          .eq("room_assignment.departure_id", selectedDepartureId);
+        const roomByCustomer = new Map<string, string>();
+        (occupants || []).forEach((o: any) => {
+          if (o.room_assignment?.room_number) {
+            roomByCustomer.set(o.customer_id, o.room_assignment.room_number);
+          }
+        });
+        passengers.forEach((p: any) => {
+          const rn = roomByCustomer.get(p.customer_id);
+          if (rn) p.room_number = rn;
+        });
+      }
+      return passengers;
     },
   });
 
