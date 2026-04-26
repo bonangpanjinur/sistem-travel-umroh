@@ -27,8 +27,8 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [packageType, setPackageType] = useState(searchParams.get('type') || 'all');
   const [priceRange, setPriceRange] = useState([
-    Number(searchParams.get('minPrice')) || 10000000,
-    Number(searchParams.get('maxPrice')) || 150000000
+    Number(searchParams.get('minPrice')) || 0,
+    Number(searchParams.get('maxPrice')) || 200000000
   ]);
   const [duration, setDuration] = useState<string[]>(
     searchParams.get('duration')?.split(',').filter(Boolean) || []
@@ -39,8 +39,8 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
     setSearchTerm(searchParams.get('q') || '');
     setPackageType(searchParams.get('type') || 'all');
     setPriceRange([
-      Number(searchParams.get('minPrice')) || 10000000,
-      Number(searchParams.get('maxPrice')) || 150000000
+      Number(searchParams.get('minPrice')) || 0,
+      Number(searchParams.get('maxPrice')) || 200000000
     ]);
     setDuration(searchParams.get('duration')?.split(',').filter(Boolean) || []);
   }, [searchParams]);
@@ -51,8 +51,9 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
     if (searchTerm.trim()) params.set('q', searchTerm.trim());
     if (packageType && packageType !== 'all') params.set('type', packageType);
     
-    params.set('minPrice', priceRange[0].toString());
-    params.set('maxPrice', priceRange[1].toString());
+    // Hanya apply price filter bila user mengubah dari default (0..200jt)
+    if (priceRange[0] > 0) params.set('minPrice', priceRange[0].toString());
+    if (priceRange[1] < 200000000) params.set('maxPrice', priceRange[1].toString());
     
     if (duration.length > 0) params.set('duration', duration.join(','));
 
@@ -81,7 +82,7 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
   const handleReset = () => {
     setSearchTerm('');
     setPackageType('all');
-    setPriceRange([10000000, 150000000]);
+    setPriceRange([0, 200000000]);
     setDuration([]);
     navigate('/packages');
     
@@ -150,6 +151,7 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
             <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
             <SelectItem value="haji">Haji Reguler</SelectItem>
             <SelectItem value="haji_plus">Haji Plus</SelectItem>
+            <SelectItem value="tabungan">Paket Tabungan</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -160,7 +162,7 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
         <Slider
           value={priceRange}
           onValueChange={setPriceRange}
-          min={10000000}
+          min={0}
           max={200000000}
           step={1000000}
           className="mt-2"
@@ -176,6 +178,7 @@ export function PackageSearch({ onSearch, onFilterApplied }: PackageSearchProps)
         <Label>Durasi Perjalanan</Label>
         <div className="space-y-2">
           {[
+            { value: 'short', label: '≤ 9 Hari' },
             { value: '9', label: '9 Hari' },
             { value: '12', label: '12 Hari' },
             { value: '14', label: '14 Hari' },
