@@ -163,7 +163,9 @@ const ChartTooltipContent = React.forwardRef<
           {payload.map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`;
             const itemConfig = getPayloadConfigFromPayload(config, item, key);
-            const indicatorColor = color || item?.payload?.fill || item?.color;
+            // Safely access payload with null check to prevent "Cannot read properties of undefined (reading 'payload')" error
+            const itemPayload = item && typeof item === 'object' && 'payload' in item ? item.payload : null;
+            const indicatorColor = color || (itemPayload && typeof itemPayload === 'object' ? itemPayload.fill : undefined) || item?.color;
 
             return (
               <div
@@ -174,7 +176,8 @@ const ChartTooltipContent = React.forwardRef<
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item?.payload || item || {})
+                  // Safely access payload for formatter to prevent "Cannot read properties of undefined" error
+                  formatter(item.value, item.name, item, index, itemPayload || item || {})
                 ) : (
                   <>
                     {itemConfig?.icon ? (

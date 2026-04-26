@@ -50,9 +50,13 @@ window.addEventListener('error', (event) => {
     sessionStorage.setItem('last-chunk-reload', now.toString());
     console.warn('Chunk load error or MIME mismatch detected, reloading page to fetch latest version...');
     
-    // Clear service worker cache if possible
+    // Clear service worker cache if possible - wrap in try-catch to prevent extension messaging errors
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      try {
+        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      } catch (swError) {
+        console.warn('Service worker messaging failed:', swError);
+      }
     }
 
     setTimeout(() => {
