@@ -46,7 +46,8 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
 
   // Pengaturan
   { key: 'users', label: 'User', path: '/admin/users', icon: 'UserCog', group_name: 'Pengaturan', sort_order: 1, required_permission: 'users' },
-  { key: 'settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', group_name: 'Pengaturan', sort_order: 2, required_permission: 'settings' },
+  { key: 'document-types', label: 'Jenis Dokumen', path: '/admin/document-types', icon: 'FileCog', group_name: 'Pengaturan', sort_order: 2, required_permission: 'document-types' },
+  { key: 'settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', group_name: 'Pengaturan', sort_order: 3, required_permission: 'settings' },
 ];
 
 /**
