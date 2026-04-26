@@ -392,7 +392,7 @@ export default function AdminDepartureDetail() {
         .select(
           `
           *,
-          itinerary_template:itinerary_templates(id, name, description, days)
+          itinerary_template:itinerary_templates(id, name, description, duration_days)
         `
         )
         .eq("departure_id", id)

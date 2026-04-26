@@ -134,6 +134,8 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Get authorization header from request
+    const authHeader = req.headers.get("Authorization");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
