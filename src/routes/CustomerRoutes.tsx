@@ -40,6 +40,7 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/doa-panduan" element={<ProtectedRoute><LazyPage><JamaahDoaPanduan /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/itinerary" element={<ProtectedRoute><LazyPage><JamaahItinerary /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/documents" element={<ProtectedRoute><LazyPage><JamaahDocuments /></LazyPage></ProtectedRoute>} />
+      <Route path="/customer/documents" element={<ProtectedRoute><LazyPage><JamaahDocuments /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/payment-history" element={<ProtectedRoute><LazyPage><JamaahPaymentHistory /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/feedback/:bookingId" element={<ProtectedRoute><LazyPage><JamaahFeedback /></LazyPage></ProtectedRoute>} />
       <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />
