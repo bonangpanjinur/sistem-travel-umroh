@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   Search, ChevronDown, ChevronRight, ShieldCheck,
-  RotateCcw, CheckCircle2, XCircle, Crown, Sparkles
+  RotateCcw, CheckCircle2, XCircle, Crown, Sparkles, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
