@@ -788,7 +788,7 @@ export default function AdminUsers() {
               <UserPermissionsManager
                 userId={selectedUser.user_id}
                 userName={selectedUser.full_name || ""}
-                isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin' || r.role === 'owner')}
+                isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin')}
               />
             </Suspense>
           )}
