@@ -38,10 +38,13 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
 export default function AdminFinanceCash() {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "cash");
+
+  // Permission check: super_admin, owner, or manager keuangan (finance role) can access
+  const canEdit = hasRole('super_admin') || hasRole('owner') || hasRole('finance');
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -77,7 +80,7 @@ export default function AdminFinanceCash() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cash"><CashTab userId={user?.id} /></TabsContent>
+        <TabsContent value="cash"><CashTab userId={user?.id} canEdit={canEdit} /></TabsContent>
         <TabsContent value="salary"><SalaryTab userId={user?.id} /></TabsContent>
         <TabsContent value="summary"><SummaryTab /></TabsContent>
       </Tabs>
@@ -86,7 +89,7 @@ export default function AdminFinanceCash() {
 }
 
 // ============== CASH TAB ==============
-function CashTab({ userId }: { userId?: string }) {
+function CashTab({ userId, canEdit }: { userId?: string; canEdit?: boolean }) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -225,7 +228,7 @@ function CashTab({ userId }: { userId?: string }) {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Export</Button>
-        <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Tambah</Button>
+        {canEdit && <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Tambah</Button>}
       </div>
 
       {/* Table */}
