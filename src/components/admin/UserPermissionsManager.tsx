@@ -17,6 +17,14 @@ import { cn } from "@/lib/utils";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { History } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 import { logUserPermissionChange } from "@/lib/audit-logger";
 
 interface UserPermissionsManagerProps {
@@ -52,7 +60,9 @@ const GROUP_ICONS: Record<string, string> = {
 export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }: UserPermissionsManagerProps) {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterMode, setFilterMode] = useState<"all" | "active" | "revoked" | "override">("all");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["user-permissions-detail", userId],
@@ -163,30 +173,59 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
         .delete()
         .eq('user_id', userId);
       if (error) throw error;
+
+      // Audit log for reset
+      logUserPermissionChange(userId, 'ALL_PERMISSIONS', true, true, 'RESET_ALL').catch(() => {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-permissions-detail", userId] });
       queryClient.invalidateQueries({ queryKey: ["user-permissions-revoked"] });
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-audit", userId] });
       toast.success("Semua izin dikembalikan ke default (akses penuh)");
     },
     onError: () => toast.error("Gagal mereset izin"),
   });
 
+  const { data: auditLogs = [], isLoading: auditLoading } = useQuery({
+    queryKey: ["user-permissions-audit", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('table_name', 'user_permissions')
+        .contains('metadata', { user_id: userId })
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const grouped = useMemo(() => {
-    const filtered = searchQuery
-      ? rows.filter(p =>
-          p.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.group_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (p.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : rows;
+    let filtered = rows;
+    
+    // Apply search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.label.toLowerCase().includes(q) ||
+        p.group_name.toLowerCase().includes(q) ||
+        p.key.toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q)
+      );
+    }
+    
+    // Apply filter mode
+    if (filterMode === "active") filtered = filtered.filter(p => p.is_enabled);
+    else if (filterMode === "revoked") filtered = filtered.filter(p => !p.is_enabled);
+    else if (filterMode === "override") filtered = filtered.filter(p => p.hasOverride);
+
     return filtered.reduce<Record<string, PermissionRow[]>>((acc, p) => {
       if (!acc[p.group_name]) acc[p.group_name] = [];
       acc[p.group_name].push(p);
       return acc;
     }, {});
-  }, [rows, searchQuery]);
+  }, [rows, searchQuery, filterMode]);
 
   const stats = useMemo(() => ({
     total: rows.length,
@@ -239,33 +278,76 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl border bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200 p-3">
+      <Tabs defaultValue="permissions" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Izin Akses
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Riwayat
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="permissions" className="space-y-4 outline-none">
+        {/* Stats & Filter */}
+        <div className="grid grid-cols-4 gap-2">
+          <button
+            onClick={() => setFilterMode("all")}
+            className={cn(
+              "rounded-xl border p-3 text-left transition-all",
+              filterMode === "all" ? "ring-2 ring-primary border-primary bg-primary/5 shadow-sm" : "bg-white hover:bg-gray-50 border-gray-200"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">Semua</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+          </button>
+          
+          <button
+            onClick={() => setFilterMode("active")}
+            className={cn(
+              "rounded-xl border p-3 text-left transition-all",
+              filterMode === "active" ? "ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50 shadow-sm" : "bg-white hover:bg-gray-50 border-gray-200"
+            )}
+          >
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700">Aktif</span>
             </div>
             <p className="text-2xl font-bold text-emerald-900 mt-1">{stats.active}</p>
-            <p className="text-[10px] text-emerald-700/70">dari {stats.total} izin</p>
-          </div>
-          <div className="rounded-xl border bg-gradient-to-br from-red-50 to-rose-50 border-red-200 p-3">
+          </button>
+
+          <button
+            onClick={() => setFilterMode("revoked")}
+            className={cn(
+              "rounded-xl border p-3 text-left transition-all",
+              filterMode === "revoked" ? "ring-2 ring-red-500 border-red-500 bg-red-50 shadow-sm" : "bg-white hover:bg-gray-50 border-gray-200"
+            )}
+          >
             <div className="flex items-center gap-2">
               <XCircle className="h-4 w-4 text-red-600" />
               <span className="text-[10px] uppercase tracking-wider font-semibold text-red-700">Dicabut</span>
             </div>
             <p className="text-2xl font-bold text-red-900 mt-1">{stats.revoked}</p>
-            <p className="text-[10px] text-red-700/70">tidak dapat akses</p>
-          </div>
-          <div className="rounded-xl border bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200 p-3">
+          </button>
+
+          <button
+            onClick={() => setFilterMode("override")}
+            className={cn(
+              "rounded-xl border p-3 text-left transition-all",
+              filterMode === "override" ? "ring-2 ring-amber-500 border-amber-500 bg-amber-50 shadow-sm" : "bg-white hover:bg-gray-50 border-gray-200"
+            )}
+          >
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-amber-600" />
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-700">Override</span>
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-700">Manual</span>
             </div>
             <p className="text-2xl font-bold text-amber-900 mt-1">{stats.overrides}</p>
-            <p className="text-[10px] text-amber-700/70">diatur manual</p>
-          </div>
+          </button>
         </div>
 
         {/* Search + reset */}
@@ -283,11 +365,7 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                if (confirm(`Reset semua ${stats.overrides} pengaturan manual ke akses penuh?`)) {
-                  resetAllMutation.mutate();
-                }
-              }}
+              onClick={() => setShowResetConfirm(true)}
               className="h-9 gap-1.5 text-xs"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -406,18 +484,23 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
                               </p>
                             )}
                           </div>
-                          <Switch
-                            id={`perm-${perm.key}`}
-                            checked={perm.is_enabled}
-                            disabled={toggleMutation.isPending}
-                            onCheckedChange={(val) =>
-                              toggleMutation.mutate({
-                                key: perm.key,
-                                newValue: val,
-                                oldValue: perm.is_enabled,
-                              })
-                            }
-                          />
+                          <div className="flex items-center gap-3">
+                            {toggleMutation.isPending && toggleMutation.variables?.key === perm.key && (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            )}
+                            <Switch
+                              id={`perm-${perm.key}`}
+                              checked={perm.is_enabled}
+                              disabled={toggleMutation.isPending}
+                              onCheckedChange={(val) =>
+                                toggleMutation.mutate({
+                                  key: perm.key,
+                                  newValue: val,
+                                  oldValue: perm.is_enabled,
+                                })
+                              }
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -427,7 +510,91 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
             })}
           </div>
         </ScrollArea>
-      </div>
+
+        {/* Reset Confirmation */}
+        <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-2">
+                <RotateCcw className="h-6 w-6 text-amber-600" />
+              </div>
+              <AlertDialogTitle className="text-center">Reset Semua Izin?</AlertDialogTitle>
+              <AlertDialogDescription className="text-center">
+                Anda akan menghapus <strong>{stats.overrides} pengaturan manual</strong> untuk user ini. 
+                Semua izin akan dikembalikan ke pengaturan default (akses penuh).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="sm:justify-center gap-3">
+              <AlertDialogCancel className="mt-0">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  resetAllMutation.mutate();
+                  setShowResetConfirm(false);
+                }}
+                className="bg-amber-600 text-white hover:bg-amber-700"
+              >
+                {resetAllMutation.isPending ? "Mereset..." : "Ya, Reset Semua"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        </TabsContent>
+
+        <TabsContent value="audit" className="outline-none">
+          <ScrollArea className="h-[65vh] pr-4">
+            {auditLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <History className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                <p>Belum ada riwayat perubahan izin.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {auditLogs.map((log: any) => {
+                  const meta = log.metadata || {};
+                  const isReset = meta.reason === 'RESET_ALL';
+                  return (
+                    <div key={log.id} className="p-3 rounded-lg border bg-white shadow-sm flex gap-3 items-start">
+                      <div className={cn(
+                        "p-2 rounded-full flex-shrink-0",
+                        isReset ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+                      )}>
+                        {isReset ? <RotateCcw className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-sm font-bold text-gray-900">
+                            {isReset ? "Reset Semua Izin" : `Ubah Izin: ${meta.permission_key || 'Unknown'}`}
+                          </p>
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            {formatDistanceToNow(new Date(log.created_at), { locale: idLocale, addSuffix: true })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {!isReset && (
+                            <Badge variant="outline" className={cn(
+                              "text-[10px] py-0 px-1.5",
+                              meta.new_value === false ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                            )}>
+                              {meta.new_value === false ? "Dicabut" : "Diaktifkan"}
+                            </Badge>
+                          )}
+                          <span className="text-[10px] text-muted-foreground italic">
+                            oleh Admin
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
     </TooltipProvider>
   );
 }

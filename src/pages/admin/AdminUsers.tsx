@@ -27,8 +27,14 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck, Settings
+  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck, Settings, Info, CheckCircle2, XCircle, AlertCircle
 } from "lucide-react";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AppRole } from "@/types/database";
 // Lazy-load heavy permission/dashboard config panels — only loaded when dialog opens
 const UserPermissionsManager = lazy(() =>
@@ -65,6 +71,20 @@ const ROLE_COLORS: Record<AppRole, string> = {
   agent: "bg-indigo-100 text-indigo-800 border-indigo-200",
   sub_agent: "bg-violet-100 text-violet-800 border-violet-200",
   customer: "bg-slate-100 text-slate-800 border-slate-200",
+};
+
+const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
+  super_admin: "Akses penuh ke seluruh sistem dan pengaturan.",
+  owner: "Akses pemilik dengan kontrol penuh atas data bisnis.",
+  branch_manager: "Mengelola operasional dan tim di tingkat cabang.",
+  finance: "Mengelola transaksi, pembayaran, dan laporan keuangan.",
+  operational: "Mengelola paket, keberangkatan, dan logistik lapangan.",
+  sales: "Mengelola prospek, booking, dan interaksi pelanggan.",
+  marketing: "Mengelola konten, promo, dan materi pemasaran.",
+  equipment: "Mengelola stok perlengkapan dan distribusi jamaah.",
+  agent: "Mitra penjualan dengan akses terbatas ke data jamaah mereka.",
+  sub_agent: "Agen di bawah koordinasi agen utama.",
+  customer: "Akses portal jamaah untuk melihat status dan dokumen.",
 };
 
 interface UserWithRoles {
@@ -462,38 +482,65 @@ export default function AdminUsers() {
                           ) : (
                             user.roles.map((r) => (
                               <div key={r.id} className="group relative">
-                                <Badge
-                                  className={`${ROLE_COLORS[r.role]} border px-2 py-0.5 flex items-center gap-1`}
-                                >
-                                  {ROLE_LABELS[r.role]}
-                                  {r.branch_name && (
-                                    <span className="text-[10px] opacity-70 border-l border-current pl-1 ml-1">
-                                      {r.branch_name}
-                                    </span>
-                                  )}
-                                  {isSuperAdmin && (
-                                    <div className="flex items-center ml-1 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button
-                                        onClick={() => {
-                                          setSelectedUser(user);
-                                          setEditingRole({ id: r.id, role: r.role, branch_id: r.branch_id });
-                                          setNewRole(r.role);
-                                          setSelectedBranchId(r.branch_id || "all");
-                                          setShowRoleDialog(true);
-                                        }}
-                                        className="hover:text-blue-600"
-                                      >
-                                        <Edit2 className="h-2.5 w-2.5" />
-                                      </button>
-                                      <button
-                                        onClick={() => setRoleToDelete({ userId: user.user_id, roleId: r.id, role: r.role })}
-                                        className="hover:text-red-600"
-                                      >
-                                        <Trash2 className="h-2.5 w-2.5" />
-                                      </button>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Badge
+                                      className={`${ROLE_COLORS[r.role]} border px-2 py-0.5 flex items-center gap-1 cursor-help`}
+                                    >
+                                      {ROLE_LABELS[r.role]}
+                                      {r.branch_name && (
+                                        <span className="text-[10px] opacity-70 border-l border-current pl-1 ml-1">
+                                          {r.branch_name}
+                                        </span>
+                                      )}
+                                      {isSuperAdmin && (
+                                        <div className="flex items-center ml-1 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedUser(user);
+                                              setEditingRole({ id: r.id, role: r.role, branch_id: r.branch_id });
+                                              setNewRole(r.role);
+                                              setSelectedBranchId(r.branch_id || "all");
+                                              setShowRoleDialog(true);
+                                            }}
+                                            className="hover:text-blue-600"
+                                          >
+                                            <Edit2 className="h-2.5 w-2.5" />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setRoleToDelete({ userId: user.user_id, roleId: r.id, role: r.role });
+                                            }}
+                                            className="hover:text-red-600"
+                                          >
+                                            <Trash2 className="h-2.5 w-2.5" />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </Badge>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-64 p-3 shadow-xl border-blue-100">
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <h4 className="font-bold text-sm text-gray-900">{ROLE_LABELS[r.role]}</h4>
+                                        <Badge className={`${ROLE_COLORS[r.role]} text-[10px] py-0 px-1.5`}>
+                                          {r.role}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-xs text-gray-600 leading-relaxed">
+                                        {ROLE_DESCRIPTIONS[r.role]}
+                                      </p>
+                                      {r.branch_name && (
+                                        <div className="pt-2 mt-2 border-t border-gray-100 flex items-center gap-1.5 text-[11px] text-blue-600 font-medium">
+                                          <Building2 className="h-3 w-3" />
+                                          Penempatan: {r.branch_name}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </Badge>
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                             ))
                           )}
@@ -606,6 +653,26 @@ export default function AdminUsers() {
             </div>
 
             {/* Branch Selection (Only for relevant roles) */}
+            {newRole && (
+              <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-100 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <Info className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Pratinjau Role</span>
+                </div>
+                <p className="text-xs text-blue-800/80 leading-relaxed">
+                  {ROLE_DESCRIPTIONS[newRole]}
+                </p>
+                <div className="pt-1 flex items-center gap-1.5">
+                  <Badge className={`${ROLE_COLORS[newRole]} text-[9px] px-1.5 py-0`}>
+                    Default Access
+                  </Badge>
+                  <span className="text-[10px] text-blue-600 font-medium italic">
+                    * Izin dapat dikustomisasi setelah role disimpan.
+                  </span>
+                </div>
+              </div>
+            )}
+
             {newRole && !['super_admin', 'owner', 'customer'].includes(newRole) && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
                 <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
