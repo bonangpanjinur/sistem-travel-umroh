@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +29,7 @@ export default function SavingsRegister() {
   const queryClient = useQueryClient();
 
   const [tenorMonths, setTenorMonths] = useState(12);
+  const [dpAmount, setDpAmount] = useState<number>(0);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -80,6 +81,24 @@ export default function SavingsRegister() {
     return { targetAmount: target, monthlyAmount: monthly, targetDate: formattedDate };
   }, [pkg, tenorMonths]);
 
+  // Calculate DP options (10%, 20%, 30% of target)
+  const dpOptions = useMemo(() => {
+    if (!pkg || targetAmount <= 0) return [];
+    return [
+      { value: Math.round(targetAmount * 0.1), label: '10%' },
+      { value: Math.round(targetAmount * 0.2), label: '20%' },
+      { value: Math.round(targetAmount * 0.25), label: '25%' },
+      { value: Math.round(targetAmount * 0.3), label: '30%' },
+    ].filter(d => d.value > 0);
+  }, [targetAmount, pkg]);
+
+  // Set default DP when options change
+  useEffect(() => {
+    if (dpOptions.length > 0 && dpAmount === 0) {
+      setDpAmount(dpOptions[1]?.value || dpOptions[0]?.value || 0);
+    }
+  }, [dpOptions, dpAmount]);
+
   // Submit mutation
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -121,7 +140,7 @@ export default function SavingsRegister() {
         throw new Error('Target tabungan tidak valid. Silakan hubungi admin.');
       }
 
-      // Create savings plan
+      // Create savings plan with DP
       const { data: savingsPlan, error: savingsError } = await supabase
         .from('savings_plans')
         .insert({
@@ -131,8 +150,10 @@ export default function SavingsRegister() {
           monthly_amount: monthlyAmount,
           tenor_months: tenorMonths,
           target_date: targetDateCalc.toISOString().split('T')[0],
-          paid_amount: 0,
-          status: 'active',
+          paid_amount: dpAmount, // DP is the first payment
+          dp_amount: dpAmount,
+          dp_status: dpAmount > 0 ? 'pending' : null,
+          status: dpAmount > 0 ? 'dp_paid' : 'active', // If DP paid, status is dp_paid
         })
         .select()
         .single();
@@ -319,10 +340,33 @@ export default function SavingsRegister() {
                       </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* Personal Data */}
+                  {/* DP Selection */}
+                  {dpOptions.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium mb-2">Pilih Down Payment (DP)</p>
+                      <div className="flex flex-wrap gap-2">
+                        {dpOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setDpAmount(opt.value)}
+                            className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                              dpAmount === opt.value 
+                                ? 'border-primary bg-primary/10 text-primary' 
+                                : 'border-muted-200 hover:border-primary/50'
+                            }`}
+                          >
+                            <span className="font-bold">{opt.label}</span>
+                            <span className="text-sm ml-1 text-muted-foreground">
+                              {formatCurrency(opt.value)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator />
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

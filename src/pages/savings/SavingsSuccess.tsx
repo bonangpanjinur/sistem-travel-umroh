@@ -149,6 +149,28 @@ export default function SavingsSuccess() {
                 </div>
               </div>
 
+              {/* DP Info - Show if DP was paid */}
+              {plan.dp_amount > 0 && (
+                <>
+                  <div className="border-t pt-4 mt-4">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Down Payment (DP)</span>
+                      <span className="font-bold text-primary">{formatCurrency(plan.dp_amount)}</span>
+                    </div>
+                    <div className="flex justify-between mt-2">
+                      <span className="text-muted-foreground">Status DP</span>
+                      <span className={`font-medium ${
+                        plan.dp_status === 'verified' ? 'text-green-600' : 
+                        plan.dp_status === 'rejected' ? 'text-red-600' : 'text-orange-600'
+                      }`}>
+                        {plan.dp_status === 'verified' ? 'Terverifikasi' : 
+                         plan.dp_status === 'rejected' ? 'Ditolak' : 'Menunggu Verifikasi'}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="text-muted-foreground">Status</span>
                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">

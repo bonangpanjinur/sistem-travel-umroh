@@ -85,15 +85,25 @@ export default function SavingsDashboard() {
     enabled: plans.length > 0,
   });
 
-  // Calculate progress
+  // Calculate progress - include DP status
   const activePlan = useMemo(() => {
-    return plans.find(p => p.status === 'active');
+    return plans.find(p => p.status === 'active' || p.status === 'dp_paid');
   }, [plans]);
 
   const progress = useMemo(() => {
     if (!activePlan) return 0;
     return Math.min(100, (activePlan.paid_amount / activePlan.target_amount) * 100);
   }, [activePlan]);
+
+  // Get status label
+  const getStatusLabel = (plan: any) => {
+    if (plan.status === 'dp_paid') return 'Menunggu Verifikasi DP';
+    if (plan.status === 'active') return 'Aktif';
+    if (plan.status === 'completed') return 'Lunas';
+    if (plan.status === 'cancelled') return 'Dibatalkan';
+    if (plan.status === 'converted') return 'Dikonversi';
+    return plan.status;
+  };
 
   // Submit payment mutation
   const submitPaymentMutation = useMutation({
@@ -200,8 +210,13 @@ export default function SavingsDashboard() {
                   <Wallet className="h-5 w-5" />
                   {activePlan.package?.name || 'Tabungan'}
                 </CardTitle>
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  Aktif
+                <Badge variant="secondary" className={`${
+                  activePlan.status === 'dp_paid' ? 'bg-yellow-100 text-yellow-800' :
+                  activePlan.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  activePlan.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}>
+                  {getStatusLabel(activePlan)}
                 </Badge>
               </div>
             </CardHeader>
@@ -253,6 +268,33 @@ export default function SavingsDashboard() {
                   </p>
                 </div>
               </div>
+
+              {/* DP Status Alert */}
+              {activePlan.dp_amount > 0 && (
+                <div className={`p-4 rounded-lg ${
+                  activePlan.dp_status === 'verified' ? 'bg-green-50 border border-green-200' :
+                  activePlan.dp_status === 'rejected' ? 'bg-red-50 border border-red-200' :
+                  'bg-yellow-50 border border-yellow-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {activePlan.dp_status === 'verified' ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : activePlan.dp_status === 'rejected' ? (
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                    ) : (
+                      <Clock className="h-5 w-5 text-yellow-600" />
+                    )}
+                    <div>
+                      <p className="font-medium">Down Payment (DP): {formatCurrency(activePlan.dp_amount)}</p>
+                      <p className="text-sm">
+                        {activePlan.dp_status === 'verified' ? 'Terverifikasi ✓' : 
+                         activePlan.dp_status === 'rejected' ? 'Ditolak - Silakan hubungi admin' :
+                         'Menunggu verifikasi admin'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <Separator />
 

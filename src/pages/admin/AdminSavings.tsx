@@ -198,6 +198,35 @@ export default function AdminSavings() {
     setShowVerifyDialog(true);
   };
 
+  // Verify DP mutation for savings_plans (dp_status field)
+  const verifyDpMutation = useMutation({
+    mutationFn: async ({ planId, action }: { planId: string; action: 'verify' | 'reject' }) => {
+      const updates = {
+        dp_status: action === 'verify' ? 'verified' : 'rejected',
+        dp_payment_date: new Date().toISOString(),
+        status: action === 'verify' ? 'active' : 'dp_paid', // If verified, go to active. If rejected, stay in dp_paid
+      };
+      
+      const { error } = await supabase
+        .from('savings_plans')
+        .update(updates)
+        .eq('id', planId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'savings-plans'] });
+      toast.success('DP berhasil diverifikasi!');
+    },
+    onError: (error: Error) => {
+      toast.error('Gagal: ' + error.message);
+    },
+  });
+
+  const handleVerifyDp = (plan: any, action: 'verify' | 'reject') => {
+    verifyDpMutation.mutate({ planId: plan.id, action });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -332,12 +361,14 @@ export default function AdminSavings() {
                     <TableRow>
                       <TableHead>Customer</TableHead>
                       <TableHead>Paket</TableHead>
+                      <TableHead>DP</TableHead>
                       <TableHead>Target</TableHead>
                       <TableHead>Cicilan/Bulan</TableHead>
                       <TableHead>Terbayar</TableHead>
                       <TableHead>Progress</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Target Date</TableHead>
+                      <TableHead>Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -350,6 +381,21 @@ export default function AdminSavings() {
                           </div>
                         </TableCell>
                         <TableCell>{plan.package?.name}</TableCell>
+                        <TableCell>
+                          {plan.dp_amount > 0 ? (
+                            <div>
+                              <p className="font-medium">{formatCurrency(plan.dp_amount)}</p>
+                              <p className={`text-xs ${
+                                plan.dp_status === 'verified' ? 'text-green-600' :
+                                plan.dp_status === 'rejected' ? 'text-red-600' :
+                                'text-yellow-600'
+                              }`}>
+                                {plan.dp_status === 'verified' ? '✓' : 
+                                 plan.dp_status === 'rejected' ? '✗' : '⏳'}
+                              </p>
+                            </div>
+                          ) : '-'}
+                        </TableCell>
                         <TableCell>{formatCurrency(plan.target_amount)}</TableCell>
                         <TableCell>{formatCurrency(plan.monthly_amount)}</TableCell>
                         <TableCell className="text-green-600">
@@ -372,12 +418,13 @@ export default function AdminSavings() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={
+                            plan.status === 'dp_paid' ? 'bg-yellow-100 text-yellow-800' :
                             plan.status === 'active' ? 'bg-green-100 text-green-800' :
                             plan.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                             plan.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                             'bg-purple-100 text-purple-800'
                           }>
-                            {plan.status}
+                            {plan.status === 'dp_paid' ? 'Menunggu DP' : plan.status}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -386,6 +433,40 @@ export default function AdminSavings() {
                             month: 'short',
                             year: 'numeric',
                           })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {/* Show Verify DP button if dp_status is pending */}
+                            {plan.dp_amount > 0 && plan.dp_status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="h-8 bg-green-600 hover:bg-green-700"
+                                  onClick={() => handleVerifyDp(plan, 'verify')}
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Verify
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-8"
+                                  onClick={() => handleVerifyDp(plan, 'reject')}
+                                >
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Tolak
+                                </Button>
+                              </>
+                            )}
+                            {/* Show status badge with proper text */}
+                            {plan.dp_amount > 0 && plan.dp_status !== 'pending' && (
+                              <span className={`text-xs ${
+                                plan.dp_status === 'verified' ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {plan.dp_status === 'verified' ? 'DP ✅' : 'DP ❌'}
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
