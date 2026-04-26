@@ -69,8 +69,6 @@ const statusConfig: Record<
   },
 };
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
 export default function JamaahDocuments() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -101,12 +99,21 @@ export default function JamaahDocuments() {
       const { data, error } = await supabase
         .from("document_types")
         .select("*")
-        .order("is_required", { ascending: false })
+        .eq("is_active", true)
+        .order("sort_order")
         .order("name");
       if (error) throw error;
       return data ?? [];
     },
   });
+
+  const selectedType = useMemo(
+    () => documentTypes?.find((t: any) => t.id === selectedTypeId),
+    [documentTypes, selectedTypeId]
+  );
+  const maxFileSize = (selectedType?.max_file_size_mb ?? 5) * 1024 * 1024;
+  const allowedExts: string[] = selectedType?.allowed_extensions ?? ["jpg", "jpeg", "png", "pdf"];
+  const acceptAttr = allowedExts.map((e) => `.${e}`).join(",");
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ["jamaah-documents", customer?.id],
@@ -149,7 +156,13 @@ export default function JamaahDocuments() {
       if (!user || !customer || !file || !selectedTypeId) {
         throw new Error("Lengkapi data terlebih dahulu");
       }
-      const ext = file.name.split(".").pop();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      if (!allowedExts.includes(ext)) {
+        throw new Error(`Format harus salah satu: ${allowedExts.join(", ")}`);
+      }
+      if (file.size > maxFileSize) {
+        throw new Error(`Ukuran file maksimal ${selectedType?.max_file_size_mb ?? 5} MB`);
+      }
       const path = `${user.id}/${customer.id}/${selectedTypeId}-${Date.now()}.${ext}`;
 
       const { error: upErr } = await supabase.storage
@@ -190,12 +203,12 @@ export default function JamaahDocuments() {
       toast.error("Pilih file terlebih dahulu");
       return;
     }
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error("Ukuran file maksimal 5MB");
-      return;
-    }
     if (!selectedTypeId) {
       toast.error("Pilih jenis dokumen");
+      return;
+    }
+    if (file.size > maxFileSize) {
+      toast.error(`Ukuran file maksimal ${selectedType?.max_file_size_mb ?? 5} MB`);
       return;
     }
     setUploading(true);
@@ -295,12 +308,12 @@ export default function JamaahDocuments() {
                 <Input
                   id="doc-file"
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept={acceptAttr || "image/*,application/pdf"}
                   className="mt-1"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f && f.size > MAX_FILE_SIZE) {
-                      toast.error("Ukuran file maksimal 5MB");
+                    if (f && f.size > maxFileSize) {
+                      toast.error(`Ukuran file maksimal ${selectedType?.max_file_size_mb ?? 5} MB`);
                       e.target.value = "";
                       return;
                     }
@@ -308,7 +321,7 @@ export default function JamaahDocuments() {
                   }}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Format: JPG, PNG, atau PDF (maksimal 5MB)
+                  Format: {allowedExts.map((e) => e.toUpperCase()).join(", ")} (maks {selectedType?.max_file_size_mb ?? 5} MB)
                 </p>
               </div>
 

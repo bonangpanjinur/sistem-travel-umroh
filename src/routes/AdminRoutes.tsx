@@ -30,6 +30,7 @@ const AdminDepartures = lazy(() => import("@/pages/admin/AdminDepartures"));
 const AdminDepartureDetail = lazy(() => import("@/pages/admin/AdminDepartureDetail"));
 const AdminSavingsPlans = lazy(() => import("@/pages/admin/AdminSavingsPlans"));
 const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocumentVerification"));
+const AdminDocumentTypes = lazy(() => import("@/pages/admin/AdminDocumentTypes"));
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
@@ -156,6 +157,7 @@ export default function AdminRoutes() {
 
       {/* Dokumen & Surat */}
       <Route path="document-verification" element={<LazyPage><AdminDocumentVerification /></LazyPage>} />
+      <Route path="document-types" element={<LazyPage><AdminDocumentTypes /></LazyPage>} />
       <Route path="documents-generator" element={<LazyPage><AdminDocumentGenerator /></LazyPage>} />
       <Route path="offline-content" element={<LazyPage><AdminOfflineContent /></LazyPage>} />
 
