@@ -25,7 +25,7 @@ import { PackageListCustomization } from "@/components/admin/appearance/PackageL
 import { BankAccountsSettings } from "@/components/admin/appearance/BankAccountsSettings";
 import { DocumentLayoutEditor } from "@/components/admin/appearance/DocumentLayoutEditor";
 import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
-import { useWebsiteSettings, useThemePresets } from "@/hooks/useWebsiteSettings";
+import { useWebsiteSettings, useThemePresets, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -76,13 +76,28 @@ export default function AdminAppearance() {
     }
   }, [loadingCompany, getSetting, companyForm]);
 
-  const onSaveCompany = (data: CompanyFormData) => {
+  const updateWebsiteSettings = useUpdateWebsiteSettings();
+
+  const onSaveCompany = async (data: CompanyFormData) => {
+    // 1. Update master data company_settings
     updateMultipleSettings([
       { key: "company_name", value: data.company_name },
       { key: "company_phone", value: data.company_phone },
       { key: "company_email", value: data.company_email },
       { key: "company_address", value: data.company_address },
     ]);
+
+    // 2. Sync to website_settings for public display (footer & contact page)
+    try {
+      await updateWebsiteSettings.mutateAsync({
+        company_name: data.company_name,
+        footer_phone: data.company_phone,
+        footer_email: data.company_email,
+        footer_address: data.company_address,
+      });
+    } catch (error) {
+      console.error("Sync to website settings failed:", error);
+    }
   };
 
   if (loadingSettings || loadingPresets || loadingCompany) {

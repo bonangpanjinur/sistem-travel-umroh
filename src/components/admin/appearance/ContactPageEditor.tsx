@@ -105,6 +105,8 @@ export function ContactPageEditor() {
     },
   });
 
+  const isPending = saveMutation.isPending || updateSettingsMutation.isPending;
+
   const handleSave = async () => {
     saveMutation.mutate(formData);
   };
@@ -152,8 +154,6 @@ export function ContactPageEditor() {
   if (contentLoading || settingsLoading) {
     return <div className="text-center py-8">Memuat...</div>;
   }
-
-  const isPending = saveMutation.isPending || updateSettingsMutation.isPending;
 
   return (
     <div className="space-y-6">
