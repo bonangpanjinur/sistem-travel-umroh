@@ -446,6 +446,13 @@ export default function SavingsRegister() {
                     <span className="text-muted-foreground">Total Target</span>
                     <span className="font-medium">{formatCurrency(targetAmount)}</span>
                   </div>
+
+                  {dpAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Down Payment</span>
+                      <span className="font-medium text-primary">{formatCurrency(dpAmount)}</span>
+                    </div>
+                  )}
                   
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tenor</span>
