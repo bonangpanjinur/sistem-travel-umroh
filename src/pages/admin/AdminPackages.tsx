@@ -126,7 +126,7 @@ export default function AdminPackages() {
           airline:airlines(name),
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, star_rating),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, star_rating),
-          package_type_ref:package_types(name),
+          package_type_ref:package_types(name, code),
           departures(id, departure_date, quota, booked_count, status, price_quad, price_triple, price_double, price_single)
         `)
         .order('created_at', { ascending: false });
@@ -261,8 +261,11 @@ export default function AdminPackages() {
         return false;
       }
       
-      if (packageTypeFilter === "tabungan" && pkg.package_type !== "tabungan") return false;
-      if (packageTypeFilter === "regular" && pkg.package_type === "tabungan") return false;
+      // Check package_type_id relationship for tabungan filter
+      const pkgTypeCode = pkg.package_type_ref?.code;
+      
+      if (packageTypeFilter === "tabungan" && pkgTypeCode !== "tabungan") return false;
+      if (packageTypeFilter === "regular" && pkgTypeCode === "tabungan") return false;
 
       if (statusFilter === "active" && !pkg.is_active) return false;
       if (statusFilter === "inactive" && pkg.is_active) return false;
