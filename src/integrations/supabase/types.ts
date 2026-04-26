@@ -1624,28 +1624,43 @@ export type Database = {
       }
       document_types: {
         Row: {
+          allowed_extensions: string[]
           code: string
           created_at: string | null
           description: string | null
           id: string
+          is_active: boolean
           is_required: boolean | null
+          max_file_size_mb: number
           name: string
+          sort_order: number
+          updated_at: string
         }
         Insert: {
+          allowed_extensions?: string[]
           code: string
           created_at?: string | null
           description?: string | null
           id?: string
+          is_active?: boolean
           is_required?: boolean | null
+          max_file_size_mb?: number
           name: string
+          sort_order?: number
+          updated_at?: string
         }
         Update: {
+          allowed_extensions?: string[]
           code?: string
           created_at?: string | null
           description?: string | null
           id?: string
+          is_active?: boolean
           is_required?: boolean | null
+          max_file_size_mb?: number
           name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
