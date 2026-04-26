@@ -45,8 +45,8 @@ export const useDynamicMenus = () => {
       return (data || []).map((d: any) => d.permission_key as string);
     },
     enabled: !!user && !isSuperAdmin && isStaffUser,
-    staleTime: 1000 * 60 * 60, // Increase staleTime to 1 hour
-    gcTime: 1000 * 60 * 60 * 2, // Keep in cache for 2 hours
+    staleTime: 1000 * 60 * 5, // 5 minutes for revoked keys (more frequent than menus)
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
 
   // Registry fallback (used when DB is empty / unreachable) — keeps sidebar usable.
@@ -87,8 +87,8 @@ export const useDynamicMenus = () => {
       })) as MenuItem[];
     },
     enabled: !!user && isStaffUser,
-    staleTime: 1000 * 60 * 30, // 30 minutes - balance between freshness and performance
-    gcTime: 1000 * 60 * 60 * 2, // Keep in cache for 2 hours
+    staleTime: 1000 * 60 * 60, // 1 hour for menu items (rarely change)
+    gcTime: 1000 * 60 * 60 * 24, // Keep in cache for 24 hours
   });
 
   // If DB returned empty (or query disabled), fall back to the static registry
