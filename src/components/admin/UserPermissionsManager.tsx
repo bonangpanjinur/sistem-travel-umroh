@@ -166,6 +166,34 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
     onError: () => toast.error("Gagal memperbarui izin grup"),
   });
 
+  const globalBulkMutation = useMutation({
+    mutationFn: async ({ enable }: { enable: boolean }) => {
+      if (enable) {
+        const { error } = await supabase
+          .from('user_permissions')
+          .delete()
+          .eq('user_id', userId);
+        if (error) throw error;
+      } else {
+        const upsertPayload = rows.map(p => ({
+          user_id: userId,
+          permission_key: p.key,
+          is_enabled: false,
+        }));
+        const { error } = await supabase
+          .from('user_permissions')
+          .upsert(upsertPayload, { onConflict: 'user_id,permission_key' });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-detail", userId] });
+      queryClient.invalidateQueries({ queryKey: ["user-permissions-revoked"] });
+      toast.success("Semua izin diperbarui");
+    },
+    onError: () => toast.error("Gagal memperbarui semua izin"),
+  });
+
   const resetAllMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
@@ -361,6 +389,36 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
                 className="pl-9 h-9 text-sm"
               />
             </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => globalBulkMutation.mutate({ enable: true })}
+                  disabled={stats.active === stats.total || globalBulkMutation.isPending}
+                  className="h-9 gap-1.5 text-xs flex-shrink-0 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-200"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Aktif Semua
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Aktifkan semua izin untuk user ini</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => globalBulkMutation.mutate({ enable: false })}
+                  disabled={stats.revoked === stats.total || globalBulkMutation.isPending}
+                  className="h-9 gap-1.5 text-xs flex-shrink-0 text-red-700 hover:text-red-800 hover:bg-red-50 border-red-200"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  Matikan Semua
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Matikan semua izin untuk user ini</TooltipContent>
+            </Tooltip>
             {stats.overrides > 0 && (
               <Button
                 variant="outline"
@@ -414,7 +472,7 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
                               type="button"
                               variant="ghost"
                               size="sm"
-                              disabled={allEnabled || groupBulkMutation.isPending}
+                              disabled={allEnabled || groupBulkMutation.isPending || globalBulkMutation.isPending}
                               onClick={() => groupBulkMutation.mutate({ groupItems: items, enable: true })}
                               className="h-7 px-2 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
                             >
@@ -429,7 +487,7 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
                               type="button"
                               variant="ghost"
                               size="sm"
-                              disabled={allDisabled || groupBulkMutation.isPending}
+                              disabled={allDisabled || groupBulkMutation.isPending || globalBulkMutation.isPending}
                               onClick={() => groupBulkMutation.mutate({ groupItems: items, enable: false })}
                               className="h-7 px-2 text-xs text-red-700 hover:text-red-800 hover:bg-red-50"
                             >
@@ -475,7 +533,7 @@ export function UserPermissionsManager({ userId, userName, isSuperAdminTarget }:
                                       oldValue: perm.is_enabled,
                                     });
                                   }}
-                                  disabled={toggleMutation.isPending}
+                                  disabled={toggleMutation.isPending || globalBulkMutation.isPending}
                                 />
                               </Label>
                             </div>
