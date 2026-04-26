@@ -15,6 +15,8 @@ const DeparturesPage = lazy(() => import("@/pages/public/DeparturesPage"));
 const StaticPage = lazy(() => import("@/pages/public/StaticPage"));
 const SavingsPackages = lazy(() => import("@/pages/savings/SavingsPackages"));
 const SavingsRegister = lazy(() => import("@/pages/savings/SavingsRegister"));
+const SavingsSuccess = lazy(() => import("@/pages/savings/SavingsSuccess"));
+const SavingsDashboard = lazy(() => import("@/pages/savings/SavingsDashboard"));
 const BranchWebsite = lazy(() => import("@/pages/public/BranchWebsite"));
 const AgentWebsite = lazy(() => import("@/pages/public/AgentWebsite"));
 const LandingPage = lazy(() => import("@/pages/public/LandingPage"));
@@ -41,6 +43,8 @@ export default function PublicRoutes() {
       <Route path="/contact" element={<LazyPage><ContactPage /></LazyPage>} />
       <Route path="/savings" element={<LazyPage><SavingsPackages /></LazyPage>} />
       <Route path="/savings/register/:packageId" element={<LazyPage><SavingsRegister /></LazyPage>} />
+      <Route path="/savings/success/:planId" element={<LazyPage><SavingsSuccess /></LazyPage>} />
+      <Route path="/savings/dashboard" element={<LazyPage><SavingsDashboard /></LazyPage>} />
       <Route path="/departures" element={<LazyPage><DeparturesPage /></LazyPage>} />
       <Route path="/faq" element={<LazyPage><StaticPage /></LazyPage>} />
       <Route path="/terms" element={<LazyPage><StaticPage /></LazyPage>} />

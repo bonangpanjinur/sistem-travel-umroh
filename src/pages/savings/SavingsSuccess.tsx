@@ -184,7 +184,7 @@ export default function SavingsSuccess() {
               </Link>
             </Button>
             <Button asChild size="lg">
-              <Link to="/customer/my-savings">
+              <Link to="/savings/dashboard">
                 <User className="h-4 w-4 mr-2" />
                 Lihat Tabungan Saya
                 <ArrowRight className="h-4 w-4 ml-2" />
