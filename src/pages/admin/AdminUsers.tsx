@@ -696,7 +696,14 @@ export default function AdminUsers() {
       </AlertDialog>
 
       {/* User Permissions Dialog */}
-      <Dialog open={showPermissionsDialog} onOpenChange={setShowPermissionsDialog}>
+      <Dialog open={showPermissionsDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowPermissionsDialog(false);
+          setSelectedUser(null);
+        } else {
+          setShowPermissionsDialog(open);
+        }
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -718,11 +725,14 @@ export default function AdminUsers() {
           </DialogHeader>
           {selectedUser && (
             <Suspense fallback={<div className="py-8"><Skeleton className="h-32 w-full" /></div>}>
-              <UserPermissionsManager
-                userId={selectedUser.user_id}
-                userName={selectedUser.full_name || ""}
-                isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin' || r.role === 'owner')}
-              />
+              <div className="flex-1 min-h-0">
+                <UserPermissionsManager
+                  key={selectedUser.user_id}
+                  userId={selectedUser.user_id}
+                  userName={selectedUser.full_name || ""}
+                  isSuperAdminTarget={selectedUser.roles.some(r => r.role === 'super_admin' || r.role === 'owner')}
+                />
+              </div>
             </Suspense>
           )}
         </DialogContent>
