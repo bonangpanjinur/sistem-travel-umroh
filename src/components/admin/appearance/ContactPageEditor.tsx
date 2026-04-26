@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useContactPageContent, ContactPageContent } from '@/hooks/useContactPageContent';
+import { useContactPageContent } from '@/hooks/useContactPageContent';
 import { useWebsiteSettings, useUpdateWebsiteSettings } from '@/hooks/useWebsiteSettings';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Save, 
   RotateCcw, 
@@ -20,7 +21,11 @@ import {
   MessageCircle, 
   Plus, 
   Trash2, 
-  Info
+  Info,
+  Clock,
+  Layout,
+  Map as MapIcon,
+  MessageSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -152,286 +157,318 @@ export function ContactPageEditor() {
   };
 
   if (contentLoading || settingsLoading) {
-    return <div className="text-center py-8">Memuat...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+        <p className="text-muted-foreground animate-pulse">Memuat konfigurasi editor...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold tracking-tight">Editor Halaman Kontak</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleReset}>
+    <div className="max-w-6xl mx-auto space-y-8">
+      {/* Header with Sticky Action Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 py-4 border-b">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Editor Halaman Kontak</h2>
+          <p className="text-muted-foreground mt-1">Kelola konten, jam operasional, dan lokasi peta halaman kontak Anda.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={handleReset} className="shadow-sm">
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
           </Button>
           <Button 
-            size="sm" 
             onClick={handleSave} 
             disabled={isPending}
+            className="shadow-md px-6"
           >
-            <Save className="h-4 w-4 mr-2" />
-            {isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
+            {isPending ? (
+              <>
+                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                Menyimpan...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Simpan Perubahan
+              </>
+            )}
           </Button>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          {/* Identitas Kantor & Kontak (Master Data) */}
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-primary" />
-                Identitas Kantor & Kontak
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Data ini diambil dari <strong>Informasi Perusahaan</strong> dan akan ditampilkan di halaman kontak serta footer.
-              </p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Sidebar: Company Info (Master Data) */}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-primary/10 shadow-sm overflow-hidden">
+            <div className="h-2 bg-primary/20" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Identitas & Kontak
+                </CardTitle>
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">Master Data</Badge>
+              </div>
+              <CardDescription>Informasi ini disinkronkan dari pengaturan perusahaan.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> Alamat Kantor
-                  </Label>
-                  <p className="text-sm font-medium leading-relaxed">{companyData.footer_address || '-'}</p>
+            <CardContent className="space-y-5">
+              <div className="space-y-4">
+                <div className="flex gap-3 items-start">
+                  <div className="p-2 bg-muted rounded-md shrink-0">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Alamat Kantor</Label>
+                    <p className="text-sm font-medium leading-relaxed">{companyData.footer_address || '-'}</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Phone className="h-3 w-3" /> No. Telepon
-                  </Label>
-                  <p className="text-sm font-medium">{companyData.footer_phone || '-'}</p>
+
+                <div className="flex gap-3 items-start">
+                  <div className="p-2 bg-muted rounded-md shrink-0">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">No. Telepon</Label>
+                    <p className="text-sm font-medium">{companyData.footer_phone || '-'}</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Mail className="h-3 w-3" /> Email
-                  </Label>
-                  <p className="text-sm font-medium">{companyData.footer_email || '-'}</p>
+
+                <div className="flex gap-3 items-start">
+                  <div className="p-2 bg-muted rounded-md shrink-0">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Email Resmi</Label>
+                    <p className="text-sm font-medium break-all">{companyData.footer_email || '-'}</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <MessageCircle className="h-3 w-3" /> WhatsApp
-                  </Label>
-                  <p className="text-sm font-medium">{companyData.footer_whatsapp || '-'}</p>
+
+                <div className="flex gap-3 items-start">
+                  <div className="p-2 bg-muted rounded-md shrink-0">
+                    <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">WhatsApp</Label>
+                    <p className="text-sm font-medium">{companyData.footer_whatsapp || '-'}</p>
+                  </div>
                 </div>
               </div>
+
               <Separator />
-              <div className="flex items-center gap-2 p-2 bg-blue-50 text-blue-700 rounded-md text-[11px] border border-blue-100">
-                <Info className="h-3.5 w-3.5 shrink-0" />
-                <p>
-                  Untuk mengubah data di atas, silakan buka tab <strong>Informasi Perusahaan</strong>.
+              
+              <div className="flex items-start gap-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100/50">
+                <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-blue-700 leading-normal">
+                  Data di atas bersifat <strong>Read-Only</strong>. Untuk mengubahnya, silakan buka tab <span className="font-semibold underline">Informasi Perusahaan</span>.
                 </p>
               </div>
             </CardContent>
           </Card>
-
-          {/* Hero Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Konten Halaman Kontak</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="hero_title">Judul Hero</Label>
-                <Input
-                  id="hero_title"
-                  value={formData.hero_title}
-                  onChange={(e) => setFormData({ ...formData, hero_title: e.target.value })}
-                  placeholder="Contoh: Hubungi Kami"
-                />
-              </div>
-              <div>
-                <Label htmlFor="hero_subtitle">Sub-judul Hero</Label>
-                <Textarea
-                  id="hero_subtitle"
-                  value={formData.hero_subtitle}
-                  onChange={(e) => setFormData({ ...formData, hero_subtitle: e.target.value })}
-                  placeholder="Contoh: Kami siap membantu merencanakan perjalanan ibadah Anda"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Form Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Bagian Formulir</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="form_title">Judul Form</Label>
-                <Input
-                  id="form_title"
-                  value={formData.form_title || ''}
-                  onChange={(e) => setFormData({ ...formData, form_title: e.target.value })}
-                  placeholder="Kirim Pesan"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Map Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Peta Lokasi</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="map_url">URL Peta (Google Maps Embed)</Label>
-                <Textarea
-                  id="map_url"
-                  value={formData.map_url || ''}
-                  onChange={(e) => setFormData({ ...formData, map_url: extractIframeUrl(e.target.value) })}
-                  placeholder="https://www.google.com/maps/embed?pb=..."
-                  rows={3}
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Gunakan embed URL dari Google Maps (atribut src).
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          
+          {/* Visual Hint */}
+          <div className="p-6 border border-dashed rounded-xl flex flex-col items-center text-center space-y-3 bg-muted/20">
+            <div className="p-3 bg-background rounded-full shadow-sm">
+              <Layout className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Pratinjau Langsung</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">Gunakan tombol "Tampilkan Preview" di atas untuk melihat perubahan secara real-time.</p>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-6">
-          {/* Contact Info Cards (from Master Data - Read Only) */}
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-primary" />
-                Informasi Kontak
-                <Badge variant="secondary" className="ml-auto">Master Data</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 text-blue-600 mt-0.5" />
-                  <p className="text-sm text-blue-700">
-                    Informasi kontak diambil otomatis dari <strong>Informasi Perusahaan</strong>. 
-                    Untuk mengubah, silakan edit di tab <strong>Informasi Perusahaan</strong>.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  Alamat Kantor
-                </Label>
-                <Textarea
-                  value={companyData.footer_address}
-                  readOnly
-                  disabled
-                  placeholder="Tidak ada alamat"
-                  rows={2}
-                  className="bg-muted/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-muted-foreground">
-                  <Phone className="h-4 w-4" />
-                  Nomor Telepon
-                </Label>
-                <Input
-                  value={companyData.footer_phone}
-                  readOnly
-                  disabled
-                  placeholder="Tidak ada telepon"
-                  className="bg-muted/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-4 w-4" />
-                  Email
-                </Label>
-                <Input
-                  value={companyData.footer_email}
-                  readOnly
-                  disabled
-                  placeholder="Tidak ada email"
-                  className="bg-muted/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-muted-foreground">
-                  <MessageCircle className="h-4 w-4" />
-                  WhatsApp
-                </Label>
-                <Input
-                  value={companyData.footer_whatsapp || '-'}
-                  readOnly
-                  disabled
-                  placeholder="Tidak ada WhatsApp"
-                  className="bg-muted/50"
-                />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Main Content Area */}
+        <div className="lg:col-span-2">
+          <Tabs defaultValue="content" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6 p-1 h-12">
+              <TabsTrigger value="content" className="gap-2 h-full">
+                <Layout className="h-4 w-4" />
+                <span>Konten Hero</span>
+              </TabsTrigger>
+              <TabsTrigger value="hours" className="gap-2 h-full">
+                <Clock className="h-4 w-4" />
+                <span>Jam Kerja</span>
+              </TabsTrigger>
+              <TabsTrigger value="map" className="gap-2 h-full">
+                <MapIcon className="h-4 w-4" />
+                <span>Lokasi Peta</span>
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Operating Hours */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Jam Operasional</CardTitle>
-              <Button size="sm" onClick={addOperatingHour} variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Tambah
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {formData.operating_hours && formData.operating_hours.length > 0 ? (
-                formData.operating_hours.map((hour: any, index: number) => (
-                  <div key={index} className="border rounded-lg p-3 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <Badge variant="secondary">Jam {index + 1}</Badge>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeOperatingHour(index)}
-                        className="h-8 w-8 p-0 text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+            <TabsContent value="content" className="space-y-6 animate-in fade-in-50 duration-300">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Layout className="h-5 w-5 text-primary" />
+                    Header & Hero
+                  </CardTitle>
+                  <CardDescription>Tentukan judul dan deskripsi utama yang akan muncul di bagian atas halaman kontak.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="hero_title">Judul Utama (Hero Title)</Label>
+                    <Input
+                      id="hero_title"
+                      value={formData.hero_title}
+                      onChange={(e) => setFormData({ ...formData, hero_title: e.target.value })}
+                      placeholder="Contoh: Hubungi Tim Kami"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hero_subtitle">Sub-judul / Deskripsi</Label>
+                    <Textarea
+                      id="hero_subtitle"
+                      value={formData.hero_subtitle}
+                      onChange={(e) => setFormData({ ...formData, hero_subtitle: e.target.value })}
+                      placeholder="Contoh: Kami siap membantu merencanakan perjalanan ibadah Anda dengan sepenuh hati."
+                      rows={4}
+                      className="resize-none"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Bagian Formulir
+                  </CardTitle>
+                  <CardDescription>Ubah teks judul pada bagian formulir kontak.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Label htmlFor="form_title">Judul Formulir</Label>
+                    <Input
+                      id="form_title"
+                      value={formData.form_title || ''}
+                      onChange={(e) => setFormData({ ...formData, form_title: e.target.value })}
+                      placeholder="Contoh: Kirim Pesan Sekarang"
+                      className="h-11"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="hours" className="space-y-6 animate-in fade-in-50 duration-300">
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      Jam Operasional
+                    </CardTitle>
+                    <CardDescription>Tambahkan jadwal operasional kantor Anda.</CardDescription>
+                  </div>
+                  <Button size="sm" onClick={addOperatingHour} variant="outline" className="h-9 border-primary/20 text-primary hover:bg-primary/5">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Tambah Jadwal
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {formData.operating_hours && formData.operating_hours.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-4">
+                      {formData.operating_hours.map((hour: any, index: number) => (
+                        <div key={index} className="group relative border rounded-xl p-5 bg-muted/10 hover:bg-muted/20 hover:border-primary/20 transition-all duration-200">
+                          <div className="flex justify-between items-center mb-4">
+                            <Badge variant="secondary" className="bg-background shadow-sm px-3">Sesi {index + 1}</Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeOperatingHour(index)}
+                              className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hari / Label</Label>
+                              <Input
+                                value={hour.label || ''}
+                                onChange={(e) => updateOperatingHour(index, 'label', e.target.value)}
+                                placeholder="Misal: Senin - Jumat"
+                                className="bg-background"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Waktu Operasional</Label>
+                              <Input
+                                value={hour.value || ''}
+                                onChange={(e) => updateOperatingHour(index, 'value', e.target.value)}
+                                placeholder="Misal: 08:00 - 17:00"
+                                className="bg-background"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Label</Label>
-                        <Input
-                          value={hour.label || ''}
-                          onChange={(e) => updateOperatingHour(index, 'label', e.target.value)}
-                          placeholder="Senin - Jumat"
-                          className="h-8"
-                        />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-xl bg-muted/5">
+                      <div className="p-4 bg-background rounded-full mb-4">
+                        <Clock className="h-8 w-8 text-muted-foreground/40" />
                       </div>
-                      <div>
-                        <Label className="text-xs">Jam</Label>
-                        <Input
-                          value={hour.value || ''}
-                          onChange={(e) => updateOperatingHour(index, 'value', e.target.value)}
-                          placeholder="08:00 - 17:00"
-                          className="h-8"
-                        />
-                      </div>
+                      <p className="text-sm text-muted-foreground font-medium">Belum ada jam operasional yang ditambahkan.</p>
+                      <Button variant="link" onClick={addOperatingHour} className="mt-1">Klik untuk menambah jadwal</Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="map" className="space-y-6 animate-in fade-in-50 duration-300">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <MapIcon className="h-5 w-5 text-primary" />
+                    Peta Lokasi (Google Maps)
+                  </CardTitle>
+                  <CardDescription>Integrasikan peta lokasi kantor Anda menggunakan Google Maps Embed.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="map_url">URL Embed / Kode Iframe</Label>
+                    <Textarea
+                      id="map_url"
+                      value={formData.map_url || ''}
+                      onChange={(e) => setFormData({ ...formData, map_url: extractIframeUrl(e.target.value) })}
+                      placeholder="Tempel kode iframe atau URL src di sini..."
+                      rows={4}
+                      className="font-mono text-xs"
+                    />
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                      <Info className="h-3.5 w-3.5 shrink-0" />
+                      <p>Tips: Masuk ke Google Maps, klik "Bagikan", pilih "Sematkan peta", lalu salin kode yang diberikan.</p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <p className="text-muted-foreground text-sm text-center py-4">Belum ada jam operasional.</p>
-              )}
-            </CardContent>
-          </Card>
+
+                  {formData.map_url && (
+                    <div className="space-y-3">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pratinjau Peta</Label>
+                      <div className="aspect-video rounded-xl overflow-hidden border shadow-inner bg-muted">
+                        <iframe
+                          src={formData.map_url}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-
-      {/* Save Button */}
-      <Button
-        onClick={handleSave}
-        disabled={isPending}
-        className="w-full py-6 text-lg"
-      >
-        <Save className="h-5 w-5 mr-2" />
-        {isPending ? 'Menyimpan Perubahan...' : 'Simpan Semua Perubahan'}
-      </Button>
     </div>
   );
 }
