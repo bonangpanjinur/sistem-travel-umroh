@@ -179,6 +179,8 @@ export const useDynamicMenus = () => {
     refetch,
     effectiveKeys,
     allowedSet,
+    // Backward compat: legacy consumers expect `revokedKeys` (a list of denied keys)
+    revokedKeys: [] as string[],
     isPathAllowed,
   };
 };
