@@ -130,7 +130,7 @@ export default function AdminSavings() {
       totalPaid,
       pendingPayments,
       conversionRate: plans.length > 0 
-        ? ((plans.filter((p: any) => p.status === 'converted').length / plans.length * 100).toFixed(1)
+        ? ((plans.filter((p: any) => p.status === 'converted').length / plans.length) * 100).toFixed(1)
         : 0,
     };
   }, [plans, payments]);
