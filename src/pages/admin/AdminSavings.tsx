@@ -130,7 +130,7 @@ export default function AdminSavings() {
       totalPaid,
       pendingPayments,
       conversionRate: plans.length > 0 
-        ? ((plans.filter((p: any) => p.status === 'converted').length / plans.length * 100).toFixed(1)
+        ? ((plans.filter((p: any) => p.status === 'converted').length / plans.length) * 100).toFixed(1)
         : 0,
     };
   }, [plans, payments]);
@@ -347,7 +347,7 @@ export default function AdminSavings() {
             <CardContent>
               {plansLoading ? (
                 <div className="space-y-3">
-                  {[1, 2, 3].map(i) => (
+                  {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-16" />
                   ))}
                 </div>
@@ -486,7 +486,7 @@ export default function AdminSavings() {
             <CardContent>
               {paymentsLoading ? (
                 <div className="space-y-3">
-                  {[1, 2, 3].map(i) => (
+                  {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-16" />
                   ))}
                 </div>

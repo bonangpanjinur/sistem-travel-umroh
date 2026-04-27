@@ -1,6 +1,8 @@
 /**
- * Hook untuk mengelola menu dinamis dengan user-level permission filtering.
- * Single source of truth: `menu_items` + `user_permissions` (revocations only).
+ * Hook untuk mengelola menu dinamis dengan logika 2 lapis:
+ *  1. Default per role (`role_permissions`)
+ *  2. Override per user (`user_permissions`)
+ * Resolusi dilakukan di server via RPC `get_user_effective_permissions`.
  */
 
 import { useMemo, useCallback } from 'react';
@@ -31,22 +33,20 @@ export const useDynamicMenus = () => {
 
   const isStaffUser = isStaff();
 
-  // Fetch user's revoked permissions (only relevant for staff users)
-  const { data: revokedKeys = [] } = useQuery({
-    queryKey: ['user-permissions-revoked', user?.id],
+  // Fetch the effective permission set for the current user (role default + user overrides)
+  const { data: effectiveKeys = [] } = useQuery({
+    queryKey: ['user-effective-permissions', user?.id],
     queryFn: async () => {
-      if (!user || isSuperAdmin || !isStaffUser) return [];
-      const { data, error } = await supabase
-        .from('user_permissions')
-        .select('permission_key')
-        .eq('user_id', user.id)
-        .eq('is_enabled', false);
-      if (error) { console.error(error); return []; }
-      return (data || []).map((d: any) => d.permission_key as string);
+      if (!user || isSuperAdmin || !isStaffUser) return [] as string[];
+      const { data, error } = await (supabase.rpc as any)('get_user_effective_permissions', {
+        _user_id: user.id,
+      });
+      if (error) { console.error(error); return [] as string[]; }
+      return ((data || []) as Array<{ permission_key: string }>).map(r => r.permission_key);
     },
     enabled: !!user && !isSuperAdmin && isStaffUser,
-    staleTime: 1000 * 60 * 5, // 5 minutes for revoked keys (more frequent than menus)
-    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 60,
   });
 
   // Registry fallback (used when DB is empty / unreachable) — keeps sidebar usable.
@@ -103,19 +103,16 @@ export const useDynamicMenus = () => {
   // by reloading after a permission/menu mutation. This eliminates an unused
   // websocket channel that was mounted for every staff session.
 
-  // Super admin → all menus. Other staff → hide menus whose required_permission
-  // appears in revokedKeys (user has explicit is_enabled=false override).
-  // Memoized with stable dependency array
-  const revokedSet = useMemo(() => new Set(revokedKeys), [revokedKeys]);
-  
+  // Super admin → all menus. Others → only menus whose required_permission is
+  // present in the effective permission set. Menus without a required_permission
+  // remain visible to every staff user (e.g. a generic admin landing).
+  const allowedSet = useMemo(() => new Set(effectiveKeys), [effectiveKeys]);
+
   const filteredMenus = useMemo(() => {
-    // Filter by is_visible first (unless it's undefined, which shouldn't happen with DB data)
     const visibleMenus = menus.filter(m => (m as any).is_visible !== false);
-    
     if (isSuperAdmin) return visibleMenus;
-    if (!revokedKeys || revokedKeys.length === 0) return visibleMenus;
-    return visibleMenus.filter(m => !m.required_permission || !revokedSet.has(m.required_permission));
-  }, [menus, revokedSet, isSuperAdmin]);
+    return visibleMenus.filter(m => !m.required_permission || allowedSet.has(m.required_permission));
+  }, [menus, allowedSet, isSuperAdmin]);
 
   // Group menus - memoized for performance
   const groupedMenus: MenuGroup[] = useMemo(() => {
@@ -166,15 +163,25 @@ export const useDynamicMenus = () => {
    */
   const isPathAllowed = useCallback((path: string): boolean => {
     if (isSuperAdmin) return true;
-    if (!revokedKeys || revokedKeys.length === 0) return true;
     // Find the most-specific menu match (longest matching path)
     const match = menus
       .filter(m => path === m.path || (m.path !== '/admin' && path.startsWith(m.path)))
       .sort((a, b) => b.path.length - a.path.length)[0];
     if (!match || !match.required_permission) return true;
-    return !revokedSet.has(match.required_permission);
-  }, [isSuperAdmin, revokedKeys, menus, revokedSet]);
+    return allowedSet.has(match.required_permission);
+  }, [isSuperAdmin, menus, allowedSet]);
 
-  return { menus: filteredMenus, groupedMenus: sortedGroupedMenus, isLoading, error, refetch, revokedKeys, isPathAllowed };
+  return {
+    menus: filteredMenus,
+    groupedMenus: sortedGroupedMenus,
+    isLoading,
+    error,
+    refetch,
+    effectiveKeys,
+    allowedSet,
+    // Backward compat: legacy consumers expect `revokedKeys` (a list of denied keys)
+    revokedKeys: [] as string[],
+    isPathAllowed,
+  };
 };
 

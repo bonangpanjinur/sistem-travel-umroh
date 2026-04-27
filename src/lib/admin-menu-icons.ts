@@ -12,7 +12,7 @@ import {
   Banknote, FileCheck, FileText, Plane, Building, Hotel, UserCheck, Bus, Store,
   LifeBuoy, MessageSquare, Megaphone, FileBarChart, UserCog, ShieldAlert,
   KeyRound, Palette, MessageCircle, Layers, Settings, Circle,
-  FileCog,
+  FileCog, ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -23,7 +23,7 @@ export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
   TrendingUp, TrendingDown, PieChart, UserPlus, Ticket, Globe, Contact2,
   Banknote, FileCheck, FileText, Plane, Building, Hotel, UserCheck, Bus, Store,
   LifeBuoy, MessageSquare, Megaphone, FileBarChart, UserCog, ShieldAlert,
-  KeyRound, Palette, MessageCircle, Layers, Settings, FileCog,
+  KeyRound, Palette, MessageCircle, Layers, Settings, FileCog, ShieldCheck,
 };
 
 /** Resolve an icon by name, falling back to Circle when unknown/missing. */
