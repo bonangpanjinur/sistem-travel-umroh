@@ -4062,6 +4062,41 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          permission_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions_list"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       room_assignment_audit: {
         Row: {
           action: string
@@ -5513,6 +5548,12 @@ export type Database = {
         Returns: string
       }
       get_user_branch_id: { Args: { _user_id: string }; Returns: string }
+      get_user_effective_permissions: {
+        Args: { _user_id: string }
+        Returns: {
+          permission_key: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
