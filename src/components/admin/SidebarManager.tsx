@@ -31,9 +31,11 @@ interface MenuItem {
   id: string;
   key: string;
   label: string;
+  path: string;
   group_name: string;
   sort_order: number;
   icon?: string;
+  required_permission: string;
 }
 
 interface MenuGroup {
@@ -47,11 +49,11 @@ export const SidebarManager = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const { data: dbMenus, isLoading, refetch } = useQuery({
-    queryKey: ['admin-sidebar-items'],
+    queryKey: ['admin-sidebar-items-raw'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('menu_items')
-        .select('id, key, label, group_name, sort_order, icon')
+        .select('*')
         .order('sort_order', { ascending: true });
       
       if (error) throw error;
@@ -71,29 +73,11 @@ export const SidebarManager = () => {
         return acc;
       }, []);
 
-      // Sort groups based on a predefined order or just alphabetically for now
-      // In a real app, you might want a 'menu_groups' table with its own sort_order
-      const GROUP_ORDER = [
-        'Overview',
-        'Sales & CRM',
-        'Produk & Operasional',
-        'Keuangan & Akuntansi',
-        'Jamaah & Agent',
-        'SDM (HR)',
-        'Dokumen & Surat',
-        'Master Data',
-        'Support & Komunikasi',
-        'Laporan',
-        'Pengaturan',
-      ];
-
+      // Sort groups based on the minimum sort_order of their items
       grouped.sort((a, b) => {
-        const ia = GROUP_ORDER.indexOf(a.name);
-        const ib = GROUP_ORDER.indexOf(b.name);
-        if (ia === -1 && ib === -1) return a.name.localeCompare(b.name);
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
+        const minA = Math.min(...a.items.map(i => i.sort_order));
+        const minB = Math.min(...b.items.map(i => i.sort_order));
+        return minA - minB;
       });
 
       // Ensure items within groups are sorted by sort_order
@@ -142,28 +126,30 @@ export const SidebarManager = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const updates = groups.flatMap((group, groupIdx) => 
+      // Re-calculate sort orders based on the current UI state
+      const menuItemsToSync = groups.flatMap((group, groupIdx) => 
         group.items.map((item, itemIdx) => ({
-          id: item.id,
+          key: item.key,
+          label: item.label,
+          path: item.path,
+          icon: item.icon,
           group_name: group.name,
-          sort_order: (groupIdx * 100) + itemIdx // Simple way to maintain order across groups
+          sort_order: (groupIdx * 100) + itemIdx,
+          required_permission: item.required_permission
         }))
       );
 
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('menu_items')
-          .update({ 
-            group_name: update.group_name, 
-            sort_order: update.sort_order 
-          })
-          .eq('id', update.id);
-        
-        if (error) throw error;
-      }
+      // Use the RPC for bulk synchronization
+      const { data, error } = await (supabase.rpc as any)('bulk_sync_menu_items', {
+        _menu_items: menuItemsToSync
+      });
+      
+      if (error) throw error;
 
       toast.success('Susunan sidebar berhasil disimpan');
+      // Invalidate all related queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['dynamic-menus'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sidebar-items-raw'] });
       refetch();
     } catch (error: any) {
       console.error('Error saving sidebar order:', error);
