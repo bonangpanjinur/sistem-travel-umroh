@@ -63,7 +63,7 @@ export default function PackageDetail() {
         .from('departure_itineraries')
         .select(`
           customized_days,
-          itinerary_template:itinerary_templates(id, name, description, duration_days)
+         itinerary_template:itinerary_templates(id, name, description, duration_days, days)
         `)
         .eq('departure_id', openDepartureId)
         .maybeSingle();
