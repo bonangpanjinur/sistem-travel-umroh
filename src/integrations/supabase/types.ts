@@ -5614,6 +5614,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      sync_role_permissions_to_users: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: undefined
+      }
       user_belongs_to_branch: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
