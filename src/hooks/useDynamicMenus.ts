@@ -127,32 +127,29 @@ export const useDynamicMenus = () => {
     return grouped;
   }, [filteredMenus]);
 
-  // Manual group order (DB has no group_sort_order column). Groups not listed
-  // here are appended at the end, preserving their insertion order.
-  // Memoized to prevent re-sorting on every render
+  // Group order logic:
+  // We use the minimum sort_order of items within a group to determine the group's order.
+  // This allows the Super Admin to reorder groups by moving items between them or 
+  // by changing the sort_order of items.
   const sortedGroupedMenus = useMemo(() => {
-    const GROUP_ORDER = [
-      'Overview',
-      'Sales & CRM',
-      'Produk & Operasional',
-      'Keuangan & Akuntansi',
-      'Jamaah & Agent',
-      'SDM (HR)',
-      'Dokumen & Surat',
-      'Master Data',
-      'Support & Komunikasi',
-      'Laporan',
-      'Pengaturan',
-    ];
     const sorted = [...groupedMenus];
+    
+    // Calculate the minimum sort_order for each group
+    const groupMinSortOrder = groupedMenus.reduce((acc: Record<string, number>, group) => {
+      acc[group.name] = Math.min(...group.items.map(item => item.sort_order));
+      return acc;
+    }, {});
+
     sorted.sort((a, b) => {
-      const ia = GROUP_ORDER.indexOf(a.name);
-      const ib = GROUP_ORDER.indexOf(b.name);
-      if (ia === -1 && ib === -1) return 0;
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
+      const orderA = groupMinSortOrder[a.name] ?? 9999;
+      const orderB = groupMinSortOrder[b.name] ?? 9999;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return a.name.localeCompare(b.name);
     });
+    
     return sorted;
   }, [groupedMenus]);
 

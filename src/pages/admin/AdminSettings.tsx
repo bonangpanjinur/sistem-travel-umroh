@@ -17,9 +17,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
 import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
+import { SidebarManager } from "@/components/admin/SidebarManager";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useDynamicMenus } from "@/hooks/useDynamicMenus";
@@ -171,17 +173,142 @@ export default function AdminSettings() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-bold">Edit Profil</h1>
-        <p className="text-muted-foreground">Kelola profil pengguna dan keamanan akun</p>
+        <h1 className="text-2xl font-bold">Pengaturan Sistem</h1>
+        <p className="text-muted-foreground">Kelola profil, keamanan, dan konfigurasi sistem</p>
       </div>
 
-      {/* User Profile */}
-      <ProfileForm />
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="profile">Profil & Keamanan</TabsTrigger>
+          <TabsTrigger value="bank">Rekening Bank</TabsTrigger>
+          {isSuperAdmin && <TabsTrigger value="sidebar">Susunan Sidebar</TabsTrigger>}
+          <TabsTrigger value="danger">Zona Bahaya</TabsTrigger>
+        </TabsList>
 
-      {/* Change Password */}
-      <ChangePassword />
+        <TabsContent value="profile" className="space-y-6 max-w-2xl">
+          {/* User Profile */}
+          <ProfileForm />
+
+          {/* Change Password */}
+          <ChangePassword />
+        </TabsContent>
+
+        <TabsContent value="bank" className="space-y-6 max-w-2xl">
+          {/* Bank Accounts */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Rekening Bank
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditingBank(null);
+                    setIsBankDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Tambah
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {loadingAccounts ? (
+                <div className="flex items-center gap-2 text-muted-foreground py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Memuat data bank...
+                </div>
+              ) : accounts.length === 0 ? (
+                <p className="text-muted-foreground py-2">Belum ada rekening bank yang terdaftar.</p>
+              ) : (
+                accounts.map((acc) => (
+                  <div
+                    key={acc.id}
+                    className="p-4 border rounded-lg flex items-start justify-between hover:bg-muted/30 transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{acc.bank_name}</p>
+                        {acc.is_primary && (
+                          <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase tracking-wider">
+                            Utama
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-lg font-mono font-semibold tracking-tight">{acc.account_number}</p>
+                      <p className="text-sm text-muted-foreground">a.n. {acc.account_name}</p>
+                      {acc.branch_name && (
+                        <p className="text-xs text-muted-foreground mt-1 italic">Cabang: {acc.branch_name}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingBank(acc);
+                          setIsBankDialogOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          if (confirm("Apakah Anda yakin ingin menghapus rekening ini?")) {
+                            deleteAccount(acc.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {isSuperAdmin && (
+          <TabsContent value="sidebar" className="space-y-6">
+            <SidebarManager />
+          </TabsContent>
+        )}
+
+        <TabsContent value="danger" className="space-y-6 max-w-2xl">
+          {/* Database Reset */}
+          <Card className="border-destructive/20 bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+                <Database className="h-5 w-5" />
+                Zona Bahaya
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <p className="font-medium text-destructive">Reset Database</p>
+                <p className="text-sm text-muted-foreground">
+                  Fitur ini akan menghapus **semua data transaksi** termasuk semua booking, pembayaran, data jamaah per booking, dan leads. Data master seperti paket, hotel, dan maskapai tetap aman.
+                </p>
+              </div>
+              <Button 
+                variant="destructive" 
+                onClick={() => setIsResetDialogOpen(true)}
+              >
+                Bersihkan Semua Data Transaksi
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
 
 
