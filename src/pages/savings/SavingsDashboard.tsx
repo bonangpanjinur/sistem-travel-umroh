@@ -87,7 +87,7 @@ export default function SavingsDashboard() {
 
   // Calculate progress - include DP status
   const activePlan = useMemo(() => {
-    return plans.find(p => p.status === 'active' || p.status === 'dp_paid');
+    return plans.find((p: any) => p.status === 'active' || p.status === 'dp_paid') as any;
   }, [plans]);
 
   const progress = useMemo(() => {

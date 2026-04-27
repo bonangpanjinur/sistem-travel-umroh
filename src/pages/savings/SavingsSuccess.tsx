@@ -19,7 +19,7 @@ export default function SavingsSuccess() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Fetch plan
-  const { data: plan, isLoading } = useQuery({
+  const { data: plan, isLoading } = useQuery<any>({
     queryKey: ['savings-plan', planId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -39,7 +39,7 @@ export default function SavingsSuccess() {
   });
 
   // Fetch bank accounts for payment instructions
-  const { data: bankAccounts = [] } = useQuery({
+  const { data: bankAccounts } = useQuery<any>({
     queryKey: ['bank-accounts', 'primary'],
     queryFn: async () => {
       const { data, error } = await supabase
