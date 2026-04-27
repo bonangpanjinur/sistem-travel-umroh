@@ -347,7 +347,7 @@ export default function AdminSavings() {
             <CardContent>
               {plansLoading ? (
                 <div className="space-y-3">
-                  {[1, 2, 3].map(i) => (
+                  {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-16" />
                   ))}
                 </div>
@@ -486,7 +486,7 @@ export default function AdminSavings() {
             <CardContent>
               {paymentsLoading ? (
                 <div className="space-y-3">
-                  {[1, 2, 3].map(i) => (
+                  {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-16" />
                   ))}
                 </div>
