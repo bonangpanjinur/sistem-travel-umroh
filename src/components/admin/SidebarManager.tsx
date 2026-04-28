@@ -399,17 +399,19 @@ export const SidebarManager = () => {
               {deleteConfirm?.type === 'group' ? 'Hapus Grup' : 'Hapus Menu'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteConfirm?.type === 'group' ? (
+              {deleteConfirm?.type === 'group' && deleteConfirm.groupName ? (
                 <div>
                   <p>Anda yakin ingin menghapus grup <strong>"{deleteConfirm.groupName}"</strong>?</p>
-                  {groups[deleteConfirm.groupIndex || 0]?.items.length > 0 && (
+                  {deleteConfirm.groupIndex !== undefined && groups[deleteConfirm.groupIndex]?.items.length > 0 && (
                     <p className="mt-2 text-amber-700 bg-amber-50 p-2 rounded text-xs">
-                      ⚠️ Grup ini berisi <strong>{groups[deleteConfirm.groupIndex || 0].items.length} menu</strong>. Semua menu dalam grup ini juga akan dihapus.
+                      ⚠️ Grup ini berisi <strong>{groups[deleteConfirm.groupIndex].items.length} menu</strong>. Semua menu dalam grup ini juga akan dihapus.
                     </p>
                   )}
                 </div>
-              ) : (
+              ) : deleteConfirm?.type === 'item' && deleteConfirm.itemLabel ? (
                 <p>Anda yakin ingin menghapus menu <strong>"{deleteConfirm.itemLabel}"</strong>?</p>
+              ) : (
+                <p>Apakah Anda yakin ingin melakukan tindakan ini?</p>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
