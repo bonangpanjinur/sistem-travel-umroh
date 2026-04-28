@@ -127,6 +127,7 @@ async function seedRolePerm(role: string, key: string, enabled: boolean) {
 }
 
 async function seedUserRole(uid: string, role: string) {
+  seededUserIds.add(uid);
   const inserted = await rest(`user_roles`, {
     method: "POST",
     body: JSON.stringify({ user_id: uid, role }),
@@ -138,6 +139,7 @@ async function seedUserRole(uid: string, role: string) {
 }
 
 async function seedUserOverride(uid: string, key: string, enabled: boolean) {
+  seededUserIds.add(uid);
   const inserted = await rest(`user_permissions`, {
     method: "POST",
     body: JSON.stringify({ user_id: uid, permission_key: key, is_enabled: enabled }),
@@ -240,4 +242,29 @@ Deno.test("RBAC E2E: cleanup all seeded rows", async () => {
   for (const fn of cleanupTags.reverse()) {
     try { await fn(); } catch (e) { console.error("cleanup failed:", e); }
   }
+});
+
+Deno.test("RBAC E2E: post-cleanup verification — no seeded rows remain", async () => {
+  if (seededUserIds.size === 0) {
+    throw new Error("No seeded user_ids tracked — test setup is broken");
+  }
+  const ids = [...seededUserIds].map((u) => `"${u}"`).join(",");
+
+  const leftoverRoles = await rest(
+    `user_roles?select=id,user_id,role&user_id=in.(${ids})`,
+  ) as Array<unknown>;
+  assertEquals(
+    leftoverRoles.length,
+    0,
+    `expected 0 user_roles for seeded users after cleanup, got ${JSON.stringify(leftoverRoles)}`,
+  );
+
+  const leftoverPerms = await rest(
+    `user_permissions?select=id,user_id,permission_key&user_id=in.(${ids})`,
+  ) as Array<unknown>;
+  assertEquals(
+    leftoverPerms.length,
+    0,
+    `expected 0 user_permissions for seeded users after cleanup, got ${JSON.stringify(leftoverPerms)}`,
+  );
 });
