@@ -96,13 +96,25 @@ export default function JamaahDocuments() {
   const { data: documentTypes } = useQuery({
     queryKey: ["document-types"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("document_types")
-        .select("*")
+      const query = supabase.from("document_types").select("*");
+      
+      // Try to order by sort_order, fallback to name if it fails
+      const { data, error } = await query
         .eq("is_active", true)
-        .order("sort_order")
-        .order("name");
-      if (error) throw error;
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+      
+      if (error) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("document_types")
+          .select("*")
+          .eq("is_active", true)
+          .order("name", { ascending: true });
+          
+        if (fallbackError) throw fallbackError;
+        return fallbackData ?? [];
+      }
+      
       return data ?? [];
     },
   });

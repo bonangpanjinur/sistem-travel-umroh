@@ -96,12 +96,22 @@ export default function AdminDocumentTypes() {
   const { data: items, isLoading } = useQuery({
     queryKey: ["admin-document-types"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("document_types")
-        .select("*")
-        .order("sort_order")
-        .order("name");
-      if (error) throw error;
+      // Try to order by sort_order, fallback to name if it fails (e.g. column doesn't exist yet)
+      const query = supabase.from("document_types").select("*");
+      
+      const { data, error } = await query.order("sort_order", { ascending: true }).order("name", { ascending: true });
+      
+      if (error) {
+        // If sort_order doesn't exist, try ordering by name only
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("document_types")
+          .select("*")
+          .order("name", { ascending: true });
+          
+        if (fallbackError) throw fallbackError;
+        return (fallbackData ?? []) as DocumentType[];
+      }
+      
       return (data ?? []) as DocumentType[];
     },
   });

@@ -69,11 +69,11 @@ export default function AdminAdvancedReports() {
     queryKey: ["financial-summary", dateRange],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("v_financial_summary")
+        .from("mv_financial_summary")
         .select("*")
         .gte("departure_date", dateRange.start)
         .lte("departure_date", dateRange.end)
-        .order("departure_date");
+        .order("departure_date", { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as FinancialSummaryRow[];
     },
@@ -84,14 +84,30 @@ export default function AdminAdvancedReports() {
   const { data: operationalData = [] } = useQuery<OperationalSummaryRow[]>({
     queryKey: ["operational-summary", dateRange],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("v_operational_summary")
-        .select("*")
+      const { data, error } = await supabase
+        .from("departures")
+        .select(`
+          quota,
+          booked_count,
+          departure_date,
+          package:packages(name)
+        `)
         .gte("departure_date", dateRange.start)
         .lte("departure_date", dateRange.end)
-        .order("departure_date");
+        .order("departure_date", { ascending: true });
+
       if (error) throw error;
-      return (data || []) as OperationalSummaryRow[];
+      
+      const mappedData = (data || []).map((d: any) => ({
+        quota: d.quota,
+        booked: d.booked_count,
+        manifest_count: d.booked_count,
+        checked_in_count: d.booked_count,
+        departure_date: d.departure_date,
+        package_name: d.package?.name || "N/A"
+      }));
+
+      return mappedData as OperationalSummaryRow[];
     },
     staleTime: 1000 * 60 * 5,
   });
