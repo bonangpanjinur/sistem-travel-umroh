@@ -18,7 +18,8 @@ import {
   Layout,
   Menu as MenuIcon,
   Settings2,
-  AlertCircle
+  AlertCircle,
+  Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -27,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { getMenuIcon } from '@/lib/admin-menu-icons';
+import { IconPicker } from './IconPicker';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +65,10 @@ export const SidebarManager = () => {
     itemIndex?: number;
     groupName?: string;
     itemLabel?: string;
+  } | null>(null);
+  const [editingIcon, setEditingIcon] = useState<{
+    groupIndex: number;
+    itemIndex: number;
   } | null>(null);
 
   const { data: dbMenus, isLoading, refetch } = useQuery({
@@ -243,6 +249,14 @@ export const SidebarManager = () => {
     setDeleteConfirm(null);
   };
 
+  const handleIconChange = (groupIndex: number, itemIndex: number, iconName: string) => {
+    const newGroups = Array.from(groups);
+    newGroups[groupIndex].items[itemIndex].icon = iconName;
+    setGroups(newGroups);
+    setEditingIcon(null);
+    toast.success('Ikon berhasil diubah');
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -258,7 +272,7 @@ export const SidebarManager = () => {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Pengaturan Sidebar</h2>
           <p className="text-muted-foreground">
-            Atur susunan dan pengelompokan menu sidebar dengan drag and drop.
+            Atur susunan, pengelompokan, dan ikon menu sidebar dengan drag and drop.
           </p>
         </div>
         <div className="flex gap-2">
@@ -277,12 +291,17 @@ export const SidebarManager = () => {
         </div>
       </div>
 
-      {/* Info banner about delete functionality */}
+      {/* Info banner about features */}
       <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
         <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
         <div className="text-sm text-blue-800">
-          <p className="font-medium">Fitur Penghapusan:</p>
-          <p className="text-xs mt-1">Anda dapat menghapus grup beserta isinya atau menghapus menu individual. Klik tombol hapus (🗑️) untuk menghapus.</p>
+          <p className="font-medium">Fitur Pengelolaan Menu:</p>
+          <ul className="text-xs mt-2 space-y-1 list-disc list-inside">
+            <li>Klik ikon untuk mengubah ikon menu (🎨)</li>
+            <li>Klik tombol hapus (🗑️) untuk menghapus menu atau grup</li>
+            <li>Drag grup atau menu untuk mengubah urutan</li>
+            <li>Jangan lupa klik "Simpan Perubahan" untuk menyimpan semua perubahan</li>
+          </ul>
         </div>
       </div>
 
@@ -341,7 +360,7 @@ export const SidebarManager = () => {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       className={cn(
-                                        "flex items-center gap-3 p-3 bg-card border rounded-lg shadow-sm transition-all group",
+                                        "flex items-center gap-3 p-3 bg-card border rounded-lg shadow-sm transition-all group relative",
                                         snapshot.isDragging ? "ring-2 ring-primary shadow-lg z-50" : "hover:border-primary/30"
                                       )}
                                     >
@@ -351,9 +370,29 @@ export const SidebarManager = () => {
                                       >
                                         <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
                                       </div>
-                                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">
-                                        {React.createElement(getMenuIcon(item.icon), { className: "w-4 h-4 text-primary" })}
+                                      
+                                      {/* Icon Picker Button */}
+                                      <div className="relative">
+                                        <button
+                                          onClick={() => setEditingIcon({ groupIndex: index, itemIndex })}
+                                          className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0 hover:bg-primary/20 transition-colors cursor-pointer group/icon"
+                                          title="Ubah ikon"
+                                        >
+                                          {React.createElement(getMenuIcon(item.icon), { className: "w-4 h-4 text-primary" })}
+                                          <Palette className="absolute -bottom-1 -right-1 w-3 h-3 text-primary opacity-0 group-hover/icon:opacity-100 transition-opacity" />
+                                        </button>
+                                        
+                                        {/* Icon Picker Popover */}
+                                        {editingIcon?.groupIndex === index && editingIcon?.itemIndex === itemIndex && (
+                                          <div className="absolute top-10 left-0 z-50">
+                                            <IconPicker
+                                              value={item.icon}
+                                              onChange={(iconName) => handleIconChange(index, itemIndex, iconName)}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
+
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium truncate">{item.label}</p>
                                         <p className="text-[10px] text-muted-foreground font-mono truncate">{item.key}</p>
