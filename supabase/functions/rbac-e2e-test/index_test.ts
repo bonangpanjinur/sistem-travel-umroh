@@ -32,6 +32,26 @@ function uuid() {
   return crypto.randomUUID();
 }
 
+/** Create a real auth user via admin API and return its id. Cleaned up later. */
+async function createAuthUser(): Promise<string> {
+  const email = `rbac-e2e-${crypto.randomUUID()}@example.test`;
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email, password: crypto.randomUUID(), email_confirm: true }),
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(`auth create user ${r.status}: ${text}`);
+  const u = JSON.parse(text);
+  cleanupTags.push(async () => {
+    await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${u.id}`, {
+      method: "DELETE",
+      headers,
+    }).then((r) => r.text());
+  });
+  return u.id;
+}
+
 async function rest(path: string, init: RequestInit = {}) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...init,
@@ -61,11 +81,11 @@ if (permissionsList.length < 2) {
 const KEY_A = permissionsList[0].key; // role grants this
 const KEY_B = permissionsList[1].key; // role does NOT grant this (we'll user-override it)
 
-const TEST_ROLE = "sales"; // existing app_role
-const userId = uuid();
-const otherUserId = uuid();
-
 const cleanupTags: Array<() => Promise<void>> = [];
+
+const TEST_ROLE = "sales"; // existing app_role
+const userId = await createAuthUser();
+const otherUserId = await createAuthUser();
 
 async function seedRolePerm(role: string, key: string, enabled: boolean) {
   // Use upsert to avoid clashing with existing rows for that role/key.
@@ -172,7 +192,7 @@ Deno.test("RBAC E2E: get_user_effective_permissions reflects merged result", asy
 });
 
 Deno.test("RBAC E2E: super_admin bypass returns ALL permission keys", async () => {
-  const adminId = uuid();
+  const adminId = await createAuthUser();
   await seedUserRole(adminId, "super_admin");
 
   const single = await rpc<boolean>("check_user_permission", {
