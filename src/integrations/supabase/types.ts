@@ -3905,6 +3905,51 @@ export type Database = {
           },
         ]
       }
+      rbac_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_value: Json | null
+          old_value: Json | null
+          permission_key: string | null
+          scope: string
+          target_role: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          permission_key?: string | null
+          scope: string
+          target_role?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          permission_key?: string | null
+          scope?: string
+          target_role?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       referral_codes: {
         Row: {
           code: string
@@ -5491,6 +5536,13 @@ export type Database = {
         }
         Relationships: []
       }
+      v_role_user_counts: {
+        Row: {
+          role: string | null
+          user_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       adjust_variant_stock: {
@@ -5600,10 +5652,28 @@ export type Database = {
         }
         Returns: string
       }
+      log_rbac_change: {
+        Args: {
+          _action: string
+          _metadata?: Json
+          _new_value?: Json
+          _old_value?: Json
+          _permission_key?: string
+          _scope: string
+          _target_role?: string
+          _target_user_id?: string
+        }
+        Returns: string
+      }
       recalculate_departure_booked_count: {
         Args: { p_departure_id?: string }
         Returns: undefined
       }
+      reset_role_permissions: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: number
+      }
+      resync_all_role_permissions: { Args: never; Returns: Json }
       return_equipment_distribution: {
         Args: {
           p_admin_fee?: number
