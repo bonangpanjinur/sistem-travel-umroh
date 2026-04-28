@@ -13,12 +13,28 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, RefreshCw, ShieldAlert, History, UserCheck } from 'lucide-react';
+import { Loader2, RefreshCw, ShieldAlert, History, UserCheck, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
 const ROLES = ['owner','branch_manager','finance','sales','marketing','operational','equipment','agent','customer'] as const;
+
+const ACTION_LABELS: Record<string, { label: string; className: string }> = {
+  reset_defaults:   { label: 'Reset Default',     className: 'bg-amber-500 text-white' },
+  resync_all:       { label: 'Resync Semua',      className: 'bg-purple-600 text-white' },
+  grant:            { label: 'Grant',             className: 'bg-emerald-600 text-white' },
+  revoke:           { label: 'Revoke',            className: 'bg-rose-600 text-white' },
+  toggle:           { label: 'Toggle',            className: 'bg-sky-600 text-white' },
+  override_set:     { label: 'Override Set',      className: 'bg-blue-600 text-white' },
+  override_change:  { label: 'Override Ubah',     className: 'bg-indigo-600 text-white' },
+  override_remove:  { label: 'Override Hapus',    className: 'bg-slate-600 text-white' },
+};
+
+function actionBadge(action: string) {
+  const cfg = ACTION_LABELS[action] || { label: action, className: 'bg-muted text-foreground' };
+  return <Badge className={cfg.className}>{cfg.label}</Badge>;
+}
 
 export default function AdminRBACTools() {
   const { hasRole } = useAuth();
