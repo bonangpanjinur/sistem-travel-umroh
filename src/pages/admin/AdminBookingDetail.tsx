@@ -53,6 +53,7 @@ import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
+import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -86,6 +87,7 @@ export default function AdminBookingDetail() {
   const [showManagePaymentModal, setShowManagePaymentModal] = useState(false);
   const [showChangePackageDialog, setShowChangePackageDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -498,7 +500,18 @@ export default function AdminBookingDetail() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Tipe Kamar</p>
-                      <Badge variant="outline" className="font-semibold">{getRoomTypeLabel(booking.room_type)}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="font-semibold">{getRoomTypeLabel(booking.room_type)}</Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2 text-[10px] gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => setShowChangeRoomTypeDialog(true)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Ubah
+                        </Button>
+                      </div>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Jumlah Jamaah</p>
@@ -877,6 +890,18 @@ export default function AdminBookingDetail() {
           currentPackageId={booking?.departure?.package_id || ""}
           currentDepartureId={booking?.departure_id || ""}
           currentDepartureDate={booking?.departure?.departure_date || ""}
+        />
+      )}
+
+      {booking && (
+        <ChangeRoomTypeDialog
+          isOpen={showChangeRoomTypeDialog}
+          onClose={() => setShowChangeRoomTypeDialog(false)}
+          bookingId={id || ""}
+          currentRoomType={booking.room_type || "quad"}
+          currentDepartureId={booking?.departure_id || ""}
+          currentTotalPrice={booking.total_price || 0}
+          totalPax={booking.total_pax || 1}
         />
       )}
 
