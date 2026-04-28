@@ -17,7 +17,8 @@ import {
   ChevronUp,
   Layout,
   Menu as MenuIcon,
-  Settings2
+  Settings2,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,6 +27,15 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { getMenuIcon } from '@/lib/admin-menu-icons';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface MenuItem {
   id: string;
@@ -47,6 +57,13 @@ export const SidebarManager = () => {
   const queryClient = useQueryClient();
   const [groups, setGroups] = useState<MenuGroup[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: 'group' | 'item';
+    groupIndex?: number;
+    itemIndex?: number;
+    groupName?: string;
+    itemLabel?: string;
+  } | null>(null);
 
   const { data: dbMenus, isLoading, refetch } = useQuery({
     queryKey: ['admin-sidebar-items-raw'],
@@ -173,14 +190,57 @@ export const SidebarManager = () => {
     setGroups([...groups, { name: 'Grup Baru', items: [] }]);
   };
 
-  const removeGroup = (index: number) => {
-    if (groups[index].items.length > 0) {
-      toast.error('Grup tidak bisa dihapus karena masih memiliki menu. Pindahkan menu ke grup lain terlebih dahulu.');
-      return;
+  const confirmDeleteGroup = (index: number) => {
+    setDeleteConfirm({
+      type: 'group',
+      groupIndex: index,
+      groupName: groups[index].name
+    });
+  };
+
+  const handleDeleteGroup = () => {
+    if (deleteConfirm?.type === 'group' && deleteConfirm.groupIndex !== undefined) {
+      const index = deleteConfirm.groupIndex;
+      const itemCount = groups[index].items.length;
+      
+      const newGroups = Array.from(groups);
+      newGroups.splice(index, 1);
+      setGroups(newGroups);
+      
+      toast.success(
+        itemCount > 0 
+          ? `Grup "${deleteConfirm.groupName}" dan ${itemCount} menu berhasil dihapus`
+          : `Grup "${deleteConfirm.groupName}" berhasil dihapus`
+      );
     }
-    const newGroups = Array.from(groups);
-    newGroups.splice(index, 1);
-    setGroups(newGroups);
+    setDeleteConfirm(null);
+  };
+
+  const confirmDeleteMenuItem = (groupIndex: number, itemIndex: number) => {
+    const item = groups[groupIndex].items[itemIndex];
+    setDeleteConfirm({
+      type: 'item',
+      groupIndex,
+      itemIndex,
+      itemLabel: item.label
+    });
+  };
+
+  const handleDeleteMenuItem = () => {
+    if (deleteConfirm?.type === 'item' && 
+        deleteConfirm.groupIndex !== undefined && 
+        deleteConfirm.itemIndex !== undefined) {
+      const groupIndex = deleteConfirm.groupIndex;
+      const itemIndex = deleteConfirm.itemIndex;
+      
+      const newGroups = Array.from(groups);
+      const deletedItem = newGroups[groupIndex].items[itemIndex];
+      newGroups[groupIndex].items.splice(itemIndex, 1);
+      setGroups(newGroups);
+      
+      toast.success(`Menu "${deletedItem.label}" berhasil dihapus`);
+    }
+    setDeleteConfirm(null);
   };
 
   if (isLoading) {
@@ -217,6 +277,15 @@ export const SidebarManager = () => {
         </div>
       </div>
 
+      {/* Info banner about delete functionality */}
+      <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-blue-800">
+          <p className="font-medium">Fitur Penghapusan:</p>
+          <p className="text-xs mt-1">Anda dapat menghapus grup beserta isinya atau menghapus menu individual. Klik tombol hapus (🗑️) untuk menghapus.</p>
+        </div>
+      </div>
+
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="all-groups" type="group">
           {(provided) => (
@@ -247,7 +316,8 @@ export const SidebarManager = () => {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => removeGroup(index)}
+                            onClick={() => confirmDeleteGroup(index)}
+                            title={group.items.length > 0 ? `Hapus grup dan ${group.items.length} menu` : 'Hapus grup'}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -270,13 +340,17 @@ export const SidebarManager = () => {
                                     <div
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
                                       className={cn(
-                                        "flex items-center gap-3 p-3 bg-card border rounded-lg shadow-sm transition-all",
+                                        "flex items-center gap-3 p-3 bg-card border rounded-lg shadow-sm transition-all group",
                                         snapshot.isDragging ? "ring-2 ring-primary shadow-lg z-50" : "hover:border-primary/30"
                                       )}
                                     >
-                                      <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
+                                      <div 
+                                        {...provided.dragHandleProps}
+                                        className="cursor-grab active:cursor-grabbing"
+                                      >
+                                        <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
+                                      </div>
                                       <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">
                                         {React.createElement(getMenuIcon(item.icon), { className: "w-4 h-4 text-primary" })}
                                       </div>
@@ -284,6 +358,15 @@ export const SidebarManager = () => {
                                         <p className="text-sm font-medium truncate">{item.label}</p>
                                         <p className="text-[10px] text-muted-foreground font-mono truncate">{item.key}</p>
                                       </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => confirmDeleteMenuItem(index, itemIndex)}
+                                        title="Hapus menu"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
                                     </div>
                                   )}
                                 </Draggable>
@@ -307,6 +390,40 @@ export const SidebarManager = () => {
           )}
         </Droppable>
       </DragDropContext>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirm?.type === 'group' ? 'Hapus Grup' : 'Hapus Menu'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm?.type === 'group' ? (
+                <div>
+                  <p>Anda yakin ingin menghapus grup <strong>"{deleteConfirm.groupName}"</strong>?</p>
+                  {groups[deleteConfirm.groupIndex || 0]?.items.length > 0 && (
+                    <p className="mt-2 text-amber-700 bg-amber-50 p-2 rounded text-xs">
+                      ⚠️ Grup ini berisi <strong>{groups[deleteConfirm.groupIndex || 0].items.length} menu</strong>. Semua menu dalam grup ini juga akan dihapus.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p>Anda yakin ingin menghapus menu <strong>"{deleteConfirm.itemLabel}"</strong>?</p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-3">
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteConfirm?.type === 'group' ? handleDeleteGroup : handleDeleteMenuItem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
