@@ -83,6 +83,9 @@ const KEY_B = permissionsList[1].key; // role does NOT grant this (we'll user-ov
 
 const cleanupTags: Array<() => Promise<void>> = [];
 
+/** Track every user_id we touched so we can verify their rows are gone after cleanup. */
+const seededUserIds = new Set<string>();
+
 const TEST_ROLE = "sales"; // existing app_role
 const userId = await createAuthUser();
 const otherUserId = await createAuthUser();
