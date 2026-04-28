@@ -97,7 +97,12 @@ export default function AdminBookingDetail() {
     },
     onSuccess: () => {
       toast.success("Booking berhasil dihapus");
-      navigate("/admin/bookings");
+      // Invalidate all admin-bookings queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
+      // Wait a moment for cache to be invalidated before navigating
+      setTimeout(() => {
+        navigate("/admin/bookings");
+      }, 300);
     },
     onError: (err: any) => {
       toast.error(err.message || "Gagal menghapus booking");
