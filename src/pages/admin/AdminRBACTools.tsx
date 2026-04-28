@@ -13,12 +13,28 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, RefreshCw, ShieldAlert, History, UserCheck } from 'lucide-react';
+import { Loader2, RefreshCw, ShieldAlert, History, UserCheck, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
 const ROLES = ['owner','branch_manager','finance','sales','marketing','operational','equipment','agent','customer'] as const;
+
+const ACTION_LABELS: Record<string, { label: string; className: string }> = {
+  reset_defaults:   { label: 'Reset Default',     className: 'bg-amber-500 text-white' },
+  resync_all:       { label: 'Resync Semua',      className: 'bg-purple-600 text-white' },
+  grant:            { label: 'Grant',             className: 'bg-emerald-600 text-white' },
+  revoke:           { label: 'Revoke',            className: 'bg-rose-600 text-white' },
+  toggle:           { label: 'Toggle',            className: 'bg-sky-600 text-white' },
+  override_set:     { label: 'Override Set',      className: 'bg-blue-600 text-white' },
+  override_change:  { label: 'Override Ubah',     className: 'bg-indigo-600 text-white' },
+  override_remove:  { label: 'Override Hapus',    className: 'bg-slate-600 text-white' },
+};
+
+function actionBadge(action: string) {
+  const cfg = ACTION_LABELS[action] || { label: action, className: 'bg-muted text-foreground' };
+  return <Badge className={cfg.className}>{cfg.label}</Badge>;
+}
 
 export default function AdminRBACTools() {
   const { hasRole } = useAuth();
@@ -155,25 +171,74 @@ function ResetSyncPanel() {
 /* -------- Audit Trail -------- */
 function AuditTrailPanel() {
   const [scope, setScope] = useState<string>('all');
+  const [action, setAction] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
   const { data = [], isLoading, refetch } = useQuery({
-    queryKey: ['rbac-audit-log', scope],
+    queryKey: ['rbac-audit-log', scope, action, dateFrom, dateTo],
     queryFn: async () => {
       let q: any = (supabase as any).from('rbac_audit_log').select('*').order('created_at', { ascending: false }).limit(200);
       if (scope !== 'all') q = q.eq('scope', scope);
+      if (action !== 'all') q = q.eq('action', action);
+      if (dateFrom) q = q.gte('created_at', new Date(dateFrom).toISOString());
+      if (dateTo) {
+        const end = new Date(dateTo); end.setHours(23,59,59,999);
+        q = q.lte('created_at', end.toISOString());
+      }
       const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
   });
 
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return (data as any[]).filter((r: any) =>
+      (r.actor_email || '').toLowerCase().includes(q) ||
+      (r.target_role || '').toLowerCase().includes(q) ||
+      (r.permission_key || '').toLowerCase().includes(q) ||
+      (r.target_user_id || '').toLowerCase().includes(q)
+    );
+  }, [data, search]);
+
+  const exportCSV = () => {
+    const rows = [
+      ['waktu','aktor','scope','aksi','target','permission','old','new','metadata'],
+      ...filtered.map((r: any) => [
+        new Date(r.created_at).toISOString(),
+        r.actor_email || r.actor_id || '',
+        r.scope || '',
+        r.action || '',
+        r.target_role || r.target_user_id || '',
+        r.permission_key || '',
+        r.old_value ? JSON.stringify(r.old_value) : '',
+        r.new_value ? JSON.stringify(r.new_value) : '',
+        r.metadata ? JSON.stringify(r.metadata) : '',
+      ]),
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `rbac-audit-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Audit Trail</CardTitle>
-        <CardDescription>200 perubahan terakhir pada role / user permissions.</CardDescription>
+        <CardDescription>
+          200 event terakhir: reset role, resync semua, grant/revoke/toggle, dan perubahan override per user.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-end">
           <Select value={scope} onValueChange={setScope}>
             <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -183,12 +248,42 @@ function AuditTrailPanel() {
               <SelectItem value="system">System</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={action} onValueChange={setAction}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Semua aksi" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua aksi</SelectItem>
+              {Object.entries(ACTION_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div>
+            <label className="text-xs text-muted-foreground block">Dari</label>
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[160px]" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground block">Sampai</label>
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[160px]" />
+          </div>
+          <Input
+            placeholder="Cari aktor / role / permission..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-[260px]"
+          />
           <Button variant="outline" onClick={() => refetch()}>Refresh</Button>
+          <Button variant="outline" onClick={exportCSV} disabled={filtered.length === 0}>
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
+          <div className="ml-auto text-xs text-muted-foreground">
+            {filtered.length} / {data.length} event
+          </div>
         </div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[32px]"></TableHead>
                 <TableHead>Waktu</TableHead>
                 <TableHead>Aktor</TableHead>
                 <TableHead>Scope</TableHead>
@@ -199,22 +294,43 @@ function AuditTrailPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={7} className="text-center"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>}
-              {data.map((row: any) => (
-                <TableRow key={row.id}>
-                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(row.created_at), 'dd MMM yyyy HH:mm', { locale: idLocale })}</TableCell>
-                  <TableCell className="text-xs">{row.actor_email || row.actor_id?.slice(0,8) || '—'}</TableCell>
-                  <TableCell><Badge variant="outline">{row.scope}</Badge></TableCell>
-                  <TableCell><Badge>{row.action}</Badge></TableCell>
-                  <TableCell className="text-xs">{row.target_role || row.target_user_id?.slice(0,8) || '—'}</TableCell>
-                  <TableCell className="text-xs font-mono">{row.permission_key || '—'}</TableCell>
-                  <TableCell className="text-xs font-mono">
-                    {row.old_value ? JSON.stringify(row.old_value) : '∅'} → {row.new_value ? JSON.stringify(row.new_value) : '∅'}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!isLoading && data.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Belum ada catatan</TableCell></TableRow>
+              {isLoading && <TableRow><TableCell colSpan={8} className="text-center"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>}
+              {filtered.map((row: any) => {
+                const isOpen = !!expanded[row.id];
+                const hasMeta = !!row.metadata && Object.keys(row.metadata || {}).length > 0;
+                return (
+                  <>
+                    <TableRow key={row.id} className={row.scope === 'system' ? 'bg-purple-500/5' : ''}>
+                      <TableCell>
+                        {hasMeta ? (
+                          <button onClick={() => setExpanded(s => ({ ...s, [row.id]: !s[row.id] }))} className="text-muted-foreground hover:text-foreground">
+                            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{format(new Date(row.created_at), 'dd MMM yyyy HH:mm', { locale: idLocale })}</TableCell>
+                      <TableCell className="text-xs">{row.actor_email || row.actor_id?.slice(0,8) || '—'}</TableCell>
+                      <TableCell><Badge variant="outline">{row.scope}</Badge></TableCell>
+                      <TableCell>{actionBadge(row.action)}</TableCell>
+                      <TableCell className="text-xs">{row.target_role || row.target_user_id?.slice(0,8) || '—'}</TableCell>
+                      <TableCell className="text-xs font-mono">{row.permission_key || '—'}</TableCell>
+                      <TableCell className="text-xs font-mono">
+                        {row.old_value ? JSON.stringify(row.old_value) : '∅'} → {row.new_value ? JSON.stringify(row.new_value) : '∅'}
+                      </TableCell>
+                    </TableRow>
+                    {isOpen && hasMeta && (
+                      <TableRow key={row.id + '-meta'}>
+                        <TableCell></TableCell>
+                        <TableCell colSpan={7} className="bg-muted/40">
+                          <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(row.metadata, null, 2)}</pre>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
+              {!isLoading && filtered.length === 0 && (
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Belum ada catatan</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
