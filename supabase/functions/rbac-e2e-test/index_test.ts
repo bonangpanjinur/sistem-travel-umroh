@@ -87,6 +87,11 @@ const TEST_ROLE = "sales"; // existing app_role
 const userId = await createAuthUser();
 const otherUserId = await createAuthUser();
 
+// Ensure clean baseline: role allows KEY_A, role does NOT allow KEY_B.
+// seedRolePerm patches+restores existing rows automatically.
+await seedRolePerm(TEST_ROLE, KEY_A, true);
+await seedRolePerm(TEST_ROLE, KEY_B, false);
+
 async function seedRolePerm(role: string, key: string, enabled: boolean) {
   // Use upsert to avoid clashing with existing rows for that role/key.
   // If a row exists we'll temporarily flip it and restore afterwards.
@@ -144,7 +149,6 @@ async function seedUserOverride(uid: string, key: string, enabled: boolean) {
 
 Deno.test("RBAC E2E: role default ALLOW grants access", async () => {
   await seedUserRole(userId, TEST_ROLE);
-  await seedRolePerm(TEST_ROLE, KEY_A, true);
 
   const allowed = await rpc<boolean>("check_user_permission", {
     _user_id: userId,
