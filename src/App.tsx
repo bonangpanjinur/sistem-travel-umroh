@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { TenantProvider } from "@/contexts/TenantContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { EnvDiagnostic } from "@/components/EnvDiagnostic";
 import NotFound from "./pages/NotFound";
 
 // Route modules
@@ -38,6 +39,7 @@ const App = () => (
               <Sonner />
               <BrowserRouter>
                 <ScrollToTop />
+                <EnvDiagnostic />
                 <Routes>
                   {PublicRoutes()}
                   {CustomerRoutes()}
