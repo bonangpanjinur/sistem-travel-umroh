@@ -98,7 +98,7 @@ export function ChangeRoomTypeDialog({
       const { error: updateError } = await supabase
         .from("bookings")
         .update({
-          room_type: selectedRoomType,
+          room_type: selectedRoomType as "double" | "quad" | "single" | "triple",
           total_price: newTotalPrice,
           updated_at: new Date().toISOString(),
         })
@@ -110,7 +110,7 @@ export function ChangeRoomTypeDialog({
       const { error: passengersError } = await supabase
         .from("booking_passengers")
         .update({
-          room_preference: selectedRoomType,
+          room_preference: selectedRoomType as "double" | "quad" | "single" | "triple",
         })
         .eq("booking_id", bookingId);
 
