@@ -68,8 +68,9 @@ export default function AdminAdvancedReports() {
   const { data: financialData = [] } = useQuery<FinancialSummaryRow[]>({
     queryKey: ["financial-summary", dateRange],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("mv_financial_summary")
+      // Use base view (mv_financial_summary not in generated types).
+      const { data, error } = await (supabase as any)
+        .from("v_financial_summary")
         .select("*")
         .gte("departure_date", dateRange.start)
         .lte("departure_date", dateRange.end)
