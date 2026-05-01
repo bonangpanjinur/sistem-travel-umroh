@@ -1,8 +1,11 @@
 -- =====================================================
--- Perbaikan RPC get_user_effective_permissions
--- Deskripsi: Menambahkan kembali fungsi RPC yang hilang/tidak cocok dengan frontend
+-- Perbaikan RPC get_user_effective_permissions (v2)
+-- Deskripsi: Menambahkan DROP FUNCTION untuk menghindari error return type mismatch
 -- Tanggal: 2026-05-02
 -- =====================================================
+
+-- Hapus fungsi lama terlebih dahulu karena tipe data return berubah
+DROP FUNCTION IF EXISTS public.get_user_effective_permissions(UUID);
 
 CREATE OR REPLACE FUNCTION public.get_user_effective_permissions(_user_id UUID)
 RETURNS TABLE (
@@ -36,8 +39,6 @@ BEGIN
     UNION
     
     -- Ambil permission dari overrides user (jika ada)
-    -- Catatan: Menggunakan COALESCE/CASE jika struktur tabel berbeda di env user
-    -- Berdasarkan migrasi 20260416, tabelnya adalah user_permissions_overrides
     SELECT DISTINCT upo.permission_key::VARCHAR(100)
     FROM public.user_permissions_overrides upo
     WHERE upo.user_id = _user_id 
