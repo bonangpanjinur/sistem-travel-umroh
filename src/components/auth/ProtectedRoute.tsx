@@ -33,7 +33,9 @@ function DynamicMenuGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading) {
-      setAllowed(isPathAllowed(location.pathname));
+      const isAllowed = isPathAllowed(location.pathname);
+      console.log(`DEBUG [DynamicMenuGate]: Path ${location.pathname} is ${isAllowed ? 'ALLOWED' : 'DENIED'}`);
+      setAllowed(isAllowed);
     }
   }, [isLoading, isPathAllowed, location.pathname]);
 
@@ -47,8 +49,21 @@ export default function ProtectedRoute({
   requireAuth = true,
   allowedRoles,
 }: ProtectedRouteProps) {
-  const { user, isLoading: authLoading, roles, isStaff, isSuperAdmin } = useAuth();
+  const { user, isLoading: authLoading, roles, isStaff, isSuperAdmin, profile } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      console.log("DEBUG [ProtectedRoute]:", {
+        userId: user.id,
+        roles: roles,
+        profileRole: (profile as any)?.role,
+        isStaff: isStaff(),
+        isSuperAdmin: isSuperAdmin(),
+        pathname: location.pathname
+      });
+    }
+  }, [authLoading, user, roles, profile, location.pathname]);
 
   if (authLoading) return <LoadingScreen />;
 
