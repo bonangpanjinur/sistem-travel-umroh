@@ -37,6 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let authHandled = false;
 
     const handleInvalidSession = () => {
+      console.warn('[Auth] handleInvalidSession - Clearing corrupted session', {
+        timestamp: new Date().toISOString(),
+        pathname: window.location.pathname
+      });
       lastFetchedUserIdRef.current = null;
       setSession(null);
       setUser(null);
@@ -56,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         path.startsWith('/jamaah') ||
         path.startsWith('/customer');
       if (isProtected && !path.startsWith('/auth/')) {
+        console.log('[Auth] Redirecting to login from protected area:', path);
         window.location.href = `/auth/login?redirect=${encodeURIComponent(path)}`;
       }
     };
@@ -64,6 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         authHandled = true;
         authHandledRef.current = true;
+
+        console.log('[Auth] onAuthStateChange event:', {
+          event,
+          hasSession: !!session,
+          userId: session?.user?.id,
+          timestamp: new Date().toISOString()
+        });
 
         // Refresh failure: token rotated and revoked, or storage corrupted
         if (event === 'TOKEN_REFRESHED' && !session) {
@@ -78,11 +90,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
           if (lastFetchedUserIdRef.current === session.user.id) {
+            console.log('[Auth] Skipping refetch - same user ID:', session.user.id);
             setIsLoading(false);
             return;
           }
+          console.log('[Auth] Fetching user data for new user:', session.user.id);
           fetchUserData(session.user.id);
         } else {
+          console.log('[Auth] No session user - clearing profile and roles');
           lastFetchedUserIdRef.current = null;
           setProfile(null);
           setRoles([]);
@@ -94,7 +109,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession()
       .then(({ data: { session }, error }) => {
         // Skip if onAuthStateChange already handled this or listener fired
-        if (authHandled || authHandledRef.current) return;
+        if (authHandled || authHandledRef.current) {
+          console.log('[Auth] getSession skipped - already handled by onAuthStateChange');
+          return;
+        }
+
+        console.log('[Auth] getSession result:', {
+          hasSession: !!session,
+          userId: session?.user?.id,
+          hasError: !!error,
+          timestamp: new Date().toISOString()
+        });
 
         if (error) {
           const msg = (error as any)?.message?.toLowerCase?.() || '';
@@ -110,11 +135,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           if (lastFetchedUserIdRef.current === session.user.id) {
+            console.log('[Auth] getSession - skipping refetch for same user');
             setIsLoading(false);
             return;
           }
+          console.log('[Auth] getSession - fetching user data:', session.user.id);
           fetchUserData(session.user.id);
         } else {
+          console.log('[Auth] getSession - no session, setting loading to false');
           setIsLoading(false);
         }
       })
@@ -126,6 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Sync logout across tabs
     const handleStorage = (e: StorageEvent) => {
       if (e.key && e.key.includes('supabase.auth.token') && !e.newValue) {
+        console.log('[Auth] Storage event - auth token cleared (logout from another tab)', {
+          key: e.key,
+          timestamp: new Date().toISOString()
+        });
         lastFetchedUserIdRef.current = null;
         setSession(null);
         setUser(null);
@@ -144,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
+      console.log('[Auth] fetchUserData - starting for userId:', userId);
       lastFetchedUserIdRef.current = userId;
       // Fetch profile + roles in parallel for faster login
       const [profileRes, rolesRes] = await Promise.all([
@@ -151,15 +184,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from('user_roles').select('role, branch_id').eq('user_id', userId),
       ]);
 
+      console.log('[Auth] fetchUserData - profile result:', {
+        hasProfile: !!profileRes.data,
+        profileError: profileRes.error,
+        profileRole: (profileRes.data as any)?.role
+      });
+
       if (profileRes.data) {
         setProfile(profileRes.data as Profile);
       }
+
+      console.log('[Auth] fetchUserData - roles result:', {
+        rolesCount: rolesRes.data?.length || 0,
+        rolesError: rolesRes.error,
+        roles: rolesRes.data?.map(r => r.role) || []
+      });
 
       if (rolesRes.data) {
         const userRoles = sortRoles(rolesRes.data.map(r => r.role as AppRole));
         setRoles(userRoles);
         const branchRole = rolesRes.data.find(r => r.branch_id);
         setBranchId(branchRole?.branch_id || null);
+        console.log('[Auth] fetchUserData - roles set:', {
+          roles: userRoles,
+          branchId: branchRole?.branch_id || null
+        });
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -199,12 +248,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    console.log('[Auth] signOut - clearing all auth state', {
+      timestamp: new Date().toISOString()
+    });
     await supabase.auth.signOut();
+    lastFetchedUserIdRef.current = null;
     setUser(null);
     setSession(null);
     setProfile(null);
     setRoles([]);
     setBranchId(null);
+    console.log('[Auth] signOut - complete');
   };
 
   const hasRole = (role: AppRole): boolean => {
