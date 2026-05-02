@@ -1,74 +1,70 @@
+## Diagnosis akar masalah
 
-## Masalah Utama
+Console log menunjukkan auth berhasil (`SIGNED_IN`, profile + 3 roles ter-fetch), tetapi user tetap mendapat halaman **"Akses Ditolak"** (`/access-denied`).
 
-Aplikasi gagal terhubung ke Supabase saat di-deploy ke Vercel meskipun env sudah diisi. Penyebabnya:
+Setelah inspeksi langsung ke database & kode, ditemukan **dua bug yang saling memperparah**:
 
-1. **`src/integrations/supabase/client.ts` rapuh** — hanya membaca `import.meta.env.VITE_SUPABASE_URL` & `VITE_SUPABASE_PUBLISHABLE_KEY`. Bila Vercel tidak meng-inject (salah nama, salah scope Production/Preview, atau env baru ditambah tapi belum re-deploy), `createClient` dipanggil dengan `undefined` → seluruh aplikasi blank/error tanpa pesan jelas.
-2. **`.env` di-gitignore** (stack Vite klasik) — wajar, tapi artinya Vercel **harus** menyediakan env saat build. Tidak ada fallback dan tidak ada validasi.
-3. **Tidak ada pesan error yang membantu** — user hanya lihat layar putih / "Failed to fetch" tanpa tahu env mana yang hilang.
-4. **Nama variabel Vercel sering keliru** — user kerap menambahkan `SUPABASE_URL` (tanpa prefix `VITE_`), atau `VITE_SUPABASE_ANON_KEY` (sementara kode pakai `VITE_SUPABASE_PUBLISHABLE_KEY`). Vite **hanya** mengekspos variabel yang diawali `VITE_`.
-5. **SPA fallback Vercel** — `vercel.json` sudah benar, jadi bukan sumber masalah refresh 404.
+### Bug 1 — Tabel `role_permissions` kosong total
+```
+SELECT role, count(*) FROM role_permissions WHERE is_enabled = true GROUP BY role;
+→ (0 rows)
+```
+Padahal ada **22 user role aktif** (owner, branch_manager, finance, sales, marketing, operational, equipment) dan **22 permission key** terdaftar. Karena tidak ada satupun baris di `role_permissions`, RPC `get_user_effective_permissions` mengembalikan **array kosong** untuk semua user non-`super_admin`. Akibatnya `isPathAllowed()` di `useDynamicMenus` selalu false → `DynamicMenuGate` melempar ke `/access-denied`.
 
-## Yang Akan Diubah
+### Bug 2 — `reset_role_permissions` salah `group_name`
+Fungsi DB `reset_role_permissions` menyebut group seperti `'Sales & CRM'`, `'Booking & Jamaah'`, `'Operasional'`, `'Pembayaran'`, `'Marketing'`, `'Landing Pages'`, `'Dashboard'`, `'Laporan'`. Tapi `permissions_list` aktualnya hanya berisi: **Overview, Penjualan, Keuangan, Keberangkatan, Jamaah, Master Data, Pengaturan**. Jadi tombol "Resync All" di Admin RBAC pun menghasilkan 0 baris untuk hampir semua role → bug 1 tidak pernah bisa diperbaiki dari UI.
 
-### 1. Perkuat Supabase client (`src/integrations/supabase/client.ts`)
-- Baca env dengan beberapa nama alternatif agar kompatibel dengan apa pun yang user set di Vercel:
-  - URL: `VITE_SUPABASE_URL` → fallback `VITE_SUPABASE_PROJECT_URL`
-  - Key: `VITE_SUPABASE_PUBLISHABLE_KEY` → fallback `VITE_SUPABASE_ANON_KEY`
-- Tambahkan **fallback hardcoded** ke nilai project Lovable Cloud yang sudah diketahui (URL `https://ribjppjnjigiowhjgngu.supabase.co` + anon key publik dari context). Anon key adalah **publishable** sehingga aman di client. Ini menjamin app tidak pernah crash karena env hilang di Vercel.
-- Validasi format URL sebelum `createClient`; lempar error jelas bila tetap kosong.
-- Log peringatan di console saat fallback aktif sehingga user tahu env Vercel-nya tidak terbaca.
+### Bug 3 — `branch_id` hilang saat user punya multi-role
+Di `fetchUserData`, `branchId` hanya diambil dari role pertama yang punya `branch_id`, tapi ditimpa setiap fetch. Jika user owner+branch_manager+sales, `branchId` bisa null → memengaruhi guard branch.
 
-### 2. Tambahkan komponen diagnostik environment (`src/components/EnvDiagnostic.tsx`) — opsional, hanya tampil bila `?debug=env` di URL
-- Menampilkan: URL terdeteksi (dimasking), sumber (env vs fallback), apakah anon key tersedia, hasil ping `auth.getSession()`.
-- Berguna untuk verifikasi cepat di production.
+### Optimasi kecepatan terkait
+- Setiap render `ProtectedRoute` mencetak `console.log` `DEBUG […]` (4–6 log per navigasi). Di production sangat ramai. Akan dijadikan opt-in via `?debug=auth`.
+- `useDynamicMenus` memanggil 2 query Supabase setiap mount untuk staff. `staleTime` sudah 5–60 menit, sudah baik. Tetapi `useEffectivePermissions` (hook lain) memanggil RPC yang sama dengan `queryKey` identik → otomatis di-dedupe oleh React Query, tapi mari kita pastikan key benar-benar identik (sudah).
+- `console.log` masif di `useAuth` (10+ per login) akan dijadikan debug-only.
 
-### 3. Update `.env.example` & buat `VERCEL_SETUP.md`
-- Daftar nama env **persis** yang harus di-set di Vercel:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_PUBLISHABLE_KEY`
-  - `VITE_SUPABASE_PROJECT_ID`
-- Instruksi: set di Project Settings → Environment Variables → centang **Production, Preview, Development** → **Redeploy** (env baru tidak berlaku tanpa redeploy).
-- Catatan: nama harus diawali `VITE_` agar Vite expose ke browser.
+## Rencana perbaikan
 
-### 4. Bug-bug lain yang akan diperbaiki sambil jalan
-- `vite.config.ts` — `manualChunks` saat ini meletakkan `@radix-ui` dan `recharts` di chunk yang sama (`vendor-ui`). Ini bisa menyebabkan chunk besar tapi tidak fatal; biarkan kecuali ada laporan lambat.
-- Pastikan `client.ts` tetap diberi komentar "auto-generated, do not edit" namun aman terhadap regenerasi (perubahan minimal & defensive).
+### A. Migrasi DB
+1. **Perbaiki `reset_role_permissions`** — gunakan `group_name` yang benar:
+   - operational → `Keberangkatan`, `Jamaah`, `Overview`
+   - finance → `Keuangan`, `Overview`
+   - sales → `Penjualan`, `Jamaah`, `Overview`
+   - marketing → `Penjualan`, `Overview`
+   - equipment → `Keberangkatan`, `Overview`
+   - branch_manager / owner → semua key
+   - agent → `Jamaah`, `Overview` (subset baca)
+   - customer → tidak ada (atau hanya `dashboard`)
+2. **Seed `role_permissions` saat ini** — jalankan `INSERT … SELECT` untuk semua role aktif sehingga 22 user existing langsung dapat akses. Idempotent dengan `ON CONFLICT … DO UPDATE SET is_enabled = true`.
+3. (Opsional, recommended) tambahkan event trigger DDL/post-migration yang otomatis re-sync permissions jika `permissions_list` berubah, supaya tidak terjadi lagi.
 
-### 5. Verifikasi setelah implementasi
-- Jalankan dev server lokal tanpa `.env` → app harus tetap jalan via fallback dengan warning di console.
-- Cek tidak ada error TypeScript baru.
+### B. Frontend
+1. **Kurangi noise log produksi** di `src/hooks/useAuth.tsx` & `src/components/auth/ProtectedRoute.tsx`:
+   ```ts
+   const DEBUG_AUTH = typeof window !== 'undefined' &&
+     new URLSearchParams(window.location.search).get('debug') === 'auth';
+   const dlog = (...a:any[]) => DEBUG_AUTH && console.log(...a);
+   ```
+   Pertahankan `console.warn`/`error` untuk error nyata. Hilangkan ~15 `console.log` rutin.
+2. **Perbaiki `branchId`** di `fetchUserData` — pilih branch_id non-null pertama dari `sortRoles` (prioritas role tertinggi) supaya konsisten.
+3. **Fallback yang ramah** di `DynamicMenuGate`: jika `effectiveKeys` kosong **dan** user adalah staff (owner/branch_manager/dll), tampilkan banner "Permission belum dikonfigurasi — minta super admin menjalankan Resync" daripada langsung redirect ke access-denied buta. Cegah lock-out total bila DB tidak ter-seed.
+4. Tambahkan **early-allow** untuk route `/admin` (root dashboard) jika menu cocoknya tidak punya `required_permission`. Sudah benar, tapi tambahkan unit test ringan di `src/lib/rbac-resolver.test.ts`.
 
-## Detail Teknis
+### C. Verifikasi
+1. Jalankan migrasi → cek `SELECT role, count(*) FROM role_permissions WHERE is_enabled GROUP BY role;` semua role > 0.
+2. Login sebagai user existing (mis. owner/finance) di preview, pastikan tidak lagi ke `/access-denied`.
+3. Buka `/admin/rbac-tools` sebagai super_admin, klik "Resync All" → pastikan setiap role return jumlah > 0.
+4. Buka `?debug=auth` untuk memastikan log lama bisa diaktifkan saat dibutuhkan.
 
-**Pola client.ts baru (ringkas):**
-```ts
-const FALLBACK_URL = "https://ribjppjnjigiowhjgngu.supabase.co";
-const FALLBACK_KEY = "<anon key publik>";
+## Daftar file yang akan disentuh
 
-const url =
-  import.meta.env.VITE_SUPABASE_URL ||
-  import.meta.env.VITE_SUPABASE_PROJECT_URL ||
-  FALLBACK_URL;
-
-const key =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  FALLBACK_KEY;
-
-if (!import.meta.env.VITE_SUPABASE_URL) {
-  console.warn("[supabase] VITE_SUPABASE_URL tidak ditemukan, memakai fallback.");
-}
+```text
+supabase/migrations/<ts>_fix_rbac_role_permissions.sql   (baru)
+src/hooks/useAuth.tsx                                    (kurangi log + fix branchId)
+src/components/auth/ProtectedRoute.tsx                   (kurangi log + fallback)
+src/hooks/useDynamicMenus.ts                             (fallback ketika effectiveKeys kosong, opsional)
+src/lib/rbac-resolver.test.ts                            (test tambahan, opsional)
 ```
 
-**Yang TIDAK diubah:**
-- Skema database, edge functions, RLS — semua sudah benar.
-- `vercel.json`, routing, PWA config.
-- File `types.ts` (auto-generated).
-
-## Hasil Akhir
-
-- App terhubung ke Supabase di Vercel walau env salah/lupa di-set (via fallback aman).
-- Bila user tetap mau pakai project Supabase berbeda, cukup set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` di Vercel lalu redeploy — kode otomatis pilih env tsb.
-- Console memberi petunjuk jelas saat env tidak terbaca.
-- Dokumentasi setup Vercel tersedia di repo.
+## Yang TIDAK akan disentuh
+- `client.ts`, `EnvDiagnostic.tsx`, edge functions `rbac-e2e-test/*` — sudah stabil.
+- Skema `app_role`, `permissions_list`, RPC `check_user_permission`, `get_user_effective_permissions` — sudah benar.
