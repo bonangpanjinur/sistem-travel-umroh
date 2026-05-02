@@ -49,6 +49,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'document-types', label: 'Jenis Dokumen', path: '/admin/document-types', icon: 'FileCog', group_name: 'Pengaturan', sort_order: 2, required_permission: 'document-types' },
   { key: 'roles', label: 'Manajemen Role', path: '/admin/roles', icon: 'ShieldCheck', group_name: 'Pengaturan', sort_order: 3, required_permission: 'roles' },
   { key: 'rbac-tools', label: 'RBAC Tools', path: '/admin/rbac-tools', icon: 'ShieldAlert', group_name: 'Pengaturan', sort_order: 4, required_permission: 'rbac-tools' },
+  { key: 'rbac-status', label: 'Status RBAC', path: '/admin/rbac-status', icon: 'ShieldCheck', group_name: 'Pengaturan', sort_order: 5, required_permission: 'rbac-tools' },
   { key: 'settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', group_name: 'Pengaturan', sort_order: 4, required_permission: 'settings' },
 ];
 
