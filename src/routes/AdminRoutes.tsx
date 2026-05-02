@@ -19,6 +19,7 @@ const AdminCustomerDetail = lazy(() => import("@/pages/admin/AdminCustomerDetail
 const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
 const AdminRoleManagement = lazy(() => import("@/pages/admin/AdminRoleManagement"));
 const AdminRBACTools = lazy(() => import("@/pages/admin/AdminRBACTools"));
+const AdminRBACStatus = lazy(() => import("@/pages/admin/AdminRBACStatus"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
@@ -174,6 +175,7 @@ export default function AdminRoutes() {
       <Route path="user-permissions" element={<Navigate to="/admin/users" replace />} />
       <Route path="roles" element={<LazyPage><AdminRoleManagement /></LazyPage>} />
       <Route path="rbac-tools" element={<LazyPage><AdminRBACTools /></LazyPage>} />
+      <Route path="rbac-status" element={<LazyPage><AdminRBACStatus /></LazyPage>} />
       <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
       <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
       <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />
