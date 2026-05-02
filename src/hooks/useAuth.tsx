@@ -4,6 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppRole, Profile } from '@/types/database';
 import { sortRoles } from '@/lib/constants';
 
+// Toggle verbose auth logging via `?debug=auth` in the URL.
+// Keeps production console clean while preserving on-demand debugging.
+const DEBUG_AUTH =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('debug') === 'auth';
+const dlog = (...a: unknown[]) => {
+  if (DEBUG_AUTH) console.log(...a);
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -70,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authHandled = true;
         authHandledRef.current = true;
 
-        console.log('[Auth] onAuthStateChange event:', {
+        dlog('[Auth] onAuthStateChange event:', {
           event,
           hasSession: !!session,
           userId: session?.user?.id,
@@ -90,14 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
           if (lastFetchedUserIdRef.current === session.user.id) {
-            console.log('[Auth] Skipping refetch - same user ID:', session.user.id);
+            dlog('[Auth] Skipping refetch - same user ID:', session.user.id);
             setIsLoading(false);
             return;
           }
-          console.log('[Auth] Fetching user data for new user:', session.user.id);
+          dlog('[Auth] Fetching user data for new user:', session.user.id);
           fetchUserData(session.user.id);
         } else {
-          console.log('[Auth] No session user - clearing profile and roles');
+          dlog('[Auth] No session user - clearing profile and roles');
           lastFetchedUserIdRef.current = null;
           setProfile(null);
           setRoles([]);
@@ -110,11 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ data: { session }, error }) => {
         // Skip if onAuthStateChange already handled this or listener fired
         if (authHandled || authHandledRef.current) {
-          console.log('[Auth] getSession skipped - already handled by onAuthStateChange');
+          dlog('[Auth] getSession skipped - already handled by onAuthStateChange');
           return;
         }
 
-        console.log('[Auth] getSession result:', {
+        dlog('[Auth] getSession result:', {
           hasSession: !!session,
           userId: session?.user?.id,
           hasError: !!error,
@@ -135,14 +144,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           if (lastFetchedUserIdRef.current === session.user.id) {
-            console.log('[Auth] getSession - skipping refetch for same user');
+            dlog('[Auth] getSession - skipping refetch for same user');
             setIsLoading(false);
             return;
           }
-          console.log('[Auth] getSession - fetching user data:', session.user.id);
+          dlog('[Auth] getSession - fetching user data:', session.user.id);
           fetchUserData(session.user.id);
         } else {
-          console.log('[Auth] getSession - no session, setting loading to false');
+          dlog('[Auth] getSession - no session, setting loading to false');
           setIsLoading(false);
         }
       })
@@ -154,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Sync logout across tabs
     const handleStorage = (e: StorageEvent) => {
       if (e.key && e.key.includes('supabase.auth.token') && !e.newValue) {
-        console.log('[Auth] Storage event - auth token cleared (logout from another tab)', {
+        dlog('[Auth] Storage event - auth token cleared (logout from another tab)', {
           key: e.key,
           timestamp: new Date().toISOString()
         });
@@ -176,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      console.log('[Auth] fetchUserData - starting for userId:', userId);
+      dlog('[Auth] fetchUserData - starting for userId:', userId);
       lastFetchedUserIdRef.current = userId;
       // Fetch profile + roles in parallel for faster login
       const [profileRes, rolesRes] = await Promise.all([
@@ -184,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from('user_roles').select('role, branch_id').eq('user_id', userId),
       ]);
 
-      console.log('[Auth] fetchUserData - profile result:', {
+      dlog('[Auth] fetchUserData - profile result:', {
         hasProfile: !!profileRes.data,
         profileError: profileRes.error,
         profileRole: (profileRes.data as any)?.role
@@ -194,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileRes.data as Profile);
       }
 
-      console.log('[Auth] fetchUserData - roles result:', {
+      dlog('[Auth] fetchUserData - roles result:', {
         rolesCount: rolesRes.data?.length || 0,
         rolesError: rolesRes.error,
         roles: rolesRes.data?.map(r => r.role) || []
@@ -203,11 +212,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (rolesRes.data) {
         const userRoles = sortRoles(rolesRes.data.map(r => r.role as AppRole));
         setRoles(userRoles);
-        const branchRole = rolesRes.data.find(r => r.branch_id);
-        setBranchId(branchRole?.branch_id || null);
-        console.log('[Auth] fetchUserData - roles set:', {
+        // Pick the first non-null branch_id following role priority order so that
+        // multi-role users (e.g. owner + branch_manager + sales) keep a stable branch.
+        const orderedBranchId =
+          userRoles
+            .map((r) => rolesRes.data!.find((row) => row.role === r && row.branch_id)?.branch_id)
+            .find((b): b is string => !!b) || null;
+        setBranchId(orderedBranchId);
+        dlog('[Auth] fetchUserData - roles set:', {
           roles: userRoles,
-          branchId: branchRole?.branch_id || null
+          branchId: orderedBranchId,
         });
       }
     } catch (error) {
@@ -248,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log('[Auth] signOut - clearing all auth state', {
+    dlog('[Auth] signOut - clearing all auth state', {
       timestamp: new Date().toISOString()
     });
     await supabase.auth.signOut();
@@ -258,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setRoles([]);
     setBranchId(null);
-    console.log('[Auth] signOut - complete');
+    dlog('[Auth] signOut - complete');
   };
 
   const hasRole = (role: AppRole): boolean => {

@@ -5,6 +5,14 @@ import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { AppRole } from '@/types/database';
 import { Loader2 } from 'lucide-react';
 
+// Verbose route logs only when `?debug=auth` is present in the URL.
+const DEBUG_AUTH =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('debug') === 'auth';
+const dlog = (...a: unknown[]) => {
+  if (DEBUG_AUTH) console.log(...a);
+};
+
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAuth?: boolean;
@@ -34,7 +42,7 @@ function DynamicMenuGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoading) {
       const isAllowed = isPathAllowed(location.pathname);
-      console.log(`DEBUG [DynamicMenuGate] - Permission check:`, {
+      dlog(`DEBUG [DynamicMenuGate] - Permission check:`, {
         pathname: location.pathname,
         isAllowed,
         effectivePermissions: Array.from(effectiveKeys),
@@ -43,21 +51,31 @@ function DynamicMenuGate({ children }: { children: ReactNode }) {
       });
       setAllowed(isAllowed);
     } else {
-      console.log(`DEBUG [DynamicMenuGate] - Still loading dynamic menus for path: ${location.pathname}`);
+      dlog(`DEBUG [DynamicMenuGate] - Still loading dynamic menus for path: ${location.pathname}`);
     }
   }, [isLoading, isPathAllowed, location.pathname, effectiveKeys, allowedSet]);
 
   if (isLoading || allowed === null) {
-    console.log("DEBUG [DynamicMenuGate] - Showing loading screen (isLoading or allowed=null)");
+    dlog("DEBUG [DynamicMenuGate] - Showing loading screen (isLoading or allowed=null)");
     return <LoadingScreen />;
   }
   if (allowed === false) {
-    console.warn("DEBUG [DynamicMenuGate] - Access denied by dynamic menu check", {
-      pathname: location.pathname
-    });
+    // If the user has no effective permissions at all, the RBAC tables are likely
+    // unconfigured. Warn loudly (this is rare and important) and let the redirect
+    // happen so super_admin can fix it via /admin/rbac-tools.
+    if (effectiveKeys.length === 0) {
+      console.warn(
+        '[RBAC] User has zero effective permissions — role_permissions table may be empty. ' +
+          'A super_admin should open /admin/rbac-tools and click "Resync All".'
+      );
+    } else {
+      dlog('DEBUG [DynamicMenuGate] - Access denied by dynamic menu check', {
+        pathname: location.pathname,
+      });
+    }
     return <Navigate to="/access-denied" replace />;
   }
-  console.log("DEBUG [DynamicMenuGate] - Granting access to path:", location.pathname);
+  dlog("DEBUG [DynamicMenuGate] - Granting access to path:", location.pathname);
   return <>{children}</>;
 }
 
@@ -71,7 +89,7 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     if (!authLoading && user) {
-      console.log("DEBUG [ProtectedRoute] - Auth State:", {
+      dlog("DEBUG [ProtectedRoute] - Auth State:", {
         userId: user.id,
         userEmail: user.email,
         roles: roles,
@@ -82,28 +100,27 @@ export default function ProtectedRoute({
         pathname: location.pathname,
         timestamp: new Date().toISOString()
       });
-      
-      // Log session info
-      console.log("DEBUG [ProtectedRoute] - Session Info:", {
+
+      dlog("DEBUG [ProtectedRoute] - Session Info:", {
         hasSession: !!user,
         authLoading: authLoading,
         profileExists: !!profile,
         rolesCount: roles.length
       });
     } else if (authLoading) {
-      console.log("DEBUG [ProtectedRoute] - Still loading auth...");
+      dlog("DEBUG [ProtectedRoute] - Still loading auth...");
     } else {
-      console.log("DEBUG [ProtectedRoute] - No user authenticated");
+      dlog("DEBUG [ProtectedRoute] - No user authenticated");
     }
   }, [authLoading, user, roles, profile, location.pathname]);
 
   if (authLoading) {
-    console.log("DEBUG [ProtectedRoute] - Showing loading screen (authLoading=true)");
+    dlog("DEBUG [ProtectedRoute] - Showing loading screen (authLoading=true)");
     return <LoadingScreen />;
   }
 
   if (requireAuth && !user) {
-    console.warn("DEBUG [ProtectedRoute] - Redirecting to login (requireAuth=true, no user)", {
+    dlog("DEBUG [ProtectedRoute] - Redirecting to login (requireAuth=true, no user)", {
       pathname: location.pathname,
       search: location.search
     });
@@ -113,13 +130,13 @@ export default function ProtectedRoute({
   // Legacy role-based check
   if (allowedRoles && allowedRoles.length > 0) {
     const hasAllowedRole = roles.some(role => allowedRoles.includes(role));
-    console.log("DEBUG [ProtectedRoute] - Legacy role check:", {
+    dlog("DEBUG [ProtectedRoute] - Legacy role check:", {
       allowedRoles: allowedRoles,
       userRoles: roles,
       hasAllowedRole: hasAllowedRole
     });
     if (!hasAllowedRole) {
-      console.warn("DEBUG [ProtectedRoute] - Access denied: user role not in allowedRoles", {
+      dlog("DEBUG [ProtectedRoute] - Access denied: user role not in allowedRoles", {
         allowedRoles,
         userRoles: roles
       });
@@ -135,7 +152,7 @@ export default function ProtectedRoute({
     location.pathname.startsWith('/hr');
   const shouldCheckDynamicMenus = !!user && isStaffPath && isStaff() && !isSuper;
 
-  console.log("DEBUG [ProtectedRoute] - Permission check decision:", {
+  dlog("DEBUG [ProtectedRoute] - Permission check decision:", {
     isSuper,
     isStaffPath,
     isStaffUser: isStaff(),
@@ -144,7 +161,7 @@ export default function ProtectedRoute({
   });
 
   if (!shouldCheckDynamicMenus) {
-    console.log("DEBUG [ProtectedRoute] - Granting access (no dynamic menu check needed)");
+    dlog("DEBUG [ProtectedRoute] - Granting access (no dynamic menu check needed)");
     return <>{children}</>;
   }
 
