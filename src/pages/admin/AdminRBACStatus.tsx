@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import {
   Loader2, RefreshCw, ShieldAlert, ShieldCheck, AlertTriangle, CheckCircle2, Database,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -130,6 +131,21 @@ export default function AdminRBACStatus() {
     onError: (e: any) => toast.error(e.message || 'Gagal resync semua role'),
   });
 
+  const wipeAndReset = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('wipe_and_reset_all_role_permissions');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success('Wipe & re-seed selesai — semua role direset ke template default');
+      console.info('[RBAC] wipe & reset result', data);
+      qc.invalidateQueries({ queryKey: ['rbac-status-role-counts'] });
+      qc.invalidateQueries({ queryKey: ['rbac-audit-log'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Gagal wipe & re-seed'),
+  });
+
   if (!isSuperAdmin) {
     return (
       <div className="p-6">
@@ -170,6 +186,19 @@ export default function AdminRBACStatus() {
           >
             {resyncAll.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Database className="h-4 w-4 mr-1" />}
             Resync semua role
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (confirm('HAPUS semua isi role_permissions lalu re-seed dari awal?\n\nGunakan ini jika ada key lama yang tidak cocok (mis. "customers.view") yang membuat semua staff ditolak.')) {
+                wipeAndReset.mutate();
+              }
+            }}
+            disabled={wipeAndReset.isPending}
+            title="Hard reset: DELETE FROM role_permissions, lalu re-seed semua role"
+          >
+            {wipeAndReset.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
+            Wipe &amp; Re-seed All
           </Button>
         </div>
       </div>
