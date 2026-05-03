@@ -39,6 +39,18 @@ export function EnvDiagnostic() {
     (_m, p, h) => `${p}${h.slice(0, 6)}…`,
   );
 
+  // Extract project ref from URL (e.g. https://abcdef123456.supabase.co → abcdef123456)
+  const projectRef = (() => {
+    try {
+      const u = new URL(supabaseConfigSource.url);
+      return u.hostname.split('.')[0];
+    } catch {
+      return '?';
+    }
+  })();
+  const EXPECTED_LOVABLE_REF = 'ribjppjnjigiowhjgngu';
+  const refMatchesLovable = projectRef === EXPECTED_LOVABLE_REF;
+
   return (
     <div
       style={{
@@ -61,6 +73,17 @@ export function EnvDiagnostic() {
         🔧 Supabase Env Diagnostic
       </div>
       <div>URL: <span style={{ color: '#a7f3d0' }}>{maskedUrl}</span></div>
+      <div>
+        Project ref:{' '}
+        <span style={{ color: refMatchesLovable ? '#a7f3d0' : '#fbbf24' }}>
+          {projectRef}
+        </span>{' '}
+        {!refMatchesLovable && (
+          <span style={{ color: '#fbbf24', fontSize: 11 }}>
+            (≠ Lovable Cloud {EXPECTED_LOVABLE_REF})
+          </span>
+        )}
+      </div>
       <div>
         URL source:{' '}
         <span style={{ color: supabaseConfigSource.urlSource === 'env' ? '#a7f3d0' : '#fca5a5' }}>
