@@ -60,14 +60,34 @@ function DynamicMenuGate({ children }: { children: ReactNode }) {
     return <LoadingScreen />;
   }
   if (allowed === false) {
-    // If the user has no effective permissions at all, the RBAC tables are likely
-    // unconfigured. Warn loudly (this is rare and important) and let the redirect
-    // happen so super_admin can fix it via /admin/rbac-tools.
+    // Friendly fallback: if user has ZERO effective permissions, the RBAC tables
+    // are likely unconfigured (or pointing at a different DB). Don't lock the
+    // user out of the dashboard root — show a banner instead so a super_admin
+    // can fix it from /admin/rbac-status. Only redirect for sensitive paths.
     if (effectiveKeys.length === 0) {
       console.warn(
-        '[RBAC] User has zero effective permissions — role_permissions table may be empty. ' +
-          'A super_admin should open /admin/rbac-tools and click "Resync All".'
+        '[RBAC] User has zero effective permissions — role_permissions table may be empty or pointing at a different Supabase project. ' +
+          'A super_admin should open /admin/rbac-status and click "Wipe & Re-seed All".'
       );
+      const path = location.pathname;
+      const isSafeFallbackPath =
+        path === '/admin' ||
+        path === '/admin/' ||
+        path.startsWith('/admin/profile') ||
+        path.startsWith('/admin/rbac-status') ||
+        path.startsWith('/admin/rbac-tools');
+      if (isSafeFallbackPath) {
+        return (
+          <div className="min-h-screen bg-background">
+            <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+              <strong>Permission belum dikonfigurasi.</strong>{' '}
+              Tabel role_permissions kosong atau tidak cocok dengan menu. Hubungi Super Admin
+              untuk membuka <code>/admin/rbac-status</code> dan klik <strong>"Wipe &amp; Re-seed All"</strong>.
+            </div>
+            {children}
+          </div>
+        );
+      }
     } else {
       dlog('DEBUG [DynamicMenuGate] - Access denied by dynamic menu check', {
         pathname: location.pathname,

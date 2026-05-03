@@ -5707,6 +5707,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      wipe_and_reset_all_role_permissions: { Args: never; Returns: Json }
     }
     Enums: {
       app_role:

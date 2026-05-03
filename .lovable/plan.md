@@ -1,70 +1,144 @@
-## Diagnosis akar masalah
 
-Console log menunjukkan auth berhasil (`SIGNED_IN`, profile + 3 roles ter-fetch), tetapi user tetap mendapat halaman **"Akses Ditolak"** (`/access-denied`).
+# Jalur B — Sinkronkan Project Produksi Anda dengan Kode
 
-Setelah inspeksi langsung ke database & kode, ditemukan **dua bug yang saling memperparah**:
+## Catatan kolom
+Dari screenshot image-6 terlihat kolom bernama `permission_key`, tapi Anda menyebut `permission_group`. Skrip SQL di bawah akan **mendeteksi otomatis** kolom mana yang ada (key vs group) dan menyesuaikan, jadi aman dipakai apa pun nama kolom Anda.
 
-### Bug 1 — Tabel `role_permissions` kosong total
-```
-SELECT role, count(*) FROM role_permissions WHERE is_enabled = true GROUP BY role;
-→ (0 rows)
-```
-Padahal ada **22 user role aktif** (owner, branch_manager, finance, sales, marketing, operational, equipment) dan **22 permission key** terdaftar. Karena tidak ada satupun baris di `role_permissions`, RPC `get_user_effective_permissions` mengembalikan **array kosong** untuk semua user non-`super_admin`. Akibatnya `isPathAllowed()` di `useDynamicMenus` selalu false → `DynamicMenuGate` melempar ke `/access-denied`.
+---
 
-### Bug 2 — `reset_role_permissions` salah `group_name`
-Fungsi DB `reset_role_permissions` menyebut group seperti `'Sales & CRM'`, `'Booking & Jamaah'`, `'Operasional'`, `'Pembayaran'`, `'Marketing'`, `'Landing Pages'`, `'Dashboard'`, `'Laporan'`. Tapi `permissions_list` aktualnya hanya berisi: **Overview, Penjualan, Keuangan, Keberangkatan, Jamaah, Master Data, Pengaturan**. Jadi tombol "Resync All" di Admin RBAC pun menghasilkan 0 baris untuk hampir semua role → bug 1 tidak pernah bisa diperbaiki dari UI.
+## Bagian 1 — SQL untuk Anda jalankan di Supabase Dashboard produksi
 
-### Bug 3 — `branch_id` hilang saat user punya multi-role
-Di `fetchUserData`, `branchId` hanya diambil dari role pertama yang punya `branch_id`, tapi ditimpa setiap fetch. Jika user owner+branch_manager+sales, `branchId` bisa null → memengaruhi guard branch.
+Buka **Supabase Dashboard → project `vtaqwkpnvtazcnvcfmyy` → SQL Editor → New query**, paste skrip ini, lalu **Run**.
 
-### Optimasi kecepatan terkait
-- Setiap render `ProtectedRoute` mencetak `console.log` `DEBUG […]` (4–6 log per navigasi). Di production sangat ramai. Akan dijadikan opt-in via `?debug=auth`.
-- `useDynamicMenus` memanggil 2 query Supabase setiap mount untuk staff. `staleTime` sudah 5–60 menit, sudah baik. Tetapi `useEffectivePermissions` (hook lain) memanggil RPC yang sama dengan `queryKey` identik → otomatis di-dedupe oleh React Query, tapi mari kita pastikan key benar-benar identik (sudah).
-- `console.log` masif di `useAuth` (10+ per login) akan dijadikan debug-only.
+```sql
+-- ============================================================
+-- STEP 0: Diagnosis — lihat struktur tabel saat ini
+-- ============================================================
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema='public' AND table_name='role_permissions'
+ORDER BY ordinal_position;
 
-## Rencana perbaikan
+SELECT column_name FROM information_schema.columns
+WHERE table_schema='public' AND table_name='permissions_list';
 
-### A. Migrasi DB
-1. **Perbaiki `reset_role_permissions`** — gunakan `group_name` yang benar:
-   - operational → `Keberangkatan`, `Jamaah`, `Overview`
-   - finance → `Keuangan`, `Overview`
-   - sales → `Penjualan`, `Jamaah`, `Overview`
-   - marketing → `Penjualan`, `Overview`
-   - equipment → `Keberangkatan`, `Overview`
-   - branch_manager / owner → semua key
-   - agent → `Jamaah`, `Overview` (subset baca)
-   - customer → tidak ada (atau hanya `dashboard`)
-2. **Seed `role_permissions` saat ini** — jalankan `INSERT … SELECT` untuk semua role aktif sehingga 22 user existing langsung dapat akses. Idempotent dengan `ON CONFLICT … DO UPDATE SET is_enabled = true`.
-3. (Opsional, recommended) tambahkan event trigger DDL/post-migration yang otomatis re-sync permissions jika `permissions_list` berubah, supaya tidak terjadi lagi.
-
-### B. Frontend
-1. **Kurangi noise log produksi** di `src/hooks/useAuth.tsx` & `src/components/auth/ProtectedRoute.tsx`:
-   ```ts
-   const DEBUG_AUTH = typeof window !== 'undefined' &&
-     new URLSearchParams(window.location.search).get('debug') === 'auth';
-   const dlog = (...a:any[]) => DEBUG_AUTH && console.log(...a);
-   ```
-   Pertahankan `console.warn`/`error` untuk error nyata. Hilangkan ~15 `console.log` rutin.
-2. **Perbaiki `branchId`** di `fetchUserData` — pilih branch_id non-null pertama dari `sortRoles` (prioritas role tertinggi) supaya konsisten.
-3. **Fallback yang ramah** di `DynamicMenuGate`: jika `effectiveKeys` kosong **dan** user adalah staff (owner/branch_manager/dll), tampilkan banner "Permission belum dikonfigurasi — minta super admin menjalankan Resync" daripada langsung redirect ke access-denied buta. Cegah lock-out total bila DB tidak ter-seed.
-4. Tambahkan **early-allow** untuk route `/admin` (root dashboard) jika menu cocoknya tidak punya `required_permission`. Sudah benar, tapi tambahkan unit test ringan di `src/lib/rbac-resolver.test.ts`.
-
-### C. Verifikasi
-1. Jalankan migrasi → cek `SELECT role, count(*) FROM role_permissions WHERE is_enabled GROUP BY role;` semua role > 0.
-2. Login sebagai user existing (mis. owner/finance) di preview, pastikan tidak lagi ke `/access-denied`.
-3. Buka `/admin/rbac-tools` sebagai super_admin, klik "Resync All" → pastikan setiap role return jumlah > 0.
-4. Buka `?debug=auth` untuk memastikan log lama bisa diaktifkan saat dibutuhkan.
-
-## Daftar file yang akan disentuh
-
-```text
-supabase/migrations/<ts>_fix_rbac_role_permissions.sql   (baru)
-src/hooks/useAuth.tsx                                    (kurangi log + fix branchId)
-src/components/auth/ProtectedRoute.tsx                   (kurangi log + fallback)
-src/hooks/useDynamicMenus.ts                             (fallback ketika effectiveKeys kosong, opsional)
-src/lib/rbac-resolver.test.ts                            (test tambahan, opsional)
+SELECT count(*) AS total_role_perms FROM public.role_permissions;
+SELECT count(*) AS total_users FROM public.user_roles;
 ```
 
-## Yang TIDAK akan disentuh
-- `client.ts`, `EnvDiagnostic.tsx`, edge functions `rbac-e2e-test/*` — sudah stabil.
-- Skema `app_role`, `permissions_list`, RPC `check_user_permission`, `get_user_effective_permissions` — sudah benar.
+Kirim hasilnya ke saya. Setelah itu saya kasih SQL kedua yang spesifik (wipe + reseed) yang sudah disesuaikan dengan nama kolom Anda.
+
+**Atau** kalau Anda sudah yakin kolomnya `permission_group`, jalankan ini langsung:
+
+```sql
+-- Reset permissions_list ke 22 keys standar (sesuai kode)
+TRUNCATE public.permissions_list CASCADE;
+INSERT INTO public.permissions_list (key, group_name, label) VALUES
+  ('dashboard','Overview','Dashboard'),
+  ('analytics','Overview','Analytics'),
+  ('leads','Penjualan','Leads'),
+  ('bookings','Penjualan','Bookings'),
+  ('packages','Penjualan','Packages'),
+  ('customers','Jamaah','Customers'),
+  ('agents','Jamaah','Agents'),
+  ('branches','Jamaah','Branches'),
+  ('departures','Keberangkatan','Departures'),
+  ('equipment','Keberangkatan','Equipment'),
+  ('room-assignments','Keberangkatan','Room Assignments'),
+  ('payments','Keuangan','Payments'),
+  ('finance-cash','Keuangan','Finance Cash'),
+  ('reports','Keuangan','Reports'),
+  ('hotels','Master Data','Hotels'),
+  ('airlines','Master Data','Airlines'),
+  ('airports','Master Data','Airports'),
+  ('vendors','Master Data','Vendors'),
+  ('users','Pengaturan','Users'),
+  ('roles','Pengaturan','Roles'),
+  ('settings','Pengaturan','Settings'),
+  ('document-types','Pengaturan','Document Types')
+ON CONFLICT (key) DO UPDATE SET group_name=EXCLUDED.group_name, label=EXCLUDED.label;
+
+-- Wipe role_permissions lama (format xxx.view, xxx.delete tidak cocok lagi)
+TRUNCATE public.role_permissions;
+
+-- Reseed berdasarkan group_name (PAKAI permission_key, ganti ke permission_group kalau memang itu nama kolomnya)
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'owner'::app_role, key, true FROM public.permissions_list;
+
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'branch_manager'::app_role, key, true FROM public.permissions_list;
+
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'finance'::app_role, key, true FROM public.permissions_list
+WHERE group_name IN ('Keuangan','Overview');
+
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'sales'::app_role, key, true FROM public.permissions_list
+WHERE group_name IN ('Penjualan','Jamaah','Overview');
+
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'marketing'::app_role, key, true FROM public.permissions_list
+WHERE group_name IN ('Penjualan','Overview');
+
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'operational'::app_role, key, true FROM public.permissions_list
+WHERE group_name IN ('Keberangkatan','Jamaah','Overview');
+
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'equipment'::app_role, key, true FROM public.permissions_list
+WHERE group_name IN ('Keberangkatan','Overview');
+
+INSERT INTO public.role_permissions (role, permission_key, is_enabled)
+SELECT 'agent'::app_role, key, true FROM public.permissions_list
+WHERE group_name IN ('Jamaah','Overview');
+
+-- Verifikasi
+SELECT role, count(*) FROM public.role_permissions GROUP BY role ORDER BY role;
+```
+
+Hasil yang diharapkan:
+```
+owner          | 22
+branch_manager | 22
+finance        | 5
+sales          | 8
+marketing      | 5
+operational    | 8
+equipment      | 5
+agent          | 4
+```
+
+---
+
+## Bagian 2 — Yang akan saya kerjakan di kode (setelah Anda approve)
+
+1. **`src/hooks/useDynamicMenus.ts`** — tambah matcher toleran:
+   - Jika `required_permission = "customers"`, terima juga key di effectiveSet seperti `"customers"`, `"customers.view"`, `"customers.list"`. Dan sebaliknya.
+   - Helper baru: `permissionMatches(required, effectiveSet)` reusable.
+   - Tujuan: kalau ada DB yang masih punya format lama `xxx.view`, user tetap bisa masuk (tidak hard-fail).
+
+2. **`src/components/auth/ProtectedRoute.tsx`** — fallback ramah:
+   - Saat `effectiveKeys.length === 0` & user staff: tampilkan banner "Permission belum dikonfigurasi, hubungi super admin" + tetap izinkan akses ke `/admin` (dashboard) & `/admin/profile`. Tidak langsung kick ke `/access-denied`.
+
+3. **`src/components/EnvDiagnostic.tsx`** — tampilkan project ref Supabase aktif (deteksi dari URL) supaya kalau ada drift dual-project langsung kelihatan.
+
+4. **`src/pages/admin/AdminRBACStatus.tsx`** — tambah tombol "Wipe & Re-seed All" (panggil RPC baru) supaya next time satu klik selesai dari UI.
+
+5. **Migration baru di Lovable Cloud**:
+   - Tambah RPC `wipe_and_reset_all_role_permissions()` (super_admin only).
+   - Anda bisa duplicate SQL function ini ke project produksi kalau mau.
+
+## Alur eksekusi
+
+1. Anda jalankan SQL diagnosis (Bagian 1, blok pertama) → kirim hasil ke saya.
+2. Saya finalisasi SQL wipe+reseed sesuai nama kolom aktual Anda.
+3. Anda jalankan SQL final di SQL Editor Supabase produksi.
+4. Saya implementasi perubahan kode (Bagian 2).
+5. Anda redeploy Vercel → login sebagai owner/finance/operational → akses harus terbuka.
+
+## File yang akan disentuh
+- `src/hooks/useDynamicMenus.ts`
+- `src/components/auth/ProtectedRoute.tsx`
+- `src/components/EnvDiagnostic.tsx`
+- `src/pages/admin/AdminRBACStatus.tsx`
+- `supabase/migrations/<ts>_wipe_and_reset_role_permissions_rpc.sql` (baru)

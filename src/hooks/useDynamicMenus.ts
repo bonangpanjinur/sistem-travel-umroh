@@ -108,11 +108,39 @@ export const useDynamicMenus = () => {
   // remain visible to every staff user (e.g. a generic admin landing).
   const allowedSet = useMemo(() => new Set(effectiveKeys), [effectiveKeys]);
 
+  /**
+   * Tolerant permission match — handles drift between menu_items.required_permission
+   * (simple keys: "customers", "payments") and role_permissions.permission_key,
+   * which may still contain legacy granular keys ("customers.view", "payments.verify").
+   *
+   * A menu's required_permission `req` is granted if ANY of these are in effectiveSet:
+   *   - req itself                            (e.g. "customers")
+   *   - req + ".view"  / ".list" / ".read"    (e.g. "customers.view")
+   *   - any key starting with `req + "."`     (legacy granular keys)
+   *   - the prefix before "." matches req     (reverse case)
+   */
+  const matchesPermission = useCallback(
+    (req: string | null | undefined, set: Set<string>): boolean => {
+      if (!req) return true;
+      if (set.has(req)) return true;
+      const variants = [`${req}.view`, `${req}.list`, `${req}.read`, `${req}.manage`];
+      if (variants.some((v) => set.has(v))) return true;
+      // Any key starting with "<req>." → granular legacy key
+      for (const k of set) {
+        if (k.startsWith(`${req}.`)) return true;
+        const root = k.split('.')[0];
+        if (root === req) return true;
+      }
+      return false;
+    },
+    []
+  );
+
   const filteredMenus = useMemo(() => {
     const visibleMenus = menus.filter(m => (m as any).is_visible !== false);
     if (isSuperAdmin) return visibleMenus;
-    return visibleMenus.filter(m => !m.required_permission || allowedSet.has(m.required_permission));
-  }, [menus, allowedSet, isSuperAdmin]);
+    return visibleMenus.filter(m => matchesPermission(m.required_permission, allowedSet));
+  }, [menus, allowedSet, isSuperAdmin, matchesPermission]);
 
   // Group menus - memoized for performance
   const groupedMenus: MenuGroup[] = useMemo(() => {
@@ -165,8 +193,8 @@ export const useDynamicMenus = () => {
       .filter(m => path === m.path || (m.path !== '/admin' && path.startsWith(m.path)))
       .sort((a, b) => b.path.length - a.path.length)[0];
     if (!match || !match.required_permission) return true;
-    return allowedSet.has(match.required_permission);
-  }, [isSuperAdmin, menus, allowedSet]);
+    return matchesPermission(match.required_permission, allowedSet);
+  }, [isSuperAdmin, menus, allowedSet, matchesPermission]);
 
   return {
     menus: filteredMenus,
