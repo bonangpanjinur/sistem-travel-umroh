@@ -15,7 +15,7 @@ import {
   TrendingUp, DollarSign, Users, Calendar,
   Filter, X, ArrowUpRight, ArrowDownRight, 
   Download, RefreshCcw, Activity, ShoppingBag,
-  MapPin, Briefcase
+  MapPin, Briefcase, Package
 } from "lucide-react";
 import { 
   format, subMonths, startOfMonth, endOfMonth, 
