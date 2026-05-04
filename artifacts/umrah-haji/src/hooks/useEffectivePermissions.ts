@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getInheritedRoles } from '@/lib/permissions';
+import { AppRole } from '@/types/database';
 
 export function useEffectivePermissions() {
   const { user, hasRole, roles } = useAuth();
@@ -23,7 +24,7 @@ export function useEffectivePermissions() {
       
       // Get all roles for the user including inherited ones
       const userRoles = roles || [];
-      const expandedRoles = [...userRoles];
+      const expandedRoles: AppRole[] = [...userRoles];
       userRoles.forEach(role => {
         expandedRoles.push(...getInheritedRoles(role));
       });

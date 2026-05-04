@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { RECOMMENDED_MENUS } from '@/lib/admin-menu-registry';
 import { getInheritedRoles } from '@/lib/permissions';
+import { AppRole } from '@/types/database';
 
 export interface MenuItem {
   id: string;
@@ -41,9 +42,9 @@ export const useDynamicMenus = () => {
       if (!user || isSuperAdmin || !isStaffUser) return [] as string[];
 
       // Support Role Inheritance
-      const userRoles = (user as any).roles || [];
-      const expandedRoles = [...userRoles];
-      userRoles.forEach((role: string) => {
+      const userRoles = (user as any).roles || [] as AppRole[];
+      const expandedRoles: AppRole[] = [...userRoles];
+      userRoles.forEach((role: AppRole) => {
         expandedRoles.push(...getInheritedRoles(role));
       });
       const uniqueRoles = Array.from(new Set(expandedRoles));

@@ -1,3 +1,5 @@
+import { AppRole } from '@/types/database';
+
 /**
  * Centralized Permission Keys
  * 
@@ -113,8 +115,8 @@ export const ROLE_HIERARCHY: Record<string, string[]> = {
 /**
  * Helper to get all inherited roles for a given role (recursive)
  */
-export function getInheritedRoles(role: string): string[] {
-  const inherited = ROLE_HIERARCHY[role] || [];
+export function getInheritedRoles(role: AppRole): AppRole[] {
+  const inherited = (ROLE_HIERARCHY[role] || []) as AppRole[];
   let allInherited = [...inherited];
   
   for (const childRole of inherited) {
