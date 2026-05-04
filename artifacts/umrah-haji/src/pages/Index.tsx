@@ -53,7 +53,7 @@ const Index = () => {
 
   return (
     <DynamicPublicLayout>
-      <BannerCarousel />
+      <BannerCarousel template={template as any} />
       {enabledSections.map((section: HomepageSection) => {
         const Component = sectionComponents[section.id];
         if (!Component) return null;
