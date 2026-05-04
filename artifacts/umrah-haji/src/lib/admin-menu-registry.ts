@@ -96,6 +96,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'appearance',          label: 'Tampilan & Tema',       path: '/admin/appearance',           icon: 'Palette',         group_name: 'Pengaturan',         sort_order: 1008, required_permission: 'appearance' },
   { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1009, required_permission: 'settings' },
   { key: 'api-connect',         label: 'API Connect ke Apps',   path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Pengaturan',         sort_order: 1010, required_permission: 'api-connect' },
+  { key: 'supabase-setup',      label: 'Panduan Setup Supabase', path: '/admin/supabase-setup',       icon: 'Database',        group_name: 'Pengaturan',         sort_order: 1011, required_permission: 'supabase-setup' },
 ];
 
 /**

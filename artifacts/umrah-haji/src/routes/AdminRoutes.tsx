@@ -80,6 +80,7 @@ const AdminMuthawifs = lazy(() => import("@/pages/admin/AdminMuthawifs"));
 const AdminBusProviders = lazy(() => import("@/pages/admin/AdminBusProviders"));
 const AdminAnnouncements = lazy(() => import("@/pages/admin/AdminAnnouncements"));
 const AdminApiConnect = lazy(() => import("@/pages/admin/AdminApiConnect"));
+const AdminSupabaseSetup = lazy(() => import("@/pages/admin/AdminSupabaseSetup"));
 
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
@@ -189,6 +190,7 @@ export default function AdminRoutes() {
       <Route path="settings" element={<LazyPage><AdminSettings /></LazyPage>} />
       <Route path="announcements" element={<LazyPage><AdminAnnouncements /></LazyPage>} />
       <Route path="api-connect" element={<LazyPage><AdminApiConnect /></LazyPage>} />
+      <Route path="supabase-setup" element={<LazyPage><AdminSupabaseSetup /></LazyPage>} />
 
       {/* Master Data */}
       <Route path="master-data" element={<LazyPage><AdminMasterData /></LazyPage>} />
