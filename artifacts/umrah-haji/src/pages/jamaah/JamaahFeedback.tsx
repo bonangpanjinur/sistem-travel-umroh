@@ -16,7 +16,7 @@ import { id } from "date-fns/locale";
 import { ArrowLeft, Star, Loader2, MapPin, Calendar } from "lucide-react";
 
 export default function JamaahFeedback() {
-  const { bookingId } = useParams();
+  const { bookingId } = useParams() as { bookingId: string };
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();

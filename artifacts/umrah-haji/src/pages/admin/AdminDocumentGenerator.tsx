@@ -293,7 +293,7 @@ const AdminDocumentGenerator = () => {
         .select('id, full_name, employee_code, position, department, is_active')
         .eq('is_active', true)
         .order('full_name');
-      return data || [];
+      return (data || []) as unknown as Employee[];
     }
   });
 

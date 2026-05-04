@@ -74,8 +74,8 @@ export default function AdminMuthawifs() {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{muthawif.experience_years || 0} tahun pengalaman</p>
-                    {muthawif.languages?.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">Bahasa: {muthawif.languages.join(", ")}</p>
+                    {(muthawif.languages?.length ?? 0) > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">Bahasa: {muthawif.languages!.join(", ")}</p>
                     )}
                     {muthawif.phone && <p className="text-xs text-muted-foreground">{muthawif.phone}</p>}
                   </div>

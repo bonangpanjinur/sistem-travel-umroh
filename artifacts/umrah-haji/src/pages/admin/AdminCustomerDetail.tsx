@@ -59,7 +59,7 @@ const BOOKING_STATUS_CONFIG: Record<string, { label: string; color: string }> = 
 };
 
 export default function AdminCustomerDetail() {
-  const { id: customerId } = useParams();
+  const { id: customerId } = useParams() as { id: string };
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { company: companyInfo } = useCompanyInfo();
@@ -466,7 +466,7 @@ export default function AdminCustomerDetail() {
                   <p className="text-xs text-muted-foreground">Aktifkan jika jamaah adalah TL</p>
                 </div>
                 <Switch 
-                  checked={customer.is_tour_leader}
+                  checked={customer.is_tour_leader ?? false}
                   onCheckedChange={(checked) => toggleTourLeaderMutation.mutate(checked)}
                   disabled={toggleTourLeaderMutation.isPending}
                 />

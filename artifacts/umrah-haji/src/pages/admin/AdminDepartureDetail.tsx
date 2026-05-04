@@ -620,7 +620,7 @@ export default function AdminDepartureDetail() {
               <h1 className="text-2xl font-bold">
                 {departure.departure_date ? formatDate(departure.departure_date) : <span className="text-orange-500 text-lg">Tanggal belum diatur</span>}
               </h1>
-              {getStatusBadge(departure.status)}
+              {getStatusBadge(departure.status ?? '')}
             </div>
             <p className="text-muted-foreground">
               {departure.package?.name || "Tanpa Paket"} •{" "}
@@ -681,7 +681,7 @@ export default function AdminDepartureDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <p className="font-semibold">{getStatusBadge(departure.status)}</p>
+                    <p className="font-semibold">{getStatusBadge(departure.status ?? '')}</p>
                   </div>
                 </div>
               </CardContent>

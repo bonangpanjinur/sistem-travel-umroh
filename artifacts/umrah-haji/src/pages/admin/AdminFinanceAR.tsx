@@ -236,7 +236,7 @@ export default function AdminFinanceAR() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(ar.created_at), "dd MMM yyyy", { locale: localeId })}
+                    {format(new Date(ar.created_at!), "dd MMM yyyy", { locale: localeId })}
                   </TableCell>
                   <TableCell className="text-right">
                     {ar.outstanding > 0 && (

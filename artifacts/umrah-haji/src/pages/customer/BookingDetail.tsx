@@ -29,7 +29,7 @@ import { differenceInHours, parseISO } from "date-fns";
 import { toast } from "sonner";
 
 export default function BookingDetail() {
-  const { bookingId } = useParams();
+  const { bookingId } = useParams() as { bookingId: string };
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const ktpInputRef = useRef<HTMLInputElement>(null);
@@ -273,7 +273,7 @@ export default function BookingDetail() {
             <h1 className="text-2xl font-bold font-mono">{booking.booking_code}</h1>
           </div>
           <Badge variant={booking.payment_status === 'paid' ? 'default' : 'destructive'} className="text-sm">
-            {booking.payment_status === 'paid' ? 'Lunas' : `Sisa: ${formatCurrency(booking.remaining_amount)}`}
+            {booking.payment_status === 'paid' ? 'Lunas' : `Sisa: ${formatCurrency(booking.remaining_amount ?? 0)}`}
           </Badge>
         </div>
 
@@ -505,10 +505,10 @@ export default function BookingDetail() {
                   <span className="text-muted-foreground">Jumlah Jamaah</span>
                   <span>{booking.total_pax} orang</span>
                 </div>
-                {booking.discount_amount > 0 && (
+                {(booking.discount_amount ?? 0) > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Diskon</span>
-                    <span>-{formatCurrency(booking.discount_amount)}</span>
+                    <span>-{formatCurrency(booking.discount_amount ?? 0)}</span>
                   </div>
                 )}
                 <Separator />
@@ -518,11 +518,11 @@ export default function BookingDetail() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Sudah Dibayar</span>
-                  <span className="text-green-600">{formatCurrency(booking.paid_amount)}</span>
+                  <span className="text-green-600">{formatCurrency(booking.paid_amount ?? 0)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-destructive">
                   <span>Sisa Pembayaran</span>
-                  <span>{formatCurrency(booking.remaining_amount)}</span>
+                  <span>{formatCurrency(booking.remaining_amount ?? 0)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -557,7 +557,7 @@ export default function BookingDetail() {
                         <div>
                           <p className="font-mono text-sm">{payment.payment_code}</p>
                           <p className="text-sm text-muted-foreground">
-                            {format(new Date(payment.created_at), "d MMM yyyy, HH:mm", { locale: id })}
+                            {format(new Date(payment.created_at!), "d MMM yyyy, HH:mm", { locale: id })}
                           </p>
                         </div>
                         <div className="text-right">

@@ -70,7 +70,7 @@ export default function AdminSecurityAudit() {
       if (error) throw error;
       
       // Fetch user profiles separately
-      const userIds = [...new Set(data?.map(d => d.user_id).filter(Boolean))];
+      const userIds = [...new Set(data?.map(d => d.user_id).filter((id): id is string => id !== null))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name')
@@ -80,7 +80,7 @@ export default function AdminSecurityAudit() {
       
       return data?.map(log => ({
         ...log,
-        profiles: profileMap.get(log.user_id) || null
+        profiles: profileMap.get(log.user_id!) || null
       })) as ActivityLog[];
     }
   });
@@ -98,7 +98,7 @@ export default function AdminSecurityAudit() {
       if (error) throw error;
       
       // Fetch user profiles separately
-      const userIds = [...new Set(data?.map(d => d.user_id).filter(Boolean))];
+      const userIds = [...new Set(data?.map(d => d.user_id).filter((id): id is string => id !== null))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name')
@@ -108,7 +108,7 @@ export default function AdminSecurityAudit() {
       
       return data?.map(log => ({
         ...log,
-        profiles: profileMap.get(log.user_id) || null
+        profiles: profileMap.get(log.user_id!) || null
       })) as AuditLog[];
     }
   });

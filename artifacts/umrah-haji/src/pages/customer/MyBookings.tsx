@@ -171,7 +171,7 @@ export default function MyBookings() {
                           <span>{formatCurrency(booking.total_price)}</span>
                         </div>
                         <div className="text-muted-foreground">
-                          Sisa: {formatCurrency(booking.remaining_amount)}
+                          Sisa: {formatCurrency(booking.remaining_amount ?? 0)}
                         </div>
                       </div>
 

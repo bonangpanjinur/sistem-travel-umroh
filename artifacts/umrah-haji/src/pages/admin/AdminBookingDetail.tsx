@@ -67,7 +67,7 @@ const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
 ];
 
 export default function AdminBookingDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>() as { id: string };
   const navigate = useNavigate();
   const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
   const { company: companyInfo } = useCompanyInfo();
@@ -374,13 +374,13 @@ export default function AdminBookingDetail() {
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight">{booking.booking_code}</h1>
-                <Badge variant={getStatusBadgeVariant(booking.booking_status)} className="px-3 py-1 text-xs uppercase tracking-wider font-bold">
-                  {getBookingStatusLabel(booking.booking_status)}
+                <Badge variant={getStatusBadgeVariant(booking.booking_status ?? '')} className="px-3 py-1 text-xs uppercase tracking-wider font-bold">
+                  {getBookingStatusLabel(booking.booking_status ?? '')}
                 </Badge>
               </div>
               <p className="text-muted-foreground mt-1 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Dibuat pada {formatDate(booking.created_at)}
+                Dibuat pada {formatDate(booking.created_at ?? '')}
               </p>
             </div>
           </div>
@@ -388,7 +388,7 @@ export default function AdminBookingDetail() {
           <div className="flex flex-wrap items-center gap-3 bg-muted/30 p-2 rounded-lg border border-dashed">
             <div className="text-xs font-semibold text-muted-foreground px-2 uppercase tracking-widest">Update Status</div>
             <Select 
-              value={booking.booking_status} 
+              value={booking.booking_status ?? undefined} 
               onValueChange={(val) => handleStatusChange(val as BookingStatus)}
             >
               <SelectTrigger className="w-[180px] bg-background">

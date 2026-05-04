@@ -1114,7 +1114,7 @@ export default function AdminPackages() {
                             <DropdownMenuContent align="end" className="rounded-xl p-1 w-48">
                               <div className="px-1 py-1.5">
                                 <PackageMarketingActions
-                                  pkg={pkg}
+                                  pkg={pkg as any}
                                   companyPhone="62812345678"
                                   companyName="Vins Tour Travel"
                                   variant="ghost"

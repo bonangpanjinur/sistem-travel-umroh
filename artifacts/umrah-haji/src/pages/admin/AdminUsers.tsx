@@ -183,7 +183,7 @@ export default function AdminUsers() {
     if (openPermissionsUserId && users && users.length > 0) {
       const userToOpenPermissions = users.find(u => u.user_id === openPermissionsUserId);
       if (userToOpenPermissions) {
-        setSelectedUser(userToOpenPermissions);
+        setSelectedUser(userToOpenPermissions as any);
         setShowPermissionsDialog(true);
         setSearchParams({});
       }
@@ -500,7 +500,7 @@ export default function AdminUsers() {
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              setSelectedUser(user);
+                                              setSelectedUser(user as any);
                                               setEditingRole({ id: r.id, role: r.role, branch_id: r.branch_id });
                                               setNewRole(r.role);
                                               setSelectedBranchId(r.branch_id || "all");
@@ -549,7 +549,7 @@ export default function AdminUsers() {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-gray-500">
-                        {format(new Date(user.created_at), 'd MMM yyyy', { locale: id })}
+                        {format(new Date(user.created_at!), 'd MMM yyyy', { locale: id })}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -558,7 +558,7 @@ export default function AdminUsers() {
                             size="sm"
                             className="h-8 border-gray-200 hover:bg-blue-50 hover:text-blue-600"
                             onClick={() => {
-                              setSelectedUser(user);
+                              setSelectedUser(user as any);
                               setEditingRole(null);
                               setNewRole("");
                               setSelectedBranchId("all");
@@ -576,7 +576,7 @@ export default function AdminUsers() {
                                 size="sm"
                                 className="h-8 text-indigo-600 border-indigo-100 hover:bg-indigo-50"
                                 onClick={() => {
-                                  setSelectedUser(user);
+                                  setSelectedUser(user as any);
                                   setShowPermissionsDialog(true);
                                 }}
                               >
@@ -588,7 +588,7 @@ export default function AdminUsers() {
                                 size="sm"
                                 className="h-8 text-blue-600 border-blue-100 hover:bg-blue-50"
                                 onClick={() => {
-                                  setUserToResetPassword(user);
+                                  setUserToResetPassword(user as any);
                                   setResetPasswordMethod("email");
                                 }}
                               >
@@ -599,7 +599,7 @@ export default function AdminUsers() {
                                 variant="outline"
                                 size="sm"
                                 className="h-8 text-red-600 border-red-100 hover:bg-red-50"
-                                onClick={() => setUserToDelete(user)}
+                                onClick={() => setUserToDelete(user as any)}
                               >
                                 <Trash2 className="h-3.5 w-3.5 mr-1" />
                                 Hapus

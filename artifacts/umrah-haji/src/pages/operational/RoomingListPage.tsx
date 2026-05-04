@@ -336,31 +336,31 @@ export default function RoomingListPage() {
 
   const handleExportTemplateExcel = () => {
     const data = buildExportData();
-    if (!data) return toast.error('Data belum siap');
-    if (data.passengers.length === 0) return toast.error('Tidak ada jamaah pada keberangkatan ini');
+    if (!data) { toast.error('Data belum siap'); return; }
+    if (data.passengers.length === 0) { toast.error('Tidak ada jamaah pada keberangkatan ini'); return; }
     exportRoomingListExcel(data);
     toast.success('Rooming List Excel berhasil di-download');
   };
 
   const handleExportTemplatePDF = () => {
     const data = buildExportData();
-    if (!data) return toast.error('Data belum siap');
-    if (data.passengers.length === 0) return toast.error('Tidak ada jamaah pada keberangkatan ini');
+    if (!data) { toast.error('Data belum siap'); return; }
+    if (data.passengers.length === 0) { toast.error('Tidak ada jamaah pada keberangkatan ini'); return; }
     exportRoomingListPDF(data);
     toast.success('Rooming List PDF berhasil di-download');
   };
 
   const handlePreviewPDF = () => {
     const data = buildExportData();
-    if (!data) return toast.error('Data belum siap');
-    if (data.passengers.length === 0) return toast.error('Tidak ada jamaah pada keberangkatan ini');
+    if (!data) { toast.error('Data belum siap'); return; }
+    if (data.passengers.length === 0) { toast.error('Tidak ada jamaah pada keberangkatan ini'); return; }
     const pdfUrl = previewRoomingListPDF(data);
     setPreviewPdfUrl(pdfUrl);
     setPreviewDialogOpen(true);
   };
 
   const totalRooms = rooms?.length || 0;
-  const totalCapacity = rooms?.reduce((sum, r) => sum + r.capacity, 0) || 0;
+  const totalCapacity = rooms?.reduce((sum, r) => sum + (r.capacity ?? 0), 0) || 0;
   const totalOccupied = rooms?.reduce((sum, r) => sum + (r.occupants?.length || 0), 0) || 0;
 
   const getRoomTypeLabel = (type: string) => {
@@ -616,7 +616,7 @@ export default function RoomingListPage() {
                         setSelectedRoom(room);
                         setAssignPassengerDialogOpen(true);
                       }}
-                      disabled={(room.occupants?.length || 0) >= room.capacity}
+                      disabled={(room.occupants?.length || 0) >= (room.capacity ?? 0)}
                     >
                       <UserPlus className="h-4 w-4 mr-2" /> Tambah Jamaah
                     </Button>

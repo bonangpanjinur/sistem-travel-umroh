@@ -66,14 +66,14 @@ export function getLowestPackagePrice(pkg: PackageMarketingData): number {
   );
   
   const depPrices = openDeps.flatMap(d =>
-    [d.price_quad, d.price_triple, d.price_double, d.price_single].filter(p => p && p > 0)
+    [d.price_quad, d.price_triple, d.price_double, d.price_single].filter((p): p is number => p != null && p > 0)
   );
   
   if (depPrices.length > 0) return Math.min(...depPrices);
   
   // Fallback to package prices
   const pkgPrices = [pkg.price_quad, pkg.price_triple, pkg.price_double, pkg.price_single]
-    .filter(p => p && p > 0);
+    .filter((p): p is number => p != null && p > 0);
   
   return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
 }

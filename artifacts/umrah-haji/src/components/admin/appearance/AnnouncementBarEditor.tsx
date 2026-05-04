@@ -141,8 +141,8 @@ export function AnnouncementBarEditor({ settings }: AnnouncementBarEditorProps) 
                   setAnnouncement((prev) => ({
                     ...prev,
                     type: value,
-                    background_color: typePresets[value].bg,
-                    text_color: typePresets[value].text,
+                    background_color: typePresets[value as keyof typeof typePresets].bg,
+                    text_color: typePresets[value as keyof typeof typePresets].text,
                   }));
                 }}>
                   <SelectTrigger id="type">

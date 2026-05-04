@@ -35,7 +35,7 @@ export function useLeads(filters?: { status?: LeadStatus; assignedTo?: string })
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('user_id, full_name')
-          .in('user_id', assignedToIds);
+          .in('user_id', assignedToIds as string[]);
         profiles = profilesData || [];
       }
 

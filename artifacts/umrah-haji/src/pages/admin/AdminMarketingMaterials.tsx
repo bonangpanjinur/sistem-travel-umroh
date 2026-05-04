@@ -411,7 +411,7 @@ export default function AdminMarketingMaterials() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {materials.map((material) => (
+                  {materials.map((material: any) => (
                     <TableRow key={material.id}>
                       <TableCell className="font-medium max-w-xs truncate">
                         {material.name}

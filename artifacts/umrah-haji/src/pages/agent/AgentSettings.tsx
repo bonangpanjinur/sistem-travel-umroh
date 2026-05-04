@@ -142,7 +142,7 @@ export default function AgentSettings() {
           province: data.province,
           bio: data.bio,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("user_id", user.id);
 
       if (profileError) throw profileError;

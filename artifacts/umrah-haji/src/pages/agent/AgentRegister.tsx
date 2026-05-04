@@ -170,11 +170,11 @@ export default function AgentRegister() {
       const { error: commissionError } = await supabase
         .from('agent_commissions')
         .insert({
-          agent_id: agentData?.id,
+          agent_id: agentData!.id,
           booking_id: booking.id,
           commission_amount: commissionAmount,
           status: 'pending',
-        });
+        } as any);
 
       if (commissionError) throw commissionError;
 
@@ -255,7 +255,7 @@ export default function AgentRegister() {
                     {departures?.map((dep) => (
                       <SelectItem key={dep.id} value={dep.id}>
                         {format(new Date(dep.departure_date), "dd MMM yyyy")} 
-                        ({dep.quota - dep.booked_count} seat)
+                        ({dep.quota - (dep.booked_count ?? 0)} seat)
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -114,7 +114,7 @@ export function VariantManagerDialog({ open, onOpenChange, equipmentId, equipmen
   });
 
   const handleAdd = () => {
-    if (draft.stock_good < 0) return toast.error("Stok tidak boleh negatif");
+    if (draft.stock_good < 0) { toast.error("Stok tidak boleh negatif"); return; }
     addMutation.mutate();
   };
 

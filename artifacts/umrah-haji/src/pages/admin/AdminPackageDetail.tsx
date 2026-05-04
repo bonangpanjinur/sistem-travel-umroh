@@ -60,7 +60,7 @@ const MONTHS = [
 ];
 
 export default function AdminPackageDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>() as { id: string };
   const queryClient = useQueryClient();
   
   const [isPackageFormOpen, setIsPackageFormOpen] = useState(false);
@@ -152,10 +152,10 @@ export default function AdminPackageDetail() {
     ]).filter(p => p && p > 0);
     
     const lowestPrices = {
-      quad: Math.min(...departures.map(d => d.price_quad).filter(p => p > 0)) || 0,
-      triple: Math.min(...departures.map(d => d.price_triple).filter(p => p > 0)) || 0,
-      double: Math.min(...departures.map(d => d.price_double).filter(p => p > 0)) || 0,
-      single: Math.min(...departures.map(d => d.price_single).filter(p => p > 0)) || 0,
+      quad: Math.min(...departures.map(d => d.price_quad).filter((p): p is number => p !== null && p > 0)) || 0,
+      triple: Math.min(...departures.map(d => d.price_triple).filter((p): p is number => p !== null && p > 0)) || 0,
+      double: Math.min(...departures.map(d => d.price_double).filter((p): p is number => p !== null && p > 0)) || 0,
+      single: Math.min(...departures.map(d => d.price_single).filter((p): p is number => p !== null && p > 0)) || 0,
     };
 
     // 2. Get hotel/airline from the departure with the highest price (highest tier)

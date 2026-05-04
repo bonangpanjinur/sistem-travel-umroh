@@ -190,7 +190,7 @@ export default function AdminAdvancedReports() {
   const leadFunnel: LeadFunnelData[] = [
     { name: "Total Leads", value: leadData.length, color: "#8884d8" },
     { name: "Contacted", value: leadData.filter((l) => l.status !== "new").length, color: "#82ca9d" },
-    { name: "Qualified", value: leadData.filter((l) => ["qualified", "proposal", "negotiation", "won"].includes(l.status)).length, color: "#ffc658" },
+    { name: "Qualified", value: leadData.filter((l) => ["qualified", "proposal", "negotiation", "won"].includes(l.status as string)).length, color: "#ffc658" },
     { name: "Won", value: leadData.filter((l) => l.status === "won").length, color: "#00C49F" },
   ];
 
@@ -509,7 +509,7 @@ export default function AdminAdvancedReports() {
                   data={
                     Object.entries(
                       bookingData.reduce((acc: Record<string, number>, b) => {
-                        const date = format(new Date(b.created_at), "yyyy-MM-dd");
+                        const date = format(new Date(b.created_at!), "yyyy-MM-dd");
                         acc[date] = (acc[date] || 0) + 1;
                         return acc;
                       }, {})

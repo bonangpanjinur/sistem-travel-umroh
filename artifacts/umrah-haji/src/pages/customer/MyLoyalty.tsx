@@ -112,7 +112,7 @@ export default function MyLoyalty() {
       if (!loyaltyData?.customerId) throw new Error('Customer not found');
       if (!loyaltyData.points) throw new Error('Loyalty data not found');
       
-      if (loyaltyData.points.current_points < reward.points_required) {
+      if ((loyaltyData.points.current_points ?? 0) < reward.points_required) {
         throw new Error('Poin tidak mencukupi');
       }
 
@@ -130,7 +130,7 @@ export default function MyLoyalty() {
       if (txError) throw txError;
 
       // Update loyalty points
-      const newPoints = loyaltyData.points.current_points - reward.points_required;
+      const newPoints = (loyaltyData.points.current_points ?? 0) - reward.points_required;
       const newRedeemed = (loyaltyData.points.total_redeemed || 0) + reward.points_required;
       
       let newTier = loyaltyData.points.tier_level;
@@ -415,7 +415,7 @@ export default function MyLoyalty() {
                               {tx.description || '-'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}
+                              {format(new Date(tx.created_at!), 'dd MMM yyyy, HH:mm', { locale: idLocale })}
                             </p>
                           </div>
                         </div>

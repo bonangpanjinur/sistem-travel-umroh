@@ -168,7 +168,7 @@ const AlertCard = ({ type, title, message, action }: any) => {
     success: { bg: 'bg-emerald-50/30', border: 'border-emerald-100', icon: 'text-emerald-600', title: 'text-emerald-800', bg_icon: 'bg-emerald-100' },
   };
 
-  const config = typeConfig[type] || typeConfig.info;
+  const config = typeConfig[type as keyof typeof typeConfig] || typeConfig.info;
 
   return (
     <Card className={cn(config.border, config.bg)}>

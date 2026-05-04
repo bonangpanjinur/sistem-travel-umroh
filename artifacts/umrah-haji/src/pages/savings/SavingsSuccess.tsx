@@ -15,7 +15,7 @@ import {
 import { useState } from 'react';
 
 export default function SavingsSuccess() {
-  const { planId } = useParams<{ planId: string }>();
+  const { planId } = useParams<{ planId: string }>() as { planId: string };
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Fetch plan

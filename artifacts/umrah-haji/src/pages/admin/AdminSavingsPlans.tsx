@@ -422,7 +422,7 @@ export default function AdminSavingsPlans() {
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(plan.status)}</TableCell>
+                        <TableCell>{getStatusBadge(plan.status ?? '')}</TableCell>
                         <TableCell className="text-right space-x-2">
                           {plan.status === 'active' && (
                             <Button
@@ -547,7 +547,7 @@ export default function AdminSavingsPlans() {
                         <div className="text-right">
                           <p className="font-bold">{formatCurrency(payment.amount)}</p>
                           <div className="flex items-center gap-2">
-                            {getPaymentStatusBadge(payment.status)}
+                            {getPaymentStatusBadge(payment.status ?? '')}
                             {payment.status === 'pending' && (
                               <Button 
                                 size="sm" 

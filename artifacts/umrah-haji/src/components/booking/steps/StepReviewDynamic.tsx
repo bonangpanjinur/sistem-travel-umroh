@@ -86,10 +86,10 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
         case 'adult': return adultPrice;
         case 'child': return childPrice;
         case 'infant': return infantPrice;
-        default: return priceMap[passenger.roomType] || 0;
+        default: return priceMap[passenger.roomType as keyof typeof priceMap] || 0;
       }
     }
-    return priceMap[passenger.roomType] || 0;
+    return priceMap[passenger.roomType as keyof typeof priceMap] || 0;
   };
 
   // Calculate price breakdown by room type and passenger type

@@ -85,7 +85,7 @@ export default function ManifestPage() {
             departure_id
           )
         `)
-        .eq('booking.departure_id', selectedDeparture)
+        .eq('booking.departure_id', selectedDeparture ?? '')
         .eq('booking.booking_status', 'confirmed');
 
       if (error) throw error;

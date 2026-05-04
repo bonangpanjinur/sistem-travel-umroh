@@ -205,7 +205,7 @@ export default function JamaahPaymentHistory() {
                           </p>
                           <p className="text-sm text-muted-foreground mb-2">{packageName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(payment.created_at), "d MMMM yyyy, HH:mm", {
+                            {format(new Date(payment.created_at!), "d MMMM yyyy, HH:mm", {
                               locale: id,
                             })}
                           </p>

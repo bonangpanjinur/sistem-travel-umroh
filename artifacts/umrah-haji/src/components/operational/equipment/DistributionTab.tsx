@@ -252,7 +252,7 @@ export function DistributionTab({
             <CardContent>
               {selectedPassenger && equipmentItems ? (
                 <EquipmentChecklist
-                  equipmentItems={equipmentItems}
+                  equipmentItems={equipmentItems as any}
                   selectedCustomerId={selectedCustomerId}
                   selectedDepartureId={selectedDeparture}
                   existingDistributions={customerDistributions || []}

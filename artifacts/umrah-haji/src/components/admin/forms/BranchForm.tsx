@@ -302,7 +302,7 @@ export function BranchForm({ branchData, onSuccess, onCancel }: BranchFormProps)
           <Button type="button" variant="outline" onClick={onCancel}>
             Batal
           </Button>
-          <Button type="submit" disabled={mutation.isPending || (showSlugStatus && !checkingSlug && slugAvailable === false)}>
+          <Button type="submit" disabled={mutation.isPending || !!(showSlugStatus && !checkingSlug && slugAvailable === false)}>
             {mutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {isEditing ? "Simpan Perubahan" : "Tambah Cabang"}
           </Button>

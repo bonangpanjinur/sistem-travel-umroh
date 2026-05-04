@@ -183,7 +183,7 @@ export default function AdminSettings() {
         <TabsList className="mb-4">
           <TabsTrigger value="profile">Profil & Keamanan</TabsTrigger>
           <TabsTrigger value="bank">Rekening Bank</TabsTrigger>
-          {isSuperAdmin && <TabsTrigger value="sidebar">Susunan Sidebar</TabsTrigger>}
+          {isSuperAdmin() && <TabsTrigger value="sidebar">Susunan Sidebar</TabsTrigger>}
           <TabsTrigger value="danger">Zona Bahaya</TabsTrigger>
         </TabsList>
 
@@ -277,7 +277,7 @@ export default function AdminSettings() {
           </Card>
         </TabsContent>
 
-        {isSuperAdmin && (
+        {isSuperAdmin() && (
           <TabsContent value="sidebar" className="space-y-6">
             <SidebarManager />
           </TabsContent>

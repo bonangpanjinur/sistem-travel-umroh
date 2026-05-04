@@ -151,7 +151,7 @@ export default function AdminReferrals() {
       }
       const { error } = await supabase
         .from('referral_usages')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id);
       if (error) throw error;
     },

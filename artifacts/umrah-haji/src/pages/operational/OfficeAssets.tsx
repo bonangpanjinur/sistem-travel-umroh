@@ -246,7 +246,7 @@ export default function OfficeAssets() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
-            <Button onClick={() => { if (!form.name.trim()) return toast.error("Nama wajib"); saveMutation.mutate(); }} disabled={saveMutation.isPending}>
+            <Button onClick={() => { if (!form.name.trim()) { toast.error("Nama wajib"); return; } saveMutation.mutate(); }} disabled={saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Simpan
             </Button>
           </DialogFooter>

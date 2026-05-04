@@ -31,7 +31,7 @@ export default function AgentWallet() {
       const { data, error } = await supabase
         .from('agents')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user!.id)
         .single();
       if (error) throw error;
       return data;
@@ -46,7 +46,7 @@ export default function AgentWallet() {
       const { data, error } = await supabase
         .from('agent_wallets')
         .select('*')
-        .eq('agent_id', agent?.id)
+        .eq('agent_id', agent!.id)
         .single();
       if (error) throw error;
       return data;
@@ -61,7 +61,7 @@ export default function AgentWallet() {
       const { data, error } = await supabase
         .from('agent_wallet_transactions')
         .select('*')
-        .eq('wallet_id', wallet?.id)
+        .eq('wallet_id', wallet!.id)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -77,7 +77,7 @@ export default function AgentWallet() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .eq('agent_id', agent?.id)
+        .eq('agent_id', agent!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
@@ -88,7 +88,7 @@ export default function AgentWallet() {
   const withdrawMutation = useMutation({
     mutationFn: async (amount: number) => {
       if (!agent) throw new Error('Agent not found');
-      if (!wallet || wallet.balance < amount) throw new Error('Saldo tidak mencukupi');
+      if (!wallet || (wallet.balance ?? 0) < amount) throw new Error('Saldo tidak mencukupi');
       
       const { error } = await supabase
         .from('withdrawal_requests')
@@ -170,7 +170,7 @@ export default function AgentWallet() {
             <Button 
               className="mt-4 bg-white text-primary hover:bg-white/90"
               onClick={() => setWithdrawDialogOpen(true)}
-              disabled={!wallet || wallet.balance <= 0}
+              disabled={!wallet || (wallet.balance ?? 0) <= 0}
             >
               <Send className="h-4 w-4 mr-2" />
               Tarik Dana
@@ -265,7 +265,7 @@ export default function AgentWallet() {
                     transactions?.map((tx) => (
                       <TableRow key={tx.id}>
                         <TableCell className="text-sm">
-                          {format(new Date(tx.created_at), "dd MMM yyyy HH:mm", { locale: localeId })}
+                          {format(new Date(tx.created_at!), "dd MMM yyyy HH:mm", { locale: localeId })}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{tx.category || 'Lainnya'}</Badge>
@@ -312,13 +312,13 @@ export default function AgentWallet() {
                     withdrawals?.map((wd) => (
                       <TableRow key={wd.id}>
                         <TableCell className="text-sm">
-                          {format(new Date(wd.created_at), "dd MMM yyyy HH:mm", { locale: localeId })}
+                          {format(new Date(wd.created_at!), "dd MMM yyyy HH:mm", { locale: localeId })}
                         </TableCell>
                         <TableCell className="font-medium">{formatCurrency(Number(wd.amount))}</TableCell>
                         <TableCell className="text-sm">
                           {(wd.bank_details as any)?.bank_name} - {(wd.bank_details as any)?.account_number}
                         </TableCell>
-                        <TableCell>{getStatusBadge(wd.status)}</TableCell>
+                        <TableCell>{getStatusBadge(wd.status ?? '')}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {wd.processed_at 
                             ? format(new Date(wd.processed_at), "dd MMM yyyy")

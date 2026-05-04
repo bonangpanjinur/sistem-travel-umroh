@@ -64,7 +64,7 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bgColor:
 const STATUS_ORDER: LeadStatus[] = ['new', 'contacted', 'follow_up', 'negotiation', 'closing', 'won'];
 
 export default function AdminLeadDetail() {
-  const { id } = useParams();
+  const { id } = useParams() as { id: string };
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();

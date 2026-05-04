@@ -206,7 +206,7 @@ export default function JamaahPortal() {
                       <p className="font-semibold text-xs">{n.title}</p>
                       <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {format(new Date(n.created_at), "d MMM, HH:mm", { locale: id })}
+                        {format(new Date(n.created_at!), "d MMM, HH:mm", { locale: id })}
                       </p>
                     </DropdownMenuItem>
                   ))

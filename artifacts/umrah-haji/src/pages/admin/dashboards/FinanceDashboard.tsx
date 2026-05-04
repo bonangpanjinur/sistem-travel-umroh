@@ -197,7 +197,7 @@ export default function FinanceDashboard() {
     const alertList: DashboardAlert[] = [];
 
     if (outstandingPayments.length > 0) {
-      const totalOutstanding = outstandingPayments.reduce((sum, p: any) => sum + p.amount, 0);
+      const totalOutstanding = outstandingPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
       alertList.push({
         id: 'outstanding-payments',
         type: 'warning',

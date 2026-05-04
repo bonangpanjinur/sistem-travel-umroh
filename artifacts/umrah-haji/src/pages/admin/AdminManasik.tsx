@@ -92,7 +92,7 @@ export default function AdminManasik() {
           instructor: form.instructor || null,
           max_participants: form.max_participants ? parseInt(form.max_participants) : null,
           departure_id: form.departure_id || null,
-        }).eq("id", editingManasik.id);
+        } as any).eq("id", editingManasik.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("manasik_schedules").insert({
@@ -106,7 +106,7 @@ export default function AdminManasik() {
           instructor: form.instructor || null,
           max_participants: form.max_participants ? parseInt(form.max_participants) : null,
           departure_id: form.departure_id || null,
-        });
+        } as any);
         if (error) throw error;
       }
     },

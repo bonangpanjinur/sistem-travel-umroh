@@ -412,7 +412,7 @@ export default function AdminHR() {
   const addPositionMutation = useMutation({
     mutationFn: async () => {
       if (!newPosName || !newPosDeptId) throw new Error("Nama dan departemen wajib diisi");
-      const { error } = await supabase.from("positions").insert({ name: newPosName, department_id: newPosDeptId, code: newPosName.toUpperCase().replace(/\s+/g, "_") });
+      const { error } = await supabase.from("positions").insert({ name: newPosName, department_id: newPosDeptId, code: newPosName.toUpperCase().replace(/\s+/g, "_") } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -453,7 +453,7 @@ export default function AdminHR() {
   const saveWorkScheduleMutation = useMutation({
     mutationFn: async (schedules: WorkScheduleInsert[]) => {
       // Delete existing schedules first
-      const { error: deleteError } = await supabase.from("work_schedules").delete().eq("employee_id", schedules[0].employee_id);
+      const { error: deleteError } = await supabase.from("work_schedules").delete().eq("employee_id", schedules[0].employee_id!);
       if (deleteError) throw deleteError;
 
       // Insert new schedules
@@ -1234,7 +1234,7 @@ function WorkScheduleEditor({ employeeId, initialSchedules, onSave, isSaving }: 
                     type="time"
                     value={schedule.start_time || ""}
                     onChange={(e) => handleScheduleChange(index, "start_time", e.target.value)}
-                    disabled={schedule.is_day_off}
+                    disabled={schedule.is_day_off ?? false}
                   />
                 </TableCell>
                 <TableCell>
@@ -1242,12 +1242,12 @@ function WorkScheduleEditor({ employeeId, initialSchedules, onSave, isSaving }: 
                     type="time"
                     value={schedule.end_time || ""}
                     onChange={(e) => handleScheduleChange(index, "end_time", e.target.value)}
-                    disabled={schedule.is_day_off}
+                    disabled={schedule.is_day_off ?? false}
                   />
                 </TableCell>
                 <TableCell>
                   <Switch
-                    checked={schedule.is_day_off}
+                    checked={schedule.is_day_off ?? false}
                     onCheckedChange={(checked) => handleScheduleChange(index, "is_day_off", checked)}
                   />
                 </TableCell>

@@ -35,7 +35,7 @@ export default function AgentWebsite() {
       setTenant({
         type: 'agent',
         id: settings.agent_id,
-        slug: agentSlug,
+        slug: agentSlug ?? null,
         name: settings.company_name,
       });
     }

@@ -465,7 +465,7 @@ export default function AdminDepartures() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        {getStatusBadge(dep.status)}
+                        {getStatusBadge(dep.status ?? '')}
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>

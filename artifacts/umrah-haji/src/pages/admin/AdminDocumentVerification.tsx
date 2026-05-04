@@ -271,9 +271,9 @@ export default function AdminDocumentVerification() {
                         <p className="text-sm truncate max-w-[150px]">{doc.file_name || 'Dokumen'}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm">{formatDate(doc.created_at)}</p>
+                        <p className="text-sm">{formatDate(doc.created_at ?? '')}</p>
                       </TableCell>
-                      <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                      <TableCell>{getStatusBadge(doc.status ?? '')}</TableCell>
                       <TableCell className="text-right">
                         <Button 
                           variant="outline" 

@@ -88,7 +88,7 @@ export function AddCustomerDialog({ trigger }: AddCustomerDialogProps) {
           branch_id: formData.branch_id || null,
           marital_status: formData.marital_status || 'single',
           spouse_name: formData.spouse_name || null,
-        })
+        } as any)
         .select()
         .single();
       

@@ -283,7 +283,7 @@ export default function AgentDigitalKit() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {materials.map((material) => (
+          {materials.map((material: any) => (
             <MaterialCard key={material.id} material={material} />
           ))}
         </div>
@@ -304,14 +304,14 @@ export default function AgentDigitalKit() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Downloads</p>
                 <p className="text-2xl font-bold">
-                  {materials.reduce((sum, m) => sum + m.download_count, 0)}
+                  {materials.reduce((sum: number, m: any) => sum + m.download_count, 0)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Ukuran</p>
                 <p className="text-2xl font-bold">
                   {formatBytes(
-                    materials.reduce((sum, m) => sum + m.file_size, 0)
+                    materials.reduce((sum: number, m: any) => sum + m.file_size, 0)
                   )}
                 </p>
               </div>

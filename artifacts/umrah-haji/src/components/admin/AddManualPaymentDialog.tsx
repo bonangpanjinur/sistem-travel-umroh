@@ -144,7 +144,7 @@ export function AddManualPaymentDialog({ trigger }: AddManualPaymentDialogProps)
       const finalNotes = `Manual entry by Finance${notes ? ` — ${notes}` : ""}`;
 
       const { error: insertError } = await supabase.from("payments").insert({
-        booking_id: bookingId,
+        booking_id: bookingId!,
         payment_code: paymentCode,
         amount: amountNum,
         payment_method: paymentMethod,
@@ -157,7 +157,7 @@ export function AddManualPaymentDialog({ trigger }: AddManualPaymentDialogProps)
         notes: finalNotes,
         verified_at: new Date().toISOString(),
         verified_by: user?.id || null,
-      });
+      } as any);
       if (insertError) throw insertError;
     },
     onSuccess: () => {

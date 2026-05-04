@@ -71,7 +71,7 @@ export function PICSelectionStep({
   ) || [];
 
   const filteredAgents = agents?.filter(a =>
-    a.company_name.toLowerCase().includes(searchAgent.toLowerCase())
+    (a.company_name ?? '').toLowerCase().includes(searchAgent.toLowerCase())
   ) || [];
 
   const PIC_OPTIONS = [

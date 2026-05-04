@@ -66,7 +66,7 @@ export function useUpdateBookingStatus() {
       const update: Record<string, any> = {};
       if (booking_status) update.booking_status = booking_status;
       if (payment_status) update.payment_status = payment_status;
-      const { data, error } = await supabase.from('bookings').update(update).eq('id', id).select().single();
+      const { data, error } = await supabase.from('bookings').update(update as any).eq('id', id).select().single();
       if (error) throw error;
       return data;
     },

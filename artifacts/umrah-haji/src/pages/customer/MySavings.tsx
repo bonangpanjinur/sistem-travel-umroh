@@ -217,7 +217,7 @@ export default function MySavings() {
                       <div>
                         <CardTitle className="text-lg">{plan.package?.name}</CardTitle>
                         <CardDescription>
-                          Terdaftar: {new Date(plan.created_at).toLocaleDateString('id-ID')}
+                          Terdaftar: {new Date(plan.created_at!).toLocaleDateString('id-ID')}
                         </CardDescription>
                       </div>
                       <Badge className={STATUS_COLORS[plan.status || 'active']}>

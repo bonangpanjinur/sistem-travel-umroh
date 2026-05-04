@@ -69,7 +69,7 @@ export function BookingWizard() {
   const { data: packageInfo } = useQuery({
     queryKey: ['package-info', packageId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('packages').select('id, name, code, duration_days, package_type').eq('id', packageId).single();
+      const { data, error } = await supabase.from('packages').select('id, name, code, duration_days, package_type').eq('id', packageId!).single();
       if (error) throw error;
       return data;
     },

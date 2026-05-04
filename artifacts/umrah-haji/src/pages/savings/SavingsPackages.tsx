@@ -136,10 +136,10 @@ export default function SavingsPackages() {
                     <div className="pt-2 border-t">
                       <p className="text-sm text-muted-foreground mb-1">Target Tabungan</p>
                       <p className="text-2xl font-bold text-primary">
-                        {formatCurrency(pkg.savings_target)}
+                        {formatCurrency(pkg.savings_target ?? 0)}
                       </p>
                       <p className="text-sm text-muted-foreground mt-2">
-                        Cicilan mulai dari {formatCurrency(Math.round(pkg.savings_target / 12))}/bulan (tenor 12 bulan)
+                        Cicilan mulai dari {formatCurrency(Math.round((pkg.savings_target ?? 0) / 12))}/bulan (tenor 12 bulan)
                       </p>
                     </div>
                   </CardContent>

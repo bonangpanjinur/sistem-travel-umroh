@@ -35,7 +35,7 @@ export default function BranchWebsite() {
       setTenant({
         type: 'branch',
         id: settings.branch_id,
-        slug: branchSlug,
+        slug: branchSlug ?? null,
         name: settings.company_name,
       });
     }

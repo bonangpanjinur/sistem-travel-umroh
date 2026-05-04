@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard } from "lucide-react";
 
 export default function PaymentUpload() {
-  const { bookingId } = useParams();
+  const { bookingId } = useParams() as { bookingId: string };
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -112,7 +112,7 @@ export default function PaymentUpload() {
       const { error: paymentError } = await supabase
         .from('payments')
         .insert({
-          booking_id: bookingId,
+          booking_id: bookingId!,
           payment_code: paymentCode,
           amount: amountNum,
           payment_method: paymentMethod,
@@ -121,7 +121,7 @@ export default function PaymentUpload() {
           proof_url: filePath, // Store path instead of public URL
           notes: notes,
           status: 'pending',
-        });
+        } as any);
 
       if (paymentError) {
         console.error('Payment record error:', paymentError);
@@ -326,11 +326,11 @@ export default function PaymentUpload() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Sudah Dibayar</span>
-                  <span className="text-green-600">{formatCurrency(booking.paid_amount)}</span>
+                  <span className="text-green-600">{formatCurrency(booking.paid_amount ?? 0)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-destructive">
                   <span>Sisa</span>
-                  <span>{formatCurrency(booking.remaining_amount)}</span>
+                  <span>{formatCurrency(booking.remaining_amount ?? 0)}</span>
                 </div>
               </CardContent>
             </Card>

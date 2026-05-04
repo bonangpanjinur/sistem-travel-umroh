@@ -32,7 +32,7 @@ export default function LandingPage() {
 
   const getWANumber = () => {
     if (lp.whatsapp_source_type === 'agent') {
-      const agentPhone = lp.agent?.profiles?.[0]?.phone || (lp.agent?.profiles as any)?.phone;
+      const agentPhone = (lp.agent?.profiles as any)?.[0]?.phone || (lp.agent?.profiles as any)?.phone;
       return agentPhone || "628123456789";
     }
     if (lp.whatsapp_source_type === 'custom') return lp.whatsapp_custom_number || "628123456789";

@@ -404,7 +404,7 @@ export default function AdminCustomers() {
                         )}
                         <div className="text-right text-sm hidden lg:block">
                           <p className="text-muted-foreground">Terdaftar</p>
-                          <p>{format(new Date(customer.created_at), 'd MMM yyyy', { locale: id })}</p>
+                          <p>{format(new Date(customer.created_at!), 'd MMM yyyy', { locale: id })}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button variant="outline" size="sm" asChild>

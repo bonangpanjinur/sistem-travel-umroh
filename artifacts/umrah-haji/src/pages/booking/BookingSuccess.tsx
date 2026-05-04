@@ -12,7 +12,7 @@ import { CheckCircle, Copy, CreditCard, Home, Calendar, Users } from "lucide-rea
 import { toast } from "sonner";
 
 export default function BookingSuccess() {
-  const { bookingId } = useParams();
+  const { bookingId } = useParams() as { bookingId: string };
 
   // Fetch bank accounts dynamically
   const { data: bankAccount } = useQuery({

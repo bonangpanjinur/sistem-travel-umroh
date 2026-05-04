@@ -550,13 +550,13 @@ export default function AdminRoomAssignments() {
 
   const handleExportExcel = () => {
     const data = buildRoomingExportData();
-    if (!data) return toast.error('Tidak ada data');
+    if (!data) { toast.error('Tidak ada data'); return; }
     exportRoomingListExcel(data);
   };
 
   const handleExportPDF = () => {
     const data = buildRoomingExportData();
-    if (!data) return toast.error('Tidak ada data');
+    if (!data) { toast.error('Tidak ada data'); return; }
     exportRoomingListPDF(data);
   };
 

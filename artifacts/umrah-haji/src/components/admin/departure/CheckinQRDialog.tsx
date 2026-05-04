@@ -233,6 +233,7 @@ export function CheckinQRDialog({
       setLastResult(null);
       setManualInput("");
     }
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, manualMode]);
 

@@ -23,7 +23,7 @@ import {
 const TENOR_OPTIONS = [6, 12, 18, 24, 36];
 
 export default function SavingsRegister() {
-  const { packageId } = useParams<{ packageId: string }>();
+  const { packageId } = useParams<{ packageId: string }>() as { packageId: string };
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -154,7 +154,7 @@ export default function SavingsRegister() {
           dp_amount: dpAmount,
           dp_status: dpAmount > 0 ? 'pending' : null,
           status: dpAmount > 0 ? 'dp_paid' : 'active', // If DP paid, status is dp_paid
-        })
+        } as any)
         .select()
         .single();
 

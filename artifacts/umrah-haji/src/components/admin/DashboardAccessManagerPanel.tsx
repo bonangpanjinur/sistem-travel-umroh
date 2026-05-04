@@ -181,7 +181,7 @@ export default function DashboardAccessManagerPanel({
         record_id: result.id,
         action: accessConfig ? 'update' : 'create',
         action_type: accessConfig ? 'UPDATE' : 'CREATE',
-        old_data: accessConfig,
+        old_data: accessConfig ?? undefined,
         new_data: result,
         severity: 'warning',
       });

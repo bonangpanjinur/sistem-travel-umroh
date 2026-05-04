@@ -171,7 +171,7 @@ export default function AdminSavings() {
           if (plan) {
             await supabase
               .from('savings_plans')
-              .update({ paid_amount: plan.paid_amount + payment.amount })
+              .update({ paid_amount: (plan.paid_amount ?? 0) + payment.amount })
               .eq('id', payment.savings_plan_id);
           }
         }
@@ -210,7 +210,7 @@ export default function AdminSavings() {
       
       const { error } = await supabase
         .from('savings_plans')
-        .update(updates)
+        .update(updates as any)
         .eq('id', planId);
       
       if (error) throw error;

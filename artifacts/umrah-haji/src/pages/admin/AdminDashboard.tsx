@@ -75,7 +75,7 @@ export default function AdminDashboard() {
 
     // Helper to get sum for last X months
     const getSumLastMonths = (data: any[], count: number, key: string) => {
-      const monthsToInclude = [];
+      const monthsToInclude: string[] = [];
       for (let i = 0; i < count; i++) {
         monthsToInclude.push(format(subMonths(monthStart, i), 'MMM yyyy', { locale: idLocale }));
       }
@@ -570,7 +570,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="text-right">
                         <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          {Math.round((departure.booked_count / departure.quota) * 100)}% Terisi
+                          {Math.round(((departure.booked_count ?? 0) / departure.quota) * 100)}% Terisi
                         </div>
                       </div>
                     </div>
