@@ -320,7 +320,7 @@ export default function AdminLeadAnalytics() {
         {/* Trends Tab */}
         <TabsContent value="trends" className="space-y-4">
           {/* Lead Trends - Two Column Layout */}
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
             {/* Lead Incoming Trend */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
@@ -329,8 +329,8 @@ export default function AdminLeadAnalytics() {
                   Tren Lead Masuk
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
                   <AreaChart data={monthlyData}>
                     <defs>
                       <linearGradient id="fillLeads" x1="0" y1="0" x2="0" y2="1">
@@ -378,8 +378,8 @@ export default function AdminLeadAnalytics() {
                   Conversion Rate per Bulan
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
                   <LineChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="month" className="text-xs" />
@@ -424,8 +424,8 @@ export default function AdminLeadAnalytics() {
                 Won vs Lost per Bulan
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[350px]">
+            <CardContent className="p-4">
+              <ChartContainer config={chartConfig} className="h-[320px] w-full">
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="month" className="text-xs" />
@@ -457,13 +457,13 @@ export default function AdminLeadAnalytics() {
 
         {/* Funnel Tab */}
         <TabsContent value="funnel" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
             {/* Funnel Visualization */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Sales Funnel</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4">
                 <div className="space-y-4">
                   {funnelData.map((stage, index) => {
                     const maxValue = funnelData[0]?.value || 1;
@@ -516,8 +516,8 @@ export default function AdminLeadAnalytics() {
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Distribusi Status</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[350px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[320px] w-full">
                   <PieChart>
                     <Pie
                       data={statusDistribution}
@@ -559,7 +559,7 @@ export default function AdminLeadAnalytics() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Drop-off Analysis</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -612,14 +612,14 @@ export default function AdminLeadAnalytics() {
 
         {/* Sources Tab */}
         <TabsContent value="sources" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
             {/* Source Distribution */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Lead per Sumber</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[350px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[320px] w-full">
                   <PieChart>
                     <Pie
                       data={sourceData}
@@ -659,8 +659,8 @@ export default function AdminLeadAnalytics() {
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Conversion Rate per Sumber</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[350px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[320px] w-full">
                   <BarChart data={sourceConversionData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" className="text-xs" unit="%" />
@@ -698,7 +698,7 @@ export default function AdminLeadAnalytics() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Performa per Sumber</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
