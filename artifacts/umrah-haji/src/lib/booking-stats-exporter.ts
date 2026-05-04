@@ -256,6 +256,12 @@ export function exportBookingStatsToExcel(options: ExportOptions) {
     { hpx: 20 }, // Summary header
   ];
 
+  // ===== Set worksheet range =====
+  ws['!ref'] = XLSX.utils.encode_range({
+    s: { r: 0, c: 0 },
+    e: { r: r, c: 4 }
+  });
+
   // ===== Merge cells =====
   ws['!merges'] = merges;
 
