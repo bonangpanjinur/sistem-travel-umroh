@@ -45,6 +45,7 @@ import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef, memo
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
 
@@ -89,38 +90,45 @@ const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavig
       />
     </button>
 
-    <div className={cn(
-      'overflow-hidden transition-all duration-200 grid',
-      isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-    )}>
-      <div className="min-h-0 space-y-0.5 pl-1">
-        {group.items.map((item: any) => {
-          const active = isPathActive(item.path);
-          const IconComp = getMenuIcon(item.icon);
-          return (
-            <Link
-              key={item.id ?? item.key}
-              to={item.path}
-              onClick={onNavigate}
-              className={cn(
-                'flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-all duration-150 group relative',
-                active
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-foreground/70 hover:text-foreground hover:bg-muted/70'
-              )}
-            >
-              <IconComp
-                className={cn(
-                  'w-4 h-4 flex-shrink-0',
-                  active ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
-                )}
-              />
-              <span className="flex-1 truncate text-[13px]">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
+    <AnimatePresence initial={false}>
+      {isExpanded && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="overflow-hidden"
+        >
+          <div className="min-h-0 space-y-0.5 pl-1 pb-1">
+            {group.items.map((item: any) => {
+              const active = isPathActive(item.path);
+              const IconComp = getMenuIcon(item.icon);
+              return (
+                <Link
+                  key={item.id ?? item.key}
+                  to={item.path}
+                  onClick={onNavigate}
+                  className={cn(
+                    'flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-all duration-150 group relative',
+                    active
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/70 hover:text-foreground hover:bg-muted/70'
+                  )}
+                >
+                  <IconComp
+                    className={cn(
+                      'w-4 h-4 flex-shrink-0',
+                      active ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                    )}
+                  />
+                  <span className="flex-1 truncate text-[13px]">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   </div>
 ));
 MenuGroupItem.displayName = 'MenuGroupItem';
@@ -216,12 +224,17 @@ function AdminLayoutDynamicImproved() {
     <div className="flex h-screen bg-background overflow-hidden">
 
       {/* Mobile overlay */}
-      {sidebarOpen && !isDesktop && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {sidebarOpen && !isDesktop && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Sidebar ── */}
       <aside className={cn(
