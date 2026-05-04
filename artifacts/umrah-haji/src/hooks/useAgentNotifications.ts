@@ -158,7 +158,7 @@ export function useAgentNotifications(agentId?: string) {
         }
       )
       .subscribe((status) => {
-        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+        if (status === 'CLOSED' && import.meta.env.DEV) {
           console.debug(`[Agent Booking Status] Channel closed for agent ${agentId} (expected behavior)`);
         }
         if (status === 'CHANNEL_ERROR') {
@@ -205,7 +205,7 @@ export function useAgentNotifications(agentId?: string) {
         }
       )
       .subscribe((status) => {
-        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+        if (status === 'CLOSED' && import.meta.env.DEV) {
           console.debug(`[Agent Documents] Channel closed for agent ${agentId} (expected behavior)`);
         }
         if (status === 'CHANNEL_ERROR') {
@@ -241,7 +241,7 @@ export function useAgentNotifications(agentId?: string) {
         }
       )
       .subscribe((status) => {
-        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+        if (status === 'CLOSED' && import.meta.env.DEV) {
           console.debug(`[Agent Commissions] Channel closed for agent ${agentId} (expected behavior)`);
         }
         if (status === 'CHANNEL_ERROR') {
@@ -297,7 +297,7 @@ export function useAgentNotifications(agentId?: string) {
         }
       )
       .subscribe((status) => {
-        if (status === 'CLOSED' && process.env.NODE_ENV === 'development') {
+        if (status === 'CLOSED' && import.meta.env.DEV) {
           console.debug(`[Agent Payments] Channel closed for agent ${agentId} (expected behavior)`);
         }
         if (status === 'CHANNEL_ERROR') {
