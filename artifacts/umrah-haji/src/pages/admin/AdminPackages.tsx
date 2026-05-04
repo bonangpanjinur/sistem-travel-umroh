@@ -59,6 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { exportToExcel, exportToPDF } from "@/lib/export-utils";
@@ -81,6 +82,24 @@ export default function AdminPackages() {
     if (!departures) return [];
     const today = new Date().toISOString().split('T')[0];
     return departures.filter(d => d.departure_date >= today && d.status === 'open');
+  };
+
+  const toggleStatExpanded = (statId: string) => {
+    setExpandedStats(prev => 
+      prev.includes(statId) ? prev.filter(id => id !== statId) : [...prev, statId]
+    );
+  };
+
+  const togglePackageCardExpanded = (packageId: string) => {
+    setExpandedPackageCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(packageId)) {
+        newSet.delete(packageId);
+      } else {
+        newSet.add(packageId);
+      }
+      return newSet;
+    });
   };
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,7 +125,9 @@ export default function AdminPackages() {
   const [selectedPackageForManifest, setSelectedPackageForManifest] = useState<any>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [expandedPackageCards, setExpandedPackageCards] = useState<Set<string>>(new Set());
   const [selectedPackageForRules, setSelectedPackageForRules] = useState<any>(null);
+  const [expandedStats, setExpandedStats] = useState<string[]>([]);
   
   const queryClient = useQueryClient();
   const { isSuperAdmin, hasRole } = useAuth();
@@ -556,31 +577,41 @@ export default function AdminPackages() {
           </div>
         </div>
 
-        {/* Alert Badges for Warnings */}
+        {/* Alert Badges for Warnings - Enhanced */}
         {(packagesWithLowQuota > 0 || packagesWithMissingData > 0) && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {packagesWithLowQuota > 0 && (
-              <Card className="border-rose-200/50 bg-rose-50/50 backdrop-blur rounded-2xl">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center animate-pulse">
-                    <AlertTriangle className="h-5 w-5 text-rose-600" />
+              <Card className="border-rose-200/70 bg-gradient-to-br from-rose-50 to-rose-50/50 backdrop-blur rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-rose-500/5 to-transparent" />
+                <CardContent className="p-5 flex items-start gap-4 relative z-10">
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-rose-100 to-rose-50 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <div className="relative">
+                      <AlertTriangle className="h-6 w-6 text-rose-600 animate-pulse" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-rose-900">Kuota Menipis</p>
-                    <p className="text-xs text-rose-700">{packagesWithLowQuota} paket memiliki kuota kurang dari 5 pax</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-rose-900 mb-1 flex items-center gap-2">
+                      <span className="inline-block h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                      Kuota Menipis
+                    </p>
+                    <p className="text-xs text-rose-700 leading-relaxed">{packagesWithLowQuota} paket memiliki kuota kurang dari 5 pax. Segera tambah jadwal keberangkatan atau promosikan paket ini.</p>
                   </div>
                 </CardContent>
               </Card>
             )}
             {packagesWithMissingData > 0 && (
-              <Card className="border-amber-200/50 bg-amber-50/50 backdrop-blur rounded-2xl">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center animate-pulse">
-                    <AlertCircle className="h-5 w-5 text-amber-600" />
+              <Card className="border-amber-200/70 bg-gradient-to-br from-amber-50 to-amber-50/50 backdrop-blur rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent" />
+                <CardContent className="p-5 flex items-start gap-4 relative z-10">
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <AlertCircle className="h-6 w-6 text-amber-600" />
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-amber-900">Data Tidak Lengkap</p>
-                    <p className="text-xs text-amber-700">{packagesWithMissingData} paket aktif tanpa jadwal keberangkatan</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-amber-900 mb-1 flex items-center gap-2">
+                      <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                      Data Tidak Lengkap
+                    </p>
+                    <p className="text-xs text-amber-700 leading-relaxed">{packagesWithMissingData} paket aktif belum memiliki jadwal keberangkatan. Tambahkan jadwal keberangkatan untuk mengaktifkan penjualan.</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1393,6 +1424,79 @@ export default function AdminPackages() {
       )}
       </div>
     </TooltipProvider>
+  );
+}
+
+function CollapsibleAnalyticsCard({ 
+  title, 
+  value, 
+  description, 
+  icon: Icon, 
+  loading, 
+  color, 
+  trend, 
+  trendUp,
+  statId,
+  isExpanded,
+  onToggle,
+  details
+}: any) {
+  const colorMap: any = {
+    primary: "bg-primary/10 text-primary",
+    emerald: "bg-emerald-500/10 text-emerald-600",
+    blue: "bg-blue-500/10 text-blue-600",
+    amber: "bg-amber-500/10 text-amber-600",
+  };
+
+  return (
+    <Collapsible open={isExpanded} onOpenChange={onToggle}>
+      <Card className="border-none shadow-sm overflow-hidden rounded-3xl bg-card/50 backdrop-blur group hover:shadow-md transition-all duration-300">
+        <CollapsibleTrigger asChild>
+          <CardContent className="p-6 cursor-pointer">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1 flex-1">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</p>
+                {loading ? (
+                  <Skeleton className="h-8 w-24" />
+                ) : (
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-2xl font-black text-foreground">{value}</h3>
+                    {trend && (
+                      <span className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5",
+                        trendUp ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+                      )}>
+                        {trendUp ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+                        {trend}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p className="text-[10px] font-medium text-muted-foreground line-clamp-1">{description}</p>
+              </div>
+              <div className={cn("p-3 rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 flex-shrink-0", colorMap[color])}>
+                <Icon className="h-5 w-5" />
+              </div>
+            </div>
+          </CardContent>
+        </CollapsibleTrigger>
+        
+        {details && (
+          <CollapsibleContent>
+            <div className="px-6 pb-6 pt-0 border-t border-border/50">
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                {Object.entries(details).map(([key, val]: any) => (
+                  <div key={key} className="bg-muted/30 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                    <p className="text-lg font-bold text-foreground">{val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CollapsibleContent>
+        )}
+      </Card>
+    </Collapsible>
   );
 }
 
