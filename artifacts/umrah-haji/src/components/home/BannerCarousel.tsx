@@ -17,8 +17,40 @@ interface Banner {
 
 const AUTOPLAY_DELAY = 5000;
 
+const DEMO_BANNERS: Banner[] = [
+  {
+    id: 'demo-1',
+    title: 'Wujudkan Ibadah Suci Anda',
+    subtitle: 'Layanan Umroh & Haji terpercaya dengan pengalaman lebih dari 15 tahun',
+    cta_text: 'Lihat Paket',
+    cta_url: '/packages',
+    image_url: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?q=80&w=2070',
+    sort_order: 1,
+    is_active: true,
+  },
+  {
+    id: 'demo-2',
+    title: 'Paket Umroh Plus Istanbul',
+    subtitle: 'Gabungkan ibadah suci dengan wisata islami yang menakjubkan',
+    cta_text: 'Daftar Sekarang',
+    cta_url: '/packages',
+    image_url: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?q=80&w=2070',
+    sort_order: 2,
+    is_active: true,
+  },
+  {
+    id: 'demo-3',
+    title: 'Haji Reguler & Khusus',
+    subtitle: 'Bimbingan ibadah haji dengan pembimbing berpengalaman dan fasilitas terbaik',
+    cta_text: 'Pelajari Lebih Lanjut',
+    cta_url: '/packages',
+    image_url: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?q=80&w=2070',
+    sort_order: 3,
+    is_active: true,
+  },
+];
+
 interface BannerCarouselProps {
-  /** Compact mode: shorter height for inner pages */
   compact?: boolean;
 }
 
@@ -27,19 +59,25 @@ export function BannerCarousel({ compact = false }: BannerCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
 
-  const { data: banners = [] } = useQuery({
+  const { data: fetchedBanners } = useQuery({
     queryKey: ['public-banners'],
     queryFn: async (): Promise<Banner[]> => {
-      const { data, error } = await (supabase as any)
-        .from('banners')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-      if (error) return [];
-      return (data ?? []) as Banner[];
+      try {
+        const { data, error } = await (supabase as any)
+          .from('banners')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+        if (error || !data || data.length === 0) return [];
+        return data as Banner[];
+      } catch {
+        return [];
+      }
     },
     staleTime: 60_000,
   });
+
+  const banners = (fetchedBanners && fetchedBanners.length > 0) ? fetchedBanners : DEMO_BANNERS;
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -62,8 +100,6 @@ export function BannerCarousel({ compact = false }: BannerCarouselProps) {
     return () => clearInterval(interval);
   }, [emblaApi, banners.length]);
 
-  if (banners.length === 0) return null;
-
   return (
     <section className="relative w-full overflow-hidden bg-gray-900">
       <div className="overflow-hidden" ref={emblaRef}>
@@ -73,37 +109,41 @@ export function BannerCarousel({ compact = false }: BannerCarouselProps) {
               key={banner.id}
               className="relative flex-[0_0_100%] min-w-0"
             >
-              <div className="relative w-full" style={{ aspectRatio: compact ? '21/5' : '21/7', minHeight: compact ? '160px' : '200px' }}>
+              <div
+                className="relative w-full"
+                style={{
+                  aspectRatio: compact ? '21/5' : '21/7',
+                  minHeight: compact ? '160px' : '280px',
+                }}
+              >
                 <img
                   src={banner.image_url}
                   alt={banner.title ?? 'Banner'}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
-                {(banner.title || banner.subtitle || banner.cta_text) && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent flex items-center">
-                    <div className="px-8 md:px-16 lg:px-24 max-w-2xl">
-                      {banner.title && (
-                        <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight drop-shadow-lg">
-                          {banner.title}
-                        </h2>
-                      )}
-                      {banner.subtitle && (
-                        <p className="text-sm md:text-lg text-white/90 mb-5 drop-shadow-md">
-                          {banner.subtitle}
-                        </p>
-                      )}
-                      {banner.cta_text && banner.cta_url && (
-                        <a
-                          href={banner.cta_url}
-                          className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-full font-semibold text-sm md:text-base hover:opacity-90 transition-opacity shadow-lg"
-                        >
-                          {banner.cta_text}
-                        </a>
-                      )}
-                    </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/30 to-transparent flex items-center">
+                  <div className="px-8 md:px-16 lg:px-24 max-w-2xl">
+                    {banner.title && (
+                      <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight drop-shadow-lg">
+                        {banner.title}
+                      </h2>
+                    )}
+                    {banner.subtitle && (
+                      <p className="text-sm md:text-lg text-white/90 mb-5 drop-shadow-md">
+                        {banner.subtitle}
+                      </p>
+                    )}
+                    {banner.cta_text && banner.cta_url && (
+                      <a
+                        href={banner.cta_url}
+                        className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-full font-semibold text-sm md:text-base hover:opacity-90 transition-opacity shadow-lg"
+                      >
+                        {banner.cta_text}
+                      </a>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           ))}
