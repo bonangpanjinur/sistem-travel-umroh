@@ -28,6 +28,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const COLORS = [
   'hsl(var(--primary))', 
@@ -254,6 +258,105 @@ export default function AdminAnalytics() {
     setSelectedSubAgent("all");
   };
 
+  const exportToExcel = () => {
+    try {
+      if (!bookings || bookings.length === 0) {
+        toast.error("Tidak ada data untuk diekspor");
+        return;
+      }
+
+      const exportData = bookings.map(b => ({
+        'ID Booking': b.id,
+        'Tanggal': b.created_at ? format(parseISO(b.created_at), 'dd/MM/yyyy HH:mm') : '-',
+        'Paket': (b.departure as any)?.package?.name || '-',
+        'Cabang': b.branch?.name || 'Pusat',
+        'Total Harga': b.total_price || 0,
+        'Jumlah Bayar': b.paid_amount || 0,
+        'Status Booking': b.booking_status,
+        'Status Bayar': b.payment_status,
+        'Jumlah Pax': b.total_pax || 0
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Analytics Data");
+      
+      const fileName = `Analytics_Report_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast.success("Data berhasil diekspor ke Excel");
+    } catch (error) {
+      console.error("Export Excel Error:", error);
+      toast.error("Gagal mengekspor data ke Excel");
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      if (!bookings || bookings.length === 0) {
+        toast.error("Tidak ada data untuk diekspor");
+        return;
+      }
+
+      const doc = new jsPDF();
+      
+      // Add Title
+      doc.setFontSize(18);
+      doc.text("Laporan Analitik Vins Tour Travel", 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Dicetak pada: ${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: idLocale })}`, 14, 28);
+      doc.text(`Periode: ${dateRange?.from ? format(dateRange.from, 'dd/MM/yyyy') : '-'} s/d ${dateRange?.to ? format(dateRange.to, 'dd/MM/yyyy') : '-'}`, 14, 34);
+
+      // Add Summary Stats
+      doc.setFontSize(12);
+      doc.text("Ringkasan Performa:", 14, 45);
+      
+      autoTable(doc, {
+        startY: 50,
+        head: [['Metrik', 'Nilai']],
+        body: [
+          ['Total Revenue', formatCurrency(stats.totalRevenue)],
+          ['Total Booking', stats.totalBookings.toString()],
+          ['Total Jamaah', stats.totalPax.toString()],
+          ['Conversion Rate', `${stats.conversionRate}%`]
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [139, 92, 246] } // primary color
+      });
+
+      // Add Table Data
+      doc.text("Detail Booking:", 14, (doc as any).lastAutoTable.finalY + 15);
+      
+      const tableData = bookings.slice(0, 50).map(b => [
+        b.id.substring(0, 8),
+        b.created_at ? format(parseISO(b.created_at), 'dd/MM/yy') : '-',
+        ((b.departure as any)?.package?.name || '-').substring(0, 20),
+        formatCurrency(b.paid_amount || 0),
+        b.booking_status
+      ]);
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['ID', 'Tanggal', 'Paket', 'Bayar', 'Status']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [139, 92, 246] },
+        styles: { fontSize: 8 }
+      });
+
+      if (bookings.length > 50) {
+        doc.setFontSize(8);
+        doc.text(`* Menampilkan 50 dari ${bookings.length} data terbaru`, 14, (doc as any).lastAutoTable.finalY + 10);
+      }
+
+      doc.save(`Analytics_Report_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+      toast.success("Laporan berhasil diekspor ke PDF");
+    } catch (error) {
+      console.error("Export PDF Error:", error);
+      toast.error("Gagal mengekspor laporan ke PDF");
+    }
+  };
+
   return (
     <div className="space-y-6 pb-10 animate-fade-in bg-slate-50/50 -m-4 p-4 md:-m-8 md:p-8 min-h-screen">
       {/* Header Section */}
@@ -275,10 +378,26 @@ export default function AdminAnalytics() {
             <RefreshCcw className={cn("h-4 w-4 mr-2 text-slate-500", loadingBookings && "animate-spin")} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" className="h-10 bg-white border-slate-200 hover:bg-slate-50">
-            <Download className="h-4 w-4 mr-2 text-slate-500" />
-            Export Data
-          </Button>
+          
+          <div className="flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden h-10">
+            <div className="px-3 border-r border-slate-100 flex items-center bg-slate-50/50">
+              <Download className="h-4 w-4 text-slate-500" />
+            </div>
+            <button 
+              onClick={exportToExcel}
+              className="px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors h-full"
+            >
+              Excel
+            </button>
+            <div className="w-[1px] h-4 bg-slate-100" />
+            <button 
+              onClick={exportToPDF}
+              className="px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-red-600 transition-colors h-full"
+            >
+              PDF
+            </button>
+          </div>
+
           <DateRangePicker 
             date={dateRange} 
             setDate={setDateRange} 
