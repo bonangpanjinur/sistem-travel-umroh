@@ -10,23 +10,45 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getInheritedRoles } from '@/lib/permissions';
 
 export function useEffectivePermissions() {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, roles } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['user-effective-permissions', user?.id],
     queryFn: async () => {
       if (!user) return [] as string[];
-      const { data, error } = await (supabase.rpc as any)('get_user_effective_permissions', {
-        _user_id: user.id,
+      
+      // Get all roles for the user including inherited ones
+      const userRoles = roles || [];
+      const expandedRoles = [...userRoles];
+      userRoles.forEach(role => {
+        expandedRoles.push(...getInheritedRoles(role));
       });
+      const uniqueRoles = Array.from(new Set(expandedRoles));
+
+      const { data, error } = await (supabase.rpc as any)('get_user_effective_permissions_v2', {
+        _user_id: user.id,
+        _roles: uniqueRoles
+      });
+      
+      // Fallback to legacy RPC if v2 doesn't exist yet
+      if (error && error.message.includes('function') && error.message.includes('does not exist')) {
+        const { data: legacyData, error: legacyError } = await (supabase.rpc as any)('get_user_effective_permissions', {
+          _user_id: user.id,
+        });
+        if (legacyError) { console.error(legacyError); return [] as string[]; }
+        return ((legacyData || []) as Array<{ permission_key: string }>).map(r => r.permission_key);
+      }
+
       if (error) { console.error(error); return [] as string[]; }
       return ((data || []) as Array<{ permission_key: string }>).map(r => r.permission_key);
     },
     enabled: !!user,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 15, // Increase staleTime to 15 minutes
+    gcTime: 1000 * 60 * 60,    // Keep in cache for 1 hour
   });
 
   const set = useMemo(() => new Set(data), [data]);

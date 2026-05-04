@@ -114,6 +114,34 @@ export async function logUserPermissionChange(
  * @param oldData The old data (for updates/deletes)
  * @param newData The new data (for creates/updates)
  */
+/**
+ * Log a role change for a user
+ * @param userId The user whose role was changed
+ * @param oldRoles The previous roles
+ * @param newRoles The new roles
+ * @param reason The reason for the change
+ */
+export async function logUserRoleChange(
+  userId: string,
+  oldRoles: string[],
+  newRoles: string[],
+  reason?: string
+): Promise<string | null> {
+  return logAuditEvent({
+    table_name: "user_roles",
+    record_id: userId,
+    action: `User roles changed from [${oldRoles.join(', ')}] to [${newRoles.join(', ')}]`,
+    action_type: "UPDATE",
+    old_data: { roles: oldRoles },
+    new_data: { roles: newRoles },
+    severity: "warning",
+    metadata: {
+      user_id: userId,
+      reason: reason || "No reason provided",
+    },
+  });
+}
+
 export async function logDataModification(
   tableName: string,
   recordId: string,
