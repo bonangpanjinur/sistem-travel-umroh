@@ -32,10 +32,11 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'coupons',             label: 'Kupon & Promo',         path: '/admin/coupons',              icon: 'Ticket',          group_name: 'Penjualan',          sort_order: 205, required_permission: 'coupons' },
 
   // ── Konten & Marketing (300s) ─────────────────────────────────────────────
-  { key: 'banners',             label: 'Banner Carousel',       path: '/admin/banners',              icon: 'Image',           group_name: 'Konten & Marketing', sort_order: 301, required_permission: 'banners' },
-  { key: 'landing-pages',       label: 'Landing Page',          path: '/admin/landing-pages',        icon: 'Globe',           group_name: 'Konten & Marketing', sort_order: 302, required_permission: 'landing-pages' },
-  { key: 'marketing-materials', label: 'Materi Marketing',      path: '/admin/marketing-materials',  icon: 'Megaphone',       group_name: 'Konten & Marketing', sort_order: 303, required_permission: 'marketing-materials' },
-  { key: 'whatsapp',            label: 'WhatsApp Blast',        path: '/admin/whatsapp',             icon: 'MessageSquare',   group_name: 'Konten & Marketing', sort_order: 304, required_permission: 'whatsapp' },
+  { key: 'announcements',        label: 'Pengumuman',            path: '/admin/announcements',        icon: 'Megaphone',       group_name: 'Konten & Marketing', sort_order: 301, required_permission: 'announcements' },
+  { key: 'banners',             label: 'Banner Carousel',       path: '/admin/banners',              icon: 'Image',           group_name: 'Konten & Marketing', sort_order: 302, required_permission: 'banners' },
+  { key: 'landing-pages',       label: 'Landing Page',          path: '/admin/landing-pages',        icon: 'Globe',           group_name: 'Konten & Marketing', sort_order: 303, required_permission: 'landing-pages' },
+  { key: 'marketing-materials', label: 'Materi Marketing',      path: '/admin/marketing-materials',  icon: 'Radio',           group_name: 'Konten & Marketing', sort_order: 304, required_permission: 'marketing-materials' },
+  { key: 'whatsapp',            label: 'WhatsApp Blast',        path: '/admin/whatsapp',             icon: 'MessageSquare',   group_name: 'Konten & Marketing', sort_order: 305, required_permission: 'whatsapp' },
 
   // ── Keberangkatan (400s) ──────────────────────────────────────────────────
   { key: 'departures',          label: 'Jadwal Keberangkatan',  path: '/admin/departures',           icon: 'CalendarDays',    group_name: 'Keberangkatan',      sort_order: 401, required_permission: 'departures' },
@@ -94,6 +95,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: '2fa',                 label: 'Pengaturan 2FA',        path: '/admin/2fa',                  icon: 'KeyRound',        group_name: 'Pengaturan',         sort_order: 1007, required_permission: '2fa' },
   { key: 'appearance',          label: 'Tampilan & Tema',       path: '/admin/appearance',           icon: 'Palette',         group_name: 'Pengaturan',         sort_order: 1008, required_permission: 'appearance' },
   { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1009, required_permission: 'settings' },
+  { key: 'api-connect',         label: 'API Connect ke Apps',   path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Pengaturan',         sort_order: 1010, required_permission: 'api-connect' },
 ];
 
 /**
