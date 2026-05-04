@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { RECOMMENDED_MENUS } from '@/lib/admin-menu-registry';
+import { getInheritedRoles } from '@/lib/permissions';
 
 export interface MenuItem {
   id: string;
@@ -38,15 +39,35 @@ export const useDynamicMenus = () => {
     queryKey: ['user-effective-permissions', user?.id],
     queryFn: async () => {
       if (!user || isSuperAdmin || !isStaffUser) return [] as string[];
-      const { data, error } = await (supabase.rpc as any)('get_user_effective_permissions', {
-        _user_id: user.id,
+
+      // Support Role Inheritance
+      const userRoles = (user as any).roles || [];
+      const expandedRoles = [...userRoles];
+      userRoles.forEach((role: string) => {
+        expandedRoles.push(...getInheritedRoles(role));
       });
+      const uniqueRoles = Array.from(new Set(expandedRoles));
+
+      const { data, error } = await (supabase.rpc as any)('get_user_effective_permissions_v2', {
+        _user_id: user.id,
+        _roles: uniqueRoles
+      });
+
+      // Fallback to legacy RPC if v2 doesn't exist
+      if (error && error.message.includes('function') && error.message.includes('does not exist')) {
+        const { data: legacyData, error: legacyError } = await (supabase.rpc as any)('get_user_effective_permissions', {
+          _user_id: user.id,
+        });
+        if (legacyError) { console.error(legacyError); return [] as string[]; }
+        return ((legacyData || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+      }
+
       if (error) { console.error(error); return [] as string[]; }
-      return ((data || []) as Array<{ permission_key: string }>).map(r => r.permission_key);
+      return ((data || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
     },
     enabled: !!user && !isSuperAdmin && isStaffUser,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 15, // Sync with useEffectivePermissions (15m)
+    gcTime: 1000 * 60 * 60,    // 1 hour
   });
 
   // Registry fallback (used when DB is empty / unreachable) — keeps sidebar usable.
