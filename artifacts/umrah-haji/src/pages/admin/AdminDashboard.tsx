@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useDashboardStats, useRecentBookings, useUpcomingDepartures } from "@/hooks/useDashboardStats";
 import { useDashboardAlerts } from "@/hooks/useDashboardAlerts";
+import { SuperAdminPanel } from "@/components/admin/SuperAdminPanel";
+import { supabaseConfigSource } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -165,6 +167,22 @@ export default function AdminDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Super Admin Quick-Access Panel */}
+      {isSuperAdmin && (
+        <SuperAdminPanel
+          stats={{
+            totalJamaah: stats?.totalJamaah,
+            totalBookings: stats?.totalBookings,
+            pendingPaymentsCount: stats?.pendingPaymentCount,
+            upcomingDeparturesCount: upcomingDepartures?.length,
+            totalPackages: stats?.soldPackagesCount,
+            totalAgents: stats?.agents?.length,
+          }}
+          isLoading={isLoading}
+          supabaseConnected={!!supabaseConfigSource.url}
+        />
+      )}
 
       {/* Quick Action Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
