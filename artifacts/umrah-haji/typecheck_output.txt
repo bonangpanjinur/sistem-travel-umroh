@@ -1,0 +1,4 @@
+
+> @workspace/umrah-haji@0.0.0 typecheck /home/ubuntu/vinstourtravel-sistem-travel-umroh/artifacts/umrah-haji
+> tsc -p tsconfig.json --noEmit
+
