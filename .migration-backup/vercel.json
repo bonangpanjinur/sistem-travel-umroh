@@ -1,26 +1,16 @@
 {
+  "outputDirectory": "artifacts/umrah-haji/dist/public",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run build",
+  "env": {
+    "PORT": "5173",
+    "BASE_PATH": "/",
+    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+  },
   "rewrites": [
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
     {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/sw.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

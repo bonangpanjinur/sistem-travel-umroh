@@ -1,2 +1,0 @@
-ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS savings_target NUMERIC DEFAULT 0;
-ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS savings_installment NUMERIC DEFAULT 0;
