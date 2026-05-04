@@ -53,6 +53,7 @@ const AdminOfflineContent = lazy(() => import("@/pages/admin/AdminOfflineContent
 const AdminDocumentGenerator = lazy(() => import("@/pages/admin/AdminDocumentGenerator"));
 const AdminScheduledReports = lazy(() => import("@/pages/admin/AdminScheduledReports"));
 const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
+const AdminBanners = lazy(() => import("@/pages/admin/AdminBanners"));
 
 
 const AdminLandingPages = lazy(() => import("@/pages/admin/AdminLandingPages"));
@@ -115,6 +116,7 @@ export default function AdminRoutes() {
       <Route path="leads/analytics" element={<LazyPage><AdminLeadAnalytics /></LazyPage>} />
       <Route path="leads/:id" element={<LazyPage><AdminLeadDetail /></LazyPage>} />
       <Route path="coupons" element={<LazyPage><AdminCoupons /></LazyPage>} />
+      <Route path="banners" element={<LazyPage><AdminBanners /></LazyPage>} />
       <Route path="landing-pages" element={<LazyPage><AdminLandingPages /></LazyPage>} />
       <Route path="landing-pages/:id" element={<LazyPage><AdminLandingPageEditor /></LazyPage>} />
 

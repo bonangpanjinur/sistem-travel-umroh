@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
+import { BannerCarousel } from '@/components/home/BannerCarousel';
 import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
 import { ModernHeroSection } from '@/components/home/ModernHeroSection';
 import { LuxuryHeroSection } from '@/components/home/LuxuryHeroSection';
@@ -52,6 +53,7 @@ const Index = () => {
 
   return (
     <DynamicPublicLayout>
+      <BannerCarousel />
       {enabledSections.map((section: HomepageSection) => {
         const Component = sectionComponents[section.id];
         if (!Component) return null;

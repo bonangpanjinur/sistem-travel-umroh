@@ -30,6 +30,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'packages',          label: 'Paket',              path: '/admin/packages',          icon: 'Package',          group_name: 'Penjualan',       sort_order: 3,  required_permission: 'packages' },
   { key: 'coupons',           label: 'Kupon',              path: '/admin/coupons',           icon: 'Ticket',           group_name: 'Penjualan',       sort_order: 4,  required_permission: 'coupons' },
   { key: 'landing-pages',     label: 'Landing Page',       path: '/admin/landing-pages',     icon: 'Globe',            group_name: 'Penjualan',       sort_order: 5,  required_permission: 'landing-pages' },
+  { key: 'banners',           label: 'Banner Carousel',    path: '/admin/banners',           icon: 'Image',            group_name: 'Penjualan',       sort_order: 6,  required_permission: 'banners' },
 
   // ── Keberangkatan ─────────────────────────────────────────────────────────
   { key: 'departures',        label: 'Keberangkatan',      path: '/admin/departures',        icon: 'CalendarDays',     group_name: 'Keberangkatan',   sort_order: 1,  required_permission: 'departures' },
@@ -121,7 +122,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   branch_manager: [
     'dashboard', 'analytics',
-    'leads', 'bookings', 'packages', 'coupons',
+    'leads', 'bookings', 'packages', 'coupons', 'banners',
     'departures', 'room-assignments', 'equipment', 'haji', 'manasik',
     'payments', 'finance-cash', 'savings', 'reports',
     'customers', 'agents', 'branches', 'visa',
@@ -146,7 +147,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   marketing: [
     'dashboard', 'analytics',
-    'leads', 'landing-pages', 'marketing-materials',
+    'leads', 'landing-pages', 'banners', 'marketing-materials',
     'coupons', 'referrals', 'loyalty',
   ],
 
