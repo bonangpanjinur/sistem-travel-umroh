@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSavingsPageContent } from '@/hooks/useSavingsPageContent';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
+import { BannerCarousel } from '@/components/home/BannerCarousel';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,7 @@ export default function SavingsPackages() {
 
   return (
     <DynamicPublicLayout>
+      <BannerCarousel compact />
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary to-primary/80 py-16">
         <div className="container mx-auto px-4 text-center">

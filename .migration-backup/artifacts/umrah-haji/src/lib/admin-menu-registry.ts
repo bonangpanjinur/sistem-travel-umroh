@@ -1,13 +1,15 @@
 /**
  * Canonical admin menu registry.
  *
- * Groups:
- *   Overview · Penjualan · Keberangkatan · Keuangan · Jamaah & Agen
- *   SDM · Marketing · Dokumen · Master Data · Pengaturan
+ * Groups (in display order):
+ *   Overview · Penjualan · Konten & Marketing · Keberangkatan · Keuangan
+ *   Jamaah & Agen · SDM · Dokumen · Master Data · Pengaturan
  *
- * Each permission key is UNIQUE — no two items share the same key.
+ * Sort order uses 100-based offsets per group to guarantee correct group ordering.
  * Super-admin always receives every item regardless of DB state.
  */
+
+import { PERMISSIONS } from './permissions';
 
 export interface AdminMenuItem {
   key: string;
@@ -20,73 +22,83 @@ export interface AdminMenuItem {
 }
 
 export const RECOMMENDED_MENUS: AdminMenuItem[] = [
-  // ── Overview ──────────────────────────────────────────────────────────────
-  { key: 'dashboard',         label: 'Dashboard',          path: '/admin',                  icon: 'LayoutDashboard',  group_name: 'Overview',        sort_order: 1,  required_permission: 'dashboard' },
-  { key: 'analytics',         label: 'Analytics',          path: '/admin/analytics',         icon: 'BarChart3',        group_name: 'Overview',        sort_order: 2,  required_permission: 'analytics' },
+  // ── Overview (100s) ──────────────────────────────────────────────────────
+  { key: 'dashboard',           label: 'Dashboard',             path: '/admin',                      icon: 'LayoutDashboard', group_name: 'Overview',           sort_order: 101, required_permission: PERMISSIONS.DASHBOARD },
+  { key: 'analytics',           label: 'Analytics',             path: '/admin/analytics',            icon: 'BarChart3',       group_name: 'Overview',           sort_order: 102, required_permission: PERMISSIONS.ANALYTICS },
 
-  // ── Penjualan ─────────────────────────────────────────────────────────────
-  { key: 'leads',             label: 'Leads',              path: '/admin/leads',             icon: 'UserPlus',         group_name: 'Penjualan',       sort_order: 1,  required_permission: 'leads' },
-  { key: 'bookings',          label: 'Booking',            path: '/admin/bookings',          icon: 'BookOpen',         group_name: 'Penjualan',       sort_order: 2,  required_permission: 'bookings' },
-  { key: 'packages',          label: 'Paket',              path: '/admin/packages',          icon: 'Package',          group_name: 'Penjualan',       sort_order: 3,  required_permission: 'packages' },
-  { key: 'coupons',           label: 'Kupon',              path: '/admin/coupons',           icon: 'Ticket',           group_name: 'Penjualan',       sort_order: 4,  required_permission: 'coupons' },
-  { key: 'landing-pages',     label: 'Landing Page',       path: '/admin/landing-pages',     icon: 'Globe',            group_name: 'Penjualan',       sort_order: 5,  required_permission: 'landing-pages' },
-  { key: 'banners',           label: 'Banner Carousel',    path: '/admin/banners',           icon: 'Image',            group_name: 'Penjualan',       sort_order: 6,  required_permission: 'banners' },
+  // ── Penjualan (200s) ─────────────────────────────────────────────────────
+  { key: 'leads',               label: 'Leads & Prospek',       path: '/admin/leads',                icon: 'UserPlus',        group_name: 'Penjualan',          sort_order: 201, required_permission: PERMISSIONS.LEADS },
+  { key: 'bookings',            label: 'Booking',               path: '/admin/bookings',             icon: 'BookOpen',        group_name: 'Penjualan',          sort_order: 202, required_permission: PERMISSIONS.BOOKINGS },
+  { key: 'packages',            label: 'Paket Umroh & Haji',    path: '/admin/packages',             icon: 'Package',         group_name: 'Penjualan',          sort_order: 203, required_permission: PERMISSIONS.PACKAGES },
+  { key: 'package-types',       label: 'Tipe Paket',            path: '/admin/package-types',        icon: 'Tag',             group_name: 'Penjualan',          sort_order: 204, required_permission: PERMISSIONS.PACKAGE_TYPES },
+  { key: 'coupons',             label: 'Kupon & Promo',         path: '/admin/coupons',              icon: 'Ticket',          group_name: 'Penjualan',          sort_order: 205, required_permission: PERMISSIONS.COUPONS },
 
-  // ── Keberangkatan ─────────────────────────────────────────────────────────
-  { key: 'departures',        label: 'Keberangkatan',      path: '/admin/departures',        icon: 'CalendarDays',     group_name: 'Keberangkatan',   sort_order: 1,  required_permission: 'departures' },
-  { key: 'room-assignments',  label: 'Kamar',              path: '/admin/room-assignments',  icon: 'BedDouble',        group_name: 'Keberangkatan',   sort_order: 2,  required_permission: 'room-assignments' },
-  { key: 'equipment',         label: 'Perlengkapan',       path: '/admin/equipment',         icon: 'Backpack',         group_name: 'Keberangkatan',   sort_order: 3,  required_permission: 'equipment' },
-  { key: 'haji',              label: 'Haji',               path: '/admin/haji',              icon: 'MapPin',           group_name: 'Keberangkatan',   sort_order: 4,  required_permission: 'haji' },
-  { key: 'manasik',           label: 'Manasik',            path: '/admin/manasik',           icon: 'BookMarked',       group_name: 'Keberangkatan',   sort_order: 5,  required_permission: 'manasik' },
-  { key: 'itinerary-templates', label: 'Itinerary',        path: '/admin/itinerary-templates', icon: 'ListOrdered',    group_name: 'Keberangkatan',   sort_order: 6,  required_permission: 'itinerary-templates' },
+  // ── Konten & Marketing (300s) ─────────────────────────────────────────────
+  { key: 'announcements',        label: 'Pengumuman',            path: '/admin/announcements',        icon: 'Megaphone',       group_name: 'Konten & Marketing', sort_order: 301, required_permission: PERMISSIONS.ANNOUNCEMENTS },
+  { key: 'banners',             label: 'Banner Carousel',       path: '/admin/banners',              icon: 'Image',           group_name: 'Konten & Marketing', sort_order: 302, required_permission: PERMISSIONS.BANNERS },
+  { key: 'landing-pages',       label: 'Landing Page',          path: '/admin/landing-pages',        icon: 'Globe',           group_name: 'Konten & Marketing', sort_order: 303, required_permission: PERMISSIONS.LANDING_PAGES },
+  { key: 'marketing-materials', label: 'Materi Marketing',      path: '/admin/marketing-materials',  icon: 'Radio',           group_name: 'Konten & Marketing', sort_order: 304, required_permission: PERMISSIONS.MARKETING_MATERIALS },
+  { key: 'whatsapp',            label: 'WhatsApp Blast',        path: '/admin/whatsapp',             icon: 'MessageSquare',   group_name: 'Konten & Marketing', sort_order: 305, required_permission: PERMISSIONS.WHATSAPP },
 
-  // ── Keuangan ──────────────────────────────────────────────────────────────
-  { key: 'payments',          label: 'Pembayaran',         path: '/admin/payments',          icon: 'CreditCard',       group_name: 'Keuangan',        sort_order: 1,  required_permission: 'payments' },
-  { key: 'finance-cash',      label: 'Kas & Bank',         path: '/admin/finance-cash',      icon: 'Coins',            group_name: 'Keuangan',        sort_order: 2,  required_permission: 'finance-cash' },
-  { key: 'finance',           label: 'Keuangan (P&L)',     path: '/admin/finance',           icon: 'TrendingUp',       group_name: 'Keuangan',        sort_order: 3,  required_permission: 'finance' },
-  { key: 'savings',           label: 'Tabungan',           path: '/admin/savings',           icon: 'PiggyBank',        group_name: 'Keuangan',        sort_order: 4,  required_permission: 'savings' },
-  { key: 'reports',           label: 'Laporan',            path: '/admin/reports',           icon: 'FileBarChart',     group_name: 'Keuangan',        sort_order: 5,  required_permission: 'reports' },
-  { key: 'advanced-reports',  label: 'Laporan Lanjutan',   path: '/admin/advanced-reports',  icon: 'ChartLine',        group_name: 'Keuangan',        sort_order: 6,  required_permission: 'advanced-reports' },
+  // ── Keberangkatan (400s) ──────────────────────────────────────────────────
+  { key: 'departures',          label: 'Jadwal Keberangkatan',  path: '/admin/departures',           icon: 'CalendarDays',    group_name: 'Keberangkatan',      sort_order: 401, required_permission: PERMISSIONS.DEPARTURES },
+  { key: 'room-assignments',    label: 'Kamar & Rooming',       path: '/admin/room-assignments',     icon: 'BedDouble',       group_name: 'Keberangkatan',      sort_order: 402, required_permission: PERMISSIONS.ROOM_ASSIGNMENTS },
+  { key: 'haji',                label: 'Manajemen Haji',        path: '/admin/haji',                 icon: 'MapPin',          group_name: 'Keberangkatan',      sort_order: 403, required_permission: PERMISSIONS.HAJI },
+  { key: 'manasik',             label: 'Manasik',               path: '/admin/manasik',              icon: 'BookMarked',      group_name: 'Keberangkatan',      sort_order: 404, required_permission: PERMISSIONS.MANASIK },
+  { key: 'itinerary-templates', label: 'Template Itinerary',    path: '/admin/itinerary-templates',  icon: 'ListOrdered',     group_name: 'Keberangkatan',      sort_order: 405, required_permission: PERMISSIONS.ITINERARY_TEMPLATES },
+  { key: 'equipment',           label: 'Perlengkapan',          path: '/admin/equipment',            icon: 'Backpack',        group_name: 'Keberangkatan',      sort_order: 406, required_permission: PERMISSIONS.EQUIPMENT },
 
-  // ── Jamaah & Agen ─────────────────────────────────────────────────────────
-  { key: 'customers',         label: 'Jamaah',             path: '/admin/customers',         icon: 'Users',            group_name: 'Jamaah & Agen',   sort_order: 1,  required_permission: 'customers' },
-  { key: 'agents',            label: 'Agen',               path: '/admin/agents',            icon: 'UserSquare2',      group_name: 'Jamaah & Agen',   sort_order: 2,  required_permission: 'agents' },
-  { key: 'branches',          label: 'Cabang',             path: '/admin/branches',          icon: 'Network',          group_name: 'Jamaah & Agen',   sort_order: 3,  required_permission: 'branches' },
-  { key: 'loyalty',           label: 'Program Loyalitas',  path: '/admin/loyalty',           icon: 'Award',            group_name: 'Jamaah & Agen',   sort_order: 4,  required_permission: 'loyalty' },
-  { key: 'referrals',         label: 'Referral',           path: '/admin/referrals',         icon: 'Share2',           group_name: 'Jamaah & Agen',   sort_order: 5,  required_permission: 'referrals' },
-  { key: 'visa',              label: 'Visa',               path: '/admin/visa',              icon: 'FileCheck',        group_name: 'Jamaah & Agen',   sort_order: 6,  required_permission: 'visa' },
+  // ── Keuangan (500s) ───────────────────────────────────────────────────────
+  { key: 'payments',            label: 'Pembayaran',            path: '/admin/payments',             icon: 'CreditCard',      group_name: 'Keuangan',           sort_order: 501, required_permission: PERMISSIONS.PAYMENTS },
+  { key: 'finance-cash',        label: 'Kas & Bank',            path: '/admin/finance-cash',         icon: 'Coins',           group_name: 'Keuangan',           sort_order: 502, required_permission: PERMISSIONS.FINANCE_CASH },
+  { key: 'finance-ar',          label: 'Piutang (AR)',          path: '/admin/finance/ar',           icon: 'ArrowDownToLine', group_name: 'Keuangan',           sort_order: 503, required_permission: PERMISSIONS.FINANCE_AR },
+  { key: 'finance-ap',          label: 'Hutang (AP)',           path: '/admin/finance/ap',           icon: 'ArrowUpFromLine', group_name: 'Keuangan',           sort_order: 504, required_permission: PERMISSIONS.FINANCE_AP },
+  { key: 'finance',             label: 'Laporan P&L',           path: '/admin/finance',              icon: 'TrendingUp',      group_name: 'Keuangan',           sort_order: 505, required_permission: PERMISSIONS.FINANCE },
+  { key: 'savings',             label: 'Program Tabungan',      path: '/admin/savings',              icon: 'PiggyBank',       group_name: 'Keuangan',           sort_order: 506, required_permission: PERMISSIONS.SAVINGS },
+  { key: 'reports',             label: 'Laporan',               path: '/admin/reports',              icon: 'FileBarChart',    group_name: 'Keuangan',           sort_order: 507, required_permission: PERMISSIONS.REPORTS },
+  { key: 'advanced-reports',    label: 'Laporan Lanjutan',      path: '/admin/advanced-reports',     icon: 'ChartLine',       group_name: 'Keuangan',           sort_order: 508, required_permission: PERMISSIONS.ADVANCED_REPORTS },
+  { key: 'scheduled-reports',   label: 'Laporan Terjadwal',     path: '/admin/scheduled-reports',    icon: 'CalendarClock',   group_name: 'Keuangan',           sort_order: 509, required_permission: PERMISSIONS.SCHEDULED_REPORTS },
 
-  // ── SDM ───────────────────────────────────────────────────────────────────
-  { key: 'hr',                label: 'SDM / HR',           path: '/admin/hr',                icon: 'UserCog',          group_name: 'SDM',             sort_order: 1,  required_permission: 'hr' },
-  { key: 'payroll',           label: 'Penggajian',         path: '/admin/hr/payroll',        icon: 'Wallet',           group_name: 'SDM',             sort_order: 2,  required_permission: 'payroll' },
+  // ── Jamaah & Agen (600s) ──────────────────────────────────────────────────
+  { key: 'customers',           label: 'Data Jamaah',           path: '/admin/customers',            icon: 'Users',           group_name: 'Jamaah & Agen',      sort_order: 601, required_permission: PERMISSIONS.CUSTOMERS },
+  { key: 'agents',              label: 'Agen',                  path: '/admin/agents',               icon: 'UserSquare2',     group_name: 'Jamaah & Agen',      sort_order: 602, required_permission: PERMISSIONS.AGENTS },
+  { key: 'branches',            label: 'Cabang',                path: '/admin/branches',             icon: 'Network',         group_name: 'Jamaah & Agen',      sort_order: 603, required_permission: PERMISSIONS.BRANCHES },
+  { key: 'loyalty',             label: 'Program Loyalitas',     path: '/admin/loyalty',              icon: 'Award',           group_name: 'Jamaah & Agen',      sort_order: 604, required_permission: PERMISSIONS.LOYALTY },
+  { key: 'referrals',           label: 'Referral',              path: '/admin/referrals',            icon: 'Share2',          group_name: 'Jamaah & Agen',      sort_order: 605, required_permission: PERMISSIONS.REFERRALS },
+  { key: 'visa',                label: 'Visa',                  path: '/admin/visa',                 icon: 'FileCheck',       group_name: 'Jamaah & Agen',      sort_order: 606, required_permission: PERMISSIONS.VISA },
 
-  // ── Marketing & Komunikasi ────────────────────────────────────────────────
-  { key: 'marketing-materials', label: 'Materi Marketing', path: '/admin/marketing-materials', icon: 'Megaphone',      group_name: 'Marketing',       sort_order: 1,  required_permission: 'marketing-materials' },
-  { key: 'whatsapp',          label: 'WhatsApp',           path: '/admin/whatsapp',          icon: 'MessageSquare',    group_name: 'Marketing',       sort_order: 2,  required_permission: 'whatsapp' },
+  // ── SDM (700s) ────────────────────────────────────────────────────────────
+  { key: 'hr',                  label: 'SDM / HR',              path: '/admin/hr',                   icon: 'UserCog',         group_name: 'SDM',                sort_order: 701, required_permission: PERMISSIONS.HR },
+  { key: 'payroll',             label: 'Penggajian',            path: '/admin/hr/payroll',           icon: 'Wallet',          group_name: 'SDM',                sort_order: 702, required_permission: PERMISSIONS.PAYROLL },
 
-  // ── Dokumen ───────────────────────────────────────────────────────────────
-  { key: 'document-verification', label: 'Verifikasi Dokumen', path: '/admin/document-verification', icon: 'FileSearch', group_name: 'Dokumen',      sort_order: 1,  required_permission: 'document-verification' },
-  { key: 'document-types',    label: 'Jenis Dokumen',      path: '/admin/document-types',    icon: 'FileCog',          group_name: 'Dokumen',         sort_order: 2,  required_permission: 'document-types' },
-  { key: 'documents-generator', label: 'Generator Surat',  path: '/admin/documents-generator', icon: 'FileText',       group_name: 'Dokumen',         sort_order: 3,  required_permission: 'documents-generator' },
+  // ── Dokumen (800s) ────────────────────────────────────────────────────────
+  { key: 'document-verification', label: 'Verifikasi Dokumen', path: '/admin/document-verification', icon: 'FileSearch',     group_name: 'Dokumen',            sort_order: 801, required_permission: PERMISSIONS.DOCUMENT_VERIFICATION },
+  { key: 'document-types',      label: 'Jenis Dokumen',        path: '/admin/document-types',        icon: 'FileCog',        group_name: 'Dokumen',            sort_order: 802, required_permission: PERMISSIONS.DOCUMENT_TYPES },
+  { key: 'documents-generator', label: 'Generator Surat',      path: '/admin/documents-generator',  icon: 'FileText',        group_name: 'Dokumen',            sort_order: 803, required_permission: PERMISSIONS.DOCUMENTS_GENERATOR },
+  { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 804, required_permission: PERMISSIONS.OFFLINE_CONTENT },
+  { key: 'support',             label: 'Tiket Support',        path: '/admin/support',               icon: 'LifeBuoy',       group_name: 'Dokumen',            sort_order: 805, required_permission: PERMISSIONS.SUPPORT },
 
-  // ── Master Data ───────────────────────────────────────────────────────────
-  { key: 'hotels',            label: 'Hotel',              path: '/admin/hotels',            icon: 'Hotel',            group_name: 'Master Data',     sort_order: 1,  required_permission: 'hotels' },
-  { key: 'airlines',          label: 'Maskapai',           path: '/admin/airlines',          icon: 'Plane',            group_name: 'Master Data',     sort_order: 2,  required_permission: 'airlines' },
-  { key: 'airports',          label: 'Bandara',            path: '/admin/airports',          icon: 'Building',         group_name: 'Master Data',     sort_order: 3,  required_permission: 'airports' },
-  { key: 'vendors',           label: 'Vendor',             path: '/admin/vendors',           icon: 'Store',            group_name: 'Master Data',     sort_order: 4,  required_permission: 'vendors' },
-  { key: 'muthawifs',         label: 'Muthawif',           path: '/admin/muthawifs',         icon: 'PersonStanding',   group_name: 'Master Data',     sort_order: 5,  required_permission: 'muthawifs' },
-  { key: 'bus-providers',     label: 'Penyedia Bus',       path: '/admin/bus-providers',     icon: 'Bus',              group_name: 'Master Data',     sort_order: 6,  required_permission: 'bus-providers' },
+  // ── Master Data (900s) ────────────────────────────────────────────────────
+  { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },
+  { key: 'airlines',            label: 'Maskapai',              path: '/admin/airlines',             icon: 'Plane',           group_name: 'Master Data',        sort_order: 902, required_permission: PERMISSIONS.AIRLINES },
+  { key: 'airports',            label: 'Bandara',               path: '/admin/airports',             icon: 'Building',        group_name: 'Master Data',        sort_order: 903, required_permission: PERMISSIONS.AIRPORTS },
+  { key: 'vendors',             label: 'Vendor',                path: '/admin/vendors',              icon: 'Store',           group_name: 'Master Data',        sort_order: 904, required_permission: PERMISSIONS.VENDORS },
+  { key: 'muthawifs',           label: 'Muthawif',              path: '/admin/muthawifs',            icon: 'PersonStanding',  group_name: 'Master Data',        sort_order: 905, required_permission: PERMISSIONS.MUTHAWIFS },
+  { key: 'bus-providers',       label: 'Penyedia Bus',          path: '/admin/bus-providers',        icon: 'Bus',             group_name: 'Master Data',        sort_order: 906, required_permission: PERMISSIONS.BUS_PROVIDERS },
+  { key: 'master-data',         label: 'Master Data Lainnya',   path: '/admin/master-data',          icon: 'Database',        group_name: 'Master Data',        sort_order: 907, required_permission: PERMISSIONS.MASTER_DATA },
 
-  // ── Pengaturan ────────────────────────────────────────────────────────────
-  { key: 'users',             label: 'Manajemen User',     path: '/admin/users',             icon: 'Users2',           group_name: 'Pengaturan',      sort_order: 1,  required_permission: 'users' },
-  { key: 'roles',             label: 'Manajemen Role',     path: '/admin/roles',             icon: 'ShieldCheck',      group_name: 'Pengaturan',      sort_order: 2,  required_permission: 'roles' },
-  { key: 'dashboard-access',  label: 'Akses Dashboard',    path: '/admin/dashboard-access',  icon: 'LayoutGrid',       group_name: 'Pengaturan',      sort_order: 3,  required_permission: 'dashboard-access' },
-  { key: 'rbac-tools',        label: 'RBAC Tools',         path: '/admin/rbac-tools',        icon: 'ShieldAlert',      group_name: 'Pengaturan',      sort_order: 4,  required_permission: 'rbac-tools' },
-  { key: 'rbac-status',       label: 'Status RBAC',        path: '/admin/rbac-status',       icon: 'ShieldQuestion',   group_name: 'Pengaturan',      sort_order: 5,  required_permission: 'rbac-status' },
-  { key: 'security-audit',    label: 'Audit Keamanan',     path: '/admin/security-audit',    icon: 'ScanSearch',       group_name: 'Pengaturan',      sort_order: 6,  required_permission: 'security-audit' },
-  { key: '2fa',               label: 'Pengaturan 2FA',     path: '/admin/2fa',               icon: 'KeyRound',         group_name: 'Pengaturan',      sort_order: 7,  required_permission: '2fa' },
-  { key: 'appearance',        label: 'Tampilan',           path: '/admin/appearance',        icon: 'Palette',          group_name: 'Pengaturan',      sort_order: 8,  required_permission: 'appearance' },
-  { key: 'settings',          label: 'Pengaturan Umum',    path: '/admin/settings',          icon: 'Settings',         group_name: 'Pengaturan',      sort_order: 9,  required_permission: 'settings' },
+  // ── Pengaturan (1000s) ────────────────────────────────────────────────────
+  { key: 'users',               label: 'Manajemen User',        path: '/admin/users',                icon: 'Users2',          group_name: 'Pengaturan',         sort_order: 1001, required_permission: PERMISSIONS.USERS },
+  { key: 'roles',               label: 'Manajemen Role',        path: '/admin/roles',                icon: 'ShieldCheck',     group_name: 'Pengaturan',         sort_order: 1002, required_permission: PERMISSIONS.ROLES },
+  { key: 'dashboard-access',    label: 'Akses Dashboard',       path: '/admin/dashboard-access',     icon: 'LayoutGrid',      group_name: 'Pengaturan',         sort_order: 1003, required_permission: PERMISSIONS.DASHBOARD_ACCESS },
+  { key: 'rbac-tools',          label: 'RBAC Tools',            path: '/admin/rbac-tools',           icon: 'ShieldAlert',     group_name: 'Pengaturan',         sort_order: 1004, required_permission: PERMISSIONS.RBAC_TOOLS },
+  { key: 'rbac-status',         label: 'Status RBAC',           path: '/admin/rbac-status',          icon: 'ShieldQuestion',  group_name: 'Pengaturan',         sort_order: 1005, required_permission: PERMISSIONS.RBAC_STATUS },
+  { key: 'security-audit',      label: 'Audit Keamanan',        path: '/admin/security-audit',       icon: 'ScanSearch',      group_name: 'Pengaturan',         sort_order: 1006, required_permission: PERMISSIONS.SECURITY_AUDIT },
+  { key: '2fa',                 label: 'Pengaturan 2FA',        path: '/admin/2fa',                  icon: 'KeyRound',        group_name: 'Pengaturan',         sort_order: 1007, required_permission: PERMISSIONS.TWO_FA },
+  { key: 'appearance',          label: 'Tampilan & Tema',       path: '/admin/appearance',           icon: 'Palette',         group_name: 'Pengaturan',         sort_order: 1008, required_permission: PERMISSIONS.APPEARANCE },
+  { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1009, required_permission: PERMISSIONS.SETTINGS },
+  { key: 'api-connect',         label: 'API Connect ke Apps',   path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Pengaturan',         sort_order: 1010, required_permission: PERMISSIONS.API_CONNECT },
+  { key: 'supabase-setup',      label: 'Panduan Setup Supabase', path: '/admin/supabase-setup',       icon: 'Database',        group_name: 'Pengaturan',         sort_order: 1011, required_permission: PERMISSIONS.SUPABASE_SETUP },
 ];
 
 /**
@@ -112,8 +124,6 @@ export const getMenuGroups = (): string[] => {
 
 /**
  * Default permission sets per role.
- * Used to seed role_permissions when the table is empty.
- * Roles listed in priority order (highest → lowest).
  */
 export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   super_admin: RECOMMENDED_MENUS.map(m => m.required_permission),
@@ -128,12 +138,13 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'customers', 'agents', 'branches', 'visa',
     'document-verification', 'document-types',
     'hotels', 'airlines', 'airports',
-    'users',
+    'users', 'support',
   ],
 
   finance: [
     'dashboard',
-    'payments', 'finance-cash', 'finance', 'savings', 'reports', 'advanced-reports',
+    'payments', 'finance-cash', 'finance', 'finance-ar', 'finance-ap',
+    'savings', 'reports', 'advanced-reports',
     'bookings', 'customers',
   ],
 
@@ -148,7 +159,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   marketing: [
     'dashboard', 'analytics',
     'leads', 'landing-pages', 'banners', 'marketing-materials',
-    'coupons', 'referrals', 'loyalty',
+    'coupons', 'referrals', 'loyalty', 'whatsapp',
   ],
 
   operational: [
