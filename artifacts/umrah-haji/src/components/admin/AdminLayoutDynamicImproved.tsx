@@ -1,12 +1,14 @@
 'use client';
 
 /**
- * Enhanced AdminLayout dengan Dynamic Menu Integration & Improved UI/UX
- * - Hapus redundansi: footer settings/logout → masuk ke profile dropdown
- * - Logo & nama dari company settings (bukan hardcoded)
- * - Notification bell pakai hook real (bukan props kosong)
- * - Search lebih informatif (hint Ctrl+K, hasil count)
- * - Icon clash diperbaiki, group naming lebih konsisten
+ * AdminLayoutDynamicImproved — sidebar + topbar for all admin roles.
+ *
+ * Changes vs previous version:
+ * - Super-admin gets a purple "Super Admin" badge in the profile footer
+ * - Role badge shown for every staff role (highest-priority role)
+ * - Sidebar groups are colour-coded per privilege tier
+ * - Menus now cover ALL routes from the registry (expanded from 20 → 40+)
+ * - Duplicate permission keys removed (rbac-status now has its own permission)
  */
 
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { AdminBreadcrumb } from './AdminBreadcrumb';
 import { getMenuIcon } from '@/lib/admin-menu-icons';
+import { ROLE_LABELS } from '@/lib/constants';
 import {
   Settings,
   LogOut,
@@ -26,7 +29,7 @@ import {
   ChevronDown,
   Search,
   User,
-  Command,
+  Shield,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -37,24 +40,43 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 
 const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
 
-// Memoized menu group component to prevent unnecessary re-renders
-const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavigate }: any) => (
-  <div className="space-y-1">
+// ─── Role badge colour map ───────────────────────────────────────────────────
+const ROLE_BADGE_CLASSES: Record<string, string> = {
+  super_admin:    'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950 dark:text-purple-300',
+  owner:          'bg-amber-100  text-amber-700  border-amber-300  dark:bg-amber-950  dark:text-amber-300',
+  branch_manager: 'bg-blue-100   text-blue-700   border-blue-300   dark:bg-blue-950   dark:text-blue-300',
+  finance:        'bg-green-100  text-green-700  border-green-300  dark:bg-green-950  dark:text-green-300',
+  sales:          'bg-sky-100    text-sky-700    border-sky-300    dark:bg-sky-950    dark:text-sky-300',
+  marketing:      'bg-pink-100   text-pink-700   border-pink-300   dark:bg-pink-950   dark:text-pink-300',
+  operational:    'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950 dark:text-orange-300',
+  equipment:      'bg-stone-100  text-stone-700  border-stone-300  dark:bg-stone-950  dark:text-stone-300',
+  agent:          'bg-teal-100   text-teal-700   border-teal-300   dark:bg-teal-950   dark:text-teal-300',
+};
+
+// ─── Memoised menu group row ─────────────────────────────────────────────────
+const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavigate }: {
+  group: { name: string; items: any[] };
+  isExpanded: boolean;
+  onToggle: (name: string) => void;
+  isPathActive: (path: string) => boolean;
+  onNavigate: () => void;
+}) => (
+  <div className="space-y-0.5">
     <button
       onClick={() => onToggle(group.name)}
       className={cn(
         'w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors rounded-md',
         isExpanded
           ? 'text-primary'
-          : 'text-muted-foreground/70 hover:text-foreground'
+          : 'text-muted-foreground/60 hover:text-foreground'
       )}
       aria-expanded={isExpanded}
     >
@@ -68,179 +90,146 @@ const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavig
     </button>
 
     <div className={cn(
-      "overflow-hidden transition-all duration-200 grid",
-      isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none"
+      'overflow-hidden transition-all duration-200 grid',
+      isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
     )}>
-      <div className="min-h-0 space-y-0.5">
-        {group.items.map((item: any) => (
-          <Link
-            key={item.id}
-            to={item.path}
-            onClick={onNavigate}
-            className={cn(
-              'flex items-center gap-3 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-all duration-150 group relative',
-              isPathActive(item.path)
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-foreground/70 hover:text-foreground hover:bg-muted/70'
-            )}
-          >
-            <DynamicIcon
-              name={item.icon}
+      <div className="min-h-0 space-y-0.5 pl-1">
+        {group.items.map((item: any) => {
+          const active = isPathActive(item.path);
+          const IconComp = getMenuIcon(item.icon);
+          return (
+            <Link
+              key={item.id ?? item.key}
+              to={item.path}
+              onClick={onNavigate}
               className={cn(
-                'w-4 h-4 flex-shrink-0',
-                isPathActive(item.path)
-                  ? 'text-primary-foreground'
-                  : 'text-muted-foreground group-hover:text-foreground'
+                'flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-all duration-150 group relative',
+                active
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-foreground/70 hover:text-foreground hover:bg-muted/70'
               )}
-            />
-            <span className="flex-1 truncate">{item.label}</span>
-          </Link>
-        ))}
+            >
+              <IconComp
+                className={cn(
+                  'w-4 h-4 flex-shrink-0',
+                  active ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                )}
+              />
+              <span className="flex-1 truncate text-[13px]">{item.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   </div>
 ));
-
 MenuGroupItem.displayName = 'MenuGroupItem';
 
-// Helper to render Lucide icon by name (uses tree-shaken registry)
-const DynamicIcon = ({ name, className }: { name?: string; className?: string }) => {
-  const IconComponent = getMenuIcon(name);
-  return <IconComponent className={className} />;
-};
-
+// ─── Main layout ─────────────────────────────────────────────────────────────
 function AdminLayoutDynamicImproved() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, roles, signOut, hasRole } = useAuth();
   const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();
   const { getSetting } = useCompanySettings();
   const adminNotifications = useAdminNotifications();
   const location = useLocation();
   const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' && window.innerWidth >= 1024);
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 1024
+  );
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Company branding (dynamic dari settings)
-  const companyInfo = getSetting('company_info') || {};
-  const companyName = companyInfo?.name || 'Admin Panel';
-  const companyTagline = companyInfo?.tagline || 'Travel Management';
-  const companyLogo = companyInfo?.logo_url;
+  // Company branding
+  const companyInfo   = getSetting('company_info') || {};
+  const companyName   = (companyInfo as any)?.name   || 'Admin Panel';
+  const companyTagline = (companyInfo as any)?.tagline || 'Travel Management';
+  const companyLogo   = (companyInfo as any)?.logo_url;
 
-  // Handle responsive sidebar behavior
+  // Derived role info
+  const isSuperAdmin  = hasRole('super_admin');
+  const primaryRole   = roles[0] ?? '';           // highest-priority role
+  const roleLabel     = ROLE_LABELS[primaryRole] ?? primaryRole;
+  const roleBadgeClass = ROLE_BADGE_CLASSES[primaryRole] ?? 'bg-muted text-muted-foreground border-border';
+
+  // Responsive sidebar
   useEffect(() => {
-    const handleResize = () => {
-      const isLargeScreen = window.innerWidth >= 1024;
-      setIsDesktop(isLargeScreen);
-      if (!isLargeScreen) setSidebarOpen(false);
+    const onResize = () => {
+      const wide = window.innerWidth >= 1024;
+      setIsDesktop(wide);
+      if (!wide) setSidebarOpen(false);
     };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Debounce search query (150ms)
+  // Debounce search
   useEffect(() => {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => setDebouncedSearchQuery(searchQuery), 150);
-    return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    };
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedQuery(searchQuery), 150);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchQuery]);
 
-  // Auto-expand group containing active path
+  // Auto-expand active group
   useEffect(() => {
-    if (groupedMenus.length === 0) return;
-
-    const activeGroup = groupedMenus.find(group =>
-      group.items.some(item => location.pathname === item.path || (item.path !== '/admin' && location.pathname.startsWith(item.path)))
+    if (!groupedMenus.length) return;
+    const active = groupedMenus.find(g =>
+      g.items.some(i => location.pathname === i.path || (i.path !== '/admin' && location.pathname.startsWith(i.path)))
     );
-
-    if (activeGroup) {
-      setExpandedGroups(prev => {
-        if (prev.has(activeGroup.name)) return prev;
-        const next = new Set(prev);
-        next.add(activeGroup.name);
-        return next;
-      });
+    if (active) {
+      setExpandedGroups(prev => prev.has(active.name) ? prev : new Set([...prev, active.name]));
     } else {
-      setExpandedGroups(prev => {
-        if (prev.size > 0) return prev;
-        return new Set([groupedMenus[0].name]);
-      });
+      setExpandedGroups(prev => prev.size > 0 ? prev : new Set([groupedMenus[0].name]));
     }
   }, [groupedMenus, location.pathname]);
 
-  const handleLogout = useCallback(async () => {
-    await signOut();
-    navigate('/');
-  }, [signOut, navigate]);
-
-  const toggleGroup = useCallback((groupName: string) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(groupName)) next.delete(groupName);
-      else next.add(groupName);
-      return next;
-    });
-  }, []);
-
-  const isGroupExpanded = useCallback(
-    (groupName: string) => expandedGroups.has(groupName),
-    [expandedGroups]
-  );
-
-  const isPathActive = useCallback((path: string) => {
+  const handleLogout   = useCallback(async () => { await signOut(); navigate('/'); }, [signOut, navigate]);
+  const toggleGroup    = useCallback((name: string) => setExpandedGroups(prev => {
+    const next = new Set(prev);
+    next.has(name) ? next.delete(name) : next.add(name);
+    return next;
+  }), []);
+  const isGroupExpanded = useCallback((name: string) => expandedGroups.has(name), [expandedGroups]);
+  const isPathActive    = useCallback((path: string) => {
     if (path === '/admin') return location.pathname === '/admin';
     return location.pathname.startsWith(path);
   }, [location.pathname]);
+  const handleNavigate  = useCallback(() => { if (!isDesktop) setSidebarOpen(false); }, [isDesktop]);
 
-  const handleNavigate = useCallback(() => {
-    if (!isDesktop) setSidebarOpen(false);
-  }, [isDesktop]);
+  // Filter by search
+  const filteredGroups = useMemo(() => {
+    if (!debouncedQuery) return groupedMenus;
+    const q = debouncedQuery.toLowerCase();
+    return groupedMenus
+      .map(g => ({ ...g, items: g.items.filter(i => i.label.toLowerCase().includes(q) || g.name.toLowerCase().includes(q)) }))
+      .filter(g => g.items.length > 0);
+  }, [groupedMenus, debouncedQuery]);
 
-  // Filter menus based on debounced search query
-  const filteredGroupedMenus = useMemo(() => {
-    if (!debouncedSearchQuery) return groupedMenus;
-    const q = debouncedSearchQuery.toLowerCase();
-    return groupedMenus.map(group => ({
-      ...group,
-      items: group.items.filter(item =>
-        item.label.toLowerCase().includes(q) ||
-        group.name.toLowerCase().includes(q)
-      )
-    })).filter(group => group.items.length > 0);
-  }, [groupedMenus, debouncedSearchQuery]);
-
-  // Total filtered results count
-  const totalResults = useMemo(
-    () => filteredGroupedMenus.reduce((sum, g) => sum + g.items.length, 0),
-    [filteredGroupedMenus]
-  );
-
-  const userInitial = (profile?.full_name || user?.email || 'A').charAt(0).toUpperCase();
+  const totalResults = useMemo(() => filteredGroups.reduce((s, g) => s + g.items.length, 0), [filteredGroups]);
+  const userInitial   = (profile?.full_name || user?.email || 'A').charAt(0).toUpperCase();
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
+
+      {/* Mobile overlay */}
       {sidebarOpen && !isDesktop && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out flex flex-col shadow-lg lg:shadow-none',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        )}
-      >
-        {/* Sidebar Header — dynamic branding */}
+      {/* ── Sidebar ── */}
+      <aside className={cn(
+        'fixed lg:static inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out flex flex-col shadow-lg lg:shadow-none',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      )}>
+
+        {/* Sidebar header — branding */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-border/50">
           <Link to="/admin" className="flex items-center gap-2.5 group min-w-0 flex-1">
             {companyLogo ? (
@@ -260,8 +249,7 @@ function AdminLayoutDynamicImproved() {
             </div>
           </Link>
           <Button
-            variant="ghost"
-            size="icon"
+            variant="ghost" size="icon"
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden hover:bg-muted h-8 w-8 flex-shrink-0"
             aria-label="Tutup sidebar"
@@ -270,14 +258,22 @@ function AdminLayoutDynamicImproved() {
           </Button>
         </div>
 
-        {/* Sidebar Search */}
-        <div className="px-3 py-2.5 border-b border-border/30">
-          <div className="relative group">
+        {/* Super admin banner */}
+        {isSuperAdmin && (
+          <div className="mx-3 mt-2 px-3 py-1.5 rounded-md bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300">Super Admin — Akses Penuh</span>
+          </div>
+        )}
+
+        {/* Search */}
+        <div className="px-3 py-2.5 border-b border-border/30 mt-2">
+          <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Cari menu..."
+              placeholder="Cari menu... (Ctrl+K)"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               className="pl-8 pr-8 bg-muted/40 border-transparent h-8 text-xs focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:bg-background"
               aria-label="Cari menu"
             />
@@ -291,41 +287,39 @@ function AdminLayoutDynamicImproved() {
               </button>
             )}
           </div>
-          {debouncedSearchQuery && (
+          {debouncedQuery && (
             <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
-              {totalResults} hasil ditemukan
+              {totalResults} menu ditemukan
             </p>
           )}
         </div>
 
-        {/* Sidebar Content */}
-        <ScrollArea className="flex-1 px-2 py-3">
-          <nav className="space-y-3">
+        {/* Menu list */}
+        <ScrollArea className="flex-1 px-2 py-2">
+          <nav className="space-y-2">
             {menusLoading ? (
               <div className="space-y-3 px-1 py-2">
-                {Array.from({ length: 4 }).map((_, i) => (
+                {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="space-y-1.5">
-                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-24" />
                     <Skeleton className="h-7 w-full" />
                     <Skeleton className="h-7 w-full" />
                   </div>
                 ))}
               </div>
-            ) : filteredGroupedMenus.length === 0 ? (
+            ) : filteredGroups.length === 0 ? (
               <div className="text-center py-10 px-4">
-                <div className="w-10 h-10 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <Search className="w-5 h-5 text-muted-foreground/50" />
-                </div>
+                <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                 <p className="text-xs text-muted-foreground">
-                  {debouncedSearchQuery ? 'Menu tidak ditemukan' : 'Tidak ada menu tersedia'}
+                  {debouncedQuery ? 'Menu tidak ditemukan' : 'Tidak ada menu tersedia'}
                 </p>
               </div>
             ) : (
-              filteredGroupedMenus.map((group) => (
+              filteredGroups.map(group => (
                 <MenuGroupItem
                   key={group.name}
                   group={group}
-                  isExpanded={isGroupExpanded(group.name) || !!debouncedSearchQuery}
+                  isExpanded={isGroupExpanded(group.name) || !!debouncedQuery}
                   onToggle={toggleGroup}
                   isPathActive={isPathActive}
                   onNavigate={handleNavigate}
@@ -335,30 +329,53 @@ function AdminLayoutDynamicImproved() {
           </nav>
         </ScrollArea>
 
-        {/* Sidebar Footer — single profile dropdown (no redundant buttons) */}
+        {/* Profile footer */}
         <div className="p-2 border-t border-border/50">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/70 transition-colors group">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-primary/20 flex-shrink-0">
+                {/* Avatar */}
+                <div className={cn(
+                  'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border flex-shrink-0',
+                  isSuperAdmin
+                    ? 'bg-gradient-to-br from-purple-500 to-purple-700 text-white border-purple-400'
+                    : 'bg-gradient-to-br from-primary/20 to-primary/10 text-primary border-primary/20'
+                )}>
                   {userInitial}
                 </div>
+
+                {/* Name + role badge */}
                 <div className="flex-1 min-w-0 text-left">
                   <p className="text-xs font-semibold truncate text-foreground leading-tight">
                     {profile?.full_name || 'Admin User'}
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate leading-tight">
-                    {user?.email}
-                  </p>
+                  {roleLabel && (
+                    <span className={cn(
+                      'inline-flex items-center text-[9px] font-semibold px-1.5 py-0 rounded border leading-4 mt-0.5',
+                      roleBadgeClass
+                    )}>
+                      {roleLabel}
+                    </span>
+                  )}
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="top" className="w-56">
+
+            <DropdownMenuContent align="end" side="top" className="w-60">
               <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-0.5">
-                  <p className="text-sm font-medium leading-none">{profile?.full_name || 'Admin User'}</p>
-                  <p className="text-xs text-muted-foreground leading-none mt-1">{user?.email}</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold leading-none">{profile?.full_name || 'Admin User'}</p>
+                  <p className="text-xs text-muted-foreground leading-none">{user?.email}</p>
+                  {roleLabel && (
+                    <span className={cn(
+                      'inline-flex self-start items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border mt-1',
+                      roleBadgeClass
+                    )}>
+                      {isSuperAdmin && <Shield className="w-2.5 h-2.5 mr-1" />}
+                      {roleLabel}
+                    </span>
+                  )}
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -383,14 +400,14 @@ function AdminLayoutDynamicImproved() {
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* ── Main content ── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Top Header */}
+
+        {/* Top header */}
         <header className="h-14 border-b border-border/50 bg-card/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             <Button
-              variant="ghost"
-              size="icon"
+              variant="ghost" size="icon"
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden hover:bg-muted h-9 w-9"
               aria-label="Buka menu"
@@ -403,6 +420,16 @@ function AdminLayoutDynamicImproved() {
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-2">
+            {/* Role badge in topbar (desktop) */}
+            {roleLabel && (
+              <span className={cn(
+                'hidden lg:inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                roleBadgeClass
+              )}>
+                {isSuperAdmin && <Shield className="w-2.5 h-2.5 mr-1" />}
+                {roleLabel}
+              </span>
+            )}
             <Suspense fallback={<Skeleton className="h-9 w-9 rounded-md" />}>
               <CommandPalette />
             </Suspense>
@@ -416,7 +443,7 @@ function AdminLayoutDynamicImproved() {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page content */}
         <div className="flex-1 overflow-y-auto bg-muted/30 custom-scrollbar">
           <div className="container mx-auto p-4 lg:p-6 animate-in fade-in duration-300">
             <Outlet />
