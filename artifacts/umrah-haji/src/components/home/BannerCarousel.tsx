@@ -17,7 +17,12 @@ interface Banner {
 
 const AUTOPLAY_DELAY = 5000;
 
-export function BannerCarousel() {
+interface BannerCarouselProps {
+  /** Compact mode: shorter height for inner pages */
+  compact?: boolean;
+}
+
+export function BannerCarousel({ compact = false }: BannerCarouselProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
@@ -68,7 +73,7 @@ export function BannerCarousel() {
               key={banner.id}
               className="relative flex-[0_0_100%] min-w-0"
             >
-              <div className="relative w-full" style={{ aspectRatio: '21/7', minHeight: '200px' }}>
+              <div className="relative w-full" style={{ aspectRatio: compact ? '21/5' : '21/7', minHeight: compact ? '160px' : '200px' }}>
                 <img
                   src={banner.image_url}
                   alt={banner.title ?? 'Banner'}

@@ -137,10 +137,19 @@ export const useDynamicMenus = () => {
   );
 
   const filteredMenus = useMemo(() => {
-    if (isSuperAdmin) return menus;
+    if (isSuperAdmin) {
+      // Super admin always sees the COMPLETE registry, regardless of what is in the DB.
+      // DB menus are used for custom labels/ordering; registry fills any gaps.
+      const dbKeys = new Set(dbMenus.map(m => m.key));
+      const merged = [...dbMenus];
+      fallbackMenus.forEach(m => {
+        if (!dbKeys.has(m.key)) merged.push(m);
+      });
+      return merged;
+    }
     const visibleMenus = menus.filter(m => (m as any).is_visible !== false);
     return visibleMenus.filter(m => matchesPermission(m.required_permission, allowedSet));
-  }, [menus, allowedSet, isSuperAdmin, matchesPermission]);
+  }, [menus, dbMenus, fallbackMenus, allowedSet, isSuperAdmin, matchesPermission]);
 
   // Group menus - memoized for performance
   const groupedMenus: MenuGroup[] = useMemo(() => {
