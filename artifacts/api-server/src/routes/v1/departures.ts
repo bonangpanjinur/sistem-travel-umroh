@@ -38,9 +38,9 @@ router.get('/', requireApiKey('departures.read'), async (req, res) => {
     const data = await supabaseFetch(
       `/departures?status=eq.open&departure_date=gte.${today}&select=id,departure_date,return_date,quota,booked_count,status,price_quad,price_triple,price_double,price_single,package:packages(id,name,duration_days)&order=departure_date.asc`,
     );
-    res.json({ data });
+    return res.json({ data });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

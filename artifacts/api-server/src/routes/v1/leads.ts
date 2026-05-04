@@ -35,9 +35,9 @@ router.post('/', requireApiKey('leads.write'), async (req, res) => {
       body: JSON.stringify(payload),
     });
     const created = Array.isArray(rows) ? rows[0] : rows;
-    res.status(201).json({ data: created });
+    return res.status(201).json({ data: created });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

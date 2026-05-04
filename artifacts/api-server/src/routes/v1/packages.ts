@@ -39,9 +39,9 @@ router.get('/', requireApiKey('packages.read'), async (req, res) => {
     const data = await supabaseFetch(
       '/packages?is_active=eq.true&select=id,name,package_type,duration_days,price_quad,price_triple,price_double,price_single,description,is_active&order=name.asc',
     );
-    res.json({ data });
+    return res.json({ data });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -54,14 +54,14 @@ router.get('/:id', requireApiKey('packages.read'), async (req, res) => {
       return res.json({ data: pkg, source: 'demo' });
     }
     const rows = await supabaseFetch(
-      `/packages?id=eq.${encodeURIComponent(id!)}&select=*&limit=1`,
+      `/packages?id=eq.${encodeURIComponent(id as string)}&select=*&limit=1`,
     );
     if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(404).json({ error: 'Package not found' });
     }
-    res.json({ data: rows[0] });
+    return res.json({ data: rows[0] });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
