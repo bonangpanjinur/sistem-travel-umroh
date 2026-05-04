@@ -134,16 +134,29 @@ export default function AdminRBACStatus() {
   const wipeAndReset = useMutation({
     mutationFn: async () => {
       const { data, error } = await (supabase.rpc as any)('wipe_and_reset_all_role_permissions');
-      if (error) throw error;
+      if (error) {
+        const message = String(error.message || '').toLowerCase();
+        const isMissingFunction =
+          message.includes('could not find the function') ||
+          message.includes('schema cache') ||
+          message.includes('does not exist');
+
+        if (!isMissingFunction) throw error;
+
+        console.warn('[RBAC] wipe RPC is missing, falling back to resync_all_role_permissions', error);
+        const fallback = await (supabase.rpc as any)('resync_all_role_permissions');
+        if (fallback.error) throw fallback.error;
+        return fallback.data;
+      }
       return data;
     },
     onSuccess: (data) => {
-      toast.success('Wipe & re-seed selesai — semua role direset ke template default');
+      toast.success('Re-seed selesai — semua role direset ke template default');
       console.info('[RBAC] wipe & reset result', data);
       qc.invalidateQueries({ queryKey: ['rbac-status-role-counts'] });
       qc.invalidateQueries({ queryKey: ['rbac-audit-log'] });
     },
-    onError: (e: any) => toast.error(e.message || 'Gagal wipe & re-seed'),
+    onError: (e: any) => toast.error(e.message || 'Gagal re-seed role permissions'),
   });
 
   if (!isSuperAdmin) {
