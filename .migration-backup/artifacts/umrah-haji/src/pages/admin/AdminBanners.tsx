@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,7 @@ export default function AdminBanners() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<BannerForm>(EMPTY_FORM);
   const [uploading, setUploading] = useState(false);
+  const [orderedBanners, setOrderedBanners] = useState<Banner[]>([]);
 
   const { data: banners = [], isLoading, error } = useQuery({
     queryKey: ['admin-banners'],
@@ -67,6 +69,10 @@ export default function AdminBanners() {
       return data ?? [];
     },
   });
+
+  useEffect(() => {
+    setOrderedBanners(banners);
+  }, [banners]);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: BannerForm) => {
@@ -140,6 +146,39 @@ export default function AdminBanners() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: async (items: Banner[]) => {
+      const updates = items.map((b, index) =>
+        db.from('banners').update({ sort_order: index }).eq('id', b.id)
+      );
+      const results = await Promise.all(updates);
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw failed.error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      queryClient.invalidateQueries({ queryKey: ['public-banners'] });
+      toast.success('Urutan banner disimpan');
+    },
+    onError: (err: Error) => {
+      toast.error('Gagal menyimpan urutan: ' + err.message);
+      setOrderedBanners(banners);
+    },
+  });
+
+  const onDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const from = result.source.index;
+    const to = result.destination.index;
+    if (from === to) return;
+
+    const reordered = Array.from(orderedBanners);
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setOrderedBanners(reordered);
+    reorderMutation.mutate(reordered);
+  };
+
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
@@ -195,7 +234,7 @@ export default function AdminBanners() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Banner Carousel</h1>
           <p className="text-muted-foreground">
-            Kelola banner yang tampil di halaman utama website
+            Kelola banner halaman utama — seret baris untuk mengatur urutan tampil
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -248,7 +287,7 @@ create policy "Authenticated manage banners" on public.banners
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : banners.length === 0 && !tableNotFound ? (
+          ) : orderedBanners.length === 0 && !tableNotFound ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
               <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
                 <ImageIcon className="h-7 w-7 text-muted-foreground" />
@@ -262,11 +301,18 @@ create policy "Authenticated manage banners" on public.banners
                 Tambah Banner
               </Button>
             </div>
-          ) : banners.length > 0 ? (
+          ) : orderedBanners.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-10"></TableHead>
+                  <TableHead className="w-10">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <GripVertical className="h-4 w-4 text-muted-foreground mx-auto cursor-default" />
+                      </TooltipTrigger>
+                      <TooltipContent>Seret untuk mengatur urutan</TooltipContent>
+                    </Tooltip>
+                  </TableHead>
                   <TableHead>Gambar</TableHead>
                   <TableHead>Judul / Subjudul</TableHead>
                   <TableHead>Tombol CTA</TableHead>
@@ -275,85 +321,110 @@ create policy "Authenticated manage banners" on public.banners
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {banners.map((banner) => (
-                  <TableRow key={banner.id}>
-                    <TableCell>
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    </TableCell>
-                    <TableCell>
-                      <div className="w-24 h-14 rounded overflow-hidden bg-muted border">
-                        <img
-                          src={banner.image_url}
-                          alt={banner.title ?? 'Banner'}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-medium text-sm">
-                        {banner.title || <span className="text-muted-foreground italic">Tanpa judul</span>}
-                      </p>
-                      {banner.subtitle && (
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                          {banner.subtitle}
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {banner.cta_text ? (
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="text-xs">{banner.cta_text}</Badge>
-                          {banner.cta_url && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <a href={banner.cta_url} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
-                                </a>
-                              </TooltipTrigger>
-                              <TooltipContent>{banner.cta_url}</TooltipContent>
-                            </Tooltip>
+              <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="banners-list">
+                  {(provided, snapshot) => (
+                    <TableBody
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={snapshot.isDraggingOver ? 'bg-muted/30' : ''}
+                    >
+                      {orderedBanners.map((banner, index) => (
+                        <Draggable key={banner.id} draggableId={banner.id} index={index}>
+                          {(drag, dragSnapshot) => (
+                            <TableRow
+                              ref={drag.innerRef}
+                              {...drag.draggableProps}
+                              className={`transition-shadow ${dragSnapshot.isDragging ? 'shadow-lg bg-background ring-1 ring-primary/30 rounded-lg' : ''}`}
+                            >
+                              <TableCell>
+                                <div
+                                  {...drag.dragHandleProps}
+                                  className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted"
+                                  title="Seret untuk mengatur urutan"
+                                >
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="w-24 h-14 rounded overflow-hidden bg-muted border">
+                                  <img
+                                    src={banner.image_url}
+                                    alt={banner.title ?? 'Banner'}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <p className="font-medium text-sm">
+                                  {banner.title || <span className="text-muted-foreground italic">Tanpa judul</span>}
+                                </p>
+                                {banner.subtitle && (
+                                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                    {banner.subtitle}
+                                  </p>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {banner.cta_text ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="outline" className="text-xs">{banner.cta_text}</Badge>
+                                    {banner.cta_url && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <a href={banner.cta_url} target="_blank" rel="noopener noreferrer">
+                                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                                          </a>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{banner.cta_url}</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span className="text-sm font-mono text-muted-foreground">{index + 1}</span>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Switch
+                                    checked={banner.is_active}
+                                    onCheckedChange={(checked) =>
+                                      toggleActiveMutation.mutate({ id: banner.id, is_active: checked })
+                                    }
+                                  />
+                                  {banner.is_active
+                                    ? <Eye className="h-4 w-4 text-green-600" />
+                                    : <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                  }
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(banner)}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => setDeleteId(banner.id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="text-sm font-mono">{banner.sort_order}</span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Switch
-                          checked={banner.is_active}
-                          onCheckedChange={(checked) =>
-                            toggleActiveMutation.mutate({ id: banner.id, is_active: checked })
-                          }
-                        />
-                        {banner.is_active
-                          ? <Eye className="h-4 w-4 text-green-600" />
-                          : <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        }
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(banner)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteId(banner.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </TableBody>
+                  )}
+                </Droppable>
+              </DragDropContext>
             </Table>
           ) : null}
         </CardContent>
@@ -467,27 +538,15 @@ create policy "Authenticated manage banners" on public.banners
               </div>
             </div>
 
-            {/* Order & Status */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="b-order">Urutan</Label>
-                <Input
-                  id="b-order"
-                  type="number"
-                  min={0}
-                  value={form.sort_order}
-                  onChange={(e) => setForm(f => ({ ...f, sort_order: Number(e.target.value) }))}
+            {/* Status */}
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <div className="flex items-center gap-2 pt-1">
+                <Switch
+                  checked={form.is_active}
+                  onCheckedChange={(v) => setForm(f => ({ ...f, is_active: v }))}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <div className="flex items-center gap-2 pt-2">
-                  <Switch
-                    checked={form.is_active}
-                    onCheckedChange={(v) => setForm(f => ({ ...f, is_active: v }))}
-                  />
-                  <span className="text-sm">{form.is_active ? 'Aktif' : 'Nonaktif'}</span>
-                </div>
+                <span className="text-sm">{form.is_active ? 'Aktif (tampil di carousel)' : 'Nonaktif (disembunyikan)'}</span>
               </div>
             </div>
           </div>

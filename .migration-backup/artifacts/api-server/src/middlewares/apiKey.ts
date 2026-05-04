@@ -11,17 +11,16 @@ declare global {
 
 export function requireApiKey(requiredPermission?: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
+    if (!isSupabaseConfigured()) {
+      next();
+      return;
+    }
+
     const rawKey = (req.headers['x-api-key'] as string) || '';
 
     if (!rawKey) {
       res.status(401).json({ error: 'Missing X-API-Key header' });
       return;
-    }
-
-    if (!isSupabaseConfigured()) {
-      // Dev mode: accept any key when Supabase is not configured
-      req.apiPermissions = ['packages.read', 'departures.read', 'leads.write', 'bookings.read', 'bookings.write'];
-      return next();
     }
 
     const { valid, permissions } = await validateApiKey(rawKey);
