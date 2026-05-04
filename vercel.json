@@ -6,5 +6,11 @@
     "PORT": "5173",
     "BASE_PATH": "/",
     "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
