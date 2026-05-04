@@ -436,24 +436,55 @@ export function useApplyThemePreset() {
 
   return useMutation({
     mutationFn: async (preset: ThemePreset) => {
-      const { data, error } = await supabase
+      const updates = {
+        active_theme: preset.slug,
+        primary_color: preset.primary_color,
+        secondary_color: preset.secondary_color,
+        accent_color: preset.accent_color,
+        background_color: preset.background_color,
+        foreground_color: preset.foreground_color,
+        heading_font: preset.heading_font,
+        body_font: preset.body_font,
+      };
+
+      // Try update first
+      const { data: updated, error: updateError } = await supabase
         .from("website_settings")
-        .update({
-          active_theme: preset.slug,
-          primary_color: preset.primary_color,
-          secondary_color: preset.secondary_color,
-          accent_color: preset.accent_color,
-          background_color: preset.background_color,
-          foreground_color: preset.foreground_color,
-          heading_font: preset.heading_font,
-          body_font: preset.body_font,
-        })
+        .update(updates)
         .eq("id", SETTINGS_ID)
+        .select();
+
+      if (updateError) throw updateError;
+
+      if (updated && updated.length > 0) {
+        return updated[0];
+      }
+
+      // Confirm whether the row exists at all
+      const { data: existing, error: existingError } = await supabase
+        .from("website_settings")
+        .select("id")
+        .eq("id", SETTINGS_ID)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+
+      if (existing) {
+        // Row exists but UPDATE returned 0 rows → RLS blocked the write silently.
+        throw new Error(
+          "Tidak memiliki izin untuk menerapkan tema. Pastikan akun Anda memiliki peran admin."
+        );
+      }
+
+      // Row truly does not exist yet → try insert.
+      const { data: inserted, error: insertError } = await supabase
+        .from("website_settings")
+        .insert([{ id: SETTINGS_ID, ...updates }])
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (insertError) throw insertError;
+      return inserted;
     },
     onSuccess: (_, preset) => {
       queryClient.invalidateQueries({ queryKey: ["website-settings"] });
