@@ -1,5 +1,5 @@
-const SUPABASE_URL = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || '';
+const SUPABASE_URL = process.env['SUPABASE_URL'] || '';
+const SUPABASE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'] || '';
 
 export function isSupabaseConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
@@ -35,7 +35,6 @@ export async function validateApiKey(rawKey: string): Promise<{ valid: boolean; 
       `/api_keys?key_hash=eq.${encodeURIComponent(rawKey)}&is_active=eq.true&select=id,permissions`,
     );
     if (!Array.isArray(rows) || rows.length === 0) return { valid: false, permissions: [] };
-    // Update last_used_at asynchronously (fire-and-forget)
     supabaseFetch(`/api_keys?id=eq.${rows[0].id}`, {
       method: 'PATCH',
       body: JSON.stringify({ last_used_at: new Date().toISOString() }),

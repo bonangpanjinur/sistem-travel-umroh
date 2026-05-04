@@ -11,15 +11,15 @@ declare global {
 
 export function requireApiKey(requiredPermission?: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
+    if (!isSupabaseConfigured()) {
+      next();
+      return;
+    }
+
     const rawKey = (req.headers['x-api-key'] as string) || '';
 
     if (!rawKey) {
       res.status(401).json({ error: 'Missing X-API-Key header' });
-      return;
-    }
-
-    if (!isSupabaseConfigured()) {
-      res.status(503).json({ error: 'Authentication service not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' });
       return;
     }
 
