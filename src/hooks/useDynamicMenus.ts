@@ -137,8 +137,8 @@ export const useDynamicMenus = () => {
   );
 
   const filteredMenus = useMemo(() => {
+    if (isSuperAdmin) return menus;
     const visibleMenus = menus.filter(m => (m as any).is_visible !== false);
-    if (isSuperAdmin) return visibleMenus;
     return visibleMenus.filter(m => matchesPermission(m.required_permission, allowedSet));
   }, [menus, allowedSet, isSuperAdmin, matchesPermission]);
 
