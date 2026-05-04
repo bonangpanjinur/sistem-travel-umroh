@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+  SISTEM MANAJEMEN UMROH & HAJI
+  Islamic-themed Design System with Emerald Green & Gold Accents
+  All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* 
+      IMPORTANT: Default color values (Emerald Green & Gold) are provided as fallbacks.
+      The theme restoration script in index.html and ThemeProvider will override these 
+      if a custom theme is stored in localStorage or fetched from the server.
+    */
+    --background: 0 0% 100%;
+    --foreground: 160 50% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 160 50% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 50% 5%;
+    --primary: 160 84% 25%;
+    --primary-foreground: 160 10% 98%;
+    --secondary: 160 20% 96%;
+    --secondary-foreground: 160 84% 25%;
+    --muted: 160 20% 96%;
+    --muted-foreground: 160 10% 40%;
+    --accent: 45 93% 47%;
+    --accent-foreground: 45 10% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 20% 90%;
+    --input: 160 20% 90%;
+    --ring: 160 84% 25%;
+    --radius: 0.75rem;
+
+    /* Extended colors */
+    --success: 142 76% 36%;
+    --success-foreground: 142 10% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 10% 5%;
+    --info: 199 89% 48%;
+    --info-foreground: 199 10% 98%;
+  }
+
+  .dark {
+    /* Dark mode color overrides are now applied by ThemeProvider */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Global Focus Styles for Accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  /* Enhanced focus styles for interactive elements */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background rounded;
+  }
+
+  /* Ensure focus visible on mobile */
+  @media (prefers-reduced-motion: no-preference) {
+    :focus-visible {
+      transition: outline-offset 0.2s ease-out;
+    }
+  }
+
+  /* Keyboard navigation indicator for better accessibility */
+  *:focus-visible {
+    outline-offset: 2px;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer components {
+  /* Islamic Pattern Background */
+  .islamic-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23059669' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Hero Gradient Overlay */
+  .hero-gradient {
+    background: linear-gradient(135deg, hsl(160, 30%, 8%, 0.95) 0%, hsl(160, 40%, 15%, 0.9) 100%);
+  }
+
+  /* Gold Shimmer Effect */
+  .gold-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(45, 93%, 47%) 0%,
+      hsl(50, 100%, 60%) 50%,
+      hsl(45, 93%, 47%) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Card Hover Effect */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+
+  /* Glass Effect */
+  .glass {
+    @apply bg-background/80 backdrop-blur-md;
+  }
+
+  /* Status Badge Styles */
+  .status-pending {
+    @apply bg-warning/10 text-warning border-warning/20;
+  }
+
+  .status-confirmed {
+    @apply bg-info/10 text-info border-info/20;
+  }
+
+  .status-completed {
+    @apply bg-success/10 text-success border-success/20;
+  }
+
+  .status-cancelled {
+    @apply bg-destructive/10 text-destructive border-destructive/20;
+  }
+}
+
+@layer utilities {
+  /* Text Gradient */
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent;
+  }
+
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-accent to-amber-400 bg-clip-text text-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+
+  /* Animations */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
