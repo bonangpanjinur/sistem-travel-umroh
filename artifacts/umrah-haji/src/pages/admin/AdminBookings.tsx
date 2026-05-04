@@ -24,10 +24,12 @@ import {
 } from "@/components/ui/pagination";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { exportToExcel } from "@/lib/export-utils";
+import { exportBookingStatsToExcel } from "@/lib/booking-stats-exporter";
 import { useState, useMemo, useEffect } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
-  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare
+  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare, ChevronDown
 } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth, subMonths, endOfDay } from "date-fns";
 import {
@@ -78,6 +80,7 @@ export default function AdminBookings() {
   const [periodPreset, setPeriodPreset] = useState<string>("all");
   const [customPeriodFrom, setCustomPeriodFrom] = useState("");
   const [customPeriodTo, setCustomPeriodTo] = useState("");
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -386,13 +389,25 @@ export default function AdminBookings() {
       </div>
 
       {/* Period Stats - Jumlah Jamaah */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Statistik Jamaah per Periode</h2>
+      <Card className="border-2 border-primary/20">
+        <Collapsible open={isStatsExpanded} onOpenChange={setIsStatsExpanded}>
+          <CollapsibleTrigger asChild>
+            <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  <h2 className="font-bold text-lg">Statistik Jamaah per Periode</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">{isStatsExpanded ? 'Tutup' : 'Buka'}</span>
+                  <ChevronDown className={`h-5 w-5 text-primary transition-transform duration-200 ${isStatsExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                </div>
+              </div>
             </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="border-t">
+            <div className="p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Select value={periodPreset} onValueChange={setPeriodPreset}>
                 <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
@@ -416,40 +431,21 @@ export default function AdminBookings() {
                 </>
               )}
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={() => {
-                  if (!periodStats) return;
-                  const rows: string[][] = [
-                    ['Periode', periodRange?.label || '-'],
-                    ['Dari', periodRange?.from ? periodRange.from.toISOString().slice(0, 10) : '-'],
-                    ['Sampai', periodRange?.to ? periodRange.to.toISOString().slice(0, 10) : '-'],
-                    [],
-                    ['Metrik', 'Nilai'],
-                    ['Total Jamaah', String(periodStats.totalPax)],
-                    ['Total Booking', String(periodStats.totalBookings)],
-                    ['Total Revenue', String(periodStats.totalRevenue)],
-                    [],
-                    ['Status Booking', 'Jumlah Jamaah', 'Jumlah Booking', 'Persentase Jamaah'],
-                    ...['confirmed', 'pending', 'processing', 'completed'].map(s => {
-                      const st = periodStats.byStatus?.[s] || { pax: 0, bookings: 0 };
-                      const pct = periodStats.totalPax > 0 ? ((st.pax / periodStats.totalPax) * 100).toFixed(1) + '%' : '0%';
-                      return [s, String(st.pax), String(st.bookings), pct];
-                    }),
-                  ];
-                  const csv = rows.map(r => r.map(c => `"${(c ?? '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
-                  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `statistik-jamaah-${periodRange?.label?.toLowerCase().replace(/\s+/g, '-') || 'periode'}-${new Date().toISOString().slice(0, 10)}.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                  toast({ title: 'Unduh dimulai', description: 'File CSV telah diunduh.' });
+                  if (!periodStats || !periodRange) return;
+                  exportBookingStatsToExcel({
+                    periodLabel: periodRange.label,
+                    dateFrom: periodRange.from.toISOString().slice(0, 10),
+                    dateTo: periodRange.to.toISOString().slice(0, 10),
+                    stats: periodStats,
+                  });
+                  toast({ title: 'Unduh dimulai', description: 'File Excel telah diunduh.' });
                 }}
               >
                 <Download className="h-4 w-4 mr-1" />
-                Unduh CSV
+                Unduh Excel
               </Button>
             </div>
           </div>
@@ -496,7 +492,9 @@ export default function AdminBookings() {
               })}
             </div>
           </div>
-        </CardContent>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       <div className="space-y-4">
