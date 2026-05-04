@@ -59,7 +59,7 @@ export default function OperationalDashboard() {
         supabase.from('manifests').select('*', { count: 'exact', head: true }),
         supabase.from('room_assignments').select('*', { count: 'exact', head: true }),
         supabase.from('equipment_distributions').select('*', { count: 'exact', head: true }),
-        supabase.from('bookings').select('*', { count: 'exact', head: true }).neq('status', 'cancelled'),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).neq('booking_status', 'cancelled'),
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('payment_status', 'paid'),
       ]);
 
@@ -251,7 +251,7 @@ export default function OperationalDashboard() {
                 const daysLeft = Math.ceil(
                   (new Date(dep.departure_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
                 );
-                const fillPct = Math.round((dep.booked_count / Math.max(dep.quota, 1)) * 100);
+                const fillPct = Math.round(((dep.booked_count || 0) / Math.max(dep.quota, 1)) * 100);
                 return (
                   <div key={dep.id} className="p-4 bg-muted/40 hover:bg-muted/60 rounded-xl transition-colors">
                     <div className="flex items-start justify-between gap-3">

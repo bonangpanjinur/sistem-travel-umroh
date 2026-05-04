@@ -733,6 +733,7 @@ const AdminDocumentGenerator = () => {
                                       const doc = await generateJamaahLeaveLetter(data, num, company);
                                       handleDownloadPdf(doc, `cuti-jamaah-${customer.full_name.replace(/\s+/g,'-')}`);
                                     } catch { toast.error('Gagal generate'); }
+                                    return;
                                   }}
                                   className="inline-flex items-center gap-1 px-2 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md transition-colors"
                                 >
@@ -779,7 +780,7 @@ const AdminDocumentGenerator = () => {
                                         customer: { name: customer.full_name, address: customer.address || '-', phone: customer.phone || '-', email: customer.email },
                                         items: [{ description: `Paket ${pkg?.name || 'Umrah'} - ${booking.room_type}`, quantity: 1, unitPrice: booking.total_price, total: booking.total_price }],
                                         subtotal: booking.total_price,
-                                        discount: booking.discount_amount || 0,
+                                        discount: (booking as any).discount_amount || 0,
                                         total: booking.total_price,
                                         notes: 'Terima kasih atas kepercayaan Anda.',
                                         bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined
@@ -816,9 +817,9 @@ const AdminDocumentGenerator = () => {
                                         returnDate: new Date(dep.return_date),
                                         departureAirport: depAirport ? `${depAirport.name} (${depAirport.code})` : '-',
                                         arrivalAirport: arrAirport ? `${arrAirport.name} (${arrAirport.code})` : '-',
-                                        flightNumber: dep.flight_number,
+                                        flightNumber: dep.flight_number || undefined,
                                         airline: airline?.name,
-                                        departureTime: dep.departure_time,
+                                        departureTime: dep.departure_time || undefined,
                                         hotelMakkah: hotelMakkah?.name,
                                         hotelMadinah: hotelMadinah?.name,
                                         roomType: booking.room_type
