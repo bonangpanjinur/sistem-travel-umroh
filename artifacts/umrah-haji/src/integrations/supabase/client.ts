@@ -1,29 +1,23 @@
-// Supabase client — resilient against missing/misnamed env vars on Vercel.
-// Anon (publishable) key is safe to ship to the browser.
+// Supabase client for Replit environment.
+// Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in Replit Secrets.
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// ---- Hardcoded fallbacks (Lovable Cloud project) -------------------------
-// These are PUBLIC values. They guarantee the app keeps working even if
-// Vercel env vars are missing, misnamed, or scoped to the wrong environment.
-const FALLBACK_URL = 'https://ribjppjnjigiowhjgngu.supabase.co';
-const FALLBACK_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYmpwcGpuamlnaW93aGpnbmd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDE3ODEsImV4cCI6MjA5MjQ3Nzc4MX0.Qf7APA9hAIX6xEFTiCfrdI0efoFTZgTsfQ84Pj6vluA';
-
-// ---- Read env (accept several common names) ------------------------------
 const env = import.meta.env as Record<string, string | undefined>;
 
-const envUrl =
+const SUPABASE_URL =
   env.VITE_SUPABASE_URL ||
   env.VITE_SUPABASE_PROJECT_URL ||
-  env.VITE_SUPABASE_API_URL;
+  env.VITE_SUPABASE_API_URL ||
+  '';
 
-const envKey =
+const SUPABASE_KEY =
   env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   env.VITE_SUPABASE_ANON_KEY ||
-  env.VITE_SUPABASE_KEY;
+  env.VITE_SUPABASE_KEY ||
+  '';
 
-function isValidUrl(value: string | undefined): value is string {
+function isValidUrl(value: string): boolean {
   if (!value) return false;
   try {
     const u = new URL(value);
@@ -33,37 +27,35 @@ function isValidUrl(value: string | undefined): value is string {
   }
 }
 
-const SUPABASE_URL = isValidUrl(envUrl) ? envUrl! : FALLBACK_URL;
-const SUPABASE_PUBLISHABLE_KEY = envKey && envKey.length > 20 ? envKey : FALLBACK_ANON_KEY;
-
-// Expose source for diagnostics (used by EnvDiagnostic component).
-export const supabaseConfigSource = {
-  url: SUPABASE_URL,
-  urlSource: isValidUrl(envUrl) ? 'env' : 'fallback',
-  keySource: envKey && envKey.length > 20 ? 'env' : 'fallback',
-  envKeysSeen: Object.keys(env).filter((k) => k.startsWith('VITE_SUPABASE')),
-} as const;
+const resolvedUrl = isValidUrl(SUPABASE_URL) ? SUPABASE_URL : '';
+const resolvedKey = SUPABASE_KEY.length > 20 ? SUPABASE_KEY : '';
 
 if (typeof window !== 'undefined') {
-  if (supabaseConfigSource.urlSource === 'fallback') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[supabase] VITE_SUPABASE_URL tidak ditemukan di env. Memakai fallback Lovable Cloud. ' +
-        'Set VITE_SUPABASE_URL & VITE_SUPABASE_PUBLISHABLE_KEY di Vercel lalu redeploy untuk memakai project Anda.'
-    );
-  }
-  if (supabaseConfigSource.keySource === 'fallback' && supabaseConfigSource.urlSource === 'env') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[supabase] VITE_SUPABASE_PUBLISHABLE_KEY tidak ditemukan, memakai fallback. ' +
-        'Pastikan nama env di Vercel diawali VITE_ dan sudah redeploy.'
+  if (!resolvedUrl || !resolvedKey) {
+    console.error(
+      '[supabase] Konfigurasi tidak lengkap. ' +
+        'Tambahkan VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY di Replit Secrets ' +
+        'agar fitur autentikasi dan database berfungsi.'
     );
   }
 }
 
+// Expose source for diagnostics (used by EnvDiagnostic component).
+export const supabaseConfigSource = {
+  url: resolvedUrl,
+  urlSource: resolvedUrl ? 'env' : 'missing',
+  keySource: resolvedKey ? 'env' : 'missing',
+  envKeysSeen: Object.keys(env).filter((k) => k.startsWith('VITE_SUPABASE')),
+} as const;
+
+// Use placeholder values when env vars are missing so the app can load
+// (auth/data calls will fail gracefully via error handling in hooks/components).
+const clientUrl = resolvedUrl || 'https://placeholder.supabase.co';
+const clientKey = resolvedKey || 'placeholder-key';
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(clientUrl, clientKey, {
   auth: {
     storage: localStorage,
     persistSession: true,
