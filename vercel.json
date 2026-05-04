@@ -1,0 +1,10 @@
+{
+  "outputDirectory": "artifacts/umrah-haji/dist/public",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run build",
+  "env": {
+    "PORT": "5173",
+    "BASE_PATH": "/",
+    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+  }
+}
