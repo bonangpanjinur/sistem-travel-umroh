@@ -19,9 +19,8 @@ export function requireApiKey(requiredPermission?: string) {
     }
 
     if (!isSupabaseConfigured()) {
-      // Dev mode: accept any key when Supabase is not configured
-      req.apiPermissions = ['packages.read', 'departures.read', 'leads.write', 'bookings.read', 'bookings.write'];
-      return next();
+      res.status(503).json({ error: 'Authentication service not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' });
+      return;
     }
 
     const { valid, permissions } = await validateApiKey(rawKey);
