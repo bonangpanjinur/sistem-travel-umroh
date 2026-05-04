@@ -1,3 +1,9 @@
 {
-  "outputDirectory": "artifacts/umrah-haji/dist/public"
+  "outputDirectory": "artifacts/umrah-haji/dist/public",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
