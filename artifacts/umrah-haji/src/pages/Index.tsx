@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 const Index = () => {
   const { data: settings, isLoading } = useWebsiteSettings();
   const template = settings?.template || 'classic';
+  const heroMode = (settings as any)?.hero_display_mode || 'both';
 
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
     hero: template === 'royal' ? RoyalHeroSection : (template === 'luxury' ? LuxuryHeroSection : (template === 'modern' ? ModernHeroSection : (template === 'islamic' ? IslamicHeroSection : (template === 'futuristic' ? FuturisticHeroSection : (template === 'nature' ? NatureHeroSection : DynamicHeroSection))))),
@@ -48,13 +49,34 @@ const Index = () => {
       .sort((a: HomepageSection, b: HomepageSection) => a.order - b.order);
   }, [settings?.homepage_sections]);
 
-  // Show content immediately with default settings while fetching updates
-  // This eliminates the skeleton loading screen that users see
+  const showBanner = heroMode === 'both' || heroMode === 'banner_only' || heroMode === 'banner_as_background';
+  const showHero = heroMode === 'both' || heroMode === 'hero_only' || heroMode === 'banner_as_background';
+  const heroAsOverlay = heroMode === 'banner_as_background';
 
   return (
     <DynamicPublicLayout>
-      <BannerCarousel template={template as any} />
+      {/* Banner / Hero combo */}
+      {heroAsOverlay ? (
+        <div className="relative">
+          <BannerCarousel template={template as any} compact />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/60 pointer-events-none" />
+          <div className="relative z-10 -mt-[320px] md:-mt-[420px]">
+            {(() => {
+              const HeroComp = sectionComponents['hero'];
+              return HeroComp ? <HeroComp settings={settings ?? undefined} /> : null;
+            })()}
+          </div>
+        </div>
+      ) : (
+        <>
+          {showBanner && <BannerCarousel template={template as any} />}
+        </>
+      )}
       {enabledSections.map((section: HomepageSection) => {
+        if (section.id === 'hero') {
+          if (heroAsOverlay) return null; // already rendered above
+          if (!showHero) return null;
+        }
         const Component = sectionComponents[section.id];
         if (!Component) return null;
         return <Component key={section.id} settings={settings ?? undefined} />;

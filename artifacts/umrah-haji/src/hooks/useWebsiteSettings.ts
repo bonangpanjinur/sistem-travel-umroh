@@ -43,6 +43,7 @@ export interface WebsiteSettings {
   hero_image_url: string | null;
   hero_cta_text: string | null;
   hero_cta_link: string | null;
+  hero_display_mode: 'banner_only' | 'hero_only' | 'both' | 'banner_as_background' | null;
   footer_address: string | null;
   footer_phone: string | null;
   footer_email: string | null;
