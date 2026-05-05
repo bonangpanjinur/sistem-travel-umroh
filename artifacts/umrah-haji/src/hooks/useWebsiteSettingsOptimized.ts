@@ -43,6 +43,7 @@ export interface WebsiteSettings {
   hero_image_url: string | null;
   hero_cta_text: string | null;
   hero_cta_link: string | null;
+  hero_display_mode: 'banner_only' | 'hero_only' | 'both' | 'banner_as_background' | null;
   footer_address: string | null;
   footer_phone: string | null;
   footer_email: string | null;
@@ -129,6 +130,7 @@ const DEFAULT_SETTINGS: WebsiteSettings = {
   hero_image_url: null,
   hero_cta_text: 'Pesan Sekarang',
   hero_cta_link: '/packages',
+  hero_display_mode: 'both',
   footer_address: null,
   footer_phone: null,
   footer_email: null,
