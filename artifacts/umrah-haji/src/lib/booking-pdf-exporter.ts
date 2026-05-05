@@ -87,11 +87,11 @@ export async function exportBookingsToPDF(
     if (index === 0) {
       doc.setFontSize(FONTS.header);
       doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
-      doc.setFont(undefined, 'bold');
+      doc.setFont('', 'bold');
     } else {
       doc.setFontSize(FONTS.body);
       doc.setTextColor(100, 100, 100);
-      doc.setFont(undefined, 'normal');
+      doc.setFont('', 'normal');
     }
     doc.text(line, margin, currentY);
     currentY += 5;
@@ -102,7 +102,7 @@ export async function exportBookingsToPDF(
   // ===== TITLE SECTION =====
   doc.setFontSize(FONTS.title);
   doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('', 'bold');
   doc.text(options.title, margin, currentY);
   currentY += 8;
 
@@ -110,7 +110,7 @@ export async function exportBookingsToPDF(
   if (options.subtitle) {
     doc.setFontSize(FONTS.subtitle);
     doc.setTextColor(100, 100, 100);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('', 'normal');
     doc.text(options.subtitle, margin, currentY);
     currentY += 6;
   }
@@ -139,12 +139,12 @@ export async function exportBookingsToPDF(
   ];
 
   doc.setFontSize(FONTS.body);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('', 'bold');
   doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
   doc.text('Ringkasan:', margin, currentY);
   currentY += 4;
 
-  doc.setFont(undefined, 'normal');
+  doc.setFont('', 'normal');
   doc.setTextColor(31, 41, 55);
   const statsPerRow = 4;
   const statWidth = (pageWidth - 2 * margin) / statsPerRow;
@@ -170,7 +170,7 @@ export async function exportBookingsToPDF(
 
     // Value
     doc.setFontSize(FONTS.body);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('', 'bold');
     doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
     doc.text(stat[1], x + statWidth - 2, y - 0.5, { align: 'right' });
   });

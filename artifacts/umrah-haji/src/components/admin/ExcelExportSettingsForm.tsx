@@ -115,7 +115,7 @@ export function ExcelExportSettingsForm() {
         alt_row_bg_color: getSetting('excel_alt_row_bg_color') || DEFAULT_EXCEL_STYLE.alt_row_bg_color,
 
         border_color: getSetting('excel_border_color') || DEFAULT_EXCEL_STYLE.border_color,
-        border_style: (getSetting('excel_border_style') || DEFAULT_EXCEL_STYLE.border_style) as 'thin' | 'medium' | 'thick',
+        border_style: (getSetting('excel_border_style') as 'thin' | 'medium' | 'thick') || DEFAULT_EXCEL_STYLE.border_style,
 
         body_font_size: parseInt(getSetting('excel_body_font_size')) || DEFAULT_EXCEL_STYLE.body_font_size,
         footer_font_size: parseInt(getSetting('excel_footer_font_size')) || DEFAULT_EXCEL_STYLE.footer_font_size,

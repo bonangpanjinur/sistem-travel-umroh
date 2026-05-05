@@ -36,7 +36,7 @@ export interface ExcelStyleConfig {
 
   // Border styling
   border_color: string;             // Hex color (e.g., "E5E7EB")
-  border_style: string;             // 'thin', 'medium', 'thick'
+  border_style: 'thin' | 'medium' | 'thick';
 
   // Body font size
   body_font_size: number;           // Font size (e.g., 9)

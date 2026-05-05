@@ -1,11 +1,9 @@
 // This is a patch file showing how to integrate the new statistics PDF exporter
 // into the existing AdminBookings.tsx file
 
-// Add these imports at the top of AdminBookings.tsx:
-// import { exportStatisticsToPDF } from "@/lib/statistics-pdf-exporter";
-// import { useCompanySettings } from "@/hooks/useCompanySettings";
-
-// Replace the existing export button handler with this updated version:
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { exportStatisticsToPDF } from "@/lib/statistics-pdf-exporter";
 
 export const handleExportStatisticsPDF = async (
   periodStats: any,

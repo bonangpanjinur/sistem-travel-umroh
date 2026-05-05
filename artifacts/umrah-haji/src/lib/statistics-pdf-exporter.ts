@@ -80,11 +80,11 @@ export function exportStatisticsToPDF(
     if (index === 0) {
       doc.setFontSize(FONTS.header);
       doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
-      doc.setFont(undefined, 'bold');
+      doc.setFont('', 'bold');
     } else {
       doc.setFontSize(FONTS.body);
       doc.setTextColor(100, 100, 100);
-      doc.setFont(undefined, 'normal');
+      doc.setFont('', 'normal');
     }
     doc.text(line, margin, currentY);
     currentY += 4;
@@ -95,14 +95,14 @@ export function exportStatisticsToPDF(
   // ===== TITLE SECTION =====
   doc.setFontSize(FONTS.title);
   doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('', 'bold');
   doc.text('Laporan Statistik Jamaah', margin, currentY);
   currentY += 7;
 
   // Period info
   doc.setFontSize(FONTS.subtitle);
   doc.setTextColor(100, 100, 100);
-  doc.setFont(undefined, 'normal');
+  doc.setFont('', 'normal');
   doc.text(`Periode: ${options.periodLabel}`, margin, currentY);
   currentY += 5;
 
@@ -114,7 +114,7 @@ export function exportStatisticsToPDF(
 
   // ===== SUMMARY SECTION =====
   doc.setFontSize(FONTS.body);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('', 'bold');
   doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
   doc.text('Ringkasan Keseluruhan', margin, currentY);
   currentY += 5;
@@ -141,12 +141,12 @@ export function exportStatisticsToPDF(
     // Label
     doc.setFontSize(FONTS.body - 1);
     doc.setTextColor(100, 100, 100);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('', 'normal');
     doc.text(item.label, x + 2, currentY + 1);
 
     // Value
     doc.setFontSize(FONTS.header);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('', 'bold');
     doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
     doc.text(item.value.toString(), x + summaryBoxWidth - 2, currentY + 9, { align: 'right' });
   });
@@ -155,7 +155,7 @@ export function exportStatisticsToPDF(
 
   // ===== STATUS BREAKDOWN TABLE =====
   doc.setFontSize(FONTS.body);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('', 'bold');
   doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
   doc.text('Komposisi Per Status Booking', margin, currentY);
   currentY += 5;
@@ -184,11 +184,11 @@ export function exportStatisticsToPDF(
 
   autoTable(doc, {
     columns: [
-      { header: 'Status Booking', dataKey: 'status', width: 30 },
-      { header: 'Jumlah Jamaah', dataKey: 'pax', width: 25 },
-      { header: 'Jumlah Booking', dataKey: 'bookings', width: 25 },
-      { header: 'Persentase', dataKey: 'percentage', width: 20 },
-      { header: 'Rata-rata/Booking', dataKey: 'average', width: 25 },
+      { header: 'Status Booking', dataKey: 'status' },
+      { header: 'Jumlah Jamaah', dataKey: 'pax' },
+      { header: 'Jumlah Booking', dataKey: 'bookings' },
+      { header: 'Persentase', dataKey: 'percentage' },
+      { header: 'Rata-rata/Booking', dataKey: 'average' },
     ],
     body: statusTableData.map(row => ({
       status: row[0],
@@ -236,13 +236,13 @@ export function exportStatisticsToPDF(
 
   if (insightY < pageHeight - 20) {
     doc.setFontSize(FONTS.body);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('', 'bold');
     doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
     doc.text('Insight & Analisis', margin, insightY);
     insightY += 5;
 
     doc.setFontSize(FONTS.body - 1);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('', 'normal');
     doc.setTextColor(50, 50, 50);
 
     const insights = [
