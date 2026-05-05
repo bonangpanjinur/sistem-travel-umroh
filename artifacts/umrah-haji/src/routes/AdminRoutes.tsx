@@ -19,7 +19,7 @@ const AdminPayments = lazy(() => import("@/pages/admin/AdminPayments"));
 const AdminCustomers = lazy(() => import("@/pages/admin/AdminCustomers"));
 const AdminCustomerDetail = lazy(() => import("@/pages/admin/AdminCustomerDetail"));
 const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
-const AdminRoleManagement = lazy(() => import("@/pages/admin/AdminRoleManagement"));
+const AdminRoleManagement = lazy(() => import("@/pages/admin/AdminRoleManagementEnhanced"));
 const AdminRBACTools = lazy(() => import("@/pages/admin/AdminRBACTools"));
 const AdminRBACStatus = lazy(() => import("@/pages/admin/AdminRBACStatus"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
