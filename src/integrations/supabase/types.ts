@@ -3133,6 +3133,7 @@ export type Database = {
           group_name: string
           icon: string | null
           id: string
+          is_visible: boolean
           key: string
           label: string
           path: string
@@ -3145,6 +3146,7 @@ export type Database = {
           group_name?: string
           icon?: string | null
           id?: string
+          is_visible?: boolean
           key: string
           label: string
           path: string
@@ -3157,6 +3159,7 @@ export type Database = {
           group_name?: string
           icon?: string | null
           id?: string
+          is_visible?: boolean
           key?: string
           label?: string
           path?: string
@@ -5211,6 +5214,7 @@ export type Database = {
           heading_font: string | null
           hero_cta_link: string | null
           hero_cta_text: string | null
+          hero_display_mode: string
           hero_image_url: string | null
           hero_subtitle: string | null
           hero_title: string | null
@@ -5252,6 +5256,7 @@ export type Database = {
           heading_font?: string | null
           hero_cta_link?: string | null
           hero_cta_text?: string | null
+          hero_display_mode?: string
           hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
@@ -5293,6 +5298,7 @@ export type Database = {
           heading_font?: string | null
           hero_cta_link?: string | null
           hero_cta_text?: string | null
+          hero_display_mode?: string
           hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
@@ -5595,6 +5601,15 @@ export type Database = {
       }
       get_customer_user_id: { Args: { _customer_id: string }; Returns: string }
       get_failed_attempts: { Args: { _email: string }; Returns: number }
+      get_menu_access_summary: {
+        Args: never
+        Returns: {
+          access_percentage: number
+          accessible_menus: number
+          role: string
+          total_menus: number
+        }[]
+      }
       get_next_document_number: {
         Args: { p_document_type: string; p_prefix: string }
         Returns: string
@@ -5602,6 +5617,12 @@ export type Database = {
       get_user_branch_id: { Args: { _user_id: string }; Returns: string }
       get_user_effective_permissions: {
         Args: { _user_id: string }
+        Returns: {
+          permission_key: string
+        }[]
+      }
+      get_user_effective_permissions_v2: {
+        Args: { _roles: string[]; _user_id: string }
         Returns: {
           permission_key: string
         }[]
