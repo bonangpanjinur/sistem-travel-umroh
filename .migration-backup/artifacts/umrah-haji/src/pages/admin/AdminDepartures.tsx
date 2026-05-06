@@ -26,7 +26,8 @@ import {
   Calendar, Plus, Search, Plane, Users, Edit, Trash2, 
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
-  ChevronLeft, ChevronRight, Eye, RefreshCw
+  ChevronLeft, ChevronRight, Eye, RefreshCw, TrendingUp,
+  Zap, AlertCircle
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 
@@ -181,13 +182,13 @@ export default function AdminDepartures() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open':
-        return <Badge className="bg-green-500">Buka</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Buka</Badge>;
       case 'closed':
         return <Badge variant="secondary">Tutup</Badge>;
       case 'full':
-        return <Badge variant="destructive">Penuh</Badge>;
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Penuh</Badge>;
       case 'departed':
-        return <Badge variant="outline">Berangkat</Badge>;
+        return <Badge className="bg-slate-100 text-slate-800 hover:bg-slate-100">Berangkat</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -222,7 +223,7 @@ export default function AdminDepartures() {
     if (dep.departure_date) {
       return (
         <>
-          <p className="font-medium text-sm">{formatDate(dep.departure_date)}</p>
+          <p className="font-semibold text-sm">{formatDate(dep.departure_date)}</p>
           <p className="text-xs text-muted-foreground">
             s/d {formatDate(dep.return_date)}
           </p>
@@ -233,107 +234,131 @@ export default function AdminDepartures() {
       const monthLabel = MONTHS.find(m => m.value === dep.month)?.label || dep.month;
       return (
         <>
-          <p className="font-medium text-sm">Bulan {monthLabel}</p>
+          <p className="font-semibold text-sm">Bulan {monthLabel}</p>
           <p className="text-xs text-muted-foreground">Tanggal belum ditentukan</p>
         </>
       );
     }
-    return <p className="font-medium text-sm text-muted-foreground italic">Tanggal belum ditentukan</p>;
+    return <p className="font-semibold text-sm text-muted-foreground italic">Tanggal belum ditentukan</p>;
   };
 
   return (
     <div className="space-y-6">
+      {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Jadwal Keberangkatan</h1>
-          <p className="text-muted-foreground">Kelola semua jadwal keberangkatan</p>
+          <h1 className="text-3xl font-bold tracking-tight">Jadwal Keberangkatan</h1>
+          <p className="text-muted-foreground mt-1">Kelola dan pantau semua jadwal keberangkatan umroh</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => recalcMutation.mutate()}
-            disabled={recalcMutation.isPending}
-            title="Hitung ulang kursi terisi dari data pesanan aktif"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${recalcMutation.isPending ? 'animate-spin' : ''}`} />
-            Sinkronkan Kuota
-          </Button>
-          <Button onClick={() => setIsFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Tambah
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                onClick={() => recalcMutation.mutate()}
+                disabled={recalcMutation.isPending}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${recalcMutation.isPending ? 'animate-spin' : ''}`} />
+                Sinkronkan
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Hitung ulang kursi terisi dari data pesanan aktif</TooltipContent>
+          </Tooltip>
+          <Button onClick={() => setIsFormOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
+            <Plus className="h-4 w-4" />
+            Tambah Jadwal
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
+      {/* Stats Cards - Improved Design */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <CalendarDays className="h-8 w-8 text-primary" />
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Jadwal</p>
+                <p className="text-3xl font-bold mt-2">{stats.total}</p>
+              </div>
+              <div className="p-2.5 bg-blue-200/50 rounded-lg">
+                <CalendarDays className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="border-0 bg-gradient-to-br from-emerald-50 to-emerald-100/50 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Building2 className="h-8 w-8 text-blue-500" />
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-2xl font-bold">{stats.linked}</p>
-                <p className="text-sm text-muted-foreground">Terhubung</p>
+                <p className="text-sm font-medium text-muted-foreground">Terhubung Paket</p>
+                <p className="text-3xl font-bold mt-2">{stats.linked}</p>
+              </div>
+              <div className="p-2.5 bg-emerald-200/50 rounded-lg">
+                <Building2 className="h-5 w-5 text-emerald-600" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="border-0 bg-gradient-to-br from-orange-50 to-orange-100/50 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Link2Off className="h-8 w-8 text-orange-500" />
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-2xl font-bold">{stats.unlinked}</p>
-                <p className="text-sm text-muted-foreground">Belum Terhubung</p>
+                <p className="text-sm font-medium text-muted-foreground">Belum Terhubung</p>
+                <p className="text-3xl font-bold mt-2">{stats.unlinked}</p>
+              </div>
+              <div className="p-2.5 bg-orange-200/50 rounded-lg">
+                <AlertCircle className="h-5 w-5 text-orange-600" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-green-100/50 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-8 w-8 text-green-500" />
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-2xl font-bold">{stats.open}</p>
-                <p className="text-sm text-muted-foreground">Masih Buka</p>
+                <p className="text-sm font-medium text-muted-foreground">Masih Buka</p>
+                <p className="text-3xl font-bold mt-2">{stats.open}</p>
+              </div>
+              <div className="p-2.5 bg-green-200/50 rounded-lg">
+                <Zap className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="border-0 bg-gradient-to-br from-purple-50 to-purple-100/50 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-purple-500" />
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-2xl font-bold">{stats.totalBooked}</p>
-                <p className="text-sm text-muted-foreground">Total Jamaah</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Jamaah</p>
+                <p className="text-3xl font-bold mt-2">{stats.totalBooked}</p>
+              </div>
+              <div className="p-2.5 bg-purple-200/50 rounded-lg">
+                <Users className="h-5 w-5 text-purple-600" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <CardTitle>Daftar Jadwal</CardTitle>
+      {/* Main Content Card */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl">Daftar Jadwal</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Kelola dan pantau semua jadwal keberangkatan</p>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <div className="relative flex-1 md:flex-none md:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Cari jadwal..."
-                  className="pl-8"
+                  placeholder="Cari jadwal atau paket..."
+                  className="pl-10 bg-muted/50 border-0"
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -342,7 +367,7 @@ export default function AdminDepartures() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}>
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="w-[140px] bg-muted/50 border-0">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -354,11 +379,11 @@ export default function AdminDepartures() {
                 </SelectContent>
               </Select>
               <Select value={linkedFilter} onValueChange={(val) => { setLinkedFilter(val); setCurrentPage(1); }}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Koneksi Paket" />
+                <SelectTrigger className="w-[160px] bg-muted/50 border-0">
+                  <SelectValue placeholder="Koneksi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="all">Semua Koneksi</SelectItem>
                   <SelectItem value="linked">Terhubung Paket</SelectItem>
                   <SelectItem value="unlinked">Belum Terhubung</SelectItem>
                 </SelectContent>
@@ -367,22 +392,22 @@ export default function AdminDepartures() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border overflow-x-auto">
+          <div className="rounded-lg border border-border/50 overflow-hidden">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jadwal & Paket</TableHead>
-                  <TableHead>Penerbangan</TableHead>
-                  <TableHead>Hotel (Mk/Md)</TableHead>
-                  <TableHead className="text-center">Kuota</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="border-0 hover:bg-transparent">
+                  <TableHead className="font-semibold">Jadwal & Paket</TableHead>
+                  <TableHead className="font-semibold">Penerbangan</TableHead>
+                  <TableHead className="font-semibold">Hotel (Mk/Md)</TableHead>
+                  <TableHead className="text-center font-semibold">Kuota</TableHead>
+                  <TableHead className="text-center font-semibold">Status</TableHead>
+                  <TableHead className="text-right font-semibold">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
+                    <TableRow key={i} className="border-b border-border/30 hover:bg-transparent">
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
@@ -392,76 +417,87 @@ export default function AdminDepartures() {
                     </TableRow>
                   ))
                 ) : departures.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                      Tidak ada jadwal ditemukan
+                  <TableRow className="border-0 hover:bg-transparent">
+                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <Calendar className="h-8 w-8 opacity-40" />
+                        <p className="font-medium">Tidak ada jadwal ditemukan</p>
+                        <p className="text-sm">Mulai dengan membuat jadwal keberangkatan baru</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   departures.map((dep) => (
                     <TableRow 
                       key={dep.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="border-b border-border/30 hover:bg-muted/40 transition-colors cursor-pointer"
                       onClick={() => navigate(`/admin/departures/${dep.id}`)}
                     >
                       <TableCell>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {getDepartureLabel(dep)}
                           {dep.package ? (
                             <div 
-                              className="text-xs font-medium text-primary flex items-center gap-1"
+                              className="text-xs font-medium text-primary flex items-center gap-1.5 mt-2"
                               onClick={(e) => {
                                 e.stopPropagation();
                               }}
                             >
-                              <Building2 className="h-3 w-3" />
-                              {dep.package.name} ({dep.package.code})
+                              <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">{dep.package.name} ({dep.package.code})</span>
                             </div>
                           ) : (
-                            <Badge variant="outline" className="text-[10px] text-orange-500 border-orange-200 bg-orange-50">
-                              Belum Terhubung Paket
+                            <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50 mt-2">
+                              ⚠ Belum Terhubung Paket
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1 text-sm font-medium">
-                            <Plane className="h-3 w-3" />
-                            {dep.airline?.code || '-'} {dep.flight_number || ''}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <Plane className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <span>{dep.airline?.code || '-'} {dep.flight_number || '-'}</span>
                           </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span>{dep.departure_airport?.code || '-'}</span>
-                            <span>→</span>
-                            <span>{dep.arrival_airport?.code || '-'}</span>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="font-medium">{dep.departure_airport?.code || '-'}</span>
+                            <span className="text-muted-foreground/50">→</span>
+                            <span className="font-medium">{dep.arrival_airport?.code || '-'}</span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1 text-xs">
-                          <div className="flex items-center gap-1">
-                            <Hotel className="h-3 w-3 text-muted-foreground" />
-                            <span className="truncate max-w-[120px]">{dep.hotel_makkah?.name || '-'}</span>
-                            <span className="text-yellow-500">★{dep.hotel_makkah?.star_rating || 0}</span>
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <Hotel className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate max-w-[120px] font-medium">{dep.hotel_makkah?.name || '-'}</span>
+                            {dep.hotel_makkah?.star_rating && (
+                              <span className="text-yellow-500 font-semibold">★{dep.hotel_makkah.star_rating}</span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Hotel className="h-3 w-3 text-muted-foreground" />
-                            <span className="truncate max-w-[120px]">{dep.hotel_madinah?.name || '-'}</span>
-                            <span className="text-yellow-500">★{dep.hotel_madinah?.star_rating || 0}</span>
+                          <div className="flex items-center gap-1.5">
+                            <Hotel className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate max-w-[120px] font-medium">{dep.hotel_madinah?.name || '-'}</span>
+                            {dep.hotel_madinah?.star_rating && (
+                              <span className="text-yellow-500 font-semibold">★{dep.hotel_madinah.star_rating}</span>
+                            )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           <div className="text-sm font-bold">
                             {dep.booked_count || 0} / {dep.quota || 0}
                           </div>
-                          <div className="w-full bg-secondary h-1 rounded-full overflow-hidden">
+                          <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
                             <div 
-                              className="bg-primary h-full" 
+                              className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-300" 
                               style={{ width: `${Math.min(100, ((dep.booked_count || 0) / (dep.quota || 1)) * 100)}%` }}
                             />
                           </div>
+                          <p className="text-xs text-muted-foreground">
+                            {Math.round(((dep.booked_count || 0) / (dep.quota || 1)) * 100)}%
+                          </p>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -470,7 +506,7 @@ export default function AdminDepartures() {
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -516,9 +552,9 @@ export default function AdminDepartures() {
 
           {/* Pagination Controls */}
           {!isLoading && totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/30">
               <p className="text-sm text-muted-foreground">
-                Menampilkan {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} dari {totalCount} data
+                Menampilkan <span className="font-semibold">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> - <span className="font-semibold">{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}</span> dari <span className="font-semibold">{totalCount}</span> data
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -526,8 +562,9 @@ export default function AdminDepartures() {
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
+                  className="gap-1"
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                  <ChevronLeft className="h-4 w-4" /> Prev
                 </Button>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
@@ -543,7 +580,7 @@ export default function AdminDepartures() {
                         key={pageNum}
                         variant={currentPage === pageNum ? "default" : "outline"}
                         size="sm"
-                        className="w-8"
+                        className="w-8 h-8"
                         onClick={() => setCurrentPage(pageNum)}
                       >
                         {pageNum}
@@ -556,8 +593,9 @@ export default function AdminDepartures() {
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
+                  className="gap-1"
                 >
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                  Next <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -568,7 +606,7 @@ export default function AdminDepartures() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingDeparture ? 'Edit Jadwal' : 'Tambah Jadwal Baru'}</DialogTitle>
+            <DialogTitle>{editingDeparture ? 'Edit Jadwal Keberangkatan' : 'Tambah Jadwal Keberangkatan Baru'}</DialogTitle>
           </DialogHeader>
           <DepartureForm 
             departureData={editingDeparture || undefined} 

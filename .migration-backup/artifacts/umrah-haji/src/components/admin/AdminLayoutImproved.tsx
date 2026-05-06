@@ -244,9 +244,14 @@ function AdminLayoutImproved() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className={cn("h-8 w-8 hover:bg-muted transition-colors shrink-0", sidebarCollapsed ? "absolute -right-4 top-4 z-20 bg-card border border-border rounded-full shadow-sm hidden lg:flex" : "")}
+                className={cn(
+                  "h-8 w-8 hover:bg-primary/10 hover:text-primary transition-all duration-300 shrink-0", 
+                  sidebarCollapsed 
+                    ? "absolute -right-4 top-4 z-50 bg-card border border-border rounded-full shadow-md flex" 
+                    : "flex"
+                )}
               >
-                <ChevronLeft className={cn("w-4 h-4 transition-transform duration-300", sidebarCollapsed ? 'rotate-180' : '')} />
+                <ChevronLeft className={cn("w-4 h-4 transition-transform duration-500", sidebarCollapsed ? 'rotate-180' : '')} />
               </Button>
             )}
 

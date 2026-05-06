@@ -2,6 +2,8 @@ import { Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import DashboardProtectedRoute from '@/components/dashboards/DashboardProtectedRoute';
+import PermissionRoute from "@/components/auth/PermissionRoute";
+import { PERMISSIONS } from "@/lib/permissions";
 
 import { LoadingState } from "@/components/shared/LoadingState";
 
@@ -17,7 +19,7 @@ const AdminPayments = lazy(() => import("@/pages/admin/AdminPayments"));
 const AdminCustomers = lazy(() => import("@/pages/admin/AdminCustomers"));
 const AdminCustomerDetail = lazy(() => import("@/pages/admin/AdminCustomerDetail"));
 const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
-const AdminRoleManagement = lazy(() => import("@/pages/admin/AdminRoleManagement"));
+const AdminRoleManagement = lazy(() => import("@/pages/admin/AdminRoleManagementEnhanced"));
 const AdminRBACTools = lazy(() => import("@/pages/admin/AdminRBACTools"));
 const AdminRBACStatus = lazy(() => import("@/pages/admin/AdminRBACStatus"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
@@ -88,6 +90,14 @@ function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
 }
 
+function P({ k, children }: { k: string; children: React.ReactNode }) {
+  return (
+    <PermissionRoute permissionKey={k}>
+      <Suspense fallback={<LoadingState />}>{children}</Suspense>
+    </PermissionRoute>
+  );
+}
+
 export default function AdminRoutes() {
   return (
     <Route
@@ -104,7 +114,7 @@ export default function AdminRoutes() {
       <Route index element={<LazyPage><AdminDashboard /></LazyPage>} />
 
       {/* Dashboard Routes with Dynamic Access Control */}
-      <Route path="analytics" element={<LazyPage><DashboardProtectedRoute moduleKey="admin_analytics"><AdminAnalytics /></DashboardProtectedRoute></LazyPage>} />
+      <Route path="analytics" element={<P k={PERMISSIONS.ANALYTICS}><AdminAnalytics /></P>} />
       <Route path="branch-manager" element={<LazyPage><DashboardProtectedRoute moduleKey="branch_manager_dashboard"><BranchManagerDashboard /></DashboardProtectedRoute></LazyPage>} />
       <Route path="finance-dashboard" element={<LazyPage><DashboardProtectedRoute moduleKey="finance_dashboard"><FinanceDashboard /></DashboardProtectedRoute></LazyPage>} />
       <Route path="sales-dashboard" element={<LazyPage><DashboardProtectedRoute moduleKey="sales_dashboard"><SalesDashboard /></DashboardProtectedRoute></LazyPage>} />
@@ -112,94 +122,94 @@ export default function AdminRoutes() {
       <Route path="equipment-dashboard" element={<LazyPage><DashboardProtectedRoute moduleKey="equipment_dashboard"><EquipmentDashboard /></DashboardProtectedRoute></LazyPage>} />
 
       {/* Dashboard Management */}
-      <Route path="dashboard-access" element={<LazyPage><DashboardAccessManagerPanel mode="standalone" /></LazyPage>} />
+      <Route path="dashboard-access" element={<Navigate to="/admin/roles?tab=user-overrides" replace />} />
 
       {/* Sales & CRM */}
-      <Route path="leads" element={<LazyPage><AdminLeads /></LazyPage>} />
-      <Route path="leads/analytics" element={<LazyPage><AdminLeadAnalytics /></LazyPage>} />
-      <Route path="leads/:id" element={<LazyPage><AdminLeadDetail /></LazyPage>} />
-      <Route path="coupons" element={<LazyPage><AdminCoupons /></LazyPage>} />
-      <Route path="banners" element={<LazyPage><AdminBanners /></LazyPage>} />
-      <Route path="landing-pages" element={<LazyPage><AdminLandingPages /></LazyPage>} />
-      <Route path="landing-pages/:id" element={<LazyPage><AdminLandingPageEditor /></LazyPage>} />
+      <Route path="leads" element={<P k={PERMISSIONS.LEADS}><AdminLeads /></P>} />
+      <Route path="leads/analytics" element={<P k={PERMISSIONS.LEADS}><AdminLeadAnalytics /></P>} />
+      <Route path="leads/:id" element={<P k={PERMISSIONS.LEADS}><AdminLeadDetail /></P>} />
+      <Route path="coupons" element={<P k={PERMISSIONS.COUPONS}><AdminCoupons /></P>} />
+      <Route path="banners" element={<P k={PERMISSIONS.BANNERS}><AdminBanners /></P>} />
+      <Route path="landing-pages" element={<P k={PERMISSIONS.LANDING_PAGES}><AdminLandingPages /></P>} />
+      <Route path="landing-pages/:id" element={<P k={PERMISSIONS.LANDING_PAGES}><AdminLandingPageEditor /></P>} />
 
       {/* Produk & Operasional */}
-      <Route path="packages" element={<LazyPage><AdminPackages /></LazyPage>} />
-      <Route path="packages/:id" element={<LazyPage><AdminPackageDetail /></LazyPage>} />
-      <Route path="departures" element={<LazyPage><AdminDepartures /></LazyPage>} />
-      <Route path="departures/:id" element={<LazyPage><AdminDepartureDetail /></LazyPage>} />
-      <Route path="bookings" element={<LazyPage><AdminBookings /></LazyPage>} />
-      <Route path="bookings/create" element={<LazyPage><AdminBookingCreate /></LazyPage>} />
-      <Route path="bookings/:id" element={<LazyPage><AdminBookingDetail /></LazyPage>} />
-      <Route path="equipment" element={<LazyPage><EquipmentPage /></LazyPage>} />
-      <Route path="itinerary-templates" element={<LazyPage><AdminItineraryTemplates /></LazyPage>} />
-      <Route path="savings" element={<LazyPage><AdminSavingsPlans /></LazyPage>} />
-      <Route path="room-assignments" element={<LazyPage><AdminRoomAssignments /></LazyPage>} />
+      <Route path="packages" element={<P k={PERMISSIONS.PACKAGES}><AdminPackages /></P>} />
+      <Route path="packages/:id" element={<P k={PERMISSIONS.PACKAGES}><AdminPackageDetail /></P>} />
+      <Route path="departures" element={<P k={PERMISSIONS.DEPARTURES}><AdminDepartures /></P>} />
+      <Route path="departures/:id" element={<P k={PERMISSIONS.DEPARTURES}><AdminDepartureDetail /></P>} />
+      <Route path="bookings" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookings /></P>} />
+      <Route path="bookings/create" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookingCreate /></P>} />
+      <Route path="bookings/:id" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookingDetail /></P>} />
+      <Route path="equipment" element={<P k={PERMISSIONS.EQUIPMENT}><EquipmentPage /></P>} />
+      <Route path="itinerary-templates" element={<P k={PERMISSIONS.ITINERARY_TEMPLATES}><AdminItineraryTemplates /></P>} />
+      <Route path="savings" element={<P k={PERMISSIONS.SAVINGS}><AdminSavingsPlans /></P>} />
+      <Route path="room-assignments" element={<P k={PERMISSIONS.ROOM_ASSIGNMENTS}><AdminRoomAssignments /></P>} />
 
       {/* Keuangan & Akuntansi */}
-      <Route path="payments" element={<LazyPage><AdminPayments /></LazyPage>} />
-      <Route path="finance-cash" element={<LazyPage><AdminFinanceCash /></LazyPage>} />
-      <Route path="finance/ar" element={<LazyPage><AdminFinanceAR /></LazyPage>} />
-      <Route path="finance/ap" element={<LazyPage><AdminFinanceAP /></LazyPage>} />
-      <Route path="finance" element={<LazyPage><AdminFinancePL /></LazyPage>} />
+      <Route path="payments" element={<P k={PERMISSIONS.PAYMENTS}><AdminPayments /></P>} />
+      <Route path="finance-cash" element={<P k={PERMISSIONS.FINANCE_CASH}><AdminFinanceCash /></P>} />
+      <Route path="finance/ar" element={<P k={PERMISSIONS.FINANCE_AR}><AdminFinanceAR /></P>} />
+      <Route path="finance/ap" element={<P k={PERMISSIONS.FINANCE_AP}><AdminFinanceAP /></P>} />
+      <Route path="finance" element={<P k={PERMISSIONS.FINANCE}><AdminFinancePL /></P>} />
 
       {/* Jamaah & Agent */}
-      <Route path="customers" element={<LazyPage><AdminCustomers /></LazyPage>} />
-      <Route path="customers/:id" element={<LazyPage><AdminCustomerDetail /></LazyPage>} />
-      <Route path="agents" element={<LazyPage><AdminAgents /></LazyPage>} />
-      <Route path="branches" element={<LazyPage><AdminBranches /></LazyPage>} />
-      <Route path="loyalty" element={<LazyPage><AdminLoyalty /></LazyPage>} />
-      <Route path="referrals" element={<LazyPage><AdminReferrals /></LazyPage>} />
-      <Route path="haji" element={<LazyPage><AdminHajiManagement /></LazyPage>} />
-      <Route path="manasik" element={<LazyPage><AdminManasik /></LazyPage>} />
-      <Route path="visa" element={<LazyPage><AdminVisaManagement /></LazyPage>} />
+      <Route path="customers" element={<P k={PERMISSIONS.CUSTOMERS}><AdminCustomers /></P>} />
+      <Route path="customers/:id" element={<P k={PERMISSIONS.CUSTOMERS}><AdminCustomerDetail /></P>} />
+      <Route path="agents" element={<P k={PERMISSIONS.AGENTS}><AdminAgents /></P>} />
+      <Route path="branches" element={<P k={PERMISSIONS.BRANCHES}><AdminBranches /></P>} />
+      <Route path="loyalty" element={<P k={PERMISSIONS.LOYALTY}><AdminLoyalty /></P>} />
+      <Route path="referrals" element={<P k={PERMISSIONS.REFERRALS}><AdminReferrals /></P>} />
+      <Route path="haji" element={<P k={PERMISSIONS.HAJI}><AdminHajiManagement /></P>} />
+      <Route path="manasik" element={<P k={PERMISSIONS.MANASIK}><AdminManasik /></P>} />
+      <Route path="visa" element={<P k={PERMISSIONS.VISA}><AdminVisaManagement /></P>} />
 
       {/* SDM (HR) */}
-      <Route path="hr" element={<LazyPage><AdminHR /></LazyPage>} />
-      <Route path="hr/payroll" element={<LazyPage><AdminPayroll /></LazyPage>} />
+      <Route path="hr" element={<P k={PERMISSIONS.HR}><AdminHR /></P>} />
+      <Route path="hr/payroll" element={<P k={PERMISSIONS.PAYROLL}><AdminPayroll /></P>} />
 
       {/* Support & Komunikasi */}
-      <Route path="support" element={<LazyPage><AdminSupportTickets /></LazyPage>} />
-      <Route path="whatsapp" element={<LazyPage><AdminWhatsApp /></LazyPage>} />
-      <Route path="marketing-materials" element={<LazyPage><AdminMarketingMaterials /></LazyPage>} />
+      <Route path="support" element={<P k={PERMISSIONS.SUPPORT}><AdminSupportTickets /></P>} />
+      <Route path="whatsapp" element={<P k={PERMISSIONS.WHATSAPP}><AdminWhatsApp /></P>} />
+      <Route path="marketing-materials" element={<P k={PERMISSIONS.MARKETING_MATERIALS}><AdminMarketingMaterials /></P>} />
 
       {/* Dokumen & Surat */}
-      <Route path="document-verification" element={<LazyPage><AdminDocumentVerification /></LazyPage>} />
-      <Route path="document-types" element={<LazyPage><AdminDocumentTypes /></LazyPage>} />
-      <Route path="documents-generator" element={<LazyPage><AdminDocumentGenerator /></LazyPage>} />
-      <Route path="offline-content" element={<LazyPage><AdminOfflineContent /></LazyPage>} />
+      <Route path="document-verification" element={<P k={PERMISSIONS.DOCUMENT_VERIFICATION}><AdminDocumentVerification /></P>} />
+      <Route path="document-types" element={<P k={PERMISSIONS.DOCUMENT_TYPES}><AdminDocumentTypes /></P>} />
+      <Route path="documents-generator" element={<P k={PERMISSIONS.DOCUMENTS_GENERATOR}><AdminDocumentGenerator /></P>} />
+      <Route path="offline-content" element={<P k={PERMISSIONS.OFFLINE_CONTENT}><AdminOfflineContent /></P>} />
 
       {/* Laporan */}
-      <Route path="reports" element={<LazyPage><AdminReports /></LazyPage>} />
-      <Route path="advanced-reports" element={<LazyPage><AdminAdvancedReports /></LazyPage>} />
-      <Route path="scheduled-reports" element={<LazyPage><AdminScheduledReports /></LazyPage>} />
+      <Route path="reports" element={<P k={PERMISSIONS.REPORTS}><AdminReports /></P>} />
+      <Route path="advanced-reports" element={<P k={PERMISSIONS.ADVANCED_REPORTS}><AdminAdvancedReports /></P>} />
+      <Route path="scheduled-reports" element={<P k={PERMISSIONS.SCHEDULED_REPORTS}><AdminScheduledReports /></P>} />
 
       {/* Pengaturan */}
-      <Route path="users" element={<LazyPage><AdminUsers /></LazyPage>} />
+      <Route path="users" element={<P k={PERMISSIONS.USERS}><AdminUsers /></P>} />
       {/* Legacy redirect — UserPermissionsManager is now a dialog inside /admin/users */}
       <Route path="user-permissions" element={<Navigate to="/admin/users" replace />} />
-      <Route path="roles" element={<LazyPage><AdminRoleManagement /></LazyPage>} />
-      <Route path="rbac-tools" element={<LazyPage><AdminRBACTools /></LazyPage>} />
-      <Route path="rbac-status" element={<LazyPage><AdminRBACStatus /></LazyPage>} />
-      <Route path="security-audit" element={<LazyPage><AdminSecurityAudit /></LazyPage>} />
-      <Route path="2fa" element={<LazyPage><Admin2FASettings /></LazyPage>} />
-      <Route path="appearance" element={<LazyPage><AdminAppearance /></LazyPage>} />
+      <Route path="roles" element={<P k={PERMISSIONS.ROLES}><AdminRoleManagement /></P>} />
+      <Route path="rbac-tools" element={<Navigate to="/admin/roles?tab=audit" replace />} />
+      <Route path="rbac-status" element={<Navigate to="/admin/roles?tab=audit" replace />} />
+      <Route path="security-audit" element={<P k={PERMISSIONS.SECURITY_AUDIT}><AdminSecurityAudit /></P>} />
+      <Route path="2fa" element={<P k={PERMISSIONS.TWO_FA}><Admin2FASettings /></P>} />
+      <Route path="appearance" element={<P k={PERMISSIONS.APPEARANCE}><AdminAppearance /></P>} />
 
 
-      <Route path="package-types" element={<LazyPage><AdminPackageTypes /></LazyPage>} />
-      <Route path="settings" element={<LazyPage><AdminSettings /></LazyPage>} />
-      <Route path="announcements" element={<LazyPage><AdminAnnouncements /></LazyPage>} />
-      <Route path="api-connect" element={<LazyPage><AdminApiConnect /></LazyPage>} />
-      <Route path="supabase-setup" element={<LazyPage><AdminSupabaseSetup /></LazyPage>} />
+      <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />
+      <Route path="settings" element={<P k={PERMISSIONS.SETTINGS}><AdminSettings /></P>} />
+      <Route path="announcements" element={<P k={PERMISSIONS.ANNOUNCEMENTS}><AdminAnnouncements /></P>} />
+      <Route path="api-connect" element={<P k={PERMISSIONS.API_CONNECT}><AdminApiConnect /></P>} />
+      <Route path="supabase-setup" element={<P k={PERMISSIONS.SUPABASE_SETUP}><AdminSupabaseSetup /></P>} />
 
       {/* Master Data */}
-      <Route path="master-data" element={<LazyPage><AdminMasterData /></LazyPage>} />
-      <Route path="airlines" element={<LazyPage><AdminAirlines /></LazyPage>} />
-      <Route path="airports" element={<LazyPage><AdminAirports /></LazyPage>} />
-      <Route path="hotels" element={<LazyPage><AdminHotels /></LazyPage>} />
-      <Route path="muthawifs" element={<LazyPage><AdminMuthawifs /></LazyPage>} />
-      <Route path="bus-providers" element={<LazyPage><AdminBusProviders /></LazyPage>} />
-      <Route path="vendors" element={<LazyPage><AdminVendors /></LazyPage>} />
+      <Route path="master-data" element={<P k={PERMISSIONS.MASTER_DATA}><AdminMasterData /></P>} />
+      <Route path="airlines" element={<P k={PERMISSIONS.AIRLINES}><AdminAirlines /></P>} />
+      <Route path="airports" element={<P k={PERMISSIONS.AIRPORTS}><AdminAirports /></P>} />
+      <Route path="hotels" element={<P k={PERMISSIONS.HOTELS}><AdminHotels /></P>} />
+      <Route path="muthawifs" element={<P k={PERMISSIONS.MUTHAWIFS}><AdminMuthawifs /></P>} />
+      <Route path="bus-providers" element={<P k={PERMISSIONS.BUS_PROVIDERS}><AdminBusProviders /></P>} />
+      <Route path="vendors" element={<P k={PERMISSIONS.VENDORS}><AdminVendors /></P>} />
     </Route>
   );
 }

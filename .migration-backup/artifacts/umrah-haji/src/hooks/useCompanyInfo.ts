@@ -18,6 +18,7 @@ export interface DocumentSettings {
 
 /**
  * Fetch dynamic company info from `company_settings` & primary `bank_accounts`.
+ * Also fetches logo from `website_settings` as fallback.
  * Used as letterhead / invoice header / footer in all generated PDFs (surat,
  * invoice, e-ticket, sertifikat, dll). Falls back to a sane default if the
  * settings have not been filled in.
@@ -33,6 +34,19 @@ export function useCompanyInfo() {
       const map = new Map<string, any>();
       (data || []).forEach((row: any) => map.set(row.setting_key, row.setting_value));
       return map;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const websiteSettingsQuery = useQuery({
+    queryKey: ["company-info-website-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("website_settings")
+        .select("logo_url, company_name")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -54,6 +68,8 @@ export function useCompanyInfo() {
   });
 
   const m = settingsQuery.data;
+  const websiteSettings = websiteSettingsQuery.data;
+  
   const unwrap = (v: any): string => {
     if (v == null) return "";
     if (typeof v === "string") return v;
@@ -68,13 +84,16 @@ export function useCompanyInfo() {
     return defaultVal;
   };
 
+  // Try to get logo from company_settings first, then fallback to website_settings
+  const logoUrl = unwrap(m?.get("company_logo_url")) || websiteSettings?.logo_url || undefined;
+
   const company: CompanyInfo = {
     name: unwrap(m?.get("company_name")) || "PT. Umrah Haji Travel",
     address: unwrap(m?.get("company_address")) || "Jl. Raya Utama No. 123, Jakarta",
     phone: unwrap(m?.get("company_phone")) || "(021) 1234-5678",
     email: unwrap(m?.get("company_email")) || "info@umrahhaji.com",
     website: unwrap(m?.get("company_website")) || undefined,
-    logo: unwrap(m?.get("company_logo_url")) || undefined,
+    logo: logoUrl,
   };
 
   const city = unwrap(m?.get("company_city")) || "Jakarta";
@@ -98,6 +117,6 @@ export function useCompanyInfo() {
     city,
     documentSettings,
     bankAccount: bankQuery.data,
-    isLoading: settingsQuery.isLoading || bankQuery.isLoading,
+    isLoading: settingsQuery.isLoading || bankQuery.isLoading || websiteSettingsQuery.isLoading,
   };
 }
