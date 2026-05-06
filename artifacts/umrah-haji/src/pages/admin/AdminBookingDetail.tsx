@@ -330,7 +330,7 @@ export default function AdminBookingDetail() {
       paidAmount,
       remainingAmount,
       paymentStatus: paymentStatus as 'paid' | 'partial' | 'pending',
-      notes: booking.special_requests || undefined,
+      notes: booking.notes || undefined,
       bankInfo: bank ? {
         bankName: bank.bank_name,
         accountNumber: bank.account_number,
