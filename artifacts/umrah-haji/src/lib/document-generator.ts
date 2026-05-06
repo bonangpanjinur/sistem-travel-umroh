@@ -419,80 +419,116 @@ Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerjasamanya, k
   return doc;
 }
 
+// Extended invoice data interface with payment tracking
+interface InvoiceDataExtended extends InvoiceData {
+  paidAmount?: number;
+  remainingAmount?: number;
+  paymentStatus?: 'paid' | 'partial' | 'pending';
+}
+
 // Generate Invoice
 export function generateInvoice(
-  data: InvoiceData,
+  data: InvoiceDataExtended,
   company: CompanyInfo = defaultCompanyInfo
 ): jsPDF {
   const doc = new jsPDF();
   let y = addLetterhead(doc, company);
   
   const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
   
-  // Invoice Title with styling
-  doc.setFillColor(59, 130, 246);
-  doc.rect(14, y - 8, pageWidth - 28, 12, 'F');
+  // Determine payment status
+  const paidAmount = data.paidAmount ?? 0;
+  const remainingAmount = data.remainingAmount ?? (data.total - paidAmount);
+  const payStatus = data.paymentStatus ?? (paidAmount >= data.total ? 'paid' : paidAmount > 0 ? 'partial' : 'pending');
+  
+  // ── Invoice Header Band ──────────────────────────────────────────────
+  // Left side: INVOICE title + number
+  doc.setFillColor(15, 23, 42); // dark navy
+  doc.rect(14, y - 5, pageWidth - 28, 20, 'F');
   
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVOICE', pageWidth / 2, y + 1, { align: 'center' });
+  doc.text('INVOICE', 20, y + 8);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`No: ${data.invoiceNumber}`, 20, y + 14);
+  
+  // Payment status badge (right side)
+  const statusLabel = payStatus === 'paid' ? 'LUNAS' : payStatus === 'partial' ? 'CICILAN' : 'BELUM LUNAS';
+  const statusColor: [number, number, number] = payStatus === 'paid' ? [34, 197, 94] : payStatus === 'partial' ? [245, 158, 11] : [239, 68, 68];
+  
+  doc.setFillColor(...statusColor);
+  doc.roundedRect(pageWidth - 55, y - 1, 42, 14, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(statusLabel, pageWidth - 34, y + 8, { align: 'center' });
   
   doc.setTextColor(0, 0, 0);
-  y += 20;
+  y += 25;
   
-  // Two column layout: Invoice details (left) and Customer info (right)
-  const leftColX = 14;
-  const rightColX = pageWidth / 2 + 5;
-  const colWidth = pageWidth / 2 - 20;
+  // ── Two column: Invoice meta (left) + Customer (right) ───────────────
+  const leftX = 14;
+  const rightX = pageWidth / 2 + 5;
+  const colW = pageWidth / 2 - 19;
   
-  // Left column - Invoice details
-  doc.setFontSize(10);
+  // Left: invoice details box
+  doc.setFillColor(248, 250, 252);
+  doc.rect(leftX, y - 2, colW, 30, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.rect(leftX, y - 2, colW, 30);
+  
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('Detail Invoice:', leftColX, y);
+  doc.setTextColor(100, 116, 139);
+  doc.text('TANGGAL INVOICE', leftX + 3, y + 4);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(15, 23, 42);
   doc.setFontSize(9);
+  doc.text(format(data.invoiceDate, 'd MMMM yyyy', { locale: id }), leftX + 3, y + 10);
   
-  y += 6;
-  doc.text(`No. Invoice: ${data.invoiceNumber}`, leftColX, y);
-  y += 5;
-  doc.text(`Tanggal: ${format(data.invoiceDate, 'd MMMM yyyy', { locale: id })}`, leftColX, y);
-  y += 5;
-  doc.text(`Jatuh Tempo: ${format(data.dueDate, 'd MMMM yyyy', { locale: id })}`, leftColX, y);
-  
-  // Right column - Customer info
-  let rightY = y - 16;
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('Kepada:', rightColX, rightY);
+  doc.setTextColor(100, 116, 139);
+  doc.text('JATUH TEMPO', leftX + 3, y + 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9);
+  doc.text(format(data.dueDate, 'd MMMM yyyy', { locale: id }), leftX + 3, y + 24);
+  
+  // Right: customer info box
+  doc.setFillColor(248, 250, 252);
+  doc.rect(rightX, y - 2, colW, 30, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(rightX, y - 2, colW, 30);
+  
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 116, 139);
+  doc.text('DITAGIHKAN KEPADA', rightX + 3, y + 4);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9.5);
+  doc.text(data.customer.name, rightX + 3, y + 11);
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  rightY += 6;
-  doc.text(data.customer.name, rightColX, rightY);
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  const addrLines = doc.splitTextToSize(data.customer.address, colW - 6);
+  doc.text(addrLines, rightX + 3, y + 17);
   
-  rightY += 5;
-  const addressLines = doc.splitTextToSize(data.customer.address, colWidth - 5);
-  doc.text(addressLines, rightColX, rightY);
-  
-  rightY += addressLines.length * 4 + 3;
-  doc.text(`Telp: ${data.customer.phone}`, rightColX, rightY);
-  
-  if (data.customer.email) {
-    rightY += 4;
-    doc.text(`Email: ${data.customer.email}`, rightColX, rightY);
+  const addrBottom = y + 17 + (addrLines.length - 1) * 4;
+  if (addrBottom < y + 25) {
+    doc.text(`Telp: ${data.customer.phone}`, rightX + 3, addrBottom + 4);
   }
   
-  y = Math.max(y + 5, rightY + 8);
+  y += 36;
+  doc.setTextColor(0, 0, 0);
   
-  // Separator line
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.5);
-  doc.line(14, y, pageWidth - 14, y);
-  y += 8;
-  
-  // Items table
+  // ── Items Table ──────────────────────────────────────────────────────
   const tableData = data.items.map((item, index) => [
     (index + 1).toString(),
     item.description,
@@ -503,115 +539,142 @@ export function generateInvoice(
   
   autoTable(doc, {
     startY: y,
-    head: [['No', 'Deskripsi', 'Qty', 'Harga Satuan', 'Total']],
+    head: [['#', 'Deskripsi Layanan', 'Qty', 'Harga Satuan', 'Subtotal']],
     body: tableData,
     styles: { 
-      fontSize: 9,
+      fontSize: 8.5,
       cellPadding: 4,
-      lineColor: [220, 220, 220],
-      lineWidth: 0.5
+      lineColor: [226, 232, 240],
+      lineWidth: 0.3,
+      textColor: [15, 23, 42],
     },
     headStyles: { 
-      fillColor: [59, 130, 246], 
-      textColor: 255,
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
       fontStyle: 'bold',
-      halign: 'center'
+      halign: 'left',
+      fontSize: 8,
     },
     columnStyles: {
-      0: { cellWidth: 15, halign: 'center' },
+      0: { cellWidth: 10, halign: 'center' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 35, halign: 'right' },
-      4: { cellWidth: 35, halign: 'right' }
+      2: { cellWidth: 15, halign: 'center' },
+      3: { cellWidth: 38, halign: 'right' },
+      4: { cellWidth: 38, halign: 'right' },
     },
-    margin: { left: 14, right: 14 }
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
   });
   
-  // @ts-ignore - lastAutoTable is added by jspdf-autotable
-  y = doc.lastAutoTable.finalY + 12;
+  // @ts-ignore
+  y = doc.lastAutoTable.finalY + 6;
   
-  // Totals section with better styling
-  const totalsX = pageWidth - 100;
-  const totalsBoxWidth = 95;
+  // ── Totals + Payment Summary (side by side) ──────────────────────────
+  const totW = 85;
+  const totX = pageWidth - 14 - totW;
   
-  // Totals background
-  doc.setFillColor(245, 245, 245);
-  doc.rect(totalsX - 5, y - 3, totalsBoxWidth + 5, 45, 'F');
+  // Totals panel
+  doc.setFillColor(248, 250, 252);
+  const totRows = 2 + (data.discount ? 1 : 0) + (data.tax ? 1 : 0) + 2; // rows: sub, disc?, tax?, total line, total
+  const totH = totRows * 8 + 6;
+  doc.rect(totX, y, totW, totH, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(totX, y, totW, totH);
   
-  doc.setFontSize(9);
+  let ty = y + 7;
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
   
-  doc.text('Subtotal:', totalsX, y);
-  doc.text(formatCurrency(data.subtotal), pageWidth - 14, y, { align: 'right' });
-  y += 6;
+  doc.text('Subtotal', totX + 4, ty);
+  doc.text(formatCurrency(data.subtotal), totX + totW - 4, ty, { align: 'right' });
+  ty += 8;
   
   if (data.discount) {
-    doc.text('Diskon:', totalsX, y);
-    doc.text(`-${formatCurrency(data.discount)}`, pageWidth - 14, y, { align: 'right' });
-    y += 6;
+    doc.setTextColor(239, 68, 68);
+    doc.text('Diskon', totX + 4, ty);
+    doc.text(`- ${formatCurrency(data.discount)}`, totX + totW - 4, ty, { align: 'right' });
+    doc.setTextColor(71, 85, 105);
+    ty += 8;
   }
   
   if (data.tax) {
-    doc.text('PPN (11%):', totalsX, y);
-    doc.text(formatCurrency(data.tax), pageWidth - 14, y, { align: 'right' });
-    y += 6;
+    doc.text('PPN (11%)', totX + 4, ty);
+    doc.text(formatCurrency(data.tax), totX + totW - 4, ty, { align: 'right' });
+    ty += 8;
   }
   
-  // Total line separator
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(1);
-  doc.line(totalsX - 5, y + 1, pageWidth - 14, y + 1);
-  y += 6;
+  // Total separator
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(0.5);
+  doc.line(totX + 2, ty - 2, totX + totW - 2, ty - 2);
   
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(59, 130, 246);
-  doc.text('TOTAL:', totalsX, y);
-  doc.text(formatCurrency(data.total), pageWidth - 14, y, { align: 'right' });
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text('TOTAL', totX + 4, ty + 5);
+  doc.text(formatCurrency(data.total), totX + totW - 4, ty + 5, { align: 'right' });
+  ty += 14;
   
-  doc.setTextColor(0, 0, 0);
-  y += 15;
-  
-  // Bank info section
-  const bankInfo = data.bankInfo;
-  if (bankInfo) {
-    doc.setFillColor(240, 248, 255);
-    doc.rect(14, y - 3, pageWidth - 28, 25, 'F');
-    
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Pembayaran dapat ditransfer ke:', 18, y);
-    y += 6;
-    
+  // Payment summary rows
+  if (paidAmount > 0) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text(`Bank: ${bankInfo.bankName}`, 18, y);
-    y += 4;
-    doc.text(`No. Rekening: ${bankInfo.accountNumber}`, 18, y);
-    y += 4;
-    doc.text(`Atas Nama: ${bankInfo.accountName}`, 18, y);
+    doc.setTextColor(34, 197, 94);
+    doc.text('Sudah Dibayar', totX + 4, ty);
+    doc.text(formatCurrency(paidAmount), totX + totW - 4, ty, { align: 'right' });
+    ty += 7;
     
-    y += 12;
+    doc.setTextColor(remainingAmount > 0 ? 239 : 34, remainingAmount > 0 ? 68 : 197, remainingAmount > 0 ? 68 : 94);
+    doc.setFont('helvetica', remainingAmount > 0 ? 'bold' : 'normal');
+    doc.text('Sisa Tagihan', totX + 4, ty);
+    doc.text(formatCurrency(remainingAmount), totX + totW - 4, ty, { align: 'right' });
   }
   
-  // Notes section
-  if (data.notes) {
-    doc.setFillColor(255, 250, 205);
-    doc.rect(14, y - 3, pageWidth - 28, 20, 'F');
+  y = Math.max(y + totH + 8, ty + 12);
+  doc.setTextColor(0, 0, 0);
+  
+  // ── Bank Info ────────────────────────────────────────────────────────
+  const bankInfo = data.bankInfo;
+  if (bankInfo) {
+    doc.setFillColor(239, 246, 255);
+    doc.setDrawColor(147, 197, 253);
+    doc.setLineWidth(0.3);
+    doc.rect(14, y, pageWidth - 28, 26, 'FD');
     
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('Catatan:', 18, y);
-    y += 5;
+    doc.setTextColor(37, 99, 235);
+    doc.text('INFORMASI PEMBAYARAN', 18, y + 7);
     
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${bankInfo.bankName}  ·  ${bankInfo.accountNumber}  ·  a.n. ${bankInfo.accountName}`, 18, y + 15);
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Transfer ke rekening di atas dan sertakan nomor invoice sebagai keterangan.', 18, y + 21);
+    
+    y += 32;
+  }
+  
+  // ── Notes ────────────────────────────────────────────────────────────
+  if (data.notes) {
+    doc.setFillColor(254, 252, 232);
+    doc.setDrawColor(253, 230, 138);
+    doc.setLineWidth(0.3);
+    const noteLines = doc.splitTextToSize(data.notes, pageWidth - 40);
+    doc.rect(14, y, pageWidth - 28, noteLines.length * 5 + 14, 'FD');
+    
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    const noteLines = doc.splitTextToSize(data.notes, pageWidth - 36);
-    doc.text(noteLines, 18, y);
+    doc.setTextColor(133, 77, 14);
+    doc.text('CATATAN', 18, y + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(78, 52, 46);
+    doc.text(noteLines, 18, y + 13);
   }
   
   addFooter(doc, 1, 1);
-  
   return doc;
 }
 

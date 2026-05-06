@@ -290,7 +290,17 @@ export default function AdminBookingDetail() {
     const pkg = departure?.package;
     const bank = bankAccounts?.[0];
     
-    const invoiceData: InvoiceData = {
+    const paidAmount = booking.paid_amount || 0;
+    const remainingAmount = booking.remaining_amount || Math.max(0, booking.total_price - paidAmount);
+    const paymentStatus = paidAmount >= booking.total_price ? 'paid' : paidAmount > 0 ? 'partial' : 'pending';
+
+    const paxBreakdown: string[] = [];
+    if ((booking as any).adult_count > 0) paxBreakdown.push(`${(booking as any).adult_count} Dewasa`);
+    if ((booking as any).child_count > 0) paxBreakdown.push(`${(booking as any).child_count} Anak`);
+    if ((booking as any).infant_count > 0) paxBreakdown.push(`${(booking as any).infant_count} Bayi`);
+    const paxLabel = paxBreakdown.length > 0 ? paxBreakdown.join(', ') : `${booking.total_pax || 1} Pax`;
+
+    const invoiceData = {
       invoiceNumber: `INV-${booking.booking_code}`,
       invoiceDate: new Date(booking.created_at || new Date()),
       dueDate: booking.payment_deadline ? new Date(booking.payment_deadline) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
@@ -302,13 +312,13 @@ export default function AdminBookingDetail() {
       },
       items: [
         {
-          description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${booking.total_pax || 1} Pax)\nBerangkat: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
+          description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${paxLabel})\nKeberangkatan: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
           quantity: booking.total_pax || 1,
           unitPrice: booking.base_price / (booking.total_pax || 1),
           total: booking.base_price,
         },
         ...(booking.addons_price && booking.addons_price > 0 ? [{
-          description: 'Biaya Tambahan',
+          description: 'Biaya Tambahan / Add-ons',
           quantity: 1,
           unitPrice: booking.addons_price,
           total: booking.addons_price,
@@ -317,7 +327,10 @@ export default function AdminBookingDetail() {
       subtotal: booking.base_price + (booking.addons_price || 0),
       discount: booking.discount_amount || undefined,
       total: booking.total_price,
-      notes: `Pembayaran sudah diterima: ${formatCurrency(booking.paid_amount || 0)}\nSisa pembayaran: ${formatCurrency(booking.remaining_amount || 0)}`,
+      paidAmount,
+      remainingAmount,
+      paymentStatus: paymentStatus as 'paid' | 'partial' | 'pending',
+      notes: booking.special_requests || undefined,
       bankInfo: bank ? {
         bankName: bank.bank_name,
         accountNumber: bank.account_number,

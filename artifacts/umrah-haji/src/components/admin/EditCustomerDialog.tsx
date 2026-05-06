@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle } from "lucide-react";
+import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle, Plus, Heart } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
@@ -320,6 +320,53 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     }
   };
 
+  // Fetch mahrams for this customer
+  const { data: mahrams, refetch: refetchMahrams } = useQuery({
+    queryKey: ["customer-mahrams", customer.id],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_mahrams" as any)
+        .select("*")
+        .eq("customer_id", customer.id)
+        .order("created_at");
+      if (error) {
+        // Table might not exist yet — return empty
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data || [];
+    },
+  });
+
+  const [newMahram, setNewMahram] = useState({ mahram_name: "", mahram_relation: "", notes: "" });
+
+  const addMahramMutation = useMutation({
+    mutationFn: async (m: typeof newMahram) => {
+      const { error } = await supabase
+        .from("customer_mahrams" as any)
+        .insert({ customer_id: customer.id, mahram_name: m.mahram_name, mahram_relation: m.mahram_relation, notes: m.notes || null });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Mahram berhasil ditambahkan");
+      setNewMahram({ mahram_name: "", mahram_relation: "", notes: "" });
+      refetchMahrams();
+    },
+    onError: (e: any) => toast.error(e.message || "Gagal menambah mahram"),
+  });
+
+  const deleteMahramMutation = useMutation({
+    mutationFn: async (mahramId: string) => {
+      const { error } = await supabase.from("customer_mahrams" as any).delete().eq("id", mahramId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Mahram dihapus");
+      refetchMahrams();
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateMutation.mutate(formData);
@@ -362,10 +409,11 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
 
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="personal">Data Diri</TabsTrigger>
               <TabsTrigger value="contact">Kontak</TabsTrigger>
               <TabsTrigger value="passport">Paspor</TabsTrigger>
+              <TabsTrigger value="mahram">Mahram</TabsTrigger>
               <TabsTrigger value="emergency">Darurat</TabsTrigger>
               <TabsTrigger value="documents">Dokumen</TabsTrigger>
             </TabsList>
@@ -633,6 +681,126 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                       <SelectItem value="kakek">Kakek</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Mahram Tab */}
+            <TabsContent value="mahram" className="space-y-4 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Heart className="h-4 w-4 text-rose-500" />
+                <p className="text-sm text-muted-foreground">Daftar mahram jamaah ini. Mahram adalah wali yang menemani ibadah.</p>
+              </div>
+
+              {/* Existing mahrams list */}
+              {mahrams && mahrams.length > 0 ? (
+                <div className="space-y-2">
+                  {(mahrams as any[]).map((m: any) => (
+                    <div key={m.id} className="flex items-start justify-between bg-muted/40 rounded-lg p-3 border">
+                      <div>
+                        <p className="font-semibold text-sm">{m.mahram_name}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{m.mahram_relation}</p>
+                        {m.notes && <p className="text-xs text-muted-foreground mt-0.5">{m.notes}</p>}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteMahramMutation.mutate(m.id)}
+                        disabled={deleteMahramMutation.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 border-2 border-dashed rounded-lg text-muted-foreground text-sm">
+                  Belum ada data mahram. Tambahkan mahram di bawah.
+                </div>
+              )}
+
+              {/* Add new mahram */}
+              <div className="border rounded-lg p-4 space-y-3 bg-background">
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Tambah Mahram
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Nama Mahram *</Label>
+                    <Input
+                      value={newMahram.mahram_name}
+                      onChange={e => setNewMahram(p => ({ ...p, mahram_name: e.target.value }))}
+                      placeholder="Nama lengkap mahram"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Hubungan *</Label>
+                    <Select value={newMahram.mahram_relation} onValueChange={v => setNewMahram(p => ({ ...p, mahram_relation: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Pilih hubungan" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="suami">Suami</SelectItem>
+                        <SelectItem value="istri">Istri</SelectItem>
+                        <SelectItem value="ayah">Ayah</SelectItem>
+                        <SelectItem value="ibu">Ibu</SelectItem>
+                        <SelectItem value="anak">Anak</SelectItem>
+                        <SelectItem value="saudara">Saudara Kandung</SelectItem>
+                        <SelectItem value="paman">Paman</SelectItem>
+                        <SelectItem value="kakek">Kakek</SelectItem>
+                        <SelectItem value="nenek">Nenek</SelectItem>
+                        <SelectItem value="cucu">Cucu</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Catatan (opsional)</Label>
+                  <Input
+                    value={newMahram.notes}
+                    onChange={e => setNewMahram(p => ({ ...p, notes: e.target.value }))}
+                    placeholder="Mis: nomor telepon, keterangan tambahan"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => addMahramMutation.mutate(newMahram)}
+                  disabled={addMahramMutation.isPending || !newMahram.mahram_name || !newMahram.mahram_relation}
+                >
+                  {addMahramMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                  Tambah Mahram
+                </Button>
+              </div>
+
+              {/* Legacy single mahram (backward compat) */}
+              <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data Mahram Utama (Lama)</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="mahram_name">Nama Mahram</Label>
+                    <Input
+                      id="mahram_name"
+                      value={formData.mahram_name}
+                      onChange={(e) => handleChange("mahram_name", e.target.value)}
+                      placeholder="Untuk jamaah wanita"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="mahram_relation">Hubungan Mahram</Label>
+                    <Select value={formData.mahram_relation} onValueChange={(val) => handleChange("mahram_relation", val)}>
+                      <SelectTrigger><SelectValue placeholder="Pilih hubungan" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="suami">Suami</SelectItem>
+                        <SelectItem value="istri">Istri</SelectItem>
+                        <SelectItem value="ayah">Ayah</SelectItem>
+                        <SelectItem value="anak">Anak Laki-laki</SelectItem>
+                        <SelectItem value="saudara">Saudara Kandung</SelectItem>
+                        <SelectItem value="paman">Paman</SelectItem>
+                        <SelectItem value="kakek">Kakek</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </TabsContent>

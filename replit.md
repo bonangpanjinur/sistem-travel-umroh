@@ -29,6 +29,7 @@ A full-stack Umrah & Haji travel management platform for Indonesian travel agent
 - `artifacts/api-server/src/routes/v1/` — Backend API routes (packages, departures, leads)
 - `lib/api-spec/openapi.yaml` — OpenAPI source of truth
 - `artifacts/umrah-haji/tailwind.config.ts` — Tailwind theme
+- `artifacts/umrah-haji/supabase/migrations/` — SQL migrations (run in Supabase dashboard)
 
 ## Architecture decisions
 
@@ -37,15 +38,18 @@ A full-stack Umrah & Haji travel management platform for Indonesian travel agent
 - API keys for public endpoints (leads, packages, departures) via `X-API-Key` header
 - Frontend uses BrowserRouter with `basename={import.meta.env.BASE_URL}` for Replit proxy compatibility
 - All Supabase calls gracefully degrade when credentials are missing (demo mode)
+- `customer_mahrams` table supports multiple mahrams per jamaah; falls back gracefully if migration not yet run (error code 42P01 handled)
 
 ## Product
 
 - Public landing page with package listings, departure schedule, savings program registration
 - Jamaah portal: digital ID, itinerary, documents, payment history, doa & panduan
 - Admin dashboard: full CRM (customers, packages, departures, payments, agents, branches)
-- Operational tools: manifest, check-in QR codes, rooming list, bus/luggage management
+- Departure detail: Kamar tab (DepartureRoomingTab) connects live to rooming data in DB
+- Operational tools: manifest, check-in QR, rooming list (multi-select mahram-aware assign), bus/luggage management
+- Invoice PDF: redesigned with status badge (LUNAS/CICILAN/BELUM LUNAS), paid/remaining amounts, dark header
+- Customer edit dialog: new "Mahram" tab with multi-mahram list management (customer_mahrams table)
 - Agent portal: commission, customer management, notifications
-- White-label appearance editor with live preview
 
 ## User preferences
 
@@ -57,6 +61,7 @@ _Populate as you build._
 - Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for backend API routes
 - Without Supabase credentials, the app runs in demo mode with static sample data
 - `react-hook-form 7.51.0` has a peer warning with React 19 — safe to ignore, works correctly
+- Run `supabase/migrations/20260506000001_customer_mahrams.sql` in Supabase SQL Editor for multi-mahram feature to persist
 
 ## Pointers
 
