@@ -166,6 +166,48 @@
 }
 
 @layer utilities {
+  /* ── Shared theme polish ────────────────────────────────────────────
+     Consistent typographic rhythm + section spacing across all 7 template
+     variants (classic / modern / luxury / islamic / futuristic / nature / royal).
+     Components opt-in by adding these utility classes. */
+
+  .section-padded {
+    @apply py-12 md:py-16 lg:py-20;
+  }
+
+  .section-padded-sm {
+    @apply py-8 md:py-10 lg:py-12;
+  }
+
+  .container-page {
+    @apply container mx-auto px-4 md:px-6 lg:px-8;
+  }
+
+  .heading-display {
+    font-family: var(--font-display, var(--font-heading, 'Plus Jakarta Sans')), sans-serif;
+    @apply font-bold tracking-tight;
+  }
+
+  .heading-1 {
+    @apply heading-display text-3xl md:text-4xl lg:text-5xl leading-tight;
+  }
+
+  .heading-2 {
+    @apply heading-display text-2xl md:text-3xl lg:text-4xl leading-tight;
+  }
+
+  .heading-3 {
+    @apply heading-display text-xl md:text-2xl leading-snug;
+  }
+
+  .body-lead {
+    @apply text-base md:text-lg text-muted-foreground leading-relaxed;
+  }
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
   /* Text Gradient */
   .text-gradient-primary {
     @apply bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent;
