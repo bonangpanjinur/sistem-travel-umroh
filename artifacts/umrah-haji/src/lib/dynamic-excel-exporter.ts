@@ -317,7 +317,7 @@ export function exportDynamicBookingExcel(
  */
 export function exportDynamicStatisticsExcel(
   stats: PeriodStats,
-  companyName: string,
+  company: CompanyInfo,
   periodLabel: string,
   dateFrom: string,
   dateTo: string,
@@ -339,6 +339,40 @@ export function exportDynamicStatisticsExcel(
     };
   };
 
+  // ===== COMPANY HEADER SECTION =====
+  // Company Name
+  setCell(r, 0, company.name.toUpperCase(), 's', {
+    font: { bold: true, color: { rgb: styleConfig.title_bg_color }, sz: 16 },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 4 } });
+  r++;
+
+  // Company Address
+  setCell(r, 0, company.address, 's', {
+    font: { bold: false, color: { rgb: '4B5563' }, sz: 10 },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 4 } });
+  r++;
+
+  // Company Contact (Phone & Email)
+  const contactInfo = `Telp: ${company.phone} | Email: ${company.email}${company.website ? ` | Web: ${company.website}` : ''}`;
+  setCell(r, 0, contactInfo, 's', {
+    font: { bold: false, color: { rgb: '4B5563' }, sz: 10 },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 4 } });
+  r++;
+
+  // Separator Line
+  setCell(r, 0, '', 's', {
+    fill: { patternType: 'solid', fgColor: { rgb: styleConfig.title_bg_color } },
+  });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 4 } });
+  r++;
+  r++; // Empty space
+
   // ===== Title Section =====
   setCell(r, 0, 'LAPORAN STATISTIK JAMAAH', 's', {
     font: { bold: styleConfig.title_bold, color: { rgb: styleConfig.title_text_color }, sz: styleConfig.title_font_size },
@@ -349,8 +383,8 @@ export function exportDynamicStatisticsExcel(
   merges.push({ s: { r, c: 0 }, e: { r, c: 4 } });
   r++;
 
-  // Company name and period
-  setCell(r, 0, `${companyName} - ${periodLabel}`, 's', {
+  // Period label
+  setCell(r, 0, `Periode: ${periodLabel}`, 's', {
     font: { bold: true, color: { rgb: styleConfig.section_text_color }, sz: 10 },
     fill: { patternType: 'solid', fgColor: { rgb: styleConfig.section_bg_color } },
     alignment: { horizontal: 'center', vertical: 'center' },
