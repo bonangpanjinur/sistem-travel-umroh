@@ -43,7 +43,7 @@ export interface WebsiteSettings {
   hero_image_url: string | null;
   hero_cta_text: string | null;
   hero_cta_link: string | null;
-  hero_display_mode: 'banner_only' | 'hero_only' | 'both' | 'banner_as_background' | null;
+  hero_display_mode?: 'banner_only' | 'hero_only' | 'both' | 'banner_as_background' | null;
   footer_address: string | null;
   footer_phone: string | null;
   footer_email: string | null;
@@ -117,6 +117,7 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     package_card_show_hotel: raw.package_card_show_hotel !== false,
     package_card_show_duration: raw.package_card_show_duration !== false,
     package_card_show_departure: raw.package_card_show_departure !== false,
+    hero_display_mode: raw.hero_display_mode ?? 'both',
   };
 };
 
