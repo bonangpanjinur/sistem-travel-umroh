@@ -6,7 +6,7 @@
  * 3. Access Summary (baru)
  */
 
-import { useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,9 +15,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShieldCheck, Menu, BarChart3, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Menu, BarChart3, AlertCircle, KeyRound, RefreshCw } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { RoleMenuMapper } from '@/components/admin/RoleMenuMapper';
+
+// Lazy-load the heavy role permission editor + menu sync manager so the
+// consolidated RBAC page stays snappy on first paint.
+const RolePermissionEditor = lazy(() => import('@/pages/admin/AdminRoleManagement'));
+const MenuSyncManager = lazy(() =>
+  import('@/components/admin/MenuSyncManager').then(m => ({ default: m.MenuSyncManager }))
+);
 
 interface AccessSummaryRow {
   role: string;
@@ -56,12 +63,22 @@ export default function AdminRoleManagementEnhanced() {
         </p>
       </div>
 
-      <Tabs defaultValue="menu-mapping" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="permissions" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4" />
+            <span className="hidden sm:inline">Izin Role</span>
+            <span className="sm:hidden">Izin</span>
+          </TabsTrigger>
           <TabsTrigger value="menu-mapping" className="flex items-center gap-2">
             <Menu className="h-4 w-4" />
             <span className="hidden sm:inline">Pemetaan Menu</span>
             <span className="sm:hidden">Menu</span>
+          </TabsTrigger>
+          <TabsTrigger value="menu-sync" className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            <span className="hidden sm:inline">Sinkron Menu</span>
+            <span className="sm:hidden">Sync</span>
           </TabsTrigger>
           <TabsTrigger value="summary" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -75,9 +92,29 @@ export default function AdminRoleManagementEnhanced() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Menu Mapping */}
+        {/* Tab 1: Role Permission Editor (default per role) */}
+        <TabsContent value="permissions" className="mt-6">
+          <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+            <RolePermissionEditor />
+          </Suspense>
+          <Card className="mt-4 border-dashed bg-muted/30">
+            <CardContent className="py-3 text-xs text-muted-foreground">
+              Izin di sini menjadi <strong>default</strong> untuk semua user dengan role tersebut.
+              Override per individu dapat diatur di <strong>Manajemen User → Kelola Izin Akses</strong>.
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 2: Menu Mapping */}
         <TabsContent value="menu-mapping" className="mt-6">
           <RoleMenuMapper />
+        </TabsContent>
+
+        {/* Tab 3: Menu Sync */}
+        <TabsContent value="menu-sync" className="mt-6">
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <MenuSyncManager />
+          </Suspense>
         </TabsContent>
 
         {/* Tab 2: Access Summary */}
