@@ -77,7 +77,16 @@ export const DEFAULT_EXCEL_STYLE: ExcelStyleConfig = {
   footer_font_size: 8,
 };
 
-interface BookingData {
+export interface CompanyInfo {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  website?: string;
+  logo?: string;
+}
+
+export interface BookingData {
   booking_code: string;
   customer_name: string;
   customer_phone: string;
@@ -105,7 +114,7 @@ interface PeriodStats {
  */
 export function exportDynamicBookingExcel(
   bookings: BookingData[],
-  companyName: string,
+  company: CompanyInfo,
   styleConfig: ExcelStyleConfig = DEFAULT_EXCEL_STYLE,
   dateFrom?: Date,
   dateTo?: Date
@@ -126,20 +135,44 @@ export function exportDynamicBookingExcel(
     };
   };
 
-  // ===== Title Section =====
-  setCell(r, 0, 'LAPORAN DATA BOOKING', 's', {
-    font: { bold: styleConfig.title_bold, color: { rgb: styleConfig.title_text_color }, sz: styleConfig.title_font_size },
-    fill: { patternType: 'solid', fgColor: { rgb: styleConfig.title_bg_color } },
-    alignment: { horizontal: 'center', vertical: 'center' },
-    border: ALL_BORDERS,
+  // ===== COMPANY HEADER SECTION =====
+  // Company Name
+  setCell(r, 0, company.name.toUpperCase(), 's', {
+    font: { bold: true, color: { rgb: styleConfig.title_bg_color }, sz: 16 },
+    alignment: { horizontal: 'left', vertical: 'center' },
   });
   merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
   r++;
 
-  // Company name subtitle
-  setCell(r, 0, companyName, 's', {
-    font: { bold: true, color: { rgb: styleConfig.section_text_color }, sz: 10 },
-    fill: { patternType: 'solid', fgColor: { rgb: styleConfig.section_bg_color } },
+  // Company Address
+  setCell(r, 0, company.address, 's', {
+    font: { bold: false, color: { rgb: '4B5563' }, sz: 10 },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  r++;
+
+  // Company Contact (Phone & Email)
+  const contactInfo = `Telp: ${company.phone} | Email: ${company.email}${company.website ? ` | Web: ${company.website}` : ''}`;
+  setCell(r, 0, contactInfo, 's', {
+    font: { bold: false, color: { rgb: '4B5563' }, sz: 10 },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  r++;
+
+  // Separator Line
+  setCell(r, 0, '', 's', {
+    fill: { patternType: 'solid', fgColor: { rgb: styleConfig.title_bg_color } },
+  });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  r++;
+  r++; // Empty space
+
+  // ===== Title Section =====
+  setCell(r, 0, 'LAPORAN DATA BOOKING', 's', {
+    font: { bold: styleConfig.title_bold, color: { rgb: styleConfig.title_text_color }, sz: styleConfig.title_font_size },
+    fill: { patternType: 'solid', fgColor: { rgb: styleConfig.title_bg_color } },
     alignment: { horizontal: 'center', vertical: 'center' },
     border: ALL_BORDERS,
   });
