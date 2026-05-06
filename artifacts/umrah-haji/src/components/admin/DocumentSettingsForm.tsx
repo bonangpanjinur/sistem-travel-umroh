@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, Palette, AlignLeft } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -27,9 +28,14 @@ const documentSettingsSchema = z.object({
   invoice_number_format: z.string().min(1, "Format tidak boleh kosong"),
   invoice_show_bank_info: z.boolean(),
   invoice_show_notes_section: z.boolean(),
+  invoice_show_package_info: z.boolean(),
+  invoice_watermark_paid: z.boolean(),
+  invoice_accent_color: z.string().regex(/^#[0-9A-F]{6}$/i, "Format warna hex tidak valid"),
   eticket_header_color: z.string().regex(/^#[0-9A-F]{6}$/i, "Format warna hex tidak valid"),
   certificate_border_color: z.string().regex(/^#[0-9A-F]{6}$/i, "Format warna hex tidak valid"),
   certificate_text_color: z.string().regex(/^#[0-9A-F]{6}$/i, "Format warna hex tidak valid"),
+  manifest_layout: z.enum(["compact", "detailed", "full"]),
+  pdf_default_font: z.enum(["helvetica", "times"]),
   document_footer_show_timestamp: z.boolean(),
   document_footer_show_page_number: z.boolean(),
 });
@@ -50,9 +56,14 @@ export function DocumentSettingsForm() {
       invoice_number_format: "YYYY-MM-{SEQ}",
       invoice_show_bank_info: true,
       invoice_show_notes_section: true,
+      invoice_show_package_info: true,
+      invoice_watermark_paid: true,
+      invoice_accent_color: "#16a34a",
       eticket_header_color: "#16a34a",
       certificate_border_color: "#daa520",
       certificate_text_color: "#165634",
+      manifest_layout: "detailed" as const,
+      pdf_default_font: "helvetica" as const,
       document_footer_show_timestamp: true,
       document_footer_show_page_number: true,
     },
@@ -70,9 +81,14 @@ export function DocumentSettingsForm() {
         invoice_number_format: getSetting("invoice_number_format") || "YYYY-MM-{SEQ}",
         invoice_show_bank_info: getSetting("invoice_show_bank_info") !== "false",
         invoice_show_notes_section: getSetting("invoice_show_notes_section") !== "false",
+        invoice_show_package_info: getSetting("invoice_show_package_info") !== "false",
+        invoice_watermark_paid: getSetting("invoice_watermark_paid") !== "false",
+        invoice_accent_color: getSetting("invoice_accent_color") || "#16a34a",
         eticket_header_color: getSetting("eticket_header_color") || "#16a34a",
         certificate_border_color: getSetting("certificate_border_color") || "#daa520",
         certificate_text_color: getSetting("certificate_text_color") || "#165634",
+        manifest_layout: (getSetting("manifest_layout") as "compact" | "detailed" | "full") || "detailed",
+        pdf_default_font: (getSetting("pdf_default_font") as "helvetica" | "times") || "helvetica",
         document_footer_show_timestamp: getSetting("document_footer_show_timestamp") !== "false",
         document_footer_show_page_number: getSetting("document_footer_show_page_number") !== "false",
       });
@@ -90,6 +106,11 @@ export function DocumentSettingsForm() {
       { key: "invoice_number_format", value: data.invoice_number_format },
       { key: "invoice_show_bank_info", value: data.invoice_show_bank_info },
       { key: "invoice_show_notes_section", value: data.invoice_show_notes_section },
+      { key: "invoice_show_package_info", value: data.invoice_show_package_info },
+      { key: "invoice_watermark_paid", value: data.invoice_watermark_paid },
+      { key: "invoice_accent_color", value: data.invoice_accent_color },
+      { key: "manifest_layout", value: data.manifest_layout },
+      { key: "pdf_default_font", value: data.pdf_default_font },
       { key: "eticket_header_color", value: data.eticket_header_color },
       { key: "certificate_border_color", value: data.certificate_border_color },
       { key: "certificate_text_color", value: data.certificate_text_color },
@@ -243,11 +264,106 @@ export function DocumentSettingsForm() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="invoice_show_package_info"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <FormLabel className="mb-0">Tampilkan Info Paket & Keberangkatan</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="invoice_watermark_paid"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <FormLabel className="mb-0">Watermark "LUNAS" pada Invoice Lunas</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Color & Font Settings */}
+              <div className="space-y-4 pb-4 border-b">
+                <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Warna & Font Dokumen</h3>
+
+                <FormField
+                  control={form.control}
+                  name="invoice_accent_color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Warna Aksen Invoice</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input type="color" {...field} className="h-10 w-20" />
+                        </FormControl>
+                        <Input type="text" value={field.value} onChange={field.onChange} className="flex-1" />
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pdf_default_font"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Font Default PDF</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="helvetica">Helvetica (Modern)</SelectItem>
+                          <SelectItem value="times">Times New Roman (Formal)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Manifest Settings */}
+              <div className="space-y-4 pb-4 border-b">
+                <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="h-4 w-4" />Layout Manifest</h3>
+
+                <FormField
+                  control={form.control}
+                  name="manifest_layout"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tata Letak Manifest PDF</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="compact">Kompak — lebih banyak nama per halaman</SelectItem>
+                          <SelectItem value="detailed">Detail — nama + data lengkap</SelectItem>
+                          <SelectItem value="full">Penuh — termasuk foto & QR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">Berlaku saat mencetak manifest keberangkatan</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               {/* Color Settings */}
               <div className="space-y-4 pb-4 border-b">
-                <h3 className="font-semibold text-sm">Pengaturan Warna Dokumen</h3>
+                <h3 className="font-semibold text-sm">Warna E-Tiket & Sertifikat</h3>
 
                 <FormField
                   control={form.control}

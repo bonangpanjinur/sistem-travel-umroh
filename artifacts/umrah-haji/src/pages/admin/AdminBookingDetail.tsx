@@ -330,6 +330,13 @@ export default function AdminBookingDetail() {
       paidAmount,
       remainingAmount,
       paymentStatus: paymentStatus as 'paid' | 'partial' | 'pending',
+      packageName: pkg?.name || undefined,
+      departureDate: departure?.departure_date ? formatDate(departure.departure_date) : undefined,
+      passengerSummary: {
+        adult: (booking as any).adult_count || undefined,
+        child: (booking as any).child_count || undefined,
+        infant: (booking as any).infant_count || undefined,
+      },
       notes: booking.notes || undefined,
       bankInfo: bank ? {
         bankName: bank.bank_name,

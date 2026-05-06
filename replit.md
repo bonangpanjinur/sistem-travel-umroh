@@ -7,7 +7,6 @@ A full-stack Umrah & Haji travel management platform for Indonesian travel agent
 - `pnpm --filter @workspace/umrah-haji run dev` — run the frontend (port from env)
 - `pnpm --filter @workspace/api-server run dev` — run the API server
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas
 - Required env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase project credentials (frontend)
 - Required env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — Supabase service credentials (backend)
 
@@ -17,8 +16,7 @@ A full-stack Umrah & Haji travel management platform for Indonesian travel agent
 - Frontend: React + Vite, Tailwind CSS v3, shadcn/ui, react-router-dom v7, @tanstack/react-query
 - Backend: Express 5, Pino logger
 - Database: Supabase (Postgres), accessed via REST API from backend
-- Validation: Zod, Orval codegen from OpenAPI spec
-- Auth: Supabase Auth (email/password, social)
+- Auth: Supabase Auth (email/password)
 
 ## Where things live
 
@@ -26,44 +24,37 @@ A full-stack Umrah & Haji travel management platform for Indonesian travel agent
 - `artifacts/api-server/` — Express API server (previewPath: `/api`)
 - `artifacts/umrah-haji/src/integrations/supabase/` — Supabase client + generated DB types
 - `artifacts/umrah-haji/src/routes/` — Route modules (Admin, Agent, Customer, Operational, Public)
-- `artifacts/api-server/src/routes/v1/` — Backend API routes (packages, departures, leads)
-- `lib/api-spec/openapi.yaml` — OpenAPI source of truth
-- `artifacts/umrah-haji/tailwind.config.ts` — Tailwind theme
-- `artifacts/umrah-haji/supabase/migrations/` — SQL migrations (run in Supabase dashboard)
+- `artifacts/umrah-haji/src/lib/migrations/` — SQL migration files (run in Supabase SQL Editor)
+- `artifacts/umrah-haji/src/lib/document-generator.ts` — PDF generators (invoice, manifest, e-ticket, certificate)
+- `artifacts/umrah-haji/src/components/admin/DocumentSettingsForm.tsx` — PDF design settings panel
 
 ## Architecture decisions
 
 - Multi-tenant SPA: tenant identity resolved dynamically from domain/subdomain at runtime
-- Supabase used for auth + DB; backend uses service-role key for privileged REST calls
-- API keys for public endpoints (leads, packages, departures) via `X-API-Key` header
-- Frontend uses BrowserRouter with `basename={import.meta.env.BASE_URL}` for Replit proxy compatibility
-- All Supabase calls gracefully degrade when credentials are missing (demo mode)
-- `customer_mahrams` table supports multiple mahrams per jamaah; falls back gracefully if migration not yet run (error code 42P01 handled)
+- Supabase used for auth + DB; all calls degrade gracefully in demo mode (no credentials)
+- `customer_mahrams` supports multiple mahrams per jamaah (suami/istri/anak/ayah/ibu/saudara) with `relation_category` column (added via `multi-mahram-rooming.sql`)
+- `useDynamicMenus` falls back to `ROLE_DEFAULT_PERMISSIONS` when DB is unreachable so sidebar always works
+- `role_permissions` table drives the sidebar via `get_user_effective_permissions_v2` RPC; AdminRoleManagement has "Terapkan Default" button
 
 ## Product
 
 - Public landing page with package listings, departure schedule, savings program registration
 - Jamaah portal: digital ID, itinerary, documents, payment history, doa & panduan
 - Admin dashboard: full CRM (customers, packages, departures, payments, agents, branches)
-- Departure detail: Kamar tab (DepartureRoomingTab) connects live to rooming data in DB
-- Operational tools: manifest, check-in QR, rooming list (multi-select mahram-aware assign), bus/luggage management
-- Invoice PDF: redesigned with status badge (LUNAS/CICILAN/BELUM LUNAS), paid/remaining amounts, dark header
-- Customer edit dialog: new "Mahram" tab with multi-mahram list management (customer_mahrams table)
-- Agent portal: commission, customer management, notifications
-
-## User preferences
-
-_Populate as you build._
+- Departure detail: jamaah tab → "Kelola Kamar" switches to kamar tab, "Buka Rooming" opens /admin/room-assignments
+- Operational rooming: assign dialog shows multi-mahram tags + "+ Keluarga" auto-select button
+- Invoice PDF: LUNAS watermark, package/departure info bar, passenger summary, status badge
+- AdminBookingCreate: PassengerCard shows mahram relationships (from customer_mahrams)
+- AdminSettings → Tampilan: merged with DocumentSettingsForm (invoice color, manifest layout, font, watermark)
+- AdminRoleManagement: "Terapkan Default" seeds role_permissions from ROLE_DEFAULT_PERMISSIONS
 
 ## Gotchas
 
-- Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` secrets for full functionality
-- Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for backend API routes
+- Run `artifacts/umrah-haji/src/lib/migrations/multi-mahram-rooming.sql` in Supabase SQL Editor for multi-mahram + rooming enhancements
 - Without Supabase credentials, the app runs in demo mode with static sample data
-- `react-hook-form 7.51.0` has a peer warning with React 19 — safe to ignore, works correctly
-- Run `supabase/migrations/20260506000001_customer_mahrams.sql` in Supabase SQL Editor for multi-mahram feature to persist
+- `react-hook-form 7.51.0` has a peer warning with React 19 — safe to ignore
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure
+- See `artifacts/umrah-haji/src/lib/admin-menu-registry.ts` for ROLE_DEFAULT_PERMISSIONS and RECOMMENDED_MENUS
 - Supabase types: `artifacts/umrah-haji/src/integrations/supabase/types.ts`

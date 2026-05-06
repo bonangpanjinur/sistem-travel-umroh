@@ -417,7 +417,7 @@ export default function AdminSettings() {
           {/* TAMPILAN */}
           {activeSection === "appearance" && (
             <>
-              <SectionHead icon={Palette} title="Tampilan & Branding" desc="Warna tema dan identitas visual sistem" />
+              <SectionHead icon={Palette} title="Tampilan & Branding" desc="Warna tema, identitas visual, dan desain dokumen" />
               <Card>
                 <CardContent className="pt-6 space-y-6">
                   <div>
@@ -452,6 +452,26 @@ export default function AdminSettings() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="font-semibold text-sm">Pengaturan Tampilan Lanjutan</p>
+                      <p className="text-xs text-muted-foreground">
+                        Logo perusahaan, banner carousel, template landing page, tema custom, font & branding lengkap
+                      </p>
+                    </div>
+                    <Button size="sm" asChild>
+                      <a href="/admin/appearance">Buka</a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Separator />
+              <SectionHead icon={FileText} title="Desain Dokumen PDF" desc="Konfigurasi tampilan invoice, e-tiket, manifest, dan sertifikat" />
+              <DocumentSettingsForm />
             </>
           )}
 

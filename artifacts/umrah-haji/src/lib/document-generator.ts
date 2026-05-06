@@ -424,6 +424,9 @@ interface InvoiceDataExtended extends InvoiceData {
   paidAmount?: number;
   remainingAmount?: number;
   paymentStatus?: 'paid' | 'partial' | 'pending';
+  packageName?: string;
+  departureDate?: string;
+  passengerSummary?: { adult?: number; child?: number; infant?: number };
 }
 
 // Generate Invoice
@@ -527,7 +530,53 @@ export function generateInvoice(
   
   y += 36;
   doc.setTextColor(0, 0, 0);
-  
+
+  // ── Package / Departure Info (optional) ──────────────────────────────
+  if (data.packageName || data.departureDate) {
+    doc.setFillColor(240, 253, 244); // light green
+    doc.setDrawColor(134, 239, 172);
+    doc.setLineWidth(0.3);
+    doc.rect(14, y, pageWidth - 28, 13, 'FD');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 101, 52);
+    doc.text('PAKET', 18, y + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    const pkgText = [data.packageName, data.departureDate ? `Berangkat: ${data.departureDate}` : ''].filter(Boolean).join('  ·  ');
+    doc.text(pkgText, 38, y + 5);
+
+    if (data.passengerSummary) {
+      const ps = data.passengerSummary;
+      const parts = [];
+      if (ps.adult) parts.push(`${ps.adult} Dewasa`);
+      if (ps.child) parts.push(`${ps.child} Anak`);
+      if (ps.infant) parts.push(`${ps.infant} Bayi`);
+      if (parts.length) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(parts.join(' + '), 18, y + 10);
+      }
+    }
+
+    y += 19;
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // ── LUNAS watermark stamp (when paid) ────────────────────────────────
+  if (payStatus === 'paid') {
+    doc.saveGraphicsState();
+    doc.setGState(doc.GState({ opacity: 0.08 }));
+    doc.setFontSize(72);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 163, 74);
+    doc.text('LUNAS', pageWidth / 2, 180, { align: 'center', angle: 35 });
+    doc.restoreGraphicsState();
+    doc.setTextColor(0, 0, 0);
+  }
+
   // ── Items Table ──────────────────────────────────────────────────────
   const tableData = data.items.map((item, index) => [
     (index + 1).toString(),

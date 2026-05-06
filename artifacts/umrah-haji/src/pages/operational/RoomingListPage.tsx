@@ -220,6 +220,52 @@ export default function RoomingListPage() {
     },
   });
 
+  // Fetch multi-mahram data for unassigned passengers
+  const { data: allMahrams = [] } = useQuery({
+    queryKey: ['all-customer-mahrams', selectedDepartureId],
+    enabled: !!selectedDepartureId,
+    queryFn: async () => {
+      if (!unassignedPassengers || unassignedPassengers.length === 0) return [];
+      const customerIds = (unassignedPassengers || [])
+        .map(p => p.customer_id)
+        .filter(Boolean);
+      if (customerIds.length === 0) return [];
+      const { data, error } = await (supabase.from('customer_mahrams' as any) as any)
+        .select('customer_id, mahram_name, mahram_relation, relation_category')
+        .in('customer_id', customerIds);
+      if (error) return [];
+      return (data as any[]) || [];
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const mahramsByCustomer = (allMahrams as any[]).reduce<Record<string, any[]>>((acc, m) => {
+    if (!acc[m.customer_id]) acc[m.customer_id] = [];
+    acc[m.customer_id].push(m);
+    return acc;
+  }, {});
+
+  const relationLabel = (cat: string) => {
+    const map: Record<string, string> = { suami: 'Suami', istri: 'Istri', anak: 'Anak', ayah: 'Ayah', ibu: 'Ibu', saudara: 'Saudara', kakek: 'Kakek', nenek: 'Nenek', cucu: 'Cucu', lainnya: 'Mahram' };
+    return map[cat] || cat;
+  };
+
+  // Auto-select family: pick all unassigned passengers who are mahrams of this customer
+  const autoSelectFamily = (customerId: string) => {
+    const myMahrams = mahramsByCustomer[customerId] || [];
+    const mahramNames = myMahrams.map((m: any) => (m.mahram_name || '').toLowerCase());
+    const next = new Set(selectedPassengerIds);
+    next.add(customerId);
+    (unassignedPassengers || []).forEach(p => {
+      if (!p.customer_id) return;
+      const name = (p.customer?.full_name || '').toLowerCase();
+      if (mahramNames.some(mn => mn && name.includes(mn.split(' ')[0]))) {
+        next.add(p.customer_id);
+      }
+    });
+    setSelectedPassengerIds(next);
+  };
+
   const selectedDeparture = departures?.find(d => d.id === selectedDepartureId);
   const hotels = selectedDeparture ? [
     selectedDeparture.hotel_makkah,
@@ -713,39 +759,59 @@ export default function RoomingListPage() {
                   {unassignedPassengers.map((p) => {
                     const isChecked = selectedPassengerIds.has(p.customer_id);
                     const gender = p.customer?.gender;
-                    const mahramName = p.customer?.mahram_name;
-                    const mahramRel = p.customer?.mahram_relation;
+                    const mahrams = mahramsByCustomer[p.customer_id] || [];
+                    const legacyMahram = p.customer?.mahram_name;
                     return (
-                      <label
+                      <div
                         key={p.customer_id}
-                        className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${isChecked ? 'bg-primary/5 border-primary/40' : 'hover:bg-muted/50'}`}
+                        className={`rounded-lg border transition-colors ${isChecked ? 'bg-primary/5 border-primary/40' : 'hover:bg-muted/50'}`}
                       >
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            const next = new Set(selectedPassengerIds);
-                            if (checked) next.add(p.customer_id);
-                            else next.delete(p.customer_id);
-                            setSelectedPassengerIds(next);
-                          }}
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium leading-tight">{p.customer?.full_name || '-'}</span>
-                            {gender && (
-                              <Badge variant={gender === 'male' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
-                                {gender === 'male' ? 'L' : 'P'}
-                              </Badge>
-                            )}
+                        <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer w-full">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(selectedPassengerIds);
+                              if (checked) next.add(p.customer_id);
+                              else next.delete(p.customer_id);
+                              setSelectedPassengerIds(next);
+                            }}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium leading-tight">{p.customer?.full_name || '-'}</span>
+                              {gender && (
+                                <Badge variant={gender === 'male' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+                                  {gender === 'male' ? 'L' : 'P'}
+                                </Badge>
+                              )}
+                            </div>
+                            {mahrams.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {mahrams.map((m: any, i: number) => (
+                                  <span key={i} className="text-[10px] bg-emerald-100 text-emerald-800 rounded-full px-1.5 py-0.5">
+                                    {relationLabel(m.relation_category || m.mahram_relation || 'mahram')}: {m.mahram_name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : legacyMahram ? (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Mahram: {legacyMahram} ({p.customer?.mahram_relation})
+                              </p>
+                            ) : null}
                           </div>
-                          {mahramName && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              Mahram: {mahramName} ({mahramRel})
-                            </p>
+                          {mahrams.length > 0 && (
+                            <button
+                              type="button"
+                              title="Pilih sekeluarga"
+                              onClick={(e) => { e.preventDefault(); autoSelectFamily(p.customer_id); }}
+                              className="text-[10px] text-emerald-700 hover:text-emerald-900 font-medium shrink-0 mt-0.5 border border-emerald-200 rounded px-1.5 py-0.5 hover:bg-emerald-50"
+                            >
+                              + Keluarga
+                            </button>
                           )}
-                        </div>
-                      </label>
+                        </label>
+                      </div>
                     );
                   })}
                 </div>

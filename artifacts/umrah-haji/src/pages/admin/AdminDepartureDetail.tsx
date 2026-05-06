@@ -50,6 +50,8 @@ import {
   Bug,
   CheckCircle2,
   ChevronDown,
+  BedDouble,
+  ExternalLink,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -1012,6 +1014,21 @@ export default function AdminDepartureDetail() {
                     <Printer className="h-4 w-4 mr-2" />
                     Rooming List
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab("kamar")}
+                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <BedDouble className="h-4 w-4 mr-2" />
+                    Kelola Kamar
+                  </Button>
+                  <Link to={`/admin/room-assignments?departure=${id}`}>
+                    <Button size="sm" variant="ghost" className="text-primary">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Buka Rooming
+                    </Button>
+                  </Link>
                 </div>
               </div>
               {passengerStats.total > 0 && (

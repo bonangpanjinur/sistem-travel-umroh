@@ -71,6 +71,68 @@ const ROOM_INFO: Record<RoomType, { label: string; occupancy: number; desc: stri
   single: { label: 'Single', occupancy: 1, desc: '1 orang/kamar', icon: BedDouble },
 };
 
+// ── Passenger Card with Mahram Info ────────────────────────────────────────
+function PassengerCard({ passenger: p, idx, setPassengers }: {
+  passenger: { full_name: string; phone?: string; passenger_type: string; customer_id?: string };
+  idx: number;
+  setPassengers: React.Dispatch<React.SetStateAction<any[]>>;
+}) {
+  const { data: mahrams = [] } = useQuery({
+    queryKey: ['customer-mahrams', p.customer_id],
+    enabled: !!p.customer_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_mahrams' as any)
+        .select('mahram_name, mahram_relation, relation_category')
+        .eq('customer_id', p.customer_id);
+      if (error) return [];
+      return (data as any[]) || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const relationLabel = (cat: string) => {
+    const map: Record<string, string> = { suami: 'Suami', istri: 'Istri', anak: 'Anak', ayah: 'Ayah', ibu: 'Ibu', saudara: 'Saudara', kakek: 'Kakek', nenek: 'Nenek', cucu: 'Cucu', lainnya: 'Mahram' };
+    return map[cat] || cat;
+  };
+
+  return (
+    <div className="bg-primary/5 rounded-xl border border-primary/10 overflow-hidden">
+      <div className="flex items-center justify-between p-4">
+        <div className="space-y-0.5">
+          <p className="font-black text-base text-primary">{p.full_name}</p>
+          <p className="text-xs text-muted-foreground font-medium">{p.phone || 'Tanpa nomor telepon'}</p>
+        </div>
+        <Select
+          value={p.passenger_type}
+          onValueChange={v => setPassengers(prev => prev.map((pp: any, i: number) => i === idx ? { ...pp, passenger_type: v } : pp))}
+        >
+          <SelectTrigger className="w-[120px] h-10 text-xs font-bold bg-background rounded-lg border-2">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="adult">Dewasa</SelectItem>
+            <SelectItem value="child">Anak-anak</SelectItem>
+            <SelectItem value="infant">Bayi</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {mahrams.length > 0 && (
+        <div className="px-4 pb-3 pt-0 border-t border-primary/10 bg-emerald-50/50">
+          <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1.5">Mahram</p>
+          <div className="flex flex-wrap gap-1.5">
+            {mahrams.map((m: any, i: number) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-800 rounded-full px-2 py-0.5 font-medium">
+                {m.relation_category ? relationLabel(m.relation_category) : m.mahram_relation || 'Mahram'}: {m.mahram_name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminBookingCreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -775,25 +837,11 @@ export default function AdminBookingCreate() {
                                 </Button>
                               </div>
                             ) : (
-                              <div className="flex items-center justify-between bg-primary/5 p-4 rounded-xl border border-primary/10">
-                                <div className="space-y-1">
-                                  <p className="font-black text-base text-primary">{p.full_name}</p>
-                                  <p className="text-xs text-muted-foreground font-medium">{p.phone || 'Tanpa nomor telepon'}</p>
-                                </div>
-                                <Select
-                                  value={p.passenger_type}
-                                  onValueChange={v => setPassengers(prev => prev.map((pp, i) => i === idx ? { ...pp, passenger_type: v } : pp))}
-                                >
-                                  <SelectTrigger className="w-[120px] h-10 text-xs font-bold bg-background rounded-lg border-2">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="adult">Dewasa</SelectItem>
-                                    <SelectItem value="child">Anak-anak</SelectItem>
-                                    <SelectItem value="infant">Bayi</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                              <PassengerCard
+                                passenger={p}
+                                idx={idx}
+                                setPassengers={setPassengers}
+                              />
                             )}
                           </div>
                         </div>
