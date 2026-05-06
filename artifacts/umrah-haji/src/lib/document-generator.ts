@@ -402,43 +402,108 @@ Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerjasamanya, k
   return doc;
 }
 
-// Generate Invoice
+// Generate Invoice — redesigned with professional Islamic travel theme
 export function generateInvoice(
   data: InvoiceData,
   company: CompanyInfo = defaultCompanyInfo
 ): jsPDF {
   const doc = new jsPDF();
-  let y = addLetterhead(doc, company);
-  
   const pageWidth = doc.internal.pageSize.width;
-  
-  // Invoice Title
-  doc.setFontSize(18);
+  const pageHeight = doc.internal.pageSize.height;
+
+  // ── COLOR PALETTE ──
+  const GREEN_DARK:  [number, number, number] = [22, 101, 52];   // emerald-800
+  const GREEN_MID:   [number, number, number] = [34, 139, 75];   // emerald-600
+  const GREEN_LIGHT: [number, number, number] = [209, 250, 229]; // emerald-100
+  const GOLD:        [number, number, number] = [202, 138, 4];   // amber-600
+  const DARK_TEXT:   [number, number, number] = [17, 24, 39];
+  const MUTED:       [number, number, number] = [107, 114, 128];
+  const WHITE:       [number, number, number] = [255, 255, 255];
+
+  // ── HEADER BAND ──
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, 0, pageWidth, 38, 'F');
+
+  // Decorative accent stripe
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 36, pageWidth, 3, 'F');
+
+  // Company name
+  doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVOICE', pageWidth / 2, y, { align: 'center' });
-  y += 15;
-  
-  // Invoice details (left) and Customer (right)
+  doc.setFontSize(16);
+  doc.text(company.name, 14, 15);
+
+  // Company subtitle
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(company.address, 14, 22);
+  doc.text(`Telp: ${company.phone}  |  Email: ${company.email}${company.website ? '  |  ' + company.website : ''}`, 14, 28);
+
+  // INVOICE label top-right
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(...WHITE);
+  doc.text('INVOICE', pageWidth - 14, 22, { align: 'right' });
+
+  // ── TWO-COLUMN: INVOICE INFO (left) + BILLED TO (right) ──
+  let y = 50;
+  doc.setTextColor(...DARK_TEXT);
+
+  // Left column — invoice metadata
+  const leftX = 14;
+  const colW = (pageWidth - 28) / 2 - 5;
+
+  // Light box for invoice info
+  doc.setFillColor(...GREEN_LIGHT);
+  doc.setDrawColor(...GREEN_MID);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(leftX, y - 4, colW, 34, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...GREEN_DARK);
+  doc.text('NOMOR INVOICE', leftX + 4, y + 2);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...DARK_TEXT);
+  doc.text(data.invoiceNumber, leftX + 4, y + 10);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MUTED);
+  doc.text(`Tanggal: ${format(data.invoiceDate, 'd MMMM yyyy', { locale: id })}`, leftX + 4, y + 18);
+  doc.text(`Jatuh Tempo: ${format(data.dueDate, 'd MMMM yyyy', { locale: id })}`, leftX + 4, y + 25);
+
+  // Right column — billed to
+  const rightX = leftX + colW + 10;
+  const rightW = colW;
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(rightX, y - 4, rightW, 34, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...GREEN_DARK);
+  doc.text('DITAGIHKAN KEPADA', rightX + 4, y + 2);
+
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
+  doc.setTextColor(...DARK_TEXT);
+  doc.text(data.customer.name, rightX + 4, y + 10);
+
   doc.setFont('helvetica', 'normal');
-  
-  // Left side - Invoice info
-  doc.text(`No. Invoice: ${data.invoiceNumber}`, 14, y);
-  doc.text(`Tanggal: ${format(data.invoiceDate, 'd MMMM yyyy', { locale: id })}`, 14, y + 6);
-  doc.text(`Jatuh Tempo: ${format(data.dueDate, 'd MMMM yyyy', { locale: id })}`, 14, y + 12);
-  
-  // Right side - Customer info
-  doc.setFont('helvetica', 'bold');
-  doc.text('Kepada:', pageWidth - 80, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(data.customer.name, pageWidth - 80, y + 6);
-  const addressLines = doc.splitTextToSize(data.customer.address, 65);
-  doc.text(addressLines, pageWidth - 80, y + 12);
-  doc.text(`Telp: ${data.customer.phone}`, pageWidth - 80, y + 12 + addressLines.length * 5);
-  
-  y += 35;
-  
-  // Items table
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MUTED);
+  const addrLines = doc.splitTextToSize(data.customer.address, rightW - 8);
+  doc.text(addrLines.slice(0, 1), rightX + 4, y + 18);
+  doc.text(`Telp: ${data.customer.phone}${data.customer.email ? '  |  ' + data.customer.email : ''}`, rightX + 4, y + 25);
+
+  y += 44;
+
+  // ── ITEMS TABLE ──
   const tableData = data.items.map((item, index) => [
     (index + 1).toString(),
     item.description,
@@ -446,78 +511,167 @@ export function generateInvoice(
     formatCurrency(item.unitPrice),
     formatCurrency(item.total)
   ]);
-  
+
   autoTable(doc, {
     startY: y,
-    head: [['No', 'Deskripsi', 'Qty', 'Harga Satuan', 'Total']],
+    head: [['No', 'Deskripsi Layanan', 'Qty', 'Harga Satuan', 'Total']],
     body: tableData,
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+    styles: {
+      fontSize: 9,
+      cellPadding: 4,
+      lineColor: [226, 232, 240],
+      lineWidth: 0.3,
+      textColor: DARK_TEXT,
+    },
+    headStyles: {
+      fillColor: GREEN_DARK,
+      textColor: WHITE,
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
+    alternateRowStyles: {
+      fillColor: [249, 250, 251],
+    },
     columnStyles: {
-      0: { cellWidth: 15, halign: 'center' },
+      0: { cellWidth: 12, halign: 'center' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 35, halign: 'right' },
-      4: { cellWidth: 35, halign: 'right' }
-    }
+      2: { cellWidth: 18, halign: 'center' },
+      3: { cellWidth: 38, halign: 'right' },
+      4: { cellWidth: 38, halign: 'right', fontStyle: 'bold' },
+    },
   });
-  
-  // @ts-ignore - lastAutoTable is added by jspdf-autotable
-  y = doc.lastAutoTable.finalY + 10;
-  
-  // Totals
-  const totalsX = pageWidth - 80;
-  doc.text('Subtotal:', totalsX, y);
-  doc.text(formatCurrency(data.subtotal), pageWidth - 14, y, { align: 'right' });
-  y += 6;
-  
+
+  // @ts-ignore
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── TOTALS BOX (right-aligned) ──
+  const totalsBoxW = 90;
+  const totalsBoxX = pageWidth - 14 - totalsBoxW;
+  let totalsY = y;
+
+  // Calculate box height
+  const totalLines = 1 + (data.discount ? 1 : 0) + (data.tax ? 1 : 0) + 1;
+  const boxH = totalLines * 8 + 14;
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(...GREEN_MID);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(totalsBoxX, totalsY, totalsBoxW, boxH, 2, 2, 'FD');
+
+  totalsY += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...DARK_TEXT);
+
+  doc.text('Subtotal:', totalsBoxX + 5, totalsY);
+  doc.text(formatCurrency(data.subtotal), totalsBoxX + totalsBoxW - 5, totalsY, { align: 'right' });
+  totalsY += 8;
+
   if (data.discount) {
-    doc.text('Diskon:', totalsX, y);
-    doc.text(`-${formatCurrency(data.discount)}`, pageWidth - 14, y, { align: 'right' });
-    y += 6;
+    doc.setTextColor(220, 38, 38);
+    doc.text('Diskon:', totalsBoxX + 5, totalsY);
+    doc.text(`- ${formatCurrency(data.discount)}`, totalsBoxX + totalsBoxW - 5, totalsY, { align: 'right' });
+    doc.setTextColor(...DARK_TEXT);
+    totalsY += 8;
   }
-  
+
   if (data.tax) {
-    doc.text('PPN (11%):', totalsX, y);
-    doc.text(formatCurrency(data.tax), pageWidth - 14, y, { align: 'right' });
-    y += 6;
+    doc.text('PPN (11%):', totalsBoxX + 5, totalsY);
+    doc.text(formatCurrency(data.tax), totalsBoxX + totalsBoxW - 5, totalsY, { align: 'right' });
+    totalsY += 8;
   }
-  
+
+  // Total row with green background
+  doc.setFillColor(...GREEN_DARK);
+  doc.roundedRect(totalsBoxX, totalsY - 3, totalsBoxW, 12, 0, 0, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('TOTAL:', totalsX, y + 3);
-  doc.text(formatCurrency(data.total), pageWidth - 14, y + 3, { align: 'right' });
-  
-  y += 20;
-  
-  // Bank info
+  doc.setFontSize(10);
+  doc.setTextColor(...WHITE);
+  doc.text('TOTAL', totalsBoxX + 5, totalsY + 5);
+  doc.text(formatCurrency(data.total), totalsBoxX + totalsBoxW - 5, totalsY + 5, { align: 'right' });
+
+  y = y + boxH + 10;
+
+  // ── BANK INFO + NOTES (two-column) ──
   const bankInfo = data.bankInfo;
   if (bankInfo) {
-    doc.setFontSize(10);
+    doc.setFillColor(...GREEN_LIGHT);
+    doc.setDrawColor(...GREEN_MID);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(14, y, pageWidth - 28, 28, 2, 2, 'FD');
+
     doc.setFont('helvetica', 'bold');
-    doc.text('Pembayaran dapat ditransfer ke:', 14, y);
-    y += 6;
+    doc.setFontSize(8);
+    doc.setTextColor(...GREEN_DARK);
+    doc.text('INFORMASI PEMBAYARAN', 20, y + 7);
+
     doc.setFont('helvetica', 'normal');
-    doc.text(`Bank: ${bankInfo.bankName}`, 14, y);
-    y += 5;
-    doc.text(`No. Rekening: ${bankInfo.accountNumber}`, 14, y);
-    y += 5;
-    doc.text(`Atas Nama: ${bankInfo.accountName}`, 14, y);
+    doc.setFontSize(9);
+    doc.setTextColor(...DARK_TEXT);
+    doc.text(`Bank ${bankInfo.bankName}`, 20, y + 15);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`No. Rek: ${bankInfo.accountNumber}`, 20, y + 22);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(`A/N: ${bankInfo.accountName}`, pageWidth / 2, y + 15);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text('Mohon konfirmasi pembayaran setelah transfer.', pageWidth / 2, y + 22);
+
+    y += 35;
   }
-  
+
   // Notes
   if (data.notes) {
-    y += 15;
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...DARK_TEXT);
     doc.text('Catatan:', 14, y);
     y += 5;
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(...MUTED);
     const noteLines = doc.splitTextToSize(data.notes, pageWidth - 28);
     doc.text(noteLines, 14, y);
+    y += noteLines.length * 5 + 5;
   }
-  
-  addFooter(doc, 1, 1);
-  
+
+  // ── SIGNATURE AREA ──
+  const sigY = Math.max(y + 10, pageHeight - 55);
+  doc.setTextColor(...MUTED);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(
+    `${company.city || 'Jakarta'}, ${format(data.invoiceDate, 'd MMMM yyyy', { locale: id })}`,
+    pageWidth - 14,
+    sigY,
+    { align: 'right' }
+  );
+  doc.text('Hormat kami,', pageWidth - 14, sigY + 6, { align: 'right' });
+
+  // Signature box
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(pageWidth - 80, sigY + 10, 66, 22, 1, 1, 'D');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...GREEN_DARK);
+  doc.text(company.name, pageWidth - 14, sigY + 26, { align: 'right' });
+
+  // ── FOOTER ──
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...WHITE);
+  doc.text(
+    `Dicetak pada: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}`,
+    14,
+    pageHeight - 4.5
+  );
+  doc.text('Halaman 1 dari 1', pageWidth - 14, pageHeight - 4.5, { align: 'right' });
+
   return doc;
 }
 

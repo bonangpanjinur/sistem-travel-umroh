@@ -780,129 +780,16 @@ export default function AdminRoomAssignments() {
             </div>
           )}
 
-          {/* Other tabs: general table */}
+          {/* Other tabs: grouped-by-room view for triple/quad/single */}
           {selectedRoomType !== 'double' && (
-            <Card>
-              <CardContent className="pt-6">
-                {loadingPassengers ? (
-                  <p className="text-muted-foreground py-8 text-center">Memuat...</p>
-                ) : withAdditionalFilters.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Belum ada jamaah.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nama</TableHead>
-                        <TableHead>Gender</TableHead>
-                        <TableHead>Tipe Kamar</TableHead>
-                        <TableHead>No. Kamar</TableHead>
-                        <TableHead>Teman Sekamar</TableHead>
-                        <TableHead>Kode Booking</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {withAdditionalFilters.map(p => {
-                        const roommate = p.roommate_id ? passengers?.find(x => x.id === p.roommate_id) : null;
-                        // Candidates: same room_preference + (same gender ATAU mahram = satu booking_id ATAU pasangan suami-istri)
-                        // not self + not already paired with someone else
-                        const isMahramByBooking = (other: any) =>
-                          other.booking?.id && p.booking?.id && other.booking.id === p.booking.id;
-                        const isSpouseByName = (other: any) => {
-                          const otherMarried = other.customer?.marital_status === 'married';
-                          const selfMarried = p.customer?.marital_status === 'married';
-                          if (!otherMarried || !selfMarried) return false;
-                          const otherSpouse = other.customer?.spouse_name?.toLowerCase() || '';
-                          const myName = p.customer?.full_name?.toLowerCase() || '';
-                          const mySpouse = p.customer?.spouse_name?.toLowerCase() || '';
-                          const otherName = other.customer?.full_name?.toLowerCase() || '';
-                          const myFirst = p.customer?.full_name?.split(' ')[0]?.toLowerCase() || '';
-                          const otherFirst = other.customer?.full_name?.split(' ')[0]?.toLowerCase() || '';
-                          return otherSpouse.includes(myFirst) || mySpouse.includes(otherFirst);
-                        };
-                        const candidates = (passengers || []).filter(x =>
-                          x.id !== p.id &&
-                          x.room_preference === p.room_preference &&
-                          (
-                            x.customer?.gender === p.customer?.gender ||
-                            isMahramByBooking(x) ||
-                            isSpouseByName(x)
-                          ) &&
-                          (!x.roommate_id || x.roommate_id === p.id)
-                        );
-                        // Highlight spouse if married
-                        const spouseMatch = candidates.find(c => {
-                          const otherIsMarried = c.customer?.marital_status === 'married';
-                          const selfIsMarried = p.customer?.marital_status === 'married';
-                          if (!otherIsMarried || !selfIsMarried) return false;
-                          // Check if spouse name matches
-                          const spouseName = c.customer?.spouse_name?.toLowerCase() || '';
-                          const myName = p.customer?.full_name?.toLowerCase() || '';
-                          return spouseName.includes(p.customer?.full_name?.split(' ')[0]?.toLowerCase() || '') ||
-                            myName.includes(c.customer?.full_name?.split(' ')[0]?.toLowerCase() || '');
-                        });
-                        return (
-                          <TableRow key={p.id}>
-                            <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
-                            <TableCell>
-                              <Badge variant={p.customer?.gender === 'male' ? 'default' : 'secondary'}>
-                                {GENDER_LABELS[p.customer?.gender || ''] || '-'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell><Badge variant="outline">{ROOM_TYPE_LABELS[p.room_preference || ''] || '-'}</Badge></TableCell>
-                            <TableCell>
-                              <RoomNumberInput
-                                passengerId={p.id}
-                                currentValue={p.room_number || ''}
-                                onSave={(val) => updateRoomMutation.mutate({ passengerId: p.id, roomNumber: val })}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={p.roommate_id || 'none'}
-                                onValueChange={(val) => {
-                                  if (val === 'none') {
-                                    if (p.roommate_id) {
-                                      setUnpairTarget(p.id);
-                                      setUnpairReason('');
-                                      setUnpairReasonOpen(true);
-                                    }
-                                  } else {
-                                    pairMutation.mutate({ passengerId: p.id, roommateId: val, roomNumber: p.room_number || undefined });
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="h-8 min-w-[180px] text-xs">
-                                  <SelectValue placeholder="Pilih teman sekamar" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">— Belum dipasangkan —</SelectItem>
-                                  {candidates.map(c => {
-                                    const isSpouse = c.customer?.marital_status === 'married' && 
-                                      (c.customer?.spouse_name?.toLowerCase().includes(p.customer?.full_name?.split(' ')[0]?.toLowerCase() || '') ||
-                                       p.customer?.spouse_name?.toLowerCase().includes(c.customer?.full_name?.split(' ')[0]?.toLowerCase() || ''));
-                                    const isFamily = c.booking?.id && p.booking?.id && c.booking.id === p.booking.id;
-                                    const isCrossGender = c.customer?.gender !== p.customer?.gender;
-                                    return (
-                                      <SelectItem key={c.id} value={c.id}>
-                                        {c.customer?.full_name}
-                                        {isSpouse && <span className="ml-2 text-primary">💑</span>}
-                                        {!isSpouse && isFamily && isCrossGender && <span className="ml-2 text-primary">👨‍👩‍👧 Mahram</span>}
-                                        {!isSpouse && isFamily && !isCrossGender && <span className="ml-2 text-muted-foreground">(Satu booking)</span>}
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell><Badge variant="outline">{p.booking?.booking_code}</Badge></TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            <GroupedRoomView
+              passengers={withAdditionalFilters}
+              allPassengers={passengers || []}
+              loading={loadingPassengers}
+              onSaveRoom={(passengerId, val) => updateRoomMutation.mutate({ passengerId, roomNumber: val })}
+              onPair={(passengerId, roommateId, roomNumber) => pairMutation.mutate({ passengerId, roommateId, roomNumber })}
+              onUnpair={(passengerId) => { setUnpairTarget(passengerId); setUnpairReason(''); setUnpairReasonOpen(true); }}
+            />
           )}
         </>
       )}
@@ -1121,6 +1008,258 @@ function PairingDialog({ open, onOpenChange, selectedPassenger, unpairedPassenge
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── GroupedRoomView: shows passengers grouped by room_number for triple/quad/single ──
+// Mahram = same booking_id (family). For triple/quad, multiple roommates share same room_number.
+interface GroupedRoomViewProps {
+  passengers: Passenger[];
+  allPassengers: Passenger[];
+  loading: boolean;
+  onSaveRoom: (passengerId: string, val: string) => void;
+  onPair: (passengerId: string, roommateId: string, roomNumber?: string) => void;
+  onUnpair: (passengerId: string) => void;
+}
+
+function GroupedRoomView({ passengers, allPassengers, loading, onSaveRoom, onPair, onUnpair }: GroupedRoomViewProps) {
+  const [addingRoomForId, setAddingRoomForId] = useState<string | null>(null);
+  const [roomInput, setRoomInput] = useState('');
+
+  if (loading) return <p className="text-muted-foreground py-8 text-center">Memuat...</p>;
+  if (passengers.length === 0) return <p className="text-center text-muted-foreground py-8">Belum ada jamaah.</p>;
+
+  // Group by room_number; those without room_number go into "unassigned"
+  const roomGroups = new Map<string, Passenger[]>();
+  const unassigned: Passenger[] = [];
+
+  passengers.forEach(p => {
+    if (p.room_number) {
+      const group = roomGroups.get(p.room_number) || [];
+      group.push(p);
+      roomGroups.set(p.room_number, group);
+    } else {
+      unassigned.push(p);
+    }
+  });
+
+  // Capacity per type
+  const capacityMap: Record<string, number> = { quad: 4, triple: 3, double: 2, single: 1 };
+
+  // Check if two passengers are mahram (same booking or married couple)
+  const isMahram = (a: Passenger, b: Passenger) => {
+    const sameBooking = a.booking?.id && b.booking?.id && a.booking.id === b.booking.id;
+    if (sameBooking) return true;
+    if (a.customer?.marital_status === 'married' && b.customer?.marital_status === 'married') {
+      const aFirst = a.customer?.full_name?.split(' ')[0]?.toLowerCase() || '';
+      const bFirst = b.customer?.full_name?.split(' ')[0]?.toLowerCase() || '';
+      const aSpouse = a.customer?.spouse_name?.toLowerCase() || '';
+      const bSpouse = b.customer?.spouse_name?.toLowerCase() || '';
+      return aSpouse.includes(bFirst) || bSpouse.includes(aFirst);
+    }
+    return false;
+  };
+
+  const existingRoomNumbers = Array.from(roomGroups.keys());
+
+  return (
+    <div className="space-y-6">
+      {/* Assigned groups */}
+      {roomGroups.size > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold flex items-center gap-2 text-emerald-700">
+            <Check className="h-4 w-4" />
+            Sudah Dikelompokkan ({roomGroups.size} kamar)
+          </h4>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from(roomGroups.entries()).map(([roomNum, group]) => {
+              const roomType = group[0]?.room_preference || 'triple';
+              const capacity = capacityMap[roomType] || 3;
+              const isFull = group.length >= capacity;
+              const bookingIds = new Set(group.map(p => p.booking?.id).filter(Boolean));
+              const isAllFamily = bookingIds.size === 1 && group.length > 1;
+
+              return (
+                <Card key={roomNum} className={`border-2 ${isFull ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-200 bg-amber-50/30'}`}>
+                  <CardHeader className="p-3 pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-black text-sm ${isFull ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}>
+                          {roomNum}
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">
+                          {ROOM_TYPE_LABELS[roomType] || roomType}
+                        </Badge>
+                        {isAllFamily && (
+                          <Badge className="text-[10px] bg-purple-100 text-purple-700 border-purple-200">
+                            Keluarga / Mahram
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{group.length}/{capacity}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0 space-y-1.5">
+                    {group.map((p, idx) => {
+                      const mahramPartners = group.filter(other => other.id !== p.id && isMahram(p, other));
+                      const isSpouse = group.some(other =>
+                        other.id !== p.id &&
+                        p.customer?.marital_status === 'married' &&
+                        other.customer?.marital_status === 'married' &&
+                        (p.customer?.spouse_name?.toLowerCase() || '').includes(other.customer?.full_name?.split(' ')[0]?.toLowerCase() || '')
+                      );
+                      return (
+                        <div key={p.id} className="flex items-center gap-2 text-xs bg-background rounded-md px-2 py-1.5 border">
+                          <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${p.customer?.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                            {idx + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{p.customer?.full_name || '-'}</p>
+                            <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                              <span className="text-muted-foreground">{GENDER_LABELS[p.customer?.gender || ''] || '-'}</span>
+                              {isSpouse && <Badge className="text-[10px] px-1 py-0 h-4 bg-rose-100 text-rose-700 border-rose-200">Pasangan</Badge>}
+                              {!isSpouse && mahramPartners.length > 0 && (
+                                <Badge className="text-[10px] px-1 py-0 h-4 bg-purple-100 text-purple-700 border-purple-200">
+                                  Mahram
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{p.booking?.booking_code}</Badge>
+                            </div>
+                          </div>
+                          <button
+                            className="text-muted-foreground hover:text-destructive shrink-0"
+                            title="Keluarkan dari kamar ini"
+                            onClick={() => onSaveRoom(p.id, '')}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {/* Empty slots */}
+                    {!isFull && Array.from({ length: capacity - group.length }).map((_, i) => (
+                      <div key={`empty-${i}`} className="flex items-center gap-2 text-xs rounded-md px-2 py-1.5 border border-dashed border-muted-foreground/30">
+                        <div className="h-5 w-5 rounded-full border-2 border-dashed border-muted-foreground/30 shrink-0" />
+                        <span className="text-muted-foreground italic">Slot kosong</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Unassigned */}
+      {unassigned.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold flex items-center gap-2 text-amber-700">
+            <X className="h-4 w-4" />
+            Belum Punya Nomor Kamar ({unassigned.length})
+          </h4>
+          <Card className="border-amber-200">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Gender</TableHead>
+                    <TableHead>Tipe Kamar</TableHead>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Isi No. Kamar</TableHead>
+                    <TableHead>Mahram / Keluarga</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unassigned.map(p => {
+                    // Find family members (same booking) = potential mahram
+                    const familyMembers = allPassengers.filter(
+                      x => x.id !== p.id &&
+                      x.booking?.id && p.booking?.id &&
+                      x.booking.id === p.booking.id
+                    );
+                    const marriagePartner = allPassengers.find(x =>
+                      x.id !== p.id &&
+                      p.customer?.marital_status === 'married' &&
+                      x.customer?.marital_status === 'married' &&
+                      (p.customer?.spouse_name?.toLowerCase() || '').includes(x.customer?.full_name?.split(' ')[0]?.toLowerCase() || '')
+                    );
+
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
+                        <TableCell>
+                          <Badge variant={p.customer?.gender === 'male' ? 'default' : 'secondary'} className="text-xs">
+                            {GENDER_LABELS[p.customer?.gender || ''] || '-'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{ROOM_TYPE_LABELS[p.room_preference || ''] || '-'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs font-mono">{p.booking?.booking_code}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {addingRoomForId === p.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                className="h-7 w-20 text-sm"
+                                value={roomInput}
+                                onChange={e => setRoomInput(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') { onSaveRoom(p.id, roomInput); setAddingRoomForId(null); setRoomInput(''); }
+                                  if (e.key === 'Escape') { setAddingRoomForId(null); setRoomInput(''); }
+                                }}
+                                autoFocus
+                                placeholder="301"
+                                list="existing-rooms"
+                              />
+                              <datalist id="existing-rooms">
+                                {existingRoomNumbers.map(r => <option key={r} value={r} />)}
+                              </datalist>
+                              <Button size="icon" variant="ghost" className="h-7 w-7"
+                                onClick={() => { onSaveRoom(p.id, roomInput); setAddingRoomForId(null); setRoomInput(''); }}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button size="sm" variant="outline" className="h-7 text-xs"
+                              onClick={() => { setAddingRoomForId(p.id); setRoomInput(''); }}>
+                              + Isi Kamar
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {marriagePartner && (
+                            <Badge className="text-[10px] bg-rose-100 text-rose-700 border-rose-200 mr-1">
+                              Pasangan: {marriagePartner.customer?.full_name?.split(' ')[0]}
+                            </Badge>
+                          )}
+                          {familyMembers.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {familyMembers.map(fm => (
+                                <Badge key={fm.id} className="text-[10px] bg-purple-100 text-purple-700 border-purple-200">
+                                  Mahram: {fm.customer?.full_name?.split(' ')[0]}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                          {!marriagePartner && familyMembers.length === 0 && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 }
 

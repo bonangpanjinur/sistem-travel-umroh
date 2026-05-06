@@ -56,6 +56,7 @@ import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
+import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -636,9 +637,10 @@ export default function AdminDepartureDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="info">Informasi</TabsTrigger>
           <TabsTrigger value="jamaah">Jemaah</TabsTrigger>
+          <TabsTrigger value="rooming">Rooming</TabsTrigger>
           <TabsTrigger value="perlengkapan">Perlengkapan</TabsTrigger>
           <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
           <TabsTrigger value="operasional">Operasional</TabsTrigger>
@@ -1162,6 +1164,14 @@ export default function AdminDepartureDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Rooming */}
+        <TabsContent value="rooming" className="space-y-6">
+          <DepartureRoomingTab
+            departureId={id}
+            packageId={(departure as any)?.package?.id}
+          />
         </TabsContent>
 
         {/* Tab: Perlengkapan */}
