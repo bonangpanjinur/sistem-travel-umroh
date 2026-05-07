@@ -222,9 +222,19 @@ function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
   
   // Add logo if available and enabled
   const showLogo = layout ? layout.show_logo : true;
+  let logoLoaded = false;
   if (showLogo && company.logo) {
     try {
-      doc.addImage(company.logo, 'PNG', 14, 8, 35, 35);
+      // Detect format from base64 string or use JPEG as fallback
+      let format = 'PNG';
+      if (company.logo.startsWith('data:image/jpeg') || company.logo.startsWith('data:image/jpg')) {
+        format = 'JPEG';
+      } else if (company.logo.startsWith('data:image/webp')) {
+        format = 'WEBP';
+      }
+      
+      doc.addImage(company.logo, format, 14, 8, 32, 32);
+      logoLoaded = true;
     } catch (e) {
       // Logo failed to load, continue without it
       console.warn('Failed to load logo:', e);
@@ -235,17 +245,26 @@ function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont(doc.getFont().fontName, 'bold');
-  const logoOffset = (showLogo && company.logo) ? 55 : 14;
-  doc.text(company.name, logoOffset, 22, { align: 'left' });
+  const logoOffset = logoLoaded ? 52 : 14;
+  const textMaxWidth = pageWidth - logoOffset - 14;
+  
+  doc.text(company.name, logoOffset, 18, { align: 'left' });
   
   // Company details (white text on accent background)
   if (layout?.show_company_info !== false) {
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont(doc.getFont().fontName, 'normal');
-    doc.text(company.address, logoOffset, 30, { align: 'left' });
-    doc.text(`Telp: ${company.phone} | Email: ${company.email}`, logoOffset, 36, { align: 'left' });
+    
+    // Use splitTextToSize for address to handle long text
+    const addressLines = doc.splitTextToSize(company.address, textMaxWidth);
+    doc.text(addressLines, logoOffset, 25, { align: 'left' });
+    
+    // Calculate Y for next info based on address lines
+    const nextY = 25 + (addressLines.length * 4.5);
+    doc.text(`Telp: ${company.phone} | Email: ${company.email}`, logoOffset, nextY, { align: 'left' });
+    
     if (company.website) {
-      doc.text(company.website, logoOffset, 42, { align: 'left' });
+      doc.text(company.website, logoOffset, nextY + 5, { align: 'left' });
     }
   }
   
