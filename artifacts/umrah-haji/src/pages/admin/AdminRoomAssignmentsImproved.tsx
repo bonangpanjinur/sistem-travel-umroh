@@ -16,14 +16,17 @@ import { Users, UserPlus, BedDouble, Search, Check, X, Download, FileSpreadsheet
 import { ROOM_TYPE_LABELS, GENDER_LABELS } from "@/lib/constants";
 import { Textarea } from "@/components/ui/textarea";
 import { v4 as uuidv4 } from 'uuid';
+import { Database } from "@/integrations/supabase/types";
 
 // ============================================================
 // IMPROVED ROOMING LOGIC WITH FLEXIBLE ROOM GROUPS
 // ============================================================
 
+type RoomType = Database["public"]["Enums"]["room_type"];
+
 interface Passenger {
   id: string;
-  room_preference: string | null;
+  room_preference: RoomType | null;
   passenger_type: string | null;
   room_number: string | null;
   room_group_id: string | null;
@@ -60,7 +63,7 @@ const getRoomCapacity = (roomType: string): number => {
 };
 
 // Helper: Get room type based on group size
-const getRoomTypeBySize = (size: number): string => {
+const getRoomTypeBySize = (size: number): RoomType => {
   if (size === 1) return 'single';
   if (size === 2) return 'double';
   if (size === 3) return 'triple';
@@ -188,7 +191,7 @@ export default function AdminRoomAssignmentsImproved() {
           room_group_id: groupId,
           room_preference: newRoomType,
           room_number: roomNumber || null,
-        }).eq('id', memberId)
+        } as any).eq('id', memberId)
       );
 
       const results = await Promise.all(updates);
@@ -197,7 +200,7 @@ export default function AdminRoomAssignmentsImproved() {
       // Log audit for each member
       for (const memberId of allMemberIds) {
         const member = passengers?.find(p => p.id === memberId);
-        await supabase.from('room_group_audit').insert({
+        await (supabase as any).from('room_group_audit').insert({
           room_group_id: groupId,
           passenger_id: memberId,
           action: 'add_to_group',
@@ -233,9 +236,9 @@ export default function AdminRoomAssignmentsImproved() {
         await supabase.from('booking_passengers').update({
           room_group_id: null,
           room_number: null,
-        }).eq('id', passengerId);
+        } as any).eq('id', passengerId);
 
-        await supabase.from('room_group_audit').insert({
+        await (supabase as any).from('room_group_audit').insert({
           room_group_id: passenger.room_group_id,
           passenger_id: passengerId,
           action: 'delete_group',
@@ -255,17 +258,17 @@ export default function AdminRoomAssignmentsImproved() {
           room_group_id: null,
           room_number: null,
           room_preference: 'quad', // Reset to default
-        }).eq('id', passengerId);
+        } as any).eq('id', passengerId);
 
         // Update remaining members with new room type
         for (const member of remainingMembers) {
           await supabase.from('booking_passengers').update({
             room_preference: newRoomType,
-          }).eq('id', member.id);
+          } as any).eq('id', member.id);
         }
 
         // Log audit
-        await supabase.from('room_group_audit').insert({
+        await (supabase as any).from('room_group_audit').insert({
           room_group_id: passenger.room_group_id,
           passenger_id: passengerId,
           action: 'remove_from_group',
@@ -278,7 +281,7 @@ export default function AdminRoomAssignmentsImproved() {
         });
 
         for (const member of remainingMembers) {
-          await supabase.from('room_group_audit').insert({
+          await (supabase as any).from('room_group_audit').insert({
             room_group_id: passenger.room_group_id,
             passenger_id: member.id,
             action: 'update_room_type',
