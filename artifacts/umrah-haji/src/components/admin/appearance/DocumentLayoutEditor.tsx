@@ -338,7 +338,7 @@ export function DocumentLayoutEditor() {
           </div>
         </div>
 
-        <div className="space-y-6">">
+        <div className="space-y-6">
           {/* Preview */}
           <Card className="bg-muted/30 sticky top-6">
             <CardHeader>
