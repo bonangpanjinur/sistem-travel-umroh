@@ -223,6 +223,7 @@ export default function AdminReports() {
     company_address: getSetting('company_address') || 'Alamat Perusahaan',
     company_phone: getSetting('company_phone') || '0812-3456-7890',
     company_email: getSetting('company_email') || 'info@vinstour.com',
+    logo_url: getSetting('company_logo') || undefined,
   };
 
   // Export handlers

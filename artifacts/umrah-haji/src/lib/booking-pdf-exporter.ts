@@ -73,23 +73,33 @@ export async function exportBookingsToPDF(
   ];
 
   // Display logo if enabled globally or specifically for invoice
-  if (finalSettings.showLogo) {
-    if (companyInfo.logo_url) {
-      const img = new Image();
-      img.src = companyInfo.logo_url;
-      img.onload = () => {
-        const imgWidth = 30; // Adjust as needed
-        const imgHeight = (img.height * imgWidth) / img.width;
-        let xPos = margin;
-        if (finalSettings.logoPosition === 'center') {
-          xPos = (pageWidth / 2) - (imgWidth / 2);
-        } else if (finalSettings.logoPosition === 'right') {
-          xPos = pageWidth - margin - imgWidth;
-        }
-        doc.addImage(img, 'PNG', xPos, currentY, imgWidth, imgHeight);
-      };
-      currentY += 15; // Make space for logo
+  if (finalSettings.showLogo && companyInfo.logo_url) {
+    try {
+      // Use a promise to wait for the image to load
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = "anonymous"; // Handle CORS if needed
+        image.src = companyInfo.logo_url!;
+        image.onload = () => resolve(image);
+        image.onerror = (e) => reject(e);
+      });
+
+      const imgWidth = 30; // Adjust as needed
+      const imgHeight = (img.height * imgWidth) / img.width;
+      let xPos = margin;
+      if (finalSettings.logoPosition === 'center') {
+        xPos = (pageWidth / 2) - (imgWidth / 2);
+      } else if (finalSettings.logoPosition === 'right') {
+        xPos = pageWidth - margin - imgWidth;
+      }
+      doc.addImage(img, 'PNG', xPos, currentY, imgWidth, imgHeight);
+      currentY += imgHeight + 5; // Dynamic space based on logo height
+    } catch (error) {
+      console.error("Failed to load logo image:", error);
+      currentY += 5; // Small space even if logo fails
     }
+  } else {
+    currentY += 5; // Small space if no logo
   }
 
   headerContent.forEach((line, index) => {
