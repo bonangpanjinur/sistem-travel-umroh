@@ -9,12 +9,15 @@ export interface DocumentSettings {
   invoice_number_format: string;
   invoice_show_bank_info: boolean;
   invoice_show_notes_section: boolean;
+  invoice_show_package_info: boolean;
+  invoice_watermark_paid: boolean;
   eticket_header_color: string;
   certificate_border_color: string;
   certificate_text_color: string;
   document_footer_show_timestamp: boolean;
   document_footer_show_page_number: boolean;
   invoice_accent_color?: string;
+  pdf_default_font?: 'helvetica' | 'times';
 }
 
 /**
@@ -95,12 +98,15 @@ export function useCompanyInfo() {
     invoice_number_format: unwrap(m?.get("invoice_number_format")) || "YYYY-MM-{SEQ}",
     invoice_show_bank_info: unwrapBoolean(m?.get("invoice_show_bank_info"), true),
     invoice_show_notes_section: unwrapBoolean(m?.get("invoice_show_notes_section"), true),
+    invoice_show_package_info: unwrapBoolean(m?.get("invoice_show_package_info"), true),
+    invoice_watermark_paid: unwrapBoolean(m?.get("invoice_watermark_paid"), true),
     eticket_header_color: unwrap(m?.get("eticket_header_color")) || "#16a34a",
     certificate_border_color: unwrap(m?.get("certificate_border_color")) || "#daa520",
     certificate_text_color: unwrap(m?.get("certificate_text_color")) || "#165634",
     document_footer_show_timestamp: unwrapBoolean(m?.get("document_footer_show_timestamp"), true),
     document_footer_show_page_number: unwrapBoolean(m?.get("document_footer_show_page_number"), true),
     invoice_accent_color: unwrap(m?.get("invoice_accent_color")) || "#0f172a",
+    pdf_default_font: (unwrap(m?.get("pdf_default_font")) as any) || "helvetica",
   };
 
   // Fetch and parse invoice layout
@@ -126,8 +132,11 @@ export function useCompanyInfo() {
       invoice_accent_color: documentSettings.invoice_accent_color,
       invoice_show_bank_info: documentSettings.invoice_show_bank_info,
       invoice_show_notes_section: documentSettings.invoice_show_notes_section,
+      invoice_show_package_info: documentSettings.invoice_show_package_info,
+      invoice_watermark_paid: documentSettings.invoice_watermark_paid,
       document_footer_show_timestamp: documentSettings.document_footer_show_timestamp,
       document_footer_show_page_number: documentSettings.document_footer_show_page_number,
+      pdf_default_font: documentSettings.pdf_default_font,
     },
     layout: invoiceLayout,
   };
