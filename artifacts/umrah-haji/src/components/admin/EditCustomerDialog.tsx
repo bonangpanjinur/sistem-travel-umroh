@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
+type CustomerMahram = Database["public"]["Tables"]["customer_mahrams"]["Row"];
 type GenderType = Database["public"]["Enums"]["gender_type"];
 
 // Mapping hubungan mahram timbal balik
@@ -387,7 +388,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         if (error.code === "42P01") return [];
         throw error;
       }
-      return data || [];
+      return (data as CustomerMahram[]) || [];
     },
   });
 
