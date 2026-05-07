@@ -35,8 +35,8 @@ export function useEffectivePermissions() {
         _roles: uniqueRoles
       });
       
-      // Fallback to legacy RPC if v2 doesn't exist yet
-      if (error && error.message.includes('function') && error.message.includes('does not exist')) {
+      // Fallback to legacy RPC if v2 doesn't exist yet (PGRST202 or message check)
+      if (error && (error.code === 'PGRST202' || (error.message && error.message.includes('function') && error.message.includes('does not exist')))) {
         const { data: legacyData, error: legacyError } = await (supabase.rpc as any)('get_user_effective_permissions', {
           _user_id: user.id,
         });
