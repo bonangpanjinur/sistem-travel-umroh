@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { PDFDesignSettings, DocumentSpecificSettings, mergeDesignSettings, hexToRgb, getFontNameForJsPDF } from './pdf-design-settings';
 
 interface CompanyInfo {
   company_name: string;
@@ -35,46 +36,34 @@ interface ExportOptions {
   dateTo?: Date;
 }
 
-const COLORS = {
-  primary: { r: 25, g: 64, b: 175 }, // Blue-700
-  secondary: { r: 37, g: 99, b: 235 }, // Blue-600
-  accent: { r: 59, g: 130, b: 246 }, // Blue-500
-  headerBg: { r: 25, g: 64, b: 175 },
-  headerText: { r: 255, g: 255, b: 255 },
-  rowBg: { r: 249, g: 250, b: 251 },
-  rowText: { r: 31, g: 41, b: 55 },
-  altRowBg: { r: 255, g: 255, b: 255 },
-  borderColor: { r: 229, g: 231, b: 235 },
-};
-
-const FONTS = {
-  title: 16,
-  subtitle: 11,
-  header: 10,
-  body: 9,
-  footer: 8,
-};
-
 export async function exportBookingsToPDF(
   bookings: BookingData[],
   companyInfo: CompanyInfo,
-  options: ExportOptions
+  options: ExportOptions,
+  globalDesignSettings: PDFDesignSettings,
+  invoiceDesignSettings?: DocumentSpecificSettings
 ) {
+  const finalSettings = mergeDesignSettings(globalDesignSettings, invoiceDesignSettings);
+
   const doc = new jsPDF({
-    orientation: 'landscape',
+    orientation: finalSettings.pageOrientation,
     unit: 'mm',
     format: 'a4',
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.height;
-  const margin = 12;
-  let currentY = margin;
+  const margin = finalSettings.marginLeft;
+  let currentY = finalSettings.marginTop;
+
+  // Apply global font and text color settings
+  doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily));
+  const [r, g, b] = hexToRgb(finalSettings.textColor);
+  doc.setTextColor(r, g, b);
 
   // ===== HEADER SECTION =====
   // Company info header
-  doc.setFontSize(FONTS.body);
-  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(finalSettings.fontSizeBody);
   
   const headerContent = [
     companyInfo.company_name,
@@ -83,15 +72,37 @@ export async function exportBookingsToPDF(
     `Email: ${companyInfo.company_email}`,
   ];
 
+  // Display logo if enabled globally or specifically for invoice
+  if (finalSettings.showLogo) {
+    if (companyInfo.logo_url) {
+      const img = new Image();
+      img.src = companyInfo.logo_url;
+      img.onload = () => {
+        const imgWidth = 30; // Adjust as needed
+        const imgHeight = (img.height * imgWidth) / img.width;
+        let xPos = margin;
+        if (finalSettings.logoPosition === 'center') {
+          xPos = (pageWidth / 2) - (imgWidth / 2);
+        } else if (finalSettings.logoPosition === 'right') {
+          xPos = pageWidth - margin - imgWidth;
+        }
+        doc.addImage(img, 'PNG', xPos, currentY, imgWidth, imgHeight);
+      };
+      currentY += 15; // Make space for logo
+    }
+  }
+
   headerContent.forEach((line, index) => {
     if (index === 0) {
-      doc.setFontSize(FONTS.header);
-      doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
-      doc.setFont('', 'bold');
+      doc.setFontSize(finalSettings.fontSizeHeader);
+      const [pr, pg, pb] = hexToRgb(finalSettings.accentColor);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily), 'bold');
     } else {
-      doc.setFontSize(FONTS.body);
-      doc.setTextColor(100, 100, 100);
-      doc.setFont('', 'normal');
+      doc.setFontSize(finalSettings.fontSizeBody);
+      const [tr, tg, tb] = hexToRgb(finalSettings.textColor);
+      doc.setTextColor(tr, tg, tb);
+      doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily), 'normal');
     }
     doc.text(line, margin, currentY);
     currentY += 5;
@@ -100,25 +111,28 @@ export async function exportBookingsToPDF(
   currentY += 3;
 
   // ===== TITLE SECTION =====
-  doc.setFontSize(FONTS.title);
-  doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
-  doc.setFont('', 'bold');
+  doc.setFontSize(finalSettings.fontSizeHeader);
+  const [pr, pg, pb] = hexToRgb(finalSettings.accentColor);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily), 'bold');
   doc.text(options.title, margin, currentY);
   currentY += 8;
 
   // Subtitle with date range
   if (options.subtitle) {
-    doc.setFontSize(FONTS.subtitle);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('', 'normal');
+    doc.setFontSize(finalSettings.fontSizeBody);
+    const [tr, tg, tb] = hexToRgb(finalSettings.textColor);
+    doc.setTextColor(tr, tg, tb);
+    doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily), 'normal');
     doc.text(options.subtitle, margin, currentY);
     currentY += 6;
   }
 
   // Date range
   if (options.dateFrom || options.dateTo) {
-    doc.setFontSize(FONTS.body);
-    doc.setTextColor(120, 120, 120);
+    doc.setFontSize(finalSettings.fontSizeBody);
+    const [tr, tg, tb] = hexToRgb(finalSettings.textColor);
+    doc.setTextColor(tr, tg, tb);
     const dateRange = formatDateRange(options.dateFrom, options.dateTo);
     doc.text(`Periode: ${dateRange}`, margin, currentY);
     currentY += 5;
@@ -138,21 +152,22 @@ export async function exportBookingsToPDF(
     ['Total Terbayar', formatCurrency(totalPaid)],
   ];
 
-  doc.setFontSize(FONTS.body);
-  doc.setFont('', 'bold');
-  doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
+  doc.setFontSize(finalSettings.fontSizeBody);
+  doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily), 'bold');
+  doc.setTextColor(pr, pg, pb);
   doc.text('Ringkasan:', margin, currentY);
   currentY += 4;
 
-  doc.setFont('', 'normal');
-  doc.setTextColor(31, 41, 55);
+  doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily), 'normal');
+  const [tr, tg, tb] = hexToRgb(finalSettings.textColor);
+  doc.setTextColor(tr, tg, tb);
   const statsPerRow = 4;
-  const statWidth = (pageWidth - 2 * margin) / statsPerRow;
+  const statWidth = (pageWidth - finalSettings.marginLeft - finalSettings.marginRight) / statsPerRow;
 
   statsData.forEach((stat, index) => {
     const row = Math.floor(index / statsPerRow);
     const col = index % statsPerRow;
-    const x = margin + col * statWidth;
+    const x = finalSettings.marginLeft + col * statWidth;
     const y = currentY + row * 8;
 
     // Background
@@ -160,18 +175,19 @@ export async function exportBookingsToPDF(
     doc.rect(x, y - 3, statWidth - 1, 7, 'F');
 
     // Border
-    doc.setDrawColor(COLORS.borderColor.r, COLORS.borderColor.g, COLORS.borderColor.b);
+    const [br, bg, bb] = hexToRgb(finalSettings.accentColor);
+    doc.setDrawColor(br, bg, bb);
     doc.rect(x, y - 3, statWidth - 1, 7);
 
     // Label
-    doc.setFontSize(FONTS.body - 1);
+    doc.setFontSize(finalSettings.fontSizeBody - 1);
     doc.setTextColor(100, 100, 100);
     doc.text(stat[0], x + 2, y - 0.5);
 
     // Value
-    doc.setFontSize(FONTS.body);
-    doc.setFont('', 'bold');
-    doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
+    doc.setFontSize(finalSettings.fontSizeBody);
+    doc.setFont(getFontNameForJsPDF(finalSettings.fontFamily), 'bold');
+    doc.setTextColor(pr, pg, pb);
     doc.text(stat[1], x + statWidth - 2, y - 0.5, { align: 'right' });
   });
 
@@ -212,28 +228,30 @@ export async function exportBookingsToPDF(
     columns: columns,
     body: tableData.map(row => columns.map(col => row[col.dataKey as keyof typeof row])),
     startY: currentY,
-    margin: { left: margin, right: margin, top: 10, bottom: 15 },
+    margin: { left: finalSettings.marginLeft, right: finalSettings.marginRight, top: finalSettings.marginTop, bottom: finalSettings.marginBottom },
     styles: {
-      fontSize: FONTS.body,
+      fontSize: finalSettings.fontSizeBody,
       cellPadding: 2.5,
       overflow: 'linebreak',
       halign: 'left',
       valign: 'middle',
-      textColor: [COLORS.rowText.r, COLORS.rowText.g, COLORS.rowText.b],
+      textColor: hexToRgb(finalSettings.textColor),
+      font: getFontNameForJsPDF(finalSettings.fontFamily),
     },
     headStyles: {
-      fillColor: [COLORS.headerBg.r, COLORS.headerBg.g, COLORS.headerBg.b],
-      textColor: [COLORS.headerText.r, COLORS.headerText.g, COLORS.headerText.b],
+      fillColor: invoiceDesignSettings?.headerBgColor ? hexToRgb(invoiceDesignSettings.headerBgColor) : hexToRgb(finalSettings.accentColor),
+      textColor: invoiceDesignSettings?.headerTextColor ? hexToRgb(invoiceDesignSettings.headerTextColor) : hexToRgb('#FFFFFF'),
       fontStyle: 'bold',
-      fontSize: FONTS.header,
+      fontSize: finalSettings.fontSizeHeader - 2,
       halign: 'center',
       valign: 'middle',
+      font: getFontNameForJsPDF(finalSettings.fontFamily),
     },
     alternateRowStyles: {
-      fillColor: [COLORS.rowBg.r, COLORS.rowBg.g, COLORS.rowBg.b],
+      fillColor: hexToRgb('#F9FAFB'), // Light gray for alternate rows
     },
     bodyStyles: {
-      lineColor: [COLORS.borderColor.r, COLORS.borderColor.g, COLORS.borderColor.b],
+      lineColor: hexToRgb('#E5E7EB'), // Light gray border
     },
     columnStyles: {
       0: { halign: 'left' },
@@ -251,32 +269,47 @@ export async function exportBookingsToPDF(
     },
   });
 
+  // ===== WATERMARK =====
+  if (invoiceDesignSettings?.watermarkText) {
+    doc.setFontSize(50);
+    doc.setTextColor(0, 0, 0);
+    doc.setGState(new doc.GState({ opacity: invoiceDesignSettings.watermarkOpacity || 0.1 }));
+    doc.text(invoiceDesignSettings.watermarkText, pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+    doc.setGState(new doc.GState({ opacity: 1 })); // Reset opacity
+  }
+
   // ===== FOOTER =====
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     
     // Footer line
-    doc.setDrawColor(COLORS.borderColor.r, COLORS.borderColor.g, COLORS.borderColor.b);
-    doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+    const [br, bg, bb] = hexToRgb(finalSettings.accentColor);
+    doc.setDrawColor(br, bg, bb);
+    doc.line(finalSettings.marginLeft, pageHeight - finalSettings.marginBottom + 3, pageWidth - finalSettings.marginRight, pageHeight - finalSettings.marginBottom + 3);
 
     // Footer text
-    doc.setFontSize(FONTS.footer);
-    doc.setTextColor(120, 120, 120);
+    doc.setFontSize(finalSettings.fontSizeBody - 2);
+    const [tr, tg, tb] = hexToRgb(finalSettings.textColor);
+    doc.setTextColor(tr, tg, tb);
     
-    const timestamp = format(new Date(), 'd MMMM yyyy HH:mm', { locale: id });
-    doc.text(
-      `Laporan Booking - ${timestamp}`,
-      margin,
-      pageHeight - 8
-    );
+    if (finalSettings.showTimestamp) {
+      const timestamp = format(new Date(), 'd MMMM yyyy HH:mm', { locale: id });
+      doc.text(
+        `Laporan Booking - ${timestamp}`,
+        finalSettings.marginLeft,
+        pageHeight - finalSettings.marginBottom + 8
+      );
+    }
 
-    doc.text(
-      `Halaman ${i} dari ${pageCount}`,
-      pageWidth - margin,
-      pageHeight - 8,
-      { align: 'right' }
-    );
+    if (finalSettings.showPageNumber) {
+      doc.text(
+        `Halaman ${i} dari ${pageCount}`,
+        pageWidth - finalSettings.marginRight,
+        pageHeight - finalSettings.marginBottom + 8,
+        { align: 'right' }
+      );
+    }
   }
 
   // Save PDF

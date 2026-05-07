@@ -16,25 +16,32 @@ export interface PDFDesignSettings {
   marginRight: number;
   showLogo: boolean;
   logoPosition: "left" | "center" | "right";
+  pageOrientation: "portrait" | "landscape";
   showPageNumber: boolean;
   showTimestamp: boolean;
 }
 
 export interface DocumentSpecificSettings {
+  pageOrientation?: "portrait" | "landscape";
   fontFamily?: "helvetica" | "times" | "courier";
   headerBgColor?: string;
   headerTextColor?: string;
   accentColor?: string;
   watermarkText?: string;
   watermarkOpacity?: number;
-}
-
-export interface InvoiceDesignSettings extends DocumentSpecificSettings {
-  tableHeaderTextColor?: string;
-}
-
-export interface LetterDesignSettings extends DocumentSpecificSettings {
-  // Additional letter-specific settings can be added here
+  // Specific flags for content visibility
+  showBankInfo?: boolean;
+  showNotesSection?: boolean;
+  showPackageInfo?: boolean;
+  watermarkPaid?: boolean;
+  numberPrefix?: string;
+  numberFormat?: string;
+  showPhoto?: boolean;
+  showQrCode?: boolean;
+  includeCompanyLogo?: boolean;
+  borderColor?: string;
+  backgroundImageUrl?: string;
+  showLetterhead?: boolean;
 }
 
 /**
@@ -68,14 +75,15 @@ export function mergeDesignSettings(
     fontFamily: documentSettings.fontFamily || globalSettings.fontFamily,
     fontSizeHeader: globalSettings.fontSizeHeader,
     fontSizeBody: globalSettings.fontSizeBody,
-    textColor: globalSettings.textColor,
+    textColor: documentSettings.headerTextColor || globalSettings.textColor, // Use headerTextColor for general text color override
     accentColor: documentSettings.accentColor || globalSettings.accentColor,
     marginTop: globalSettings.marginTop,
     marginBottom: globalSettings.marginBottom,
     marginLeft: globalSettings.marginLeft,
     marginRight: globalSettings.marginRight,
-    showLogo: globalSettings.showLogo,
+    showLogo: documentSettings.includeCompanyLogo !== undefined ? documentSettings.includeCompanyLogo : globalSettings.showLogo,
     logoPosition: globalSettings.logoPosition,
+    pageOrientation: documentSettings.pageOrientation || globalSettings.pageOrientation,
     showPageNumber: globalSettings.showPageNumber,
     showTimestamp: globalSettings.showTimestamp,
   };
