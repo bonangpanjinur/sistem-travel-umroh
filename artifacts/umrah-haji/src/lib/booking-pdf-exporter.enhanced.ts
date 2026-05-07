@@ -71,6 +71,7 @@ export function extractDesignSettings(getSetting: (key: string) => any): PDFDesi
     marginRight: parseInt(getSetting("pdf_global_margin_right") || "15"),
     showLogo: getSetting("pdf_global_show_logo") !== "false",
     logoPosition: (getSetting("pdf_global_logo_position") || "left") as any,
+    pageOrientation: (getSetting("pdf_global_page_orientation") || "portrait") as any,
     showPageNumber: getSetting("pdf_global_show_page_number") !== "false",
     showTimestamp: getSetting("pdf_global_show_timestamp") !== "false",
   };

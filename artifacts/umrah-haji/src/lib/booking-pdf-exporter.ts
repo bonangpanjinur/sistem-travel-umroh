@@ -273,9 +273,11 @@ export async function exportBookingsToPDF(
   if (invoiceDesignSettings?.watermarkText) {
     doc.setFontSize(50);
     doc.setTextColor(0, 0, 0);
-    doc.setGState(new doc.GState({ opacity: invoiceDesignSettings.watermarkOpacity || 0.1 }));
+    const gState = new (jsPDF as any).GState({ opacity: invoiceDesignSettings.watermarkOpacity || 0.1 });
+    doc.setGState(gState);
     doc.text(invoiceDesignSettings.watermarkText, pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
-    doc.setGState(new doc.GState({ opacity: 1 })); // Reset opacity
+    const gStateReset = new (jsPDF as any).GState({ opacity: 1 });
+    doc.setGState(gStateReset); // Reset opacity
   }
 
   // ===== FOOTER =====

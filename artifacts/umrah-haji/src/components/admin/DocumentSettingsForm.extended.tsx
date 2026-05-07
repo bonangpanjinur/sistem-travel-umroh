@@ -218,7 +218,7 @@ export function DocumentSettingsFormExtended() {
   }, [isLoading]);
 
   const onSave = (data: DocumentSettingsFormData) => {
-    const settingsToUpdate = [
+    const settingsToUpdate: Array<{ key: string; value: any }> = [
       { key: "company_city", value: data.company_city },
       { key: "company_website", value: data.company_website },
       { key: "letterhead_show_logo", value: data.letterhead_show_logo },

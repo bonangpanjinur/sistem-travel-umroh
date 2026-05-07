@@ -250,12 +250,30 @@ export default function AdminReports() {
 
       const subtitle = `Periode: ${formatDateRange(dateRange.from, dateRange.to)}`;
 
+      // Extract design settings from company settings
+      const globalDesignSettings = {
+        fontFamily: (getSetting('pdf_global_font_family') || 'helvetica') as any,
+        fontSizeHeader: parseInt(getSetting('pdf_global_font_size_header') || '12'),
+        fontSizeBody: parseInt(getSetting('pdf_global_font_size_body') || '10'),
+        textColor: getSetting('pdf_global_text_color') || '#333333',
+        accentColor: getSetting('pdf_global_accent_color') || '#16a34a',
+        marginTop: parseInt(getSetting('pdf_global_margin_top') || '15'),
+        marginBottom: parseInt(getSetting('pdf_global_margin_bottom') || '15'),
+        marginLeft: parseInt(getSetting('pdf_global_margin_left') || '15'),
+        marginRight: parseInt(getSetting('pdf_global_margin_right') || '15'),
+        showLogo: getSetting('pdf_global_show_logo') !== 'false',
+        logoPosition: (getSetting('pdf_global_logo_position') || 'left') as any,
+        pageOrientation: (getSetting('pdf_global_page_orientation') || 'portrait') as any,
+        showPageNumber: getSetting('pdf_global_show_page_number') !== 'false',
+        showTimestamp: getSetting('pdf_global_show_timestamp') !== 'false',
+      };
+
       await exportBookingsToPDF(bookingData, companyInfo, {
         title: 'Laporan Data Booking',
         subtitle: subtitle,
         dateFrom: dateRange.from,
         dateTo: dateRange.to,
-      });
+      }, globalDesignSettings);
     } finally {
       setIsExporting(false);
     }
