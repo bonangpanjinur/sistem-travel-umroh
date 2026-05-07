@@ -222,7 +222,9 @@ export default function AdminRoomAssignments() {
       const mergedGroup = Array.from(new Set([...groupA, ...groupB]));
       
       // Determine new room_preference based on group size
-      const getRoomPreferenceBySize = (size: number): string => {
+      type RoomPreference = "single" | "double" | "triple" | "quad";
+
+      const getRoomPreferenceBySize = (size: number): RoomPreference => {
         if (size === 1) return 'single';
         if (size === 2) return 'double';
         if (size === 3) return 'triple';
@@ -234,15 +236,15 @@ export default function AdminRoomAssignments() {
       const updates = mergedGroup.map(member => 
         supabase.from('booking_passengers').update({ 
           roommate_id: member.id === passengerId ? roommateId : (member.id === roommateId ? passengerId : member.roommate_id),
-          room_preference: newRoomPreference,
+          room_preference: newRoomPreference as RoomPreference,
           room_number: roomNumber || null 
         }).eq('id', member.id)
       );
       
       // Also update the direct pair
       updates.push(
-        supabase.from('booking_passengers').update({ roommate_id: roommateId, room_preference: newRoomPreference, room_number: roomNumber || null }).eq('id', passengerId),
-        supabase.from('booking_passengers').update({ roommate_id: passengerId, room_preference: newRoomPreference, room_number: roomNumber || null }).eq('id', roommateId)
+        supabase.from('booking_passengers').update({ roommate_id: roommateId, room_preference: newRoomPreference as RoomPreference, room_number: roomNumber || null }).eq('id', passengerId),
+        supabase.from('booking_passengers').update({ roommate_id: passengerId, room_preference: newRoomPreference as RoomPreference, room_number: roomNumber || null }).eq('id', roommateId)
       );
       
       const results = await Promise.all(updates);
