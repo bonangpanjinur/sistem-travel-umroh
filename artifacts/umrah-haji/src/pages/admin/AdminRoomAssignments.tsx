@@ -195,18 +195,66 @@ export default function AdminRoomAssignments() {
     mutationFn: async ({ passengerId, roommateId, roomNumber, reason }: { passengerId: string; roommateId: string; roomNumber?: string; reason?: string }) => {
       const passengerA = passengers?.find(p => p.id === passengerId);
       const passengerB = passengers?.find(p => p.id === roommateId);
-      const results = await Promise.all([
-        supabase.from('booking_passengers').update({ roommate_id: roommateId, room_number: roomNumber || null }).eq('id', passengerId),
-        supabase.from('booking_passengers').update({ roommate_id: passengerId, room_number: roomNumber || null }).eq('id', roommateId),
-      ]);
+      
+      // Get all passengers that will be in the same group (including those already paired)
+      const getGroupMembers = (pId: string): Passenger[] => {
+        const visited = new Set<string>();
+        const queue = [pId];
+        const members: Passenger[] = [];
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          if (visited.has(current)) continue;
+          visited.add(current);
+          const p = passengers?.find(x => x.id === current);
+          if (p) {
+            members.push(p);
+            if (p.roommate_id && !visited.has(p.roommate_id)) queue.push(p.roommate_id);
+            passengers?.forEach(x => {
+              if (x.roommate_id === current && !visited.has(x.id)) queue.push(x.id);
+            });
+          }
+        }
+        return members;
+      };
+      
+      const groupA = getGroupMembers(passengerId);
+      const groupB = getGroupMembers(roommateId);
+      const mergedGroup = Array.from(new Set([...groupA, ...groupB]));
+      
+      // Determine new room_preference based on group size
+      const getRoomPreferenceBySize = (size: number): string => {
+        if (size === 1) return 'single';
+        if (size === 2) return 'double';
+        if (size === 3) return 'triple';
+        return 'quad';
+      };
+      const newRoomPreference = getRoomPreferenceBySize(mergedGroup.length);
+      
+      // Update all members in the merged group
+      const updates = mergedGroup.map(member => 
+        supabase.from('booking_passengers').update({ 
+          roommate_id: member.id === passengerId ? roommateId : (member.id === roommateId ? passengerId : member.roommate_id),
+          room_preference: newRoomPreference,
+          room_number: roomNumber || null 
+        }).eq('id', member.id)
+      );
+      
+      // Also update the direct pair
+      updates.push(
+        supabase.from('booking_passengers').update({ roommate_id: roommateId, room_preference: newRoomPreference, room_number: roomNumber || null }).eq('id', passengerId),
+        supabase.from('booking_passengers').update({ roommate_id: passengerId, room_preference: newRoomPreference, room_number: roomNumber || null }).eq('id', roommateId)
+      );
+      
+      const results = await Promise.all(updates);
       results.forEach(r => { if (r.error) throw r.error; });
+      
       await logRoomAudit([
         { passenger_id: passengerId, departure_id: selectedDeparture, action: 'pair',
           old_room_number: passengerA?.room_number || null, new_room_number: roomNumber || null,
-          old_roommate_id: passengerA?.roommate_id || null, new_roommate_id: roommateId, reason: reason || null },
+          old_roommate_id: passengerA?.roommate_id || null, new_roommate_id: roommateId, reason: reason || `Tipe kamar otomatis berubah dari ${passengerA?.room_preference} ke ${newRoomPreference}` },
         { passenger_id: roommateId, departure_id: selectedDeparture, action: 'pair',
           old_room_number: passengerB?.room_number || null, new_room_number: roomNumber || null,
-          old_roommate_id: passengerB?.roommate_id || null, new_roommate_id: passengerId, reason: reason || null },
+          old_roommate_id: passengerB?.roommate_id || null, new_roommate_id: passengerId, reason: reason || `Tipe kamar otomatis berubah dari ${passengerB?.room_preference} ke ${newRoomPreference}` },
       ]);
     },
     onSuccess: () => {
@@ -253,19 +301,14 @@ export default function AdminRoomAssignments() {
       const passenger = passengers?.find(p => p.id === passengerId);
       const oldRoom = passenger?.room_number || null;
 
-      // Capacity validation
-      if (roomNumber && passenger?.room_preference) {
-        const capacityMap: Record<string, number> = { quad: 4, triple: 3, double: 2, single: 1 };
-        const cap = capacityMap[passenger.room_preference] ?? 99;
+      // Capacity validation - allow any room types to be mixed since they auto-adjust
+      if (roomNumber) {
         const sameRoom = passengers?.filter(
           p => p.room_number === roomNumber && p.id !== passengerId
         ) || [];
-        const mismatched = sameRoom.find(p => p.room_preference !== passenger.room_preference);
-        if (mismatched) {
-          throw new Error(`Nomor kamar "${roomNumber}" sudah dipakai untuk tipe ${mismatched.room_preference?.toUpperCase()}. Gunakan nomor berbeda.`);
-        }
-        if (sameRoom.length + 1 > cap) {
-          throw new Error(`Kamar tipe ${passenger.room_preference.toUpperCase()} maksimal ${cap} orang per nomor kamar. Saat ini sudah ${sameRoom.length} orang di kamar "${roomNumber}".`);
+        // Maximum capacity is 4 (quad)
+        if (sameRoom.length + 1 > 4) {
+          throw new Error(`Kamar "${roomNumber}" sudah penuh (maksimal 4 orang). Saat ini sudah ${sameRoom.length} orang.`);
         }
       }
 
@@ -821,7 +864,6 @@ export default function AdminRoomAssignments() {
                         };
                         const candidates = (passengers || []).filter(x =>
                           x.id !== p.id &&
-                          x.room_preference === p.room_preference &&
                           (
                             x.customer?.gender === p.customer?.gender ||
                             isMahramByBooking(x) ||
@@ -882,12 +924,14 @@ export default function AdminRoomAssignments() {
                                        p.customer?.spouse_name?.toLowerCase().includes(c.customer?.full_name?.split(' ')[0]?.toLowerCase() || ''));
                                     const isFamily = c.booking?.id && p.booking?.id && c.booking.id === p.booking.id;
                                     const isCrossGender = c.customer?.gender !== p.customer?.gender;
+                                    const isDifferentRoomType = c.room_preference !== p.room_preference;
                                     return (
                                       <SelectItem key={c.id} value={c.id}>
                                         {c.customer?.full_name}
                                         {isSpouse && <span className="ml-2 text-primary">💑</span>}
                                         {!isSpouse && isFamily && isCrossGender && <span className="ml-2 text-primary">👨‍👩‍👧 Mahram</span>}
                                         {!isSpouse && isFamily && !isCrossGender && <span className="ml-2 text-muted-foreground">(Satu booking)</span>}
+                                        {isDifferentRoomType && <span className="ml-2 text-amber-600 text-xs">({ROOM_TYPE_LABELS[c.room_preference || '']})</span>}
                                       </SelectItem>
                                     );
                                   })}
