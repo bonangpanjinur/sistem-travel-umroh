@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck } from "lucide-react";
+import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck, Settings2 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { DocumentSettingsForm } from "../DocumentSettingsForm";
 
 type DocumentType = 'invoice' | 'passport_letter' | 'leave_letter' | 'certificate' | 'general_letter';
 
@@ -212,134 +212,151 @@ export function DocumentLayoutEditor() {
         ))}
       </div>
 
-      {/* Layout Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Pengaturan {documentTypeLabels[activeDocumentType]}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {documentTypeDescriptions[activeDocumentType]}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Orientation */}
-          <div className="space-y-3">
-            <Label>Orientasi Halaman</Label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => handleInputChange('page_orientation', 'portrait')}
-                className={`flex-1 p-4 border-2 rounded-lg transition-all ${
-                  currentLayout?.page_orientation === 'portrait'
-                    ? 'border-primary bg-primary/5'
-                    : 'hover:border-primary/50'
-                }`}
-              >
-                <div className="w-8 h-12 mx-auto border-2 border-current rounded mb-2" />
-                <p className="text-sm font-medium">Portrait</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleInputChange('page_orientation', 'landscape')}
-                className={`flex-1 p-4 border-2 rounded-lg transition-all ${
-                  currentLayout?.page_orientation === 'landscape'
-                    ? 'border-primary bg-primary/5'
-                    : 'hover:border-primary/50'
-                }`}
-              >
-                <div className="w-12 h-8 mx-auto border-2 border-current rounded mb-2" />
-                <p className="text-sm font-medium">Landscape</p>
-              </button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Layout Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Pengaturan {documentTypeLabels[activeDocumentType]}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {documentTypeDescriptions[activeDocumentType]}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Orientation */}
+              <div className="space-y-3">
+                <Label>Orientasi Halaman</Label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('page_orientation', 'portrait')}
+                    className={`flex-1 p-4 border-2 rounded-lg transition-all ${
+                      currentLayout?.page_orientation === 'portrait'
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="w-8 h-12 mx-auto border-2 border-current rounded mb-2" />
+                    <p className="text-sm font-medium">Portrait</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('page_orientation', 'landscape')}
+                    className={`flex-1 p-4 border-2 rounded-lg transition-all ${
+                      currentLayout?.page_orientation === 'landscape'
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="w-12 h-8 mx-auto border-2 border-current rounded mb-2" />
+                    <p className="text-sm font-medium">Landscape</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Toggle Options */}
+              <div className="space-y-4">
+                <Label className="text-base font-semibold">Elemen Dokumen</Label>
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormToggle
+                    label="Tampilkan Logo"
+                    description="Logo perusahaan di header dokumen"
+                    checked={currentLayout?.show_logo ?? true}
+                    onChange={() => handleToggle('show_logo')}
+                  />
+                  
+                  <FormToggle
+                    label="Tampilkan Header"
+                    description="Header dokumen dengan judul"
+                    checked={currentLayout?.show_header ?? true}
+                    onChange={() => handleToggle('show_header')}
+                  />
+                  
+                  <FormToggle
+                    label="Tampilkan Info Perusahaan"
+                    description="Nama, alamat, telepon perusahaan"
+                    checked={currentLayout?.show_company_info ?? true}
+                    onChange={() => handleToggle('show_company_info')}
+                  />
+                  
+                  <FormToggle
+                    label="Tampilkan Tanggal"
+                    description="Tanggal pembuatan dokumen"
+                    checked={currentLayout?.show_date ?? true}
+                    onChange={() => handleToggle('show_date')}
+                  />
+                  
+                  <FormToggle
+                    label="Tampilkan Tanda Tangan"
+                    description="Area tanda tangan basah"
+                    checked={currentLayout?.show_signature ?? true}
+                    onChange={() => handleToggle('show_signature')}
+                  />
+                  
+                  <FormToggle
+                    label="Tampilkan Cap/Stempel"
+                    description="Area cap/stempel resmi"
+                    checked={currentLayout?.show_stamp ?? true}
+                    onChange={() => handleToggle('show_stamp')}
+                  />
+                  
+                  <FormToggle
+                    label="Tampilkan Info Bank"
+                    description="Rekening bank untuk pembayaran"
+                    checked={currentLayout?.show_bank_info ?? false}
+                    onChange={() => handleToggle('show_bank_info')}
+                  />
+                </div>
+              </div>
+
+              {/* Footer Text */}
+              <div className="space-y-3 pt-4 border-t">
+                <Label htmlFor="footer_text" className="text-base font-semibold">Teks Footer Kustom</Label>
+                <Input
+                  id="footer_text"
+                  value={currentLayout?.footer_text || ''}
+                  onChange={(e) => handleInputChange('footer_text', e.target.value)}
+                  placeholder="Contoh: 'Terima kasih telah menggunakan jasa kami'"
+                  className="max-w-xl"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Teks ini akan muncul di bagian bawah setiap halaman. Kosongkan jika tidak diperlukan.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional Settings for Invoice */}
+          {activeDocumentType === 'invoice' && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 px-1">
+                <Settings2 className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-bold">Pengaturan Detail Invoice</h3>
+              </div>
+              <DocumentSettingsForm />
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Toggle Options */}
-          <div className="space-y-4">
-            <Label className="text-base font-semibold">Elemen Dokumen</Label>
-            
-            <div className="grid md:grid-cols-2 gap-4">
-              <FormToggle
-                label="Tampilkan Logo"
-                description="Logo perusahaan di header dokumen"
-                checked={currentLayout?.show_logo ?? true}
-                onChange={() => handleToggle('show_logo')}
-              />
-              
-              <FormToggle
-                label="Tampilkan Header"
-                description="Header dokumen dengan judul"
-                checked={currentLayout?.show_header ?? true}
-                onChange={() => handleToggle('show_header')}
-              />
-              
-              <FormToggle
-                label="Tampilkan Info Perusahaan"
-                description="Nama, alamat, telepon perusahaan"
-                checked={currentLayout?.show_company_info ?? true}
-                onChange={() => handleToggle('show_company_info')}
-              />
-              
-              <FormToggle
-                label="Tampilkan Tanggal"
-                description="Tanggal pembuatan dokumen"
-                checked={currentLayout?.show_date ?? true}
-                onChange={() => handleToggle('show_date')}
-              />
-              
-              <FormToggle
-                label="Tampilkan Tanda Tangan"
-                description="Area tanda tangan basah"
-                checked={currentLayout?.show_signature ?? true}
-                onChange={() => handleToggle('show_signature')}
-              />
-              
-              <FormToggle
-                label="Tampilkan Cap/Stempel"
-                description="Area cap/stempel resmi"
-                checked={currentLayout?.show_stamp ?? true}
-                onChange={() => handleToggle('show_stamp')}
-              />
-              
-              <FormToggle
-                label="Tampilkan Info Bank"
-                description="Rekening bank untuk pembayaran"
-                checked={currentLayout?.show_bank_info ?? false}
-                onChange={() => handleToggle('show_bank_info')}
-              />
-            </div>
-          </div>
-
-          {/* Footer Text */}
-          <div className="space-y-3 pt-4 border-t">
-            <Label htmlFor="footer_text" className="text-base font-semibold">Teks Footer Kustom</Label>
-            <Input
-              id="footer_text"
-              value={currentLayout?.footer_text || ''}
-              onChange={(e) => handleInputChange('footer_text', e.target.value)}
-              placeholder="Contoh: 'Terima kasih telah menggunakan jasa kami'"
-              className="max-w-xl"
-            />
-            <p className="text-xs text-muted-foreground">
-              Teks ini akan muncul di bagian bawah setiap halaman. Kosongkan jika tidak diperlukan.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Preview */}
-      <Card className="bg-muted/30">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Eye className="h-5 w-5" />
-            Preview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DocumentPreview type={activeDocumentType} layout={currentLayout} />
-        </CardContent>
-      </Card>
+        <div className="space-y-6">
+          {/* Preview */}
+          <Card className="bg-muted/30 sticky top-6">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Preview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DocumentPreview type={activeDocumentType} layout={currentLayout} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -371,7 +388,7 @@ function DocumentPreview({ type, layout }: { type: DocumentType; layout: Documen
   const aspectRatio = isLandscape ? 'aspect-[1.4/1]' : 'aspect-[0.7/1]';
   
   return (
-    <div className={`max-w-xl mx-auto border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 ${aspectRatio} bg-white relative`}>
+    <div className={`w-full border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 ${aspectRatio} bg-white relative shadow-sm`}>
       {/* Header */}
       {layout?.show_header && (
         <div className="border-b-2 border-primary pb-2 mb-2">
@@ -401,7 +418,7 @@ function DocumentPreview({ type, layout }: { type: DocumentType; layout: Documen
 
       {/* Footer */}
       <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between">
-        <div className="text-[8px] text-muted-foreground/50">
+        <div className="text-[8px] text-muted-foreground/50 max-w-[60%] truncate">
           {layout?.footer_text || 'Footer dokumen'}
         </div>
         <div className="flex items-center gap-3">
