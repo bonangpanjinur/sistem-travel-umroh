@@ -26,9 +26,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle, Plus, Heart } from "lucide-react";
+import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle, Plus, Heart, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
@@ -77,6 +87,8 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
   });
 
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [mahramSearch, setMahramSearch] = useState("");
+  const [mahramSearchOpen, setMahramSearchOpen] = useState(false);
 
   // Fetch document types
   const { data: documentTypes } = useQuery({
@@ -132,6 +144,31 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         .gte("booking.departure.departure_date", today);
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch all customers for mahram selection
+  const { data: allCustomers, isLoading: loadingCustomers } = useQuery({
+    queryKey: ["customers-for-mahram", mahramSearch],
+    enabled: open && mahramSearchOpen,
+    queryFn: async () => {
+      let query = supabase
+        .from("customers")
+        .select("id, full_name, phone, email")
+        .neq("id", customer.id)
+        .order("full_name");
+
+      if (mahramSearch.trim()) {
+        const sanitized = mahramSearch.replace(/[%_()\\*?{}[\]]/g, "");
+        if (sanitized.trim()) {
+          query = query.or(
+            `full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,email.ilike.%${sanitized}%`
+          );
+        }
+      }
+      const { data, error } = await query.limit(20);
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -339,18 +376,35 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     },
   });
 
-  const [newMahram, setNewMahram] = useState({ mahram_name: "", mahram_relation: "", notes: "" });
+  const [newMahram, setNewMahram] = useState({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
 
   const addMahramMutation = useMutation({
     mutationFn: async (m: typeof newMahram) => {
+      // If mahram_customer_id is provided, fetch the customer name
+      let mahramName = m.mahram_name;
+      if (m.mahram_customer_id) {
+        const selectedCustomer = allCustomers?.find(c => c.id === m.mahram_customer_id);
+        if (selectedCustomer) {
+          mahramName = selectedCustomer.full_name;
+        }
+      }
+
       const { error } = await supabase
         .from("customer_mahrams" as any)
-        .insert({ customer_id: customer.id, mahram_name: m.mahram_name, mahram_relation: m.mahram_relation, notes: m.notes || null });
+        .insert({ 
+          customer_id: customer.id, 
+          mahram_name: mahramName, 
+          mahram_relation: m.mahram_relation, 
+          mahram_customer_id: m.mahram_customer_id || null,
+          notes: m.notes || null 
+        });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Mahram berhasil ditambahkan");
-      setNewMahram({ mahram_name: "", mahram_relation: "", notes: "" });
+      setNewMahram({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
+      setMahramSearch("");
+      setMahramSearchOpen(false);
       refetchMahrams();
     },
     onError: (e: any) => toast.error(e.message || "Gagal menambah mahram"),
@@ -388,6 +442,11 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
     }
   };
+
+  const selectedMahramCustomer = useMemo(
+    () => allCustomers?.find((c: any) => c.id === newMahram.mahram_customer_id),
+    [allCustomers, newMahram.mahram_customer_id]
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -727,14 +786,82 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                   <Plus className="h-4 w-4" /> Tambah Mahram
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
+                  {/* Mahram customer selector */}
                   <div className="space-y-1.5">
-                    <Label>Nama Mahram *</Label>
-                    <Input
-                      value={newMahram.mahram_name}
-                      onChange={e => setNewMahram(p => ({ ...p, mahram_name: e.target.value }))}
-                      placeholder="Nama lengkap mahram"
-                    />
+                    <Label>Pilih dari Jamaah *</Label>
+                    <Popover open={mahramSearchOpen} onOpenChange={setMahramSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-normal"
+                        >
+                          {selectedMahramCustomer ? (
+                            <span className="truncate">
+                              {selectedMahramCustomer.full_name}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              Cari nama jamaah...
+                            </span>
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-[--radix-popover-trigger-width] p-0"
+                        align="start"
+                      >
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Ketik nama atau nomor telepon..."
+                            value={mahramSearch}
+                            onValueChange={setMahramSearch}
+                          />
+                          <CommandList>
+                            {loadingCustomers ? (
+                              <div className="py-4 text-center text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                                Mencari...
+                              </div>
+                            ) : !allCustomers || allCustomers.length === 0 ? (
+                              <CommandEmpty>Tidak ditemukan</CommandEmpty>
+                            ) : (
+                              <CommandGroup>
+                                {allCustomers.map((c: any) => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={c.id}
+                                    onSelect={() => {
+                                      setNewMahram(p => ({ ...p, mahram_customer_id: c.id }));
+                                      setMahramSearchOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        newMahram.mahram_customer_id === c.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="truncate">
+                                        {c.full_name}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {c.phone || c.email}
+                                      </div>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
+
+                  {/* Mahram relation */}
                   <div className="space-y-1.5">
                     <Label>Hubungan *</Label>
                     <Select value={newMahram.mahram_relation} onValueChange={v => setNewMahram(p => ({ ...p, mahram_relation: v }))}>
@@ -766,7 +893,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                   type="button"
                   size="sm"
                   onClick={() => addMahramMutation.mutate(newMahram)}
-                  disabled={addMahramMutation.isPending || !newMahram.mahram_name || !newMahram.mahram_relation}
+                  disabled={addMahramMutation.isPending || !newMahram.mahram_customer_id || !newMahram.mahram_relation}
                 >
                   {addMahramMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                   Tambah Mahram
@@ -805,7 +932,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
               </div>
             </TabsContent>
 
-            {/* Kontak Darurat Tab */}
+            {/* Darurat Tab */}
             <TabsContent value="emergency" className="space-y-4 mt-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -818,7 +945,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="emergency_contact_phone">No. Telepon Darurat</Label>
+                  <Label htmlFor="emergency_contact_phone">No. Telepon</Label>
                   <Input
                     id="emergency_contact_phone"
                     value={formData.emergency_contact_phone}
@@ -826,25 +953,22 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                     placeholder="08xxxxxxxxxx"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emergency_contact_relation">Hubungan</Label>
-                  <Select
-                    value={formData.emergency_contact_relation}
-                    onValueChange={(val) => handleChange("emergency_contact_relation", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih hubungan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="orang_tua">Orang Tua</SelectItem>
-                      <SelectItem value="suami_istri">Suami/Istri</SelectItem>
-                      <SelectItem value="anak">Anak</SelectItem>
-                      <SelectItem value="saudara">Saudara</SelectItem>
-                      <SelectItem value="kerabat">Kerabat</SelectItem>
-                      <SelectItem value="teman">Teman</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emergency_contact_relation">Hubungan</Label>
+                <Select value={formData.emergency_contact_relation} onValueChange={(val) => handleChange("emergency_contact_relation", val)}>
+                  <SelectTrigger><SelectValue placeholder="Pilih hubungan" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="istri">Istri</SelectItem>
+                    <SelectItem value="suami">Suami</SelectItem>
+                    <SelectItem value="ayah">Ayah</SelectItem>
+                    <SelectItem value="ibu">Ibu</SelectItem>
+                    <SelectItem value="anak">Anak</SelectItem>
+                    <SelectItem value="saudara">Saudara Kandung</SelectItem>
+                    <SelectItem value="paman">Paman</SelectItem>
+                    <SelectItem value="kakek">Kakek</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </TabsContent>
 
@@ -853,59 +977,59 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
               <div className="space-y-4">
                 {documentTypes?.map((docType) => {
                   const existingDoc = existingDocs?.find(d => d.document_type_id === docType.id);
-                  const isUploading = uploading[docType.id];
-
                   return (
-                    <div key={docType.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
+                    <div key={docType.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
                         <div>
-                          <Label className="text-sm font-medium">{docType.name}</Label>
-                          {docType.is_required && (
-                            <Badge variant="outline" className="ml-2 text-xs">Wajib</Badge>
-                          )}
+                          <p className="font-semibold text-sm">{docType.name}</p>
+                          <p className="text-xs text-muted-foreground">{docType.code}</p>
                         </div>
-                        {existingDoc && getStatusBadge(existingDoc.status || "pending")}
+                        {existingDoc && (
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(existingDoc.status)}
+                          </div>
+                        )}
                       </div>
 
-                      {existingDoc ? (
-                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm font-medium">{existingDoc.file_name || "Dokumen"}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Upload: {new Date(existingDoc.created_at || "").toLocaleDateString("id-ID")}
-                              </p>
+                      {existingDoc && existingDoc.file_url && (
+                        <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <a
+                            href={existingDoc.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline truncate flex-1"
+                          >
+                            {existingDoc.file_name}
+                          </a>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            asChild
+                          >
+                            <a href={existingDoc.file_url} target="_blank" rel="noopener noreferrer">
+                              <Eye className="h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                        </div>
+                      )}
+
+                      {(!existingDoc || existingDoc.status === "rejected") && (
+                        <div>
+                          <label className="flex items-center justify-center w-full px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <Upload className="h-4 w-4" />
+                              <span className="text-sm">
+                                {uploading[docType.id] ? "Mengupload..." : "Upload dokumen"}
+                              </span>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(existingDoc.file_url, "_blank")}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Label htmlFor={`replace-${docType.id}`} className="cursor-pointer">
-                              <Button type="button" variant="outline" size="sm" asChild disabled={isUploading}>
-                                <span>
-                                  {isUploading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <Upload className="h-4 w-4 mr-1" />
-                                      Ganti
-                                    </>
-                                  )}
-                                </span>
-                              </Button>
-                            </Label>
                             <input
-                              id={`replace-${docType.id}`}
                               type="file"
-                              accept="image/*,.pdf"
                               className="hidden"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              disabled={uploading[docType.id]}
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
@@ -918,48 +1042,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                                 e.target.value = "";
                               }}
                             />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                          <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground mb-3">
-                            Belum ada dokumen
-                          </p>
-                          <Label htmlFor={`upload-${docType.id}`} className="cursor-pointer">
-                            <Button type="button" variant="outline" size="sm" asChild disabled={isUploading}>
-                              <span>
-                                {isUploading ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Mengupload...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Upload className="h-4 w-4 mr-2" />
-                                    Upload {docType.name}
-                                  </>
-                                )}
-                              </span>
-                            </Button>
-                          </Label>
-                          <input
-                            id={`upload-${docType.id}`}
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                if (file.size > 5 * 1024 * 1024) {
-                                  toast.error("Ukuran file maksimal 5MB");
-                                  return;
-                                }
-                                handleDocumentUpload(file, docType.id);
-                              }
-                              e.target.value = "";
-                            }}
-                          />
+                          </label>
                           <p className="text-xs text-muted-foreground mt-2">
                             Format: JPG, PNG, PDF (Maks 5MB)
                           </p>
