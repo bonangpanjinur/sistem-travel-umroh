@@ -538,14 +538,39 @@ export default function AdminCustomerDetail() {
                             <div className="flex items-center gap-2 shrink-0">
                               {existing && (
                                 <>
-                                  <Button 
-                                    variant="outline" 
-                                    size="icon" 
-                                    title="Lihat"
-                                    onClick={() => setPreviewDoc(existing)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
+	                                  <Button 
+	                                    variant="outline" 
+	                                    size="icon" 
+	                                    title="Lihat"
+	                                    onClick={() => setPreviewDoc(existing)}
+	                                  >
+	                                    <Eye className="h-4 w-4" />
+	                                  </Button>
+	                                  <Button 
+	                                    variant="outline" 
+	                                    size="icon" 
+	                                    title="Unduh"
+	                                    onClick={async () => {
+	                                      try {
+	                                        const url = getPublicUrl(existing.file_url);
+	                                        const response = await fetch(url);
+	                                        const blob = await response.blob();
+	                                        const blobUrl = window.URL.createObjectURL(blob);
+	                                        const link = document.createElement("a");
+	                                        link.href = blobUrl;
+	                                        link.download = `${dt.name}-${customer?.full_name || 'dokumen'}`.replace(/\s+/g, '_');
+	                                        document.body.appendChild(link);
+	                                        link.click();
+	                                        document.body.removeChild(link);
+	                                        window.URL.revokeObjectURL(blobUrl);
+	                                      } catch (error) {
+	                                        console.error("Download failed:", error);
+	                                        window.open(getPublicUrl(existing.file_url), "_blank");
+	                                      }
+	                                    }}
+	                                  >
+	                                    <Download className="h-4 w-4" />
+	                                  </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="outline" size="icon" title="Verifikasi">
@@ -637,14 +662,39 @@ export default function AdminCustomerDetail() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="icon" 
-                                    title="Lihat File"
-                                    onClick={() => setPreviewDoc(doc)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
+	                                  <Button 
+	                                    variant="outline" 
+	                                    size="icon" 
+	                                    title="Lihat File"
+	                                    onClick={() => setPreviewDoc(doc)}
+	                                  >
+	                                    <Eye className="h-4 w-4" />
+	                                  </Button>
+	                                  <Button 
+	                                    variant="outline" 
+	                                    size="icon" 
+	                                    title="Unduh File"
+	                                    onClick={async () => {
+	                                      try {
+	                                        const url = getPublicUrl(doc.file_url);
+	                                        const response = await fetch(url);
+	                                        const blob = await response.blob();
+	                                        const blobUrl = window.URL.createObjectURL(blob);
+	                                        const link = document.createElement("a");
+	                                        link.href = blobUrl;
+	                                        link.download = `${doc.document_type?.name || 'Dokumen'}-${customer?.full_name || 'jamaah'}`.replace(/\s+/g, '_');
+	                                        document.body.appendChild(link);
+	                                        link.click();
+	                                        document.body.removeChild(link);
+	                                        window.URL.revokeObjectURL(blobUrl);
+	                                      } catch (error) {
+	                                        console.error("Download failed:", error);
+	                                        window.open(getPublicUrl(doc.file_url), "_blank");
+	                                      }
+	                                    }}
+	                                  >
+	                                    <Download className="h-4 w-4" />
+	                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
