@@ -47,7 +47,7 @@ export interface CompanyInfo {
 
 // Letter data interfaces
 // Surat Cuti Karyawan
-interface EmployeeLeaveLetterData {
+export interface EmployeeLeaveLetterData {
   employeeName: string;
   employeePosition: string;
   employeeNik: string;
@@ -58,7 +58,7 @@ interface EmployeeLeaveLetterData {
 }
 
 // Surat Cuti Jamaah (untuk keperluan ibadah Umrah/Haji)
-interface JamaahLeaveLetterData {
+export interface JamaahLeaveLetterData {
   jamaahName: string;
   nik: string;
   birthPlace: string;
@@ -75,9 +75,9 @@ interface JamaahLeaveLetterData {
 }
 
 // Legacy alias for backward compatibility
-interface LeaveLetterData extends EmployeeLeaveLetterData {}
+export interface LeaveLetterData extends EmployeeLeaveLetterData {}
 
-interface PassportLetterData {
+export interface PassportLetterData {
   customerName: string;
   nik: string;
   birthPlace: string;
@@ -117,7 +117,7 @@ export interface InvoiceData {
 }
 
 // Added for extended invoice data
-interface InvoiceDataExtended extends InvoiceData {
+export interface InvoiceDataExtended extends InvoiceData {
   packageName?: string;
   departureDate?: string;
   passengerSummary?: {
@@ -130,7 +130,7 @@ interface InvoiceDataExtended extends InvoiceData {
   paymentStatus?: string;
 }
 
-interface GeneralLetterData {
+export interface GeneralLetterData {
   letterNumber: string;
   letterDate: Date;
   recipient: {
@@ -145,6 +145,35 @@ interface GeneralLetterData {
     name: string;
     position: string;
   };
+}
+
+export interface ETicketData {
+  bookingCode: string;
+  passengerName: string;
+  passportNumber: string;
+  packageName: string;
+  departureDate: Date;
+  returnDate: Date;
+  departureAirport: string;
+  arrivalAirport: string;
+  flightNumber?: string;
+  airline?: string;
+  departureTime?: string;
+  hotelMakkah?: string;
+  hotelMadinah?: string;
+  roomType: string;
+  seatNumber?: string;
+}
+
+export interface UmrahCertificateData {
+  participantName: string;
+  passportNumber: string;
+  birthPlace: string;
+  birthDate: Date;
+  packageName: string;
+  departureDate: Date;
+  returnDate: Date;
+  certificateNumber: string;
 }
 
 const defaultCompanyInfo: CompanyInfo = {
@@ -815,6 +844,259 @@ Demikian surat rekomendasi ini kami sampaikan. Atas perhatian dan kerjasamanya, 
   
   addFooter(doc, 1, 1, company);
   
+  return doc;
+}
+
+// Generate E-Ticket
+export function generateETicket(
+  data: ETicketData,
+  company: CompanyInfo = defaultCompanyInfo
+): jsPDF {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  const accentColor = company.settings?.invoice_accent_color || '#16a34a';
+  const rgb = hexToRgb(accentColor);
+
+  // Header with company branding
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.rect(0, 0, pageWidth, 40, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('E-TICKET', pageWidth / 2, 18, { align: 'center' });
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(company.name, pageWidth / 2, 28, { align: 'center' });
+  doc.text(`Booking Code: ${data.bookingCode}`, pageWidth / 2, 36, { align: 'center' });
+
+  doc.setTextColor(0, 0, 0);
+  let y = 55;
+
+  // Passenger Information Section
+  doc.setFillColor(240, 240, 240);
+  doc.rect(14, y - 5, pageWidth - 28, 35, 'F');
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMASI PENUMPANG', 20, y);
+  y += 10;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Nama Penumpang: ${data.passengerName}`, 20, y);
+  y += 7;
+  doc.text(`No. Paspor: ${data.passportNumber}`, 20, y);
+  y += 7;
+  doc.text(`Paket: ${data.packageName}`, 20, y);
+
+  y += 20;
+
+  // Flight Information Section
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMASI PENERBANGAN', 20, y);
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+
+  // Departure
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('KEBERANGKATAN', 20, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Tanggal: ${format(data.departureDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
+  if (data.departureTime) {
+    doc.text(`Waktu: ${data.departureTime}`, 100, y);
+  }
+  y += 7;
+  doc.text(`Dari: ${data.departureAirport}`, 20, y);
+  doc.text(`Ke: ${data.arrivalAirport}`, 100, y);
+  y += 7;
+  if (data.airline) {
+    doc.text(`Maskapai: ${data.airline}`, 20, y);
+  }
+  if (data.flightNumber) {
+    doc.text(`No. Penerbangan: ${data.flightNumber}`, 100, y);
+  }
+
+  y += 15;
+
+  // Return
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('KEPULANGAN', 20, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Tanggal: ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
+
+  y += 20;
+
+  // Accommodation Information
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMASI AKOMODASI', 20, y);
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (data.hotelMakkah) {
+    doc.text(`Hotel Makkah: ${data.hotelMakkah}`, 20, y);
+    y += 7;
+  }
+  if (data.hotelMadinah) {
+    doc.text(`Hotel Madinah: ${data.hotelMadinah}`, 20, y);
+    y += 7;
+  }
+  doc.text(`Tipe Kamar: ${data.roomType}`, 20, y);
+
+  y += 25;
+
+  // Important Notes
+  doc.setFillColor(255, 243, 205);
+  doc.rect(14, y - 5, pageWidth - 28, 40, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('CATATAN PENTING:', 20, y);
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('• Harap tiba di bandara minimal 4 jam sebelum keberangkatan', 20, y);
+  y += 5;
+  doc.text('• Pastikan paspor masih berlaku minimal 6 bulan dari tanggal keberangkatan', 20, y);
+  y += 5;
+  doc.text('• Bawa dokumen asli: Paspor, Visa, Buku Kuning (Vaksin Meningitis)', 20, y);
+  y += 5;
+  doc.text('• E-Ticket ini wajib dicetak dan dibawa saat keberangkatan', 20, y);
+
+  // Footer
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFontSize(8);
+  doc.setTextColor(128);
+  doc.text(`Dicetak: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}`, 14, pageHeight - 15);
+  doc.text(`${company.phone} | ${company.email}`, pageWidth - 14, pageHeight - 15, { align: 'right' });
+  doc.setTextColor(0);
+
+  return doc;
+}
+
+// Generate Umrah Certificate (Sertifikat Umrah)
+export function generateUmrahCertificate(
+  data: UmrahCertificateData,
+  company: CompanyInfo = defaultCompanyInfo
+): jsPDF {
+  const doc = new jsPDF('landscape');
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const borderColor = company.settings?.invoice_accent_color || '#daa520';
+  const textColor = company.settings?.invoice_accent_color || '#165634';
+  const rgbBorder = hexToRgb(borderColor);
+  const rgbText = hexToRgb(textColor);
+
+  // Decorative border
+  doc.setDrawColor(rgbBorder.r, rgbBorder.g, rgbBorder.b);
+  doc.setLineWidth(3);
+  doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
+  doc.setLineWidth(1);
+  doc.rect(15, 15, pageWidth - 30, pageHeight - 30);
+
+  // Header decorations
+  doc.setFillColor(rgbBorder.r, rgbBorder.g, rgbBorder.b);
+  doc.rect(pageWidth / 2 - 60, 20, 120, 2, 'F');
+
+  let y = 35;
+
+  // Title
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100);
+  doc.text('SERTIFIKAT', pageWidth / 2, y, { align: 'center' });
+  y += 12;
+
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(rgbText.r, rgbText.g, rgbText.b);
+  doc.text('IBADAH UMRAH', pageWidth / 2, y, { align: 'center' });
+  y += 10;
+
+  // Certificate Number
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`No. ${data.certificateNumber}`, pageWidth / 2, y, { align: 'center' });
+
+  y += 20;
+
+  // Main content
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.text('Dengan ini menerangkan bahwa:', pageWidth / 2, y, { align: 'center' });
+
+  y += 15;
+
+  // Participant name
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text(data.participantName.toUpperCase(), pageWidth / 2, y, { align: 'center' });
+
+  y += 8;
+  doc.setFillColor(rgbBorder.r, rgbBorder.g, rgbBorder.b);
+  doc.rect(pageWidth / 2 - 80, y, 160, 1, 'F');
+
+  y += 15;
+
+  // Details
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`No. Paspor: ${data.passportNumber}`, pageWidth / 2, y, { align: 'center' });
+  y += 7;
+  doc.text(`Tempat/Tanggal Lahir: ${data.birthPlace}, ${format(data.birthDate, 'd MMMM yyyy', { locale: id })}`, pageWidth / 2, y, { align: 'center' });
+
+  y += 15;
+
+  // Certificate text
+  doc.setFontSize(12);
+  const certText = `Telah menunaikan Ibadah Umrah ke Tanah Suci Makkah Al-Mukarramah dan Madinah Al-Munawwarah`;
+  doc.text(certText, pageWidth / 2, y, { align: 'center' });
+
+  y += 10;
+  doc.text(`Periode: ${format(data.departureDate, 'd MMMM', { locale: id })} - ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}`, pageWidth / 2, y, { align: 'center' });
+  y += 7;
+  doc.text(`Paket: ${data.packageName}`, pageWidth / 2, y, { align: 'center' });
+
+  y += 20;
+
+  // Closing text
+  doc.setFontSize(10);
+  doc.text('Semoga Ibadah Umrah yang telah dilaksanakan menjadi Umrah yang Mabrur', pageWidth / 2, y, { align: 'center' });
+  y += 6;
+  doc.text('dan diterima di sisi Allah SWT. Aamiin.', pageWidth / 2, y, { align: 'center' });
+
+  // Signature section
+  y = pageHeight - 55;
+  doc.setFontSize(10);
+  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y, { align: 'center' });
+  y += 6;
+  doc.text(company.name, pageWidth - 70, y, { align: 'center' });
+  y += 20;
+  doc.text('_______________________', pageWidth - 70, y, { align: 'center' });
+  y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Direktur', pageWidth - 70, y, { align: 'center' });
+
+  // Company info at bottom
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100);
+  doc.text(`${company.address} | ${company.phone} | ${company.email}`, pageWidth / 2, pageHeight - 18, { align: 'center' });
+
   return doc;
 }
 
