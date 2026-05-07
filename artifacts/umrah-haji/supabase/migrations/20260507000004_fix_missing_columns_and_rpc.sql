@@ -19,6 +19,18 @@ BEGIN
         SET allowed_extensions = ARRAY['jpg', 'jpeg', 'png', 'pdf']
         WHERE allowed_extensions IS NULL;
     END IF;
+
+    -- Add is_active column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'document_types'
+        AND column_name = 'is_active'
+    ) THEN
+        ALTER TABLE public.document_types
+        ADD COLUMN is_active boolean NOT NULL DEFAULT true;
+    END IF;
 END
 $$;
 
