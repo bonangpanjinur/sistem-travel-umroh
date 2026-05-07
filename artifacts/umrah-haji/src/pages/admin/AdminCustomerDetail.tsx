@@ -60,6 +60,18 @@ const BOOKING_STATUS_CONFIG: Record<string, { label: string; color: string }> = 
 
 export default function AdminCustomerDetail() {
   const { id: customerId } = useParams() as { id: string };
+
+  const getPublicUrl = (path: string) => {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    
+    // If it's just a path, get the public URL from Supabase storage
+    const { data } = supabase.storage
+      .from("customer-documents")
+      .getPublicUrl(path);
+    
+    return data.publicUrl;
+  };
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { company: companyInfo } = useCompanyInfo();
@@ -924,7 +936,7 @@ export default function AdminCustomerDetail() {
                   <div className="border rounded-lg overflow-hidden bg-gray-50">
                     {previewDoc.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                       <img 
-                        src={previewDoc.file_url} 
+                        src={getPublicUrl(previewDoc.file_url)} 
                         alt="Document" 
                         className="max-h-[500px] w-full object-contain"
                       />
@@ -933,7 +945,7 @@ export default function AdminCustomerDetail() {
                         <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                         <p className="text-sm text-muted-foreground mb-4">File PDF tidak dapat ditampilkan dalam preview</p>
                         <a 
-                          href={previewDoc.file_url} 
+                          href={getPublicUrl(previewDoc.file_url)} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -947,7 +959,7 @@ export default function AdminCustomerDetail() {
                         <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                         <p className="text-sm text-muted-foreground mb-4">Format file tidak didukung untuk preview</p>
                         <a 
-                          href={previewDoc.file_url} 
+                          href={getPublicUrl(previewDoc.file_url)} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
