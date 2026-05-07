@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
-import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
+import { DocumentLayoutEditor } from "@/components/admin/appearance/DocumentLayoutEditor";
 import { SidebarManager } from "@/components/admin/SidebarManager";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
@@ -351,7 +351,7 @@ export default function AdminSettings() {
           {activeSection === "documents" && (
             <>
               <SectionHead icon={FileText} title="Dokumen & Template Surat" desc="Pengaturan kop surat, warna invoice, dan tampilan dokumen PDF" />
-              <DocumentSettingsForm />
+              <DocumentLayoutEditor />
             </>
           )}
 
@@ -469,9 +469,7 @@ export default function AdminSettings() {
                 </CardContent>
               </Card>
 
-              <Separator />
-              <SectionHead icon={FileText} title="Desain Dokumen PDF" desc="Konfigurasi tampilan invoice, e-tiket, manifest, dan sertifikat" />
-              <DocumentSettingsForm />
+
             </>
           )}
 

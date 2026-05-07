@@ -235,10 +235,6 @@ export default function AdminAppearance() {
             <Square className="h-4 w-4" />
             <span>Card Paket</span>
           </TabsTrigger>
-          <TabsTrigger value="document-layout" className="gap-2 py-2">
-            <LayoutTemplate className="h-4 w-4" />
-            <span>Layout Dokumen</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="template">
@@ -394,9 +390,7 @@ export default function AdminAppearance() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="document-layout">
-          <DocumentLayoutEditor />
-        </TabsContent>
+
 
         <TabsContent value="bank-accounts">
           <BankAccountsSettings />

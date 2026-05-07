@@ -332,19 +332,13 @@ export function DocumentLayoutEditor() {
             </CardContent>
           </Card>
 
-          {/* Additional Settings for Invoice */}
-          {activeDocumentType === 'invoice' && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 px-1">
-                <Settings2 className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-bold">Pengaturan Detail Invoice</h3>
-              </div>
-              <DocumentSettingsForm />
-            </div>
-          )}
+          {/* Document Settings Form (Integrated) */}
+          <div className="pt-4">
+            <DocumentSettingsForm />
+          </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6">">
           {/* Preview */}
           <Card className="bg-muted/30 sticky top-6">
             <CardHeader>
