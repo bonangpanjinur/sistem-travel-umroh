@@ -35,12 +35,25 @@ export function useEffectivePermissions() {
         _roles: uniqueRoles
       });
       
-      // Fallback to legacy RPC if v2 doesn't exist yet (PGRST202 or message check)
-      if (error && (error.code === 'PGRST202' || (error.message && error.message.includes('function') && error.message.includes('does not exist')))) {
+      // Fallback to legacy RPC if v2 doesn't exist yet (PGRST202, 404, or message check)
+      const isFunctionNotFoundError = error && (
+        error.code === 'PGRST202' || 
+        error.status === 404 ||
+        (error.message && error.message.includes('function') && error.message.includes('does not exist'))
+      );
+
+      if (isFunctionNotFoundError) {
         const { data: legacyData, error: legacyError } = await (supabase.rpc as any)('get_user_effective_permissions', {
           _user_id: user.id,
         });
-        if (legacyError) { console.error(legacyError); return [] as string[]; }
+        
+        if (legacyError) { 
+          // If both fail, it's a serious missing migration issue
+          if (import.meta.env.DEV) {
+            console.error('[Permissions] Both v2 and legacy RPC failed. Ensure migrations are applied.', legacyError);
+          }
+          return [] as string[]; 
+        }
         return ((legacyData || []) as Array<{ permission_key: string }>).map(r => r.permission_key);
       }
 
