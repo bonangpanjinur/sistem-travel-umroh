@@ -171,13 +171,7 @@ export default function AdminRoomAssignmentsImproved() {
       for (const mateId of selectedMateIds) {
         const mate = passengers?.find(p => p.id === mateId);
         if (mate?.customer?.gender !== mainGender) {
-          // Allow if mahram (same booking) or spouse
-          const isMahram = mate?.booking?.id === mainPassenger.booking?.id;
-          const isSpouse = mainPassenger.customer?.marital_status === 'married' && 
-            mate?.customer?.marital_status === 'married';
-          if (!isMahram && !isSpouse) {
-            throw new Error(`${mate?.customer?.full_name} berbeda gender dan bukan mahram`);
-          }
+          throw new Error(`${mate?.customer?.full_name} berbeda gender`);
         }
       }
 
@@ -326,6 +320,7 @@ export default function AdminRoomAssignmentsImproved() {
   };
 
   // Get available candidates for roommate selection
+  // Allows flexible pairing: same room type and gender, regardless of booking code
   const getAvailableCandidates = (passenger: Passenger): Passenger[] => {
     if (!passengers) return [];
 
@@ -339,16 +334,12 @@ export default function AdminRoomAssignmentsImproved() {
       // Can't select if already selected
       if (selectedRoommateIds.has(p.id)) return false;
 
-      // Must have same room preference
+      // Must have same room preference (type of room)
       if (p.room_preference !== passenger.room_preference) return false;
 
-      // Gender check: same gender OR mahram OR spouse
+      // Must have same gender (flexible pairing allows different bookings)
       const sameGender = p.customer?.gender === passenger.customer?.gender;
-      const isMahram = p.booking?.id === passenger.booking?.id;
-      const isSpouse = passenger.customer?.marital_status === 'married' && 
-        p.customer?.marital_status === 'married';
-
-      return sameGender || isMahram || isSpouse;
+      return sameGender;
     });
   };
 
