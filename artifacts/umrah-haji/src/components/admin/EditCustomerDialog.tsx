@@ -38,6 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle, Plus, Heart, ChevronsUpDown, Check } from "lucide-react";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -69,6 +70,8 @@ interface EditCustomerDialogProps {
 export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustomerDialogProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
@@ -1125,7 +1128,10 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => window.open(doc.file_url, "_blank")}
+                          onClick={() => {
+                            setPreviewDoc({ url: doc.file_url, name: type.name });
+                            setPreviewOpen(true);
+                          }}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Lihat
@@ -1163,6 +1169,13 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
             </div>
           </TabsContent>
         </Tabs>
+
+        <DocumentPreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          documentUrl={previewDoc?.url || ""}
+          documentName={previewDoc?.name || ""}
+        />
 
         <DialogFooter className="mt-6">
           <Button variant="outline" onClick={() => setOpen(false)}>
