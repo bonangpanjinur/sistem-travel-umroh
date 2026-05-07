@@ -54,6 +54,7 @@ export function DocumentPreviewModal({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [open, documentUrl]);
 
   const handleDownload = () => {
