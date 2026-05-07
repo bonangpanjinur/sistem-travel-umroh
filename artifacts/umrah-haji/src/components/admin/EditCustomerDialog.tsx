@@ -761,37 +761,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                   />
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="mahram_name">Nama Mahram</Label>
-                  <Input
-                    id="mahram_name"
-                    value={formData.mahram_name}
-                    onChange={(e) => handleChange("mahram_name", e.target.value)}
-                    placeholder="Untuk jamaah wanita"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mahram_relation">Hubungan Mahram</Label>
-                  <Select
-                    value={formData.mahram_relation}
-                    onValueChange={(val) => handleChange("mahram_relation", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih hubungan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="suami">Suami</SelectItem>
-                      <SelectItem value="istri">Istri</SelectItem>
-                      <SelectItem value="ayah">Ayah</SelectItem>
-                      <SelectItem value="anak">Anak Laki-laki</SelectItem>
-                      <SelectItem value="saudara">Saudara Kandung</SelectItem>
-                      <SelectItem value="paman">Paman</SelectItem>
-                      <SelectItem value="kakek">Kakek</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+
             </TabsContent>
 
             {/* Mahram Tab */}
@@ -952,36 +922,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                 </Button>
               </div>
 
-              {/* Legacy single mahram (backward compat) */}
-              <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data Mahram Utama (Lama)</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="mahram_name">Nama Mahram</Label>
-                    <Input
-                      id="mahram_name"
-                      value={formData.mahram_name}
-                      onChange={(e) => handleChange("mahram_name", e.target.value)}
-                      placeholder="Untuk jamaah wanita"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="mahram_relation">Hubungan Mahram</Label>
-                    <Select value={formData.mahram_relation} onValueChange={(val) => handleChange("mahram_relation", val)}>
-                      <SelectTrigger><SelectValue placeholder="Pilih hubungan" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="suami">Suami</SelectItem>
-                        <SelectItem value="istri">Istri</SelectItem>
-                        <SelectItem value="ayah">Ayah</SelectItem>
-                        <SelectItem value="anak">Anak Laki-laki</SelectItem>
-                        <SelectItem value="saudara">Saudara Kandung</SelectItem>
-                        <SelectItem value="paman">Paman</SelectItem>
-                        <SelectItem value="kakek">Kakek</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
+
             </TabsContent>
 
             {/* Darurat Tab */}
