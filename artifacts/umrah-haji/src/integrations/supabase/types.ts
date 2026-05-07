@@ -1257,6 +1257,7 @@ export type Database = {
           branch_id: string | null
           city: string | null
           created_at: string | null
+          district: string | null
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -1279,6 +1280,7 @@ export type Database = {
           province: string | null
           updated_at: string | null
           user_id: string | null
+          village: string | null
         }
         Insert: {
           address?: string | null
@@ -1288,6 +1290,7 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          district?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1310,6 +1313,7 @@ export type Database = {
           province?: string | null
           updated_at?: string | null
           user_id?: string | null
+          village?: string | null
         }
         Update: {
           address?: string | null
@@ -1319,6 +1323,7 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          district?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1341,6 +1346,7 @@ export type Database = {
           province?: string | null
           updated_at?: string | null
           user_id?: string | null
+          village?: string | null
         }
         Relationships: [
           {
