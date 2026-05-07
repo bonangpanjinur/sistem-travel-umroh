@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { CompanyInfo } from "@/lib/document-generator";
+import type { CompanyInfo, DocumentLayout } from "@/lib/document-generator";
 
 export interface DocumentSettings {
   letterhead_show_logo: boolean;
@@ -14,6 +14,7 @@ export interface DocumentSettings {
   certificate_text_color: string;
   document_footer_show_timestamp: boolean;
   document_footer_show_page_number: boolean;
+  invoice_accent_color?: string;
 }
 
 /**
@@ -87,17 +88,6 @@ export function useCompanyInfo() {
   // Try to get logo from company_settings first, then fallback to website_settings
   const logoUrl = unwrap(m?.get("company_logo_url")) || websiteSettings?.logo_url || undefined;
 
-  const company: CompanyInfo = {
-    name: unwrap(m?.get("company_name")) || "PT. Umrah Haji Travel",
-    address: unwrap(m?.get("company_address")) || "Jl. Raya Utama No. 123, Jakarta",
-    phone: unwrap(m?.get("company_phone")) || "(021) 1234-5678",
-    email: unwrap(m?.get("company_email")) || "info@umrahhaji.com",
-    website: unwrap(m?.get("company_website")) || undefined,
-    logo: logoUrl,
-  };
-
-  const city = unwrap(m?.get("company_city")) || "Jakarta";
-
   const documentSettings: DocumentSettings = {
     letterhead_show_logo: unwrapBoolean(m?.get("letterhead_show_logo"), true),
     letterhead_show_website: unwrapBoolean(m?.get("letterhead_show_website"), true),
@@ -110,11 +100,41 @@ export function useCompanyInfo() {
     certificate_text_color: unwrap(m?.get("certificate_text_color")) || "#165634",
     document_footer_show_timestamp: unwrapBoolean(m?.get("document_footer_show_timestamp"), true),
     document_footer_show_page_number: unwrapBoolean(m?.get("document_footer_show_page_number"), true),
+    invoice_accent_color: unwrap(m?.get("invoice_accent_color")) || "#0f172a",
+  };
+
+  // Fetch and parse invoice layout
+  const invoiceLayoutRaw = m?.get("document_layout_invoice");
+  let invoiceLayout: DocumentLayout | undefined = undefined;
+  if (invoiceLayoutRaw) {
+    try {
+      invoiceLayout = typeof invoiceLayoutRaw === 'string' ? JSON.parse(invoiceLayoutRaw) : invoiceLayoutRaw;
+    } catch (e) {
+      console.error("Failed to parse invoice layout", e);
+    }
+  }
+
+  const company: CompanyInfo = {
+    name: unwrap(m?.get("company_name")) || "PT. Umrah Haji Travel",
+    address: unwrap(m?.get("company_address")) || "Jl. Raya Utama No. 123, Jakarta",
+    phone: unwrap(m?.get("company_phone")) || "(021) 1234-5678",
+    email: unwrap(m?.get("company_email")) || "info@umrahhaji.com",
+    website: unwrap(m?.get("company_website")) || undefined,
+    logo: logoUrl,
+    city: unwrap(m?.get("company_city")) || "Jakarta",
+    settings: {
+      invoice_accent_color: documentSettings.invoice_accent_color,
+      invoice_show_bank_info: documentSettings.invoice_show_bank_info,
+      invoice_show_notes_section: documentSettings.invoice_show_notes_section,
+      document_footer_show_timestamp: documentSettings.document_footer_show_timestamp,
+      document_footer_show_page_number: documentSettings.document_footer_show_page_number,
+    },
+    layout: invoiceLayout,
   };
 
   return {
     company,
-    city,
+    city: company.city,
     documentSettings,
     bankAccount: bankQuery.data,
     isLoading: settingsQuery.isLoading || bankQuery.isLoading || websiteSettingsQuery.isLoading,

@@ -468,6 +468,11 @@ const AdminDocumentGenerator = () => {
       subtotal: booking.base_price,
       discount: booking.discount_amount || 0,
       total: booking.total_price,
+      paidAmount: booking.paid_amount || 0,
+      remainingAmount: booking.remaining_amount || 0,
+      paymentStatus: (booking.paid_amount || 0) >= booking.total_price ? 'paid' : (booking.paid_amount || 0) > 0 ? 'partial' : 'pending',
+      packageName: pkg?.name,
+      departureDate: departure?.departure_date ? new Date(departure.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
       notes: invoiceForm.notes || 'Pembayaran dapat dilakukan secara bertahap. Pelunasan paling lambat 2 minggu sebelum keberangkatan.',
       bankInfo: bankAccount ? { 
         bankName: bankAccount.bank_name, 
@@ -782,6 +787,11 @@ const AdminDocumentGenerator = () => {
                                         subtotal: booking.total_price,
                                         discount: (booking as any).discount_amount || 0,
                                         total: booking.total_price,
+                                        paidAmount: booking.paid_amount || 0,
+                                        remainingAmount: booking.remaining_amount || 0,
+                                        paymentStatus: (booking.paid_amount || 0) >= booking.total_price ? 'paid' : (booking.paid_amount || 0) > 0 ? 'partial' : 'pending',
+                                        packageName: pkg?.name,
+                                        departureDate: (dep as any)?.departure_date ? new Date((dep as any).departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
                                         notes: 'Terima kasih atas kepercayaan Anda.',
                                         bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined
                                       };

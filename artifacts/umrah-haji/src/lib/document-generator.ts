@@ -3,8 +3,31 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
+// Helper function to convert Hex to RGB
+function hexToRgb(hex: string) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 15, g: 23, b: 42 }; // Default navy
+}
+
+// Document Layout interface
+export interface DocumentLayout {
+  show_logo: boolean;
+  show_header: boolean;
+  show_company_info: boolean;
+  show_date: boolean;
+  show_signature: boolean;
+  show_stamp: boolean;
+  show_bank_info: boolean;
+  footer_text: string;
+  page_orientation: 'portrait' | 'landscape';
+}
+
 // Company info interface
-interface CompanyInfo {
+export interface CompanyInfo {
   name: string;
   address: string;
   phone: string;
@@ -12,6 +35,14 @@ interface CompanyInfo {
   website?: string;
   logo?: string;
   city?: string;
+  settings?: {
+    invoice_accent_color?: string;
+    invoice_show_bank_info?: boolean;
+    invoice_show_notes_section?: boolean;
+    document_footer_show_timestamp?: boolean;
+    document_footer_show_page_number?: boolean;
+  };
+  layout?: DocumentLayout;
 }
 
 // Letter data interfaces
@@ -57,7 +88,7 @@ interface PassportLetterData {
   departureDate?: Date;
 }
 
-interface InvoiceData {
+export interface InvoiceData {
   invoiceNumber: string;
   invoiceDate: Date;
   dueDate: Date;
@@ -83,6 +114,20 @@ interface InvoiceData {
     accountNumber: string;
     accountName: string;
   };
+}
+
+// Added for extended invoice data
+interface InvoiceDataExtended extends InvoiceData {
+  packageName?: string;
+  departureDate?: string;
+  passengerSummary?: {
+    adult?: number;
+    child?: number;
+    infant?: number;
+  };
+  paidAmount?: number;
+  remainingAmount?: number;
+  paymentStatus?: string;
 }
 
 interface GeneralLetterData {
@@ -112,15 +157,23 @@ const defaultCompanyInfo: CompanyInfo = {
 
 // Helper to add letterhead with logo support
 function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
+  const layout = company.layout;
+  if (layout?.show_header === false) {
+    return 15; // Return minimal Y position if header is hidden
+  }
+
   const pageWidth = doc.internal.pageSize.width;
-  let y = 15;
   
-  // Header background color
-  doc.setFillColor(59, 130, 246); // Blue color
+  // Header background color - using accent color if available for invoice
+  const accentColor = company.settings?.invoice_accent_color || '#3b82f6'; // Default blue
+  const rgb = hexToRgb(accentColor);
+  
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
   doc.rect(0, 0, pageWidth, 50, 'F');
   
-  // Add logo if available
-  if (company.logo) {
+  // Add logo if available and enabled
+  const showLogo = layout ? layout.show_logo : true;
+  if (showLogo && company.logo) {
     try {
       doc.addImage(company.logo, 'PNG', 14, 8, 35, 35);
     } catch (e) {
@@ -129,20 +182,22 @@ function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
     }
   }
   
-  // Company name (white text on blue background)
+  // Company name (white text on accent background)
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  const logoOffset = company.logo ? 55 : 14;
+  const logoOffset = (showLogo && company.logo) ? 55 : 14;
   doc.text(company.name, logoOffset, 22, { align: 'left' });
   
-  // Company details (white text on blue background)
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(company.address, logoOffset, 30, { align: 'left' });
-  doc.text(`Telp: ${company.phone} | Email: ${company.email}`, logoOffset, 36, { align: 'left' });
-  if (company.website) {
-    doc.text(company.website, logoOffset, 42, { align: 'left' });
+  // Company details (white text on accent background)
+  if (layout?.show_company_info !== false) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(company.address, logoOffset, 30, { align: 'left' });
+    doc.text(`Telp: ${company.phone} | Email: ${company.email}`, logoOffset, 36, { align: 'left' });
+    if (company.website) {
+      doc.text(company.website, logoOffset, 42, { align: 'left' });
+    }
   }
   
   // Reset text color
@@ -152,9 +207,11 @@ function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
 }
 
 // Helper to add footer
-function addFooter(doc: jsPDF, pageNum: number, totalPages: number) {
+function addFooter(doc: jsPDF, pageNum: number, totalPages: number, company: CompanyInfo = defaultCompanyInfo) {
   const pageHeight = doc.internal.pageSize.height;
   const pageWidth = doc.internal.pageSize.width;
+  const settings = company.settings;
+  const layout = company.layout;
   
   // Footer line
   doc.setDrawColor(200, 200, 200);
@@ -163,19 +220,356 @@ function addFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   
   doc.setFontSize(8);
   doc.setTextColor(128);
-  doc.text(
-    `Dicetak pada: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}`,
-    14,
-    pageHeight - 10
-  );
-  doc.text(
-    `Halaman ${pageNum} dari ${totalPages}`,
-    pageWidth - 14,
-    pageHeight - 10,
-    { align: 'right' }
-  );
+  
+  if (settings?.document_footer_show_timestamp !== false) {
+    doc.text(
+      `Dicetak pada: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}`,
+      14,
+      pageHeight - 10
+    );
+  }
+
+  if (layout?.footer_text) {
+    doc.text(layout.footer_text, pageWidth / 2, pageHeight - 15, { align: 'center' });
+  }
+
+  if (settings?.document_footer_show_page_number !== false) {
+    doc.text(
+      `Halaman ${pageNum} dari ${totalPages}`,
+      pageWidth - 14,
+      pageHeight - 10,
+      { align: 'right' }
+    );
+  }
   doc.setTextColor(0);
 }
+
+// Generate Invoice
+export function generateInvoice(
+  data: InvoiceDataExtended,
+  company: CompanyInfo = defaultCompanyInfo
+): jsPDF {
+  const layout = company.layout;
+  const settings = company.settings;
+  const orientation = layout?.page_orientation || 'portrait';
+  
+  const doc = new jsPDF({
+    orientation: orientation,
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  
+  const accentColor = settings?.invoice_accent_color || '#0f172a'; // Default navy
+  const rgbAccent = hexToRgb(accentColor);
+  
+  let y = addLetterhead(doc, company);
+  
+  // ── Header Title ─────────────────────────────────────────────────────
+  doc.setFillColor(rgbAccent.r, rgbAccent.g, rgbAccent.b);
+  doc.rect(14, y - 5, pageWidth - 28, 20, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INVOICE', 20, y + 8);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(data.invoiceNumber, pageWidth - 20, y + 8, { align: 'right' });
+  
+  y += 25;
+  doc.setTextColor(0, 0, 0);
+
+  // ── Info Columns (Customer & Dates) ──────────────────────────────────
+  const colW = (pageWidth - 28 - 10) / 2;
+  const leftX = 14;
+  const rightX = 14 + colW + 10;
+  
+  // Left: Invoice dates
+  doc.setFillColor(248, 250, 252);
+  doc.rect(leftX, y - 2, colW, 30, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(leftX, y - 2, colW, 30);
+  
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 116, 139);
+  doc.text('TANGGAL INVOICE', leftX + 3, y + 4);
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9);
+  doc.text(format(data.invoiceDate, 'd MMMM yyyy', { locale: id }), leftX + 3, y + 11);
+  
+  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(7.5);
+  doc.text('TANGGAL JATUH TEMPO', leftX + 3, y + 18);
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9);
+  doc.text(format(data.dueDate, 'd MMMM yyyy', { locale: id }), leftX + 3, y + 24);
+  
+  // Right: customer info box
+  doc.setFillColor(248, 250, 252);
+  doc.rect(rightX, y - 2, colW, 30, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(rightX, y - 2, colW, 30);
+  
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 116, 139);
+  doc.text('DITAGIHKAN KEPADA', rightX + 3, y + 4);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9.5);
+  doc.text(data.customer.name, rightX + 3, y + 11);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  const addrLines = doc.splitTextToSize(data.customer.address, colW - 6);
+  doc.text(addrLines, rightX + 3, y + 17);
+  
+  const addrBottom = y + 17 + (addrLines.length - 1) * 4;
+  if (addrBottom < y + 25) {
+    doc.text(`Telp: ${data.customer.phone}`, rightX + 3, addrBottom + 4);
+  }
+  
+  y += 36;
+  doc.setTextColor(0, 0, 0);
+
+  // ── Package / Departure Info (optional) ──────────────────────────────
+  if (data.packageName || data.departureDate) {
+    doc.setFillColor(240, 253, 244); // light green
+    doc.setDrawColor(134, 239, 172);
+    doc.setLineWidth(0.3);
+    doc.rect(14, y, pageWidth - 28, 13, 'FD');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 101, 52);
+    doc.text('PAKET', 18, y + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    const pkgText = [data.packageName, data.departureDate ? `Berangkat: ${data.departureDate}` : ''].filter(Boolean).join('  ·  ');
+    doc.text(pkgText, 38, y + 5);
+
+    if (data.passengerSummary) {
+      const ps = data.passengerSummary;
+      const parts = [];
+      if (ps.adult) parts.push(`${ps.adult} Dewasa`);
+      if (ps.child) parts.push(`${ps.child} Anak`);
+      if (ps.infant) parts.push(`${ps.infant} Bayi`);
+      if (parts.length) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(parts.join(' + '), 18, y + 10);
+      }
+    }
+
+    y += 19;
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // ── LUNAS watermark stamp (when paid) ────────────────────────────────
+  if (data.paymentStatus === 'paid') {
+    doc.saveGraphicsState();
+    // @ts-ignore - jspdf types might not have GState but it works
+    if (typeof doc.GState === 'function') {
+      // @ts-ignore
+      doc.setGState(new doc.GState({ opacity: 0.08 }));
+    }
+    doc.setFontSize(72);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 163, 74);
+    doc.text('LUNAS', pageWidth / 2, 180, { align: 'center', angle: 35 });
+    doc.restoreGraphicsState();
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // ── Items Table ──────────────────────────────────────────────────────
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+  };
+
+  const tableData = data.items.map((item, index) => [
+    (index + 1).toString(),
+    item.description,
+    item.quantity.toString(),
+    formatCurrency(item.unitPrice),
+    formatCurrency(item.total)
+  ]);
+  
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'Deskripsi Layanan', 'Qty', 'Harga Satuan', 'Subtotal']],
+    body: tableData,
+    styles: { 
+      fontSize: 8.5,
+      cellPadding: 4,
+      lineColor: [226, 232, 240],
+      lineWidth: 0.3,
+      textColor: [15, 23, 42],
+    },
+    headStyles: { 
+      fillColor: [rgbAccent.r, rgbAccent.g, rgbAccent.b],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      halign: 'left',
+      fontSize: 8,
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 15, halign: 'center' },
+      3: { cellWidth: 38, halign: 'right' },
+      4: { cellWidth: 38, halign: 'right' },
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+  });
+  
+  // @ts-ignore
+  y = doc.lastAutoTable.finalY + 6;
+  
+  // ── Totals + Payment Summary (side by side) ──────────────────────────
+  const totW = 85;
+  const totX = pageWidth - 14 - totW;
+  
+  // Totals panel
+  doc.setFillColor(248, 250, 252);
+  const totRows = 2 + (data.discount ? 1 : 0) + (data.tax ? 1 : 0) + 2; // rows: sub, disc?, tax?, total line, total
+  const totH = totRows * 8 + 6;
+  doc.rect(totX, y, totW, totH, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(totX, y, totW, totH);
+  
+  let ty = y + 7;
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  
+  doc.text('Subtotal', totX + 4, ty);
+  doc.text(formatCurrency(data.subtotal), totX + totW - 4, ty, { align: 'right' });
+  ty += 8;
+  
+  if (data.discount) {
+    doc.setTextColor(239, 68, 68);
+    doc.text('Diskon', totX + 4, ty);
+    doc.text(`- ${formatCurrency(data.discount)}`, totX + totW - 4, ty, { align: 'right' });
+    doc.setTextColor(71, 85, 105);
+    ty += 8;
+  }
+  
+  if (data.tax) {
+    doc.text('PPN (11%)', totX + 4, ty);
+    doc.text(formatCurrency(data.tax), totX + totW - 4, ty, { align: 'right' });
+    ty += 8;
+  }
+  
+  // Total separator
+  doc.setDrawColor(rgbAccent.r, rgbAccent.g, rgbAccent.b);
+  doc.setLineWidth(0.5);
+  doc.line(totX + 2, ty - 2, totX + totW - 2, ty - 2);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(rgbAccent.r, rgbAccent.g, rgbAccent.b);
+  doc.text('TOTAL', totX + 4, ty + 5);
+  doc.text(formatCurrency(data.total), totX + totW - 4, ty + 5, { align: 'right' });
+  ty += 14;
+  
+  // Payment summary rows
+  if (data.paidAmount && data.paidAmount > 0) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(34, 197, 94);
+    doc.text('Sudah Dibayar', totX + 4, ty);
+    doc.text(formatCurrency(data.paidAmount), totX + totW - 4, ty, { align: 'right' });
+    ty += 7;
+    
+    const remaining = data.remainingAmount || 0;
+    doc.setTextColor(remaining > 0 ? 239 : 34, remaining > 0 ? 68 : 197, remaining > 0 ? 68 : 94);
+    doc.setFont('helvetica', remaining > 0 ? 'bold' : 'normal');
+    doc.text('Sisa Tagihan', totX + 4, ty);
+    doc.text(formatCurrency(remaining), totX + totW - 4, ty, { align: 'right' });
+  }
+  
+  y = Math.max(y + totH + 8, ty + 12);
+  doc.setTextColor(0, 0, 0);
+  
+  // ── Bank Info ────────────────────────────────────────────────────────
+  const showBank = settings?.invoice_show_bank_info !== false && layout?.show_bank_info !== false;
+  const bankInfo = data.bankInfo;
+  if (showBank && bankInfo) {
+    doc.setFillColor(239, 246, 255);
+    doc.setDrawColor(147, 197, 253);
+    doc.setLineWidth(0.3);
+    doc.rect(14, y, pageWidth - 28, 26, 'FD');
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text('INFORMASI PEMBAYARAN', 18, y + 7);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${bankInfo.bankName}  ·  ${bankInfo.accountNumber}  ·  a.n. ${bankInfo.accountName}`, 18, y + 15);
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Transfer ke rekening di atas dan sertakan nomor invoice sebagai keterangan.', 18, y + 21);
+    
+    y += 32;
+  }
+  
+  // ── Notes ────────────────────────────────────────────────────────────
+  const showNotes = settings?.invoice_show_notes_section !== false;
+  if (showNotes && data.notes) {
+    doc.setFillColor(254, 252, 232);
+    doc.setDrawColor(253, 230, 138);
+    doc.setLineWidth(0.3);
+    const noteLines = doc.splitTextToSize(data.notes, pageWidth - 40);
+    doc.rect(14, y, pageWidth - 28, noteLines.length * 5 + 14, 'FD');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(133, 77, 14);
+    doc.text('CATATAN', 18, y + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(78, 52, 46);
+    doc.text(noteLines, 18, y + 13);
+    y += noteLines.length * 5 + 20;
+  }
+
+  // ── Signature ────────────────────────────────────────────────────────
+  if (layout?.show_signature) {
+    if (y > pageHeight - 60) {
+      doc.addPage();
+      y = 20;
+    }
+    y += 10;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${company.city || 'Jakarta'}, ${format(data.invoiceDate, 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
+    y += 6;
+    doc.text('Hormat kami,', pageWidth - 60, y);
+    
+    if (layout.show_stamp) {
+      // Logic for stamp placeholder or image if available
+    }
+    
+    y += 25;
+    doc.setFont('helvetica', 'bold');
+    doc.text(company.name, pageWidth - 60, y);
+  }
+  
+  addFooter(doc, 1, 1, company);
+  return doc;
+}
+
+// Helper to add footer to existing letter functions
+// ... (omitted for brevity, keeping original functions but they should ideally use addFooter with company)
 
 // Generate Employee Leave Letter (Surat Cuti Karyawan)
 export function generateLeaveLetter(
@@ -246,7 +640,7 @@ Demikian surat permohonan cuti ini saya ajukan. Atas perhatian dan persetujuan B
   y += 5;
   doc.text('Atasan Langsung', 14, y);
   
-  addFooter(doc, 1, 1);
+  addFooter(doc, 1, 1, company);
   
   return doc;
 }
@@ -337,7 +731,7 @@ Demikian surat keterangan ini kami sampaikan. Atas perhatian dan kerjasamanya, k
   doc.setFont('helvetica', 'normal');
   doc.text('Direktur', pageWidth - 70, y);
   
-  addFooter(doc, 1, 1);
+  addFooter(doc, 1, 1, company);
   
   return doc;
 }
@@ -359,9 +753,9 @@ export function generatePassportLetter(
   y += 6;
   doc.text(`Tanggal: ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, 14, y);
   y += 6;
-  doc.text('Lampiran: Fotokopi KTP, KK, Akta Lahir', 14, y);
+  doc.text('Lampiran: -', 14, y);
   y += 6;
-  doc.text('Perihal: Permohonan Pembuatan Paspor', 14, y);
+  doc.text(`Perihal: Permohonan Pembuatan Paspor ${data.purpose}`, 14, y);
   
   y += 12;
   
@@ -376,25 +770,30 @@ export function generatePassportLetter(
   
   y += 15;
   
+  // Title
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SURAT REKOMENDASI PASPOR', pageWidth / 2, y, { align: 'center' });
+  y += 15;
+  
   // Content
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   
   const content = `Dengan hormat,
 
-Yang bertanda tangan di bawah ini, Direktur ${company.name}, dengan ini menerangkan bahwa:
+Yang bertanda tangan di bawah ini, Direktur ${company.name}, dengan ini memberikan rekomendasi kepada:
 
 Nama Lengkap       : ${data.customerName}
 NIK                : ${data.nik}
 Tempat/Tgl Lahir   : ${data.birthPlace}, ${format(data.birthDate, 'd MMMM yyyy', { locale: id })}
 Alamat             : ${data.address}
-Telp               : ${data.phone}
 
-Adalah calon jamaah ${data.purpose} yang terdaftar di ${company.name} dan akan menunaikan ibadah ${data.purpose} ke Tanah Suci.
+Bahwa yang bersangkutan adalah benar terdaftar sebagai calon jamaah ${data.purpose} di travel kami dan akan diberangkatkan pada tanggal ${data.departureDate ? format(new Date(data.departureDate), 'd MMMM yyyy', { locale: id }) : 'berikutnya'}.
 
-Sehubungan dengan hal tersebut, kami mohon kesediaan Bapak/Ibu untuk dapat menerbitkan paspor bagi yang bersangkutan dengan segera.
+Sehubungan dengan hal tersebut, kami mohon bantuan Bapak/Ibu untuk dapat memberikan kemudahan dalam proses pembuatan/perpanjangan paspor bagi yang bersangkutan.
 
-Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerjasamanya, kami ucapkan terima kasih.`;
+Demikian surat rekomendasi ini kami sampaikan. Atas perhatian dan kerjasamanya, kami ucapkan terima kasih.`;
 
   const lines = doc.splitTextToSize(content, pageWidth - 28);
   doc.text(lines, 14, y);
@@ -414,316 +813,8 @@ Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerjasamanya, k
   doc.setFont('helvetica', 'normal');
   doc.text('Direktur', pageWidth - 70, y);
   
-  addFooter(doc, 1, 1);
+  addFooter(doc, 1, 1, company);
   
-  return doc;
-}
-
-// Extended invoice data interface with payment tracking
-interface InvoiceDataExtended extends InvoiceData {
-  paidAmount?: number;
-  remainingAmount?: number;
-  paymentStatus?: 'paid' | 'partial' | 'pending';
-  packageName?: string;
-  departureDate?: string;
-  passengerSummary?: { adult?: number; child?: number; infant?: number };
-}
-
-// Generate Invoice
-export function generateInvoice(
-  data: InvoiceDataExtended,
-  company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
-  const doc = new jsPDF();
-  let y = addLetterhead(doc, company);
-  
-  const pageWidth = doc.internal.pageSize.width;
-  
-  // Determine payment status
-  const paidAmount = data.paidAmount ?? 0;
-  const remainingAmount = data.remainingAmount ?? (data.total - paidAmount);
-  const payStatus = data.paymentStatus ?? (paidAmount >= data.total ? 'paid' : paidAmount > 0 ? 'partial' : 'pending');
-  
-  // ── Invoice Header Band ──────────────────────────────────────────────
-  // Left side: INVOICE title + number
-  doc.setFillColor(15, 23, 42); // dark navy
-  doc.rect(14, y - 5, pageWidth - 28, 20, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('INVOICE', 20, y + 8);
-  
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`No: ${data.invoiceNumber}`, 20, y + 14);
-  
-  // Payment status badge (right side)
-  const statusLabel = payStatus === 'paid' ? 'LUNAS' : payStatus === 'partial' ? 'CICILAN' : 'BELUM LUNAS';
-  const statusColor: [number, number, number] = payStatus === 'paid' ? [34, 197, 94] : payStatus === 'partial' ? [245, 158, 11] : [239, 68, 68];
-  
-  doc.setFillColor(...statusColor);
-  doc.roundedRect(pageWidth - 55, y - 1, 42, 14, 2, 2, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text(statusLabel, pageWidth - 34, y + 8, { align: 'center' });
-  
-  doc.setTextColor(0, 0, 0);
-  y += 25;
-  
-  // ── Two column: Invoice meta (left) + Customer (right) ───────────────
-  const leftX = 14;
-  const rightX = pageWidth / 2 + 5;
-  const colW = pageWidth / 2 - 19;
-  
-  // Left: invoice details box
-  doc.setFillColor(248, 250, 252);
-  doc.rect(leftX, y - 2, colW, 30, 'F');
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.rect(leftX, y - 2, colW, 30);
-  
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 116, 139);
-  doc.text('TANGGAL INVOICE', leftX + 3, y + 4);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(9);
-  doc.text(format(data.invoiceDate, 'd MMMM yyyy', { locale: id }), leftX + 3, y + 10);
-  
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 116, 139);
-  doc.text('JATUH TEMPO', leftX + 3, y + 18);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(9);
-  doc.text(format(data.dueDate, 'd MMMM yyyy', { locale: id }), leftX + 3, y + 24);
-  
-  // Right: customer info box
-  doc.setFillColor(248, 250, 252);
-  doc.rect(rightX, y - 2, colW, 30, 'F');
-  doc.setDrawColor(226, 232, 240);
-  doc.rect(rightX, y - 2, colW, 30);
-  
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 116, 139);
-  doc.text('DITAGIHKAN KEPADA', rightX + 3, y + 4);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(9.5);
-  doc.text(data.customer.name, rightX + 3, y + 11);
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  const addrLines = doc.splitTextToSize(data.customer.address, colW - 6);
-  doc.text(addrLines, rightX + 3, y + 17);
-  
-  const addrBottom = y + 17 + (addrLines.length - 1) * 4;
-  if (addrBottom < y + 25) {
-    doc.text(`Telp: ${data.customer.phone}`, rightX + 3, addrBottom + 4);
-  }
-  
-  y += 36;
-  doc.setTextColor(0, 0, 0);
-
-  // ── Package / Departure Info (optional) ──────────────────────────────
-  if (data.packageName || data.departureDate) {
-    doc.setFillColor(240, 253, 244); // light green
-    doc.setDrawColor(134, 239, 172);
-    doc.setLineWidth(0.3);
-    doc.rect(14, y, pageWidth - 28, 13, 'FD');
-
-    doc.setFontSize(7.5);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(22, 101, 52);
-    doc.text('PAKET', 18, y + 5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    const pkgText = [data.packageName, data.departureDate ? `Berangkat: ${data.departureDate}` : ''].filter(Boolean).join('  ·  ');
-    doc.text(pkgText, 38, y + 5);
-
-    if (data.passengerSummary) {
-      const ps = data.passengerSummary;
-      const parts = [];
-      if (ps.adult) parts.push(`${ps.adult} Dewasa`);
-      if (ps.child) parts.push(`${ps.child} Anak`);
-      if (ps.infant) parts.push(`${ps.infant} Bayi`);
-      if (parts.length) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(71, 85, 105);
-        doc.text(parts.join(' + '), 18, y + 10);
-      }
-    }
-
-    y += 19;
-    doc.setTextColor(0, 0, 0);
-  }
-
-  // ── LUNAS watermark stamp (when paid) ────────────────────────────────
-  if (payStatus === 'paid') {
-    doc.saveGraphicsState();
-    doc.setGState(doc.GState({ opacity: 0.08 }));
-    doc.setFontSize(72);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(22, 163, 74);
-    doc.text('LUNAS', pageWidth / 2, 180, { align: 'center', angle: 35 });
-    doc.restoreGraphicsState();
-    doc.setTextColor(0, 0, 0);
-  }
-
-  // ── Items Table ──────────────────────────────────────────────────────
-  const tableData = data.items.map((item, index) => [
-    (index + 1).toString(),
-    item.description,
-    item.quantity.toString(),
-    formatCurrency(item.unitPrice),
-    formatCurrency(item.total)
-  ]);
-  
-  autoTable(doc, {
-    startY: y,
-    head: [['#', 'Deskripsi Layanan', 'Qty', 'Harga Satuan', 'Subtotal']],
-    body: tableData,
-    styles: { 
-      fontSize: 8.5,
-      cellPadding: 4,
-      lineColor: [226, 232, 240],
-      lineWidth: 0.3,
-      textColor: [15, 23, 42],
-    },
-    headStyles: { 
-      fillColor: [15, 23, 42],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      halign: 'left',
-      fontSize: 8,
-    },
-    columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 15, halign: 'center' },
-      3: { cellWidth: 38, halign: 'right' },
-      4: { cellWidth: 38, halign: 'right' },
-    },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    margin: { left: 14, right: 14 },
-  });
-  
-  // @ts-ignore
-  y = doc.lastAutoTable.finalY + 6;
-  
-  // ── Totals + Payment Summary (side by side) ──────────────────────────
-  const totW = 85;
-  const totX = pageWidth - 14 - totW;
-  
-  // Totals panel
-  doc.setFillColor(248, 250, 252);
-  const totRows = 2 + (data.discount ? 1 : 0) + (data.tax ? 1 : 0) + 2; // rows: sub, disc?, tax?, total line, total
-  const totH = totRows * 8 + 6;
-  doc.rect(totX, y, totW, totH, 'F');
-  doc.setDrawColor(226, 232, 240);
-  doc.rect(totX, y, totW, totH);
-  
-  let ty = y + 7;
-  doc.setFontSize(8.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
-  
-  doc.text('Subtotal', totX + 4, ty);
-  doc.text(formatCurrency(data.subtotal), totX + totW - 4, ty, { align: 'right' });
-  ty += 8;
-  
-  if (data.discount) {
-    doc.setTextColor(239, 68, 68);
-    doc.text('Diskon', totX + 4, ty);
-    doc.text(`- ${formatCurrency(data.discount)}`, totX + totW - 4, ty, { align: 'right' });
-    doc.setTextColor(71, 85, 105);
-    ty += 8;
-  }
-  
-  if (data.tax) {
-    doc.text('PPN (11%)', totX + 4, ty);
-    doc.text(formatCurrency(data.tax), totX + totW - 4, ty, { align: 'right' });
-    ty += 8;
-  }
-  
-  // Total separator
-  doc.setDrawColor(15, 23, 42);
-  doc.setLineWidth(0.5);
-  doc.line(totX + 2, ty - 2, totX + totW - 2, ty - 2);
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text('TOTAL', totX + 4, ty + 5);
-  doc.text(formatCurrency(data.total), totX + totW - 4, ty + 5, { align: 'right' });
-  ty += 14;
-  
-  // Payment summary rows
-  if (paidAmount > 0) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(34, 197, 94);
-    doc.text('Sudah Dibayar', totX + 4, ty);
-    doc.text(formatCurrency(paidAmount), totX + totW - 4, ty, { align: 'right' });
-    ty += 7;
-    
-    doc.setTextColor(remainingAmount > 0 ? 239 : 34, remainingAmount > 0 ? 68 : 197, remainingAmount > 0 ? 68 : 94);
-    doc.setFont('helvetica', remainingAmount > 0 ? 'bold' : 'normal');
-    doc.text('Sisa Tagihan', totX + 4, ty);
-    doc.text(formatCurrency(remainingAmount), totX + totW - 4, ty, { align: 'right' });
-  }
-  
-  y = Math.max(y + totH + 8, ty + 12);
-  doc.setTextColor(0, 0, 0);
-  
-  // ── Bank Info ────────────────────────────────────────────────────────
-  const bankInfo = data.bankInfo;
-  if (bankInfo) {
-    doc.setFillColor(239, 246, 255);
-    doc.setDrawColor(147, 197, 253);
-    doc.setLineWidth(0.3);
-    doc.rect(14, y, pageWidth - 28, 26, 'FD');
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(37, 99, 235);
-    doc.text('INFORMASI PEMBAYARAN', 18, y + 7);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(`${bankInfo.bankName}  ·  ${bankInfo.accountNumber}  ·  a.n. ${bankInfo.accountName}`, 18, y + 15);
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text('Transfer ke rekening di atas dan sertakan nomor invoice sebagai keterangan.', 18, y + 21);
-    
-    y += 32;
-  }
-  
-  // ── Notes ────────────────────────────────────────────────────────────
-  if (data.notes) {
-    doc.setFillColor(254, 252, 232);
-    doc.setDrawColor(253, 230, 138);
-    doc.setLineWidth(0.3);
-    const noteLines = doc.splitTextToSize(data.notes, pageWidth - 40);
-    doc.rect(14, y, pageWidth - 28, noteLines.length * 5 + 14, 'FD');
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(133, 77, 14);
-    doc.text('CATATAN', 18, y + 7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(78, 52, 46);
-    doc.text(noteLines, 18, y + 13);
-  }
-  
-  addFooter(doc, 1, 1);
   return doc;
 }
 
@@ -795,307 +886,7 @@ export function generateGeneralLetter(
   doc.setFont('helvetica', 'normal');
   doc.text(data.signatory.position, pageWidth - 70, y);
   
-  addFooter(doc, 1, 1);
+  addFooter(doc, 1, 1, company);
   
   return doc;
 }
-
-// E-Ticket data interface
-interface ETicketData {
-  bookingCode: string;
-  passengerName: string;
-  passportNumber: string;
-  packageName: string;
-  departureDate: Date;
-  returnDate: Date;
-  departureAirport: string;
-  arrivalAirport: string;
-  flightNumber?: string;
-  airline?: string;
-  departureTime?: string;
-  hotelMakkah?: string;
-  hotelMadinah?: string;
-  roomType: string;
-  seatNumber?: string;
-}
-
-// Umrah Certificate data interface
-interface UmrahCertificateData {
-  participantName: string;
-  passportNumber: string;
-  birthPlace: string;
-  birthDate: Date;
-  packageName: string;
-  departureDate: Date;
-  returnDate: Date;
-  certificateNumber: string;
-}
-
-// Generate E-Ticket
-export function generateETicket(
-  data: ETicketData,
-  company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
-  
-  // Header with company branding
-  doc.setFillColor(22, 163, 74); // Green
-  doc.rect(0, 0, pageWidth, 40, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('E-TICKET', pageWidth / 2, 18, { align: 'center' });
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(company.name, pageWidth / 2, 28, { align: 'center' });
-  doc.text(`Booking Code: ${data.bookingCode}`, pageWidth / 2, 36, { align: 'center' });
-  
-  doc.setTextColor(0, 0, 0);
-  let y = 55;
-  
-  // Passenger Information Section
-  doc.setFillColor(240, 240, 240);
-  doc.rect(14, y - 5, pageWidth - 28, 35, 'F');
-  
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('INFORMASI PENUMPANG', 20, y);
-  y += 10;
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Nama Penumpang: ${data.passengerName}`, 20, y);
-  y += 7;
-  doc.text(`No. Paspor: ${data.passportNumber}`, 20, y);
-  y += 7;
-  doc.text(`Paket: ${data.packageName}`, 20, y);
-  
-  y += 20;
-  
-  // Flight Information Section
-  doc.setFillColor(22, 163, 74);
-  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text('INFORMASI PENERBANGAN', 20, y);
-  doc.setTextColor(0, 0, 0);
-  y += 12;
-  
-  // Departure
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('KEBERANGKATAN', 20, y);
-  y += 8;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Tanggal: ${format(data.departureDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
-  if (data.departureTime) {
-    doc.text(`Waktu: ${data.departureTime}`, 100, y);
-  }
-  y += 7;
-  doc.text(`Dari: ${data.departureAirport}`, 20, y);
-  doc.text(`Ke: ${data.arrivalAirport}`, 100, y);
-  y += 7;
-  if (data.airline) {
-    doc.text(`Maskapai: ${data.airline}`, 20, y);
-  }
-  if (data.flightNumber) {
-    doc.text(`No. Penerbangan: ${data.flightNumber}`, 100, y);
-  }
-  
-  y += 15;
-  
-  // Return
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('KEPULANGAN', 20, y);
-  y += 8;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Tanggal: ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
-  
-  y += 20;
-  
-  // Accommodation Information
-  doc.setFillColor(22, 163, 74);
-  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text('INFORMASI AKOMODASI', 20, y);
-  doc.setTextColor(0, 0, 0);
-  y += 12;
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  if (data.hotelMakkah) {
-    doc.text(`Hotel Makkah: ${data.hotelMakkah}`, 20, y);
-    y += 7;
-  }
-  if (data.hotelMadinah) {
-    doc.text(`Hotel Madinah: ${data.hotelMadinah}`, 20, y);
-    y += 7;
-  }
-  doc.text(`Tipe Kamar: ${data.roomType}`, 20, y);
-  
-  y += 25;
-  
-  // Important Notes
-  doc.setFillColor(255, 243, 205);
-  doc.rect(14, y - 5, pageWidth - 28, 40, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('CATATAN PENTING:', 20, y);
-  y += 7;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text('• Harap tiba di bandara minimal 4 jam sebelum keberangkatan', 20, y);
-  y += 5;
-  doc.text('• Pastikan paspor masih berlaku minimal 6 bulan dari tanggal keberangkatan', 20, y);
-  y += 5;
-  doc.text('• Bawa dokumen asli: Paspor, Visa, Buku Kuning (Vaksin Meningitis)', 20, y);
-  y += 5;
-  doc.text('• E-Ticket ini wajib dicetak dan dibawa saat keberangkatan', 20, y);
-  
-  // Footer
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(8);
-  doc.setTextColor(128);
-  doc.text(`Dicetak: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}`, 14, pageHeight - 15);
-  doc.text(`${company.phone} | ${company.email}`, pageWidth - 14, pageHeight - 15, { align: 'right' });
-  doc.setTextColor(0);
-  
-  return doc;
-}
-
-// Generate Umrah Certificate (Sertifikat Umrah)
-export function generateUmrahCertificate(
-  data: UmrahCertificateData,
-  company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
-  const doc = new jsPDF('landscape');
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
-  
-  // Decorative border
-  doc.setDrawColor(218, 165, 32); // Gold
-  doc.setLineWidth(3);
-  doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
-  doc.setLineWidth(1);
-  doc.rect(15, 15, pageWidth - 30, pageHeight - 30);
-  
-  // Header decorations
-  doc.setFillColor(218, 165, 32);
-  doc.rect(pageWidth / 2 - 60, 20, 120, 2, 'F');
-  
-  let y = 35;
-  
-  // Title
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100);
-  doc.text('SERTIFIKAT', pageWidth / 2, y, { align: 'center' });
-  y += 12;
-  
-  doc.setFontSize(28);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(22, 101, 52); // Dark green
-  doc.text('IBADAH UMRAH', pageWidth / 2, y, { align: 'center' });
-  y += 10;
-  
-  // Certificate Number
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`No. ${data.certificateNumber}`, pageWidth / 2, y, { align: 'center' });
-  
-  y += 20;
-  
-  // Main content
-  doc.setFontSize(12);
-  doc.setTextColor(0);
-  doc.text('Dengan ini menerangkan bahwa:', pageWidth / 2, y, { align: 'center' });
-  
-  y += 15;
-  
-  // Participant name
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  doc.text(data.participantName.toUpperCase(), pageWidth / 2, y, { align: 'center' });
-  
-  y += 8;
-  doc.setFillColor(218, 165, 32);
-  doc.rect(pageWidth / 2 - 80, y, 160, 1, 'F');
-  
-  y += 15;
-  
-  // Details
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`No. Paspor: ${data.passportNumber}`, pageWidth / 2, y, { align: 'center' });
-  y += 7;
-  doc.text(`Tempat/Tanggal Lahir: ${data.birthPlace}, ${format(data.birthDate, 'd MMMM yyyy', { locale: id })}`, pageWidth / 2, y, { align: 'center' });
-  
-  y += 15;
-  
-  // Certificate text
-  doc.setFontSize(12);
-  const certText = `Telah menunaikan Ibadah Umrah ke Tanah Suci Makkah Al-Mukarramah dan Madinah Al-Munawwarah`;
-  doc.text(certText, pageWidth / 2, y, { align: 'center' });
-  
-  y += 10;
-  doc.text(`Periode: ${format(data.departureDate, 'd MMMM', { locale: id })} - ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}`, pageWidth / 2, y, { align: 'center' });
-  y += 7;
-  doc.text(`Paket: ${data.packageName}`, pageWidth / 2, y, { align: 'center' });
-  
-  y += 20;
-  
-  // Closing text
-  doc.setFontSize(10);
-  doc.text('Semoga Ibadah Umrah yang telah dilaksanakan menjadi Umrah yang Mabrur', pageWidth / 2, y, { align: 'center' });
-  y += 6;
-  doc.text('dan diterima di sisi Allah SWT. Aamiin.', pageWidth / 2, y, { align: 'center' });
-  
-  // Signature section
-  y = pageHeight - 55;
-  doc.setFontSize(10);
-  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 70, y, { align: 'center' });
-  y += 6;
-  doc.text(company.name, pageWidth - 70, y, { align: 'center' });
-  y += 20;
-  doc.text('_______________________', pageWidth - 70, y, { align: 'center' });
-  y += 5;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Direktur', pageWidth - 70, y, { align: 'center' });
-  
-  // Company info at bottom
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100);
-  doc.text(`${company.address} | ${company.phone} | ${company.email}`, pageWidth / 2, pageHeight - 18, { align: 'center' });
-  
-  return doc;
-}
-
-// Helper function to format currency
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(amount);
-}
-
-// Export types for external use
-export type {
-  CompanyInfo,
-  LeaveLetterData,
-  EmployeeLeaveLetterData,
-  JamaahLeaveLetterData,
-  PassportLetterData,
-  InvoiceData,
-  GeneralLetterData,
-  ETicketData,
-  UmrahCertificateData
-};

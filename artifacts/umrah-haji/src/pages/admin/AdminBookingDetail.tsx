@@ -329,7 +329,7 @@ export default function AdminBookingDetail() {
       total: booking.total_price,
       paidAmount,
       remainingAmount,
-      paymentStatus: paymentStatus as 'paid' | 'partial' | 'pending',
+      paymentStatus: paymentStatus as any,
       packageName: pkg?.name || undefined,
       departureDate: departure?.departure_date ? formatDate(departure.departure_date) : undefined,
       passengerSummary: {
