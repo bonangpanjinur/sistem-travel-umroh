@@ -72,6 +72,7 @@ export default function AdminCustomerDetail() {
   const [leaveLetterOpen, setLeaveLetterOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<any>(null);
   const [leaveForm, setLeaveForm] = useState({
     employerName: "", employerPosition: "", employerInstitution: "", employerAddress: "",
     startDate: "", endDate: "", purpose: "Umrah"
@@ -525,10 +526,13 @@ export default function AdminCustomerDetail() {
                             <div className="flex items-center gap-2 shrink-0">
                               {existing && (
                                 <>
-                                  <Button variant="outline" size="icon" asChild title="Lihat">
-                                    <a href={existing.file_url} target="_blank" rel="noopener noreferrer">
-                                      <Eye className="h-4 w-4" />
-                                    </a>
+                                  <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    title="Lihat"
+                                    onClick={() => setPreviewDoc(existing)}
+                                  >
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -621,10 +625,13 @@ export default function AdminCustomerDetail() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                  <Button variant="outline" size="icon" asChild title="Lihat File">
-                                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                                      <Eye className="h-4 w-4" />
-                                    </a>
+                                  <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    title="Lihat File"
+                                    onClick={() => setPreviewDoc(doc)}
+                                  >
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -865,6 +872,112 @@ export default function AdminCustomerDetail() {
               Ya, Hapus Permanen
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+      {/* Document Preview Modal */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Preview Dokumen - {previewDoc?.document_type?.name || 'Dokumen'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {previewDoc && (
+            <div className="space-y-4">
+              {/* Document Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">Jenis Dokumen</p>
+                  <p className="font-medium">{previewDoc.document_type?.name || 'Dokumen'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Nama File</p>
+                  <p className="font-medium text-sm truncate">{previewDoc.file_name || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Tanggal Upload</p>
+                  <p className="font-medium">{format(new Date(previewDoc.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <div>
+                    {(() => {
+                      const status = STATUS_CONFIG[previewDoc.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+                      const StatusIcon = status.icon;
+                      return (
+                        <Badge className={status.color} variant="outline">
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {status.label}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Preview */}
+              <div>
+                <Label className="mb-2 block">Preview Dokumen</Label>
+                {previewDoc.file_url ? (
+                  <div className="border rounded-lg overflow-hidden bg-gray-50">
+                    {previewDoc.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                      <img 
+                        src={previewDoc.file_url} 
+                        alt="Document" 
+                        className="max-h-[500px] w-full object-contain"
+                      />
+                    ) : previewDoc.file_url.match(/\.pdf$/i) ? (
+                      <div className="p-8 text-center">
+                        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-sm text-muted-foreground mb-4">File PDF tidak dapat ditampilkan dalam preview</p>
+                        <a 
+                          href={previewDoc.file_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                        >
+                          <Download className="h-4 w-4" />
+                          Buka PDF
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center">
+                        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-sm text-muted-foreground mb-4">Format file tidak didukung untuk preview</p>
+                        <a 
+                          href={previewDoc.file_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                        >
+                          <Download className="h-4 w-4" />
+                          Buka File
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">File tidak tersedia</p>
+                )}
+              </div>
+
+              {/* Notes if rejected */}
+              {previewDoc.notes && (
+                <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 rounded-lg">
+                  <p className="text-sm font-medium text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    Catatan:
+                  </p>
+                  <p className="text-sm mt-1">{previewDoc.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
