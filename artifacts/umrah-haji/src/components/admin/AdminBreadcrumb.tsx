@@ -65,9 +65,21 @@ export function AdminBreadcrumb() {
   if (segments.length <= 1) return null;
 
   const crumbs = segments.map((seg, i) => {
-    // Check if this is a UUID (departure ID)
+    // Check if this is a UUID (ID)
     const isUuid = /^[0-9a-f]{8}-/.test(seg);
-    const label = isUuid ? "Detail Keberangkatan" : (PATH_LABELS[seg] || seg);
+    let label = PATH_LABELS[seg] || seg;
+    
+    if (isUuid) {
+      // If previous segment was 'customers', it's a customer detail
+      const prevSeg = segments[i - 1];
+      if (prevSeg === 'customers') {
+        label = "Detail Jamaah";
+      } else if (prevSeg === 'departures' || prevSeg === 'packages') {
+        label = "Detail Keberangkatan";
+      } else {
+        label = "Detail";
+      }
+    }
     return {
       label,
       path: "/" + segments.slice(0, i + 1).join("/"),
