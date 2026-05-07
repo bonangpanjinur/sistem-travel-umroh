@@ -430,7 +430,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | null) => {
     switch (status) {
       case "verified":
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Terverifikasi</Badge>;
@@ -986,7 +986,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                         </div>
                         {existingDoc && (
                           <div className="flex items-center gap-2">
-                            {getStatusBadge(existingDoc.status)}
+                            {getStatusBadge(existingDoc.status ?? null)}
                           </div>
                         )}
                       </div>
