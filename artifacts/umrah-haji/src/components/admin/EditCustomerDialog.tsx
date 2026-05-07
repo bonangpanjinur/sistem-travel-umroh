@@ -190,6 +190,56 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     },
   });
 
+  // Fetch customers for father selection
+  const { data: fatherCustomers, isLoading: loadingFathers } = useQuery({
+    queryKey: ["customers-for-father", fatherSearch],
+    enabled: open && fatherSearchOpen,
+    queryFn: async () => {
+      let query = supabase
+        .from("customers")
+        .select("id, full_name, phone, email")
+        .neq("id", customer.id)
+        .order("full_name");
+
+      if (fatherSearch.trim()) {
+        const sanitized = fatherSearch.replace(/[%_()\\*?{}[\]]/g, "");
+        if (sanitized.trim()) {
+          query = query.or(
+            `full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,email.ilike.%${sanitized}%`
+          );
+        }
+      }
+      const { data, error } = await query.limit(20);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch customers for mother selection
+  const { data: motherCustomers, isLoading: loadingMothers } = useQuery({
+    queryKey: ["customers-for-mother", motherSearch],
+    enabled: open && motherSearchOpen,
+    queryFn: async () => {
+      let query = supabase
+        .from("customers")
+        .select("id, full_name, phone, email")
+        .neq("id", customer.id)
+        .order("full_name");
+
+      if (motherSearch.trim()) {
+        const sanitized = motherSearch.replace(/[%_()\\*?{}[\]]/g, "");
+        if (sanitized.trim()) {
+          query = query.or(
+            `full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,email.ilike.%${sanitized}%`
+          );
+        }
+      }
+      const { data, error } = await query.limit(20);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Calculate passport validation status
   const passportValidation = useMemo(() => {
     if (!formData.passport_expiry || !upcomingDepartures?.length) {
@@ -411,6 +461,12 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
   };
 
   const [newMahram, setNewMahram] = useState({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
+  const [fatherSearchOpen, setFatherSearchOpen] = useState(false);
+  const [motherSearchOpen, setMotherSearchOpen] = useState(false);
+  const [fatherSearch, setFatherSearch] = useState("");
+  const [motherSearch, setMotherSearch] = useState("");
+  const [selectedFather, setSelectedFather] = useState<{ id: string; full_name: string } | null>(null);
+  const [selectedMother, setSelectedMother] = useState<{ id: string; full_name: string } | null>(null);
 
   const addMahramMutation = useMutation({
     mutationFn: async (m: typeof newMahram) => {
@@ -868,6 +924,120 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                 </div>
 
                 <div className="space-y-2">
+                  <Label className="text-xs">Nama Ayah Kandung (Opsional)</Label>
+                  <Popover open={fatherSearchOpen} onOpenChange={setFatherSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={fatherSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedFather
+                          ? selectedFather.full_name
+                          : "Cari atau pilih ayah dari database..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0">
+                      <Command shouldFilter={false}>
+                        <CommandInput 
+                          placeholder="Cari nama/WA..." 
+                          value={fatherSearch}
+                          onValueChange={setFatherSearch}
+                        />
+                        <CommandList>
+                          {loadingFathers && <CommandEmpty>Mencari...</CommandEmpty>}
+                          {!loadingFathers && fatherCustomers?.length === 0 && (
+                            <CommandEmpty>Ayah tidak ditemukan.</CommandEmpty>
+                          )}
+                          <CommandGroup>
+                            {fatherCustomers?.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.id}
+                                onSelect={() => {
+                                  setSelectedFather({ id: c.id, full_name: c.full_name });
+                                  setFatherSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedFather?.id === c.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{c.full_name}</span>
+                                  <span className="text-xs text-muted-foreground">{c.phone || c.email}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Nama Ibu Kandung (Opsional)</Label>
+                  <Popover open={motherSearchOpen} onOpenChange={setMotherSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={motherSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedMother
+                          ? selectedMother.full_name
+                          : "Cari atau pilih ibu dari database..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0">
+                      <Command shouldFilter={false}>
+                        <CommandInput 
+                          placeholder="Cari nama/WA..." 
+                          value={motherSearch}
+                          onValueChange={setMotherSearch}
+                        />
+                        <CommandList>
+                          {loadingMothers && <CommandEmpty>Mencari...</CommandEmpty>}
+                          {!loadingMothers && motherCustomers?.length === 0 && (
+                            <CommandEmpty>Ibu tidak ditemukan.</CommandEmpty>
+                          )}
+                          <CommandGroup>
+                            {motherCustomers?.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.id}
+                                onSelect={() => {
+                                  setSelectedMother({ id: c.id, full_name: c.full_name });
+                                  setMotherSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedMother?.id === c.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{c.full_name}</span>
+                                  <span className="text-xs text-muted-foreground">{c.phone || c.email}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
                   <Label className="text-xs">Catatan Tambahan</Label>
                   <Input
                     placeholder="Contoh: Menantu, Kakak Ipar, dll"
@@ -880,8 +1050,37 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                   type="button" 
                   className="w-full" 
                   size="sm"
-                  onClick={() => addMahramMutation.mutate(newMahram)}
-                  disabled={addMahramMutation.isPending || (!newMahram.mahram_name && !newMahram.mahram_customer_id) || !newMahram.mahram_relation}
+                  onClick={() => {
+                    // Add father mahram if selected
+                    if (selectedFather) {
+                      addMahramMutation.mutate({
+                        mahram_name: selectedFather.full_name,
+                        mahram_relation: "ayah",
+                        notes: "",
+                        mahram_customer_id: selectedFather.id
+                      });
+                    }
+                    // Add mother mahram if selected
+                    if (selectedMother) {
+                      addMahramMutation.mutate({
+                        mahram_name: selectedMother.full_name,
+                        mahram_relation: "ibu",
+                        notes: "",
+                        mahram_customer_id: selectedMother.id
+                      });
+                    }
+                    // Add regular mahram if filled
+                    if (newMahram.mahram_name || newMahram.mahram_customer_id) {
+                      addMahramMutation.mutate(newMahram);
+                    }
+                    // Reset states
+                    setSelectedFather(null);
+                    setSelectedMother(null);
+                    setFatherSearch("");
+                    setMotherSearch("");
+                    setNewMahram({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
+                  }}
+                  disabled={addMahramMutation.isPending || (!newMahram.mahram_name && !newMahram.mahram_customer_id && !selectedFather && !selectedMother) || (!newMahram.mahram_relation && !selectedFather && !selectedMother)}
                 >
                   {addMahramMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                   Tambah ke Daftar
