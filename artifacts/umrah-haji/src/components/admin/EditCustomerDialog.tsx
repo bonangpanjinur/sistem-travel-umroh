@@ -37,7 +37,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle, Plus, Heart, ChevronsUpDown, Check } from "lucide-react";
+import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle, Plus, Heart, ChevronsUpDown, Check, Download } from "lucide-react";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -942,17 +942,43 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                     </div>
                     <div className="flex items-center gap-2">
                       {doc && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setPreviewDoc({ url: doc.file_url, name: type.name });
-                            setPreviewOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Lihat
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setPreviewDoc({ url: doc.file_url, name: type.name });
+                              setPreviewOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Lihat
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(doc.file_url);
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.download = `${type.name}-${customer.full_name}`.replace(/\s+/g, '_');
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error("Download failed:", error);
+                                window.open(doc.file_url, "_blank");
+                              }
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Unduh
+                          </Button>
+                        </div>
                       )}
                       <div className="relative">
                         <input
