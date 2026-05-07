@@ -903,7 +903,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                               Sudah Upload
                             </Badge>
                             <span className="text-[10px] text-muted-foreground">
-                              {format(new Date(doc.updated_at || doc.created_at), "d MMM yyyy", { locale: idLocale })}
+                              {format(new Date((doc.updated_at || doc.created_at) as string), "d MMM yyyy", { locale: idLocale })}
                             </span>
                           </div>
                         ) : (
