@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck, Settings2 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { DocumentSettingsForm } from "../DocumentSettingsForm";
 
 type DocumentType = 'invoice' | 'passport_letter' | 'leave_letter' | 'certificate' | 'general_letter';
@@ -99,6 +100,7 @@ const documentTypeDescriptions: Record<DocumentType, string> = {
 
 export function DocumentLayoutEditor() {
   const { getSetting, updateMultipleSettings, isLoading, isUpdating } = useCompanySettings();
+  const { company, documentSettings } = useCompanyInfo();
   const [layouts, setLayouts] = useState<Record<DocumentType, DocumentLayout>>(defaultLayouts);
   const [activeDocumentType, setActiveDocumentType] = useState<DocumentType>('invoice');
   const [isSaving, setIsSaving] = useState(false);
@@ -292,7 +294,7 @@ export function DocumentLayoutEditor() {
                   
                   <FormToggle
                     label="Tampilkan Tanda Tangan"
-                    description="Area tanda tangan basah"
+                    description="Area tanda tangan penandatangan"
                     checked={currentLayout?.show_signature ?? true}
                     onChange={() => handleToggle('show_signature')}
                   />
@@ -352,7 +354,12 @@ export function DocumentLayoutEditor() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <DocumentPreview type={activeDocumentType} layout={currentLayout} />
+              <DocumentPreview 
+                type={activeDocumentType} 
+                layout={currentLayout}
+                company={company}
+                documentSettings={documentSettings}
+              />
             </CardContent>
           </Card>
         </div>
@@ -383,53 +390,97 @@ function FormToggle({
   );
 }
 
-function DocumentPreview({ type, layout }: { type: DocumentType; layout: DocumentLayout }) {
+interface DocumentPreviewProps {
+  type: DocumentType;
+  layout: DocumentLayout;
+  company?: any;
+  documentSettings?: any;
+}
+
+function DocumentPreview({ type, layout, company, documentSettings }: DocumentPreviewProps) {
   const isLandscape = layout?.page_orientation === 'landscape';
   const aspectRatio = isLandscape ? 'aspect-[1.4/1]' : 'aspect-[0.7/1]';
   
+  // Get accent color from settings
+  const accentColor = type === 'invoice' 
+    ? (documentSettings?.invoice_accent_color || '#16a34a')
+    : (documentSettings?.eticket_header_color || '#16a34a');
+  
+  // Helper to convert hex to RGB
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `rgb(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)})` : 'rgb(22, 163, 74)';
+  };
+  
+  const accentRGB = hexToRgb(accentColor);
+  
   return (
-    <div className={`w-full border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 ${aspectRatio} bg-white relative shadow-sm`}>
-      {/* Header */}
+    <div className={`w-full border-2 border-dashed border-muted-foreground/30 rounded-lg overflow-hidden ${aspectRatio} bg-white relative shadow-sm flex flex-col`}>
+      {/* Header Background with Logo and Company Info */}
       {layout?.show_header && (
-        <div className="border-b-2 border-primary pb-2 mb-2">
-          <div className="flex items-center gap-2">
-            {layout?.show_logo && (
-              <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
-                <FileText className="h-4 w-4 text-primary" />
-              </div>
-            )}
-            <div className="flex-1">
-              <div className="h-2 bg-muted-foreground/20 rounded w-3/4" />
-              <div className="h-1.5 bg-muted-foreground/10 rounded w-1/2 mt-1" />
+        <div 
+          className="px-3 py-2 text-white flex items-center gap-2"
+          style={{ backgroundColor: accentRGB }}
+        >
+          {layout?.show_logo && company?.logo && (
+            <img 
+              src={company.logo} 
+              alt="Logo" 
+              className="h-6 w-6 object-contain rounded"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
+          {layout?.show_logo && !company?.logo && (
+            <div className="h-6 w-6 bg-white/20 rounded flex items-center justify-center">
+              <FileText className="h-4 w-4" />
             </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-bold truncate">{company?.name || 'Company Name'}</div>
+            {layout?.show_company_info && (
+              <div className="text-[10px] opacity-90 truncate">{company?.address || 'Address'}</div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Content */}
-      <div className="space-y-2">
-        <div className="h-2 bg-muted-foreground/10 rounded w-full" />
-        <div className="h-2 bg-muted-foreground/10 rounded w-5/6" />
-        <div className="h-2 bg-muted-foreground/10 rounded w-4/6" />
-        <div className="h-4 bg-muted-foreground/20 rounded w-1/3 mt-4" />
-        <div className="h-2 bg-muted-foreground/10 rounded w-full mt-2" />
-        <div className="h-2 bg-muted-foreground/10 rounded w-3/4" />
+      {/* Title Bar for Invoice */}
+      {type === 'invoice' && (
+        <div 
+          className="px-3 py-1.5 text-white text-xs font-bold"
+          style={{ backgroundColor: accentRGB }}
+        >
+          INVOICE
+        </div>
+      )}
+
+      {/* Content Area */}
+      <div className="flex-1 p-3 space-y-2 overflow-hidden">
+        <div className="h-1.5 rounded w-3/4" style={{ backgroundColor: accentRGB, opacity: 0.2 }} />
+        <div className="h-1 bg-muted-foreground/10 rounded w-full" />
+        <div className="h-1 bg-muted-foreground/10 rounded w-5/6" />
+        <div className="h-1 bg-muted-foreground/10 rounded w-4/6" />
+        <div className="h-2 bg-muted-foreground/20 rounded w-1/3 mt-2" />
+        <div className="h-1 bg-muted-foreground/10 rounded w-full mt-1" />
+        <div className="h-1 bg-muted-foreground/10 rounded w-3/4" />
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between">
-        <div className="text-[8px] text-muted-foreground/50 max-w-[60%] truncate">
+      <div className="px-3 py-1.5 border-t border-muted-foreground/20 flex items-end justify-between text-[8px] text-muted-foreground/60">
+        <div className="max-w-[60%] truncate">
           {layout?.footer_text || 'Footer dokumen'}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {layout?.show_signature && (
             <div className="text-center">
-              <div className="w-10 h-6 border-b border-muted-foreground/30" />
-              <div className="text-[6px] text-muted-foreground/50">Ttd.</div>
+              <div className="w-6 h-3 border-b border-muted-foreground/30" />
+              <div className="text-[6px]">Ttd</div>
             </div>
           )}
           {layout?.show_stamp && (
-            <div className="w-6 h-6 border border-dashed border-muted-foreground/30 rounded-full" />
+            <div className="w-4 h-4 border border-dashed border-muted-foreground/30 rounded-full" />
           )}
         </div>
       </div>
