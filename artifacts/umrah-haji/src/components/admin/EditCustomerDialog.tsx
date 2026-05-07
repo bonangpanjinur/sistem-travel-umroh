@@ -274,6 +274,20 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     }
   }, [customer, open]);
 
+  // Sync Mahram data with father_name and mother_name
+  useEffect(() => {
+    if (mahrams && mahrams.length > 0) {
+      const fatherMahram = mahrams.find(m => m.mahram_relation === "ayah");
+      const motherMahram = mahrams.find(m => m.mahram_relation === "ibu");
+
+      setFormData(prev => ({
+        ...prev,
+        father_name: fatherMahram?.mahram_name || prev.father_name,
+        mother_name: motherMahram?.mahram_name || prev.mother_name,
+      }));
+    }
+  }, [mahrams]);
+
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const updatePayload: any = { ...data };
@@ -750,6 +764,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                     onChange={(e) => handleChange("father_name", e.target.value)}
                     placeholder="Nama ayah kandung"
                   />
+                  <p className="text-xs text-muted-foreground">Diisi otomatis dari Mahram jika ada</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mother_name">Nama Ibu</Label>
@@ -759,6 +774,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                     onChange={(e) => handleChange("mother_name", e.target.value)}
                     placeholder="Nama ibu kandung"
                   />
+                  <p className="text-xs text-muted-foreground">Diisi otomatis dari Mahram jika ada</p>
                 </div>
               </div>
 
