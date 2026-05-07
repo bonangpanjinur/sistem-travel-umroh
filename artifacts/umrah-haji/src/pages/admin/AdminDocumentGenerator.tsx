@@ -24,7 +24,7 @@ import {
   generateLeaveLetter, generateJamaahLeaveLetter, generatePassportLetter,
   generateInvoice, generateGeneralLetter, generateETicket, generateUmrahCertificate,
   type LeaveLetterData, type JamaahLeaveLetterData, type PassportLetterData,
-  type InvoiceData, type GeneralLetterData, type ETicketData, type UmrahCertificateData
+  type InvoiceData, type InvoiceDataExtended, type GeneralLetterData, type ETicketData, type UmrahCertificateData
 } from '@/lib/document-generator';
 
 interface Employee {
@@ -459,7 +459,7 @@ const AdminDocumentGenerator = () => {
     const customer = booking.customer as any;
     const departure = booking.departure as any;
     const pkg = departure?.package as any;
-    const data: InvoiceData = {
+    const data: InvoiceDataExtended = {
       invoiceNumber: `INV-${booking.booking_code}`,
       invoiceDate: new Date(),
       dueDate: invoiceForm.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -778,18 +778,19 @@ const AdminDocumentGenerator = () => {
                                     title="Download Invoice"
                                     onClick={async () => {
                                       const pkg = (dep as any)?.package;
-                                      const data: InvoiceData = {
-                                        invoiceNumber: `INV-${booking.booking_code}`,
+                                      const b = booking as any;
+                                      const data: InvoiceDataExtended = {
+                                        invoiceNumber: `INV-${b.booking_code}`,
                                         invoiceDate: new Date(),
                                         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                                         customer: { name: customer.full_name, address: customer.address || '-', phone: customer.phone || '-', email: customer.email },
-                                        items: [{ description: `Paket ${pkg?.name || 'Umrah'} - ${booking.room_type}`, quantity: 1, unitPrice: booking.total_price, total: booking.total_price }],
-                                        subtotal: booking.total_price,
-                                        discount: (booking as any).discount_amount || 0,
-                                        total: booking.total_price,
-                                        paidAmount: booking.paid_amount || 0,
-                                        remainingAmount: booking.remaining_amount || 0,
-                                        paymentStatus: (booking.paid_amount || 0) >= booking.total_price ? 'paid' : (booking.paid_amount || 0) > 0 ? 'partial' : 'pending',
+                                        items: [{ description: `Paket ${pkg?.name || 'Umrah'} - ${b.room_type}`, quantity: 1, unitPrice: b.total_price, total: b.total_price }],
+                                        subtotal: b.total_price,
+                                        discount: b.discount_amount || 0,
+                                        total: b.total_price,
+                                        paidAmount: b.paid_amount || 0,
+                                        remainingAmount: b.remaining_amount || 0,
+                                        paymentStatus: (b.paid_amount || 0) >= b.total_price ? 'paid' : (b.paid_amount || 0) > 0 ? 'partial' : 'pending',
                                         packageName: pkg?.name,
                                         departureDate: (dep as any)?.departure_date ? new Date((dep as any).departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
                                         notes: 'Terima kasih atas kepercayaan Anda.',
