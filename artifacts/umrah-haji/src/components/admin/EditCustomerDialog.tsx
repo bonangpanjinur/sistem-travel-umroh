@@ -44,6 +44,21 @@ import type { Database } from "@/integrations/supabase/types";
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
 type GenderType = Database["public"]["Enums"]["gender_type"];
 
+// Mapping hubungan mahram timbal balik
+const RECIPROCAL_RELATIONS: Record<string, string> = {
+  suami: "istri",
+  istri: "suami",
+  ayah: "anak",
+  ibu: "anak",
+  anak: "ayah", // atau ibu, tapi untuk simplifikasi pakai ayah
+  saudara: "saudara",
+  paman: "keponakan",
+  kakek: "cucu",
+  nenek: "cucu",
+  cucu: "kakek", // atau nenek
+  keponakan: "paman",
+};
+
 interface EditCustomerDialogProps {
   customer: Customer;
   trigger?: React.ReactNode;
@@ -389,7 +404,8 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         }
       }
 
-      const { error } = await supabase
+      // Insert mahram untuk customer A
+      const { error: insertError } = await supabase
         .from("customer_mahrams" as any)
         .insert({ 
           customer_id: customer.id, 
@@ -398,7 +414,22 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
           mahram_customer_id: m.mahram_customer_id || null,
           notes: m.notes || null 
         });
-      if (error) throw error;
+      if (insertError) throw insertError;
+
+      // Jika mahram_customer_id dipilih, insert hubungan timbal balik
+      if (m.mahram_customer_id) {
+        const reciprocalRelation = RECIPROCAL_RELATIONS[m.mahram_relation] || m.mahram_relation;
+        const { error: reciprocalError } = await supabase
+          .from("customer_mahrams" as any)
+          .insert({
+            customer_id: m.mahram_customer_id,
+            mahram_name: customer.full_name,
+            mahram_relation: reciprocalRelation,
+            mahram_customer_id: customer.id,
+            notes: m.notes || null
+          });
+        if (reciprocalError) throw reciprocalError;
+      }
     },
     onSuccess: () => {
       toast.success("Mahram berhasil ditambahkan");
@@ -412,8 +443,26 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
 
   const deleteMahramMutation = useMutation({
     mutationFn: async (mahramId: string) => {
+      // Ambil data mahram yang akan dihapus
+      const mahramToDelete = mahrams?.find(m => m.id === mahramId);
+      
+      // Hapus mahram utama
       const { error } = await supabase.from("customer_mahrams" as any).delete().eq("id", mahramId);
       if (error) throw error;
+
+      // Jika mahram memiliki mahram_customer_id, hapus juga hubungan timbal baliknya
+      if (mahramToDelete?.mahram_customer_id) {
+        const { error: reciprocalDeleteError } = await supabase
+          .from("customer_mahrams" as any)
+          .delete()
+          .eq("customer_id", mahramToDelete.mahram_customer_id)
+          .eq("mahram_customer_id", customer.id);
+        
+        // Jangan throw error jika reciprocal tidak ditemukan (mungkin sudah dihapus)
+        if (reciprocalDeleteError && reciprocalDeleteError.code !== "PGRST116") {
+          throw reciprocalDeleteError;
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Mahram dihapus");
