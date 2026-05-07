@@ -55,9 +55,12 @@ export function IndonesiaLocationSelect({
   const [regencies, setRegencies] = useState<Regency[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [villages, setVillages] = useState<Village[]>([]);
+  
   const [selectedProvinceId, setSelectedProvinceId] = useState<string>("");
   const [selectedRegencyId, setSelectedRegencyId] = useState<string>("");
   const [selectedDistrictId, setSelectedDistrictId] = useState<string>("");
+  const [selectedVillageId, setSelectedVillageId] = useState<string>("");
+
   const [isLoadingProvinces, setIsLoadingProvinces] = useState(false);
   const [isLoadingRegencies, setIsLoadingRegencies] = useState(false);
   const [isLoadingDistricts, setIsLoadingDistricts] = useState(false);
@@ -65,6 +68,7 @@ export function IndonesiaLocationSelect({
 
   // Helper to format name (Title Case)
   const formatName = (name: string) => {
+    if (!name) return "";
     return name.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
@@ -86,38 +90,33 @@ export function IndonesiaLocationSelect({
     fetchProvinces();
   }, []);
 
-  // Auto-detect if current province is Indonesian and set IDs
+  // Sync internal IDs when external values change (e.g. during initial load or parent update)
   useEffect(() => {
-    if (province && provinces.length > 0 && !selectedProvinceId) {
-      const matchedProvince = provinces.find(
-        (p) => p.name.toLowerCase() === province.toLowerCase()
-      );
-      if (matchedProvince) {
-        setIsIndonesia(true);
-        setSelectedProvinceId(matchedProvince.id);
+    if (province && provinces.length > 0) {
+      const matched = provinces.find(p => p.name.toLowerCase() === province.toLowerCase());
+      if (matched && matched.id !== selectedProvinceId) {
+        setSelectedProvinceId(matched.id);
       }
+    } else if (!province) {
+      setSelectedProvinceId("");
     }
-  }, [province, provinces, selectedProvinceId]);
+  }, [province, provinces]);
 
   // Fetch regencies when province changes
   useEffect(() => {
     if (!selectedProvinceId || !isIndonesia) {
       setRegencies([]);
-      setDistricts([]);
-      setVillages([]);
       return;
     }
 
     const fetchRegencies = async () => {
       setIsLoadingRegencies(true);
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/regencies/${selectedProvinceId}.json`
-        );
+        const response = await fetch(`${API_BASE_URL}/regencies/${selectedProvinceId}.json`);
         const data = await response.json();
         setRegencies(data || []);
         
-        // Try to match existing city if any
+        // Sync city ID
         if (city && data) {
           const matched = data.find((r: Regency) => r.name.toLowerCase() === city.toLowerCase());
           if (matched) setSelectedRegencyId(matched.id);
@@ -130,26 +129,35 @@ export function IndonesiaLocationSelect({
     };
 
     fetchRegencies();
-  }, [selectedProvinceId, isIndonesia, city]);
+  }, [selectedProvinceId, isIndonesia]);
+
+  // Sync regency ID
+  useEffect(() => {
+    if (city && regencies.length > 0) {
+      const matched = regencies.find(r => r.name.toLowerCase() === city.toLowerCase());
+      if (matched && matched.id !== selectedRegencyId) {
+        setSelectedRegencyId(matched.id);
+      }
+    } else if (!city) {
+      setSelectedRegencyId("");
+    }
+  }, [city, regencies]);
 
   // Fetch districts when regency changes
   useEffect(() => {
     if (!selectedRegencyId || !isIndonesia) {
       setDistricts([]);
-      setVillages([]);
       return;
     }
 
     const fetchDistricts = async () => {
       setIsLoadingDistricts(true);
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/districts/${selectedRegencyId}.json`
-        );
+        const response = await fetch(`${API_BASE_URL}/districts/${selectedRegencyId}.json`);
         const data = await response.json();
         setDistricts(data || []);
         
-        // Try to match existing district if any
+        // Sync district ID
         if (district && data) {
           const matched = data.find((d: District) => d.name.toLowerCase() === district.toLowerCase());
           if (matched) setSelectedDistrictId(matched.id);
@@ -162,7 +170,19 @@ export function IndonesiaLocationSelect({
     };
 
     fetchDistricts();
-  }, [selectedRegencyId, isIndonesia, district]);
+  }, [selectedRegencyId, isIndonesia]);
+
+  // Sync district ID
+  useEffect(() => {
+    if (district && districts.length > 0) {
+      const matched = districts.find(d => d.name.toLowerCase() === district.toLowerCase());
+      if (matched && matched.id !== selectedDistrictId) {
+        setSelectedDistrictId(matched.id);
+      }
+    } else if (!district) {
+      setSelectedDistrictId("");
+    }
+  }, [district, districts]);
 
   // Fetch villages when district changes
   useEffect(() => {
@@ -174,11 +194,15 @@ export function IndonesiaLocationSelect({
     const fetchVillages = async () => {
       setIsLoadingVillages(true);
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/villages/${selectedDistrictId}.json`
-        );
+        const response = await fetch(`${API_BASE_URL}/villages/${selectedDistrictId}.json`);
         const data = await response.json();
         setVillages(data || []);
+        
+        // Sync village ID
+        if (village && data) {
+          const matched = data.find((v: Village) => v.name.toLowerCase() === village.toLowerCase());
+          if (matched) setSelectedVillageId(matched.id);
+        }
       } catch (error) {
         console.error("Failed to fetch villages:", error);
       } finally {
@@ -189,53 +213,69 @@ export function IndonesiaLocationSelect({
     fetchVillages();
   }, [selectedDistrictId, isIndonesia]);
 
-  const handleProvinceSelect = (provinceName: string) => {
-    const selected = provinces.find((p) => p.name === provinceName);
+  // Sync village ID
+  useEffect(() => {
+    if (village && villages.length > 0) {
+      const matched = villages.find(v => v.name.toLowerCase() === village.toLowerCase());
+      if (matched && matched.id !== selectedVillageId) {
+        setSelectedVillageId(matched.id);
+      }
+    } else if (!village) {
+      setSelectedVillageId("");
+    }
+  }, [village, villages]);
+
+  const handleProvinceSelect = (id: string) => {
+    const selected = provinces.find((p) => p.id === id);
     if (selected) {
-      setSelectedProvinceId(selected.id);
+      setSelectedProvinceId(id);
       setSelectedRegencyId("");
       setSelectedDistrictId("");
+      setSelectedVillageId("");
       onProvinceChange(formatName(selected.name));
-      // Reset city, district, and village when province changes
       onCityChange("");
       onDistrictChange("");
       onVillageChange("");
     }
   };
 
-  const handleCitySelect = (cityName: string) => {
-    const selected = regencies.find((r) => r.name === cityName);
+  const handleCitySelect = (id: string) => {
+    const selected = regencies.find((r) => r.id === id);
     if (selected) {
-      setSelectedRegencyId(selected.id);
+      setSelectedRegencyId(id);
       setSelectedDistrictId("");
-      onCityChange(formatName(cityName));
-      // Reset district and village when city changes
+      setSelectedVillageId("");
+      onCityChange(formatName(selected.name));
       onDistrictChange("");
       onVillageChange("");
     }
   };
 
-  const handleDistrictSelect = (districtName: string) => {
-    const selected = districts.find((d) => d.name === districtName);
+  const handleDistrictSelect = (id: string) => {
+    const selected = districts.find((d) => d.id === id);
     if (selected) {
-      setSelectedDistrictId(selected.id);
-      onDistrictChange(formatName(districtName));
-      // Reset village when district changes
+      setSelectedDistrictId(id);
+      setSelectedVillageId("");
+      onDistrictChange(formatName(selected.name));
       onVillageChange("");
     }
   };
 
-  const handleVillageSelect = (villageName: string) => {
-    onVillageChange(formatName(villageName));
+  const handleVillageSelect = (id: string) => {
+    const selected = villages.find((v) => v.id === id);
+    if (selected) {
+      setSelectedVillageId(id);
+      onVillageChange(formatName(selected.name));
+    }
   };
 
   const handleIsIndonesiaChange = (checked: boolean) => {
     setIsIndonesia(checked);
     if (!checked) {
-      // Clear selections when switching to foreign
       setSelectedProvinceId("");
       setSelectedRegencyId("");
       setSelectedDistrictId("");
+      setSelectedVillageId("");
       setRegencies([]);
       setDistricts([]);
       setVillages([]);
@@ -244,7 +284,6 @@ export function IndonesiaLocationSelect({
 
   return (
     <div className="space-y-4">
-      {/* Indonesia Checkbox */}
       <div className="flex items-center space-x-2">
         <Checkbox
           id="is-indonesia"
@@ -263,7 +302,7 @@ export function IndonesiaLocationSelect({
           <Label htmlFor="province">Provinsi</Label>
           {isIndonesia ? (
             <Select
-              value={province.toUpperCase()}
+              value={selectedProvinceId}
               onValueChange={handleProvinceSelect}
               disabled={disabled || isLoadingProvinces}
             >
@@ -279,7 +318,7 @@ export function IndonesiaLocationSelect({
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {provinces.map((prov) => (
-                  <SelectItem key={prov.id} value={prov.name}>
+                  <SelectItem key={prov.id} value={prov.id}>
                     {formatName(prov.name)}
                   </SelectItem>
                 ))}
@@ -301,7 +340,7 @@ export function IndonesiaLocationSelect({
           <Label htmlFor="city">Kabupaten/Kota</Label>
           {isIndonesia ? (
             <Select
-              value={city.toUpperCase()}
+              value={selectedRegencyId}
               onValueChange={handleCitySelect}
               disabled={disabled || isLoadingRegencies || !selectedProvinceId}
             >
@@ -317,7 +356,7 @@ export function IndonesiaLocationSelect({
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {regencies.map((reg) => (
-                  <SelectItem key={reg.id} value={reg.name}>
+                  <SelectItem key={reg.id} value={reg.id}>
                     {formatName(reg.name)}
                   </SelectItem>
                 ))}
@@ -339,7 +378,7 @@ export function IndonesiaLocationSelect({
           <Label htmlFor="district">Kecamatan</Label>
           {isIndonesia ? (
             <Select
-              value={district.toUpperCase()}
+              value={selectedDistrictId}
               onValueChange={handleDistrictSelect}
               disabled={disabled || isLoadingDistricts || !selectedRegencyId}
             >
@@ -355,7 +394,7 @@ export function IndonesiaLocationSelect({
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {districts.map((dist) => (
-                  <SelectItem key={dist.id} value={dist.name}>
+                  <SelectItem key={dist.id} value={dist.id}>
                     {formatName(dist.name)}
                   </SelectItem>
                 ))}
@@ -377,7 +416,7 @@ export function IndonesiaLocationSelect({
           <Label htmlFor="village">Kelurahan</Label>
           {isIndonesia ? (
             <Select
-              value={village.toUpperCase()}
+              value={selectedVillageId}
               onValueChange={handleVillageSelect}
               disabled={disabled || isLoadingVillages || !selectedDistrictId}
             >
@@ -393,7 +432,7 @@ export function IndonesiaLocationSelect({
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {villages.map((vill) => (
-                  <SelectItem key={vill.id} value={vill.name}>
+                  <SelectItem key={vill.id} value={vill.id}>
                     {formatName(vill.name)}
                   </SelectItem>
                 ))}
