@@ -602,8 +602,8 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                     <SelectValue placeholder="Pilih jenis kelamin" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="L">Laki-laki</SelectItem>
-                    <SelectItem value="P">Perempuan</SelectItem>
+                    <SelectItem value="male">Laki-laki</SelectItem>
+                    <SelectItem value="female">Perempuan</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
