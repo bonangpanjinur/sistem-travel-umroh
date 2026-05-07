@@ -107,6 +107,10 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [mahramSearch, setMahramSearch] = useState("");
   const [mahramSearchOpen, setMahramSearchOpen] = useState(false);
+  const [fatherSearch, setFatherSearch] = useState("");
+  const [fatherSearchOpen, setFatherSearchOpen] = useState(false);
+  const [motherSearch, setMotherSearch] = useState("");
+  const [motherSearchOpen, setMotherSearchOpen] = useState(false);
 
   // Fetch document types
   const { data: documentTypes } = useQuery({
@@ -461,10 +465,6 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
   };
 
   const [newMahram, setNewMahram] = useState({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
-  const [fatherSearchOpen, setFatherSearchOpen] = useState(false);
-  const [motherSearchOpen, setMotherSearchOpen] = useState(false);
-  const [fatherSearch, setFatherSearch] = useState("");
-  const [motherSearch, setMotherSearch] = useState("");
   const [selectedFather, setSelectedFather] = useState<{ id: string; full_name: string } | null>(null);
   const [selectedMother, setSelectedMother] = useState<{ id: string; full_name: string } | null>(null);
 
