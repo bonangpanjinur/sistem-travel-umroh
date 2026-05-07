@@ -87,6 +87,8 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     address: "",
     city: "",
     province: "",
+    district: "",
+    village: "",
     postal_code: "",
     // Paspor
     passport_number: "",
@@ -260,6 +262,8 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         address: customer.address || "",
         city: customer.city || "",
         province: customer.province || "",
+        district: customer.district || "",
+        village: customer.village || "",
         postal_code: customer.postal_code || "",
         passport_number: customer.passport_number || "",
         passport_expiry: customer.passport_expiry || "",
@@ -632,8 +636,12 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
             <IndonesiaLocationSelect
               province={formData.province}
               city={formData.city}
+              district={formData.district}
+              village={formData.village}
               onProvinceChange={val => setFormData({ ...formData, province: val })}
               onCityChange={val => setFormData({ ...formData, city: val })}
+              onDistrictChange={val => setFormData({ ...formData, district: val })}
+              onVillageChange={val => setFormData({ ...formData, village: val })}
             />
             <div className="space-y-2">
               <Label htmlFor="postal_code">Kode Pos</Label>
