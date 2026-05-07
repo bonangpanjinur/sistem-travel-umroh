@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { addMonths, differenceInDays, format, parseISO, isAfter, isBefore } from "date-fns";
@@ -274,6 +275,20 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     }
   }, [customer, open]);
 
+  // Fetch mahrams for this customer
+  const { data: mahrams, refetch: refetchMahrams } = useQuery({
+    queryKey: ["customer-mahrams", customer.id],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("customer_mahrams" as any)
+        .select("*")
+        .eq("customer_id", customer.id)
+        .order("created_at") as any);
+      if (error) throw error;
+      return data as CustomerMahram[];
+    },
+  });
+
   // Sync Mahram data with father_name and mother_name
   useEffect(() => {
     if (mahrams && mahrams.length > 0) {
@@ -387,24 +402,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     }
   };
 
-  // Fetch mahrams for this customer
-  const { data: mahrams, refetch: refetchMahrams } = useQuery({
-    queryKey: ["customer-mahrams", customer.id],
-    enabled: open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customer_mahrams" as any)
-        .select("*")
-        .eq("customer_id", customer.id)
-        .order("created_at");
-      if (error) {
-        // Table might not exist yet — return empty
-        if (error.code === "42P01") return [];
-        throw error;
-      }
-      return (data as unknown as CustomerMahram[]) || [];
-    },
-  });
+
 
   const [newMahram, setNewMahram] = useState({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
 
