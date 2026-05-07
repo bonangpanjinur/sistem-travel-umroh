@@ -29,11 +29,26 @@ export function useCompanySettings() {
 
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
-      const { error } = await supabase
+      // First try to update, if no rows affected, insert
+      const { error: updateError, count } = await supabase
         .from("company_settings")
         .update({ setting_value: value, updated_at: new Date().toISOString() })
         .eq("setting_key", key);
-      if (error) throw error;
+      
+      if (updateError) throw updateError;
+      
+      // If no rows were updated, insert a new one
+      if (count === 0) {
+        const { error: insertError } = await supabase
+          .from("company_settings")
+          .insert({
+            setting_key: key,
+            setting_value: value,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        if (insertError) throw insertError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-settings"] });
@@ -50,11 +65,26 @@ export function useCompanySettings() {
       // Use a single request if possible, but the current schema uses key-value rows
       // We'll stick to individual updates for now as per original logic but with better error handling
       for (const { key, value } of updates) {
-        const { error } = await supabase
+        // First try to update, if no rows affected, insert
+        const { error: updateError, count } = await supabase
           .from("company_settings")
           .update({ setting_value: value, updated_at: new Date().toISOString() })
           .eq("setting_key", key);
-        if (error) throw error;
+        
+        if (updateError) throw updateError;
+        
+        // If no rows were updated, insert a new one
+        if (count === 0) {
+          const { error: insertError } = await supabase
+            .from("company_settings")
+            .insert({
+              setting_key: key,
+              setting_value: value,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          if (insertError) throw insertError;
+        }
       }
     },
     onSuccess: () => {

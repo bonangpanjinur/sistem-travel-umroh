@@ -89,7 +89,9 @@ export function useCompanyInfo() {
   };
 
   // Try to get logo from company_settings first, then fallback to website_settings
-  const logoUrl = unwrap(m?.get("company_logo_url")) || websiteSettings?.logo_url || undefined;
+  // Prioritize company_settings.company_logo_url if explicitly set, otherwise use website_settings.logo_url
+  const companyLogoUrl = unwrap(m?.get("company_logo_url"));
+  const logoUrl = companyLogoUrl || websiteSettings?.logo_url || undefined;
 
   const documentSettings: DocumentSettings = {
     letterhead_show_logo: unwrapBoolean(m?.get("letterhead_show_logo"), true),
@@ -105,7 +107,7 @@ export function useCompanyInfo() {
     certificate_text_color: unwrap(m?.get("certificate_text_color")) || "#165634",
     document_footer_show_timestamp: unwrapBoolean(m?.get("document_footer_show_timestamp"), true),
     document_footer_show_page_number: unwrapBoolean(m?.get("document_footer_show_page_number"), true),
-    invoice_accent_color: unwrap(m?.get("invoice_accent_color")) || "#0f172a",
+    invoice_accent_color: unwrap(m?.get("invoice_accent_color")) || "#16a34a",
     pdf_default_font: (unwrap(m?.get("pdf_default_font")) as any) || "helvetica",
   };
 
