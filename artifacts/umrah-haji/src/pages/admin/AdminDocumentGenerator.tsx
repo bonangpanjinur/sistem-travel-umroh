@@ -410,7 +410,7 @@ const AdminDocumentGenerator = () => {
       reason: employeeLeaveForm.reason,
       destination: employeeLeaveForm.destination
     };
-    return { generate: async () => generateLeaveLetter(data, await getLetterNumber('cuti_karyawan', 'CUTI-KRY'), company) };
+    return { generate: async () => await generateLeaveLetter(data, await getLetterNumber('cuti_karyawan', 'CUTI-KRY'), company) };
   };
 
   const handleGenerateJamaahLeaveLetter = () => {
@@ -433,7 +433,7 @@ const AdminDocumentGenerator = () => {
       endDate: new Date(departure.return_date),
       purpose: jamaahLeaveForm.purpose
     };
-    return { generate: async () => generateJamaahLeaveLetter(data, await getLetterNumber('cuti_jamaah', 'CUTI-JMH'), company) };
+    return { generate: async () => await generateJamaahLeaveLetter(data, await getLetterNumber('cuti_jamaah', 'CUTI-JMH'), company) };
   };
 
   const handleGeneratePassportLetter = () => {
@@ -450,7 +450,7 @@ const AdminDocumentGenerator = () => {
       purpose: passportForm.purpose,
       departureDate: departure ? new Date(departure.departure_date) : undefined
     };
-    return { generate: async () => generatePassportLetter(data, await getLetterNumber('paspor', 'PASPOR'), company) };
+    return { generate: async () => await generatePassportLetter(data, await getLetterNumber('paspor', 'PASPOR'), company) };
   };
 
   const handleGenerateInvoice = () => {
@@ -480,7 +480,7 @@ const AdminDocumentGenerator = () => {
         accountName: bankAccount.account_name 
       } : undefined
     };
-    return { generate: async () => generateInvoice(data, company) };
+    return { generate: async () => await generateInvoice(data, company) };
   };
 
   const handleGenerateETicket = () => {
@@ -511,7 +511,7 @@ const AdminDocumentGenerator = () => {
       hotelMadinah: hotelMadinah?.name,
       roomType: roomTypeLabels[booking.room_type] || booking.room_type
     };
-    return { generate: async () => generateETicket(data, company) };
+    return { generate: async () => await generateETicket(data, company) };
   };
 
   const handleGenerateCertificate = () => {
@@ -530,7 +530,7 @@ const AdminDocumentGenerator = () => {
       returnDate: new Date(departure?.return_date),
       certificateNumber: `CERT-${booking.booking_code}`
     };
-    return { generate: async () => generateUmrahCertificate(data, company) };
+    return { generate: async () => await generateUmrahCertificate(data, company) };
   };
 
   const handleGenerateGeneralLetter = () => {
@@ -539,7 +539,7 @@ const AdminDocumentGenerator = () => {
     }
     return { generate: async () => {
       const letterNumber = await getLetterNumber('surat_umum', 'SURAT');
-      return generateGeneralLetter({
+      return await generateGeneralLetter({
         letterNumber, letterDate: new Date(),
         recipient: { name: generalForm.recipientName, position: generalForm.recipientPosition, institution: generalForm.recipientInstitution, address: generalForm.recipientAddress },
         subject: generalForm.subject, content: generalForm.content,

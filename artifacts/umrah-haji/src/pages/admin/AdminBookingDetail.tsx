@@ -283,7 +283,7 @@ export default function AdminBookingDetail() {
     },
   });
 
-  const handlePrintInvoice = () => {
+  const handlePrintInvoice = async () => {
     if (!booking || !booking.customer) return;
     
     const departure = booking.departure as any;
@@ -345,7 +345,7 @@ export default function AdminBookingDetail() {
       } : undefined,
     };
 
-    const doc = generateInvoice(invoiceData, companyInfo);
+    const doc = await generateInvoice(invoiceData, companyInfo);
     doc.save(`Invoice-${booking.booking_code}.pdf`);
     toast.success('Invoice berhasil di-download');
   };

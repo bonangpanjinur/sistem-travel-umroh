@@ -3,6 +3,23 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
+// Helper function to convert image URL to Base64
+async function imageUrlToBase64(url: string): Promise<string> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('Failed to convert image to base64:', e);
+    throw e;
+  }
+}
+
 // Helper function to convert Hex to RGB
 function hexToRgb(hex: string) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -277,10 +294,18 @@ function addFooter(doc: jsPDF, pageNum: number, totalPages: number, company: Com
 }
 
 // Generate Invoice
-export function generateInvoice(
+export async function generateInvoice(
   data: InvoiceDataExtended,
   company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
+): Promise<jsPDF> {
+  // Pre-process logo if it's a URL
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
   const layout = company.layout;
   const settings = company.settings;
   const orientation = layout?.page_orientation || 'portrait';
@@ -602,11 +627,19 @@ export function generateInvoice(
 }
 
 // Generate Employee Leave Letter (Surat Cuti Karyawan)
-export function generateLeaveLetter(
+export async function generateLeaveLetter(
   data: LeaveLetterData,
   letterNumber: string,
   company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
+): Promise<jsPDF> {
+  // Pre-process logo if it's a URL
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
   const doc = new jsPDF();
   let y = addLetterhead(doc, company);
   
@@ -676,11 +709,19 @@ Demikian surat permohonan cuti ini saya ajukan. Atas perhatian dan persetujuan B
 }
 
 // Generate Jamaah Leave Letter (Surat Keterangan Cuti Ibadah Umrah/Haji)
-export function generateJamaahLeaveLetter(
+export async function generateJamaahLeaveLetter(
   data: JamaahLeaveLetterData,
   letterNumber: string,
   company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
+): Promise<jsPDF> {
+  // Pre-process logo if it's a URL
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
   const doc = new jsPDF();
   let y = addLetterhead(doc, company);
   
@@ -759,11 +800,19 @@ export function generateJamaahLeaveLetter(
 }
 
 // Generate Passport Recommendation Letter
-export function generatePassportLetter(
+export async function generatePassportLetter(
   data: PassportLetterData,
   letterNumber: string,
   company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
+): Promise<jsPDF> {
+  // Pre-process logo if it's a URL
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
   const doc = new jsPDF();
   let y = addLetterhead(doc, company);
   
@@ -831,10 +880,18 @@ export function generatePassportLetter(
 }
 
 // Generate General Letter
-export function generateGeneralLetter(
+export async function generateGeneralLetter(
   data: GeneralLetterData,
   company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
+): Promise<jsPDF> {
+  // Pre-process logo if it's a URL
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
   const doc = new jsPDF();
   let y = addLetterhead(doc, company);
   
@@ -899,10 +956,18 @@ export function generateGeneralLetter(
 }
 
 // Generate E-Ticket
-export function generateETicket(
+export async function generateETicket(
   data: ETicketData,
   company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
+): Promise<jsPDF> {
+  // Pre-process logo if it's a URL
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -987,10 +1052,18 @@ export function generateETicket(
 }
 
 // Generate Umrah Certificate
-export function generateUmrahCertificate(
+export async function generateUmrahCertificate(
   data: UmrahCertificateData,
   company: CompanyInfo = defaultCompanyInfo
-): jsPDF {
+): Promise<jsPDF> {
+  // Pre-process logo if it's a URL
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
