@@ -858,8 +858,10 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent
-                        className="w-[--radix-popover-trigger-width] p-0"
+                        className="w-[--radix-popover-trigger-width] p-0 z-50"
                         align="start"
+                        side="bottom"
+                        sideOffset={4}
                       >
                         <Command shouldFilter={false}>
                           <CommandInput
