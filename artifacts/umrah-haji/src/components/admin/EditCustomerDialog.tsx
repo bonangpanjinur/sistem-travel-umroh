@@ -388,7 +388,7 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         if (error.code === "42P01") return [];
         throw error;
       }
-      return (data as CustomerMahram[]) || [];
+      return (data as unknown as CustomerMahram[]) || [];
     },
   });
 
