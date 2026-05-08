@@ -96,6 +96,8 @@ const AdminPushNotifications = lazy(() => import("@/pages/admin/AdminPushNotific
 const AdminDepartureTracking = lazy(() => import("@/pages/admin/AdminDepartureTracking"));
 const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
 const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
+const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
+const AdminFinanceTerpadu = lazy(() => import("@/pages/admin/AdminFinanceTerpadu"));
 
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
@@ -237,6 +239,12 @@ export default function AdminRoutes() {
 
       {/* KPI Dashboard */}
       <Route path="kpi-dashboard" element={<P k={PERMISSIONS.KPI_DASHBOARD}><LazyPage><AdminKPIDashboard /></LazyPage></P>} />
+
+      {/* Blog & Artikel */}
+      <Route path="blog" element={<P k={PERMISSIONS.BLOG}><LazyPage><AdminBlog /></LazyPage></P>} />
+
+      {/* Keuangan Terpadu */}
+      <Route path="finance-terpadu" element={<P k={PERMISSIONS.FINANCE_TERPADU}><LazyPage><AdminFinanceTerpadu /></LazyPage></P>} />
 
       {/* Master Data */}
       <Route path="master-data" element={<P k={PERMISSIONS.MASTER_DATA}><AdminMasterData /></P>} />

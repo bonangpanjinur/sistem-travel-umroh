@@ -109,6 +109,12 @@ export const PERMISSIONS = {
 
   // KPI Dashboard
   KPI_DASHBOARD: 'kpi-dashboard',
+
+  // Blog & Artikel
+  BLOG: 'blog',
+
+  // Keuangan Terpadu
+  FINANCE_TERPADU: 'finance-terpadu',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

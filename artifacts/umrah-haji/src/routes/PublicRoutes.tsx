@@ -26,6 +26,9 @@ const BookingStatusPage = lazy(() => import("@/pages/public/BookingStatusPage"))
 const KalkulatorBiaya = lazy(() => import("@/pages/public/KalkulatorBiaya"));
 const PackageCompare = lazy(() => import("@/pages/packages/PackageCompare"));
 const KalkulatorCicilan = lazy(() => import("@/pages/customer/KalkulatorCicilan"));
+const PublicBlog = lazy(() => import("@/pages/public/PublicBlog"));
+const PublicBlogDetail = lazy(() => import("@/pages/public/PublicBlogDetail"));
+const Testimonials = lazy(() => import("@/pages/public/Testimonials"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -63,6 +66,9 @@ export default function PublicRoutes() {
       <Route path="/kalkulator" element={<LazyPage><KalkulatorBiaya /></LazyPage>} />
       <Route path="/kalkulator-cicilan" element={<LazyPage><KalkulatorCicilan /></LazyPage>} />
       <Route path="/packages/compare" element={<LazyPage><PackageCompare /></LazyPage>} />
+      <Route path="/blog" element={<LazyPage><PublicBlog /></LazyPage>} />
+      <Route path="/blog/:slug" element={<LazyPage><PublicBlogDetail /></LazyPage>} />
+      <Route path="/testimonials" element={<LazyPage><Testimonials /></LazyPage>} />
       <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>

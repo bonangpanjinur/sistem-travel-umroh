@@ -28,6 +28,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'kpi-dashboard',       label: 'KPI Real-time',         path: '/admin/kpi-dashboard',        icon: 'Target',          group_name: 'Overview',           sort_order: 103, required_permission: PERMISSIONS.KPI_DASHBOARD },
 
   // ── Penjualan (200s) ─────────────────────────────────────────────────────
+
   { key: 'leads',               label: 'Leads & Prospek',       path: '/admin/leads',                icon: 'UserPlus',        group_name: 'Penjualan',          sort_order: 201, required_permission: PERMISSIONS.LEADS },
   { key: 'bookings',            label: 'Booking',               path: '/admin/bookings',             icon: 'BookOpen',        group_name: 'Penjualan',          sort_order: 202, required_permission: PERMISSIONS.BOOKINGS },
   { key: 'packages',            label: 'Paket Umroh & Haji',    path: '/admin/packages',             icon: 'Package',         group_name: 'Penjualan',          sort_order: 203, required_permission: PERMISSIONS.PACKAGES },
@@ -35,6 +36,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'coupons',             label: 'Kupon & Promo',         path: '/admin/coupons',              icon: 'Ticket',          group_name: 'Penjualan',          sort_order: 205, required_permission: PERMISSIONS.COUPONS },
 
   // ── Konten & Marketing (300s) ─────────────────────────────────────────────
+  { key: 'blog',                label: 'Blog & Artikel',        path: '/admin/blog',                 icon: 'BookOpen',        group_name: 'Konten & Marketing', sort_order: 300, required_permission: PERMISSIONS.BLOG },
   { key: 'announcements',        label: 'Pengumuman',            path: '/admin/announcements',        icon: 'Megaphone',       group_name: 'Konten & Marketing', sort_order: 301, required_permission: PERMISSIONS.ANNOUNCEMENTS },
   { key: 'banners',             label: 'Banner Carousel',       path: '/admin/banners',              icon: 'Image',           group_name: 'Konten & Marketing', sort_order: 302, required_permission: PERMISSIONS.BANNERS },
   { key: 'landing-pages',       label: 'Landing Page',          path: '/admin/landing-pages',        icon: 'Globe',           group_name: 'Konten & Marketing', sort_order: 303, required_permission: PERMISSIONS.LANDING_PAGES },
@@ -57,6 +59,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'stock-opname',        label: 'Stock Opname',          path: '/admin/stock-opname',         icon: 'ClipboardCheck',  group_name: 'Keberangkatan',      sort_order: 409, required_permission: PERMISSIONS.STOCK_OPNAME },
 
   // ── Keuangan (500s) ───────────────────────────────────────────────────────
+  { key: 'finance-terpadu',     label: 'Dashboard Keuangan',    path: '/admin/finance-terpadu',      icon: 'Layers',          group_name: 'Keuangan',           sort_order: 500, required_permission: PERMISSIONS.FINANCE_TERPADU },
   { key: 'payments',            label: 'Pembayaran',            path: '/admin/payments',             icon: 'CreditCard',      group_name: 'Keuangan',           sort_order: 501, required_permission: PERMISSIONS.PAYMENTS },
   { key: 'finance-cash',        label: 'Kas & Bank',            path: '/admin/finance-cash',         icon: 'Coins',           group_name: 'Keuangan',           sort_order: 502, required_permission: PERMISSIONS.FINANCE_CASH },
   { key: 'finance-ar',          label: 'Piutang (AR)',          path: '/admin/finance/ar',           icon: 'ArrowDownToLine', group_name: 'Keuangan',           sort_order: 503, required_permission: PERMISSIONS.FINANCE_AR },
@@ -150,7 +153,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'leads', 'bookings', 'packages', 'coupons', 'banners',
     'departures', 'departure-tracking', 'sos-alerts',
     'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
-    'payments', 'finance-cash', 'savings', 'reports',
+    'payments', 'finance-cash', 'finance-terpadu', 'savings', 'reports',
     'customers', 'agents', 'branches', 'visa',
     'memberships', 'branch-commissions', 'agent-commission-report',
     'document-verification', 'document-types',
@@ -158,10 +161,11 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'office-assets',
     'users', 'support',
     'push-notifications',
+    'blog',
   ],
 
   finance: [
-    'dashboard', 'kpi-dashboard',
+    'dashboard', 'kpi-dashboard', 'finance-terpadu',
     'payments', 'finance-cash', 'finance', 'finance-ar', 'finance-ap',
     'savings', 'reports', 'advanced-reports',
     'bookings', 'customers',
@@ -179,6 +183,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   marketing: [
     'dashboard', 'analytics',
+    'blog',
     'leads', 'landing-pages', 'banners', 'marketing-materials',
     'coupons', 'referrals', 'loyalty', 'whatsapp',
     'email-templates', 'push-notifications',

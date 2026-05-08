@@ -98,9 +98,9 @@
 | Drag-and-Drop Kanban Lead | Kolom ada, tapi drag kartu antar kolom tidak berfungsi | Tinggi | ✅ Diperbaiki — hapus `snap-x` + `cursor-grab` |
 | Notifikasi Bell Icon (Agen) | Hook `useAdminNotifications` ada, tapi UI bell di layout agen belum dipasang | Menengah | ✅ Sudah terpasang di AgentLayoutEnhanced |
 | Notifikasi Bell Icon (Admin) | Bell terpasang tapi data hardcoded kosong | Menengah | ✅ Sudah terhubung ke useAdminNotifications |
-| Notifikasi In-App (Customer) | Hook ada, tampilan perlu diperkuat | Menengah | Dalam antrean |
-| Live Chat / WhatsApp Button | Ada di landing builder, belum tersedia secara global di semua halaman publik | Rendah | Dalam antrean |
-| Testimonial Halaman | Ada di landing builder, belum ada halaman stand-alone | Rendah | Dalam antrean |
+| Notifikasi In-App (Customer) | Hook ada, tampilan perlu diperkuat | Menengah | ✅ Bell + widget di CustomerDashboard |
+| Live Chat / WhatsApp Button | Ada di landing builder, belum tersedia secara global di semua halaman publik | Rendah | ✅ Floating WA button di semua halaman publik |
+| Testimonial Halaman | Ada di landing builder, belum ada halaman stand-alone | Rendah | ✅ Halaman /testimonials dengan 9 kartu + filter |
 
 ---
 
@@ -116,12 +116,12 @@ Diurutkan dari **dampak bisnis tertinggi**:
 | 3 | **KPI Dashboard Real-time** | Target vs aktual dengan progress bar animasi — semua modul (booking, komisi, lead) | ✅ Selesai — halaman /admin/kpi-dashboard |
 
 ### Prioritas Menengah
-| # | Fitur | Nilai Bisnis |
-|---|-------|-------------|
-| 4 | **Blog / Artikel Edukasi** | Konten SEO — trafik organik dari Google untuk keyword Umroh & Haji |
-| 5 | **Dashboard Keuangan Terpadu** | Arus kas, proyeksi, perbandingan bulan dalam satu layar |
-| 6 | **Ringkasan AI Otomatis** | Narasi performa bulan ini untuk admin — insight tanpa buka laporan |
-| 7 | **Panduan Ibadah Offline (PWA)** | Jamaah di Saudi bisa akses itinerary & doa tanpa internet |
+| # | Fitur | Nilai Bisnis | Status |
+|---|-------|-------------|--------|
+| 4 | **Blog / Artikel Edukasi** | Konten SEO — trafik organik dari Google untuk keyword Umroh & Haji | ✅ Selesai — /admin/blog (CRUD) + /blog + /blog/:slug |
+| 5 | **Dashboard Keuangan Terpadu** | Arus kas, proyeksi, perbandingan bulan dalam satu layar | ✅ Selesai — /admin/finance-terpadu (3 tab: arus kas, perbandingan, AR) |
+| 6 | **Ringkasan AI Otomatis** | Narasi performa bulan ini untuk admin — insight tanpa buka laporan | Dalam antrean |
+| 7 | **Panduan Ibadah Offline (PWA)** | Jamaah di Saudi bisa akses itinerary & doa tanpa internet | Dalam antrean |
 
 ### Prioritas Tambahan
 | # | Fitur | Nilai Bisnis |
