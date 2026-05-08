@@ -16,13 +16,15 @@ import {
   CalendarDays, AlertCircle, Search, Star, RefreshCcw,
   Navigation, Heart, Shield, HelpCircle, ChevronDown,
   ChevronRight, UserCheck, XCircle, Clock, BellRing,
-  CheckCheck, Siren, X, FileBarChart, Hash
+  CheckCheck, Siren, X, FileBarChart, Hash,
+  Bell, BellOff, BellDot, UserX, AlertTriangle
 } from "lucide-react";
-import { format, parseISO, formatDistanceToNow } from "date-fns";
+import { format, parseISO, formatDistanceToNow, subDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useMuthawifNotifications } from "@/hooks/useMuthawifNotifications";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -454,7 +456,13 @@ interface SOSAlert {
   customer?: { full_name: string; phone: string | null };
 }
 
-function SOSPanel({ departureId }: { departureId: string }) {
+function SOSPanel({
+  departureId,
+  notify,
+}: {
+  departureId: string;
+  notify: (title: string, body: string, opts?: any) => void;
+}) {
   const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -488,10 +496,19 @@ function SOSPanel({ departureId }: { departureId: string }) {
           important: true,
         });
         if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+        // Browser / OS notification
+        const p = payload.new as any;
+        const name  = p?.customer?.full_name || "Jamaah";
+        const etype = EMERGENCY_TYPES[p?.emergency_type]?.label || "Darurat";
+        notify(
+          `🚨 SOS — ${etype}`,
+          `${name}: ${p?.message || "Membutuhkan bantuan segera!"}`,
+          { url: "/muthawif/dashboard", tag: `sos-${p?.id}`, vibrate: true, dedup: `sos-${p?.id}` }
+        );
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [departureId, queryClient]);
+  }, [departureId, queryClient, notify]);
 
   const respondMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -570,6 +587,212 @@ function SOSPanel({ departureId }: { departureId: string }) {
         );
       })}
     </div>
+  );
+}
+
+// ─── Notification Permission Banner ──────────────────────────────────────────
+
+function NotificationPermissionBanner({
+  permission,
+  isRequesting,
+  onRequest,
+}: {
+  permission: string;
+  isRequesting: boolean;
+  onRequest: () => void;
+}) {
+  const [dismissed, setDismissed] = useState(() =>
+    localStorage.getItem("notif_banner_dismissed") === "1"
+  );
+
+  if (permission === "granted" || permission === "unsupported" || dismissed) return null;
+
+  if (permission === "denied") {
+    return (
+      <Alert className="border-amber-300 bg-amber-50">
+        <BellOff className="h-4 w-4 text-amber-600 shrink-0" />
+        <AlertDescription className="text-amber-800 text-sm">
+          Notifikasi SOS diblokir browser. Aktifkan izin notifikasi di pengaturan browser untuk menerima peringatan darurat.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert className="border-blue-300 bg-blue-50">
+      <Bell className="h-4 w-4 text-blue-600 shrink-0" />
+      <AlertDescription className="w-full">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-blue-900 text-sm">Aktifkan notifikasi push</p>
+            <p className="text-xs text-blue-700 mt-0.5">
+              Terima peringatan SOS dan absen berturut-turut meskipun layar HP terkunci.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
+              onClick={onRequest}
+              disabled={isRequesting}
+            >
+              {isRequesting
+                ? <RefreshCcw className="h-3 w-3 animate-spin mr-1" />
+                : <Bell className="h-3 w-3 mr-1" />
+              }
+              Aktifkan
+            </Button>
+            <button
+              onClick={() => {
+                setDismissed(true);
+                localStorage.setItem("notif_banner_dismissed", "1");
+              }}
+              className="text-blue-400 hover:text-blue-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+// ─── Absen Alert Panel ────────────────────────────────────────────────────────
+
+function AbsenAlertPanel({
+  departureId,
+  passengers,
+  notify,
+}: {
+  departureId: string;
+  passengers: any[];
+  notify: (title: string, body: string, opts?: any) => void;
+}) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const notifiedRef = useRef<Set<string>>(new Set());
+
+  const since = format(subDays(new Date(), 7), "yyyy-MM-dd");
+
+  const { data: recentAtt = [] } = useQuery({
+    queryKey: ["muthawif-absen-alert", departureId, since],
+    enabled: !!departureId && passengers.length > 0,
+    refetchInterval: 5 * 60 * 1000, // re-check every 5 min
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("attendance")
+        .select("customer_id, status, attendance_date, session_type, checked_at")
+        .eq("departure_id", departureId)
+        .gte("attendance_date", since)
+        .order("attendance_date", { ascending: false })
+        .order("checked_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  // Find customers with 2+ consecutive "absen" as their most recent records
+  const absenBerturut = (() => {
+    const byCustomer: Record<string, any[]> = {};
+    for (const r of (recentAtt as any[])) {
+      if (!byCustomer[r.customer_id]) byCustomer[r.customer_id] = [];
+      byCustomer[r.customer_id].push(r);
+    }
+
+    const flagged: Array<{ customerId: string; name: string; phone: string | null; count: number; lastDate: string }> = [];
+
+    for (const [cid, records] of Object.entries(byCustomer)) {
+      // Records are already sorted desc by date
+      let consecutiveAbsen = 0;
+      for (const r of records) {
+        if (r.status === "absen") consecutiveAbsen++;
+        else break;
+      }
+      if (consecutiveAbsen >= 2) {
+        const p = passengers.find(px => px.customerId === cid);
+        if (p) {
+          flagged.push({
+            customerId: cid,
+            name: p.name || "—",
+            phone: p.phone || null,
+            count: consecutiveAbsen,
+            lastDate: records[0]?.attendance_date || "",
+          });
+        }
+      }
+    }
+    return flagged.sort((a, b) => b.count - a.count);
+  })();
+
+  // Send one-time notification per flagged customer per session
+  useEffect(() => {
+    for (const f of absenBerturut) {
+      const key = `absen-${f.customerId}-${f.count}`;
+      if (!notifiedRef.current.has(key)) {
+        notifiedRef.current.add(key);
+        notify(
+          `⚠️ Absen Berturut-turut`,
+          `${f.name} absen ${f.count}x berturut-turut — perlu perhatian segera.`,
+          { url: `/muthawif/jamaah/${f.customerId}`, tag: key, dedup: key }
+        );
+      }
+    }
+  }, [absenBerturut.length]);
+
+  const visible = absenBerturut.filter(f => !dismissed.has(f.customerId));
+  if (visible.length === 0) return null;
+
+  return (
+    <Card className="border-amber-300">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-800">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          Absen Berturut-turut
+          <Badge className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] ml-1">
+            {visible.length} jamaah
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-0 pt-0 pb-0">
+        <div className="divide-y">
+          {visible.map(f => (
+            <div key={f.customerId} className="flex items-center gap-3 px-4 py-2.5">
+              <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <UserX className="h-4 w-4 text-amber-700" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <Link
+                  to={`/muthawif/jamaah/${f.customerId}`}
+                  className="text-sm font-medium hover:text-primary hover:underline transition-colors truncate block"
+                >
+                  {f.name}
+                </Link>
+                <p className="text-xs text-amber-700">
+                  Absen <span className="font-bold">{f.count}×</span> berturut-turut
+                  {f.lastDate ? ` — terakhir ${format(parseISO(f.lastDate + "T00:00:00"), "d MMM", { locale: idLocale })}` : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {f.phone && (
+                  <a
+                    href={`https://wa.me/${f.phone.replace(/\D/g,"").replace(/^0/,"62")}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-[11px] border border-green-200 text-green-700 rounded px-1.5 py-0.5 hover:bg-green-50"
+                  >
+                    WA
+                  </a>
+                )}
+                <button
+                  onClick={() => setDismissed(prev => new Set([...prev, f.customerId]))}
+                  className="text-muted-foreground hover:text-foreground p-0.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -818,6 +1041,7 @@ function QuickAbsensi({
 export default function MuthawifDashboard() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const { permission, isGranted, isRequesting, requestPermission, notify } = useMuthawifNotifications();
 
   const { data: muthawif } = useQuery({
     queryKey: ["muthawif-profile", user?.email],
@@ -888,6 +1112,21 @@ export default function MuthawifDashboard() {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <GlobalSearch muthawifId={muthawif?.id} />
+            {/* Notification bell */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 relative"
+              onClick={isGranted ? undefined : requestPermission}
+              title={isGranted ? "Notifikasi aktif" : "Aktifkan notifikasi"}
+            >
+              {isGranted
+                ? <Bell className="h-4 w-4 text-emerald-600" />
+                : permission === "denied"
+                  ? <BellOff className="h-4 w-4 text-muted-foreground" />
+                  : <BellDot className="h-4 w-4 text-blue-500" />
+              }
+            </Button>
             <Badge variant={muthawif?.is_active ? "default" : "secondary"} className="text-[10px] hidden sm:inline-flex">
               {muthawif?.is_active ? "Aktif" : "Nonaktif"}
             </Badge>
@@ -900,9 +1139,25 @@ export default function MuthawifDashboard() {
 
       <div className="max-w-2xl mx-auto p-4 space-y-4">
 
+        {/* ── Notification Permission Banner ─────────────────────────── */}
+        <NotificationPermissionBanner
+          permission={permission}
+          isRequesting={isRequesting}
+          onRequest={requestPermission}
+        />
+
         {/* ── SOS Real-time Panel ───────────────────────────────────── */}
         {activeDeparture && (
-          <SOSPanel departureId={activeDeparture.id} />
+          <SOSPanel departureId={activeDeparture.id} notify={notify} />
+        )}
+
+        {/* ── Absen Berturut-turut Alert ────────────────────────────── */}
+        {activeDeparture && passengers.length > 0 && (
+          <AbsenAlertPanel
+            departureId={activeDeparture.id}
+            passengers={passengers}
+            notify={notify}
+          />
         )}
 
         {/* ── Profile Card ──────────────────────────────────────────── */}
