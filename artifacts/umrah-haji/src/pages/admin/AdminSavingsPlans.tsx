@@ -16,11 +16,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { toast } from "sonner";
 import {
   Wallet, Plus, Search, TrendingUp, CheckCircle, Clock,
   Eye, CreditCard, DollarSign, XCircle, Users, CalendarDays,
-  ArrowRight, AlertCircle, Receipt, UserPlus, BanknoteIcon
+  ArrowRight, AlertCircle, Receipt, UserPlus, BanknoteIcon, Bell, Send
 } from "lucide-react";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -52,6 +53,10 @@ const payBadge = (status: string) => {
 // ─── component ─────────────────────────────────────────────────────────────
 export default function AdminSavingsPlans() {
   const queryClient = useQueryClient();
+  const wa = useWhatsAppNotifier();
+
+  // bulk reminder state
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   // list state
   const [search, setSearch] = useState("");
@@ -202,9 +207,63 @@ export default function AdminSavingsPlans() {
 
   // ── mutations ─────────────────────────────────────────────────────────────
 
+  // ── helpers: format bank info for WA ────────────────────────────────────
+  const bankInfoString = useMemo(() =>
+    bankAccounts.length > 0
+      ? bankAccounts.map((b: any) => `${b.bank_name}: ${b.account_number} (${b.account_name})`).join(" | ")
+      : "Hubungi admin untuk info rekening",
+  [bankAccounts]);
+
+  // ── send per-plan reminder ────────────────────────────────────────────────
+  const sendPlanReminder = async (plan: any) => {
+    const phone = plan.customer?.phone;
+    if (!phone) { toast.error("Nomor HP jamaah tidak tersedia"); return; }
+    if (!wa.isReady) { toast.error("Konfigurasi WhatsApp belum aktif"); return; }
+    const targetDate = plan.target_date
+      ? new Date(plan.target_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+      : "-";
+    await wa.sendSavingsReminder(phone, {
+      nama: plan.customer?.full_name ?? "Jamaah",
+      nama_paket: plan.package?.name ?? "-",
+      jumlah_cicilan: formatCurrency(plan.monthly_amount),
+      total_terkumpul: formatCurrency(plan.paid_amount || 0),
+      target: formatCurrency(plan.target_amount),
+      target_date: targetDate,
+      info_rekening: bankInfoString,
+    });
+    toast.success(`📲 Pengingat dikirim ke ${plan.customer?.full_name}`);
+  };
+
+  // ── bulk reminder for all active plans ───────────────────────────────────
+  const sendBulkReminders = async () => {
+    const activePlans = plans.filter((p: any) => p.status === "active" && p.customer?.phone);
+    if (activePlans.length === 0) { toast.error("Tidak ada tabungan aktif dengan nomor HP"); return; }
+    if (!wa.isReady) { toast.error("Konfigurasi WhatsApp belum aktif"); return; }
+    setSendingReminders(true);
+    let ok = 0, fail = 0;
+    for (const plan of activePlans) {
+      const targetDate = plan.target_date
+        ? new Date(plan.target_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+        : "-";
+      const sent = await wa.sendSavingsReminder(plan.customer.phone ?? "", {
+        nama: plan.customer?.full_name ?? "Jamaah",
+        nama_paket: plan.package?.name ?? "-",
+        jumlah_cicilan: formatCurrency(plan.monthly_amount),
+        total_terkumpul: formatCurrency(plan.paid_amount || 0),
+        target: formatCurrency(plan.target_amount),
+        target_date: targetDate,
+        info_rekening: bankInfoString,
+      });
+      if (sent) ok++; else fail++;
+      await new Promise(r => setTimeout(r, 800));
+    }
+    setSendingReminders(false);
+    toast.success(`📲 Pengingat terkirim: ${ok} berhasil${fail > 0 ? `, ${fail} gagal` : ""}`);
+  };
+
   const verifyPayMutation = useMutation({
     mutationFn: async () => {
-      if (!pendingVerify) return;
+      if (!pendingVerify) return null;
       const isVerify = verifyAction === "verify";
       const { error } = await supabase
         .from("savings_payments")
@@ -216,6 +275,8 @@ export default function AdminSavingsPlans() {
         .eq("id", pendingVerify.id);
       if (error) throw error;
 
+      let newPaid = 0;
+      let isCompleted = false;
       if (isVerify) {
         const planId = pendingVerify.savings_plan_id ?? pendingVerify.savings_plan?.id;
         const { data: plan } = await supabase
@@ -224,20 +285,50 @@ export default function AdminSavingsPlans() {
           .eq("id", planId)
           .single();
         if (plan) {
-          const newPaid = (plan.paid_amount ?? 0) + pendingVerify.amount;
-          const newStatus = newPaid >= plan.target_amount ? "completed" : "active";
+          newPaid = (plan.paid_amount ?? 0) + pendingVerify.amount;
+          isCompleted = newPaid >= plan.target_amount;
           await supabase
             .from("savings_plans")
-            .update({ paid_amount: newPaid, status: newStatus })
+            .update({ paid_amount: newPaid, status: isCompleted ? "completed" : "active" })
             .eq("id", planId);
         }
       }
+      return { isVerify, newPaid, isCompleted };
     },
-    onSuccess: () => {
+    onSuccess: async (result) => {
       toast.success(verifyAction === "verify" ? "✅ Pembayaran diterima" : "Pembayaran ditolak");
       queryClient.invalidateQueries({ queryKey: ["admin-savings-plans"] });
       queryClient.invalidateQueries({ queryKey: ["savings-payments-pending"] });
       queryClient.invalidateQueries({ queryKey: ["savings-payments-detail", detailPlan?.id] });
+
+      // ── Auto WA ──
+      if (result && wa.isReady) {
+        const phone = pendingVerify?.savings_plan?.customer?.phone ?? "";
+        const nama = pendingVerify?.savings_plan?.customer?.full_name ?? "Jamaah";
+        const nama_paket = pendingVerify?.savings_plan?.package?.name ?? "-";
+        const tanggal = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+        const jumlah = formatCurrency(pendingVerify?.amount ?? 0);
+
+        if (result.isVerify) {
+          const planId = pendingVerify?.savings_plan_id ?? pendingVerify?.savings_plan?.id;
+          const planData = plans.find((p: any) => p.id === planId);
+          const target = formatCurrency(planData?.target_amount ?? 0);
+          const sisa = formatCurrency(Math.max(0, (planData?.target_amount ?? 0) - result.newPaid));
+          if (result.isCompleted) {
+            await wa.sendSavingsLunas(phone, { nama, nama_paket, total_terkumpul: formatCurrency(result.newPaid), tanggal });
+          } else {
+            await wa.sendSavingsCicilanDiterima(phone, {
+              nama, nama_paket, jumlah_cicilan: jumlah, tanggal,
+              total_terkumpul: formatCurrency(result.newPaid), target, sisa,
+            });
+          }
+        } else {
+          await wa.sendSavingsCicilanDitolak(phone, {
+            nama, nama_paket, jumlah_cicilan: jumlah, tanggal, alasan: rejectReason || "Bukti tidak valid",
+          });
+        }
+      }
+
       setPendingVerify(null);
       setRejectReason("");
     },
@@ -262,16 +353,36 @@ export default function AdminSavingsPlans() {
       } as any);
       if (error) throw error;
       const newPaid = (manualPayPlan.paid_amount || 0) + amount;
-      const newStatus = newPaid >= manualPayPlan.target_amount ? "completed" : "active";
+      const isCompleted = newPaid >= manualPayPlan.target_amount;
       await supabase
         .from("savings_plans")
-        .update({ paid_amount: newPaid, status: newStatus })
+        .update({ paid_amount: newPaid, status: isCompleted ? "completed" : "active" })
         .eq("id", manualPayPlan.id);
+      return { amount, newPaid, isCompleted };
     },
-    onSuccess: () => {
+    onSuccess: async (result) => {
       toast.success("✅ Pembayaran berhasil dicatat");
       queryClient.invalidateQueries({ queryKey: ["admin-savings-plans"] });
       queryClient.invalidateQueries({ queryKey: ["savings-payments-detail", manualPayPlan?.id] });
+
+      // ── Auto WA ──
+      if (result && wa.isReady && manualPayPlan?.customer?.phone) {
+        const phone = manualPayPlan.customer.phone;
+        const nama = manualPayPlan.customer.full_name ?? "Jamaah";
+        const nama_paket = manualPayPlan.package?.name ?? "-";
+        const tanggal = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+        if (result.isCompleted) {
+          await wa.sendSavingsLunas(phone, { nama, nama_paket, total_terkumpul: formatCurrency(result.newPaid), tanggal });
+        } else {
+          await wa.sendSavingsCicilanDiterima(phone, {
+            nama, nama_paket, jumlah_cicilan: formatCurrency(result.amount), tanggal,
+            total_terkumpul: formatCurrency(result.newPaid),
+            target: formatCurrency(manualPayPlan.target_amount),
+            sisa: formatCurrency(Math.max(0, manualPayPlan.target_amount - result.newPaid)),
+          });
+        }
+      }
+
       setManualPayPlan(null); setManualAmount(""); setManualNote(""); setManualMethod("cash");
     },
     onError: (e: Error) => toast.error("❌ " + e.message),
@@ -411,7 +522,7 @@ export default function AdminSavingsPlans() {
 
         {/* ── Tab 1: Plans ── */}
         <TabsContent value="plans" className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Cari nama, paket, HP..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
@@ -427,6 +538,18 @@ export default function AdminSavingsPlans() {
                 <SelectItem value="cancelled">Dibatalkan</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              className="gap-2 text-green-700 border-green-300 hover:bg-green-50 shrink-0"
+              onClick={sendBulkReminders}
+              disabled={sendingReminders || !wa.isReady}
+              title={!wa.isReady ? "Konfigurasi WhatsApp belum aktif" : "Kirim pengingat ke semua tabungan aktif"}
+            >
+              {sendingReminders
+                ? <><Clock className="h-4 w-4 animate-spin" /> Mengirim...</>
+                : <><Send className="h-4 w-4" /> Kirim Semua Pengingat</>
+              }
+            </Button>
           </div>
 
           <Card>
@@ -489,10 +612,17 @@ export default function AdminSavingsPlans() {
                                   <Eye className="h-3.5 w-3.5" /> Detail
                                 </Button>
                                 {plan.status === "active" && (
-                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
-                                    onClick={() => { setManualPayPlan(plan); setManualAmount(String(plan.monthly_amount || "")); }}>
-                                    <DollarSign className="h-3.5 w-3.5" /> Bayar
-                                  </Button>
+                                  <>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                                      onClick={() => { setManualPayPlan(plan); setManualAmount(String(plan.monthly_amount || "")); }}>
+                                      <DollarSign className="h-3.5 w-3.5" /> Bayar
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                                      onClick={() => sendPlanReminder(plan)}
+                                      title="Kirim pengingat cicilan via WhatsApp">
+                                      <Bell className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
                                 )}
                                 {plan.status === "completed" && (
                                   <Button size="sm" className="h-7 text-xs gap-1 bg-green-600 hover:bg-green-700"

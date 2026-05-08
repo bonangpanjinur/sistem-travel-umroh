@@ -227,6 +227,82 @@ Info: {nomor_cs} 🙏`,
 {nomor_cs}`,
     variables: ["nama", "isi_pesan", "nomor_cs"],
   },
+
+  SAVINGS_CICILAN_DITERIMA: {
+    name: "Tabungan — Cicilan Diterima",
+    template: `Assalamu'alaikum {nama} 🕌
+
+✅ *Cicilan Tabungan Diterima!*
+
+📦 Paket: *{nama_paket}*
+💰 Jumlah Cicilan: *{jumlah_cicilan}*
+📅 Tanggal: {tanggal}
+💳 Total Terkumpul: {total_terkumpul}
+🎯 Target: {target}
+⏳ Sisa: *{sisa}*
+
+Jazakallahu khairan, semoga tabungan Anda segera lunas. 🙏
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "jumlah_cicilan", "tanggal", "total_terkumpul", "target", "sisa", "nomor_cs"],
+  },
+
+  SAVINGS_CICILAN_DITOLAK: {
+    name: "Tabungan — Cicilan Ditolak",
+    template: `Assalamu'alaikum {nama} 🕌
+
+❌ *Cicilan Tabungan Ditolak*
+
+📦 Paket: *{nama_paket}*
+💰 Jumlah: {jumlah_cicilan}
+📅 Tanggal: {tanggal}
+
+📋 Alasan: _{alasan}_
+
+Mohon lakukan pembayaran ulang atau hubungi kami untuk informasi lebih lanjut.
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "jumlah_cicilan", "tanggal", "alasan", "nomor_cs"],
+  },
+
+  SAVINGS_REMINDER: {
+    name: "Tabungan — Pengingat Cicilan",
+    template: `Assalamu'alaikum {nama} 🕌
+
+⏰ *Pengingat Cicilan Tabungan*
+
+📦 Paket: *{nama_paket}*
+💰 Cicilan Bulan Ini: *{jumlah_cicilan}*
+💳 Terkumpul: {total_terkumpul} dari {target}
+📅 Target Lunas: {target_date}
+
+Jangan lupa lakukan pembayaran cicilan agar tabungan Anda tetap berjalan lancar. 🙏
+
+Pembayaran via transfer ke rekening kami:
+{info_rekening}
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "jumlah_cicilan", "total_terkumpul", "target", "target_date", "info_rekening", "nomor_cs"],
+  },
+
+  SAVINGS_LUNAS: {
+    name: "Tabungan — Lunas",
+    template: `Assalamu'alaikum {nama} 🕌
+
+🎉 *Alhamdulillah — Tabungan Lunas!*
+
+Selamat! Tabungan Umroh Anda untuk paket *{nama_paket}* telah LUNAS.
+
+💰 Total Terkumpul: *{total_terkumpul}*
+📅 Lunas pada: {tanggal}
+
+Tim kami akan segera menghubungi Anda untuk proses konfirmasi booking dan persiapan keberangkatan. 🕌✈️
+
+Semoga menjadi umroh yang mabrur! 🤲
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "total_terkumpul", "tanggal", "nomor_cs"],
+  },
 };
 
 export type TemplateKey = keyof typeof DEFAULT_TEMPLATES;

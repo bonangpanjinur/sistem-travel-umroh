@@ -143,6 +143,73 @@ export function useWhatsAppNotifier() {
     return send(phone, message);
   };
 
+  /** Savings: cicilan verified by admin */
+  const sendSavingsCicilanDiterima = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      jumlah_cicilan: string;
+      tanggal: string;
+      total_terkumpul: string;
+      target: string;
+      sisa: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_CICILAN_DITERIMA", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Savings: cicilan rejected by admin */
+  const sendSavingsCicilanDitolak = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      jumlah_cicilan: string;
+      tanggal: string;
+      alasan: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_CICILAN_DITOLAK", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Savings: monthly cicilan reminder (manual trigger by admin) */
+  const sendSavingsReminder = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      jumlah_cicilan: string;
+      total_terkumpul: string;
+      target: string;
+      target_date: string;
+      info_rekening: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_REMINDER", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Savings: plan fully paid (lunas) */
+  const sendSavingsLunas = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      total_terkumpul: string;
+      tanggal: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_LUNAS", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
   return {
     isReady,
     config,
@@ -153,5 +220,9 @@ export function useWhatsAppNotifier() {
     sendDocumentReady,
     sendDepartureReminder,
     sendCustom,
+    sendSavingsCicilanDiterima,
+    sendSavingsCicilanDitolak,
+    sendSavingsReminder,
+    sendSavingsLunas,
   };
 }
