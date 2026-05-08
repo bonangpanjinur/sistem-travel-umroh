@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AgentNotificationBell } from "@/components/agent/AgentNotificationBell";
 import { 
   Home, Users, DollarSign, Package, UserCog,
-  Menu, X, LogOut, Wallet, Globe, Zap
+  Menu, X, LogOut, Wallet, Globe, Zap, Network
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ const navItems = [
   { label: "Data Jamaah", href: "/agent/jamaah", icon: UserCog },
   { label: "Komisi", href: "/agent/commissions", icon: DollarSign },
   { label: "Dompet", href: "/agent/wallet", icon: Wallet },
+  { label: "Jaringan Sub Agen", href: "/agent/network", icon: Network },
   { label: "Paket Tersedia", href: "/agent/packages", icon: Package },
   { label: "Digital Kit", href: "/agent/digital-kit", icon: Zap },
   { label: "Website Saya", href: "/agent/website", icon: Globe },

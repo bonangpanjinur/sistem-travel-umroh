@@ -81,6 +81,8 @@ export default function AgentCommissions() {
     switch (status) {
       case 'paid':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Dibayar</Badge>;
+      case 'approved':
+        return <Badge className="bg-blue-100 text-blue-800"><CheckCircle className="h-3 w-3 mr-1" />Disetujui</Badge>;
       case 'pending':
         return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
       default:

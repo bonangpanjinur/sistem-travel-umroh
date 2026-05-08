@@ -14,6 +14,7 @@ const AgentWallet = lazy(() => import("@/pages/agent/AgentWallet"));
 const AgentWebsiteSettings = lazy(() => import("@/pages/agent/AgentWebsiteSettings"));
 const AgentDigitalKit = lazy(() => import("@/pages/agent/AgentDigitalKit"));
 const AgentSettings = lazy(() => import("@/pages/agent/AgentSettings"));
+const AgentNetwork = lazy(() => import("@/pages/agent/AgentNetwork"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -39,6 +40,7 @@ export default function AgentRoutes() {
       <Route path="website" element={<LazyPage><AgentWebsiteSettings /></LazyPage>} />
       <Route path="digital-kit" element={<LazyPage><AgentDigitalKit /></LazyPage>} />
       <Route path="settings" element={<LazyPage><AgentSettings /></LazyPage>} />
+      <Route path="network" element={<LazyPage><AgentNetwork /></LazyPage>} />
     </Route>
   );
 }

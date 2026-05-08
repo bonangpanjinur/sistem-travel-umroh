@@ -61,6 +61,7 @@ import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistor
 import { useDocumentLogger } from "@/hooks/useDocumentLogger";
 import { format as dfFormat } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import { autoCalculateCommission } from "@/hooks/useAutoCommission";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -196,8 +197,9 @@ export default function AdminBookingDetail() {
         .update({ booking_status: status })
         .eq('id', id);
       if (error) throw error;
+      return status;
     },
-    onSuccess: (_, status) => {
+    onSuccess: async (status) => {
       toast.success("Status booking berhasil diperbarui");
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
@@ -205,6 +207,23 @@ export default function AdminBookingDetail() {
       setNewStatus(null);
       if (status === 'completed') {
         toast.info('Sertifikat dapat digenerate sekarang dari halaman dokumen.');
+      }
+      // Auto-hitung komisi saat status dikonfirmasi
+      if (status === 'confirmed') {
+        try {
+          const result = await autoCalculateCommission(id);
+          if (result.skipped) {
+            if (!result.message.includes('tidak memiliki agen') && !result.message.includes('sudah ada')) {
+              toast.info(result.message);
+            }
+          } else {
+            toast.success(`Komisi otomatis dicatat: Rp${result.agentAmount.toLocaleString('id-ID')}${result.parentAmount > 0 ? ` + royalti Rp${result.parentAmount.toLocaleString('id-ID')}` : ''}`);
+            queryClient.invalidateQueries({ queryKey: ['admin-commissions'] });
+          }
+        } catch (commErr: any) {
+          console.error('Auto commission failed:', commErr);
+          toast.warning('Status diperbarui, tapi komisi gagal dicatat otomatis. Silakan catat manual di halaman Agent.');
+        }
       }
     },
     onError: (error: any) => {
