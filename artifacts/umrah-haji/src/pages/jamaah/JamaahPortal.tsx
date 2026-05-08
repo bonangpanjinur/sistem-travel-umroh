@@ -219,6 +219,7 @@ export default function JamaahPortal() {
             </DropdownMenu>
             <SOSButton 
               customerName={customer?.full_name || "Jamaah"}
+              customerId={customer?.id}
               muthawifPhone={muthawifPhone}
               emergencyPhone={emergencyPhone}
               bookingCode={booking?.booking_code}
