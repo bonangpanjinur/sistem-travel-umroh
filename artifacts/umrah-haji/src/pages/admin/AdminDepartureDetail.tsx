@@ -68,11 +68,6 @@ import { id as localeId } from "date-fns/locale";
 export default function AdminDepartureDetail() {
   const { id } = useParams<{ id: string }>();
   
-  // Debug: log the id and component render
-  console.log("DepartureDetail - id from params:", id);
-  console.log("DepartureDetail - component mounted, id:", id);
-
-  // Debug: show current ID in UI
   const debugId = id;
 
   const queryClient = useQueryClient();
@@ -136,22 +131,14 @@ export default function AdminDepartureDetail() {
         .neq("booking_status", "cancelled");
 
       if (bookingsError) {
-        console.error("Bookings error:", bookingsError);
         throw bookingsError;
       }
       if (!bookings || bookings.length === 0) {
-        console.log("No bookings for departure:", id);
         return [];
-      }
-      console.log("Bookings found:", bookings.length, "IDs:", bookings.map(b => b.id));
-      console.log("Bookings details:", JSON.stringify(bookings, null, 2));
-      if (bookings.length > 90) {
-        console.warn("⚠️ Close to 100 limit! Current bookings:", bookings.length);
       }
 
       const bookingIds = bookings.map((b) => b.id);
       const bookingMap = new Map(bookings.map((b) => [b.id, b]));
-      console.log("Querying booking_passengers with booking_ids:", bookingIds);
 
       // Step 2: Fetch booking_passengers for these bookings
       const { data: bps, error: bpsError } = await supabase
@@ -173,12 +160,7 @@ export default function AdminDepartureDetail() {
         .order("is_main_passenger", { ascending: false });
 
       if (bpsError) {
-        console.error("booking_passengers error:", bpsError);
         throw bpsError;
-      }
-      console.log("booking_passengers found:", bps?.length || 0);
-      if (bps?.length === 0) {
-        console.warn("⚠️ No passengers found! Check RLS or data in booking_passengers table");
       }
 
       // Step 3: Identify bookings missing a main_passenger row → build virtual passenger from booking.customer_id

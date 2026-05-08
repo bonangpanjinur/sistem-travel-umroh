@@ -274,8 +274,6 @@ export default function AdminPackages() {
     const allBooked = packages.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0);
     const maxBooked = allBooked.length > 0 ? Math.max(...allBooked) : 0;
 
-    console.log('DEBUG: Starting filter with', packages?.length, 'packages, filter:', packageTypeFilter);
-    
     return packages.filter(pkg => {
       if (searchTerm && !(
         pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -288,14 +286,6 @@ export default function AdminPackages() {
       // Also check for packages that have savings_target set (tabungan packages have this field)
       const hasSavingsTarget = !!pkg.savings_target;
       const pkgTypeCode = pkg.package_type_ref?.code;
-      
-      console.log('DEBUG filter:', {
-        pkgName: pkg.name,
-        savings_target: pkg.savings_target,
-        hasSavingsTarget,
-        package_type_ref: pkg.package_type_ref,
-        pkgTypeCode
-      });
       
       if (packageTypeFilter === "tabungan") {
         // Tabungan packages: have savings_target OR have package_type_ref.code === 'tabungan'

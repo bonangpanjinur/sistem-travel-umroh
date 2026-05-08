@@ -127,11 +127,7 @@ export default function EquipmentPage() {
           is_main_passenger, passenger_type
         `)
         .eq("booking.departure_id", selectedDeparture);
-      if (error) {
-        console.error("passengers query error:", error);
-        throw error;
-      }
-      console.log("passengers query result:", data);
+      if (error) throw error;
       return (data || []) as Passenger[];
     },
     enabled: !!selectedDeparture,
@@ -227,11 +223,7 @@ export default function EquipmentPage() {
         p_distributions: inserts
       });
       
-      if (error) {
-        console.error("bulk_distribute error:", error);
-        throw error;
-      }
-      console.log("bulk_distribute result:", data);
+      if (error) throw error;
       return data;
     },
     onSuccess: (count) => {

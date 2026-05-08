@@ -183,16 +183,10 @@ export function ChangePackageDialogV2({
       const currentPrices: any = currentBooking?.departure || {};
       const newPrices: any = newDeparture || {};
       
-      console.log("[ChangePackage] currentPrices:", currentPrices);
-      console.log("[ChangePackage] newPrices:", newPrices);
-      console.log("[ChangePackage] passengers:", passengers);
-      console.log("[ChangePackage] passenger count:", passengers?.length);
-      
       // Get prices from departure first, fallback to package
       const getPrice = (type: string, prices: any) => {
         const fromDeparture = prices[`price_${type}`] || 0;
         const fromPackage = prices.package?.[`price_${type}`] || 0;
-        console.log(`[ChangePackage] getPrice(${type}): departure=${fromDeparture}, package=${fromPackage}`);
         return fromDeparture || fromPackage || 0;
       };
       
@@ -219,13 +213,9 @@ export function ChangePackageDialogV2({
       const oldPriceVal = getCurrentPrice();
       const newPriceVal = getNewPrice();
       
-      console.log("[ChangePackage] newTotal:", newTotal, "oldTotal:", oldTotal, "upgradeFee:", upgradeFee);
-      console.log("[ChangePackage] oldPrice for notes:", oldPriceVal, "newPrice for notes:", newPriceVal);
-
       // 4. Auto-create booking_passengers if not exists
       const existingPassengers = passengers || [];
       if (existingPassengers.length === 0) {
-        console.log("[ChangePackage] No passengers found, creating default passenger");
         const { data: bookingData } = await supabase
           .from("bookings")
           .select("customer_id, room_type")
@@ -243,14 +233,8 @@ export function ChangePackageDialogV2({
               room_preference: bookingData.room_type || "quad",
             });
           
-          if (passengerError) {
-            console.error("[ChangePackage] Failed to create passenger:", passengerError);
-            throw passengerError;
-          }
-          console.log("[ChangePackage] Passenger created successfully");
+          if (passengerError) throw passengerError;
         }
-      } else {
-        console.log("[ChangePackage] Passengers exist:", existingPassengers.length);
       }
 
       // 5. Update booking departure_id and total_price

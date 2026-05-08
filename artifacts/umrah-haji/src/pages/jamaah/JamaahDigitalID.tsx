@@ -91,7 +91,6 @@ export default function JamaahDigitalID() {
           text: `ID Jamaah: ${customer?.full_name}\nBooking: ${booking?.booking_code}`,
         });
       } catch (err) {
-        console.log("Share cancelled");
       }
     }
   };

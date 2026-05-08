@@ -109,7 +109,6 @@ function ResetSyncPanel() {
     },
     onSuccess: (data) => {
       toast.success('Resync selesai');
-      console.log('resync result', data);
       qc.invalidateQueries({ queryKey: ['rbac-audit-log'] });
     },
     onError: (e: any) => toast.error(e.message || 'Gagal resync'),
