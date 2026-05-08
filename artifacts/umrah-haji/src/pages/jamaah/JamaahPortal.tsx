@@ -301,6 +301,12 @@ export default function JamaahPortal() {
               <p className="text-xs">Riwayat</p>
             </Card>
           </Link>
+          <Link to="/jamaah/panduan-ibadah">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <BookOpen className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+              <p className="text-xs">Panduan</p>
+            </Card>
+          </Link>
         </div>
 
         {/* Payment Progress */}

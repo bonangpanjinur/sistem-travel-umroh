@@ -115,6 +115,9 @@ export const PERMISSIONS = {
 
   // Keuangan Terpadu
   FINANCE_TERPADU: 'finance-terpadu',
+
+  // Ringkasan AI Otomatis
+  AI_SUMMARY: 'ai-summary',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

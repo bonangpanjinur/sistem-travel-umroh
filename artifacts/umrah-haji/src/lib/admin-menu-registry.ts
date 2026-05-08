@@ -26,6 +26,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'dashboard',           label: 'Dashboard',             path: '/admin',                      icon: 'LayoutDashboard', group_name: 'Overview',           sort_order: 101, required_permission: PERMISSIONS.DASHBOARD },
   { key: 'analytics',           label: 'Analytics',             path: '/admin/analytics',            icon: 'BarChart3',       group_name: 'Overview',           sort_order: 102, required_permission: PERMISSIONS.ANALYTICS },
   { key: 'kpi-dashboard',       label: 'KPI Real-time',         path: '/admin/kpi-dashboard',        icon: 'Target',          group_name: 'Overview',           sort_order: 103, required_permission: PERMISSIONS.KPI_DASHBOARD },
+  { key: 'ai-summary',          label: 'Ringkasan AI',          path: '/admin/ai-summary',           icon: 'Sparkles',        group_name: 'Overview',           sort_order: 104, required_permission: PERMISSIONS.AI_SUMMARY },
 
   // ── Penjualan (200s) ─────────────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   owner: RECOMMENDED_MENUS.map(m => m.required_permission),
 
   branch_manager: [
-    'dashboard', 'analytics', 'kpi-dashboard',
+    'dashboard', 'analytics', 'kpi-dashboard', 'ai-summary',
     'leads', 'bookings', 'packages', 'coupons', 'banners',
     'departures', 'departure-tracking', 'sos-alerts',
     'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
@@ -165,7 +166,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ],
 
   finance: [
-    'dashboard', 'kpi-dashboard', 'finance-terpadu',
+    'dashboard', 'kpi-dashboard', 'ai-summary', 'finance-terpadu',
     'payments', 'finance-cash', 'finance', 'finance-ar', 'finance-ap',
     'savings', 'reports', 'advanced-reports',
     'bookings', 'customers',
@@ -173,7 +174,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ],
 
   sales: [
-    'dashboard', 'kpi-dashboard',
+    'dashboard', 'kpi-dashboard', 'ai-summary',
     'leads', 'bookings', 'packages', 'coupons',
     'customers', 'agents',
     'payments',

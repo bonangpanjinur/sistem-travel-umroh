@@ -110,8 +110,8 @@ Diurutkan dari **dampak bisnis tertinggi**:
 
 | # | Fitur | Nilai Bisnis | Prioritas |
 |---|-------|-------------|-----------|
-| 1 | **Ringkasan AI Otomatis** | Narasi performa bulan ini — insight otomatis tanpa buka laporan manual | Menengah |
-| 2 | **Panduan Ibadah Offline (PWA)** | Jamaah di Saudi akses itinerary & doa tanpa internet | Menengah |
+| 1 | **Ringkasan AI Otomatis** | Narasi performa bulan ini — insight otomatis tanpa buka laporan manual | ✅ Selesai — `/admin/ai-summary`, 5 seksi naratif, generate otomatis |
+| 2 | **Panduan Ibadah Offline (PWA)** | Jamaah di Saudi akses itinerary & doa tanpa internet | ✅ Selesai — `/jamaah/panduan-ibadah`, 4 tab, konten lengkap built-in |
 | 3 | **Peta Lokasi Ibadah** | Maps interaktif — Masjidil Haram, Mina, Arafah, hotel | Tambahan |
 | 4 | **Multi-bahasa (i18n)** | Indonesia + Arab + Inggris | Tambahan |
 | 5 | **Rate Limiting API** | Keamanan endpoint publik dari spam/abuse | Tambahan |
