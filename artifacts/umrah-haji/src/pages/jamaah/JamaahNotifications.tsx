@@ -4,11 +4,40 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
-import { Bell, CheckCheck, Clock, AlertCircle, Info, CheckCircle2, ChevronLeft } from "lucide-react";
+import { Bell, CheckCheck, Clock, AlertCircle, Info, CheckCircle2, ChevronLeft, ArrowRight, CreditCard, FileText, Plane, Map } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+
+function getNotifActionUrl(notif: any): { url: string; label: string } | null {
+  const title = (notif.title || "").toLowerCase();
+  const message = (notif.message || "").toLowerCase();
+  const type = notif.type || "info";
+
+  if (title.includes("pembayaran") || message.includes("pembayaran") || message.includes("bayar") || message.includes("lunas")) {
+    return { url: "/jamaah/payment-history", label: "Lihat Pembayaran" };
+  }
+  if (title.includes("visa") || message.includes("visa")) {
+    return { url: "/jamaah/visa", label: "Cek Status Visa" };
+  }
+  if (title.includes("dokumen") || message.includes("dokumen") || message.includes("upload")) {
+    return { url: "/jamaah/documents", label: "Lihat Dokumen" };
+  }
+  if (title.includes("booking") || title.includes("konfirmasi") || message.includes("booking")) {
+    return { url: "/my-bookings", label: "Lihat Booking" };
+  }
+  if (title.includes("itinerary") || title.includes("jadwal") || message.includes("jadwal")) {
+    return { url: "/jamaah/itinerary", label: "Lihat Jadwal" };
+  }
+  if (title.includes("peta") || message.includes("lokasi")) {
+    return { url: "/jamaah/peta-lokasi", label: "Buka Peta" };
+  }
+  if (type === "urgent") {
+    return { url: "/jamaah", label: "Ke Portal Jamaah" };
+  }
+  return null;
+}
 
 const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
   info: { icon: Info, color: "text-blue-600", bg: "bg-blue-50 border-blue-100" },
@@ -128,11 +157,12 @@ function NotifCard({ notif, onRead }: { notif: any; onRead: () => void }) {
   const type = notif.type || "info";
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.info;
   const Icon = config.icon;
+  const action = getNotifActionUrl(notif);
 
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all border",
+        "transition-all border",
         !notif.is_read ? config.bg + " shadow-sm" : "opacity-70"
       )}
       onClick={onRead}
@@ -152,19 +182,36 @@ function NotifCard({ notif, onRead }: { notif: any; onRead: () => void }) {
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{notif.message}</p>
-            <div className="flex items-center gap-1 mt-1.5">
-              <Clock className="h-3 w-3 text-muted-foreground/60" />
-              <p className="text-xs text-muted-foreground/60">
-                {notif.created_at
-                  ? formatDistanceToNow(parseISO(notif.created_at), { locale: idLocale, addSuffix: true })
-                  : "-"}
-              </p>
-              {notif.is_read && notif.read_at && (
-                <>
-                  <span className="text-muted-foreground/40">·</span>
-                  <CheckCheck className="h-3 w-3 text-emerald-500" />
-                  <p className="text-xs text-muted-foreground/60">dibaca</p>
-                </>
+            <div className="flex items-center justify-between mt-1.5">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3 text-muted-foreground/60" />
+                <p className="text-xs text-muted-foreground/60">
+                  {notif.created_at
+                    ? formatDistanceToNow(parseISO(notif.created_at), { locale: idLocale, addSuffix: true })
+                    : "-"}
+                </p>
+                {notif.is_read && notif.read_at && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <CheckCheck className="h-3 w-3 text-emerald-500" />
+                    <p className="text-xs text-muted-foreground/60">dibaca</p>
+                  </>
+                )}
+              </div>
+              {/* Q8: Action button deep link */}
+              {action && (
+                <Link
+                  to={action.url}
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full transition-colors",
+                    config.color,
+                    "bg-white/60 hover:bg-white border border-current/20"
+                  )}
+                >
+                  {action.label}
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
               )}
             </div>
           </div>

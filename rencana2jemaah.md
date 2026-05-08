@@ -121,19 +121,19 @@ Diurutkan berdasarkan **dampak langsung ke jamaah selama proses ibadah**:
 
 ## D. PRIORITAS & ROADMAP
 
-### Fase 1 — Quick Wins (1-2 hari kerja)
-*Perbaikan yang mudah tapi dampak besar bagi jamaah:*
+### Fase 1 — Quick Wins ✅ SELESAI
+*Diselesaikan: Mei 2026*
 
-| ID | Item | Jenis |
-|----|------|-------|
-| Q1 | Perbaiki ikon duplikat di Quick Actions JamaahPortal | Perbaikan |
-| Q2 | Tambah tombol Feedback di BookingDetail & JamaahPortal | Perbaikan |
-| Q3 | Tambah Web Share API di JamaahDigitalID & JamaahItinerary | Perbaikan |
-| Q4 | Tambah filter di JamaahPaymentHistory | Perbaikan |
-| Q5 | Empty state yang informatif di JamaahPortal saat tidak ada booking | Perbaikan |
-| Q6 | Upload foto profil dari JamaahPortal header | Perbaikan |
-| Q7 | Tambah tab Riwayat di MyLoyalty | Perbaikan |
-| Q8 | Action button di notifikasi (deep link ke halaman terkait) | Perbaikan |
+| ID | Item | Jenis | Status |
+|----|------|-------|--------|
+| Q1 | Perbaiki ikon duplikat di Quick Actions JamaahPortal | Perbaikan | ✅ Done — CalendarDays/FolderOpen/HelpCircle/Map |
+| Q2 | Tambah tombol Feedback di BookingDetail & JamaahPortal | Perbaikan | ✅ Done — muncul saat booking_status=completed |
+| Q3 | Tambah Web Share API di JamaahDigitalID & JamaahItinerary | Perbaikan | ✅ Done — share native + WhatsApp fallback clipboard |
+| Q4 | Tambah filter di JamaahPaymentHistory | Perbaikan | ✅ Done — filter status + search kode booking |
+| Q5 | Empty state yang informatif di JamaahPortal saat tidak ada booking | Perbaikan | ✅ Done — 3 langkah onboarding + CTA ke paket |
+| Q6 | Upload foto profil dari JamaahPortal header | Perbaikan | ✅ Done — klik avatar → upload ke Supabase Storage |
+| Q7 | Tab Riwayat di MyLoyalty | Perbaikan | ✅ Sudah ada sebelumnya (tab "Riwayat Poin") |
+| Q8 | Action button di notifikasi (deep link ke halaman terkait) | Perbaikan | ✅ Done — smart URL detection by keywords |
 
 ### Fase 2 — Fitur Inti Jamaah (3-5 hari kerja)
 *Fitur yang paling sering dibutuhkan jamaah saat aktif perjalanan:*

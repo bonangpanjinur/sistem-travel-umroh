@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -10,11 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { 
-  User, CreditCard, Plane, MapPin, Phone,
-  Calendar, Clock, Hotel, Users, FileText, QrCode,
-  Download, Share2, Wifi, WifiOff, Home, ChevronRight, Navigation,
-  Bell
+import {
+  CreditCard, Plane, MapPin, Phone,
+  Calendar, Hotel, Users, FolderOpen, QrCode,
+  Download, Wifi, WifiOff, ChevronRight,
+  Bell, BookOpen, HelpCircle, CalendarDays, Map,
+  Star, Camera, Loader2, Package, ArrowRight
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
@@ -37,35 +38,32 @@ export default function JamaahPortal() {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { getSetting } = useCompanySettings();
+  const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
-  // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
-  // Listen for PWA install prompt
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
-
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
 
-  // Fetch customer data
   const { data: customer } = useQuery({
     queryKey: ["jamaah-customer", user?.id],
     queryFn: async () => {
@@ -81,7 +79,6 @@ export default function JamaahPortal() {
     enabled: !!user?.id,
   });
 
-  // Fetch active booking
   const { data: booking } = useQuery({
     queryKey: ["jamaah-booking", customer?.id],
     queryFn: async () => {
@@ -110,7 +107,6 @@ export default function JamaahPortal() {
     enabled: !!customer?.id,
   });
 
-  // Fetch loyalty points
   const { data: loyalty } = useQuery({
     queryKey: ["jamaah-loyalty", customer?.id],
     queryFn: async () => {
@@ -131,29 +127,54 @@ export default function JamaahPortal() {
       toast.info("Untuk menginstall, gunakan menu browser > 'Add to Home Screen'");
       return;
     }
-
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === "accepted") {
-      toast.success("Aplikasi berhasil diinstall!");
-    }
+    if (outcome === "accepted") toast.success("Aplikasi berhasil diinstall!");
     setDeferredPrompt(null);
   };
 
+  const handlePhotoUpload = async (file: File) => {
+    if (!customer?.id) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Ukuran foto maksimal 5MB");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("File harus berupa gambar");
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `avatars/${customer.id}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("customer-documents")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from("customer-documents")
+        .getPublicUrl(path);
+      await supabase
+        .from("customers")
+        .update({ photo_url: urlData.publicUrl })
+        .eq("id", customer.id);
+      queryClient.invalidateQueries({ queryKey: ["jamaah-customer"] });
+      toast.success("Foto profil berhasil diperbarui!");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal upload foto");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const departure = booking?.departure;
-  const daysUntilDeparture = departure?.departure_date 
+  const daysUntilDeparture = departure?.departure_date
     ? differenceInDays(new Date(departure.departure_date), new Date())
     : null;
-
-  // Get muthawif phone from departure
   const muthawifPhone = departure?.muthawif?.phone || undefined;
-  
-  // Get emergency contact from company settings
-  const emergencyPhone = getSetting('emergency_contact_phone') || getSetting('company_phone');
-
-  const paymentProgress = booking 
-    ? ((booking.paid_amount || 0) / booking.total_price) * 100 
+  const emergencyPhone = getSetting("emergency_contact_phone") || getSetting("company_phone");
+  const paymentProgress = booking
+    ? ((booking.paid_amount || 0) / booking.total_price) * 100
     : 0;
 
   return (
@@ -162,12 +183,39 @@ export default function JamaahPortal() {
       <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 border-2 border-primary-foreground/20">
-              <AvatarImage src={customer?.photo_url || ""} />
-              <AvatarFallback className="bg-primary-foreground/10">
-                {customer?.full_name?.[0] || "J"}
-              </AvatarFallback>
-            </Avatar>
+            {/* Q6: Avatar clickable untuk upload foto */}
+            <div className="relative">
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                className="relative group"
+                title="Ganti foto profil"
+              >
+                <Avatar className="h-10 w-10 border-2 border-primary-foreground/20">
+                  <AvatarImage src={customer?.photo_url || ""} />
+                  <AvatarFallback className="bg-primary-foreground/10">
+                    {uploadingPhoto ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      customer?.full_name?.[0] || "J"
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="h-3 w-3 text-white" />
+                </div>
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePhotoUpload(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
             <div>
               <p className="font-semibold">{customer?.full_name || "Jamaah"}</p>
               <p className="text-xs opacity-80">
@@ -197,10 +245,10 @@ export default function JamaahPortal() {
                 <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {notifications && notifications.length > 0 ? (
-                  notifications.map((n) => (
-                    <DropdownMenuItem 
-                      key={n.id} 
-                      className={`flex flex-col items-start gap-1 p-3 ${!n.is_read ? 'bg-primary/5' : ''}`}
+                  notifications.slice(0, 5).map((n) => (
+                    <DropdownMenuItem
+                      key={n.id}
+                      className={`flex flex-col items-start gap-1 p-3 ${!n.is_read ? "bg-primary/5" : ""}`}
                       onClick={() => markAsRead.mutate(n.id)}
                     >
                       <p className="font-semibold text-xs">{n.title}</p>
@@ -215,9 +263,15 @@ export default function JamaahPortal() {
                     Tidak ada notifikasi baru
                   </div>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/jamaah/notifications" className="w-full text-center text-xs text-primary">
+                    Lihat Semua Notifikasi
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <SOSButton 
+            <SOSButton
               customerName={customer?.full_name || "Jamaah"}
               customerId={customer?.id}
               muthawifPhone={muthawifPhone}
@@ -263,8 +317,76 @@ export default function JamaahPortal() {
           </Card>
         )}
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+        {/* Q5: Empty state saat belum ada booking */}
+        {customer && !booking && (
+          <Card className="border-dashed border-2">
+            <CardContent className="p-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <Package className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base">Belum Ada Booking Aktif</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Mulai perjalanan ibadah Anda dengan memesan paket umroh atau haji
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-xs text-left">
+                <div className="p-3 rounded-lg bg-muted/50 flex flex-col items-center text-center gap-1">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-primary font-bold text-xs">1</span>
+                  </div>
+                  <p className="font-medium">Pilih Paket</p>
+                  <p className="text-muted-foreground">Temukan paket sesuai budget</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 flex flex-col items-center text-center gap-1">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-primary font-bold text-xs">2</span>
+                  </div>
+                  <p className="font-medium">Booking</p>
+                  <p className="text-muted-foreground">Isi data & bayar DP</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 flex flex-col items-center text-center gap-1">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-primary font-bold text-xs">3</span>
+                  </div>
+                  <p className="font-medium">Berangkat</p>
+                  <p className="text-muted-foreground">Siap menjalankan ibadah</p>
+                </div>
+              </div>
+              <Button asChild className="w-full">
+                <Link to="/packages">
+                  Lihat Paket Tersedia <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link to="/my-bookings">Cek Booking Saya</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Q5: Empty state saat customer belum terdaftar */}
+        {!customer && (
+          <Card className="border-dashed border-2 border-amber-300 bg-amber-50">
+            <CardContent className="p-5 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
+                <Bell className="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Profil Jamaah Belum Terdaftar</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Hubungi admin untuk mendaftarkan data jamaah Anda, atau lengkapi profil terlebih dahulu
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/customer/settings">Lengkapi Profil</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Q1: Quick Actions — ikon sudah diperbaiki, tidak ada duplikasi */}
+        <div className="grid grid-cols-4 gap-2">
           <Link to="/my-bookings">
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
               <CreditCard className="h-6 w-6 mx-auto mb-1 text-primary" />
@@ -279,26 +401,20 @@ export default function JamaahPortal() {
           </Link>
           <Link to="/jamaah/itinerary">
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <MapPin className="h-6 w-6 mx-auto mb-1 text-primary" />
+              <CalendarDays className="h-6 w-6 mx-auto mb-1 text-indigo-500" />
               <p className="text-xs">Itinerary</p>
-            </Card>
-          </Link>
-          <Link to="/faq">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <FileText className="h-6 w-6 mx-auto mb-1 text-primary" />
-              <p className="text-xs">FAQ</p>
             </Card>
           </Link>
           <Link to="/jamaah/documents">
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <FileText className="h-6 w-6 mx-auto mb-1 text-primary" />
+              <FolderOpen className="h-6 w-6 mx-auto mb-1 text-orange-500" />
               <p className="text-xs">Dokumen</p>
             </Card>
           </Link>
           <Link to="/jamaah/payment-history">
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <CreditCard className="h-6 w-6 mx-auto mb-1 text-primary" />
-              <p className="text-xs">Riwayat</p>
+              <CreditCard className="h-6 w-6 mx-auto mb-1 text-green-600" />
+              <p className="text-xs">Pembayaran</p>
             </Card>
           </Link>
           <Link to="/jamaah/panduan-ibadah">
@@ -309,8 +425,14 @@ export default function JamaahPortal() {
           </Link>
           <Link to="/jamaah/peta-lokasi">
             <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <MapPin className="h-6 w-6 mx-auto mb-1 text-rose-500" />
+              <Map className="h-6 w-6 mx-auto mb-1 text-rose-500" />
               <p className="text-xs">Peta</p>
+            </Card>
+          </Link>
+          <Link to="/faq">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <HelpCircle className="h-6 w-6 mx-auto mb-1 text-blue-500" />
+              <p className="text-xs">FAQ</p>
             </Card>
           </Link>
         </div>
@@ -338,6 +460,11 @@ export default function JamaahPortal() {
                   {formatCurrency(booking.remaining_amount || 0)}
                 </span>
               </div>
+              {(booking.remaining_amount || 0) > 0 && (
+                <Button asChild size="sm" className="w-full mt-3">
+                  <Link to={`/my-bookings/${booking.id}/payment`}>Upload Bukti Bayar</Link>
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -350,7 +477,6 @@ export default function JamaahPortal() {
               <CardDescription>{departure.package?.duration_days} Hari</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Hotels */}
               <div className="flex items-start gap-3">
                 <Hotel className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
@@ -364,10 +490,7 @@ export default function JamaahPortal() {
                   </p>
                 </div>
               </div>
-
               <Separator />
-
-              {/* Flight */}
               <div className="flex items-start gap-3">
                 <Plane className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
@@ -377,19 +500,40 @@ export default function JamaahPortal() {
                   </p>
                 </div>
               </div>
-
-              <Separator />
-
-              {/* Guide */}
               {departure.muthawif && (
-                <div className="flex items-start gap-3">
-                  <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">Muthawif</p>
-                    <p className="text-sm text-muted-foreground">{departure.muthawif.name}</p>
+                <>
+                  <Separator />
+                  <div className="flex items-start gap-3">
+                    <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">Muthawif</p>
+                      <p className="text-sm text-muted-foreground">{departure.muthawif.name}</p>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Q2: Tombol feedback untuk booking yang sudah selesai */}
+        {booking?.booking_status === "completed" && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <Star className="h-5 w-5 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Bagaimana perjalanan Anda?</p>
+                  <p className="text-xs text-muted-foreground">Beri ulasan untuk membantu jamaah lain</p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="border-amber-300">
+                  <Link to={`/jamaah/feedback/${booking.id}`}>
+                    Beri Ulasan
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -404,9 +548,14 @@ export default function JamaahPortal() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center">
-                <p className="text-3xl font-bold text-primary">{loyalty.current_points || 0}</p>
-                <p className="text-sm text-muted-foreground">Poin tersedia</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-primary">{loyalty.current_points || 0}</p>
+                  <p className="text-sm text-muted-foreground">Poin tersedia</p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/customer/my-loyalty">Tukar Poin</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

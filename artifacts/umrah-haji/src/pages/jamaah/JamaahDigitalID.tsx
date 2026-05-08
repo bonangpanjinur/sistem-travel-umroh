@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Download, Share2, QrCode, User, Plane, Hotel, Calendar } from "lucide-react";
+import { ArrowLeft, Download, Share2, QrCode, User, Plane, Hotel, Calendar, MessageCircle, Copy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { toast } from "sonner";
 
 export default function JamaahDigitalID() {
   const { user } = useAuth();
@@ -84,15 +85,39 @@ export default function JamaahDigitalID() {
     : null;
 
   const handleShare = async () => {
+    const shareText = [
+      `*ID Digital Jamaah*`,
+      `Nama: ${customer?.full_name || "-"}`,
+      `NIK: ${customer?.nik || "-"}`,
+      `No. Paspor: ${customer?.passport_number || "-"}`,
+      `Kode Booking: ${booking?.booking_code || "-"}`,
+      `Paket: ${(booking?.departure as any)?.package?.name || "-"}`,
+    ].join("\n");
+
     if (navigator.share) {
       try {
         await navigator.share({
           title: "Digital ID Jamaah",
-          text: `ID Jamaah: ${customer?.full_name}\nBooking: ${booking?.booking_code}`,
+          text: shareText,
+          url: qrCodeUrl || window.location.href,
         });
-      } catch (err) {
-      }
+        return;
+      } catch (err) {}
     }
+    // Fallback: copy ke clipboard
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success("Info ID disalin ke clipboard!");
+    } catch {
+      toast.error("Browser tidak mendukung fitur share");
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(
+      `*ID Digital Jamaah*\nNama: ${customer?.full_name}\nBooking: ${booking?.booking_code}\nPaket: ${(booking?.departure as any)?.package?.name || "-"}`
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
   const handleDownload = () => {
@@ -171,14 +196,18 @@ export default function JamaahDigitalID() {
               </p>
             </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-2" />
-                Download
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="h-4 w-4 mr-1" />
+                Simpan
               </Button>
-              <Button variant="outline" className="flex-1" onClick={handleShare}>
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
+              <Button variant="outline" size="sm" onClick={handleShare}>
+                <Share2 className="h-4 w-4 mr-1" />
+                Bagikan
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleShareWhatsApp} className="text-green-600 border-green-300 hover:bg-green-50">
+                <MessageCircle className="h-4 w-4 mr-1" />
+                WhatsApp
               </Button>
             </div>
           </CardContent>

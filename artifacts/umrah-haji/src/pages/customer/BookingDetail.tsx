@@ -16,7 +16,7 @@ import {
   ArrowLeft, Calendar, CreditCard, Users, User,
   Plane, Hotel, Clock, CheckCircle, Upload,
   AlertCircle, FileText, CheckCircle2, Circle, Loader2,
-  Pencil
+  Pencil, Star
 } from "lucide-react";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { Progress } from "@/components/ui/progress";
@@ -533,6 +533,16 @@ export default function BookingDetail() {
                 <Link to={`/my-bookings/${booking.id}/payment`}>
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Bukti Bayar
+                </Link>
+              </Button>
+            )}
+
+            {/* Q2: Tombol Feedback untuk booking selesai */}
+            {booking.booking_status === 'completed' && (
+              <Button className="w-full" size="lg" variant="outline" asChild>
+                <Link to={`/jamaah/feedback/${booking.id}`}>
+                  <Star className="h-4 w-4 mr-2 text-amber-500" />
+                  Beri Ulasan Perjalanan
                 </Link>
               </Button>
             )}

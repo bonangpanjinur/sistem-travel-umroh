@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MapPin, Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Calendar, CheckCircle2, Share2, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { format, addDays, isToday, isBefore, isAfter } from "date-fns";
@@ -173,16 +173,45 @@ export default function JamaahItinerary() {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <Link to="/jamaah">
-            <Button variant="ghost" size="icon" className="text-primary-foreground">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="font-semibold">Itinerary</h1>
-            <p className="text-xs opacity-80">{packageData?.name || "Jadwal Perjalanan"}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/jamaah">
+              <Button variant="ghost" size="icon" className="text-primary-foreground">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="font-semibold">Itinerary</h1>
+              <p className="text-xs opacity-80">{packageData?.name || "Jadwal Perjalanan"}</p>
+            </div>
           </div>
+          {/* Q3: Tombol Share untuk Itinerary */}
+          {itinerary.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary-foreground"
+              onClick={async () => {
+                const text = itinerary.map(day =>
+                  `Hari ${day.day} - ${day.title}\n` +
+                  day.activities.map(a => `  ${a.time} ${a.activity}${a.location ? ` (${a.location})` : ""}`).join("\n")
+                ).join("\n\n");
+                const shareData = {
+                  title: `Itinerary ${packageData?.name || "Perjalanan Umroh"}`,
+                  text: `*Itinerary ${packageData?.name || "Umroh/Haji"}*\n\n${text}`,
+                };
+                if (navigator.share) {
+                  try { await navigator.share(shareData); } catch {}
+                } else {
+                  await navigator.clipboard.writeText(shareData.text);
+                  const { toast } = await import("sonner");
+                  toast.success("Itinerary disalin ke clipboard!");
+                }
+              }}
+            >
+              <Share2 className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </div>
 
