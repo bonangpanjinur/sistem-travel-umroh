@@ -22,14 +22,10 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 // --- Zod Schema for Document Settings ---
 const documentSettingsSchema = z.object({
-  // Existing general company settings
+  // Existing general company settings (Consolidated into Global)
   company_city: z.string().min(2, "Kota minimal 2 karakter"),
   company_website: z.string().url("Format URL tidak valid").or(z.literal("")),
-  letterhead_show_logo: z.boolean(),
-  letterhead_show_website: z.boolean(),
-  document_footer_show_timestamp: z.boolean(),
-  document_footer_show_page_number: z.boolean(),
-
+  
   // Global PDF Design Settings (Prefix: pdf_global_)
   pdf_global_font_family: z.enum(["helvetica", "times", "courier"]),
   pdf_global_font_size_header: z.coerce.number().min(8).max(24),
@@ -43,6 +39,15 @@ const documentSettingsSchema = z.object({
   pdf_global_show_logo: z.boolean(),
   pdf_global_logo_position: z.enum(["left", "center", "right"]),
   pdf_global_page_orientation: z.enum(["portrait", "landscape"]),
+  
+  // Visibility settings (Consolidated from legacy keys)
+  pdf_global_show_website: z.boolean(),
+  pdf_global_show_timestamp: z.boolean(),
+  pdf_global_show_page_number: z.boolean(),
+  pdf_global_show_company_info: z.boolean(),
+  pdf_global_show_address: z.boolean(),
+  pdf_global_show_phone: z.boolean(),
+  pdf_global_show_email: z.boolean(),
 
   // Invoice-specific Settings (Prefix: invoice_)
   invoice_page_orientation: z.enum(["portrait", "landscape"]).optional(),
@@ -95,20 +100,14 @@ type DocumentType = "invoice" | "passport_letter" | "leave_permit" | "certificat
 
 export function DocumentSettingsFormExtended() {
   const { getSetting, updateMultipleSettings, isLoading, isUpdating } = useCompanySettings();
-  const [selectedDocument, setSelectedDocument] = useState<DocumentType>("invoice");
+  const [selectedDocument, setSelectedDocument] = useState<DocumentType>("global");
 
   const form = useForm<DocumentSettingsFormData>({
     resolver: zodResolver(documentSettingsSchema),
     defaultValues: {
-      // Existing general company settings
-      company_city: "",
+      company_city: "Jakarta",
       company_website: "",
-      letterhead_show_logo: true,
-      letterhead_show_website: true,
-      document_footer_show_timestamp: true,
-      document_footer_show_page_number: true,
-
-      // Global PDF Design Settings defaults
+      
       pdf_global_font_family: "helvetica" as const,
       pdf_global_font_size_header: 12,
       pdf_global_font_size_body: 10,
@@ -121,8 +120,15 @@ export function DocumentSettingsFormExtended() {
       pdf_global_show_logo: true,
       pdf_global_logo_position: "left" as const,
       pdf_global_page_orientation: "portrait" as const,
+      
+      pdf_global_show_website: true,
+      pdf_global_show_timestamp: true,
+      pdf_global_show_page_number: true,
+      pdf_global_show_company_info: true,
+      pdf_global_show_address: true,
+      pdf_global_show_phone: true,
+      pdf_global_show_email: true,
 
-      // Invoice-specific defaults
       invoice_show_bank_info: true,
       invoice_show_notes_section: true,
       invoice_show_package_info: true,
@@ -130,17 +136,11 @@ export function DocumentSettingsFormExtended() {
       invoice_number_prefix: "INV",
       invoice_number_format: "YYYY-MM-{SEQ}",
 
-      // Passport Letter-specific defaults
       passport_letter_show_photo: true,
       passport_letter_show_qr_code: true,
 
-      // Leave Permit-specific defaults
       leave_permit_include_company_logo: true,
 
-      // Certificate-specific defaults
-      // certificate_background_image_url: "", // Optional, no default
-
-      // General Letter-specific defaults
       general_letter_show_letterhead: true,
     },
   });
@@ -151,24 +151,28 @@ export function DocumentSettingsFormExtended() {
       form.reset({
         company_city: getSetting("company_city") || "Jakarta",
         company_website: getSetting("company_website") || "",
-        letterhead_show_logo: getSetting("letterhead_show_logo") !== "false",
-        letterhead_show_website: getSetting("letterhead_show_website") !== "false",
-        document_footer_show_timestamp: getSetting("document_footer_show_timestamp") !== "false",
-        document_footer_show_page_number: getSetting("document_footer_show_page_number") !== "false",
 
         // Global PDF Design Settings
-        pdf_global_font_family: (getSetting("pdf_global_font_family") as any) || "helvetica",
+        pdf_global_font_family: (getSetting("pdf_global_font_family") as any) || (getSetting("pdf_default_font") as any) || "helvetica",
         pdf_global_font_size_header: parseInt(getSetting("pdf_global_font_size_header") as any) || 12,
         pdf_global_font_size_body: parseInt(getSetting("pdf_global_font_size_body") as any) || 10,
         pdf_global_text_color: getSetting("pdf_global_text_color") || "#333333",
-        pdf_global_accent_color: getSetting("pdf_global_accent_color") || "#16a34a",
+        pdf_global_accent_color: getSetting("pdf_global_accent_color") || getSetting("invoice_accent_color") || "#16a34a",
         pdf_global_margin_top: parseInt(getSetting("pdf_global_margin_top") as any) || 15,
         pdf_global_margin_bottom: parseInt(getSetting("pdf_global_margin_bottom") as any) || 15,
         pdf_global_margin_left: parseInt(getSetting("pdf_global_margin_left") as any) || 15,
         pdf_global_margin_right: parseInt(getSetting("pdf_global_margin_right") as any) || 15,
-        pdf_global_show_logo: getSetting("pdf_global_show_logo") !== "false",
+        pdf_global_show_logo: getSetting("pdf_global_show_logo") !== "false" && getSetting("letterhead_show_logo") !== "false",
         pdf_global_logo_position: (getSetting("pdf_global_logo_position") as any) || "left",
         pdf_global_page_orientation: (getSetting("pdf_global_page_orientation") as any) || "portrait",
+        
+        pdf_global_show_website: getSetting("pdf_global_show_website") !== "false" && getSetting("letterhead_show_website") !== "false",
+        pdf_global_show_timestamp: getSetting("pdf_global_show_timestamp") !== "false" && getSetting("document_footer_show_timestamp") !== "false",
+        pdf_global_show_page_number: getSetting("pdf_global_show_page_number") !== "false" && getSetting("document_footer_show_page_number") !== "false",
+        pdf_global_show_company_info: getSetting("pdf_global_show_company_info") !== "false",
+        pdf_global_show_address: getSetting("pdf_global_show_address") !== "false",
+        pdf_global_show_phone: getSetting("pdf_global_show_phone") !== "false",
+        pdf_global_show_email: getSetting("pdf_global_show_email") !== "false",
 
         // Invoice-specific settings
         invoice_page_orientation: (getSetting("invoice_page_orientation") as any) || undefined,
@@ -218,187 +222,182 @@ export function DocumentSettingsFormExtended() {
   }, [isLoading]);
 
   const onSave = (data: DocumentSettingsFormData) => {
-    const settingsToUpdate: Array<{ key: string; value: any }> = [
+    const settingsToUpdate = [
       { key: "company_city", value: data.company_city },
       { key: "company_website", value: data.company_website },
-      { key: "letterhead_show_logo", value: data.letterhead_show_logo },
-      { key: "letterhead_show_website", value: data.letterhead_show_website },
-      { key: "document_footer_show_timestamp", value: data.document_footer_show_timestamp },
-      { key: "document_footer_show_page_number", value: data.document_footer_show_page_number },
-
+      
       // Global PDF Design Settings
       { key: "pdf_global_font_family", value: data.pdf_global_font_family },
-      { key: "pdf_global_font_size_header", value: data.pdf_global_font_size_header },
-      { key: "pdf_global_font_size_body", value: data.pdf_global_font_size_body },
+      { key: "pdf_global_font_size_header", value: data.pdf_global_font_size_header.toString() },
+      { key: "pdf_global_font_size_body", value: data.pdf_global_font_size_body.toString() },
       { key: "pdf_global_text_color", value: data.pdf_global_text_color },
       { key: "pdf_global_accent_color", value: data.pdf_global_accent_color },
-      { key: "pdf_global_margin_top", value: data.pdf_global_margin_top },
-      { key: "pdf_global_margin_bottom", value: data.pdf_global_margin_bottom },
-      { key: "pdf_global_margin_left", value: data.pdf_global_margin_left },
-      { key: "pdf_global_margin_right", value: data.pdf_global_margin_right },
-      { key: "pdf_global_show_logo", value: data.pdf_global_show_logo },
+      { key: "pdf_global_margin_top", value: data.pdf_global_margin_top.toString() },
+      { key: "pdf_global_margin_bottom", value: data.pdf_global_margin_bottom.toString() },
+      { key: "pdf_global_margin_left", value: data.pdf_global_margin_left.toString() },
+      { key: "pdf_global_margin_right", value: data.pdf_global_margin_right.toString() },
+      { key: "pdf_global_show_logo", value: data.pdf_global_show_logo.toString() },
       { key: "pdf_global_logo_position", value: data.pdf_global_logo_position },
       { key: "pdf_global_page_orientation", value: data.pdf_global_page_orientation },
+      
+      { key: "pdf_global_show_website", value: data.pdf_global_show_website.toString() },
+      { key: "pdf_global_show_timestamp", value: data.pdf_global_show_timestamp.toString() },
+      { key: "pdf_global_show_page_number", value: data.pdf_global_show_page_number.toString() },
+      { key: "pdf_global_show_company_info", value: data.pdf_global_show_company_info.toString() },
+      { key: "pdf_global_show_address", value: data.pdf_global_show_address.toString() },
+      { key: "pdf_global_show_phone", value: data.pdf_global_show_phone.toString() },
+      { key: "pdf_global_show_email", value: data.pdf_global_show_email.toString() },
+
+      // Backward compatibility keys (Sync with global)
+      { key: "letterhead_show_logo", value: data.pdf_global_show_logo.toString() },
+      { key: "letterhead_show_website", value: data.pdf_global_show_website.toString() },
+      { key: "document_footer_show_timestamp", value: data.pdf_global_show_timestamp.toString() },
+      { key: "document_footer_show_page_number", value: data.pdf_global_show_page_number.toString() },
+      { key: "pdf_default_font", value: data.pdf_global_font_family },
+      { key: "invoice_accent_color", value: data.pdf_global_accent_color },
+
+      // Invoice-specific settings
+      { key: "invoice_show_bank_info", value: data.invoice_show_bank_info.toString() },
+      { key: "invoice_show_notes_section", value: data.invoice_show_notes_section.toString() },
+      { key: "invoice_show_package_info", value: data.invoice_show_package_info.toString() },
+      { key: "invoice_watermark_paid", value: data.invoice_watermark_paid.toString() },
+      { key: "invoice_number_prefix", value: data.invoice_number_prefix },
+      { key: "invoice_number_format", value: data.invoice_number_format },
     ];
 
-    // Invoice-specific settings
-    settingsToUpdate.push({ key: "invoice_page_orientation", value: data.invoice_page_orientation || null });
-    settingsToUpdate.push({ key: "invoice_font_family", value: data.invoice_font_family || null });
-    settingsToUpdate.push({ key: "invoice_header_bg_color", value: data.invoice_header_bg_color || null });
-    settingsToUpdate.push({ key: "invoice_table_header_text_color", value: data.invoice_table_header_text_color || null });
-    settingsToUpdate.push({ key: "invoice_watermark_text", value: data.invoice_watermark_text || null });
-    settingsToUpdate.push({ key: "invoice_watermark_opacity", value: data.invoice_watermark_opacity !== undefined ? data.invoice_watermark_opacity : null });
-    settingsToUpdate.push({ key: "invoice_show_bank_info", value: data.invoice_show_bank_info });
-    settingsToUpdate.push({ key: "invoice_show_notes_section", value: data.invoice_show_notes_section });
-    settingsToUpdate.push({ key: "invoice_show_package_info", value: data.invoice_show_package_info });
-    settingsToUpdate.push({ key: "invoice_watermark_paid", value: data.invoice_watermark_paid });
-    settingsToUpdate.push({ key: "invoice_number_prefix", value: data.invoice_number_prefix });
-    settingsToUpdate.push({ key: "invoice_number_format", value: data.invoice_number_format });
+    // Add optional per-document overrides if they exist
+    if (data.invoice_page_orientation) settingsToUpdate.push({ key: "invoice_page_orientation", value: data.invoice_page_orientation });
+    if (data.invoice_font_family) settingsToUpdate.push({ key: "invoice_font_family", value: data.invoice_font_family });
+    if (data.invoice_header_bg_color) settingsToUpdate.push({ key: "invoice_header_bg_color", value: data.invoice_header_bg_color });
+    if (data.invoice_table_header_text_color) settingsToUpdate.push({ key: "invoice_table_header_text_color", value: data.invoice_table_header_text_color });
+    if (data.invoice_watermark_text) settingsToUpdate.push({ key: "invoice_watermark_text", value: data.invoice_watermark_text });
+    if (data.invoice_watermark_opacity !== undefined) settingsToUpdate.push({ key: "invoice_watermark_opacity", value: data.invoice_watermark_opacity.toString() });
 
-    // Passport Letter-specific settings
-    settingsToUpdate.push({ key: "passport_letter_page_orientation", value: data.passport_letter_page_orientation || null });
-    settingsToUpdate.push({ key: "passport_letter_font_family", value: data.passport_letter_font_family || null });
-    settingsToUpdate.push({ key: "passport_letter_header_text_color", value: data.passport_letter_header_text_color || null });
-    settingsToUpdate.push({ key: "passport_letter_accent_color", value: data.passport_letter_accent_color || null });
-    settingsToUpdate.push({ key: "passport_letter_show_photo", value: data.passport_letter_show_photo });
-    settingsToUpdate.push({ key: "passport_letter_show_qr_code", value: data.passport_letter_show_qr_code });
+    if (data.passport_letter_page_orientation) settingsToUpdate.push({ key: "passport_letter_page_orientation", value: data.passport_letter_page_orientation });
+    if (data.passport_letter_font_family) settingsToUpdate.push({ key: "passport_letter_font_family", value: data.passport_letter_font_family });
+    if (data.passport_letter_header_text_color) settingsToUpdate.push({ key: "passport_letter_header_text_color", value: data.passport_letter_header_text_color });
+    if (data.passport_letter_accent_color) settingsToUpdate.push({ key: "passport_letter_accent_color", value: data.passport_letter_accent_color });
+    settingsToUpdate.push({ key: "passport_letter_show_photo", value: data.passport_letter_show_photo.toString() });
+    settingsToUpdate.push({ key: "passport_letter_show_qr_code", value: data.passport_letter_show_qr_code.toString() });
 
-    // Leave Permit-specific settings
-    settingsToUpdate.push({ key: "leave_permit_page_orientation", value: data.leave_permit_page_orientation || null });
-    settingsToUpdate.push({ key: "leave_permit_font_family", value: data.leave_permit_font_family || null });
-    settingsToUpdate.push({ key: "leave_permit_header_text_color", value: data.leave_permit_header_text_color || null });
-    settingsToUpdate.push({ key: "leave_permit_accent_color", value: data.leave_permit_accent_color || null });
-    settingsToUpdate.push({ key: "leave_permit_include_company_logo", value: data.leave_permit_include_company_logo });
+    if (data.leave_permit_page_orientation) settingsToUpdate.push({ key: "leave_permit_page_orientation", value: data.leave_permit_page_orientation });
+    if (data.leave_permit_font_family) settingsToUpdate.push({ key: "leave_permit_font_family", value: data.leave_permit_font_family });
+    if (data.leave_permit_header_text_color) settingsToUpdate.push({ key: "leave_permit_header_text_color", value: data.leave_permit_header_text_color });
+    if (data.leave_permit_accent_color) settingsToUpdate.push({ key: "leave_permit_accent_color", value: data.leave_permit_accent_color });
+    settingsToUpdate.push({ key: "leave_permit_include_company_logo", value: data.leave_permit_include_company_logo.toString() });
 
-    // Certificate-specific settings
-    settingsToUpdate.push({ key: "certificate_page_orientation", value: data.certificate_page_orientation || null });
-    settingsToUpdate.push({ key: "certificate_font_family", value: data.certificate_font_family || null });
-    settingsToUpdate.push({ key: "certificate_border_color", value: data.certificate_border_color || null });
-    settingsToUpdate.push({ key: "certificate_text_color", value: data.certificate_text_color || null });
-    settingsToUpdate.push({ key: "certificate_background_image_url", value: data.certificate_background_image_url || null });
+    if (data.certificate_page_orientation) settingsToUpdate.push({ key: "certificate_page_orientation", value: data.certificate_page_orientation });
+    if (data.certificate_font_family) settingsToUpdate.push({ key: "certificate_font_family", value: data.certificate_font_family });
+    if (data.certificate_border_color) settingsToUpdate.push({ key: "certificate_border_color", value: data.certificate_border_color });
+    if (data.certificate_text_color) settingsToUpdate.push({ key: "certificate_text_color", value: data.certificate_text_color });
+    if (data.certificate_background_image_url) settingsToUpdate.push({ key: "certificate_background_image_url", value: data.certificate_background_image_url });
 
-    // General Letter-specific settings
-    settingsToUpdate.push({ key: "general_letter_page_orientation", value: data.general_letter_page_orientation || null });
-    settingsToUpdate.push({ key: "general_letter_font_family", value: data.general_letter_font_family || null });
-    settingsToUpdate.push({ key: "general_letter_header_text_color", value: data.general_letter_header_text_color || null });
-    settingsToUpdate.push({ key: "general_letter_accent_color", value: data.general_letter_accent_color || null });
-    settingsToUpdate.push({ key: "general_letter_show_letterhead", value: data.general_letter_show_letterhead });
+    if (data.general_letter_page_orientation) settingsToUpdate.push({ key: "general_letter_page_orientation", value: data.general_letter_page_orientation });
+    if (data.general_letter_font_family) settingsToUpdate.push({ key: "general_letter_font_family", value: data.general_letter_font_family });
+    if (data.general_letter_header_text_color) settingsToUpdate.push({ key: "general_letter_header_text_color", value: data.general_letter_header_text_color });
+    if (data.general_letter_accent_color) settingsToUpdate.push({ key: "general_letter_accent_color", value: data.general_letter_accent_color });
+    settingsToUpdate.push({ key: "general_letter_show_letterhead", value: data.general_letter_show_letterhead.toString() });
 
     updateMultipleSettings(settingsToUpdate);
   };
 
-  const renderDocumentSettings = (docType: DocumentType) => {
-    switch (docType) {
+  const renderTabContent = () => {
+    switch (selectedDocument) {
       case "global":
         return (
           <div className="space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
-              <strong>Pengaturan Global</strong> berlaku untuk semua dokumen PDF kecuali ada pengaturan spesifik yang menimpa.
-            </div>
-
             <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Settings2 className="h-4 w-4" />Font & Ukuran</h3>
-
-              <FormField
-                control={form.control}
-                name="pdf_global_font_family"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jenis Font</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="helvetica">Helvetica (Modern)</SelectItem>
-                        <SelectItem value="times">Times New Roman (Formal)</SelectItem>
-                        <SelectItem value="courier">Courier (Monospace)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pdf_global_font_size_header"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ukuran Font Header (pt)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="8" max="24" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pdf_global_font_size_body"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ukuran Font Isi (pt)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="6" max="16" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Warna</h3>
-
-              <FormField
-                control={form.control}
-                name="pdf_global_text_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Teks Utama</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value} onChange={field.onChange} className="flex-1" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pdf_global_accent_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Aksen</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value} onChange={field.onChange} className="flex-1" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm">Margin Halaman (mm)</h3>
-
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Desain Global PDF</h3>
+              <div className="grid md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="pdf_global_margin_top"
+                  name="pdf_global_font_family"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Atas</FormLabel>
+                      <FormLabel>Jenis Font Default</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih font" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="helvetica">Helvetica (Default)</SelectItem>
+                          <SelectItem value="times">Times New Roman</SelectItem>
+                          <SelectItem value="courier">Courier</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pdf_global_page_orientation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Orientasi Halaman Default</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih orientasi" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="portrait">Portrait</SelectItem>
+                          <SelectItem value="landscape">Landscape</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pdf_global_accent_color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Warna Aksen (Brand)</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input type="color" {...field} className="h-10 w-20" />
+                        </FormControl>
+                        <Input type="text" {...field} className="flex-1" placeholder="#16a34a" />
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pdf_global_text_color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Warna Teks Utama</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input type="color" {...field} className="h-10 w-20" />
+                        </FormControl>
+                        <Input type="text" {...field} className="flex-1" placeholder="#333333" />
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                <FormField
+                  control={form.control}
+                  name="pdf_global_font_size_header"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Size Header</FormLabel>
                       <FormControl>
-                        <Input type="number" min="5" max="30" {...field} />
+                        <Input type="number" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -406,38 +405,12 @@ export function DocumentSettingsFormExtended() {
                 />
                 <FormField
                   control={form.control}
-                  name="pdf_global_margin_bottom"
+                  name="pdf_global_font_size_body"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Bawah</FormLabel>
+                      <FormLabel>Size Body</FormLabel>
                       <FormControl>
-                        <Input type="number" min="5" max="30" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="pdf_global_margin_left"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kiri</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="5" max="30" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="pdf_global_margin_right"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kanan</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="5" max="30" {...field} />
+                        <Input type="number" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -446,62 +419,100 @@ export function DocumentSettingsFormExtended() {
               </div>
             </div>
 
+            <div className="space-y-4 pb-4 border-b">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><AlignLeft className="h-4 w-4" />Kop & Informasi Perusahaan</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="pdf_global_show_logo"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm">Tampilkan Logo</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pdf_global_show_website"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm">Tampilkan Website</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pdf_global_show_company_info"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm">Tampilkan Info Perusahaan</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pdf_global_show_address"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm">Tampilkan Alamat</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Layout Dasar</h3>
-
-              <FormField
-                control={form.control}
-                name="pdf_global_page_orientation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Orientasi Halaman</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pdf_global_show_logo"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Tampilkan Logo Perusahaan</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pdf_global_logo_position"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Posisi Logo</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="left">Kiri</SelectItem>
-                        <SelectItem value="center">Tengah</SelectItem>
-                        <SelectItem value="right">Kanan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" />Footer & Metadata</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="pdf_global_show_timestamp"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm">Waktu Cetak</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pdf_global_show_page_number"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm">Nomor Halaman</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
           </div>
         );
@@ -515,647 +526,75 @@ export function DocumentSettingsFormExtended() {
 
             <div className="space-y-4 pb-4 border-b">
               <h3 className="font-semibold text-sm">Nomor Invoice</h3>
-
-              <FormField
-                control={form.control}
-                name="invoice_number_prefix"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prefix Nomor Invoice</FormLabel>
-                    <FormControl>
-                      <Input placeholder="INV" {...field} />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground mt-1">Contoh: INV-2024-001</p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_number_format"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Format Nomor Invoice</FormLabel>
-                    <FormControl>
-                      <Input placeholder="YYYY-MM-{SEQ}" {...field} />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Gunakan: YYYY=tahun, MM=bulan, {"{SEQ}"}=nomor urut
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="invoice_number_prefix"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Prefix Nomor Invoice</FormLabel>
+                      <FormControl>
+                        <Input placeholder="INV" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="invoice_number_format"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Format Nomor Invoice</FormLabel>
+                      <FormControl>
+                        <Input placeholder="YYYY-MM-{SEQ}" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
-            <div className="space-y-4 pb-4 border-b">
+            <div className="space-y-4">
               <h3 className="font-semibold text-sm">Konten Invoice</h3>
-
-              <FormField
-                control={form.control}
-                name="invoice_show_bank_info"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Tampilkan Info Bank</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_show_notes_section"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Tampilkan Bagian Catatan</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_show_package_info"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Tampilkan Info Paket & Keberangkatan</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_watermark_paid"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Watermark "LUNAS" pada Invoice Lunas</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Desain Invoice</h3>
-
-              <FormField
-                control={form.control}
-                name="invoice_page_orientation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Orientasi Halaman (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_font_family"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jenis Font (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="helvetica">Helvetica</SelectItem>
-                        <SelectItem value="times">Times New Roman</SelectItem>
-                        <SelectItem value="courier">Courier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_header_bg_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Latar Header (Opsional)</FormLabel>
-                    <div className="flex gap-2">
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="invoice_show_bank_info"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <FormLabel className="mb-0">Tampilkan Info Bank</FormLabel>
                       <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#ffffff" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_table_header_text_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Teks Header Tabel (Opsional)</FormLabel>
-                    <div className="flex gap-2">
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="invoice_watermark_paid"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <FormLabel className="mb-0">Watermark "LUNAS"</FormLabel>
                       <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#ffffff" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_watermark_text"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teks Watermark Kustom (Opsional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Contoh: DRAFT" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoice_watermark_opacity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Opasitas Watermark (0-1)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="0" max="1" step="0.1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        );
-
-      case "passport_letter":
-        return (
-          <div className="space-y-6">
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-sm text-purple-700">
-              <strong>Pengaturan Surat Rekomendasi Paspor</strong> akan menimpa pengaturan global jika diisi.
-            </div>
-
-            <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Desain Surat Paspor</h3>
-
-              <FormField
-                control={form.control}
-                name="passport_letter_page_orientation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Orientasi Halaman (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="passport_letter_font_family"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jenis Font (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="helvetica">Helvetica</SelectItem>
-                        <SelectItem value="times">Times New Roman</SelectItem>
-                        <SelectItem value="courier">Courier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="passport_letter_header_text_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Teks Header (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#333333" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="passport_letter_accent_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Aksen (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#16a34a" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Konten Surat Paspor</h3>
-
-              <FormField
-                control={form.control}
-                name="passport_letter_show_photo"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Tampilkan Foto</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="passport_letter_show_qr_code"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Tampilkan QR Code</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        );
-
-      case "leave_permit":
-        return (
-          <div className="space-y-6">
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-700">
-              <strong>Pengaturan Surat Izin Cuti</strong> akan menimpa pengaturan global jika diisi.
-            </div>
-
-            <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Desain Surat Izin Cuti</h3>
-
-              <FormField
-                control={form.control}
-                name="leave_permit_page_orientation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Orientasi Halaman (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="leave_permit_font_family"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jenis Font (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="helvetica">Helvetica</SelectItem>
-                        <SelectItem value="times">Times New Roman</SelectItem>
-                        <SelectItem value="courier">Courier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="leave_permit_header_text_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Teks Header (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#333333" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="leave_permit_accent_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Aksen (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#16a34a" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Konten Surat Izin Cuti</h3>
-
-              <FormField
-                control={form.control}
-                name="leave_permit_include_company_logo"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Sertakan Logo Perusahaan</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        );
-
-      case "certificate":
-        return (
-          <div className="space-y-6">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700">
-              <strong>Pengaturan Sertifikat</strong> akan menimpa pengaturan global jika diisi.
-            </div>
-
-            <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Desain Sertifikat</h3>
-
-              <FormField
-                control={form.control}
-                name="certificate_page_orientation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Orientasi Halaman (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="certificate_font_family"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jenis Font (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="helvetica">Helvetica</SelectItem>
-                        <SelectItem value="times">Times New Roman</SelectItem>
-                        <SelectItem value="courier">Courier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="certificate_border_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Border (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#daa520" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="certificate_text_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Teks (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#165634" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="certificate_background_image_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL Gambar Latar Belakang (Opsional)</FormLabel>
-                    <FormControl>
-                      <Input type="url" placeholder="https://example.com/bg.png" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        );
-
-      case "general_letter":
-        return (
-          <div className="space-y-6">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
-              <strong>Pengaturan Surat Umum</strong> akan menimpa pengaturan global jika diisi.
-            </div>
-
-            <div className="space-y-4 pb-4 border-b">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="h-4 w-4" />Desain Surat Umum</h3>
-
-              <FormField
-                control={form.control}
-                name="general_letter_page_orientation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Orientasi Halaman (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="portrait">Portrait</SelectItem>
-                        <SelectItem value="landscape">Landscape</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="general_letter_font_family"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jenis Font (Opsional)</FormLabel>
-                    <Select value={field.value || ""} onValueChange={(val) => field.onChange(val || undefined)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Gunakan pengaturan global" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Gunakan pengaturan global</SelectItem>
-                        <SelectItem value="helvetica">Helvetica</SelectItem>
-                        <SelectItem value="times">Times New Roman</SelectItem>
-                        <SelectItem value="courier">Courier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="general_letter_header_text_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Teks Header (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#333333" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="general_letter_accent_color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Warna Aksen (Opsional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input type="color" {...field} className="h-10 w-20" />
-                      </FormControl>
-                      <Input type="text" value={field.value || ""} onChange={field.onChange} className="flex-1" placeholder="#16a34a" />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm">Konten Surat Umum</h3>
-
-              <FormField
-                control={form.control}
-                name="general_letter_show_letterhead"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <FormLabel className="mb-0">Sertakan Kop Surat</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
           </div>
         );
 
       default:
-        return null;
+        return (
+          <div className="py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">
+            <Settings2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Pilih kategori pengaturan untuk mulai mengedit</p>
+          </div>
+        );
     }
   };
 
@@ -1164,7 +603,7 @@ export function DocumentSettingsFormExtended() {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Pengaturan Dokumen & Template Surat
+          Pengaturan Dokumen & Kop Surat
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -1176,196 +615,45 @@ export function DocumentSettingsFormExtended() {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
-              {/* Document Type Selection */}
-              <div className="space-y-4 pb-4 border-b">
-                <h3 className="font-semibold text-sm">Pilih Tipe Dokumen untuk Diatur</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <Card
-                    className={`cursor-pointer ${selectedDocument === "invoice" ? "border-primary ring-2 ring-primary" : ""}`}
-                    onClick={() => setSelectedDocument("invoice")}
-                  >
-                    <CardContent className="flex flex-col items-center justify-center p-4">
-                      <File className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-sm font-medium">Invoice</span>
-                      <span className="text-xs text-muted-foreground">Portrait</span>
-                    </CardContent>
-                  </Card>
-                  <Card
-                    className={`cursor-pointer ${selectedDocument === "passport_letter" ? "border-primary ring-2 ring-primary" : ""}`}
-                    onClick={() => setSelectedDocument("passport_letter")}
-                  >
-                    <CardContent className="flex flex-col items-center justify-center p-4">
-                      <BookText className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-sm font-medium">Surat Paspor</span>
-                      <span className="text-xs text-muted-foreground">Portrait</span>
-                    </CardContent>
-                  </Card>
-                  <Card
-                    className={`cursor-pointer ${selectedDocument === "leave_permit" ? "border-primary ring-2 ring-primary" : ""}`}
-                    onClick={() => setSelectedDocument("leave_permit")}
-                  >
-                    <CardContent className="flex flex-col items-center justify-center p-4">
-                      <Briefcase className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-sm font-medium">Surat Cuti</span>
-                      <span className="text-xs text-muted-foreground">Portrait</span>
-                    </CardContent>
-                  </Card>
-                  <Card
-                    className={`cursor-pointer ${selectedDocument === "certificate" ? "border-primary ring-2 ring-primary" : ""}`}
-                    onClick={() => setSelectedDocument("certificate")}
-                  >
-                    <CardContent className="flex flex-col items-center justify-center p-4">
-                      <Award className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-sm font-medium">Sertifikat</span>
-                      <span className="text-xs text-muted-foreground">Portrait</span>
-                    </CardContent>
-                  </Card>
-                  <Card
-                    className={`cursor-pointer ${selectedDocument === "general_letter" ? "border-primary ring-2 ring-primary" : ""}`}
-                    onClick={() => setSelectedDocument("general_letter")}
-                  >
-                    <CardContent className="flex flex-col items-center justify-center p-4">
-                      <Mail className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-sm font-medium">Surat Umum</span>
-                      <span className="text-xs text-muted-foreground">Portrait</span>
-                    </CardContent>
-                  </Card>
-                  <Card
-                    className={`cursor-pointer ${selectedDocument === "global" ? "border-primary ring-2 ring-primary" : ""}`}
-                    onClick={() => setSelectedDocument("global")}
-                  >
-                    <CardContent className="flex flex-col items-center justify-center p-4">
-                      <Settings2 className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-sm font-medium">Global PDF</span>
-                      <span className="text-xs text-muted-foreground">Default</span>
-                    </CardContent>
-                  </Card>
+              <Tabs value={selectedDocument} onValueChange={(v) => setSelectedDocument(v as DocumentType)} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 h-auto p-1 bg-muted/50">
+                  <TabsTrigger value="global" className="py-2 flex flex-col gap-1">
+                    <Settings2 className="h-4 w-4" />
+                    <span className="text-[10px]">Global</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="invoice" className="py-2 flex flex-col gap-1">
+                    <File className="h-4 w-4" />
+                    <span className="text-[10px]">Invoice</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="passport_letter" className="py-2 flex flex-col gap-1">
+                    <BookText className="h-4 w-4" />
+                    <span className="text-[10px]">Paspor</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="leave_permit" className="py-2 flex flex-col gap-1">
+                    <Plane className="h-4 w-4" />
+                    <span className="text-[10px]">Cuti</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="certificate" className="py-2 flex flex-col gap-1">
+                    <Award className="h-4 w-4" />
+                    <span className="text-[10px]">Sertifikat</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="general_letter" className="py-2 flex flex-col gap-1">
+                    <Mail className="h-4 w-4" />
+                    <span className="text-[10px]">Umum</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="mt-6">
+                  {renderTabContent()}
                 </div>
+              </Tabs>
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Simpan Semua Pengaturan
+                </Button>
               </div>
-
-              {/* Dynamic Settings Area */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  {/* General Company Settings (always visible) */}
-                  <div className="space-y-4 pb-4 border-b">
-                    <h3 className="font-semibold text-sm">Informasi Dasar Perusahaan</h3>
-                    
-                    <FormField
-                      control={form.control}
-                      name="company_city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Kota Perusahaan</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Jakarta" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-                      <strong>Catatan:</strong> Nama, Alamat, Telepon, dan Email perusahaan diambil dari <strong>Master Data Informasi Perusahaan</strong>.
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="company_website"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Website Perusahaan</FormLabel>
-                          <FormControl>
-                            <Input type="url" placeholder="https://example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-4 pb-4 border-b">
-                    <h3 className="font-semibold text-sm">Pengaturan Kop Surat</h3>
-
-                    <FormField
-                      control={form.control}
-                      name="letterhead_show_logo"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <FormLabel className="mb-0">Tampilkan Logo di Kop Surat</FormLabel>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="letterhead_show_website"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <FormLabel className="mb-0">Tampilkan Website di Kop Surat</FormLabel>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-4 pb-4 border-b">
-                    <h3 className="font-semibold text-sm">Pengaturan Footer Dokumen</h3>
-
-                    <FormField
-                      control={form.control}
-                      name="document_footer_show_timestamp"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <FormLabel className="mb-0">Tampilkan Waktu Cetak</FormLabel>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="document_footer_show_page_number"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <FormLabel className="mb-0">Tampilkan Nomor Halaman</FormLabel>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {renderDocumentSettings(selectedDocument)}
-                </div>
-
-                {/* Preview Area */}
-                <div className="lg:col-span-1">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-md flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Preview Dokumen
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[400px] bg-gray-100 flex items-center justify-center text-muted-foreground">
-                      {/* Placeholder for PDF preview */}
-                      <p>Preview akan muncul di sini</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-
-              <Button type="submit" disabled={isUpdating} className="w-full">
-                {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Simpan Perubahan
-              </Button>
             </form>
           </Form>
         )}

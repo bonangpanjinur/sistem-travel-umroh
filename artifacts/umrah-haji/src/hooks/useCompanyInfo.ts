@@ -93,9 +93,10 @@ export function useCompanyInfo() {
   const companyLogoUrl = unwrap(m?.get("company_logo_url"));
   const logoUrl = companyLogoUrl || websiteSettings?.logo_url || undefined;
 
+  // Preference: pdf_global_* > legacy keys
   const documentSettings: DocumentSettings = {
-    letterhead_show_logo: unwrapBoolean(m?.get("letterhead_show_logo"), true),
-    letterhead_show_website: unwrapBoolean(m?.get("letterhead_show_website"), true),
+    letterhead_show_logo: unwrapBoolean(m?.get("pdf_global_show_logo") ?? m?.get("letterhead_show_logo"), true),
+    letterhead_show_website: unwrapBoolean(m?.get("pdf_global_show_website") ?? m?.get("letterhead_show_website"), true),
     invoice_number_prefix: unwrap(m?.get("invoice_number_prefix")) || "INV",
     invoice_number_format: unwrap(m?.get("invoice_number_format")) || "YYYY-MM-{SEQ}",
     invoice_show_bank_info: unwrapBoolean(m?.get("invoice_show_bank_info"), true),
@@ -105,10 +106,10 @@ export function useCompanyInfo() {
     eticket_header_color: unwrap(m?.get("eticket_header_color")) || "#16a34a",
     certificate_border_color: unwrap(m?.get("certificate_border_color")) || "#daa520",
     certificate_text_color: unwrap(m?.get("certificate_text_color")) || "#165634",
-    document_footer_show_timestamp: unwrapBoolean(m?.get("document_footer_show_timestamp"), true),
-    document_footer_show_page_number: unwrapBoolean(m?.get("document_footer_show_page_number"), true),
-    invoice_accent_color: unwrap(m?.get("invoice_accent_color")) || "#16a34a",
-    pdf_default_font: (unwrap(m?.get("pdf_default_font")) as any) || "helvetica",
+    document_footer_show_timestamp: unwrapBoolean(m?.get("pdf_global_show_timestamp") ?? m?.get("document_footer_show_timestamp"), true),
+    document_footer_show_page_number: unwrapBoolean(m?.get("pdf_global_show_page_number") ?? m?.get("document_footer_show_page_number"), true),
+    invoice_accent_color: unwrap(m?.get("pdf_global_accent_color") ?? m?.get("invoice_accent_color")) || "#16a34a",
+    pdf_default_font: (unwrap(m?.get("pdf_global_font_family") ?? m?.get("pdf_default_font")) as any) || "helvetica",
   };
 
   // Fetch and parse invoice layout
