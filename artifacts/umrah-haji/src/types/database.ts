@@ -11,7 +11,8 @@ export type AppRole =
   | 'equipment'
   | 'agent'
   | 'sub_agent'
-  | 'customer';
+  | 'customer'
+  | 'jamaah';
 
 export type BookingStatus = 
   | 'pending'

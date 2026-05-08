@@ -116,10 +116,14 @@ export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 export const ALL_PERMISSION_KEYS = Object.values(PERMISSIONS);
 
 /**
- * Role Hierarchy Definition
- * 
- * Defines which roles inherit permissions from other roles.
- * Format: [role]: [inherited_roles]
+ * Hierarki peran — role yang lebih tinggi mewarisi permission dari role di bawahnya.
+ *
+ * Catatan desain:
+ * - `sales` TIDAK mewarisi `agent`. Sales adalah staf internal; agent adalah mitra eksternal
+ *   dengan portal dan data terpisah.
+ * - `sub_agent` mewarisi izin agent (tampilan paket, daftar jamaah sendiri).
+ * - `jamaah` dan `customer` tidak ada dalam hierarki karena mereka hanya memiliki
+ *   akses ke portal pribadi mereka sendiri, bukan ke modul admin.
  */
 export const ROLE_HIERARCHY: Record<string, string[]> = {
   super_admin: ['owner'],
@@ -127,10 +131,13 @@ export const ROLE_HIERARCHY: Record<string, string[]> = {
   branch_manager: ['operational', 'sales', 'marketing'],
   finance: [],
   operational: ['equipment'],
-  sales: ['agent'],
+  sales: [],
   marketing: [],
   equipment: [],
   agent: [],
+  sub_agent: ['agent'],
+  customer: [],
+  jamaah: [],
 };
 
 /**

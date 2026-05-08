@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { getRoleHomeRoute } from '@/hooks/useRoleHomeRoute';
 
 const loginSchema = z.object({
   email: z.string().trim().email('Email tidak valid').max(255),
@@ -23,24 +24,22 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, roles, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const redirectTo = searchParams.get('redirect');
 
-  // Redirect if already logged in
+  // Redirect jika sudah login — arahkan ke portal yang sesuai dengan role
   useEffect(() => {
     if (user && !authLoading) {
       if (redirectTo) {
         navigate(redirectTo);
-      } else if (isAdmin()) {
-        navigate('/admin');
       } else {
-        navigate('/my-bookings');
+        navigate(getRoleHomeRoute(roles));
       }
     }
-  }, [user, authLoading, isAdmin, navigate, redirectTo]);
+  }, [user, authLoading, roles, navigate, redirectTo]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -61,7 +60,7 @@ export default function Login() {
         description: 'Selamat datang kembali!',
       });
 
-      // Redirect will happen via useEffect
+      // Redirect terjadi via useEffect setelah roles dimuat
     } catch (error: any) {
       toast({
         title: 'Login Gagal',

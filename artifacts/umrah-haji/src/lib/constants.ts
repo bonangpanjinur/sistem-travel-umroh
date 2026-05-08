@@ -47,14 +47,15 @@ export const ROLE_LABELS: Record<string, string> = {
   sales: 'Sales',
   operational: 'Operasional',
   marketing: 'Marketing',
+  equipment: 'Equipment',
   agent: 'Agen',
+  sub_agent: 'Sub Agen',
   customer: 'Customer',
   jamaah: 'Jamaah',
-  equipment: 'Equipment',
 };
 
 // Role priority for sorting (lower number = higher priority)
-// Customer is always last
+// customer & jamaah always last
 export const ROLE_PRIORITY: Record<string, number> = {
   super_admin: 1,
   owner: 2,
@@ -65,21 +66,22 @@ export const ROLE_PRIORITY: Record<string, number> = {
   marketing: 7,
   equipment: 8,
   agent: 9,
+  sub_agent: 10,
   customer: 100,
   jamaah: 101,
 };
 
 /**
- * Sorts roles based on priority, ensuring 'customer' is at the end.
+ * Sorts roles based on priority, ensuring 'customer'/'jamaah' are at the end.
  */
 export const sortRoles = <T extends { role: string } | string>(roles: T[]): T[] => {
   return [...roles].sort((a, b) => {
     const roleA = typeof a === 'string' ? a : a.role;
     const roleB = typeof b === 'string' ? b : b.role;
-    
-    const priorityA = ROLE_PRIORITY[roleA] || 50;
-    const priorityB = ROLE_PRIORITY[roleB] || 50;
-    
+
+    const priorityA = ROLE_PRIORITY[roleA] ?? 50;
+    const priorityB = ROLE_PRIORITY[roleB] ?? 50;
+
     return priorityA - priorityB;
   });
 };

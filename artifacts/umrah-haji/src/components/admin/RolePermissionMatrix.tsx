@@ -29,6 +29,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
   agent: 'Agent',
   sub_agent: 'Sub Agent',
   customer: 'Customer',
+  jamaah: 'Jamaah',
 };
 
 const ROLE_COLORS: Record<AppRole, string> = {
@@ -43,6 +44,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
   agent: 'bg-indigo-100 text-indigo-800',
   sub_agent: 'bg-violet-100 text-violet-800',
   customer: 'bg-slate-100 text-slate-800',
+  jamaah: 'bg-teal-100 text-teal-800',
 };
 
 export function RolePermissionMatrix({

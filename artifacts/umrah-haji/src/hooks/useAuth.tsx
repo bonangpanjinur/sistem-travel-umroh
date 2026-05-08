@@ -27,6 +27,8 @@ interface AuthContextType {
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   isStaff: () => boolean;
+  isAgent: () => boolean;
+  isCustomer: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -279,20 +281,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roles.includes(role);
   };
 
+  /**
+   * Staf internal — punya akses ke panel admin (/admin, /operational, /hr).
+   * Agent & sub_agent adalah mitra eksternal, bukan staf internal.
+   * Customer & jamaah tidak termasuk.
+   */
   const isStaff = (): boolean => {
-    // Basic check for any staff role
-    const staffRoles: AppRole[] = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'];
-    return roles.some(role => staffRoles.includes(role));
+    const internalStaffRoles: AppRole[] = [
+      'super_admin', 'owner', 'branch_manager',
+      'finance', 'sales', 'marketing', 'operational', 'equipment',
+    ];
+    return roles.some(role => internalStaffRoles.includes(role));
   };
 
+  /**
+   * Admin — owner ke atas; berwenang mengelola pengguna, cabang, dan pengaturan.
+   */
   const isAdmin = (): boolean => {
-    // Strict admin check
     const adminRoles: AppRole[] = ['super_admin', 'owner', 'branch_manager'];
     return roles.some(role => adminRoles.includes(role));
   };
 
   const isSuperAdmin = (): boolean => {
     return roles.includes('super_admin');
+  };
+
+  /**
+   * Agen eksternal (agent atau sub_agent).
+   * Mereka memiliki portal sendiri di /agent, terpisah dari admin.
+   */
+  const isAgent = (): boolean => {
+    return roles.some(role => (['agent', 'sub_agent'] as AppRole[]).includes(role));
+  };
+
+  /**
+   * Pengguna publik yang sudah terdaftar (customer atau jamaah).
+   * Mereka hanya bisa mengakses portal pribadi di /jamaah dan /customer.
+   */
+  const isCustomer = (): boolean => {
+    return roles.some(role => (['customer', 'jamaah'] as AppRole[]).includes(role));
   };
 
   return (
@@ -311,6 +338,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         isSuperAdmin,
         isStaff,
+        isAgent,
+        isCustomer,
       }}
     >
       {children}

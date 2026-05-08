@@ -57,6 +57,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
   agent: "Agent",
   sub_agent: "Sub Agent",
   customer: "Customer",
+  jamaah: "Jamaah",
 };
 
 const ROLE_COLORS: Record<AppRole, string> = {
@@ -71,6 +72,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
   agent: "bg-indigo-100 text-indigo-800 border-indigo-200",
   sub_agent: "bg-violet-100 text-violet-800 border-violet-200",
   customer: "bg-slate-100 text-slate-800 border-slate-200",
+  jamaah: "bg-teal-100 text-teal-800 border-teal-200",
 };
 
 const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
@@ -84,7 +86,8 @@ const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   equipment: "Mengelola stok perlengkapan dan distribusi jamaah.",
   agent: "Mitra penjualan dengan akses terbatas ke data jamaah mereka.",
   sub_agent: "Agen di bawah koordinasi agen utama.",
-  customer: "Akses portal jamaah untuk melihat status dan dokumen.",
+  customer: "Akses portal customer untuk melihat status dan dokumen.",
+  jamaah: "Akses portal jamaah untuk melihat itinerary, dokumen, dan visa.",
 };
 
 interface UserWithRoles {
