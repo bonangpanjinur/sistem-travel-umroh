@@ -7,84 +7,99 @@
 
 | Simbol | Artinya |
 |--------|---------|
-| ✅ | Selesai & siap pakai |
-| 🔴 | Belum dibangun |
+| ✅ | Selesai & terhubung ke data nyata |
+| ⚠️ | UI ada tapi ada catatan penting (lihat keterangan) |
+| 🔴 | Belum dibangun / tidak berfungsi |
 
 ---
 
-## 1. INFRASTRUKTUR ✅
+## 1. INFRASTRUKTUR
 
-| Item | Status |
-|------|--------|
-| pnpm monorepo (umrah-haji + api-server + api-spec) — Port 5000 / 8080 | ✅ |
-| React 19 + Vite 7 + TypeScript + Tailwind v3 — 0 error TS | ✅ |
-| Supabase Auth + Database (demo mode graceful) | ✅ |
-| RBAC granular — Visual Permission Matrix + Audit Log | ✅ |
-| PWA / Service Worker | ✅ |
-| Dark Mode global | ✅ |
-| Multi-tenant (branch/agent subdomain) | ✅ |
-| Export Excel (xlsx) — 15+ halaman | ✅ |
-| Export PDF (jsPDF + autoTable) — 10+ halaman | ✅ |
-| OpenAPI Spec + Codegen (Orval) — type-safe hooks | ✅ |
-| Error Boundary global | ✅ |
+| Item | Status | Catatan |
+|------|--------|---------|
+| pnpm monorepo (umrah-haji + api-server + api-spec) — Port 5000 / 8080 | ✅ | |
+| React 19 + Vite 7 + TypeScript + Tailwind v3 — 0 error TS | ✅ | Typecheck pass setelah 7 bugfix deployment |
+| Supabase Auth + Database (demo mode graceful) | ✅ | App jalan tanpa Supabase, tapi fitur mati |
+| RBAC granular — Visual Permission Matrix + Audit Log | ✅ | |
+| PWA / Service Worker | ✅ | |
+| Dark Mode global | ✅ | |
+| Multi-tenant (branch/agent subdomain) | ✅ | |
+| Export Excel (xlsx) — 15+ halaman | ✅ | |
+| Export PDF (jsPDF + autoTable) — 10+ halaman | ✅ | |
+| OpenAPI Spec + Codegen (Orval) — type-safe hooks | ✅ | |
+| Error Boundary global | ✅ | |
 
 ---
 
 ## 2. MODUL ADMIN
 
-| Modul | Fitur | Status |
-|-------|-------|--------|
-| Dashboard | Multi-role, 6 dashboard khusus (Branch, Finance, Sales, Marketing, Equipment, Agent) | ✅ |
-| Analytics | Grafik multi-dimensi, stat periodik | ✅ |
-| KPI Dashboard Real-time | Target vs aktual, progress bar animasi — `/admin/kpi-dashboard` | ✅ |
-| Dashboard Keuangan Terpadu | Arus kas, proyeksi, perbandingan bulan, aging AR — `/admin/finance-terpadu` | ✅ |
-| Booking | Wizard multi-step, detail, bulk aksi, export, WhatsApp notif | ✅ |
-| Paket | CRUD + tipe + galeri + itinerary template | ✅ |
-| Lead Scoring Otomatis | Skor di Kanban & tabel (sumber + nilai paket + responsivitas + recency) | ✅ |
-| CRM & Lead — Kanban DnD | Kanban 5 kolom, drag-and-drop diperbaiki, detail, analytics, follow-up reminder | ✅ |
-| Notifikasi Bell Admin | Bell icon tersambung ke `useAdminNotifications` — real-time | ✅ |
-| Keberangkatan | Detail, rooming, manifest, tracking, QR check-in, readiness check | ✅ |
-| Keuangan | P&L, Kas, AR, AP, Payroll, Tabungan, Komisi Agen & Cabang, Referral, Voucher | ✅ |
-| Jamaah & Dokumen | Detail pelanggan, verifikasi dokumen, visa, manasik, haji, perlengkapan, stock opname, SOS | ✅ |
-| SDM / HR | Rekrutmen, kontrak, performance, absensi, aset kantor | ✅ |
-| Agen & Mitra | Agen, cabang, vendor, hotel, maskapai, bandara, muthawif, bus | ✅ |
-| Keamanan | Role management visual matrix, permission audit log real-time, 2FA, API key | ✅ |
-| Marketing | Landing page builder, banner, WhatsApp blast, materi, korespondensi hub | ✅ |
-| Blog & Artikel | CRUD artikel (judul, kategori, konten, status) — `/admin/blog` | ✅ |
-| Laporan | Standar, lanjutan, terjadwal, analytics multi-dimensi | ✅ |
-| **Webhook Outgoing** | Kelola webhook ke ERP/CRM eksternal, test ping, log status — `/admin/webhooks` | ✅ |
+| Modul | Fitur | Status | Catatan |
+|-------|-------|--------|---------|
+| Dashboard Utama | Multi-role, stat periodik, filter branch/agent | ✅ | Query Supabase nyata |
+| Analytics | Grafik multi-dimensi | ✅ | |
+| KPI Dashboard | Target vs aktual, progress bar animasi | ⚠️ | Target (`bookings: 150`, `revenue: 3,5M`) **hardcoded** di kode — belum bisa diubah dari UI |
+| **Dashboard Keuangan Terpadu** | Arus kas, proyeksi, perbandingan bulan, aging AR | ✅ | **Diperbaiki Mei 2026** — kini query dari `payments`, `cash_transactions`, `vendor_costs`, `bookings` nyata |
+| Booking | Wizard multi-step, detail, bulk aksi, export, WhatsApp notif | ✅ | |
+| Paket | CRUD + tipe + galeri + itinerary template | ✅ | |
+| Lead Scoring Otomatis | Skor di Kanban & tabel | ✅ | |
+| CRM & Lead — Kanban DnD | Kanban 5 kolom, drag-and-drop, follow-up reminder | ✅ | |
+| Notifikasi Bell Admin | Tersambung ke `useAdminNotifications` | ✅ | |
+| Keberangkatan | Detail, rooming, manifest, tracking, QR check-in | ✅ | |
+| Keuangan P&L | Per keberangkatan dari `vendor_costs` + `bookings` | ✅ | |
+| Keuangan Kas | Transaksi kas masuk/keluar dari `cash_transactions` | ✅ | |
+| Keuangan AR | Piutang dari `bookings.remaining_amount` | ✅ | |
+| Keuangan AP, Payroll, Tabungan, Komisi, Referral, Voucher | CRUD + tabel | ✅ | |
+| Virtual Account | Generate VA per customer | ⚠️ | Nomor VA disimpan di **localStorage** — hilang jika ganti device/browser. Belum terhubung payment gateway nyata |
+| Midtrans Config | Konfigurasi payment gateway | ⚠️ | Config disimpan di **localStorage**. Tidak ada integrasi Midtrans Snap yang nyata |
+| Email Templates | Template email konfirmasi, reminder, dll | ⚠️ | Template UI lengkap, tapi endpoint `/api/email/send` **tidak ada** di Express server — email tidak terkirim |
+| AI Summary | Narasi performa bulanan | ⚠️ | Narasi di-generate dari **snapshot data dummy hardcoded**, bukan dari Supabase nyata |
+| Rekomendasi Paket | Engine scoring paket | ✅ | Scoring dari data paket Supabase nyata |
+| Cicilan Reminder | WA blast reminder jatuh tempo | ✅ | Query dari `bookings`, kirim via Fonnte API |
+| WA Otomatis | Trigger otomatis untuk event booking/bayar | ⚠️ | Pengaturan trigger disimpan di **localStorage** |
+| WhatsApp Blast & Log | Blast massal, template, log kirim | ✅ | Terhubung ke `whatsapp_config` + Fonnte API |
+| Jamaah & Dokumen | Detail pelanggan, verifikasi dokumen, visa, manasik, haji, perlengkapan | ✅ | |
+| Stock Opname Perlengkapan | Stok & distribusi perlengkapan jamaah | ✅ | |
+| SOS Monitor | Monitor alert SOS jamaah real-time | ✅ | |
+| SDM / HR | Rekrutmen, kontrak, performance, absensi, aset | ✅ | |
+| Agen & Mitra | Agen, cabang, vendor, hotel, maskapai, bandara, muthawif, bus | ✅ | |
+| Keamanan | Role management, permission matrix, audit log, 2FA, API key | ✅ | |
+| Marketing | Landing page builder, banner, WA blast, materi, korespondensi | ✅ | |
+| Blog & Artikel | CRUD artikel — `/admin/blog` | ✅ | |
+| Laporan | Standar, lanjutan, terjadwal, analytics | ✅ | |
+| Webhook Outgoing | CRUD webhook, test ping, log — `/admin/webhooks` | ✅ | |
 
 ---
 
 ## 3. MODUL AGEN
 
-| Fitur | Status |
-|-------|--------|
-| Dashboard Agen — chart komisi & booking, 8 stat, sub-agent network | ✅ |
-| Notifikasi Bell Agen — terpasang di AgentLayoutEnhanced | ✅ |
-| Jamaah, Komisi, Wallet, Referral | ✅ |
-| Leaderboard Agen — ranking + badge prestasi | ✅ |
-| Target Bulanan & Progress | ✅ |
-| Digital Kit, Katalog Paket, Website Settings | ✅ |
+| Fitur | Status | Catatan |
+|-------|--------|---------|
+| Dashboard Agen — chart komisi & booking, 8 stat, sub-agent network | ✅ | |
+| Notifikasi Bell Agen | ✅ | |
+| Jamaah, Komisi, Wallet, Referral | ✅ | |
+| Leaderboard Agen | ✅ | |
+| Target Bulanan & Progress | ⚠️ | Target disimpan di **localStorage** per browser |
+| Digital Kit, Katalog Paket, Website Settings | ✅ | |
 
 ---
 
 ## 4. MODUL CUSTOMER & JAMAAH
 
-| Fitur | Status |
-|-------|--------|
-| Dashboard Customer — booking, pembayaran, loyalty, 6 quick actions | ✅ |
-| Notifikasi In-App Customer — bell icon + widget di dashboard, link ke `/jamaah/notifications` | ✅ |
-| My Bookings, Detail Booking, Upload Pembayaran | ✅ |
-| Tabungan, Loyalty, Support, Profil | ✅ |
-| Perbandingan Paket — side-by-side 2–3 paket | ✅ |
-| Kalkulator Cicilan — simulasi tabungan interaktif | ✅ |
-| Countdown Keberangkatan — timer visual dengan live detik | ✅ |
-| Portal Jamaah Hub, Notifikasi Jamaah | ✅ |
-| Digital ID (QR), Dokumen, Itinerary, Visa Tracker | ✅ |
-| Riwayat Pembayaran, Feedback, Doa & Panduan | ✅ |
-| SOS Alert — log ke DB + monitor real-time admin | ✅ |
-| **Peta Lokasi Ibadah** | Maps interaktif — Makkah & Madinah, 14 lokasi, tips per lokasi — `/jamaah/peta-lokasi` | ✅ |
+| Fitur | Status | Catatan |
+|-------|--------|---------|
+| Dashboard Customer | ✅ | |
+| Notifikasi In-App Customer | ✅ | |
+| My Bookings, Detail Booking, Upload Pembayaran | ✅ | |
+| Tabungan, Loyalty, Support, Profil | ✅ | |
+| Perbandingan Paket | ✅ | |
+| Kalkulator Cicilan | ✅ | |
+| Countdown Keberangkatan | ✅ | |
+| Portal Jamaah Hub, Notifikasi Jamaah | ✅ | |
+| Digital ID (QR), Dokumen, Itinerary, Visa Tracker | ✅ | |
+| Riwayat Pembayaran, Feedback, Doa & Panduan | ✅ | |
+| SOS Alert | ✅ | Log ke DB + monitor admin real-time |
+| Peta Lokasi Ibadah | ✅ | 14 lokasi Makkah & Madinah — `/jamaah/peta-lokasi` |
+| Jurnal Ibadah, Doa Counter, Target Ibadah, Badges | ⚠️ | Data disimpan di **localStorage** — tidak tersinkron antar device |
 
 ---
 
@@ -93,11 +108,11 @@
 | Fitur | URL | Status |
 |-------|-----|--------|
 | Landing Page Dinamis, Katalog Paket, Detail Paket | `/` `/packages` | ✅ |
-| Blog & Artikel — listing + detail | `/blog` `/blog/:slug` | ✅ |
-| Testimonial Jamaah — 9 kartu, filter per paket, statistik kepuasan | `/testimonials` | ✅ |
-| WhatsApp Floating Button — di semua halaman publik | Global | ✅ |
+| Blog & Artikel | `/blog` `/blog/:slug` | ✅ |
+| Testimonial Jamaah | `/testimonials` | ✅ |
+| WhatsApp Floating Button | Global | ✅ |
 | Cek Status Booking, Jadwal Keberangkatan, About/Kontak | `/cek-booking` `/departures` | ✅ |
-| Website Agen & Cabang (slug) — multi-tenant | `/a/:slug` `/b/:slug` | ✅ |
+| Website Agen & Cabang (slug) | `/a/:slug` `/b/:slug` | ✅ |
 | Flow Booking Online — wizard multi-step | `/booking/:id` | ✅ |
 | Kalkulator Biaya Umroh | `/kalkulator` | ✅ |
 | Kalkulator Cicilan Tabungan | `/kalkulator-cicilan` | ✅ |
@@ -106,45 +121,103 @@
 
 ---
 
-## 6. SEMUA FITUR SELESAI ✅
+## 6. PEKERJAAN YANG SUDAH SELESAI
 
 | # | Fitur | Deskripsi | Status |
 |---|-------|-----------|--------|
-| 1 | **Ringkasan AI Otomatis** | Narasi performa bulan ini — insight otomatis tanpa buka laporan manual | ✅ Selesai — `/admin/ai-summary`, 5 seksi naratif, generate otomatis |
-| 2 | **Panduan Ibadah Offline (PWA)** | Jamaah di Saudi akses itinerary & doa tanpa internet | ✅ Selesai — `/jamaah/panduan-ibadah`, 4 tab, konten lengkap built-in |
-| 3 | **Peta Lokasi Ibadah** | Maps interaktif — Makkah & Madinah, 14 lokasi, tips navigasi | ✅ Selesai — `/jamaah/peta-lokasi`, 2 kota, filter importance, detail lokasi |
-| 4 | **Multi-bahasa (i18n)** | Indonesia + Arab + Inggris — context + switcher siap pakai | ✅ Selesai — `LanguageContext` + `LanguageSwitcher` component, 80+ kunci terjemahan |
-| 5 | **Rate Limiting API** | Keamanan endpoint publik dari spam/abuse | ✅ Selesai — `express-rate-limit`, 100 req/15 mnt umum, 10 req/jam untuk leads |
-| 6 | **Webhook Outgoing** | Integrasi ke ERP / sistem akuntansi eksternal | ✅ Selesai — `/admin/webhooks`, CRUD webhook, test ping, log status, 10 event types |
-| 7 | **E2E Test Suite (Playwright)** | Coverage alur booking, pembayaran, login | ⏭️ Dilewati — tidak relevan untuk lingkungan Replit |
-| 8 | **CI/CD Pipeline** | Deploy otomatis saat merge ke main | ⏭️ Dilewati — Replit menangani deploy secara native |
+| 1 | **Fix TypeScript Deployment** | 7 error TS yang menyebabkan deploy gagal | ✅ Selesai Mei 2026 |
+| 2 | **Finance Terpadu — Data Nyata** | Ganti semua data hardcoded/random dengan query Supabase nyata | ✅ Selesai Mei 2026 |
+| 3 | **Panduan Ibadah Offline (PWA)** | Jamaah akses itinerary & doa tanpa internet | ✅ |
+| 4 | **Peta Lokasi Ibadah** | 14 lokasi Makkah & Madinah — `/jamaah/peta-lokasi` | ✅ |
+| 5 | **Multi-bahasa (i18n)** | Indonesia + Arab + Inggris — 80+ kunci terjemahan | ✅ |
+| 6 | **Rate Limiting API** | `express-rate-limit` di endpoint publik | ✅ |
+| 7 | **Webhook Outgoing** | CRUD webhook ke ERP eksternal, test ping, log | ✅ |
 
 ---
 
-## 7. KEBUTUHAN TEKNIS (Sebelum Produksi)
+## 7. YANG BELUM SELESAI / PERLU DIPERBAIKI
 
-| Item | Cara | Status |
-|------|------|--------|
-| Supabase URL & Key | Set `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` di Replit → Secrets | 🔴 Belum dikonfigurasi |
-| SQL Migrations | Jalankan file di `src/lib/migrations/` di Supabase SQL Editor sesuai urutan fase | 🔴 Belum dijalankan |
-| Service Role Key (API server) | Set `SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY` di Replit → Secrets | 🔴 Belum dikonfigurasi |
+> Diurutkan dari yang paling kritis untuk operasional nyata
+
+### 🔴 PRIORITAS TINGGI
+
+| # | Item | Masalah | Solusi |
+|---|------|---------|--------|
+| P1 | ~~Dashboard Keuangan Terpadu~~ | ~~Data hardcoded/random~~ | ✅ **Sudah diperbaiki** |
+| P2 | **KPI Target bisa diatur** | `MONTHLY_TARGETS` hardcoded di kode — admin tidak bisa ubah | Buat tabel `kpi_targets` di Supabase + form setting di UI |
+| P3 | **Email Engine di API Server** | `/api/email/send` tidak ada — semua email tidak terkirim | Tambah endpoint Express + Resend/Nodemailer |
+| P4 | **SQL Migrations ke Supabase** | 12 file SQL belum dijalankan — banyak tabel belum ada | Jalankan urut di Supabase SQL Editor (lihat §8) |
+| P5 | **Supabase Env Vars** | App jalan demo mode tanpa credential | Set 4 env vars di Replit Secrets (lihat §9) |
+
+### 🟡 PRIORITAS MENENGAH
+
+| # | Item | Masalah | Solusi |
+|---|------|---------|--------|
+| M1 | **Konfigurasi Midtrans** | Tersimpan di localStorage — tidak aman, tidak sinkron | Pindah ke tabel `app_settings` di Supabase |
+| M2 | **Virtual Account** | Nomor VA di localStorage — tidak ada di DB | Simpan ke DB atau integrasi Xendit/Midtrans VA |
+| M3 | **WA Otomatis trigger** | Config di localStorage | Pindah ke DB |
+| M4 | **Target Agen Bulanan** | Di localStorage per browser | Pindah ke DB |
+| M5 | **Jurnal & Ibadah Jamaah** | Doa counter, jurnal, target ibadah, badges di localStorage | Pindah ke tabel jamaah di Supabase |
+
+### 🟢 PRIORITAS RENDAH
+
+| # | Item | Masalah |
+|---|------|---------|
+| L1 | **AI Summary** | Narasi dari angka dummy — ganti dengan data Supabase nyata |
+| L2 | **File Duplikat** | 5 halaman duplikat (`AdminPackages-Enhanced`, `AdminReports_Updated`, dll) — perlu dibersihkan |
+| L3 | **Midtrans Snap Nyata** | Integrasi payment gateway online agar customer tidak perlu upload bukti manual |
 
 ---
 
-## 8. STATISTIK PROYEK
+## 8. SQL MIGRATIONS — URUTAN EKSEKUSI
+
+Jalankan file-file ini di **Supabase SQL Editor** sesuai urutan:
+
+```
+1. artifacts/umrah-haji/src/lib/migrations/fase1-membership-branch-commission.sql
+2. artifacts/umrah-haji/src/lib/migrations/fase2-public-website.sql
+3. artifacts/umrah-haji/src/lib/migrations/fase3-customer-portal.sql
+4. artifacts/umrah-haji/src/lib/migrations/fase4-6-analytics-notif-operational.sql
+5. artifacts/umrah-haji/src/lib/migrations/whatsapp-tables.sql
+6. artifacts/umrah-haji/src/lib/migrations/dashboard-access-config.sql
+7. artifacts/umrah-haji/src/lib/migrations/hr-enhancements.sql
+8. artifacts/umrah-haji/src/lib/migrations/operational-integration.sql
+9. artifacts/umrah-haji/src/lib/migrations/flexible-rooming-groups.sql
+10. artifacts/umrah-haji/src/lib/migrations/multi-mahram-rooming.sql
+11. supabase-migrations/phase4-push-visa.sql
+12. supabase-migrations/phase5-rbac-improvements.sql
+```
+
+---
+
+## 9. ENVIRONMENT VARIABLES (Wajib Sebelum Produksi)
+
+| Variabel | Lokasi | Cara Set |
+|----------|--------|----------|
+| `VITE_SUPABASE_URL` | Frontend (Vite) | Replit Secrets → nama `VITE_SUPABASE_URL` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Frontend (Vite) | Replit Secrets → nama `VITE_SUPABASE_PUBLISHABLE_KEY` |
+| `SUPABASE_URL` | API Server | Replit Secrets → nama `SUPABASE_URL` |
+| `SUPABASE_SERVICE_ROLE_KEY` | API Server | Replit Secrets → nama `SUPABASE_SERVICE_ROLE_KEY` |
+
+---
+
+## 10. STATISTIK PROYEK
 
 | Metrik | Jumlah |
 |--------|--------|
 | Total halaman | 140+ |
-| Halaman Admin | 87 (+ Webhooks) |
+| Halaman Admin | 87 |
 | Halaman Agen | 14 |
 | Halaman Customer | 8 |
-| Halaman Jamaah | 10 (+ Peta Lokasi) |
+| Halaman Jamaah | 10 |
 | Halaman Operasional | 14 |
-| Halaman Publik | 13 (+ Blog, Blog Detail, Testimonials) |
-| React hooks/queries | 52 (+ useLocalStorage) |
-| Komponen UI & shared | 45+ (+ LanguageSwitcher) |
+| Halaman Publik | 13 |
+| React hooks/queries | 52+ |
+| Komponen UI & shared | 45+ |
 | API endpoints publik | 4 |
-| Konteks i18n | 3 bahasa (ID, EN, AR), 80+ kunci terjemahan |
+| Konteks i18n | 3 bahasa (ID, EN, AR), 80+ kunci |
 | Total baris kode (estimasi) | ~85.000 baris |
-| Item RENCANA.md selesai | **100%** — semua fitur prioritas ✅ |
+| File SQL migration | 12 file |
+| Fitur pakai data nyata Supabase | ~85% |
+| Fitur pakai localStorage (perlu dipindah ke DB) | ~8 fitur |
+| Fitur backend belum ada (email) | 1 endpoint |
