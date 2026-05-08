@@ -82,6 +82,9 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 805, required_permission: PERMISSIONS.OFFLINE_CONTENT },
   { key: 'support',             label: 'Tiket Support',        path: '/admin/support',               icon: 'LifeBuoy',       group_name: 'Dokumen',            sort_order: 806, required_permission: PERMISSIONS.SUPPORT },
 
+  // ── Aset Kantor (850s) ────────────────────────────────────────────────────
+  { key: 'office-assets',       label: 'Aset Kantor',           path: '/operational/assets',         icon: 'Briefcase',       group_name: 'Aset & Inventaris',  sort_order: 851, required_permission: PERMISSIONS.OFFICE_ASSETS },
+
   // ── Master Data (900s) ────────────────────────────────────────────────────
   { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },
   { key: 'airlines',            label: 'Maskapai',              path: '/admin/airlines',             icon: 'Plane',           group_name: 'Master Data',        sort_order: 902, required_permission: PERMISSIONS.AIRLINES },
@@ -142,6 +145,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'customers', 'agents', 'branches', 'visa',
     'document-verification', 'document-types',
     'hotels', 'airlines', 'airports',
+    'office-assets',
     'users', 'support',
   ],
 
@@ -171,12 +175,14 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'departures', 'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik', 'itinerary-templates',
     'customers', 'bookings',
     'document-verification', 'documents-generator',
+    'office-assets',
     'visa',
   ],
 
   equipment: [
     'dashboard',
     'equipment', 'equipment-master', 'equipment-settings', 'stock-opname',
+    'office-assets',
     'departures',
     'customers',
   ],

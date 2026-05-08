@@ -23,7 +23,7 @@ const AdminRoleManagement = lazy(() => import("@/pages/admin/AdminRoleManagement
 const AdminRBACTools = lazy(() => import("@/pages/admin/AdminRBACTools"));
 const AdminRBACStatus = lazy(() => import("@/pages/admin/AdminRBACStatus"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
-const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
+const AdminReports = lazy(() => import("@/pages/admin/AdminReports_Updated"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
 const AdminPackageTypes = lazy(() => import("@/pages/admin/AdminPackageTypes"));
 const AdminMasterData = lazy(() => import("@/pages/admin/AdminMasterData"));

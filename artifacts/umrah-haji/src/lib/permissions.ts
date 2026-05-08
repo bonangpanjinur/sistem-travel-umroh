@@ -67,6 +67,9 @@ export const PERMISSIONS = {
   OFFLINE_CONTENT: 'offline-content',
   SUPPORT: 'support',
 
+  // Aset Kantor
+  OFFICE_ASSETS: 'office-assets',
+
   // Master Data
   HOTELS: 'hotels',
   AIRLINES: 'airlines',

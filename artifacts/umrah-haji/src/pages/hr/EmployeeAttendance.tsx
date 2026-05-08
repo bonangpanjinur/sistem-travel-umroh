@@ -364,13 +364,9 @@ export default function EmployeeAttendance() {
       if (type === "check_in") {
         attendanceData.check_in_time = format(new Date(), "HH:mm:ss");
         attendanceData.check_in_location = location as unknown as Json;
-        // For photo, we need to upload it first and get the URL
-        // This is a placeholder, actual upload logic would be more complex
-        attendanceData.check_in_photo_url = "placeholder_check_in_photo_url"; 
       } else {
         attendanceData.check_out_time = format(new Date(), "HH:mm:ss");
         attendanceData.check_out_location = location as unknown as Json;
-        attendanceData.check_out_photo_url = "placeholder_check_out_photo_url";
       }
 
       if (todayAttendance?.id) {

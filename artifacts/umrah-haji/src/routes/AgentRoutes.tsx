@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { LoadingState } from "@/components/shared/LoadingState";
 
-const AgentLayout = lazy(() => import("@/pages/agent/AgentLayout"));
+const AgentLayout = lazy(() => import("@/pages/agent/AgentLayoutEnhanced"));
 const AgentDashboard = lazy(() => import("@/pages/agent/AgentDashboard"));
 const AgentRegister = lazy(() => import("@/pages/agent/AgentRegister"));
 const AgentRegisterGroup = lazy(() => import("@/pages/agent/AgentRegisterGroup"));
