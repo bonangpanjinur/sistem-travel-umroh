@@ -101,6 +101,12 @@ const AdminFinanceTerpadu = lazy(() => import("@/pages/admin/AdminFinanceTerpadu
 const AdminAISummary = lazy(() => import("@/pages/admin/AdminAISummary"));
 const AdminWebhooks = lazy(() => import("@/pages/admin/AdminWebhooks"));
 
+// Fase 6 — Dashboard Admin & Laporan Keuangan
+const AdminLaporanKeuangan = lazy(() => import("@/pages/admin/AdminLaporanKeuangan"));
+const AdminLaporanKeberangkatan = lazy(() => import("@/pages/admin/AdminLaporanKeberangkatan"));
+const AdminLaporanAgen = lazy(() => import("@/pages/admin/AdminLaporanAgen"));
+const AdminMonitoringTabungan = lazy(() => import("@/pages/admin/AdminMonitoringTabungan"));
+
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
 function LazyPage({ children }: { children: React.ReactNode }) {
@@ -205,6 +211,12 @@ export default function AdminRoutes() {
       <Route path="reports" element={<P k={PERMISSIONS.REPORTS}><AdminReports /></P>} />
       <Route path="advanced-reports" element={<P k={PERMISSIONS.ADVANCED_REPORTS}><AdminAdvancedReports /></P>} />
       <Route path="scheduled-reports" element={<P k={PERMISSIONS.SCHEDULED_REPORTS}><AdminScheduledReports /></P>} />
+
+      {/* Fase 6 — Dashboard Admin & Laporan Keuangan */}
+      <Route path="laporan/keuangan" element={<P k={PERMISSIONS.LAPORAN_KEUANGAN}><LazyPage><AdminLaporanKeuangan /></LazyPage></P>} />
+      <Route path="laporan/keberangkatan" element={<P k={PERMISSIONS.LAPORAN_KEBERANGKATAN}><LazyPage><AdminLaporanKeberangkatan /></LazyPage></P>} />
+      <Route path="laporan/agen" element={<P k={PERMISSIONS.LAPORAN_AGEN}><LazyPage><AdminLaporanAgen /></LazyPage></P>} />
+      <Route path="laporan/tabungan" element={<P k={PERMISSIONS.MONITORING_TABUNGAN}><LazyPage><AdminMonitoringTabungan /></LazyPage></P>} />
 
       {/* Pengaturan */}
       <Route path="users" element={<P k={PERMISSIONS.USERS}><AdminUsers /></P>} />

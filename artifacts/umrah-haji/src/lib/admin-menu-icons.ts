@@ -20,6 +20,7 @@ import {
   Webhook, Target, Navigation, Plug, Database, Crown,
   PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
   Radio, Mail, Bell, MessagesSquare, WifiOff, Image,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -47,6 +48,7 @@ export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
   Webhook, Target, Navigation, Plug, Database, Crown,
   PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
   Radio, Mail, Bell, MessagesSquare, WifiOff, Image,
+  Trophy,
 };
 
 /** Resolve an icon by name, falling back to Circle when unknown/missing. */

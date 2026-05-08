@@ -70,6 +70,11 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'reports',             label: 'Laporan',               path: '/admin/reports',              icon: 'FileBarChart',    group_name: 'Keuangan',           sort_order: 507, required_permission: PERMISSIONS.REPORTS },
   { key: 'advanced-reports',    label: 'Laporan Lanjutan',      path: '/admin/advanced-reports',     icon: 'ChartLine',       group_name: 'Keuangan',           sort_order: 508, required_permission: PERMISSIONS.ADVANCED_REPORTS },
   { key: 'scheduled-reports',   label: 'Laporan Terjadwal',     path: '/admin/scheduled-reports',    icon: 'CalendarClock',   group_name: 'Keuangan',           sort_order: 509, required_permission: PERMISSIONS.SCHEDULED_REPORTS },
+  // Fase 6
+  { key: 'laporan-keuangan',       label: 'Laporan Keuangan',        path: '/admin/laporan/keuangan',       icon: 'BarChart3',       group_name: 'Keuangan',           sort_order: 510, required_permission: PERMISSIONS.LAPORAN_KEUANGAN },
+  { key: 'laporan-keberangkatan',  label: 'Laporan Keberangkatan',   path: '/admin/laporan/keberangkatan',  icon: 'Plane',           group_name: 'Keuangan',           sort_order: 511, required_permission: PERMISSIONS.LAPORAN_KEBERANGKATAN },
+  { key: 'laporan-agen',           label: 'Performa Agen',           path: '/admin/laporan/agen',           icon: 'Trophy',          group_name: 'Keuangan',           sort_order: 512, required_permission: PERMISSIONS.LAPORAN_AGEN },
+  { key: 'monitoring-tabungan',    label: 'Monitoring Tabungan',     path: '/admin/laporan/tabungan',       icon: 'PiggyBank',       group_name: 'Keuangan',           sort_order: 513, required_permission: PERMISSIONS.MONITORING_TABUNGAN },
 
   // ── Jamaah & Agen (600s) ──────────────────────────────────────────────────
   { key: 'customers',           label: 'Data Jamaah',           path: '/admin/customers',            icon: 'Users',           group_name: 'Jamaah & Agen',      sort_order: 601, required_permission: PERMISSIONS.CUSTOMERS },
@@ -164,6 +169,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'users', 'support',
     'push-notifications',
     'blog',
+    'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'monitoring-tabungan',
   ],
 
   finance: [
@@ -172,6 +178,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'savings', 'reports', 'advanced-reports',
     'bookings', 'customers',
     'agent-commission-report',
+    'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'monitoring-tabungan',
   ],
 
   sales: [

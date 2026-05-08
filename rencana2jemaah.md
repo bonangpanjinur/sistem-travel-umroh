@@ -136,11 +136,11 @@ Portal Vinstour kini memiliki **31 halaman jamaah/customer** yang sudah producti
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| A1 | **Dashboard Laporan Keuangan** — grafik pendapatan bulanan, booking vs target, konversi tabungan→booking | Tinggi | 🔴 Belum |
-| A2 | **Laporan Keberangkatan** — daftar semua jamaah per tanggal, status dokumen, visa, pembayaran dalam satu view | Tinggi | 🔴 Belum |
-| A3 | **Export Laporan ke Excel/PDF** — admin bisa download rekapan keuangan bulanan, daftar jamaah per paket | Menengah | 🔴 Belum |
-| A4 | **Ringkasan Performa Agen** — komisioner per agen, jumlah referral yang convert, top agen bulan ini | Menengah | 🔴 Belum |
-| A5 | **Monitoring Tabungan Aktif** — daftar jamaah yang tabungannya terlambat setor + kirim reminder otomatis | Menengah | 🔴 Belum |
+| A1 | **Dashboard Laporan Keuangan** — grafik pendapatan bulanan, booking vs target, konversi tabungan→booking | Tinggi | ✅ Done — `/admin/laporan/keuangan` |
+| A2 | **Laporan Keberangkatan** — daftar semua jamaah per tanggal, status dokumen, visa, pembayaran dalam satu view | Tinggi | ✅ Done — `/admin/laporan/keberangkatan` |
+| A3 | **Export Laporan ke Excel/PDF** — admin bisa download rekapan keuangan bulanan, daftar jamaah per paket | Menengah | ✅ Done — terintegrasi di setiap halaman laporan |
+| A4 | **Ringkasan Performa Agen** — komisioner per agen, jumlah referral yang convert, top agen bulan ini | Menengah | ✅ Done — `/admin/laporan/agen` |
+| A5 | **Monitoring Tabungan Aktif** — daftar jamaah yang tabungannya terlambat setor + kirim reminder otomatis | Menengah | ✅ Done — `/admin/laporan/tabungan` |
 
 **Catatan teknis:**
 - Gunakan Recharts (sudah terinstall) untuk grafik
@@ -312,9 +312,10 @@ JAMAAH PORTAL (Mobile PWA):
 /jamaah/kontrak              ✅ Ada
 
 AKAN DIBUAT — FASE 6–10:
-/admin/laporan/keuangan      🔴 Fase 6
-/admin/laporan/keberangkatan 🔴 Fase 6
-/admin/laporan/agen          🔴 Fase 6
+/admin/laporan/keuangan      ✅ Ada — Fase 6
+/admin/laporan/keberangkatan ✅ Ada — Fase 6
+/admin/laporan/agen          ✅ Ada — Fase 6
+/admin/laporan/tabungan      ✅ Ada — Fase 6
 /admin/muthawif              🔴 Fase 7
 /admin/muthawif/:id          🔴 Fase 7
 /admin/pembagian-kamar       🔴 Fase 7

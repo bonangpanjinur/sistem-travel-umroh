@@ -121,6 +121,12 @@ export const PERMISSIONS = {
 
   // Webhook Outgoing
   WEBHOOKS: 'webhooks',
+
+  // Fase 6 — Dashboard Admin & Laporan Keuangan
+  LAPORAN_KEUANGAN: 'laporan-keuangan',
+  LAPORAN_KEBERANGKATAN: 'laporan-keberangkatan',
+  LAPORAN_AGEN: 'laporan-agen',
+  MONITORING_TABUNGAN: 'monitoring-tabungan',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
