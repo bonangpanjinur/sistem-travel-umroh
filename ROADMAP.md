@@ -115,7 +115,7 @@
 | Analytics Lead | ✅ | Funnel, sumber, win rate, nilai pipeline |
 | Tambah Lead Cepat | ✅ | Dialog form inline |
 | Drag-and-Drop Kanban | 🔧 | Kolom ada, tapi drag card antar kolom belum berfungsi |
-| Follow-up Reminder | 💡 | Belum ada — alert jika follow-up sudah jatuh tempo |
+| Follow-up Reminder | ✅ | Banner collapsible di AdminLeads + halaman /admin/follow-up dengan KPI & urgency tiers |
 | Lead Scoring Otomatis | 💡 | Belum ada — prioritas lead berdasarkan engagement |
 
 ### 1.7 Jamaah & Dokumen

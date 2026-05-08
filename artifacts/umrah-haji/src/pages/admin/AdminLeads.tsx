@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Plus, Search, Phone, Mail, Calendar, User, 
   ArrowRight, Filter, Users, TrendingUp, Target, XCircle,
-  MessageCircle, AlertTriangle, DollarSign, X, BarChart3
+  MessageCircle, AlertTriangle, DollarSign, X, BarChart3, BellRing, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, isPast, isToday } from "date-fns";
@@ -39,6 +39,7 @@ import { formatCurrency } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 import { useLeads, useCreateLead, useUpdateLead } from "@/hooks/useLeads";
 import { Lead } from "@/types/database";
+import { FollowUpReminderPanel } from "@/components/admin/FollowUpReminderPanel";
 
 type LeadStatus = Database["public"]["Enums"]["lead_status"];
 
@@ -69,6 +70,7 @@ export default function AdminLeads() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showReminderPanel, setShowReminderPanel] = useState(true);
   const { toast } = useToast();
 
   const { data: leads, isLoading, isError, refetch } = useLeads();
@@ -180,6 +182,17 @@ export default function AdminLeads() {
             <Link to="/admin/leads/analytics">
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
+            </Link>
+          </Button>
+          <Button variant="outline" asChild className="flex-1 sm:flex-none relative">
+            <Link to="/admin/follow-up">
+              <BellRing className="h-4 w-4 mr-2 text-orange-500" />
+              Follow-up
+              {stats.overdueFollowUps > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {stats.overdueFollowUps > 9 ? "9+" : stats.overdueFollowUps}
+                </span>
+              )}
             </Link>
           </Button>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -308,6 +321,57 @@ export default function AdminLeads() {
               </div>
             </div>
           </CardContent>
+        </Card>
+      )}
+
+      {/* Follow-up Reminder Banner */}
+      {stats.overdueFollowUps > 0 && (
+        <Card className={cn(
+          "border-2 transition-all",
+          showReminderPanel ? "border-red-300 dark:border-red-800" : "border-red-200 dark:border-red-900"
+        )}>
+          <div
+            className="flex items-center justify-between p-4 cursor-pointer select-none"
+            onClick={() => setShowReminderPanel(v => !v)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg animate-pulse">
+                <BellRing className="h-4 w-4 text-red-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-red-800 dark:text-red-300">
+                  {stats.overdueFollowUps} lead melewati jadwal follow-up!
+                </p>
+                <p className="text-xs text-red-600/80 dark:text-red-400/80">
+                  Klik untuk melihat dan menindaklanjuti sekarang
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/admin/follow-up"
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs font-medium text-red-600 hover:text-red-700 underline underline-offset-2"
+              >
+                Lihat semua
+              </Link>
+              {showReminderPanel ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </div>
+          {showReminderPanel && (
+            <div className="border-t px-4 pb-4 pt-3">
+              <FollowUpReminderPanel
+                compact
+                maxItems={5}
+                filterUrgency={["overdue", "today"]}
+                onClose={() => setShowReminderPanel(false)}
+              />
+            </div>
+          )}
         </Card>
       )}
 
