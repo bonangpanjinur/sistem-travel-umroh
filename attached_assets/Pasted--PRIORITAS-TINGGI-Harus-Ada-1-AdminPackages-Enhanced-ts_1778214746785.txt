@@ -1,0 +1,64 @@
+🔴 PRIORITAS TINGGI — Harus Ada
+1. AdminPackages-Enhanced.tsx — Belum Dirouting
+File 1.256 baris sudah ada, jauh lebih lengkap dari versi biasa (ada filter advanced, bulk actions, kanban view, dsb.) — tapi tidak bisa diakses karena belum punya route.
+
+2. Notifikasi Real-time
+NotificationBell.tsx sudah ada di layout, tapi tidak terhubung ke Supabase Realtime. Seharusnya berbunyi/muncul saat ada:
+
+Booking masuk baru
+Pembayaran diupload customer
+Tiket support dibuat
+Visa approaching expiry
+3. Payment Gateway (Midtrans/Xendit)
+Sekarang pembayaran hanya upload bukti manual. Tidak ada payment gateway otomatis — customer tidak bisa bayar langsung via kartu/transfer/QRIS dari web.
+
+4. Email Otomatis
+Tidak ada email yang terkirim untuk:
+
+Konfirmasi booking
+Pengingat pembayaran
+Konfirmasi pembayaran diterima
+Pengingat keberangkatan (H-7, H-3, H-1)
+🟡 PRIORITAS MENENGAH — Sangat Berguna
+5. CommandPalette — Pencarian Dangkal
+CommandPalette (Ctrl+K) sudah ada, tapi hanya navigasi ke halaman. Tidak bisa cari data: ketik nama jamaah langsung temukan bookingnya, ketik kode booking langsung buka detail.
+
+6. Dashboard Mobile Admin Kurang Responsif
+AdminDashboard.tsx hanya punya 14 class responsive. Sidebar admin di mobile perlu diperbaiki — saat ini tidak nyaman dipakai di HP.
+
+7. Bulk Actions di Tabel Admin
+Beberapa tabel (Bookings, Customers, Leads) belum punya aksi massal:
+
+Pilih 10 booking → ubah status sekaligus
+Pilih beberapa leads → assign ke sales satu klik
+Pilih jamaah → cetak surat sekaligus
+8. Halaman Status Booking Publik (tanpa login)
+Customer bisa cek status booking hanya dengan memasukkan kode booking — tanpa perlu login. Berguna untuk customer yang belum registrasi.
+
+🟢 PRIORITAS RENDAH — Nice to Have
+9. Kalender Keberangkatan Visual
+Di halaman /admin/departures, saat ini hanya tabel. Tambahkan calendar view untuk lihat semua keberangkatan per bulan secara visual.
+
+10. Export PDF Sertifikat Umroh Otomatis
+Fitur generate sertifikat sudah ada di DocumentGenerator, tapi belum ada trigger otomatis saat booking status berubah ke completed.
+
+11. Laporan Keuangan Print-ready
+AdminFinancePL.tsx (Profit & Loss) sudah ada, tapi belum ada tombol cetak/export ke PDF yang formatted rapi untuk keperluan akuntansi.
+
+12. Integrasi Whatsapp Blast
+AdminWhatsApp.tsx sudah ada, tapi fitur broadcast ke banyak nomor sekaligus (untuk reminder keberangkatan, promo paket) belum ada — hanya kirim satu per satu.
+
+13. Dark Mode Toggle
+Kode dark mode sudah ada di beberapa komponen, tapi toggle dark/light belum terpasang di header admin dan publik secara konsisten.
+
+14. Riwayat Aktivitas per Booking
+Di halaman detail booking, belum ada timeline lengkap: kapan dibuat, kapan bayar DP, kapan dokumen diupload, kapan confirmed — semuanya dalam satu timeline.
+
+🧹 CLEANUP — Perlu Dibersihkan
+File	Masalah
+AdminBookings_Updated.tsx	File guide/patch, bukan halaman aktif — bisa dihapus
+ExcelExportIntegration.tsx	Sama — hanya guide file
+AdminPackages.tsx vs AdminPackages-Enhanced.tsx	Dua versi hidup bersamaan — seharusnya Enhanced jadi satu-satunya
+AdminRoomAssignments.tsx (lama)	Improved version sudah aktif, versi lama masih ada
+AgentLayout.tsx (lama)	Enhanced version sudah aktif, versi lama masih ada
+AgentJamaah.tsx (lama)	Enhanced version sudah aktif, versi lama masih ada
