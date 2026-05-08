@@ -55,6 +55,7 @@ import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
 import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
 import { format as dfFormat } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -854,6 +855,9 @@ export default function AdminBookingDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Buat Surat — quick document generation from booking data */}
+          <BookingDocumentActions booking={booking} companyInfo={companyInfo} />
 
           {booking.notes && (
             <Card className="border-none shadow-md bg-amber-50/50 dark:bg-amber-950/10">
