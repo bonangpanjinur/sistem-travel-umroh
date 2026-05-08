@@ -6,3 +6,9 @@ id = "SzJGTtaQquHRhTAos-JwX"
 uri = "file://ROADMAP.md"
 type = "text"
 title = "Rencana Pengembangan Vinstour Travel Portal"
+
+[[outputs]]
+id = "o-IagFdZZJwISGOtYxAES"
+uri = "file://LAPORAN_PROGRESS.md"
+type = "text"
+title = "Laporan Progress — Vinstour Travel Portal"
