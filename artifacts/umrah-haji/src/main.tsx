@@ -2,18 +2,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Register service worker with vite-plugin-pwa
+// Register service worker for push notifications
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      // vite-plugin-pwa automatically registers the service worker
-      // This is just for additional error handling
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      if (registrations.length > 0) {
-        console.log("Service Workers registered:", registrations);
-      }
+      const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      console.log("SW registered:", registration.scope);
     } catch (error) {
-      console.warn("Error checking service workers:", error);
+      console.warn("SW registration failed:", error);
     }
   });
 }

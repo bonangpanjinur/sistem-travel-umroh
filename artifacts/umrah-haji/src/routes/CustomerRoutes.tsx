@@ -22,6 +22,7 @@ const JamaahDocuments = lazy(() => import("@/pages/jamaah/JamaahDocuments"));
 const JamaahPaymentHistory = lazy(() => import("@/pages/jamaah/JamaahPaymentHistory"));
 const JamaahFeedback = lazy(() => import("@/pages/jamaah/JamaahFeedback"));
 const JamaahNotifications = lazy(() => import("@/pages/jamaah/JamaahNotifications"));
+const JamaahVisaTracker = lazy(() => import("@/pages/jamaah/JamaahVisaTracker"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -45,6 +46,7 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/payment-history" element={<ProtectedRoute><LazyPage><JamaahPaymentHistory /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/feedback/:bookingId" element={<ProtectedRoute><LazyPage><JamaahFeedback /></LazyPage></ProtectedRoute>} />
       <Route path="/jamaah/notifications" element={<ProtectedRoute><LazyPage><JamaahNotifications /></LazyPage></ProtectedRoute>} />
+      <Route path="/jamaah/visa" element={<ProtectedRoute><LazyPage><JamaahVisaTracker /></LazyPage></ProtectedRoute>} />
       <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />
       <Route path="/booking/success/:bookingId" element={<ProtectedRoute><LazyPage><BookingSuccess /></LazyPage></ProtectedRoute>} />
       <Route path="/my-bookings" element={<ProtectedRoute><LazyPage><MyBookings /></LazyPage></ProtectedRoute>} />

@@ -1,12 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, QrCode, MapPin, User, Bell } from "lucide-react";
+import { Home, QrCode, Shield, User, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
 
 const navItems = [
   { to: "/jamaah", icon: Home, label: "Beranda" },
   { to: "/jamaah/digital-id", icon: QrCode, label: "ID" },
-  { to: "/jamaah/itinerary", icon: MapPin, label: "Itinerary" },
+  { to: "/jamaah/visa", icon: Shield, label: "Visa" },
   { to: "/jamaah/notifications", icon: Bell, label: "Notifikasi", showBadge: true },
   { to: "/customer/settings", icon: User, label: "Profil" },
 ];

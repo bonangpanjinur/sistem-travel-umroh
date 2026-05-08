@@ -62,6 +62,7 @@ import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab"
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
+import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -568,6 +569,56 @@ export default function AdminDepartureDetail() {
     toast.success("Rooming List PDF berhasil di-download");
   };
 
+  const exportManifestExcel = () => {
+    const sourceList = filteredPassengers.length > 0 ? filteredPassengers : passengers || [];
+    if (sourceList.length === 0 || !departure) {
+      toast.error("Tidak ada data jamaah untuk diekspor");
+      return;
+    }
+    const pkgName = departure.package?.name || "Manifest";
+
+    const rows = sourceList.map((p: any, idx: number) => ({
+      "No": idx + 1,
+      "Nama Lengkap": p.customer?.full_name || "-",
+      "L/P": p.customer?.gender === "male" ? "L" : "P",
+      "NIK": p.customer?.nik || "-",
+      "No. Paspor": p.customer?.passport_number || "-",
+      "Exp. Paspor": p.customer?.passport_expiry
+        ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy")
+        : "-",
+      "Tipe Kamar": (p.booking?.room_type || "-").toUpperCase(),
+      "No. Kamar": p.room_number || "-",
+      "Tipe Pax": (p.passenger_type || "adult").toUpperCase(),
+      "Telepon": p.customer?.phone || "-",
+      "Email": p.customer?.email || "-",
+      "Kode Booking": p.booking?.booking_code || "-",
+      "Status Check-in": p.checkin_status || "-",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 5 }, { wch: 30 }, { wch: 5 }, { wch: 18 }, { wch: 16 },
+      { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 18 },
+      { wch: 28 }, { wch: 16 }, { wch: 14 },
+    ];
+
+    const wbInfo = [
+      { "Keterangan": "Paket", "Nilai": pkgName },
+      { "Keterangan": "Tanggal Berangkat", "Nilai": departure.departure_date ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId }) : "-" },
+      { "Keterangan": "No. Penerbangan", "Nilai": departure.flight_number || "-" },
+      { "Keterangan": "Total Jamaah", "Nilai": sourceList.length },
+      { "Keterangan": "Dicetak", "Nilai": format(new Date(), "dd MMMM yyyy HH:mm", { locale: localeId }) },
+    ];
+    const wsInfo = XLSX.utils.json_to_sheet(wbInfo);
+    wsInfo["!cols"] = [{ wch: 20 }, { wch: 30 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsInfo, "Info");
+    XLSX.utils.book_append_sheet(wb, ws, "Manifest Jamaah");
+    XLSX.writeFile(wb, `Manifest-${pkgName}-${departure.departure_date}.xlsx`);
+    toast.success("Manifest Excel berhasil di-download");
+  };
+
 
   if (departureLoading) {
     return (
@@ -995,6 +1046,16 @@ export default function AdminDepartureDetail() {
                   >
                     <Printer className="h-4 w-4 mr-2" />
                     Rooming List
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={exportManifestExcel}
+                    disabled={filteredPassengers.length === 0}
+                    className="border-green-300 text-green-700 hover:bg-green-50"
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Excel
                   </Button>
                   <Button
                     size="sm"

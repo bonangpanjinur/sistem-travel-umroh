@@ -304,6 +304,52 @@ export default function AdminPushNotifications() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Browser Push Panel */}
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bell className="h-4 w-4 text-amber-600" />
+                Browser Push Notification
+                <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">Beta</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Kirim notifikasi langsung ke browser jamaah (perlu VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY di Vercel env vars, dan jamaah sudah mengaktifkan izin notifikasi).
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                disabled={isSending || !form.title || !form.message}
+                onClick={async () => {
+                  if (!form.title || !form.message) { return; }
+                  setIsSending(true);
+                  try {
+                    const res = await fetch("/api/push/send", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ title: form.title, body: form.message, type: form.type }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      toast.success(`Browser push terkirim ke ${data.sent} subscriber (${data.failed} gagal)`);
+                    } else {
+                      toast.error("Gagal kirim browser push: " + (data.error || "Unknown error"));
+                    }
+                  } catch (e: any) {
+                    toast.error("Gagal kirim browser push: " + e.message);
+                  } finally {
+                    setIsSending(false);
+                  }
+                }}
+              >
+                <Send className="h-3.5 w-3.5 mr-2" />
+                Kirim Browser Push
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="riwayat" className="space-y-4">

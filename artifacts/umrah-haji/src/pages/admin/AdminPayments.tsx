@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { AddManualPaymentDialog } from "@/components/admin/AddManualPaymentDialog";
 import { Link } from "react-router-dom";
+import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 
 const PAGE_SIZE = 20;
 
@@ -71,6 +72,7 @@ export default function AdminPayments() {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isSendingReminders, setIsSendingReminders] = useState(false);
+  const { sendPaymentConfirmation, isReady: waReady } = useWhatsAppNotifier();
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin-payments'],
@@ -176,6 +178,17 @@ export default function AdminPayments() {
 
   const handleApprove = (payment: Payment) => {
     verifyMutation.mutate({ paymentId: payment.id, status: 'paid' });
+    if (waReady && (payment as any).booking?.customer?.phone) {
+      const bk = (payment as any).booking;
+      sendPaymentConfirmation(bk.customer.phone, {
+        nama: bk.customer.full_name || "-",
+        kode_booking: bk.booking_code || "-",
+        jumlah_bayar: formatCurrency(Number(payment.amount)),
+        tanggal_bayar: new Date().toLocaleDateString("id-ID"),
+        total_terbayar: formatCurrency(Number(bk.paid_amount || payment.amount)),
+        sisa_bayar: formatCurrency(Number(bk.remaining_amount || 0)),
+      });
+    }
   };
 
   const handleReject = () => {

@@ -27,6 +27,7 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
+import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 
 interface PackageData {
   id: string;
@@ -152,6 +153,7 @@ export default function AdminBookingCreate() {
   const [activePassengerIndex, setActivePassengerIndex] = useState<number | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
+  const { sendBookingConfirm } = useWhatsAppNotifier();
 
   // Fetch active packages
   const { data: packages } = useQuery<PackageData[]>({
@@ -415,6 +417,21 @@ export default function AdminBookingCreate() {
     onSuccess: (booking) => {
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       toast.success("Booking berhasil dibuat!");
+      // WA notification to main passenger
+      const mainPax = passengers[0];
+      if (mainPax?.phone && booking.booking_code) {
+        sendBookingConfirm(mainPax.phone, {
+          nama: mainPax.full_name || "-",
+          kode_booking: booking.booking_code,
+          nama_paket: selectedPackage?.name || "-",
+          tanggal_berangkat: selectedDeparture?.departure_date
+            ? new Date(selectedDeparture.departure_date).toLocaleDateString("id-ID")
+            : "-",
+          total_harga: formatCurrency(Number(booking.total_price || 0)),
+          terbayar: formatCurrency(0),
+          sisa_bayar: formatCurrency(Number(booking.total_price || 0)),
+        });
+      }
       navigate(`/admin/bookings/${booking.id}`);
     },
     onError: (error: Error | null) => {
