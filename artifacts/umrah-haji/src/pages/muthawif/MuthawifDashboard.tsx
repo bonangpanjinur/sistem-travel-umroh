@@ -386,7 +386,12 @@ function QuickAbsensi({
                         <div key={p.bookingId} className="flex items-center gap-2 px-4 py-2.5">
                           <span className="text-xs text-muted-foreground w-5 flex-shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{p.name || "-"}</p>
+                            <Link
+                              to={`/muthawif/jamaah/${p.customerId}`}
+                              className="text-sm font-medium truncate block hover:text-primary hover:underline underline-offset-2 transition-colors"
+                            >
+                              {p.name || "-"}
+                            </Link>
                             <p className="text-[11px] text-muted-foreground truncate">{p.phone || "—"}</p>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
