@@ -32,7 +32,7 @@ import {
   MessageCircle, AlertTriangle, DollarSign, X, BarChart3, BellRing, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { format, isPast, isToday } from "date-fns";
+import { format, isPast, isToday, isFuture, differenceInDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
@@ -42,6 +42,56 @@ import { Lead } from "@/types/database";
 import { FollowUpReminderPanel } from "@/components/admin/FollowUpReminderPanel";
 
 type LeadStatus = Database["public"]["Enums"]["lead_status"];
+
+// ─── Lead Scoring ─────────────────────────────────────────────────────────────
+const SOURCE_SCORES: Record<string, number> = {
+  referral: 30, website: 25, instagram: 20,
+  facebook: 20, whatsapp: 15, phone: 10, 'walk-in': 10,
+};
+
+function calculateLeadScore(lead: Lead): number {
+  let score = 0;
+
+  // Sumber (0–30 poin)
+  score += SOURCE_SCORES[lead.source || ''] ?? 5;
+
+  // Nilai paket (0–30 poin)
+  const price = (lead as any).package?.price_quad ?? 0;
+  if (price > 50_000_000) score += 30;
+  else if (price > 30_000_000) score += 20;
+  else if (price > 15_000_000) score += 15;
+  else if (price > 0) score += 10;
+
+  // Ketepatan follow-up (0–25 poin)
+  if (lead.follow_up_date) {
+    const followUp = new Date(lead.follow_up_date);
+    if (isToday(followUp)) score += 25;
+    else if (isFuture(followUp)) score += 20;
+    // overdue → 0
+  } else {
+    score += 5;
+  }
+
+  // Kebaruan lead (0–15 poin)
+  const days = differenceInDays(new Date(), new Date(lead.created_at));
+  if (days <= 1) score += 15;
+  else if (days <= 7) score += 10;
+  else if (days <= 30) score += 5;
+
+  return Math.min(100, score);
+}
+
+function ScoreBadge({ score }: { score: number }) {
+  const color =
+    score >= 70 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+    score >= 40 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded", color)}>
+      ★ {score}
+    </span>
+  );
+}
 
 const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bgColor: string }> = {
   new: { label: 'Baru', color: 'text-blue-700', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
@@ -460,7 +510,7 @@ export default function AdminLeads() {
             <ErrorState onRetry={() => refetch()} />
           ) : (
             <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-4 px-4">
+              <div className="flex gap-4 overflow-x-auto pb-4">
                 {KANBAN_COLUMNS.map(status => {
                   const statusLeads = filteredLeads?.filter(l => l.status === status) || [];
                   const config = STATUS_CONFIG[status];
@@ -469,7 +519,7 @@ export default function AdminLeads() {
                   return (
                     <div
                       key={status}
-                      className="w-[320px] flex-shrink-0 snap-start flex flex-col gap-3 bg-gradient-to-b from-muted/60 to-muted/30 rounded-xl p-4 border border-muted-foreground/10 shadow-sm hover:shadow-md transition-shadow"
+                      className="w-[320px] flex-shrink-0 flex flex-col gap-3 bg-gradient-to-b from-muted/60 to-muted/30 rounded-xl p-4 border border-muted-foreground/10 shadow-sm hover:shadow-md transition-shadow"
                     >
                       {/* Column Header */}
                       <div className="flex items-center justify-between sticky top-0 z-10 bg-gradient-to-b from-muted/60 to-transparent backdrop-blur-sm pb-3 -mx-1 px-1">
@@ -557,6 +607,7 @@ export default function AdminLeads() {
                 <thead className="bg-muted/50 border-b">
                   <tr>
                     <th className="text-left p-4 font-semibold">Nama</th>
+                    <th className="text-left p-4 font-semibold">Skor</th>
                     <th className="text-left p-4 font-semibold">Status</th>
                     <th className="text-left p-4 font-semibold">Sumber</th>
                     <th className="text-left p-4 font-semibold">Paket</th>
@@ -570,6 +621,9 @@ export default function AdminLeads() {
                       <td className="p-4">
                         <div className="font-semibold">{lead.full_name}</div>
                         <div className="text-xs text-muted-foreground">{lead.phone}</div>
+                      </td>
+                      <td className="p-4">
+                        <ScoreBadge score={calculateLeadScore(lead as any)} />
                       </td>
                       <td className="p-4">
                         <Badge className={cn(STATUS_CONFIG[lead.status as LeadStatus].bgColor, STATUS_CONFIG[lead.status as LeadStatus].color, "border-none font-medium")}>
@@ -653,18 +707,23 @@ function StatCard({
 
 function LeadCard({ lead, onStatusChange }: { lead: Lead, onStatusChange: (id: string, status: LeadStatus) => void }) {
   const isOverdue = lead.follow_up_date && isPast(new Date(lead.follow_up_date)) && !isToday(new Date(lead.follow_up_date));
+  const score = calculateLeadScore(lead as any);
 
   return (
-    <Card className="group hover:shadow-lg transition-all border-l-4 border-l-transparent hover:border-l-primary/50 bg-white dark:bg-slate-950">
+    <Card className="group hover:shadow-lg transition-all border-l-4 border-l-transparent hover:border-l-primary/50 bg-white dark:bg-slate-950 select-none cursor-grab active:cursor-grabbing">
       <CardContent className="p-4 space-y-3">
-        {/* Lead Name and Source */}
+        {/* Lead Name, Score, and Source */}
         <div className="flex justify-between items-start gap-2">
-          <Link 
-            to={`/admin/leads/${lead.id}`} 
-            className="font-bold text-sm hover:text-primary transition-colors line-clamp-1 flex-1"
-          >
-            {lead.full_name}
-          </Link>
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
+            <Link 
+              to={`/admin/leads/${lead.id}`} 
+              className="font-bold text-sm hover:text-primary transition-colors line-clamp-1"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {lead.full_name}
+            </Link>
+            <ScoreBadge score={score} />
+          </div>
           <Badge 
             variant="outline" 
             className="text-[10px] px-2 py-0.5 h-5 capitalize flex-shrink-0 font-medium"

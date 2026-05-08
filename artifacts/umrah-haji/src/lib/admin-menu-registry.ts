@@ -25,6 +25,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   // ── Overview (100s) ──────────────────────────────────────────────────────
   { key: 'dashboard',           label: 'Dashboard',             path: '/admin',                      icon: 'LayoutDashboard', group_name: 'Overview',           sort_order: 101, required_permission: PERMISSIONS.DASHBOARD },
   { key: 'analytics',           label: 'Analytics',             path: '/admin/analytics',            icon: 'BarChart3',       group_name: 'Overview',           sort_order: 102, required_permission: PERMISSIONS.ANALYTICS },
+  { key: 'kpi-dashboard',       label: 'KPI Real-time',         path: '/admin/kpi-dashboard',        icon: 'Target',          group_name: 'Overview',           sort_order: 103, required_permission: PERMISSIONS.KPI_DASHBOARD },
 
   // ── Penjualan (200s) ─────────────────────────────────────────────────────
   { key: 'leads',               label: 'Leads & Prospek',       path: '/admin/leads',                icon: 'UserPlus',        group_name: 'Penjualan',          sort_order: 201, required_permission: PERMISSIONS.LEADS },
@@ -145,7 +146,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   owner: RECOMMENDED_MENUS.map(m => m.required_permission),
 
   branch_manager: [
-    'dashboard', 'analytics',
+    'dashboard', 'analytics', 'kpi-dashboard',
     'leads', 'bookings', 'packages', 'coupons', 'banners',
     'departures', 'departure-tracking', 'sos-alerts',
     'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
@@ -160,7 +161,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ],
 
   finance: [
-    'dashboard',
+    'dashboard', 'kpi-dashboard',
     'payments', 'finance-cash', 'finance', 'finance-ar', 'finance-ap',
     'savings', 'reports', 'advanced-reports',
     'bookings', 'customers',
@@ -168,7 +169,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ],
 
   sales: [
-    'dashboard',
+    'dashboard', 'kpi-dashboard',
     'leads', 'bookings', 'packages', 'coupons',
     'customers', 'agents',
     'payments',

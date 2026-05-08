@@ -106,6 +106,9 @@ export const PERMISSIONS = {
   // Fase 6 — Operational Excellence
   DEPARTURE_TRACKING: 'departure-tracking',
   SOS_ALERTS: 'sos-alerts',
+
+  // KPI Dashboard
+  KPI_DASHBOARD: 'kpi-dashboard',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

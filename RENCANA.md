@@ -93,13 +93,14 @@
 
 ## 2. PERLU PERBAIKAN 🔧
 
-| Item | Masalah | Prioritas |
-|------|---------|-----------|
-| Drag-and-Drop Kanban Lead | Kolom ada, tapi drag kartu antar kolom tidak berfungsi | Tinggi |
-| Notifikasi Bell Icon (Agen) | Hook `useAdminNotifications` ada, tapi UI bell di layout agen belum dipasang | Menengah |
-| Notifikasi In-App (Customer) | Hook ada, tampilan perlu diperkuat | Menengah |
-| Live Chat / WhatsApp Button | Ada di landing builder, belum tersedia secara global di semua halaman publik | Rendah |
-| Testimonial Halaman | Ada di landing builder, belum ada halaman stand-alone | Rendah |
+| Item | Masalah | Prioritas | Status |
+|------|---------|-----------|--------|
+| Drag-and-Drop Kanban Lead | Kolom ada, tapi drag kartu antar kolom tidak berfungsi | Tinggi | ✅ Diperbaiki — hapus `snap-x` + `cursor-grab` |
+| Notifikasi Bell Icon (Agen) | Hook `useAdminNotifications` ada, tapi UI bell di layout agen belum dipasang | Menengah | ✅ Sudah terpasang di AgentLayoutEnhanced |
+| Notifikasi Bell Icon (Admin) | Bell terpasang tapi data hardcoded kosong | Menengah | ✅ Sudah terhubung ke useAdminNotifications |
+| Notifikasi In-App (Customer) | Hook ada, tampilan perlu diperkuat | Menengah | Dalam antrean |
+| Live Chat / WhatsApp Button | Ada di landing builder, belum tersedia secara global di semua halaman publik | Rendah | Dalam antrean |
+| Testimonial Halaman | Ada di landing builder, belum ada halaman stand-alone | Rendah | Dalam antrean |
 
 ---
 
@@ -108,11 +109,11 @@
 Diurutkan dari **dampak bisnis tertinggi**:
 
 ### Prioritas Tinggi
-| # | Fitur | Nilai Bisnis |
-|---|-------|-------------|
-| 1 | **Lead Scoring Otomatis** | Prioritas lead berdasarkan sumber, responsivitas, nilai paket — tampil sebagai skor di Kanban & tabel |
-| 2 | **Notifikasi Bell Icon Global (Admin)** | Admin tahu booking baru, pembayaran masuk, follow-up jatuh tempo secara real-time |
-| 3 | **KPI Dashboard Real-time** | Target vs aktual dengan progress bar animasi — semua modul (booking, komisi, lead) |
+| # | Fitur | Nilai Bisnis | Status |
+|---|-------|-------------|--------|
+| 1 | **Lead Scoring Otomatis** | Prioritas lead berdasarkan sumber, responsivitas, nilai paket — tampil sebagai skor di Kanban & tabel | ✅ Selesai — skor di Kanban & List View |
+| 2 | **Notifikasi Bell Icon Global (Admin)** | Admin tahu booking baru, pembayaran masuk, follow-up jatuh tempo secara real-time | ✅ Selesai — tersambung useAdminNotifications |
+| 3 | **KPI Dashboard Real-time** | Target vs aktual dengan progress bar animasi — semua modul (booking, komisi, lead) | ✅ Selesai — halaman /admin/kpi-dashboard |
 
 ### Prioritas Menengah
 | # | Fitur | Nilai Bisnis |

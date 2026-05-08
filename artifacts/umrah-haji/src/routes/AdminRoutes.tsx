@@ -95,6 +95,7 @@ const AdminEmailTemplates = lazy(() => import("@/pages/admin/AdminEmailTemplates
 const AdminPushNotifications = lazy(() => import("@/pages/admin/AdminPushNotifications"));
 const AdminDepartureTracking = lazy(() => import("@/pages/admin/AdminDepartureTracking"));
 const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
+const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
 
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
@@ -233,6 +234,9 @@ export default function AdminRoutes() {
       {/* Fase 6 — Operational Excellence */}
       <Route path="departure-tracking" element={<P k={PERMISSIONS.DEPARTURE_TRACKING}><AdminDepartureTracking /></P>} />
       <Route path="sos-alerts" element={<P k={PERMISSIONS.SOS_ALERTS}><AdminSOSAlerts /></P>} />
+
+      {/* KPI Dashboard */}
+      <Route path="kpi-dashboard" element={<P k={PERMISSIONS.KPI_DASHBOARD}><LazyPage><AdminKPIDashboard /></LazyPage></P>} />
 
       {/* Master Data */}
       <Route path="master-data" element={<P k={PERMISSIONS.MASTER_DATA}><AdminMasterData /></P>} />
