@@ -116,5 +116,14 @@ export async function autoCalculateCommission(bookingId: string): Promise<AutoCo
   result.message = `Komisi berhasil dicatat: Agen Rp${agentCommissionAmount.toLocaleString('id-ID')}${
     result.parentAmount > 0 ? ` + Royalti Parent Rp${result.parentAmount.toLocaleString('id-ID')}` : ''
   }`;
+
+  // 7. Hitung komisi cabang otomatis
+  try {
+    const { autoCalculateBranchCommission } = await import('./useBranchCommissions');
+    await autoCalculateBranchCommission(bookingId);
+  } catch (_) {
+    // Tidak menghentikan proses jika komisi cabang gagal
+  }
+
   return result;
 }

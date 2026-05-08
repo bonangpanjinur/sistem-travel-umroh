@@ -66,9 +66,11 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'customers',           label: 'Data Jamaah',           path: '/admin/customers',            icon: 'Users',           group_name: 'Jamaah & Agen',      sort_order: 601, required_permission: PERMISSIONS.CUSTOMERS },
   { key: 'agents',              label: 'Agen',                  path: '/admin/agents',               icon: 'UserSquare2',     group_name: 'Jamaah & Agen',      sort_order: 602, required_permission: PERMISSIONS.AGENTS },
   { key: 'branches',            label: 'Cabang',                path: '/admin/branches',             icon: 'Network',         group_name: 'Jamaah & Agen',      sort_order: 603, required_permission: PERMISSIONS.BRANCHES },
-  { key: 'loyalty',             label: 'Program Loyalitas',     path: '/admin/loyalty',              icon: 'Award',           group_name: 'Jamaah & Agen',      sort_order: 604, required_permission: PERMISSIONS.LOYALTY },
-  { key: 'referrals',           label: 'Referral',              path: '/admin/referrals',            icon: 'Share2',          group_name: 'Jamaah & Agen',      sort_order: 605, required_permission: PERMISSIONS.REFERRALS },
-  { key: 'visa',                label: 'Visa',                  path: '/admin/visa',                 icon: 'FileCheck',       group_name: 'Jamaah & Agen',      sort_order: 606, required_permission: PERMISSIONS.VISA },
+  { key: 'memberships',         label: 'Keanggotaan',           path: '/admin/memberships',          icon: 'Crown',           group_name: 'Jamaah & Agen',      sort_order: 604, required_permission: PERMISSIONS.MEMBERSHIPS },
+  { key: 'branch-commissions',  label: 'Komisi Cabang',         path: '/admin/branch-commissions',   icon: 'DollarSign',      group_name: 'Jamaah & Agen',      sort_order: 605, required_permission: PERMISSIONS.BRANCH_COMMISSIONS },
+  { key: 'loyalty',             label: 'Program Loyalitas',     path: '/admin/loyalty',              icon: 'Award',           group_name: 'Jamaah & Agen',      sort_order: 606, required_permission: PERMISSIONS.LOYALTY },
+  { key: 'referrals',           label: 'Referral',              path: '/admin/referrals',            icon: 'Share2',          group_name: 'Jamaah & Agen',      sort_order: 607, required_permission: PERMISSIONS.REFERRALS },
+  { key: 'visa',                label: 'Visa',                  path: '/admin/visa',                 icon: 'FileCheck',       group_name: 'Jamaah & Agen',      sort_order: 608, required_permission: PERMISSIONS.VISA },
 
   // ── SDM (700s) ────────────────────────────────────────────────────────────
   { key: 'hr',                  label: 'SDM / HR',              path: '/admin/hr',                   icon: 'UserCog',         group_name: 'SDM',                sort_order: 701, required_permission: PERMISSIONS.HR },
@@ -143,6 +145,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'departures', 'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
     'payments', 'finance-cash', 'savings', 'reports',
     'customers', 'agents', 'branches', 'visa',
+    'memberships', 'branch-commissions',
     'document-verification', 'document-types',
     'hotels', 'airlines', 'airports',
     'office-assets',

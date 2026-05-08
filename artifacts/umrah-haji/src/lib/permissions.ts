@@ -91,6 +91,10 @@ export const PERMISSIONS = {
   SETTINGS: 'settings',
   API_CONNECT: 'api-connect',
   SUPABASE_SETUP: 'supabase-setup',
+
+  // Fase 1 — Keanggotaan & Komisi Cabang
+  MEMBERSHIPS: 'memberships',
+  BRANCH_COMMISSIONS: 'branch-commissions',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
