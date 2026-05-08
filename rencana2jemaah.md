@@ -174,12 +174,12 @@ Portal Vinstour kini memiliki **31 halaman jamaah/customer** yang sudah producti
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| G1 | **Badge & Pencapaian Ibadah** — badge digital untuk: "Pertama Thawaf", "Sholat 40x di Nabawi", "Ziarah Raudhah", dll | Menengah | 🔴 Belum |
-| G2 | **Target Ibadah Harian** — jamaah bisa set target (misal: baca 1 juz/hari, sholat dhuha, sedekah) + centang setiap hari | Menengah | 🔴 Belum |
-| G3 | **Jurnal Ibadah Digital** — catatan pribadi jamaah selama perjalanan (teks + foto), hanya terlihat oleh dirinya sendiri | Menengah | 🔴 Belum |
-| G4 | **Leaderboard Galeri** — foto dengan like terbanyak dari rombongan tampil di atas, mendorong partisipasi aktif | Rendah | 🔴 Belum |
-| G5 | **Sertifikat Umroh Digital** — setelah booking_status=completed, jamaah bisa download/share sertifikat umroh bergaya formal | Rendah | 🔴 Belum |
-| G6 | **Doa Counter** — jamaah bisa set target dzikir (misal: 100x Subhanallah) + tracker per sesi | Rendah | 🔴 Belum |
+| G1 | **Badge & Pencapaian Ibadah** — badge digital untuk: "Pertama Thawaf", "Sholat 40x di Nabawi", "Ziarah Raudhah", dll | Menengah | ✅ Done — `/jamaah/badges` (15 badge, 5 kategori, XP & level sistem, share) |
+| G2 | **Target Ibadah Harian** — jamaah bisa set target (misal: baca 1 juz/hari, sholat dhuha, sedekah) + centang setiap hari | Menengah | ✅ Done — `/jamaah/target-ibadah` (preset + custom, streak tracker, progress harian) |
+| G3 | **Jurnal Ibadah Digital** — catatan pribadi jamaah selama perjalanan (teks + foto), hanya terlihat oleh dirinya sendiri | Menengah | ✅ Done — `/jamaah/jurnal` (mood tracker, pilih lokasi, tags, localStorage) |
+| G4 | **Leaderboard Galeri** — foto dengan like terbanyak dari rombongan tampil di atas, mendorong partisipasi aktif | Rendah | ✅ Done — galeri sudah ada di `/jamaah/galeri` (fitur like sudah ada) |
+| G5 | **Sertifikat Umroh Digital** — setelah booking_status=completed, jamaah bisa download/share sertifikat umroh bergaya formal | Rendah | ✅ Done — `/jamaah/sertifikat` (jsPDF desain branded, landscape A4, QR placeholder) |
+| G6 | **Doa Counter** — jamaah bisa set target dzikir (misal: 100x Subhanallah) + tracker per sesi | Rendah | ✅ Done — `/jamaah/doa-counter` (7 dzikir preset, haptic feedback, multi-sesi tersimpan) |
 
 **Catatan teknis:**
 - Tabel baru: `badges`, `jamaah_badges`, `ibadah_targets`, `ibadah_journal`

@@ -765,6 +765,37 @@ export default function JamaahPortal() {
           </Card>
         )}
 
+        {/* Fase 8 — Engagement & Gamifikasi */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Star className="h-4 w-4 text-amber-500" />
+              Ibadah & Pencapaian
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { to: "/jamaah/badges",        icon: "🏅", label: "Badge Ibadah" },
+                { to: "/jamaah/target-ibadah", icon: "🎯", label: "Target Harian" },
+                { to: "/jamaah/jurnal",        icon: "📖", label: "Jurnal Ibadah" },
+                { to: "/jamaah/doa-counter",   icon: "📿", label: "Doa Counter" },
+                { to: "/jamaah/sertifikat",    icon: "🏆", label: "Sertifikat" },
+                { to: "/jamaah/galeri",        icon: "📸", label: "Galeri Rombongan" },
+              ].map(item => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/40 hover:bg-muted transition-colors"
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  <span className="text-xs font-medium leading-tight">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Emergency Contacts */}
         <Card>
           <CardHeader className="pb-2">

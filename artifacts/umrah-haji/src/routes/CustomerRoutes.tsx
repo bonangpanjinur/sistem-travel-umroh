@@ -52,6 +52,13 @@ const JamaahKontrak = lazy(() => import("@/pages/jamaah/JamaahKontrak"));
 // Fase 7 — Manajemen Operasional Muthawif
 const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"));
 
+// Fase 8 — Engagement & Gamifikasi Jamaah
+const JamaahBadges = lazy(() => import("@/pages/jamaah/JamaahBadges"));
+const JamaahTargetIbadah = lazy(() => import("@/pages/jamaah/JamaahTargetIbadah"));
+const JamaahJurnal = lazy(() => import("@/pages/jamaah/JamaahJurnal"));
+const JamaahDoaCounter = lazy(() => import("@/pages/jamaah/JamaahDoaCounter"));
+const JamaahSertifikat = lazy(() => import("@/pages/jamaah/JamaahSertifikat"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -122,6 +129,13 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/checkin" element={<CustomerRoute><JamaahCheckin /></CustomerRoute>} />
       <Route path="/jamaah/bagasi" element={<CustomerRoute><JamaahBagasi /></CustomerRoute>} />
       <Route path="/jamaah/kontrak" element={<CustomerRoute><JamaahKontrak /></CustomerRoute>} />
+
+      {/* Fase 8 — Engagement & Gamifikasi Jamaah */}
+      <Route path="/jamaah/badges" element={<CustomerRoute><JamaahBadges /></CustomerRoute>} />
+      <Route path="/jamaah/target-ibadah" element={<CustomerRoute><JamaahTargetIbadah /></CustomerRoute>} />
+      <Route path="/jamaah/jurnal" element={<CustomerRoute><JamaahJurnal /></CustomerRoute>} />
+      <Route path="/jamaah/doa-counter" element={<CustomerRoute><JamaahDoaCounter /></CustomerRoute>} />
+      <Route path="/jamaah/sertifikat" element={<CustomerRoute><JamaahSertifikat /></CustomerRoute>} />
 
       {/* Fase 7 — Dashboard Muthawif */}
       <Route path="/muthawif/dashboard" element={
