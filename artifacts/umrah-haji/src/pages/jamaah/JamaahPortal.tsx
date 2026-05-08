@@ -16,7 +16,9 @@ import {
   Download, Wifi, WifiOff, ChevronRight,
   Bell, BookOpen, HelpCircle, CalendarDays, Map,
   Star, Camera, Loader2, Package, ArrowRight,
-  Clock, DollarSign, FileText, Megaphone
+  Clock, DollarSign, FileText, Megaphone,
+  Heart, Sparkles, Luggage, FileSignature, BookMarked,
+  MessageSquare, Image, Gift, Scale, Scroll
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
@@ -404,134 +406,196 @@ export default function JamaahPortal() {
           </Card>
         )}
 
-        {/* Q1: Quick Actions — ikon sudah diperbaiki, tidak ada duplikasi */}
-        <div className="grid grid-cols-4 gap-2">
-          <Link to="/my-bookings">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <CreditCard className="h-6 w-6 mx-auto mb-1 text-primary" />
-              <p className="text-xs">Booking</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/digital-id">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <QrCode className="h-6 w-6 mx-auto mb-1 text-primary" />
-              <p className="text-xs">ID Digital</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/itinerary">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <CalendarDays className="h-6 w-6 mx-auto mb-1 text-indigo-500" />
-              <p className="text-xs">Itinerary</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/documents">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <FolderOpen className="h-6 w-6 mx-auto mb-1 text-orange-500" />
-              <p className="text-xs">Dokumen</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/payment-history">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <CreditCard className="h-6 w-6 mx-auto mb-1 text-green-600" />
-              <p className="text-xs">Pembayaran</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/panduan-ibadah">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <BookOpen className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-              <p className="text-xs">Panduan</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/peta-lokasi">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Map className="h-6 w-6 mx-auto mb-1 text-rose-500" />
-              <p className="text-xs">Peta</p>
-            </Card>
-          </Link>
-          <Link to="/faq">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <HelpCircle className="h-6 w-6 mx-auto mb-1 text-blue-500" />
-              <p className="text-xs">FAQ</p>
-            </Card>
-          </Link>
-          {/* Fase 2 — fitur baru */}
-          <Link to="/jamaah/waktu-sholat">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Clock className="h-6 w-6 mx-auto mb-1 text-teal-600" />
-              <p className="text-xs">Waktu Sholat</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/kalkulator-kurs">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <DollarSign className="h-6 w-6 mx-auto mb-1 text-emerald-700" />
-              <p className="text-xs">Kurs Riyal</p>
-            </Card>
-          </Link>
-          {booking && (
-            <Link to={`/jamaah/invoice/${booking.id}`}>
-              <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-                <FileText className="h-6 w-6 mx-auto mb-1 text-violet-600" />
-                <p className="text-xs">Invoice</p>
-              </Card>
-            </Link>
-          )}
-          {/* Fase 3 — Fitur Sosial & Komunitas */}
-          <Link to="/jamaah/chat">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Megaphone className="h-6 w-6 mx-auto mb-1 text-blue-500" />
-              <p className="text-xs">Chat</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/rombongan">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Users className="h-6 w-6 mx-auto mb-1 text-indigo-600" />
-              <p className="text-xs">Rombongan</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/galeri">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Camera className="h-6 w-6 mx-auto mb-1 text-pink-500" />
-              <p className="text-xs">Galeri</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/riwayat-perjalanan">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Star className="h-6 w-6 mx-auto mb-1 text-amber-500" />
-              <p className="text-xs">Riwayat</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/referral">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Package className="h-6 w-6 mx-auto mb-1 text-green-600" />
-              <p className="text-xs">Referral</p>
-            </Card>
-          </Link>
-          {/* Fase 4 — Fitur Finansial & Spiritual */}
-          <Link to="/jamaah/kalkulator-zakat">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Star className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-              <p className="text-xs">Kalk. Zakat</p>
-            </Card>
-          </Link>
-          {/* Fase 5 — Operasional & Self-Service */}
-          <Link to="/jamaah/checkin">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <QrCode className="h-6 w-6 mx-auto mb-1 text-violet-600" />
-              <p className="text-xs">Check-in</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/bagasi">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <Download className="h-6 w-6 mx-auto mb-1 text-cyan-600" />
-              <p className="text-xs">Bagasi</p>
-            </Card>
-          </Link>
-          <Link to="/jamaah/kontrak">
-            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
-              <FileText className="h-6 w-6 mx-auto mb-1 text-orange-500" />
-              <p className="text-xs">Kontrak</p>
-            </Card>
-          </Link>
+        {/* Quick Actions — Tersusun per Kategori */}
+        <div className="space-y-4">
+
+          {/* 1. Perjalanan & Booking */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 px-0.5">
+              <div className="w-5 h-5 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Plane className="h-3 w-3 text-blue-600" />
+              </div>
+              <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Perjalanan</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <Link to="/my-bookings">
+                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
+                  <CreditCard className="h-6 w-6 mx-auto mb-1 text-blue-600" />
+                  <p className="text-xs">Booking</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/itinerary">
+                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
+                  <CalendarDays className="h-6 w-6 mx-auto mb-1 text-blue-500" />
+                  <p className="text-xs">Itinerary</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/digital-id">
+                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
+                  <QrCode className="h-6 w-6 mx-auto mb-1 text-indigo-500" />
+                  <p className="text-xs">ID Digital</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/documents">
+                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
+                  <FolderOpen className="h-6 w-6 mx-auto mb-1 text-orange-500" />
+                  <p className="text-xs">Dokumen</p>
+                </Card>
+              </Link>
+            </div>
+          </div>
+
+          {/* 2. Administrasi & Keuangan */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 px-0.5">
+              <div className="w-5 h-5 rounded bg-green-100 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="h-3 w-3 text-green-600" />
+              </div>
+              <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Keuangan & Admin</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <Link to="/jamaah/payment-history">
+                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
+                  <CreditCard className="h-6 w-6 mx-auto mb-1 text-green-600" />
+                  <p className="text-xs">Pembayaran</p>
+                </Card>
+              </Link>
+              {booking ? (
+                <Link to={`/jamaah/invoice/${booking.id}`}>
+                  <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
+                    <FileText className="h-6 w-6 mx-auto mb-1 text-violet-600" />
+                    <p className="text-xs">Invoice</p>
+                  </Card>
+                </Link>
+              ) : (
+                <Card className="p-3 text-center opacity-40 cursor-not-allowed border-green-100">
+                  <FileText className="h-6 w-6 mx-auto mb-1 text-violet-400" />
+                  <p className="text-xs">Invoice</p>
+                </Card>
+              )}
+              <Link to="/jamaah/kontrak">
+                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
+                  <FileSignature className="h-6 w-6 mx-auto mb-1 text-orange-500" />
+                  <p className="text-xs">Kontrak</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/checkin">
+                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
+                  <Scroll className="h-6 w-6 mx-auto mb-1 text-violet-600" />
+                  <p className="text-xs">Check-in</p>
+                </Card>
+              </Link>
+            </div>
+          </div>
+
+          {/* 3. Ibadah & Spiritual */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 px-0.5">
+              <div className="w-5 h-5 rounded bg-teal-100 flex items-center justify-center flex-shrink-0">
+                <Heart className="h-3 w-3 text-teal-600" />
+              </div>
+              <span className="text-xs font-bold text-teal-700 uppercase tracking-wide">Ibadah & Spiritual</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <Link to="/jamaah/panduan-ibadah">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <BookOpen className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+                  <p className="text-xs">Panduan</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/waktu-sholat">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <Clock className="h-6 w-6 mx-auto mb-1 text-teal-600" />
+                  <p className="text-xs">Waktu Sholat</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/doa-panduan">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <BookMarked className="h-6 w-6 mx-auto mb-1 text-teal-500" />
+                  <p className="text-xs">Doa</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/kalkulator-zakat">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <Scale className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+                  <p className="text-xs">Kalk. Zakat</p>
+                </Card>
+              </Link>
+            </div>
+          </div>
+
+          {/* 4. Komunitas */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 px-0.5">
+              <div className="w-5 h-5 rounded bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <Users className="h-3 w-3 text-purple-600" />
+              </div>
+              <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Komunitas</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <Link to="/jamaah/chat">
+                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
+                  <MessageSquare className="h-6 w-6 mx-auto mb-1 text-blue-500" />
+                  <p className="text-xs">Chat</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/rombongan">
+                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
+                  <Users className="h-6 w-6 mx-auto mb-1 text-indigo-600" />
+                  <p className="text-xs">Rombongan</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/galeri">
+                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
+                  <Image className="h-6 w-6 mx-auto mb-1 text-pink-500" />
+                  <p className="text-xs">Galeri</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/referral">
+                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
+                  <Gift className="h-6 w-6 mx-auto mb-1 text-green-600" />
+                  <p className="text-xs">Referral</p>
+                </Card>
+              </Link>
+            </div>
+          </div>
+
+          {/* 5. Alat Bantu */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 px-0.5">
+              <div className="w-5 h-5 rounded bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="h-3 w-3 text-amber-600" />
+              </div>
+              <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Alat Bantu</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <Link to="/jamaah/peta-lokasi">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <Map className="h-6 w-6 mx-auto mb-1 text-rose-500" />
+                  <p className="text-xs">Peta</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/kalkulator-kurs">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <DollarSign className="h-6 w-6 mx-auto mb-1 text-emerald-700" />
+                  <p className="text-xs">Kurs Riyal</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/bagasi">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <Luggage className="h-6 w-6 mx-auto mb-1 text-cyan-600" />
+                  <p className="text-xs">Bagasi</p>
+                </Card>
+              </Link>
+              <Link to="/faq">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <HelpCircle className="h-6 w-6 mx-auto mb-1 text-blue-500" />
+                  <p className="text-xs">FAQ</p>
+                </Card>
+              </Link>
+            </div>
+          </div>
+
         </div>
 
         {/* O5: Widget Cuaca Makkah & Madinah */}

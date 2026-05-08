@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from "@/lib/format";
 import {
   Calculator, Plane, Hotel, Users, Package, CheckCircle,
-  ChevronRight, Star, MessageCircle, Info
+  ChevronRight, Star, MessageCircle, Info, CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,11 +49,30 @@ const ADDONS = [
   { id: "handling_passport", label: "Pengurusan Paspor", price: 750_000, icon: "🛂" },
 ];
 
+const DP_RATE = 0.30;
+const CICILAN_OPTIONS = [3, 6, 12];
+
 export default function KalkulatorBiaya() {
   const [selectedPackage, setSelectedPackage] = useState(PACKAGE_TYPES[0].id);
   const [roomType, setRoomType] = useState("quad");
   const [persons, setPersons] = useState([1]);
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set(["visa", "manasik", "perlengkapan"]));
+
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings-wa'],
+    queryFn: async () => {
+      const supabaseRaw: any = supabase;
+      const { data } = await supabaseRaw
+        .from('company_settings')
+        .select('whatsapp_number, dp_percentage')
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const waNumber = companySettings?.whatsapp_number || '628123456789';
+  const dpRate = companySettings?.dp_percentage ? companySettings.dp_percentage / 100 : DP_RATE;
 
   const pkg = PACKAGE_TYPES.find(p => p.id === selectedPackage)!;
   const room = ROOM_TYPES.find(r => r.id === roomType)!;
@@ -66,6 +87,10 @@ export default function KalkulatorBiaya() {
     return { basePerPerson, addonsTotal, perPersonTotal, groupTotal, addonsList };
   }, [pkg, room, selectedAddons, personCount]);
 
+  const referenceTotal = personCount > 1 ? calculation.groupTotal : calculation.perPersonTotal;
+  const dpAmount = Math.round(referenceTotal * dpRate);
+  const remainingAfterDp = referenceTotal - dpAmount;
+
   const toggleAddon = (id: string) => {
     setSelectedAddons(prev => {
       const next = new Set(prev);
@@ -75,7 +100,7 @@ export default function KalkulatorBiaya() {
   };
 
   const waMessage = encodeURIComponent(
-    `Halo Vinstour Travel, saya tertarik dengan paket ${pkg.label} untuk ${personCount} orang. Mohon informasi lebih lanjut.`
+    `Halo Vinstour Travel, saya tertarik dengan paket ${pkg.label} untuk ${personCount} orang. Estimasi biaya: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(referenceTotal)}. Mohon informasi lebih lanjut.`
   );
 
   return (
@@ -308,6 +333,36 @@ export default function KalkulatorBiaya() {
                     </>
                   )}
 
+                  {/* DP & Cicilan */}
+                  <Separator />
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Skema Pembayaran
+                    </p>
+                    <div className="space-y-2">
+                      {/* DP */}
+                      <div className="flex justify-between items-center p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20">
+                        <div>
+                          <p className="text-xs font-semibold text-green-800 dark:text-green-300">DP ({Math.round(dpRate * 100)}%)</p>
+                          <p className="text-[10px] text-green-600 dark:text-green-400">Untuk konfirmasi booking</p>
+                        </div>
+                        <p className="font-bold text-green-700 dark:text-green-300 text-sm">{formatCurrency(dpAmount)}</p>
+                      </div>
+                      {/* Cicilan */}
+                      {CICILAN_OPTIONS.map(bulan => (
+                        <div key={bulan} className="flex justify-between items-center p-2.5 rounded-lg bg-muted/40">
+                          <div>
+                            <p className="text-xs font-semibold">{bulan} Bulan</p>
+                            <p className="text-[10px] text-muted-foreground">Sisa {formatCurrency(remainingAfterDp)} ÷ {bulan}</p>
+                          </div>
+                          <p className="font-bold text-sm">{formatCurrency(Math.round(remainingAfterDp / bulan))}<span className="text-[10px] font-normal text-muted-foreground">/bln</span></p>
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-muted-foreground text-center">*Simulasi cicilan dari sisa setelah DP. Kondisi aktual sesuai kesepakatan.</p>
+                    </div>
+                  </div>
+
                   {/* Disclaimer */}
                   <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg text-xs text-amber-700 dark:text-amber-400">
                     <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -317,7 +372,7 @@ export default function KalkulatorBiaya() {
                   {/* CTA */}
                   <div className="space-y-2 pt-1">
                     <Button className="w-full bg-green-600 hover:bg-green-700 text-white gap-2" asChild>
-                      <a href={`https://wa.me/628123456789?text=${waMessage}`} target="_blank" rel="noreferrer">
+                      <a href={`https://wa.me/${waNumber}?text=${waMessage}`} target="_blank" rel="noreferrer">
                         <MessageCircle className="h-4 w-4" />
                         Tanya via WhatsApp
                       </a>
