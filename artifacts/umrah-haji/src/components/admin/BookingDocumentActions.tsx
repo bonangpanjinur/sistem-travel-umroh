@@ -25,6 +25,8 @@ import {
   type GeneralLetterData,
   type CompanyInfo,
 } from "@/lib/document-generator";
+import { useDocumentLogger } from "@/hooks/useDocumentLogger";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   booking: any;
@@ -36,6 +38,8 @@ type DialogType = "cuti-jamaah" | "general-letter" | null;
 export function BookingDocumentActions({ booking, companyInfo }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
+  const { logDocument } = useDocumentLogger();
+  const queryClient = useQueryClient();
 
   const customer = booking?.customer as any;
   const departure = booking?.departure as any;
@@ -67,6 +71,8 @@ export function BookingDocumentActions({ booking, companyInfo }: Props) {
       );
       doc.save(`surat-paspor-${customer.full_name?.replace(/\s+/g, "-") ?? "jamaah"}.pdf`);
       toast.success("Surat permohonan paspor berhasil diunduh");
+      await logDocument({ bookingId: booking.id, documentType: "passport", documentLabel: "Surat Paspor", jamaahName: customer.full_name });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
     } catch (err) {
       console.error(err);
       toast.error("Gagal membuat surat paspor");
@@ -99,6 +105,8 @@ export function BookingDocumentActions({ booking, companyInfo }: Props) {
         `sertifikat-umrah-${customer.full_name?.replace(/\s+/g, "-") ?? "jamaah"}.pdf`
       );
       toast.success("Sertifikat Umrah berhasil diunduh");
+      await logDocument({ bookingId: booking.id, documentType: "certificate", documentLabel: "Sertifikat Umrah", jamaahName: customer.full_name });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
     } catch (err) {
       console.error(err);
       toast.error("Gagal membuat sertifikat");
@@ -144,6 +152,8 @@ export function BookingDocumentActions({ booking, companyInfo }: Props) {
         `eticket-${booking.booking_code || customer.full_name?.replace(/\s+/g, "-")}.pdf`
       );
       toast.success("E-Ticket berhasil diunduh");
+      await logDocument({ bookingId: booking.id, documentType: "eticket", documentLabel: "E-Ticket", jamaahName: customer.full_name });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
     } catch (err) {
       console.error(err);
       toast.error("Gagal membuat e-ticket");
@@ -200,6 +210,8 @@ export function BookingDocumentActions({ booking, companyInfo }: Props) {
         `surat-cuti-${customer.full_name?.replace(/\s+/g, "-") ?? "jamaah"}.pdf`
       );
       toast.success("Surat cuti jamaah berhasil diunduh");
+      await logDocument({ bookingId: booking.id, documentType: "cuti_jamaah", documentLabel: "Surat Cuti Jamaah", jamaahName: customer.full_name });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
       setOpenDialog(null);
     } catch (err) {
       console.error(err);
@@ -247,6 +259,8 @@ export function BookingDocumentActions({ booking, companyInfo }: Props) {
       const doc = await generateGeneralLetter(data, companyInfo);
       doc.save(`surat-${booking.booking_code}-${Date.now()}.pdf`);
       toast.success("Surat berhasil diunduh");
+      await logDocument({ bookingId: booking.id, documentType: "general", documentLabel: `Surat Umum: ${generalForm.subject}`, jamaahName: null });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
       setOpenDialog(null);
     } catch (err) {
       console.error(err);

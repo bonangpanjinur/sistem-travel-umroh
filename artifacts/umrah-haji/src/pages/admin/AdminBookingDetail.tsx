@@ -57,6 +57,7 @@ import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
+import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
 import { format as dfFormat } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -626,6 +627,9 @@ export default function AdminBookingDetail() {
               />
             </CardContent>
           </Card>
+
+          {/* Section: Document History */}
+          <BookingDocumentHistory bookingId={id} />
 
           {/* Section: Payments History */}
           <Card className="overflow-hidden border-none shadow-md">

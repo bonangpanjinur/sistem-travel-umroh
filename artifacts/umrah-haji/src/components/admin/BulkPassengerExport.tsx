@@ -1,5 +1,6 @@
 import { useState } from "react";
 import JSZip from "jszip";
+import { useDocumentLogger } from "@/hooks/useDocumentLogger";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ interface Props {
 
 export function BulkPassengerExport({ passengers, booking, companyInfo, bookingId }: Props) {
   const queryClient = useQueryClient();
+  const { logDocument } = useDocumentLogger();
   const departure = booking?.departure as any;
   const pkg = departure?.package;
 
@@ -178,6 +180,18 @@ export function BulkPassengerExport({ passengers, booking, companyInfo, bookingI
       toast.success(
         `${successCount} ${docTypeLabel} berhasil diunduh${errorCount > 0 ? ` (${errorCount} gagal)` : ""}`
       );
+      const bulkTypeMap: Record<DocType, "bulk_passport" | "bulk_certificate" | "bulk_cuti"> = {
+        passport: "bulk_passport", certificate: "bulk_certificate", cuti: "bulk_cuti",
+      };
+      await logDocument({
+        bookingId,
+        documentType: bulkTypeMap[docType],
+        documentLabel: `${docTypeLabel} (Bulk)`,
+        jamaahName: null,
+        isBulk: true,
+        bulkCount: successCount,
+      });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", bookingId] });
     } else {
       toast.error("Semua dokumen gagal dibuat");
     }
