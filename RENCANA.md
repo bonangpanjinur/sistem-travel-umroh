@@ -126,12 +126,13 @@
 | # | Fitur | Deskripsi | Status |
 |---|-------|-----------|--------|
 | 1 | **Fix TypeScript Deployment** | 7 error TS yang menyebabkan deploy gagal | ✅ Selesai Mei 2026 |
-| 2 | **Finance Terpadu — Data Nyata** | Ganti semua data hardcoded/random dengan query Supabase nyata | ✅ Selesai Mei 2026 |
-| 3 | **Panduan Ibadah Offline (PWA)** | Jamaah akses itinerary & doa tanpa internet | ✅ |
-| 4 | **Peta Lokasi Ibadah** | 14 lokasi Makkah & Madinah — `/jamaah/peta-lokasi` | ✅ |
-| 5 | **Multi-bahasa (i18n)** | Indonesia + Arab + Inggris — 80+ kunci terjemahan | ✅ |
-| 6 | **Rate Limiting API** | `express-rate-limit` di endpoint publik | ✅ |
-| 7 | **Webhook Outgoing** | CRUD webhook ke ERP eksternal, test ping, log | ✅ |
+| 2 | **Finance Terpadu — Data Nyata** | Ganti semua data hardcoded/random dengan query Supabase nyata (`payments`, `cash_transactions`, `vendor_costs`, `bookings`) | ✅ Selesai Mei 2026 |
+| 3 | **KPI Target Bisa Diatur Admin** | Target `bookings/revenue/leads/conversion` disimpan ke `company_settings` Supabase — admin ubah via dialog "Atur Target", berlaku untuk semua admin, fallback ke default jika belum diset | ✅ Selesai Mei 2026 |
+| 4 | **Panduan Ibadah Offline (PWA)** | Jamaah akses itinerary & doa tanpa internet | ✅ |
+| 5 | **Peta Lokasi Ibadah** | 14 lokasi Makkah & Madinah — `/jamaah/peta-lokasi` | ✅ |
+| 6 | **Multi-bahasa (i18n)** | Indonesia + Arab + Inggris — 80+ kunci terjemahan | ✅ |
+| 7 | **Rate Limiting API** | `express-rate-limit` di endpoint publik | ✅ |
+| 8 | **Webhook Outgoing** | CRUD webhook ke ERP eksternal, test ping, log | ✅ |
 
 ---
 
@@ -143,8 +144,8 @@
 
 | # | Item | Masalah | Solusi |
 |---|------|---------|--------|
-| P1 | ~~Dashboard Keuangan Terpadu~~ | ~~Data hardcoded/random~~ | ✅ **Sudah diperbaiki** |
-| P2 | **KPI Target bisa diatur** | `MONTHLY_TARGETS` hardcoded di kode — admin tidak bisa ubah | Buat tabel `kpi_targets` di Supabase + form setting di UI |
+| P1 | ~~Dashboard Keuangan Terpadu~~ | ~~Data hardcoded/random~~ | ✅ **Selesai Mei 2026** |
+| P2 | ~~KPI Target bisa diatur~~ | ~~`MONTHLY_TARGETS` hardcoded di kode~~ | ✅ **Selesai Mei 2026** — disimpan ke `company_settings`, dialog "Atur Target" di UI |
 | P3 | **Email Engine di API Server** | `/api/email/send` tidak ada — semua email tidak terkirim | Tambah endpoint Express + Resend/Nodemailer |
 | P4 | **SQL Migrations ke Supabase** | 12 file SQL belum dijalankan — banyak tabel belum ada | Jalankan urut di Supabase SQL Editor (lihat §8) |
 | P5 | **Supabase Env Vars** | App jalan demo mode tanpa credential | Set 4 env vars di Replit Secrets (lihat §9) |
