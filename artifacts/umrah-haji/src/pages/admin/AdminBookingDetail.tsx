@@ -58,6 +58,7 @@ import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
 import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
+import { useDocumentLogger } from "@/hooks/useDocumentLogger";
 import { format as dfFormat } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -79,6 +80,7 @@ export default function AdminBookingDetail() {
   const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
   const waNotifier = useWhatsAppNotifier();
+  const { logDocument } = useDocumentLogger();
   
   // Permission check - use isAdmin() which includes super_admin, owner, branch_manager
   const isFinance = hasRole('finance');
@@ -351,6 +353,13 @@ export default function AdminBookingDetail() {
     const doc = await generateInvoice(invoiceData, companyInfo);
     doc.save(`Invoice-${booking.booking_code}.pdf`);
     toast.success('Invoice berhasil di-download');
+    await logDocument({
+      bookingId: booking.id,
+      documentType: "invoice",
+      documentLabel: `Invoice ${invoiceData.invoiceNumber}`,
+      jamaahName: booking.customer.full_name,
+    });
+    queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
   };
 
   const handleStatusChange = (status: BookingStatus) => {
