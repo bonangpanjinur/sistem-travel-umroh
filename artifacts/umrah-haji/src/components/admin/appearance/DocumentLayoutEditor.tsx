@@ -364,7 +364,7 @@ export function DocumentLayoutEditor() {
                 <Eye className="h-5 w-5" />
                 Preview {documentTypeLabels[activeDocumentType]}
               </CardTitle>
-              <p className="text-xs text-muted-foreground">Preview ini menggunakan logika prioritas (Override > Global)</p>
+              <p className="text-xs text-muted-foreground">Preview ini menggunakan logika prioritas (Override {'>'} Global)</p>
             </CardHeader>
             <CardContent>
               <DocumentPreview 

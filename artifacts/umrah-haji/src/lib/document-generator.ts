@@ -332,12 +332,9 @@ export async function generateInvoice(
   }
   
   // Extract layout and settings
-  // layout contains per-document overrides (from DocumentLayoutEditor)
-  // settings contains global and invoice-specific settings
   const layout = company.layout;
   const settings = company.settings;
   
-  // Priority: Document layout override > Global setting > Default
   const orientation = layout?.page_orientation || 'portrait';
   const font = settings?.pdf_default_font || 'helvetica';
   
@@ -378,8 +375,6 @@ export async function generateInvoice(
   const leftX = 14;
   const rightX = 14 + colW + 10;
   
-  // Left: Invoice dates
-  // Priority: Document layout override > Default (true)
   if (layout?.show_date !== false) {
     doc.setFillColor(248, 250, 252);
     doc.rect(leftX, y - 2, colW, 30, 'F');
@@ -402,7 +397,6 @@ export async function generateInvoice(
     doc.text(format(data.dueDate, 'd MMMM yyyy', { locale: id }), leftX + 3, y + 24);
   }
   
-  // Right: customer info box
   doc.setFillColor(248, 250, 252);
   doc.rect(rightX, y - 2, colW, 30, 'F');
   doc.setDrawColor(226, 232, 240);
@@ -428,7 +422,7 @@ export async function generateInvoice(
 
   // ── Package / Departure Info (optional) ──────────────────────────────
   if (settings?.invoice_show_package_info !== false && (data.packageName || data.departureDate)) {
-    doc.setFillColor(240, 253, 244); // light green
+    doc.setFillColor(240, 253, 244);
     doc.setDrawColor(134, 239, 172);
     doc.setLineWidth(0.3);
     doc.rect(14, y, pageWidth - 28, 13, 'FD');
@@ -463,7 +457,7 @@ export async function generateInvoice(
   // ── LUNAS watermark stamp (when paid) ────────────────────────────────
   if (data.paymentStatus === 'paid' && settings?.invoice_watermark_paid !== false) {
     doc.saveGraphicsState();
-    // @ts-ignore - jspdf types might not have GState but it works
+    // @ts-ignore
     if (typeof doc.GState === 'function') {
       // @ts-ignore
       doc.setGState(new doc.GState({ opacity: 0.08 }));
@@ -477,9 +471,7 @@ export async function generateInvoice(
   }
 
   // ── Items Table ────────────────────────────────────────────────────
-  // Show bank info if enabled in settings or layout
-  // Priority: Document layout override > Global setting > Default (true)
-  const tableData: any[] = [];ount: number) => {
+  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   };
 
@@ -528,9 +520,8 @@ export async function generateInvoice(
   const totW = 85;
   const totX = pageWidth - 14 - totW;
   
-  // Totals panel
   doc.setFillColor(248, 250, 252);
-  const totRows = 2 + (data.discount ? 1 : 0) + (data.tax ? 1 : 0) + 2; // rows: sub, disc?, tax?, total line, total
+  const totRows = 2 + (data.discount ? 1 : 0) + (data.tax ? 1 : 0) + 2;
   const totH = totRows * 8 + 6;
   doc.rect(totX, y, totW, totH, 'F');
   doc.setDrawColor(226, 232, 240);
@@ -559,7 +550,6 @@ export async function generateInvoice(
     ty += 8;
   }
   
-  // Total separator
   doc.setDrawColor(rgbAccent.r, rgbAccent.g, rgbAccent.b);
   doc.setLineWidth(0.5);
   doc.line(totX + 2, ty - 2, totX + totW - 2, ty - 2);
@@ -571,7 +561,6 @@ export async function generateInvoice(
   doc.text(formatCurrency(data.total), totX + totW - 4, ty + 5, { align: 'right' });
   ty += 14;
   
-  // Payment summary rows
   if (data.paidAmount && data.paidAmount > 0) {
     doc.setFont(font, 'normal');
     doc.setFontSize(8);
@@ -588,9 +577,9 @@ export async function generateInvoice(
   }
   
   y = Math.max(y + totH + 8, ty + 12);
-  doc.setTextColor(0,  // ── Bank Info ──────────────────────────────────────────────────────
-  // Priority: Document layout override > Global setting > Default (true)
-  if (layout?.show_bank_info !== false && settings?.invoice_show_bank_info !== false && data.bankInfo) { false;
+  
+  // ── Bank Info ──────────────────────────────────────────────────────
+  const showBank = layout?.show_bank_info !== false && settings?.invoice_show_bank_info !== false;
   const bankInfo = data.bankInfo;
   if (showBank && bankInfo) {
     doc.setFillColor(239, 246, 255);
@@ -646,7 +635,7 @@ export async function generateInvoice(
     doc.text('Hormat kami,', pageWidth - 60, y);
     
     if (layout.show_stamp) {
-      // Logic for stamp placeholder or image if available
+      // Stamp logic
     }
     
     y += 25;
@@ -664,7 +653,6 @@ export async function generateLeaveLetter(
   letterNumber: string,
   company: CompanyInfo = defaultCompanyInfo
 ): Promise<jsPDF> {
-  // Pre-process logo if it's a URL
   if (company.logo && company.logo.startsWith('http')) {
     try {
       company.logo = await imageUrlToBase64(company.logo);
@@ -677,7 +665,6 @@ export async function generateLeaveLetter(
   
   const pageWidth = doc.internal.pageSize.width;
   
-  // Letter number and date
   doc.setFontSize(11);
   doc.text(`Nomor: ${letterNumber}`, pageWidth - 14, y, { align: 'right' });
   y += 6;
@@ -689,13 +676,11 @@ export async function generateLeaveLetter(
   
   y += 15;
   
-  // Title
   doc.setFontSize(14);
   doc.setFont(doc.getFont().fontName, 'bold');
   doc.text('SURAT PERMOHONAN CUTI KARYAWAN', pageWidth / 2, y, { align: 'center' });
   y += 15;
   
-  // Content
   doc.setFontSize(11);
   doc.setFont(doc.getFont().fontName, 'normal');
   
@@ -718,7 +703,6 @@ Demikian surat permohonan cuti ini saya ajukan. Atas perhatian dan persetujuan B
   
   y += lines.length * 6 + 20;
   
-  // Signature
   doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
   y += 6;
   doc.text('Hormat saya,', pageWidth - 60, y);
@@ -726,7 +710,6 @@ Demikian surat permohonan cuti ini saya ajukan. Atas perhatian dan persetujuan B
   doc.setFont(doc.getFont().fontName, 'bold');
   doc.text(data.employeeName, pageWidth - 60, y);
   
-  // Approval section
   y += 20;
   doc.setFont(doc.getFont().fontName, 'normal');
   doc.text('Disetujui oleh:', 14, y);
@@ -746,7 +729,6 @@ export async function generateJamaahLeaveLetter(
   letterNumber: string,
   company: CompanyInfo = defaultCompanyInfo
 ): Promise<jsPDF> {
-  // Pre-process logo if it's a URL
   if (company.logo && company.logo.startsWith('http')) {
     try {
       company.logo = await imageUrlToBase64(company.logo);
@@ -759,7 +741,6 @@ export async function generateJamaahLeaveLetter(
   
   const pageWidth = doc.internal.pageSize.width;
   
-  // Letter number and date
   doc.setFontSize(11);
   doc.text(`Nomor: ${letterNumber}`, 14, y);
   y += 6;
@@ -771,7 +752,6 @@ export async function generateJamaahLeaveLetter(
   
   y += 12;
   
-  // Recipient (Employer)
   doc.text('Kepada Yth,', 14, y);
   y += 6;
   doc.text(data.employerName, 14, y);
@@ -816,7 +796,6 @@ export async function generateJamaahLeaveLetter(
   doc.text('Wassalamu\'alaikum Wr. Wb.', 14, y);
   y += 15;
   
-  // Signature
   doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
   y += 6;
   doc.text(company.name, pageWidth - 60, y);
@@ -837,7 +816,6 @@ export async function generatePassportLetter(
   letterNumber: string,
   company: CompanyInfo = defaultCompanyInfo
 ): Promise<jsPDF> {
-  // Pre-process logo if it's a URL
   if (company.logo && company.logo.startsWith('http')) {
     try {
       company.logo = await imageUrlToBase64(company.logo);
@@ -850,7 +828,6 @@ export async function generatePassportLetter(
   
   const pageWidth = doc.internal.pageSize.width;
   
-  // Letter number and date
   doc.setFontSize(11);
   doc.text(`Nomor: ${letterNumber}`, 14, y);
   y += 6;
@@ -885,7 +862,7 @@ export async function generatePassportLetter(
   doc.text(addrLines, 45, y);
   y += addrLines.length * 6 + 6;
   
-  const body = `Bahwa yang bersangkutan adalah benar jamaah ${data.purpose} yang terdaftar di ${company.name} dan akan diberangkatkan pada tanggal ${data.departureDate ? format(data.departureDate, 'd MMMM yyyy', { locale: id }) : '________________'}. Surat rekomendasi ini diberikan sebagai persyaratan pengurusan paspor yang bersangkutan.`;
+  const body = `Bahwa yang bersangkutan adalah benar jamaah ${data.purpose} yang terdaftar di ${company.name} and akan diberangkatkan pada tanggal ${data.departureDate ? format(data.departureDate, 'd MMMM yyyy', { locale: id }) : '________________'}. Surat rekomendasi ini diberikan sebagai persyaratan pengurusan paspor yang bersangkutan.`;
   const bodyLines = doc.splitTextToSize(body, pageWidth - 28);
   doc.text(bodyLines, 14, y);
   y += bodyLines.length * 6 + 10;
@@ -896,7 +873,6 @@ export async function generatePassportLetter(
   doc.text('Wassalamu\'alaikum Wr. Wb.', 14, y);
   y += 15;
   
-  // Signature
   doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
   y += 6;
   doc.text(company.name, pageWidth - 60, y);
@@ -916,7 +892,6 @@ export async function generateGeneralLetter(
   data: GeneralLetterData,
   company: CompanyInfo = defaultCompanyInfo
 ): Promise<jsPDF> {
-  // Pre-process logo if it's a URL
   if (company.logo && company.logo.startsWith('http')) {
     try {
       company.logo = await imageUrlToBase64(company.logo);
@@ -929,14 +904,12 @@ export async function generateGeneralLetter(
   
   const pageWidth = doc.internal.pageSize.width;
   
-  // Letter number and date
   doc.setFontSize(11);
   doc.text(`Nomor: ${data.letterNumber}`, 14, y);
   y += 6;
   doc.text(`Tanggal: ${format(data.letterDate, 'd MMMM yyyy', { locale: id })}`, 14, y);
   y += 12;
   
-  // Recipient
   doc.text('Kepada Yth,', 14, y);
   y += 6;
   doc.text(data.recipient.name, 14, y);
@@ -954,25 +927,27 @@ export async function generateGeneralLetter(
     doc.text(addrLines, 14, y);
     y += addrLines.length * 6;
   }
-  y += 6;
-  doc.text('Di Tempat', 14, y);
-  y += 15;
+  y += 12;
   
-  // Subject
   doc.setFont(doc.getFont().fontName, 'bold');
   doc.text(`Perihal: ${data.subject}`, 14, y);
   doc.setFont(doc.getFont().fontName, 'normal');
   y += 15;
   
-  // Content
+  doc.text('Assalamu\'alaikum Wr. Wb.', 14, y);
+  y += 10;
+  
   const contentLines = doc.splitTextToSize(data.content, pageWidth - 28);
   doc.text(contentLines, 14, y);
-  y += contentLines.length * 6 + 20;
+  y += contentLines.length * 6 + 15;
   
-  // Signature
+  doc.text('Demikian surat ini kami sampaikan. Atas perhatiannya kami ucapkan terima kasih.', 14, y);
+  y += 12;
+  
+  doc.text('Wassalamu\'alaikum Wr. Wb.', 14, y);
+  y += 15;
+  
   doc.text(`${company.city || 'Jakarta'}, ${format(data.letterDate, 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
-  y += 6;
-  doc.text('Hormat kami,', pageWidth - 60, y);
   y += 6;
   doc.text(company.name, pageWidth - 60, y);
   y += 25;
@@ -987,115 +962,11 @@ export async function generateGeneralLetter(
   return doc;
 }
 
-// Generate E-Ticket
-export async function generateETicket(
-  data: ETicketData,
-  company: CompanyInfo = defaultCompanyInfo
-): Promise<jsPDF> {
-  // Pre-process logo if it's a URL
-  if (company.logo && company.logo.startsWith('http')) {
-    try {
-      company.logo = await imageUrlToBase64(company.logo);
-    } catch (e) {
-      console.warn('Failed to pre-process logo:', e);
-    }
-  }
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
-  
-  const pageWidth = doc.internal.pageSize.width;
-  const accentColor = company.settings?.invoice_accent_color || '#16a34a';
-  const rgb = hexToRgb(accentColor);
-  
-  // Header
-  doc.setFillColor(rgb.r, rgb.g, rgb.b);
-  doc.rect(0, 0, pageWidth, 40, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.setFont(doc.getFont().fontName, 'bold');
-  doc.text('E-TICKET', 14, 25);
-  
-  doc.setFontSize(10);
-  doc.setFont(doc.getFont().fontName, 'normal');
-  doc.text(`Booking Code: ${data.bookingCode}`, pageWidth - 14, 25, { align: 'right' });
-  
-  let y = 50;
-  
-  // Passenger Info
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(12);
-  doc.setFont(doc.getFont().fontName, 'bold');
-  doc.text('INFORMASI PENUMPANG', 14, y);
-  y += 8;
-  
-  doc.setFontSize(10);
-  doc.setFont(doc.getFont().fontName, 'normal');
-  doc.text(`Nama: ${data.passengerName}`, 14, y);
-  doc.text(`Paspor: ${data.passportNumber}`, pageWidth / 2, y);
-  y += 12;
-  
-  // Flight Info
-  doc.setFontSize(12);
-  doc.setFont(doc.getFont().fontName, 'bold');
-  doc.text('INFORMASI PENERBANGAN', 14, y);
-  y += 8;
-  
-  autoTable(doc, {
-    startY: y,
-    head: [['Rute', 'Maskapai', 'No. Penerbangan', 'Tanggal', 'Waktu']],
-    body: [
-      [
-        `${data.departureAirport} - ${data.arrivalAirport}`,
-        data.airline || '-',
-        data.flightNumber || '-',
-        format(data.departureDate, 'd MMM yyyy', { locale: id }),
-        data.departureTime || '-'
-      ]
-    ],
-    headStyles: { fillColor: [rgb.r, rgb.g, rgb.b] }
-  });
-  
-  // @ts-ignore
-  y = doc.lastAutoTable.finalY + 15;
-  
-  // Package & Hotel Info
-  doc.setFontSize(12);
-  doc.setFont(doc.getFont().fontName, 'bold');
-  doc.text('INFORMASI PAKET & AKOMODASI', 14, y);
-  y += 8;
-  
-  doc.setFontSize(10);
-  doc.setFont(doc.getFont().fontName, 'normal');
-  doc.text(`Paket: ${data.packageName}`, 14, y);
-  y += 6;
-  doc.text(`Hotel Makkah: ${data.hotelMakkah || '-'}`, 14, y);
-  y += 6;
-  doc.text(`Hotel Madinah: ${data.hotelMadinah || '-'}`, 14, y);
-  y += 6;
-  doc.text(`Tipe Kamar: ${data.roomType}`, 14, y);
-  
-  addFooter(doc, 1, 1, company);
-  
-  return doc;
-}
-
 // Generate Umrah Certificate
 export async function generateUmrahCertificate(
   data: UmrahCertificateData,
   company: CompanyInfo = defaultCompanyInfo
 ): Promise<jsPDF> {
-  // Pre-process logo if it's a URL
-  if (company.logo && company.logo.startsWith('http')) {
-    try {
-      company.logo = await imageUrlToBase64(company.logo);
-    } catch (e) {
-      console.warn('Failed to pre-process logo:', e);
-    }
-  }
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -1105,8 +976,7 @@ export async function generateUmrahCertificate(
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   
-  // Border
-  doc.setDrawColor(218, 165, 32); // Golden
+  doc.setDrawColor(218, 165, 32);
   doc.setLineWidth(2);
   doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
   doc.setLineWidth(0.5);
@@ -1114,7 +984,6 @@ export async function generateUmrahCertificate(
   
   let y = 40;
   
-  // Logo
   if (company.logo) {
     try {
       doc.addImage(company.logo, 'PNG', pageWidth / 2 - 15, y, 30, 30);
