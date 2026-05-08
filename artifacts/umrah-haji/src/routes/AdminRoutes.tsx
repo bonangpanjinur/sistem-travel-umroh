@@ -89,6 +89,12 @@ const AdminSupabaseSetup = lazy(() => import("@/pages/admin/AdminSupabaseSetup")
 const AdminMemberships = lazy(() => import("@/pages/admin/AdminMemberships"));
 const AdminBranchCommissions = lazy(() => import("@/pages/admin/AdminBranchCommissions"));
 
+const AdminAgentCommissionReport = lazy(() => import("@/pages/admin/AdminAgentCommissionReport"));
+const AdminEmailTemplates = lazy(() => import("@/pages/admin/AdminEmailTemplates"));
+const AdminPushNotifications = lazy(() => import("@/pages/admin/AdminPushNotifications"));
+const AdminDepartureTracking = lazy(() => import("@/pages/admin/AdminDepartureTracking"));
+const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
+
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
 function LazyPage({ children }: { children: React.ReactNode }) {
@@ -214,6 +220,17 @@ export default function AdminRoutes() {
       {/* Fase 1 — Keanggotaan & Komisi Cabang */}
       <Route path="memberships" element={<P k={PERMISSIONS.MEMBERSHIPS}><AdminMemberships /></P>} />
       <Route path="branch-commissions" element={<P k={PERMISSIONS.BRANCH_COMMISSIONS}><AdminBranchCommissions /></P>} />
+
+      {/* Fase 4 — Analytics & Reporting */}
+      <Route path="agent-commission-report" element={<P k={PERMISSIONS.AGENT_COMMISSION_REPORT}><AdminAgentCommissionReport /></P>} />
+
+      {/* Fase 5 — Notifikasi & Komunikasi */}
+      <Route path="email-templates" element={<P k={PERMISSIONS.EMAIL_TEMPLATES}><AdminEmailTemplates /></P>} />
+      <Route path="push-notifications" element={<P k={PERMISSIONS.PUSH_NOTIFICATIONS}><AdminPushNotifications /></P>} />
+
+      {/* Fase 6 — Operational Excellence */}
+      <Route path="departure-tracking" element={<P k={PERMISSIONS.DEPARTURE_TRACKING}><AdminDepartureTracking /></P>} />
+      <Route path="sos-alerts" element={<P k={PERMISSIONS.SOS_ALERTS}><AdminSOSAlerts /></P>} />
 
       {/* Master Data */}
       <Route path="master-data" element={<P k={PERMISSIONS.MASTER_DATA}><AdminMasterData /></P>} />

@@ -95,6 +95,17 @@ export const PERMISSIONS = {
   // Fase 1 — Keanggotaan & Komisi Cabang
   MEMBERSHIPS: 'memberships',
   BRANCH_COMMISSIONS: 'branch-commissions',
+
+  // Fase 4 — Analytics & Reporting
+  AGENT_COMMISSION_REPORT: 'agent-commission-report',
+
+  // Fase 5 — Notifikasi & Komunikasi
+  EMAIL_TEMPLATES: 'email-templates',
+  PUSH_NOTIFICATIONS: 'push-notifications',
+
+  // Fase 6 — Operational Excellence
+  DEPARTURE_TRACKING: 'departure-tracking',
+  SOS_ALERTS: 'sos-alerts',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

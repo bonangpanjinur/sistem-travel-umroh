@@ -22,9 +22,11 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SOSButtonProps {
   customerName: string;
+  customerId?: string;
   muthawifPhone?: string;
   emergencyPhone?: string;
   bookingCode?: string;
@@ -46,7 +48,7 @@ const emergencyTypes: { type: EmergencyType; label: string; icon: React.ReactNod
   { type: "other", label: "Lainnya", icon: <HelpCircle className="h-5 w-5" />, color: "bg-primary" },
 ];
 
-export function SOSButton({ customerName, muthawifPhone, emergencyPhone, bookingCode }: SOSButtonProps) {
+export function SOSButton({ customerName, customerId, muthawifPhone, emergencyPhone, bookingCode }: SOSButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -152,8 +154,26 @@ export function SOSButton({ customerName, muthawifPhone, emergencyPhone, booking
     );
   };
 
+  // Log SOS alert to Supabase
+  const logSOSToDatabase = async (emergencyType: EmergencyType) => {
+    try {
+      await supabase.from("sos_alerts" as any).insert({
+        customer_id: customerId || null,
+        booking_code: bookingCode || null,
+        emergency_type: emergencyType,
+        message: formatEmergencyMessage(),
+        latitude: location?.latitude || null,
+        longitude: location?.longitude || null,
+        accuracy: location?.accuracy || null,
+        status: "active",
+      } as any);
+    } catch (e) {
+      console.warn("SOS log to DB failed (table may not exist yet):", e);
+    }
+  };
+
   // Send SOS via WhatsApp
-  const sendSOSWhatsApp = (phone: string) => {
+  const sendSOSWhatsApp = async (phone: string) => {
     if (!selectedType) {
       toast.error("Pilih jenis darurat terlebih dahulu");
       return;
@@ -163,6 +183,7 @@ export function SOSButton({ customerName, muthawifPhone, emergencyPhone, booking
     const message = encodeURIComponent(formatEmergencyMessage());
     const cleanPhone = phone.replace(/\D/g, "");
     
+    await logSOSToDatabase(selectedType);
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank");
     
     toast.success("Membuka WhatsApp untuk mengirim SOS");

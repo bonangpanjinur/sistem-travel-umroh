@@ -39,9 +39,13 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'landing-pages',       label: 'Landing Page',          path: '/admin/landing-pages',        icon: 'Globe',           group_name: 'Konten & Marketing', sort_order: 303, required_permission: PERMISSIONS.LANDING_PAGES },
   { key: 'marketing-materials', label: 'Materi Marketing',      path: '/admin/marketing-materials',  icon: 'Radio',           group_name: 'Konten & Marketing', sort_order: 304, required_permission: PERMISSIONS.MARKETING_MATERIALS },
   { key: 'whatsapp',            label: 'WhatsApp Blast',        path: '/admin/whatsapp',             icon: 'MessageSquare',   group_name: 'Konten & Marketing', sort_order: 305, required_permission: PERMISSIONS.WHATSAPP },
+  { key: 'email-templates',     label: 'Template Email',        path: '/admin/email-templates',      icon: 'Mail',            group_name: 'Konten & Marketing', sort_order: 306, required_permission: PERMISSIONS.EMAIL_TEMPLATES },
+  { key: 'push-notifications',  label: 'Push Notifikasi',       path: '/admin/push-notifications',   icon: 'Bell',            group_name: 'Konten & Marketing', sort_order: 307, required_permission: PERMISSIONS.PUSH_NOTIFICATIONS },
 
   // ── Keberangkatan (400s) ──────────────────────────────────────────────────
   { key: 'departures',          label: 'Jadwal Keberangkatan',  path: '/admin/departures',           icon: 'CalendarDays',    group_name: 'Keberangkatan',      sort_order: 401, required_permission: PERMISSIONS.DEPARTURES },
+  { key: 'departure-tracking',  label: 'Tracking Real-time',    path: '/admin/departure-tracking',   icon: 'Navigation',      group_name: 'Keberangkatan',      sort_order: 402, required_permission: PERMISSIONS.DEPARTURE_TRACKING },
+  { key: 'sos-alerts',          label: 'Monitor SOS',           path: '/admin/sos-alerts',           icon: 'AlertCircle',     group_name: 'Keberangkatan',      sort_order: 403, required_permission: PERMISSIONS.SOS_ALERTS },
   { key: 'room-assignments',    label: 'Kamar & Rooming',       path: '/admin/room-assignments',     icon: 'BedDouble',       group_name: 'Keberangkatan',      sort_order: 402, required_permission: PERMISSIONS.ROOM_ASSIGNMENTS },
   { key: 'haji',                label: 'Manajemen Haji',        path: '/admin/haji',                 icon: 'MapPin',          group_name: 'Keberangkatan',      sort_order: 403, required_permission: PERMISSIONS.HAJI },
   { key: 'manasik',             label: 'Manasik',               path: '/admin/manasik',              icon: 'BookMarked',      group_name: 'Keberangkatan',      sort_order: 404, required_permission: PERMISSIONS.MANASIK },
@@ -67,8 +71,9 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'agents',              label: 'Agen',                  path: '/admin/agents',               icon: 'UserSquare2',     group_name: 'Jamaah & Agen',      sort_order: 602, required_permission: PERMISSIONS.AGENTS },
   { key: 'branches',            label: 'Cabang',                path: '/admin/branches',             icon: 'Network',         group_name: 'Jamaah & Agen',      sort_order: 603, required_permission: PERMISSIONS.BRANCHES },
   { key: 'memberships',         label: 'Keanggotaan',           path: '/admin/memberships',          icon: 'Crown',           group_name: 'Jamaah & Agen',      sort_order: 604, required_permission: PERMISSIONS.MEMBERSHIPS },
-  { key: 'branch-commissions',  label: 'Komisi Cabang',         path: '/admin/branch-commissions',   icon: 'DollarSign',      group_name: 'Jamaah & Agen',      sort_order: 605, required_permission: PERMISSIONS.BRANCH_COMMISSIONS },
-  { key: 'loyalty',             label: 'Program Loyalitas',     path: '/admin/loyalty',              icon: 'Award',           group_name: 'Jamaah & Agen',      sort_order: 606, required_permission: PERMISSIONS.LOYALTY },
+  { key: 'branch-commissions',      label: 'Komisi Cabang',           path: '/admin/branch-commissions',       icon: 'DollarSign',      group_name: 'Jamaah & Agen',      sort_order: 605, required_permission: PERMISSIONS.BRANCH_COMMISSIONS },
+  { key: 'agent-commission-report', label: 'Laporan Komisi Agen',     path: '/admin/agent-commission-report',  icon: 'BarChart3',       group_name: 'Jamaah & Agen',      sort_order: 606, required_permission: PERMISSIONS.AGENT_COMMISSION_REPORT },
+  { key: 'loyalty',             label: 'Program Loyalitas',     path: '/admin/loyalty',              icon: 'Award',           group_name: 'Jamaah & Agen',      sort_order: 607, required_permission: PERMISSIONS.LOYALTY },
   { key: 'referrals',           label: 'Referral',              path: '/admin/referrals',            icon: 'Share2',          group_name: 'Jamaah & Agen',      sort_order: 607, required_permission: PERMISSIONS.REFERRALS },
   { key: 'visa',                label: 'Visa',                  path: '/admin/visa',                 icon: 'FileCheck',       group_name: 'Jamaah & Agen',      sort_order: 608, required_permission: PERMISSIONS.VISA },
 
@@ -142,14 +147,16 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   branch_manager: [
     'dashboard', 'analytics',
     'leads', 'bookings', 'packages', 'coupons', 'banners',
-    'departures', 'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
+    'departures', 'departure-tracking', 'sos-alerts',
+    'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
     'payments', 'finance-cash', 'savings', 'reports',
     'customers', 'agents', 'branches', 'visa',
-    'memberships', 'branch-commissions',
+    'memberships', 'branch-commissions', 'agent-commission-report',
     'document-verification', 'document-types',
     'hotels', 'airlines', 'airports',
     'office-assets',
     'users', 'support',
+    'push-notifications',
   ],
 
   finance: [
@@ -157,6 +164,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'payments', 'finance-cash', 'finance', 'finance-ar', 'finance-ap',
     'savings', 'reports', 'advanced-reports',
     'bookings', 'customers',
+    'agent-commission-report',
   ],
 
   sales: [
@@ -165,17 +173,20 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'customers', 'agents',
     'payments',
     'document-verification',
+    'agent-commission-report',
   ],
 
   marketing: [
     'dashboard', 'analytics',
     'leads', 'landing-pages', 'banners', 'marketing-materials',
     'coupons', 'referrals', 'loyalty', 'whatsapp',
+    'email-templates', 'push-notifications',
   ],
 
   operational: [
     'dashboard',
-    'departures', 'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik', 'itinerary-templates',
+    'departures', 'departure-tracking', 'sos-alerts',
+    'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik', 'itinerary-templates',
     'customers', 'bookings',
     'document-verification', 'documents-generator',
     'office-assets',
