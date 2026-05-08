@@ -74,7 +74,7 @@ export function IslamicCTASection({ settings: propSettings }: IslamicCTASectionP
                   </Link>
                 </Button>
                 <Button variant="outline" size="lg" className="h-16 px-10 rounded-2xl text-lg font-bold border-2 group">
-                  <a href="https://wa.me/628123456789" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <a href={`https://wa.me/${(settings?.footer_whatsapp || '6281234567890').replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                     <Phone className="h-5 w-5" />
                     WhatsApp
                   </a>
