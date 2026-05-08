@@ -227,20 +227,20 @@ Portal Vinstour kini memiliki **31 halaman jamaah/customer** yang sudah producti
 
 ---
 
-## E. BACKLOG — PERBAIKAN YANG BELUM DIKERJAKAN 🔧
+## E. BACKLOG — PERBAIKAN YANG TELAH DIKERJAKAN ✅
 
-Beberapa item dari dokumen awal yang belum sempat ditangani:
+Semua item backlog telah selesai diimplementasikan:
 
-| ID | Halaman | Masalah | Prioritas |
-|----|---------|---------|-----------|
-| P1 | **JamaahDocuments** | Checklist dokumen tidak dinamis per jenis paket (Haji vs Umroh berbeda persyaratan) | Menengah |
-| P2 | **JamaahDoa & PanduanIbadah** | Konten tumpang tindih — pertimbangkan merge ke satu halaman | Rendah |
-| P3 | **PaymentUpload** | Setelah upload belum ada trigger notif ke admin via WA | Menengah |
-| P4 | **JamaahPortal** | Bottom nav hanya 5 tab — fitur baru sulit ditemukan jamaah | Menengah |
-| P5 | **BookingWizard** | Label "PIC / Sumber Pendaftaran" kurang ramah pengguna | Rendah |
-| P6 | **CustomerDashboard** | Tidak ada shortcut ke halaman Fase 5 baru (Check-in, Kontrak, Bagasi) | Rendah |
-| P7 | **JamaahGaleri** | Belum ada fitur like/react pada foto rombongan | Rendah |
-| P8 | **MyBookings** | Tidak ada filter berdasarkan tahun atau status pembayaran | Rendah |
+| ID | Halaman | Solusi | Status |
+|----|---------|--------|--------|
+| P1 | **JamaahDocuments** | Tambah filter Haji/Umroh/Semua + badge paket aktif pada checklist dokumen wajib | ✅ Done |
+| P2 | **JamaahDoa & PanduanIbadah** | Tambah cross-link banner di kedua halaman — saling merujuk satu sama lain | ✅ Done |
+| P3 | **PaymentUpload** | Insert notifikasi ke tabel `notifications` (target_role admin) setelah upload berhasil | ✅ Done |
+| P4 | **JamaahPortal** | Tambah tab "Lebih" di bottom nav — membuka sheet grid 10 fitur lengkap | ✅ Done |
+| P5 | **BookingWizard** | Ganti label menjadi "Asal Pendaftaran" + UI pilihan Kantor Pusat/Cabang/Agen di step 4 | ✅ Done |
+| P6 | **CustomerDashboard** | Tambah 3 quick action: Check-in, Kontrak, Bagasi di grid aksi cepat | ✅ Done |
+| P7 | **JamaahGaleri** | Tambah like mutation + tombol Heart di thumbnail grid & dialog — dengan counter | ✅ Done |
+| P8 | **MyBookings** | Tambah filter dropdown tahun & status pembayaran dengan IIFE filtered array | ✅ Done |
 
 ---
 

@@ -867,6 +867,39 @@ export default function AdminBookingCreate() {
 
                     <div className="space-y-3 pt-6 border-t-2 border-dashed">
                       <Label className="text-sm font-black flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" /> Asal Pendaftaran
+                      </Label>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {(['pusat', 'cabang', 'agen'] as const).map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => { setPicType(type); if (type !== 'cabang') setPicBranchId(''); if (type !== 'agen') setPicAgentId(''); }}
+                            className={cn(
+                              "p-3 text-left border-2 rounded-xl transition-all text-sm font-bold capitalize",
+                              picType === type ? "border-primary bg-primary/5 text-primary" : "border-muted bg-background text-muted-foreground hover:border-primary/40"
+                            )}
+                          >
+                            {type === 'pusat' ? 'Kantor Pusat' : type === 'cabang' ? 'Cabang' : 'Agen Mitra'}
+                          </button>
+                        ))}
+                      </div>
+                      {picType === 'cabang' && branches && branches.length > 0 && (
+                        <Select value={picBranchId} onValueChange={setPicBranchId}>
+                          <SelectTrigger className="border-2 rounded-xl h-11"><SelectValue placeholder="Pilih Cabang" /></SelectTrigger>
+                          <SelectContent>{branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      )}
+                      {picType === 'agen' && agents && agents.length > 0 && (
+                        <Select value={picAgentId} onValueChange={setPicAgentId}>
+                          <SelectTrigger className="border-2 rounded-xl h-11"><SelectValue placeholder="Pilih Agen Mitra" /></SelectTrigger>
+                          <SelectContent>{agents.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.company_name} ({a.agent_code})</SelectItem>)}</SelectContent>
+                        </Select>
+                      )}
+                    </div>
+
+                    <div className="space-y-3 pt-6 border-t-2 border-dashed">
+                      <Label className="text-sm font-black flex items-center gap-2">
                         <Info className="h-4 w-4 text-primary" /> Catatan Internal Booking
                       </Label>
                       <Textarea 

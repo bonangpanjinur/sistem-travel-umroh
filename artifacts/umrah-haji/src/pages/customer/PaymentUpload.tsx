@@ -128,6 +128,15 @@ export default function PaymentUpload() {
         throw new Error(`Gagal menyimpan data pembayaran: ${paymentError.message}`);
       }
 
+      await supabase.from('notifications').insert({
+        title: 'Bukti Pembayaran Baru',
+        message: `Jamaah mengunggah bukti pembayaran untuk booking ${booking.booking_code} sebesar Rp ${amountNum.toLocaleString('id-ID')}. Harap verifikasi segera.`,
+        type: 'info',
+        target_role: 'admin',
+        booking_id: bookingId,
+        is_read: false,
+      } as any);
+
       toast.success('Bukti pembayaran berhasil diupload! Tim kami akan memverifikasi dalam 1x24 jam.');
       navigate(`/my-bookings/${bookingId}`);
 

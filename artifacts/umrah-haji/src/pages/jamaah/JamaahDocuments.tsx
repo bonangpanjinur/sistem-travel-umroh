@@ -78,6 +78,8 @@ export default function JamaahDocuments() {
   const [notes, setNotes] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  const [packageFilter, setPackageFilter] = useState<"all" | "haji" | "umroh">("all");
+
   const { data: customer } = useQuery({
     queryKey: ["jamaah-customer", user?.id],
     queryFn: async () => {
@@ -91,6 +93,26 @@ export default function JamaahDocuments() {
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  const { data: activeBookingPackage } = useQuery({
+    queryKey: ["jamaah-booking-package", customer?.id],
+    queryFn: async () => {
+      if (!customer?.id) return null;
+      const { data } = await supabase
+        .from("bookings")
+        .select("departure:departures(package:packages(name, code))")
+        .eq("customer_id", customer.id)
+        .in("booking_status", ["confirmed", "processing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const name: string = (data as any)?.departure?.package?.name || "";
+      if (name.toLowerCase().includes("haji")) return "haji";
+      if (name.toLowerCase().includes("umroh") || name.toLowerCase().includes("umrah")) return "umroh";
+      return null;
+    },
+    enabled: !!customer?.id,
   });
 
   const { data: documentTypes } = useQuery({
@@ -253,6 +275,26 @@ export default function JamaahDocuments() {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Package Type Filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeBookingPackage && (
+            <Badge variant="outline" className={activeBookingPackage === 'haji' ? 'border-green-500 text-green-700 bg-green-50' : 'border-blue-500 text-blue-700 bg-blue-50'}>
+              Paket {activeBookingPackage === 'haji' ? 'Haji' : 'Umroh'} Aktif
+            </Badge>
+          )}
+          <div className="flex gap-1 ml-auto">
+            {(["all", "haji", "umroh"] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setPackageFilter(f)}
+                className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${packageFilter === f ? 'bg-primary text-primary-foreground border-primary' : 'border-muted text-muted-foreground hover:border-primary/40'}`}
+              >
+                {f === 'all' ? 'Semua' : f === 'haji' ? 'Haji' : 'Umroh'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Progress Card */}
         <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
           <CardContent className="p-4">
@@ -294,7 +336,15 @@ export default function JamaahDocuments() {
             </CardHeader>
             <CardContent className="space-y-2">
               {documentTypes
-                .filter((t: any) => t.is_required)
+                .filter((t: any) => {
+                  if (!t.is_required) return false;
+                  if (packageFilter === "all") return true;
+                  const n = (t.name || "").toLowerCase();
+                  const c = (t.code || "").toLowerCase();
+                  if (packageFilter === "haji") return n.includes("haji") || c.includes("haji") || (!n.includes("umroh") && !n.includes("umrah") && !c.includes("umroh") && !c.includes("umrah"));
+                  if (packageFilter === "umroh") return n.includes("umroh") || n.includes("umrah") || c.includes("umroh") || c.includes("umrah") || (!n.includes("haji") && !c.includes("haji"));
+                  return true;
+                })
                 .map((docType: any) => {
                   const uploaded = documents?.find(
                     (d: any) => d.document_type?.id === docType.id && d.status !== "rejected"

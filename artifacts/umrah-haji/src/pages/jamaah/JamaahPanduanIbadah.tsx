@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -466,6 +466,15 @@ export default function JamaahPanduanIbadah() {
             <span>Tersimpan sejak {new Date(savedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long" })} — dapat diakses tanpa internet</span>
           </div>
         )}
+
+        {/* Cross-link to Doa Panduan */}
+        <Link to="/jamaah/doa-panduan">
+          <div className="flex items-center gap-2 text-sm bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-3 py-2 hover:bg-blue-100 transition-colors">
+            <BookMarked className="h-4 w-4 shrink-0" />
+            <span className="flex-1">Lihat juga: <strong>Doa & Dzikir</strong> — lengkap dengan audio & mode offline</span>
+            <ChevronLeft className="h-3.5 w-3.5 rotate-180" />
+          </div>
+        </Link>
 
         {/* Search */}
         <div className="relative">

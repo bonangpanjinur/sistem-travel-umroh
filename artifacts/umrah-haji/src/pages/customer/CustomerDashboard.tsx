@@ -14,7 +14,7 @@ import {
   Calendar, CreditCard, Star, PiggyBank, Headphones,
   ArrowRight, BookOpen, IdCard, MapPin, Clock, CheckCircle2,
   Plane, FileCheck, Stethoscope, ShieldCheck, Calculator, Scale,
-  Bell, Info, AlertCircle, CheckCheck
+  Bell, Info, AlertCircle, CheckCheck, LogIn, Luggage, FileSignature
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { CountdownTimer } from "@/components/customer/CountdownTimer";
@@ -274,12 +274,21 @@ export default function CustomerDashboard() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 lg:grid-cols-9">
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
-          <Link to="/my-bookings"><Calendar className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Booking Saya</span></Link>
+          <Link to="/my-bookings"><Calendar className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Booking</span></Link>
         </Button>
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
-          <Link to="/jamaah"><IdCard className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Portal Jamaah</span></Link>
+          <Link to="/jamaah"><IdCard className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Portal</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/jamaah/checkin"><LogIn className="h-5 w-5 text-blue-600" /><span className="text-xs font-semibold">Check-in</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/jamaah/kontrak"><FileSignature className="h-5 w-5 text-purple-600" /><span className="text-xs font-semibold">Kontrak</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/jamaah/bagasi"><Luggage className="h-5 w-5 text-orange-600" /><span className="text-xs font-semibold">Bagasi</span></Link>
         </Button>
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
           <Link to="/customer/my-savings"><PiggyBank className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Tabungan</span></Link>

@@ -88,6 +88,8 @@ export default function JamaahGaleri() {
     enabled: !!departureId,
   });
 
+  const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
+
   const deleteMutation = useMutation({
     mutationFn: async (photo: TripPhoto) => {
       await (supabase as any).from("trip_photos").delete().eq("id", photo.id);
@@ -100,6 +102,24 @@ export default function JamaahGaleri() {
       toast.success("Foto dihapus");
     },
     onError: () => toast.error("Gagal menghapus foto"),
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: async ({ photoId, currentLikes, isLiked }: { photoId: string; currentLikes: number; isLiked: boolean }) => {
+      const newLikes = isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
+      const { error } = await (supabase as any).from("trip_photos").update({ likes: newLikes }).eq("id", photoId);
+      if (error) throw error;
+      return { photoId, isLiked, newLikes };
+    },
+    onSuccess: ({ photoId, isLiked }) => {
+      setLikedPhotos(prev => {
+        const next = new Set(prev);
+        if (isLiked) next.delete(photoId); else next.add(photoId);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ["trip-photos", departureId] });
+    },
+    onError: () => toast.error("Gagal memberi like"),
   });
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,25 +263,40 @@ export default function JamaahGaleri() {
               </div>
 
               <div className="grid grid-cols-3 gap-1">
-                {photos.map(photo => (
-                  <button
-                    key={photo.id}
-                    onClick={() => setSelectedPhoto(photo)}
-                    className="aspect-square relative overflow-hidden rounded-md bg-gray-100 hover:opacity-90 transition-opacity"
-                  >
-                    <img
-                      src={photo.url}
-                      alt={photo.caption ?? "Foto perjalanan"}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    {photo.uploader_id === user?.id && (
-                      <div className="absolute top-1 right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-                        <User className="h-2.5 w-2.5 text-white" />
-                      </div>
-                    )}
-                  </button>
-                ))}
+                {photos.map(photo => {
+                  const isLiked = likedPhotos.has(photo.id);
+                  const likeCount = photo.likes ?? 0;
+                  return (
+                    <div key={photo.id} className="aspect-square relative overflow-hidden rounded-md bg-gray-100 group">
+                      <button
+                        onClick={() => setSelectedPhoto(photo)}
+                        className="absolute inset-0 w-full h-full"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.caption ?? "Foto perjalanan"}
+                          className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                          loading="lazy"
+                        />
+                      </button>
+                      {photo.uploader_id === user?.id && (
+                        <div className="absolute top-1 right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center pointer-events-none">
+                          <User className="h-2.5 w-2.5 text-white" />
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); likeMutation.mutate({ photoId: photo.id, currentLikes: likeCount, isLiked }); }}
+                        className={cn(
+                          "absolute bottom-1 left-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold transition-all",
+                          isLiked ? "bg-red-500 text-white" : "bg-black/50 text-white"
+                        )}
+                      >
+                        <Heart className={cn("h-2.5 w-2.5", isLiked && "fill-white")} />
+                        {likeCount > 0 && <span>{likeCount}</span>}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -291,6 +326,16 @@ export default function JamaahGaleri() {
                 <p className="px-4 py-2 text-sm text-gray-700">{selectedPhoto.caption}</p>
               )}
               <div className="flex gap-2 px-4 pb-4 pt-2">
+                <Button
+                  variant={likedPhotos.has(selectedPhoto.id) ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => likeMutation.mutate({ photoId: selectedPhoto.id, currentLikes: selectedPhoto.likes ?? 0, isLiked: likedPhotos.has(selectedPhoto.id) })}
+                  disabled={likeMutation.isPending}
+                >
+                  <Heart className={cn("h-3.5 w-3.5", likedPhotos.has(selectedPhoto.id) && "fill-current")} />
+                  {(selectedPhoto.likes ?? 0) > 0 && <span>{selectedPhoto.likes}</span>}
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

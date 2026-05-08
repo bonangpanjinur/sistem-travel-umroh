@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Book, BookOpen, ChevronDown, ChevronLeft,
   Search, Volume2, Star, Languages, WifiOff, Wifi,
-  Download, Check
+  Download, Check, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
@@ -200,6 +200,15 @@ export default function JamaahDoaPanduan() {
             <span>Mode offline — menampilkan konten yang tersimpan</span>
           </div>
         )}
+
+        {/* Cross-link to Panduan Ibadah Lengkap */}
+        <Link to="/jamaah/panduan-ibadah">
+          <div className="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-3 py-2 hover:bg-emerald-100 transition-colors">
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="flex-1">Lihat juga: <strong>Panduan Ibadah Lengkap</strong> — doa manasik, tata cara umroh & haji</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </div>
+        </Link>
 
         {/* Search */}
         <div className="relative">
