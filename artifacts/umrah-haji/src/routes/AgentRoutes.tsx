@@ -16,6 +16,7 @@ const AgentDigitalKit = lazy(() => import("@/pages/agent/AgentDigitalKit"));
 const AgentSettings = lazy(() => import("@/pages/agent/AgentSettings"));
 const AgentNetwork = lazy(() => import("@/pages/agent/AgentNetwork"));
 const AgentMembership = lazy(() => import("@/pages/agent/AgentMembership"));
+const AgentMyReferrals = lazy(() => import("@/pages/agent/AgentMyReferrals"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -43,6 +44,7 @@ export default function AgentRoutes() {
       <Route path="settings" element={<LazyPage><AgentSettings /></LazyPage>} />
       <Route path="network" element={<LazyPage><AgentNetwork /></LazyPage>} />
       <Route path="membership" element={<LazyPage><AgentMembership /></LazyPage>} />
+      <Route path="referrals" element={<LazyPage><AgentMyReferrals /></LazyPage>} />
     </Route>
   );
 }

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { getAgentRef } from '@/hooks/useAgentRef';
 
 const registerSchema = z.object({
   fullName: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
@@ -44,7 +45,9 @@ export default function Register() {
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const agentRef = getAgentRef();
+
+      const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
@@ -52,11 +55,28 @@ export default function Register() {
           data: {
             full_name: data.fullName,
             phone: data.phone,
+            referred_agent_id: agentRef.agentId || null,
+            referred_branch_id: agentRef.branchId || null,
           },
         },
       });
 
       if (error) throw error;
+
+      // Simpan customer_account dengan atribusi agen/cabang jika ada referensi
+      if (authData.user && (agentRef.agentId || agentRef.branchId)) {
+        try {
+          await supabase.rpc('create_customer_account' as any, {
+            p_user_id: authData.user.id,
+            p_agent_id: agentRef.agentId || null,
+            p_branch_id: agentRef.branchId || null,
+            p_agent_slug: agentRef.agentSlug || null,
+            p_branch_slug: agentRef.branchSlug || null,
+          });
+        } catch (_) {
+          // Jika fungsi belum ada (migrasi belum dijalankan), skip saja
+        }
+      }
 
       toast({
         title: 'Pendaftaran Berhasil',

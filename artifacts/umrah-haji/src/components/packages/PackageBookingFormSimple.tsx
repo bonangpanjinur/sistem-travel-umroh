@@ -16,6 +16,8 @@ import { Calendar, Users, Loader2, MessageCircle, ChevronRight, Minus, Plus } fr
 import { cn } from "@/lib/utils";
 import { slugify } from "@/lib/slug";
 import { useWebsiteSettings } from "@/hooks/useWebsiteSettings";
+import { getAgentRef, buildBookingUrlWithRef } from "@/hooks/useAgentRef";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface PackageBookingFormSimpleProps {
   pkg: any;
@@ -27,6 +29,7 @@ export function PackageBookingFormSimple({ pkg }: PackageBookingFormSimpleProps)
   const waNumber = (websiteSettings?.footer_whatsapp || '6281234567890').replace(/\D/g, '');
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
+  const { tenant } = useTenant();
   
   // Form state
   const [selectedDeparture, setSelectedDeparture] = useState<string>("");
@@ -86,6 +89,19 @@ export function PackageBookingFormSimple({ pkg }: PackageBookingFormSimpleProps)
       departure: selectedDeparture,
       pax: totalPax.toString(),
     });
+
+    // Ambil referensi agen dari TenantContext (prioritas) atau localStorage
+    const ref = getAgentRef();
+    const agentId = (tenant?.type === 'agent' ? tenant.id : null) || ref.agentId;
+    const branchId = (tenant?.type === 'branch' ? tenant.id : null) || ref.branchId;
+
+    if (agentId) {
+      params.set('agent_id', agentId);
+      params.set('pic_source', 'agen');
+    } else if (branchId) {
+      params.set('branch_id', branchId);
+      params.set('pic_source', 'cabang');
+    }
 
     const bookingUrl = `/booking/${packageId}?${params.toString()}`;
 

@@ -22,12 +22,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
 import { useTenant } from '@/contexts/TenantContext';
+import { useSaveAgentRef } from '@/hooks/useAgentRef';
 
 export default function BranchWebsite() {
   const { branchSlug } = useParams<{ branchSlug: string }>();
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('branch', branchSlug);
   const { setTenant } = useTenant();
   const template = settings?.template || 'classic';
+
+  // Simpan referensi cabang ke localStorage agar booking auto-attribut ke cabang ini
+  useSaveAgentRef({
+    branchId: settings?.branch_id ?? undefined,
+    branchSlug: branchSlug ?? undefined,
+  });
 
   // Set tenant context when branch is loaded
   useEffect(() => {

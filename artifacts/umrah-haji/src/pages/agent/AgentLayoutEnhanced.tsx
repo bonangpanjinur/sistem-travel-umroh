@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AgentNotificationBell } from "@/components/agent/AgentNotificationBell";
 import { 
   Home, Users, DollarSign, Package, UserCog,
-  Menu, X, LogOut, Wallet, Globe, Zap, Network, Crown
+  Menu, X, LogOut, Wallet, Globe, Zap, Network, Crown, Link2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ const navItems = [
   { label: "Paket Tersedia", href: "/agent/packages", icon: Package },
   { label: "Digital Kit", href: "/agent/digital-kit", icon: Zap },
   { label: "Website Saya", href: "/agent/website", icon: Globe },
+  { label: "Referral & Booking", href: "/agent/referrals", icon: Link2 },
 ];
 
 export default function AgentLayoutEnhanced() {

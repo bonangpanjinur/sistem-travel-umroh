@@ -22,12 +22,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
 import { useTenant } from '@/contexts/TenantContext';
+import { useSaveAgentRef } from '@/hooks/useAgentRef';
 
 export default function AgentWebsite() {
   const { agentSlug } = useParams<{ agentSlug: string }>();
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('agent', agentSlug);
   const { setTenant } = useTenant();
   const template = settings?.template || 'classic';
+
+  // Simpan referensi agen ke localStorage agar booking auto-attribut ke agen ini
+  useSaveAgentRef({
+    agentId: settings?.agent_id ?? undefined,
+    agentSlug: agentSlug ?? undefined,
+  });
 
   // Set tenant context when agent is loaded
   useEffect(() => {

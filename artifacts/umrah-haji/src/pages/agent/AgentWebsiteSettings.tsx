@@ -163,26 +163,27 @@ export default function AgentWebsiteSettings() {
 
   useEffect(() => {
     if (settings) {
+      const s = settings as any;
       setForm({
-        company_name: settings.company_name || "",
-        tagline: settings.tagline || "",
-        profile_photo_url: (settings as any).profile_photo_url || "",
-        banner_url: (settings as any).banner_url || "",
-        bio: (settings as any).bio || "",
-        hero_title: settings.hero_title || "",
-        hero_subtitle: settings.hero_subtitle || "",
-        hero_cta_text: settings.hero_cta_text || "",
-        hero_cta_link: settings.hero_cta_link || "",
-        footer_phone: settings.footer_phone || "",
-        footer_email: settings.footer_email || "",
-        footer_whatsapp: settings.footer_whatsapp || "",
-        footer_address: settings.footer_address || "",
-        social_instagram: settings.social_instagram || "",
-        social_facebook: settings.social_facebook || "",
+        company_name: s.company_name || "",
+        tagline: s.tagline || "",
+        profile_photo_url: s.profile_photo_url || "",
+        banner_url: s.banner_url || "",
+        bio: s.bio || "",
+        hero_title: s.hero_title || "",
+        hero_subtitle: s.hero_subtitle || "",
+        hero_cta_text: s.hero_cta_text || "",
+        hero_cta_link: s.hero_cta_link || "",
+        footer_phone: s.footer_phone || "",
+        footer_email: s.footer_email || "",
+        footer_whatsapp: s.footer_whatsapp || "",
+        footer_address: s.footer_address || "",
+        social_instagram: s.social_instagram || "",
+        social_facebook: s.social_facebook || "",
         social_youtube: (settings as any).social_youtube || "",
         social_tiktok: (settings as any).social_tiktok || "",
-        seo_title: (settings as any).seo_title || "",
-        seo_description: (settings as any).seo_description || "",
+        seo_title: s.seo_title || "",
+        seo_description: s.seo_description || "",
       });
       try {
         const t = (settings as any).testimonials;
@@ -206,8 +207,9 @@ export default function AgentWebsiteSettings() {
         updated_at: new Date().toISOString(),
       };
 
-      if (settings?.id) {
-        const { error } = await supabase.from("website_settings" as any).update(payload).eq("id", settings.id);
+      const settingsAny = settings as any;
+      if (settingsAny?.id) {
+        const { error } = await supabase.from("website_settings" as any).update(payload).eq("id", settingsAny.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("website_settings" as any).insert({ ...payload, agent_id: agentData.id });
