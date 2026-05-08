@@ -114,12 +114,10 @@ Diurutkan dari **dampak bisnis tertinggi**:
 | 2 | **Panduan Ibadah Offline (PWA)** | Jamaah di Saudi akses itinerary & doa tanpa internet | Menengah |
 | 3 | **Peta Lokasi Ibadah** | Maps interaktif — Masjidil Haram, Mina, Arafah, hotel | Tambahan |
 | 4 | **Multi-bahasa (i18n)** | Indonesia + Arab + Inggris | Tambahan |
-| 5 | **WhatsApp Bot Otomatis** | Auto-reply berdasarkan keyword / status booking | Tambahan |
-| 6 | **Live Chat Pembimbing** | Chat real-time jamaah ↔ muthawif/pembimbing saat di Saudi | Tambahan |
-| 7 | **Rate Limiting API** | Keamanan endpoint publik dari spam/abuse | Tambahan |
-| 8 | **Webhook Outgoing** | Integrasi ke ERP / sistem akuntansi eksternal | Tambahan |
-| 9 | **E2E Test Suite (Playwright)** | Coverage alur booking, pembayaran, login | Tambahan |
-| 10 | **CI/CD Pipeline** | Deploy otomatis saat merge ke main | Tambahan |
+| 5 | **Rate Limiting API** | Keamanan endpoint publik dari spam/abuse | Tambahan |
+| 6 | **Webhook Outgoing** | Integrasi ke ERP / sistem akuntansi eksternal | Tambahan |
+| 7 | **E2E Test Suite (Playwright)** | Coverage alur booking, pembayaran, login | Tambahan |
+| 8 | **CI/CD Pipeline** | Deploy otomatis saat merge ke main | Tambahan |
 
 ---
 
