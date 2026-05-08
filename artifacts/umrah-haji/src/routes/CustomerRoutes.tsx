@@ -24,6 +24,7 @@ const JamaahPaymentHistory = lazy(() => import("@/pages/jamaah/JamaahPaymentHist
 const JamaahFeedback = lazy(() => import("@/pages/jamaah/JamaahFeedback"));
 const JamaahNotifications = lazy(() => import("@/pages/jamaah/JamaahNotifications"));
 const JamaahVisaTracker = lazy(() => import("@/pages/jamaah/JamaahVisaTracker"));
+const KalkulatorCicilan = lazy(() => import("@/pages/customer/KalkulatorCicilan"));
 
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
@@ -54,6 +55,7 @@ export default function CustomerRoutes() {
       <Route path="/customer/settings" element={<CustomerRoute><CustomerSettings /></CustomerRoute>} />
       <Route path="/customer/my-savings" element={<CustomerRoute><MySavings /></CustomerRoute>} />
       <Route path="/customer/my-loyalty" element={<CustomerRoute><MyLoyalty /></CustomerRoute>} />
+
 
       {/* Redirect lama */}
       <Route path="/customer/documents" element={<Navigate to="/jamaah/documents" replace />} />

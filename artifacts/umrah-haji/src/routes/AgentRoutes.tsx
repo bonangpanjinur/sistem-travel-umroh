@@ -18,6 +18,8 @@ const AgentSettings = lazy(() => import("@/pages/agent/AgentSettings"));
 const AgentNetwork = lazy(() => import("@/pages/agent/AgentNetwork"));
 const AgentMembership = lazy(() => import("@/pages/agent/AgentMembership"));
 const AgentMyReferrals = lazy(() => import("@/pages/agent/AgentMyReferrals"));
+const AgentLeaderboard = lazy(() => import("@/pages/agent/AgentLeaderboard"));
+const AgentTargets = lazy(() => import("@/pages/agent/AgentTargets"));
 
 /**
  * Role yang boleh mengakses portal agen.
@@ -88,6 +90,10 @@ export default function AgentRoutes() {
       {/* Manajemen — hanya agent utama */}
       <Route path="website" element={<AgentManagePage><AgentWebsiteSettings /></AgentManagePage>} />
       <Route path="network" element={<AgentManagePage><AgentNetwork /></AgentManagePage>} />
+
+      {/* Gamifikasi & Target */}
+      <Route path="leaderboard" element={<LazyPage><AgentLeaderboard /></LazyPage>} />
+      <Route path="targets" element={<LazyPage><AgentTargets /></LazyPage>} />
     </Route>
   );
 }

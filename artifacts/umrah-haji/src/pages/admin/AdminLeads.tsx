@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,6 +92,15 @@ export default function AdminLeads() {
     updateStatusMutation.mutate({ id, status, updated_at: new Date().toISOString() }, {
       onSuccess: () => toast({ title: "Status lead diperbarui" }),
     });
+  };
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const { draggableId, destination } = result;
+    const newStatus = destination.droppableId as LeadStatus;
+    const lead = leads?.find(l => l.id === draggableId);
+    if (!lead || lead.status === newStatus) return;
+    handleStatusChange(draggableId, newStatus);
   };
 
   const filteredLeads = leads?.filter(lead => {
@@ -385,58 +395,93 @@ export default function AdminLeads() {
           ) : isError ? (
             <ErrorState onRetry={() => refetch()} />
           ) : (
-            <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-4 px-4">
-              {KANBAN_COLUMNS.map(status => {
-                const statusLeads = filteredLeads?.filter(l => l.status === status) || [];
-                const config = STATUS_CONFIG[status];
-                const pipelineValue = getPipelineValue(statusLeads as any[]);
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-4 px-4">
+                {KANBAN_COLUMNS.map(status => {
+                  const statusLeads = filteredLeads?.filter(l => l.status === status) || [];
+                  const config = STATUS_CONFIG[status];
+                  const pipelineValue = getPipelineValue(statusLeads as any[]);
 
-                return (
-                  <div
-                    key={status}
-                    className="w-[320px] flex-shrink-0 snap-start flex flex-col gap-3 bg-gradient-to-b from-muted/60 to-muted/30 rounded-xl p-4 border border-muted-foreground/10 shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    {/* Column Header */}
-                    <div className="flex items-center justify-between sticky top-0 z-10 bg-gradient-to-b from-muted/60 to-transparent backdrop-blur-sm pb-3 -mx-1 px-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className={cn("w-3 h-3 rounded-full flex-shrink-0", config.bgColor.split(' ')[0])} />
-                        <h3 className="font-bold text-sm uppercase tracking-wider truncate">{config.label}</h3>
-                        <Badge 
-                          variant="secondary" 
-                          className="ml-1 h-6 px-2 text-xs font-semibold"
-                        >
-                          {statusLeads.length}
-                        </Badge>
-                      </div>
-                      {pipelineValue > 0 && (
-                        <span className="text-xs font-bold text-orange-600 dark:text-orange-400 flex-shrink-0 ml-2 whitespace-nowrap">
-                          {formatCurrency(pipelineValue)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Cards Container */}
-                    <div className="flex flex-col gap-3 min-h-[200px]">
-                      {statusLeads.map(lead => (
-                        <LeadCard
-                          key={lead.id}
-                          lead={lead as any}
-                          onStatusChange={handleStatusChange}
-                        />
-                      ))}
-                      {statusLeads.length === 0 && (
-                        <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-8 text-center text-muted-foreground text-sm flex items-center justify-center min-h-[200px]">
-                          <div>
-                            <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                            Tidak ada lead
-                          </div>
+                  return (
+                    <div
+                      key={status}
+                      className="w-[320px] flex-shrink-0 snap-start flex flex-col gap-3 bg-gradient-to-b from-muted/60 to-muted/30 rounded-xl p-4 border border-muted-foreground/10 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      {/* Column Header */}
+                      <div className="flex items-center justify-between sticky top-0 z-10 bg-gradient-to-b from-muted/60 to-transparent backdrop-blur-sm pb-3 -mx-1 px-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={cn("w-3 h-3 rounded-full flex-shrink-0", config.bgColor.split(' ')[0])} />
+                          <h3 className="font-bold text-sm uppercase tracking-wider truncate">{config.label}</h3>
+                          <Badge 
+                            variant="secondary" 
+                            className="ml-1 h-6 px-2 text-xs font-semibold"
+                          >
+                            {statusLeads.length}
+                          </Badge>
                         </div>
-                      )}
+                        {pipelineValue > 0 && (
+                          <span className="text-xs font-bold text-orange-600 dark:text-orange-400 flex-shrink-0 ml-2 whitespace-nowrap">
+                            {formatCurrency(pipelineValue)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Cards Container — Droppable */}
+                      <Droppable droppableId={status}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={cn(
+                              "flex flex-col gap-3 min-h-[200px] rounded-lg transition-colors",
+                              snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20"
+                            )}
+                          >
+                            {statusLeads.map((lead, index) => (
+                              <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                                {(dragProvided, dragSnapshot) => (
+                                  <div
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    {...dragProvided.dragHandleProps}
+                                    className={cn(
+                                      "transition-shadow",
+                                      dragSnapshot.isDragging && "rotate-2 shadow-2xl opacity-90"
+                                    )}
+                                  >
+                                    <LeadCard
+                                      lead={lead as any}
+                                      onStatusChange={handleStatusChange}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                            {statusLeads.length === 0 && !snapshot.isDraggingOver && (
+                              <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-8 text-center text-muted-foreground text-sm flex items-center justify-center min-h-[200px]">
+                                <div>
+                                  <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                                  Seret card ke sini
+                                </div>
+                              </div>
+                            )}
+                            {statusLeads.length === 0 && snapshot.isDraggingOver && (
+                              <div className="border-2 border-dashed border-primary/40 bg-primary/5 rounded-lg p-8 text-center text-primary text-sm flex items-center justify-center min-h-[200px]">
+                                <div>
+                                  <ArrowRight className="h-8 w-8 mx-auto mb-2" />
+                                  Lepaskan di sini
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </Droppable>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </DragDropContext>
           )}
         </TabsContent>
 

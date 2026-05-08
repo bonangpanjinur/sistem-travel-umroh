@@ -13,8 +13,9 @@ import { Link } from "react-router-dom";
 import {
   Calendar, CreditCard, Star, PiggyBank, Headphones,
   ArrowRight, BookOpen, IdCard, MapPin, Clock, CheckCircle2,
-  Plane, FileCheck, Stethoscope, ShieldCheck, Calculator
+  Plane, FileCheck, Stethoscope, ShieldCheck, Calculator, Scale
 } from "lucide-react";
+import { CountdownTimer } from "@/components/customer/CountdownTimer";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { differenceInDays, format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -220,41 +221,32 @@ export default function CustomerDashboard() {
         <p className="text-muted-foreground">Selamat datang di portal jamaah Anda</p>
       </div>
 
-      {/* Countdown Banner */}
-      {activeBooking && daysUntilDeparture !== null && daysUntilDeparture > 0 && (
-        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
-          <CardContent className="py-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Plane className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Keberangkatan Anda</p>
-                  <p className="font-bold text-lg">{(activeBooking.departure as any)?.package?.name}</p>
-                  <p className="text-sm">{departureDate ? format(new Date(departureDate), "EEEE, dd MMMM yyyy", { locale: idLocale }) : ""}</p>
-                </div>
-              </div>
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">{daysUntilDeparture}</p>
-                <p className="text-sm text-muted-foreground">hari lagi</p>
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2 flex-wrap">
-              <Badge>{getBookingStatusLabel(activeBooking.booking_status || '')}</Badge>
-              <Badge variant="outline">{getPaymentStatusLabel(activeBooking.payment_status || '')}</Badge>
-              {visaStatus && (
-                <Badge variant={visaStatus.status === 'approved' ? 'secondary' : 'outline'}>
-                  Visa: {visaStatus.status === 'approved' ? 'Disetujui ✓' : visaStatus.status === 'processing' ? 'Diproses' : 'Menunggu'}
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Countdown Banner — Enhanced */}
+      {activeBooking && departureDate && (
+        <div className="space-y-3">
+          <CountdownTimer
+            departureDate={departureDate}
+            packageName={(activeBooking.departure as any)?.package?.name}
+          />
+          <div className="flex flex-wrap gap-2 px-1">
+            <Badge>{getBookingStatusLabel(activeBooking.booking_status || '')}</Badge>
+            <Badge variant="outline">{getPaymentStatusLabel(activeBooking.payment_status || '')}</Badge>
+            {departureDate && (
+              <Badge variant="outline">
+                {format(new Date(departureDate), "EEEE, dd MMMM yyyy", { locale: idLocale })}
+              </Badge>
+            )}
+            {visaStatus && (
+              <Badge variant={visaStatus.status === 'approved' ? 'secondary' : 'outline'}>
+                Visa: {visaStatus.status === 'approved' ? 'Disetujui ✓' : visaStatus.status === 'processing' ? 'Diproses' : 'Menunggu'}
+              </Badge>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Quick Actions */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
           <Link to="/my-bookings"><Calendar className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Booking Saya</span></Link>
         </Button>
@@ -263,6 +255,12 @@ export default function CustomerDashboard() {
         </Button>
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
           <Link to="/customer/my-savings"><PiggyBank className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Tabungan</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/kalkulator-cicilan"><Calculator className="h-5 w-5 text-green-600" /><span className="text-xs font-semibold">Kalkulator</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/packages/compare"><Scale className="h-5 w-5 text-blue-600" /><span className="text-xs font-semibold">Bandingkan</span></Link>
         </Button>
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
           <Link to="/customer/support"><Headphones className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Bantuan</span></Link>

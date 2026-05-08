@@ -8,8 +8,9 @@ import { usePackages } from '@/hooks/usePackages';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Grid3X3, List, SlidersHorizontal } from 'lucide-react';
+import { Grid3X3, List, SlidersHorizontal, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 
@@ -130,6 +131,19 @@ export default function PackageList() {
           <p className="text-white/90 max-w-2xl mx-auto">
             Temukan paket perjalanan ibadah yang sesuai dengan kebutuhan dan budget Anda
           </p>
+          <div className="flex flex-wrap justify-center gap-3 mt-6">
+            <Button variant="secondary" size="sm" asChild className="gap-2">
+              <Link to="/packages/compare">
+                <Scale className="h-4 w-4" />
+                Bandingkan Paket
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="gap-2 bg-white/10 text-white border-white/30 hover:bg-white/20">
+              <Link to="/kalkulator">
+                Kalkulator Biaya
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
