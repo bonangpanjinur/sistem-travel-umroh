@@ -295,12 +295,6 @@ export default function AdminRoutes() {
       <Route path="bus-providers" element={<P k={PERMISSIONS.BUS_PROVIDERS}><AdminBusProviders /></P>} />
       <Route path="vendors" element={<P k={PERMISSIONS.VENDORS}><AdminVendors /></P>} />
 
-      {/* Fase 6 — Dashboard Admin & Laporan Keuangan */}
-      <Route path="laporan/keuangan" element={<P k={PERMISSIONS.LAPORAN_KEUANGAN}><AdminLaporanKeuangan /></P>} />
-      <Route path="laporan/keberangkatan" element={<P k={PERMISSIONS.LAPORAN_KEBERANGKATAN}><AdminLaporanKeberangkatan /></P>} />
-      <Route path="laporan/agen" element={<P k={PERMISSIONS.LAPORAN_AGEN}><AdminLaporanAgen /></P>} />
-      <Route path="laporan/tabungan" element={<P k={PERMISSIONS.MONITORING_TABUNGAN}><AdminMonitoringTabungan /></P>} />
-
       {/* Fase 7 — Manajemen Operasional Muthawif */}
       <Route path="manifest" element={<P k={PERMISSIONS.MANIFEST_JAMAAH}><AdminManifestJamaah /></P>} />
       <Route path="absensi" element={<P k={PERMISSIONS.ABSENSI_DIGITAL}><AdminAbsensiDigital /></P>} />

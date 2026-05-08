@@ -311,20 +311,34 @@ JAMAAH PORTAL (Mobile PWA):
 /jamaah/bagasi               ✅ Ada
 /jamaah/kontrak              ✅ Ada
 
-AKAN DIBUAT — FASE 6–10:
+FASE 6–10 — SEMUA SUDAH ADA:
 /admin/laporan/keuangan      ✅ Ada — Fase 6
 /admin/laporan/keberangkatan ✅ Ada — Fase 6
 /admin/laporan/agen          ✅ Ada — Fase 6
 /admin/laporan/tabungan      ✅ Ada — Fase 6
-/admin/muthawif              🔴 Fase 7
-/admin/muthawif/:id          🔴 Fase 7
-/admin/pembagian-kamar       🔴 Fase 7
-/admin/manifest/:departureId 🔴 Fase 7
-/jamaah/badge                🔴 Fase 8
-/jamaah/target-ibadah        🔴 Fase 8
-/jamaah/jurnal               🔴 Fase 8
-/jamaah/sertifikat           🔴 Fase 8
-/jamaah/chatbot              🔴 Fase 10
+/admin/muthawifs             ✅ Ada — Fase 7
+/admin/muthawifs/:id         ✅ Ada — Fase 7
+/admin/room-assignments      ✅ Ada — Fase 7
+/admin/manifest              ✅ Ada — Fase 7
+/admin/absensi               ✅ Ada — Fase 7
+/admin/wa-blast              ✅ Ada — Fase 7
+/muthawif/dashboard          ✅ Ada — Fase 7
+/jamaah/badges               ✅ Ada — Fase 8
+/jamaah/target-ibadah        ✅ Ada — Fase 8
+/jamaah/jurnal               ✅ Ada — Fase 8
+/jamaah/sertifikat           ✅ Ada — Fase 8
+/jamaah/doa-counter          ✅ Ada — Fase 8
+/admin/wa-otomatis           ✅ Ada — Fase 9
+/admin/midtrans              ✅ Ada — Fase 9
+/admin/cicilan-reminder      ✅ Ada — Fase 9
+/admin/virtual-account       ✅ Ada — Fase 9
+/jamaah/siskohat             ✅ Ada — Fase 9
+/jamaah/chatbot              ✅ Ada — Fase 10
+/jamaah/ringkasan-ai         ✅ Ada — Fase 10
+/admin/sentimen-feedback     ✅ Ada — Fase 10
+/admin/prediksi-seat         ✅ Ada — Fase 10
+/admin/smart-notif           ✅ Ada — Fase 10
+/admin/rekomendasi-paket     ✅ Ada — Fase 10
 ```
 
 ---
