@@ -17,7 +17,27 @@ export interface DocumentSettings {
   document_footer_show_timestamp: boolean;
   document_footer_show_page_number: boolean;
   invoice_accent_color?: string;
-  pdf_default_font?: 'helvetica' | 'times';
+  pdf_default_font?: 'helvetica' | 'times' | 'courier';
+  // Passport letter per-document overrides
+  passport_letter_page_orientation?: 'portrait' | 'landscape';
+  passport_letter_font_family?: 'helvetica' | 'times' | 'courier';
+  passport_letter_accent_color?: string;
+  passport_letter_show_photo?: boolean;
+  passport_letter_show_qr_code?: boolean;
+  // Leave permit per-document overrides
+  leave_permit_page_orientation?: 'portrait' | 'landscape';
+  leave_permit_font_family?: 'helvetica' | 'times' | 'courier';
+  leave_permit_accent_color?: string;
+  leave_permit_include_company_logo?: boolean;
+  // Certificate per-document overrides
+  certificate_page_orientation?: 'portrait' | 'landscape';
+  certificate_font_family?: 'helvetica' | 'times' | 'courier';
+  certificate_background_image_url?: string;
+  // General letter per-document overrides
+  general_letter_page_orientation?: 'portrait' | 'landscape';
+  general_letter_font_family?: 'helvetica' | 'times' | 'courier';
+  general_letter_accent_color?: string;
+  general_letter_show_letterhead?: boolean;
 }
 
 /**
@@ -88,70 +108,112 @@ export function useCompanyInfo() {
     return defaultVal;
   };
 
+  const unwrapOptionalString = (v: any): string | undefined => {
+    const s = unwrap(v);
+    return s || undefined;
+  };
+
+  const unwrapOptionalFont = (v: any): 'helvetica' | 'times' | 'courier' | undefined => {
+    const s = unwrap(v);
+    if (s === 'helvetica' || s === 'times' || s === 'courier') return s;
+    return undefined;
+  };
+
+  const unwrapOptionalOrientation = (v: any): 'portrait' | 'landscape' | undefined => {
+    const s = unwrap(v);
+    if (s === 'portrait' || s === 'landscape') return s;
+    return undefined;
+  };
+
   // Try to get logo from company_settings first, then fallback to website_settings
-  // Prioritize company_settings.company_logo_url if explicitly set, otherwise use website_settings.logo_url
   const companyLogoUrl = unwrap(m?.get("company_logo_url"));
   const logoUrl = companyLogoUrl || websiteSettings?.logo_url || undefined;
 
   // Priority: pdf_global_* (new consolidated keys) > legacy keys > defaults
-  // This ensures backward compatibility while using the new consolidated settings
   const documentSettings: DocumentSettings = {
-    // Letterhead settings - use new global keys with fallback to legacy
+    // Letterhead settings
     letterhead_show_logo: unwrapBoolean(
-      m?.get("pdf_global_show_logo") ?? m?.get("letterhead_show_logo"), 
+      m?.get("pdf_global_show_logo") ?? m?.get("letterhead_show_logo"),
       true
     ),
     letterhead_show_website: unwrapBoolean(
-      m?.get("pdf_global_show_website") ?? m?.get("letterhead_show_website"), 
+      m?.get("pdf_global_show_website") ?? m?.get("letterhead_show_website"),
       true
     ),
-    
+
     // Invoice numbering
     invoice_number_prefix: unwrap(m?.get("invoice_number_prefix")) || "INV",
     invoice_number_format: unwrap(m?.get("invoice_number_format")) || "YYYY-MM-{SEQ}",
-    
+
     // Invoice content visibility
     invoice_show_bank_info: unwrapBoolean(m?.get("invoice_show_bank_info"), true),
     invoice_show_notes_section: unwrapBoolean(m?.get("invoice_show_notes_section"), true),
     invoice_show_package_info: unwrapBoolean(m?.get("invoice_show_package_info"), true),
     invoice_watermark_paid: unwrapBoolean(m?.get("invoice_watermark_paid"), true),
-    
-    // Colors - use new global keys with fallback to legacy document-specific keys
+
+    // Legacy document-specific colors (still respected as fallbacks)
     eticket_header_color: unwrap(m?.get("pdf_global_accent_color") ?? m?.get("eticket_header_color")) || "#16a34a",
     certificate_border_color: unwrap(m?.get("certificate_border_color")) || "#daa520",
     certificate_text_color: unwrap(m?.get("certificate_text_color")) || "#165634",
-    
-    // Footer metadata - use new global keys with fallback to legacy
+
+    // Footer metadata
     document_footer_show_timestamp: unwrapBoolean(
-      m?.get("pdf_global_show_timestamp") ?? m?.get("document_footer_show_timestamp"), 
+      m?.get("pdf_global_show_timestamp") ?? m?.get("document_footer_show_timestamp"),
       true
     ),
     document_footer_show_page_number: unwrapBoolean(
-      m?.get("pdf_global_show_page_number") ?? m?.get("document_footer_show_page_number"), 
+      m?.get("pdf_global_show_page_number") ?? m?.get("document_footer_show_page_number"),
       true
     ),
-    
-    // Accent color - primary brand color used across documents
+
+    // Global accent color and font
     invoice_accent_color: unwrap(
       m?.get("pdf_global_accent_color") ?? m?.get("invoice_accent_color")
     ) || "#16a34a",
-    
-    // Font - use new global key with fallback to legacy
     pdf_default_font: (unwrap(
       m?.get("pdf_global_font_family") ?? m?.get("pdf_default_font")
     ) as any) || "helvetica",
+
+    // ── Passport letter per-document overrides ───────────────────────────
+    passport_letter_page_orientation: unwrapOptionalOrientation(m?.get("passport_letter_page_orientation")),
+    passport_letter_font_family: unwrapOptionalFont(m?.get("passport_letter_font_family")),
+    passport_letter_accent_color: unwrapOptionalString(m?.get("passport_letter_accent_color")),
+    passport_letter_show_photo: m?.has("passport_letter_show_photo")
+      ? unwrapBoolean(m.get("passport_letter_show_photo"), false)
+      : undefined,
+    passport_letter_show_qr_code: m?.has("passport_letter_show_qr_code")
+      ? unwrapBoolean(m.get("passport_letter_show_qr_code"), false)
+      : undefined,
+
+    // ── Leave permit per-document overrides ──────────────────────────────
+    leave_permit_page_orientation: unwrapOptionalOrientation(m?.get("leave_permit_page_orientation")),
+    leave_permit_font_family: unwrapOptionalFont(m?.get("leave_permit_font_family")),
+    leave_permit_accent_color: unwrapOptionalString(m?.get("leave_permit_accent_color")),
+    leave_permit_include_company_logo: m?.has("leave_permit_include_company_logo")
+      ? unwrapBoolean(m.get("leave_permit_include_company_logo"), true)
+      : undefined,
+
+    // ── Certificate per-document overrides ───────────────────────────────
+    certificate_page_orientation: unwrapOptionalOrientation(m?.get("certificate_page_orientation")),
+    certificate_font_family: unwrapOptionalFont(m?.get("certificate_font_family")),
+    certificate_background_image_url: unwrapOptionalString(m?.get("certificate_background_image_url")),
+
+    // ── General letter per-document overrides ────────────────────────────
+    general_letter_page_orientation: unwrapOptionalOrientation(m?.get("general_letter_page_orientation")),
+    general_letter_font_family: unwrapOptionalFont(m?.get("general_letter_font_family")),
+    general_letter_accent_color: unwrapOptionalString(m?.get("general_letter_accent_color")),
+    general_letter_show_letterhead: m?.has("general_letter_show_letterhead")
+      ? unwrapBoolean(m.get("general_letter_show_letterhead"), true)
+      : undefined,
   };
 
-  // Fetch and parse invoice layout with priority logic (Specific > Global)
-  // This implements the override hierarchy: per-document settings > global settings > defaults
+  // Parse invoice layout (Specific > Global hierarchy)
   const invoiceLayoutRaw = m?.get("document_layout_invoice");
   let invoiceLayout: DocumentLayout | undefined = undefined;
-  
+
   if (invoiceLayoutRaw) {
     try {
       const parsed = typeof invoiceLayoutRaw === 'string' ? JSON.parse(invoiceLayoutRaw) : invoiceLayoutRaw;
-      
-      // Apply priority: Document-specific override (if defined) > Global setting > Default
       invoiceLayout = {
         show_logo: parsed.show_logo !== undefined ? parsed.show_logo : documentSettings.letterhead_show_logo,
         show_header: parsed.show_header !== undefined ? parsed.show_header : true,
@@ -165,11 +227,9 @@ export function useCompanyInfo() {
       };
     } catch (e) {
       console.error("Failed to parse invoice layout", e);
-      invoiceLayout = undefined;
     }
   }
 
-  // If no specific layout was parsed, use global defaults
   if (!invoiceLayout) {
     invoiceLayout = {
       show_logo: documentSettings.letterhead_show_logo,
@@ -193,6 +253,7 @@ export function useCompanyInfo() {
     logo: logoUrl,
     city: unwrap(m?.get("company_city")) || "Jakarta",
     settings: {
+      // Global / legacy
       invoice_accent_color: documentSettings.invoice_accent_color,
       invoice_show_bank_info: documentSettings.invoice_show_bank_info,
       invoice_show_notes_section: documentSettings.invoice_show_notes_section,
@@ -201,6 +262,28 @@ export function useCompanyInfo() {
       document_footer_show_timestamp: documentSettings.document_footer_show_timestamp,
       document_footer_show_page_number: documentSettings.document_footer_show_page_number,
       pdf_default_font: documentSettings.pdf_default_font,
+      // Passport letter overrides
+      passport_letter_page_orientation: documentSettings.passport_letter_page_orientation,
+      passport_letter_font_family: documentSettings.passport_letter_font_family,
+      passport_letter_accent_color: documentSettings.passport_letter_accent_color,
+      passport_letter_show_photo: documentSettings.passport_letter_show_photo,
+      passport_letter_show_qr_code: documentSettings.passport_letter_show_qr_code,
+      // Leave permit overrides
+      leave_permit_page_orientation: documentSettings.leave_permit_page_orientation,
+      leave_permit_font_family: documentSettings.leave_permit_font_family,
+      leave_permit_accent_color: documentSettings.leave_permit_accent_color,
+      leave_permit_include_company_logo: documentSettings.leave_permit_include_company_logo,
+      // Certificate overrides
+      certificate_page_orientation: documentSettings.certificate_page_orientation,
+      certificate_font_family: documentSettings.certificate_font_family,
+      certificate_border_color: documentSettings.certificate_border_color,
+      certificate_text_color: documentSettings.certificate_text_color,
+      certificate_background_image_url: documentSettings.certificate_background_image_url,
+      // General letter overrides
+      general_letter_page_orientation: documentSettings.general_letter_page_orientation,
+      general_letter_font_family: documentSettings.general_letter_font_family,
+      general_letter_accent_color: documentSettings.general_letter_accent_color,
+      general_letter_show_letterhead: documentSettings.general_letter_show_letterhead,
     },
     layout: invoiceLayout,
   };

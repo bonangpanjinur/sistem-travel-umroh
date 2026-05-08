@@ -53,6 +53,7 @@ export interface CompanyInfo {
   logo?: string;
   city?: string;
   settings?: {
+    // Global / legacy
     invoice_accent_color?: string;
     invoice_show_bank_info?: boolean;
     invoice_show_notes_section?: boolean;
@@ -60,7 +61,29 @@ export interface CompanyInfo {
     invoice_watermark_paid?: boolean;
     document_footer_show_timestamp?: boolean;
     document_footer_show_page_number?: boolean;
-    pdf_default_font?: 'helvetica' | 'times';
+    pdf_default_font?: 'helvetica' | 'times' | 'courier';
+    // Passport letter overrides
+    passport_letter_page_orientation?: 'portrait' | 'landscape';
+    passport_letter_font_family?: 'helvetica' | 'times' | 'courier';
+    passport_letter_accent_color?: string;
+    passport_letter_show_photo?: boolean;
+    passport_letter_show_qr_code?: boolean;
+    // Leave permit overrides
+    leave_permit_page_orientation?: 'portrait' | 'landscape';
+    leave_permit_font_family?: 'helvetica' | 'times' | 'courier';
+    leave_permit_accent_color?: string;
+    leave_permit_include_company_logo?: boolean;
+    // Certificate overrides
+    certificate_page_orientation?: 'portrait' | 'landscape';
+    certificate_font_family?: 'helvetica' | 'times' | 'courier';
+    certificate_border_color?: string;
+    certificate_text_color?: string;
+    certificate_background_image_url?: string;
+    // General letter overrides
+    general_letter_page_orientation?: 'portrait' | 'landscape';
+    general_letter_font_family?: 'helvetica' | 'times' | 'courier';
+    general_letter_accent_color?: string;
+    general_letter_show_letterhead?: boolean;
   };
   layout?: DocumentLayout;
 }
@@ -660,8 +683,19 @@ export async function generateLeaveLetter(
       console.warn('Failed to pre-process logo:', e);
     }
   }
-  const doc = new jsPDF();
-  let y = addLetterhead(doc, company);
+  const settings = company.settings;
+  const font = settings?.leave_permit_font_family || settings?.pdf_default_font || 'helvetica';
+  const orientation = settings?.leave_permit_page_orientation || 'portrait';
+  const accentColor = settings?.leave_permit_accent_color || settings?.invoice_accent_color;
+  const includeLogo = settings?.leave_permit_include_company_logo !== false;
+  const resolvedCompany: CompanyInfo = {
+    ...company,
+    settings: accentColor ? { ...settings, invoice_accent_color: accentColor } : settings,
+    layout: { ...(company.layout || {}), show_logo: includeLogo },
+  };
+  const doc = new jsPDF({ orientation: orientation as any, unit: 'mm', format: 'a4' });
+  doc.setFont(font);
+  let y = addLetterhead(doc, resolvedCompany);
   
   const pageWidth = doc.internal.pageSize.width;
   
@@ -736,8 +770,19 @@ export async function generateJamaahLeaveLetter(
       console.warn('Failed to pre-process logo:', e);
     }
   }
-  const doc = new jsPDF();
-  let y = addLetterhead(doc, company);
+  const settings = company.settings;
+  const font = settings?.leave_permit_font_family || settings?.pdf_default_font || 'helvetica';
+  const orientation = settings?.leave_permit_page_orientation || 'portrait';
+  const accentColor = settings?.leave_permit_accent_color || settings?.invoice_accent_color;
+  const includeLogo = settings?.leave_permit_include_company_logo !== false;
+  const resolvedCompany: CompanyInfo = {
+    ...company,
+    settings: accentColor ? { ...settings, invoice_accent_color: accentColor } : settings,
+    layout: { ...(company.layout || {}), show_logo: includeLogo },
+  };
+  const doc = new jsPDF({ orientation: orientation as any, unit: 'mm', format: 'a4' });
+  doc.setFont(font);
+  let y = addLetterhead(doc, resolvedCompany);
   
   const pageWidth = doc.internal.pageSize.width;
   
@@ -823,8 +868,17 @@ export async function generatePassportLetter(
       console.warn('Failed to pre-process logo:', e);
     }
   }
-  const doc = new jsPDF();
-  let y = addLetterhead(doc, company);
+  const settings = company.settings;
+  const font = settings?.passport_letter_font_family || settings?.pdf_default_font || 'helvetica';
+  const orientation = settings?.passport_letter_page_orientation || 'portrait';
+  const accentColor = settings?.passport_letter_accent_color || settings?.invoice_accent_color;
+  const resolvedCompany: CompanyInfo = {
+    ...company,
+    settings: accentColor ? { ...settings, invoice_accent_color: accentColor } : settings,
+  };
+  const doc = new jsPDF({ orientation: orientation as any, unit: 'mm', format: 'a4' });
+  doc.setFont(font);
+  let y = addLetterhead(doc, resolvedCompany);
   
   const pageWidth = doc.internal.pageSize.width;
   
@@ -899,8 +953,22 @@ export async function generateGeneralLetter(
       console.warn('Failed to pre-process logo:', e);
     }
   }
-  const doc = new jsPDF();
-  let y = addLetterhead(doc, company);
+  const settings = company.settings;
+  const font = settings?.general_letter_font_family || settings?.pdf_default_font || 'helvetica';
+  const orientation = settings?.general_letter_page_orientation || 'portrait';
+  const accentColor = settings?.general_letter_accent_color || settings?.invoice_accent_color;
+  const showLetterhead = settings?.general_letter_show_letterhead !== false;
+  const resolvedCompany: CompanyInfo = {
+    ...company,
+    settings: accentColor ? { ...settings, invoice_accent_color: accentColor } : settings,
+    layout: {
+      ...(company.layout || {}),
+      show_header: showLetterhead ? (company.layout?.show_header !== false) : false,
+    },
+  };
+  const doc = new jsPDF({ orientation: orientation as any, unit: 'mm', format: 'a4' });
+  doc.setFont(font);
+  let y = addLetterhead(doc, resolvedCompany);
   
   const pageWidth = doc.internal.pageSize.width;
   
@@ -1109,16 +1177,38 @@ export async function generateUmrahCertificate(
   data: UmrahCertificateData,
   company: CompanyInfo = defaultCompanyInfo
 ): Promise<jsPDF> {
-  const doc = new jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: 'a4'
-  });
-  
+  if (company.logo && company.logo.startsWith('http')) {
+    try {
+      company.logo = await imageUrlToBase64(company.logo);
+    } catch (e) {
+      console.warn('Failed to pre-process logo:', e);
+    }
+  }
+  const settings = company.settings;
+  const font = settings?.certificate_font_family || settings?.pdf_default_font || 'helvetica';
+  const orientation = settings?.certificate_page_orientation || 'landscape';
+  const borderColor = settings?.certificate_border_color || '#daa520';
+  const textColor = settings?.certificate_text_color || '#165634';
+  const bgImageUrl = settings?.certificate_background_image_url;
+
+  const doc = new jsPDF({ orientation: orientation as any, unit: 'mm', format: 'a4' });
+  doc.setFont(font);
+
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
-  
-  doc.setDrawColor(218, 165, 32);
+
+  // Optional background image
+  if (bgImageUrl) {
+    try {
+      const bgBase64 = bgImageUrl.startsWith('http') ? await imageUrlToBase64(bgImageUrl) : bgImageUrl;
+      doc.addImage(bgBase64, 'PNG', 0, 0, pageWidth, pageHeight);
+    } catch (e) {
+      console.warn('Failed to load certificate background image:', e);
+    }
+  }
+
+  const borderRgb = hexToRgb(borderColor);
+  doc.setDrawColor(borderRgb.r, borderRgb.g, borderRgb.b);
   doc.setLineWidth(2);
   doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
   doc.setLineWidth(0.5);
@@ -1135,14 +1225,15 @@ export async function generateUmrahCertificate(
     }
   }
   
-  doc.setTextColor(22, 86, 52);
+  const textRgb = hexToRgb(textColor);
+  doc.setTextColor(textRgb.r, textRgb.g, textRgb.b);
   doc.setFontSize(36);
-  doc.setFont(doc.getFont().fontName, 'bold');
+  doc.setFont(font, 'bold');
   doc.text('SERTIFIKAT UMRAH', pageWidth / 2, y, { align: 'center' });
   y += 15;
   
   doc.setFontSize(14);
-  doc.setFont(doc.getFont().fontName, 'normal');
+  doc.setFont(font, 'normal');
   doc.text(`Nomor: ${data.certificateNumber}`, pageWidth / 2, y, { align: 'center' });
   y += 20;
   
@@ -1151,12 +1242,12 @@ export async function generateUmrahCertificate(
   y += 15;
   
   doc.setFontSize(28);
-  doc.setFont(doc.getFont().fontName, 'bold');
+  doc.setFont(font, 'bold');
   doc.text(data.participantName, pageWidth / 2, y, { align: 'center' });
   y += 15;
   
   doc.setFontSize(16);
-  doc.setFont(doc.getFont().fontName, 'normal');
+  doc.setFont(font, 'normal');
   const text = `Telah menyelesaikan rangkaian ibadah Umrah program ${data.packageName}\nyang dilaksanakan pada tanggal ${format(data.departureDate, 'd MMMM yyyy', { locale: id })} sampai dengan ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}.`;
   const lines = doc.splitTextToSize(text, pageWidth - 60);
   doc.text(lines, pageWidth / 2, y, { align: 'center' });
@@ -1164,7 +1255,7 @@ export async function generateUmrahCertificate(
   
   doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth / 2, y, { align: 'center' });
   y += 10;
-  doc.setFont(doc.getFont().fontName, 'bold');
+  doc.setFont(font, 'bold');
   doc.text(company.name, pageWidth / 2, y, { align: 'center' });
   
   return doc;
