@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ROLE_HIERARCHY } from '@/lib/permissions';
+import { writeRbacAuditLog } from '@/components/admin/PermissionAuditLog';
 
 export const MATRIX_ROLES = [
   { key: 'owner',          label: 'Owner',        short: 'OWN', color: 'bg-purple-100 text-purple-800 border-purple-200',  dot: 'bg-purple-500' },
@@ -146,10 +147,19 @@ export function RolePermissionMatrix() {
       if (ctx?.previous) queryClient.setQueryData(['role-permission-matrix'], ctx.previous);
       toast.error('Gagal memperbarui izin');
     },
-    onSuccess: (_d: any, { role }: any) => {
+    onSuccess: (_d: any, { permKey, role, enable }: any) => {
       queryClient.invalidateQueries({ queryKey: ['role-permissions', role] });
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
       toast.success('Izin diperbarui');
+      writeRbacAuditLog({
+        action: enable ? 'grant' : 'revoke',
+        scope: 'role',
+        target_role: role,
+        permission_key: permKey,
+        old_value: !enable,
+        new_value: enable,
+      });
     },
     onSettled: () => setPendingCell(null),
   });
@@ -167,11 +177,18 @@ export function RolePermissionMatrix() {
         if (error) throw error;
       }
     },
-    onSuccess: (_d: any, { role }: any) => {
+    onSuccess: (_d: any, { role, enable }: any) => {
       queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
       queryClient.invalidateQueries({ queryKey: ['role-permissions', role] });
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
       toast.success('Izin role diperbarui');
+      writeRbacAuditLog({
+        action: enable ? 'bulk_enable' : 'bulk_disable',
+        scope: 'role',
+        target_role: role,
+        metadata: { operation: 'bulk_all_permissions', enabled: enable },
+      });
     },
     onError: () => toast.error('Gagal memperbarui izin role'),
   });
@@ -188,10 +205,17 @@ export function RolePermissionMatrix() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_d: any, { role, permKeys, enable }: any) => {
       queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
       toast.success('Izin grup diperbarui');
+      writeRbacAuditLog({
+        action: enable ? 'bulk_enable' : 'bulk_disable',
+        scope: 'role',
+        target_role: role,
+        metadata: { operation: 'bulk_group_permissions', permission_keys: permKeys, enabled: enable },
+      });
     },
     onError: () => toast.error('Gagal memperbarui izin grup'),
   });

@@ -22,11 +22,12 @@ import {
 } from '@/components/ui/breadcrumb';
 import {
   ShieldCheck, Menu, BarChart3, AlertCircle, KeyRound,
-  RefreshCw, Grid3X3, Users, Home, Settings,
+  RefreshCw, Grid3X3, Users, Home, Settings, History,
 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { RoleMenuMapper } from '@/components/admin/RoleMenuMapper';
 import { RolePermissionMatrix, MATRIX_ROLES } from '@/components/admin/RolePermissionMatrix';
+import { PermissionAuditLog } from '@/components/admin/PermissionAuditLog';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell,
@@ -342,6 +343,7 @@ export default function AdminRoleManagementEnhanced() {
               { value: 'permissions',  icon: KeyRound,   label: 'Izin per Role',   desc: 'Edit role individual' },
               { value: 'menu-mapping', icon: Menu,       label: 'Pemetaan Menu',   desc: 'Tampilan sidebar' },
               { value: 'menu-sync',    icon: RefreshCw,  label: 'Sinkron Menu',    desc: 'Sync ke database' },
+              { value: 'audit',        icon: History,    label: 'Audit Log',       desc: 'Riwayat perubahan' },
               { value: 'summary',      icon: BarChart3,  label: 'Ringkasan',       desc: 'Statistik & grafik' },
               { value: 'info',         icon: AlertCircle,label: 'Panduan',         desc: 'Cara penggunaan' },
             ].map(tab => {
@@ -393,6 +395,17 @@ export default function AdminRoleManagementEnhanced() {
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
             <MenuSyncManager />
           </Suspense>
+        </TabsContent>
+
+        {/* ── Audit Log ─────────────────────────────────────────────────── */}
+        <TabsContent value="audit" className="mt-6">
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              Riwayat lengkap perubahan permission & role secara real-time. Diperbarui otomatis setiap 30 detik.
+              Klik baris untuk melihat detail metadata.
+            </p>
+          </div>
+          <PermissionAuditLog />
         </TabsContent>
 
         {/* ── Ringkasan ─────────────────────────────────────────────────── */}

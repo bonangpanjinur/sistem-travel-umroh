@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import {
   Search, ShieldCheck, CheckCircle2, XCircle, Info, RefreshCw, Copy, Users,
 } from "lucide-react";
+import { writeRbacAuditLog } from "@/components/admin/PermissionAuditLog";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -111,10 +112,19 @@ export default function AdminRoleManagement() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_d: any, { key, enable }: any) => {
       queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
       queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
+      writeRbacAuditLog({
+        action: enable ? 'grant' : 'revoke',
+        scope: 'role',
+        target_role: activeRole,
+        permission_key: key,
+        old_value: !enable,
+        new_value: enable,
+      });
     },
     onError: (e: any) => toast.error('Gagal: ' + (e?.message || '')),
   });
@@ -135,7 +145,9 @@ export default function AdminRoleManagement() {
       queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
       queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
       toast.success(`Izin default untuk "${activeRole}" diterapkan`);
+      writeRbacAuditLog({ action: 'reset_defaults', scope: 'role', target_role: activeRole, metadata: { operation: 'seed_defaults' } });
     },
     onError: (e: any) => toast.error('Gagal: ' + (e?.message || '')),
   });
@@ -156,7 +168,9 @@ export default function AdminRoleManagement() {
       queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
       queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
       toast.success(enable ? 'Semua izin diaktifkan' : 'Semua izin dinonaktifkan');
+      writeRbacAuditLog({ action: enable ? 'bulk_enable' : 'bulk_disable', scope: 'role', target_role: activeRole, metadata: { operation: 'bulk_all' } });
     },
     onError: (e: any) => toast.error('Gagal: ' + (e?.message || '')),
   });
@@ -179,8 +193,15 @@ export default function AdminRoleManagement() {
       queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
       queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
       queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
       const srcLabel = MANAGEABLE_ROLES.find(r => r.key === copySourceRole)?.label;
       toast.success(`Permission disalin dari ${srcLabel}`);
+      writeRbacAuditLog({
+        action: 'copy_from_role',
+        scope: 'role',
+        target_role: activeRole,
+        metadata: { source_role: copySourceRole, operation: 'copy_permissions' },
+      });
       setCopyDialogOpen(false);
       setCopySourceRole('');
     },
