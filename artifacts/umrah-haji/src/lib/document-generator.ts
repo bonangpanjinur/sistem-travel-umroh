@@ -963,6 +963,148 @@ export async function generateGeneralLetter(
 }
 
 // Generate Umrah Certificate
+// Generate E-Ticket
+export async function generateETicket(
+  data: ETicketData,
+  company: CompanyInfo = defaultCompanyInfo
+): Promise<jsPDF> {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  const settings = company.settings;
+  
+  const accentColor = settings?.invoice_accent_color || '#16a34a'; // Default green for ticket
+  const rgb = hexToRgb(accentColor);
+
+  // Header with company branding
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.rect(0, 0, pageWidth, 40, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('E-TICKET', pageWidth / 2, 18, { align: 'center' });
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(company.name, pageWidth / 2, 28, { align: 'center' });
+  doc.text(`Booking Code: ${data.bookingCode}`, pageWidth / 2, 36, { align: 'center' });
+
+  doc.setTextColor(0, 0, 0);
+  let y = 55;
+
+  // Passenger Information Section
+  doc.setFillColor(240, 240, 240);
+  doc.rect(14, y - 5, pageWidth - 28, 35, 'F');
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMASI PENUMPANG', 20, y);
+  y += 10;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Nama Penumpang: ${data.passengerName}`, 20, y);
+  y += 7;
+  doc.text(`No. Paspor: ${data.passportNumber}`, 20, y);
+  y += 7;
+  doc.text(`Paket: ${data.packageName}`, 20, y);
+
+  y += 20;
+
+  // Flight Information Section
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMASI PENERBANGAN', 20, y);
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+
+  // Departure
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('KEBERANGKATAN', 20, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Tanggal: ${format(data.departureDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
+  if (data.departureTime) {
+    doc.text(`Waktu: ${data.departureTime}`, 100, y);
+  }
+  y += 7;
+  doc.text(`Dari: ${data.departureAirport}`, 20, y);
+  doc.text(`Ke: ${data.arrivalAirport}`, 100, y);
+  y += 7;
+  if (data.airline) {
+    doc.text(`Maskapai: ${data.airline}`, 20, y);
+  }
+  if (data.flightNumber) {
+    doc.text(`No. Penerbangan: ${data.flightNumber}`, 100, y);
+  }
+
+  y += 15;
+
+  // Return
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('KEPULANGAN', 20, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Tanggal: ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
+
+  y += 20;
+
+  // Accommodation Information
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMASI AKOMODASI', 20, y);
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (data.hotelMakkah) {
+    doc.text(`Hotel Makkah: ${data.hotelMakkah}`, 20, y);
+    y += 7;
+  }
+  if (data.hotelMadinah) {
+    doc.text(`Hotel Madinah: ${data.hotelMadinah}`, 20, y);
+    y += 7;
+  }
+  doc.text(`Tipe Kamar: ${data.roomType}`, 20, y);
+
+  y += 25;
+
+  // Important Notes
+  doc.setFillColor(255, 243, 205);
+  doc.rect(14, y - 5, pageWidth - 28, 40, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('CATATAN PENTING:', 20, y);
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('• Harap tiba di bandara minimal 4 jam sebelum keberangkatan', 20, y);
+  y += 5;
+  doc.text('• Pastikan paspor masih berlaku minimal 6 bulan dari tanggal keberangkatan', 20, y);
+  y += 5;
+  doc.text('• Bawa dokumen asli: Paspor, Visa, Buku Kuning (Vaksin Meningitis)', 20, y);
+  y += 5;
+  doc.text('• E-Ticket ini wajib dicetak dan dibawa saat keberangkatan', 20, y);
+
+  // Footer
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFontSize(8);
+  doc.setTextColor(128);
+  doc.text(`Dicetak: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}`, 14, pageHeight - 15);
+  doc.text(`${company.phone} | ${company.email}`, pageWidth - 14, pageHeight - 15, { align: 'right' });
+  doc.setTextColor(0);
+
+  return doc;
+}
+
 export async function generateUmrahCertificate(
   data: UmrahCertificateData,
   company: CompanyInfo = defaultCompanyInfo
