@@ -76,6 +76,12 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'laporan-agen',           label: 'Performa Agen',           path: '/admin/laporan/agen',           icon: 'Trophy',          group_name: 'Keuangan',           sort_order: 512, required_permission: PERMISSIONS.LAPORAN_AGEN },
   { key: 'monitoring-tabungan',    label: 'Monitoring Tabungan',     path: '/admin/laporan/tabungan',       icon: 'PiggyBank',       group_name: 'Keuangan',           sort_order: 513, required_permission: PERMISSIONS.MONITORING_TABUNGAN },
 
+  // ── Fase 7 — Operasional Muthawif (di group Keberangkatan) ────────────────
+  { key: 'manifest-jamaah',        label: 'Manifest Jamaah',         path: '/admin/manifest',               icon: 'FileText',        group_name: 'Keberangkatan',      sort_order: 410, required_permission: PERMISSIONS.MANIFEST_JAMAAH },
+  { key: 'absensi-digital',        label: 'Absensi Digital',         path: '/admin/absensi',                icon: 'UserCheck',       group_name: 'Keberangkatan',      sort_order: 411, required_permission: PERMISSIONS.ABSENSI_DIGITAL },
+  { key: 'wa-blast-keberangkatan', label: 'Broadcast WA Keberangkatan', path: '/admin/wa-blast',            icon: 'MessageSquare',   group_name: 'Keberangkatan',      sort_order: 412, required_permission: PERMISSIONS.WA_BLAST_KEBERANGKATAN },
+  { key: 'muthawif-dashboard',     label: 'Dashboard Muthawif',      path: '/muthawif/dashboard',           icon: 'UserCog',         group_name: 'Keberangkatan',      sort_order: 413, required_permission: PERMISSIONS.MUTHAWIF_DASHBOARD },
+
   // ── Jamaah & Agen (600s) ──────────────────────────────────────────────────
   { key: 'customers',           label: 'Data Jamaah',           path: '/admin/customers',            icon: 'Users',           group_name: 'Jamaah & Agen',      sort_order: 601, required_permission: PERMISSIONS.CUSTOMERS },
   { key: 'agents',              label: 'Agen',                  path: '/admin/agents',               icon: 'UserSquare2',     group_name: 'Jamaah & Agen',      sort_order: 602, required_permission: PERMISSIONS.AGENTS },
@@ -170,6 +176,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'push-notifications',
     'blog',
     'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'monitoring-tabungan',
+    'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
   ],
 
   finance: [
@@ -206,6 +213,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'document-verification', 'documents-generator',
     'office-assets',
     'visa',
+    'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
   ],
 
   equipment: [

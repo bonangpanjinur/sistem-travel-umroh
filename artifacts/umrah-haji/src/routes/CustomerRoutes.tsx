@@ -49,6 +49,9 @@ const JamaahCheckin = lazy(() => import("@/pages/jamaah/JamaahCheckin"));
 const JamaahBagasi = lazy(() => import("@/pages/jamaah/JamaahBagasi"));
 const JamaahKontrak = lazy(() => import("@/pages/jamaah/JamaahKontrak"));
 
+// Fase 7 — Manajemen Operasional Muthawif
+const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -119,6 +122,13 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/checkin" element={<CustomerRoute><JamaahCheckin /></CustomerRoute>} />
       <Route path="/jamaah/bagasi" element={<CustomerRoute><JamaahBagasi /></CustomerRoute>} />
       <Route path="/jamaah/kontrak" element={<CustomerRoute><JamaahKontrak /></CustomerRoute>} />
+
+      {/* Fase 7 — Dashboard Muthawif */}
+      <Route path="/muthawif/dashboard" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><MuthawifDashboard /></LazyPage>
+        </ProtectedRoute>
+      } />
 
       {/* Booking — setiap user terautentikasi bisa booking */}
       <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />

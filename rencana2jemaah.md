@@ -155,12 +155,12 @@ Portal Vinstour kini memiliki **31 halaman jamaah/customer** yang sudah producti
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| M1 | **Manajemen Muthawif** — profil muthawif, assignment per keberangkatan, jadwal tugas | Tinggi | 🔴 Belum |
-| M2 | **Pembagian Kamar Hotel** — admin bisa assign nomor kamar per jamaah, jamaah lihat nomor kamarnya di portal | Tinggi | 🔴 Belum |
-| M3 | **Manifest Jamaah per Keberangkatan** — daftar jamaah lengkap untuk diserahkan ke maskapai/imigrasi, bisa di-export | Tinggi | 🔴 Belum |
-| M4 | **Absensi / Presensi Digital** — muthawif bisa centang jamaah yang hadir saat bus jemput, sholat berjamaah, dll | Menengah | 🔴 Belum |
-| M5 | **Panduan Muthawif (Dashboard Khusus)** — tampilan khusus untuk role `muthawif`: list jamaah, chat, absensi, peta | Menengah | 🔴 Belum |
-| M6 | **Broadcast WhatsApp dari Admin** — kirim pesan WA massal ke semua jamaah satu keberangkatan (via WA API atau deep link) | Menengah | 🔴 Belum |
+| M1 | **Manajemen Muthawif** — profil muthawif, assignment per keberangkatan, jadwal tugas | Tinggi | ✅ Done — `/admin/muthawifs/:id` (profil + assign keberangkatan) |
+| M2 | **Pembagian Kamar Hotel** — admin bisa assign nomor kamar per jamaah, jamaah lihat nomor kamarnya di portal | Tinggi | ✅ Done — `/admin/room-assignments` (AdminRoomAssignmentsImproved) |
+| M3 | **Manifest Jamaah per Keberangkatan** — daftar jamaah lengkap untuk diserahkan ke maskapai/imigrasi, bisa di-export | Tinggi | ✅ Done — `/admin/manifest` (Excel + PDF, filter gender/paspor) |
+| M4 | **Absensi / Presensi Digital** — muthawif bisa centang jamaah yang hadir saat bus jemput, sholat berjamaah, dll | Menengah | ✅ Done — `/admin/absensi` (multi-sesi, bulk hadir, export Excel) |
+| M5 | **Panduan Muthawif (Dashboard Khusus)** — tampilan khusus untuk role `muthawif`: list jamaah, chat, absensi, peta | Menengah | ✅ Done — `/muthawif/dashboard` (profil, keberangkatan aktif, daftar jamaah, quick actions) |
+| M6 | **Broadcast WhatsApp dari Admin** — kirim pesan WA massal ke semua jamaah satu keberangkatan (via WA API atau deep link) | Menengah | ✅ Done — `/admin/wa-blast` (template, personalisasi nama/tanggal, pilih penerima) |
 
 **Catatan teknis:**
 - Tabel baru: `muthawif`, `room_assignments`, `attendance_records`

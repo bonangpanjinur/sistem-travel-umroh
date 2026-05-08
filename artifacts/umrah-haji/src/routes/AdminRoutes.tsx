@@ -107,6 +107,13 @@ const AdminLaporanKeberangkatan = lazy(() => import("@/pages/admin/AdminLaporanK
 const AdminLaporanAgen = lazy(() => import("@/pages/admin/AdminLaporanAgen"));
 const AdminMonitoringTabungan = lazy(() => import("@/pages/admin/AdminMonitoringTabungan"));
 
+// Fase 7 — Manajemen Operasional Muthawif
+const AdminMuthawifDetail = lazy(() => import("@/pages/admin/AdminMuthawifDetail"));
+const AdminManifestJamaah = lazy(() => import("@/pages/admin/AdminManifestJamaah"));
+const AdminAbsensiDigital = lazy(() => import("@/pages/admin/AdminAbsensiDigital"));
+const AdminWABlastKeberangkatan = lazy(() => import("@/pages/admin/AdminWABlastKeberangkatan"));
+const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"));
+
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
 function LazyPage({ children }: { children: React.ReactNode }) {
@@ -272,8 +279,20 @@ export default function AdminRoutes() {
       <Route path="airports" element={<P k={PERMISSIONS.AIRPORTS}><AdminAirports /></P>} />
       <Route path="hotels" element={<P k={PERMISSIONS.HOTELS}><AdminHotels /></P>} />
       <Route path="muthawifs" element={<P k={PERMISSIONS.MUTHAWIFS}><AdminMuthawifs /></P>} />
+      <Route path="muthawifs/:id" element={<P k={PERMISSIONS.MUTHAWIFS}><AdminMuthawifDetail /></P>} />
       <Route path="bus-providers" element={<P k={PERMISSIONS.BUS_PROVIDERS}><AdminBusProviders /></P>} />
       <Route path="vendors" element={<P k={PERMISSIONS.VENDORS}><AdminVendors /></P>} />
+
+      {/* Fase 6 — Dashboard Admin & Laporan Keuangan */}
+      <Route path="laporan/keuangan" element={<P k={PERMISSIONS.LAPORAN_KEUANGAN}><AdminLaporanKeuangan /></P>} />
+      <Route path="laporan/keberangkatan" element={<P k={PERMISSIONS.LAPORAN_KEBERANGKATAN}><AdminLaporanKeberangkatan /></P>} />
+      <Route path="laporan/agen" element={<P k={PERMISSIONS.LAPORAN_AGEN}><AdminLaporanAgen /></P>} />
+      <Route path="laporan/tabungan" element={<P k={PERMISSIONS.MONITORING_TABUNGAN}><AdminMonitoringTabungan /></P>} />
+
+      {/* Fase 7 — Manajemen Operasional Muthawif */}
+      <Route path="manifest" element={<P k={PERMISSIONS.MANIFEST_JAMAAH}><AdminManifestJamaah /></P>} />
+      <Route path="absensi" element={<P k={PERMISSIONS.ABSENSI_DIGITAL}><AdminAbsensiDigital /></P>} />
+      <Route path="wa-blast" element={<P k={PERMISSIONS.WA_BLAST_KEBERANGKATAN}><AdminWABlastKeberangkatan /></P>} />
     </Route>
   );
 }

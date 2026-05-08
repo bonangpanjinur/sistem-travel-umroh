@@ -127,6 +127,12 @@ export const PERMISSIONS = {
   LAPORAN_KEBERANGKATAN: 'laporan-keberangkatan',
   LAPORAN_AGEN: 'laporan-agen',
   MONITORING_TABUNGAN: 'monitoring-tabungan',
+
+  // Fase 7 — Manajemen Operasional Muthawif
+  MANIFEST_JAMAAH: 'manifest-jamaah',
+  ABSENSI_DIGITAL: 'absensi-digital',
+  WA_BLAST_KEBERANGKATAN: 'wa-blast-keberangkatan',
+  MUTHAWIF_DASHBOARD: 'muthawif-dashboard',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
