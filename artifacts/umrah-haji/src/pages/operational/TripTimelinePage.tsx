@@ -174,7 +174,7 @@ export default function TripTimelinePage() {
   const selectedDep = departures?.find(d => d.id === selectedDepartureId);
   const totalDays = selectedDep
     ? differenceInDays(new Date(selectedDep.return_date), new Date(selectedDep.departure_date)) + 1
-    : (selectedDep?.package as any)?.duration_days || 0;
+    : 0;
 
   const dayGroups = entries?.reduce((acc, entry) => {
     const day = entry.day_number;

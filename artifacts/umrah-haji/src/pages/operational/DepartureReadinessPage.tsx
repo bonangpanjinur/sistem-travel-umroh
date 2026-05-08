@@ -100,8 +100,8 @@ export default function DepartureReadinessPage() {
 
         supabase
           .from('customer_documents')
-          .select('customer_id, verification_status')
-          .eq('verification_status', 'verified'),
+          .select('customer_id, status')
+          .eq('status', 'verified'),
       ]);
 
       const roomCustomerIds = new Set(roomOccupants?.map(r => r.customer_id) || []);
