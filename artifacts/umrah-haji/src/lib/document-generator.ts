@@ -32,15 +32,15 @@ function hexToRgb(hex: string) {
 
 // Document Layout interface
 export interface DocumentLayout {
-  show_logo: boolean;
-  show_header: boolean;
-  show_company_info: boolean;
-  show_date: boolean;
-  show_signature: boolean;
-  show_stamp: boolean;
-  show_bank_info: boolean;
-  footer_text: string;
-  page_orientation: 'portrait' | 'landscape';
+  show_logo?: boolean; // Jika tidak diset, gunakan global_show_logo
+  show_header?: boolean;
+  show_company_info?: boolean;
+  show_date?: boolean;
+  show_signature?: boolean;
+  show_stamp?: boolean;
+  show_bank_info?: boolean;
+  footer_text?: string;
+  page_orientation?: 'portrait' | 'landscape'; // Jika tidak diset, gunakan global_page_orientation
 }
 
 // Company info interface

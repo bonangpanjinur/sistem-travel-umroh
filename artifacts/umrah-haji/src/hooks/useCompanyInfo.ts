@@ -112,15 +112,43 @@ export function useCompanyInfo() {
     pdf_default_font: (unwrap(m?.get("pdf_global_font_family") ?? m?.get("pdf_default_font")) as any) || "helvetica",
   };
 
-  // Fetch and parse invoice layout
+  // Fetch and parse invoice layout with priority logic (Specific > Global)
   const invoiceLayoutRaw = m?.get("document_layout_invoice");
   let invoiceLayout: DocumentLayout | undefined = undefined;
   if (invoiceLayoutRaw) {
     try {
-      invoiceLayout = typeof invoiceLayoutRaw === 'string' ? JSON.parse(invoiceLayoutRaw) : invoiceLayoutRaw;
+      const parsed = typeof invoiceLayoutRaw === 'string' ? JSON.parse(invoiceLayoutRaw) : invoiceLayoutRaw;
+      
+      // Apply priority: Override if defined, else use global
+      invoiceLayout = {
+        show_logo: parsed.show_logo ?? documentSettings.letterhead_show_logo,
+        show_header: parsed.show_header ?? true,
+        show_company_info: parsed.show_company_info ?? true,
+        show_date: parsed.show_date ?? true,
+        show_signature: parsed.show_signature ?? true,
+        show_stamp: parsed.show_stamp ?? true,
+        show_bank_info: parsed.show_bank_info ?? documentSettings.invoice_show_bank_info,
+        footer_text: parsed.footer_text ?? "",
+        page_orientation: parsed.page_orientation ?? (documentSettings.pdf_default_font === 'times' ? 'portrait' : 'portrait'),
+      };
     } catch (e) {
       console.error("Failed to parse invoice layout", e);
     }
+  }
+
+  // If no specific layout, use global defaults
+  if (!invoiceLayout) {
+    invoiceLayout = {
+      show_logo: documentSettings.letterhead_show_logo,
+      show_header: true,
+      show_company_info: true,
+      show_date: true,
+      show_signature: true,
+      show_stamp: true,
+      show_bank_info: documentSettings.invoice_show_bank_info,
+      footer_text: "",
+      page_orientation: 'portrait',
+    };
   }
 
   const company: CompanyInfo = {

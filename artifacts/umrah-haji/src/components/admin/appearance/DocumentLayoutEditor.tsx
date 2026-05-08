@@ -8,79 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck, Settings2 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
-import { DocumentSettingsForm } from "../DocumentSettingsForm";
+import { DocumentLayout } from "@/lib/document-generator";
 
 type DocumentType = 'invoice' | 'passport_letter' | 'leave_letter' | 'certificate' | 'general_letter';
-
-interface DocumentLayout {
-  show_logo: boolean;
-  show_header: boolean;
-  show_company_info: boolean;
-  show_date: boolean;
-  show_signature: boolean;
-  show_stamp: boolean;
-  show_bank_info: boolean;
-  footer_text: string;
-  page_orientation: 'portrait' | 'landscape';
-}
-
-const defaultLayouts: Record<DocumentType, DocumentLayout> = {
-  invoice: {
-    show_logo: true,
-    show_header: true,
-    show_company_info: true,
-    show_date: true,
-    show_signature: true,
-    show_stamp: true,
-    show_bank_info: true,
-    footer_text: '',
-    page_orientation: 'portrait',
-  },
-  passport_letter: {
-    show_logo: true,
-    show_header: true,
-    show_company_info: true,
-    show_date: true,
-    show_signature: true,
-    show_stamp: true,
-    show_bank_info: false,
-    footer_text: '',
-    page_orientation: 'portrait',
-  },
-  leave_letter: {
-    show_logo: true,
-    show_header: true,
-    show_company_info: true,
-    show_date: true,
-    show_signature: true,
-    show_stamp: true,
-    show_bank_info: false,
-    footer_text: '',
-    page_orientation: 'portrait',
-  },
-  certificate: {
-    show_logo: true,
-    show_header: true,
-    show_company_info: true,
-    show_date: true,
-    show_signature: true,
-    show_stamp: true,
-    show_bank_info: false,
-    footer_text: '',
-    page_orientation: 'landscape',
-  },
-  general_letter: {
-    show_logo: true,
-    show_header: true,
-    show_company_info: true,
-    show_date: true,
-    show_signature: true,
-    show_stamp: true,
-    show_bank_info: false,
-    footer_text: '',
-    page_orientation: 'portrait',
-  },
-};
 
 const documentTypeLabels: Record<DocumentType, string> = {
   invoice: 'Invoice',
@@ -101,43 +31,78 @@ const documentTypeDescriptions: Record<DocumentType, string> = {
 export function DocumentLayoutEditor() {
   const { getSetting, updateMultipleSettings, isLoading, isUpdating } = useCompanySettings();
   const { company, documentSettings } = useCompanyInfo();
-  const [layouts, setLayouts] = useState<Record<DocumentType, DocumentLayout>>(defaultLayouts);
+  const [layouts, setLayouts] = useState<Record<DocumentType, DocumentLayout>>({
+    invoice: {},
+    passport_letter: {},
+    leave_letter: {},
+    certificate: {},
+    general_letter: {},
+  });
   const [activeDocumentType, setActiveDocumentType] = useState<DocumentType>('invoice');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
       // Load saved layouts from settings
-      const savedLayouts = getSetting(`document_layout_${activeDocumentType}`);
-      if (savedLayouts) {
-        try {
-          const parsed = JSON.parse(savedLayouts);
-          setLayouts(prev => ({ ...prev, [activeDocumentType]: parsed }));
-        } catch (e) {
-          // Use default
+      const types: DocumentType[] = ['invoice', 'passport_letter', 'leave_letter', 'certificate', 'general_letter'];
+      const loadedLayouts: any = {};
+      
+      types.forEach(type => {
+        const savedLayouts = getSetting(`document_layout_${type}`);
+        if (savedLayouts) {
+          try {
+            loadedLayouts[type] = typeof savedLayouts === 'string' ? JSON.parse(savedLayouts) : savedLayouts;
+          } catch (e) {
+            loadedLayouts[type] = {};
+          }
+        } else {
+          loadedLayouts[type] = {};
         }
-      }
+      });
+      
+      setLayouts(loadedLayouts);
     }
-  }, [isLoading, activeDocumentType, getSetting]);
+  }, [isLoading, getSetting]);
 
   const handleToggle = (key: keyof DocumentLayout) => {
+    setLayouts(prev => {
+      const currentVal = prev[activeDocumentType][key];
+      // If currently undefined, we toggle based on global default (inverse of global)
+      // But for simplicity in UI, if it's undefined, we treat it as "not set", 
+      // when user clicks, we set it to the opposite of what's currently resolved.
+      
+      const resolvedVal = getResolvedValue(key);
+      const newVal = !resolvedVal;
+
+      return {
+        ...prev,
+        [activeDocumentType]: {
+          ...prev[activeDocumentType],
+          [key]: newVal,
+        },
+      };
+    });
+  };
+
+  const handleInputChange = (key: keyof DocumentLayout, value: any) => {
     setLayouts(prev => ({
       ...prev,
       [activeDocumentType]: {
         ...prev[activeDocumentType],
-        [key]: !prev[activeDocumentType][key],
+        [key]: value === "" ? undefined : value,
       },
     }));
   };
 
-  const handleInputChange = (key: keyof DocumentLayout, value: string) => {
-    setLayouts(prev => ({
-      ...prev,
-      [activeDocumentType]: {
-        ...prev[activeDocumentType],
-        [key]: value,
-      },
-    }));
+  const handleResetOverride = (key: keyof DocumentLayout) => {
+    setLayouts(prev => {
+      const newLayout = { ...prev[activeDocumentType] };
+      delete newLayout[key];
+      return {
+        ...prev,
+        [activeDocumentType]: newLayout
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -152,6 +117,28 @@ export function DocumentLayoutEditor() {
     }
   };
 
+  // Logic to get resolved value (Specific > Global)
+  const getResolvedValue = (key: keyof DocumentLayout): any => {
+    const override = layouts[activeDocumentType][key];
+    if (override !== undefined) return override;
+
+    // Fallback to global settings from hook
+    switch (key) {
+      case 'show_logo': return documentSettings.letterhead_show_logo;
+      case 'page_orientation': 
+        if (activeDocumentType === 'certificate') return 'landscape'; // Default hardcoded for certificate
+        return documentSettings.pdf_default_font === 'times' ? 'portrait' : 'portrait'; // Placeholder logic
+      case 'show_header': return true;
+      case 'show_company_info': return true;
+      case 'show_date': return true;
+      case 'show_signature': return true;
+      case 'show_stamp': return true;
+      case 'show_bank_info': return activeDocumentType === 'invoice';
+      case 'footer_text': return '';
+      default: return undefined;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-8">
@@ -162,6 +149,7 @@ export function DocumentLayoutEditor() {
   }
 
   const currentLayout = layouts[activeDocumentType];
+  const isOverridden = (key: keyof DocumentLayout) => currentLayout[key] !== undefined;
 
   return (
     <div className="space-y-6">
@@ -169,10 +157,10 @@ export function DocumentLayoutEditor() {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <LayoutTemplate className="h-5 w-5" />
-            Layout Dokumen
+            Layout & Override Dokumen
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Atur tampilan dan elemen yang muncul di setiap jenis dokumen
+            Gunakan pengaturan di bawah ini untuk menimpa (override) pengaturan global khusus untuk dokumen ini.
           </p>
         </div>
         <Button onClick={handleSave} disabled={isSaving || isUpdating}>
@@ -181,7 +169,7 @@ export function DocumentLayoutEditor() {
           ) : (
             <Printer className="h-4 w-4 mr-2" />
           )}
-          Simpan Layout
+          Simpan Layout {documentTypeLabels[activeDocumentType]}
         </Button>
       </div>
 
@@ -206,8 +194,8 @@ export function DocumentLayoutEditor() {
                 {type === 'general_letter' && <Mail className="h-6 w-6 mx-auto text-primary" />}
               </div>
               <p className="font-medium text-sm">{documentTypeLabels[type]}</p>
-              <Badge variant="secondary" className="mt-1 text-xs">
-                {currentLayout?.page_orientation === 'landscape' ? 'Landscape' : 'Portrait'}
+              <Badge variant={Object.keys(layouts[type]).length > 0 ? "default" : "secondary"} className="mt-1 text-[10px]">
+                {Object.keys(layouts[type]).length} Override
               </Badge>
             </CardContent>
           </Card>
@@ -230,16 +218,23 @@ export function DocumentLayoutEditor() {
             <CardContent className="space-y-6">
               {/* Orientation */}
               <div className="space-y-3">
-                <Label>Orientasi Halaman</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Orientasi Halaman</Label>
+                  {isOverridden('page_orientation') && (
+                    <Button variant="ghost" size="sm" className="h-7 text-[10px] text-destructive" onClick={() => handleResetOverride('page_orientation')}>
+                      Reset ke Global
+                    </Button>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => handleInputChange('page_orientation', 'portrait')}
                     className={`flex-1 p-4 border-2 rounded-lg transition-all ${
-                      currentLayout?.page_orientation === 'portrait'
+                      getResolvedValue('page_orientation') === 'portrait'
                         ? 'border-primary bg-primary/5'
                         : 'hover:border-primary/50'
-                    }`}
+                    } ${isOverridden('page_orientation') ? 'ring-1 ring-primary/30' : 'opacity-80'}`}
                   >
                     <div className="w-8 h-12 mx-auto border-2 border-current rounded mb-2" />
                     <p className="text-sm font-medium">Portrait</p>
@@ -248,10 +243,10 @@ export function DocumentLayoutEditor() {
                     type="button"
                     onClick={() => handleInputChange('page_orientation', 'landscape')}
                     className={`flex-1 p-4 border-2 rounded-lg transition-all ${
-                      currentLayout?.page_orientation === 'landscape'
+                      getResolvedValue('page_orientation') === 'landscape'
                         ? 'border-primary bg-primary/5'
                         : 'hover:border-primary/50'
-                    }`}
+                    } ${isOverridden('page_orientation') ? 'ring-1 ring-primary/30' : 'opacity-80'}`}
                   >
                     <div className="w-12 h-8 mx-auto border-2 border-current rounded mb-2" />
                     <p className="text-sm font-medium">Landscape</p>
@@ -261,77 +256,85 @@ export function DocumentLayoutEditor() {
 
               {/* Toggle Options */}
               <div className="space-y-4">
-                <Label className="text-base font-semibold">Elemen Dokumen</Label>
+                <Label className="text-base font-semibold">Elemen Dokumen (Override)</Label>
                 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-1 gap-4">
                   <FormToggle
                     label="Tampilkan Logo"
                     description="Logo perusahaan di header dokumen"
-                    checked={currentLayout?.show_logo ?? true}
+                    checked={getResolvedValue('show_logo')}
+                    isOverridden={isOverridden('show_logo')}
                     onChange={() => handleToggle('show_logo')}
+                    onReset={() => handleResetOverride('show_logo')}
                   />
                   
                   <FormToggle
                     label="Tampilkan Header"
                     description="Header dokumen dengan judul"
-                    checked={currentLayout?.show_header ?? true}
+                    checked={getResolvedValue('show_header')}
+                    isOverridden={isOverridden('show_header')}
                     onChange={() => handleToggle('show_header')}
+                    onReset={() => handleResetOverride('show_header')}
                   />
                   
                   <FormToggle
                     label="Tampilkan Info Perusahaan"
                     description="Nama, alamat, telepon perusahaan"
-                    checked={currentLayout?.show_company_info ?? true}
+                    checked={getResolvedValue('show_company_info')}
+                    isOverridden={isOverridden('show_company_info')}
                     onChange={() => handleToggle('show_company_info')}
+                    onReset={() => handleResetOverride('show_company_info')}
                   />
-                  
+
                   <FormToggle
-                    label="Tampilkan Tanggal"
-                    description="Tanggal pembuatan dokumen"
-                    checked={currentLayout?.show_date ?? true}
-                    onChange={() => handleToggle('show_date')}
+                    label="Tampilkan Info Bank"
+                    description="Rekening bank untuk pembayaran"
+                    checked={getResolvedValue('show_bank_info')}
+                    isOverridden={isOverridden('show_bank_info')}
+                    onChange={() => handleToggle('show_bank_info')}
+                    onReset={() => handleResetOverride('show_bank_info')}
                   />
                   
                   <FormToggle
                     label="Tampilkan Tanda Tangan"
                     description="Area tanda tangan penandatangan"
-                    checked={currentLayout?.show_signature ?? true}
+                    checked={getResolvedValue('show_signature')}
+                    isOverridden={isOverridden('show_signature')}
                     onChange={() => handleToggle('show_signature')}
+                    onReset={() => handleResetOverride('show_signature')}
                   />
                   
                   <FormToggle
                     label="Tampilkan Cap/Stempel"
                     description="Area cap/stempel resmi"
-                    checked={currentLayout?.show_stamp ?? true}
+                    checked={getResolvedValue('show_stamp')}
+                    isOverridden={isOverridden('show_stamp')}
                     onChange={() => handleToggle('show_stamp')}
-                  />
-                  
-                  <FormToggle
-                    label="Tampilkan Info Bank"
-                    description="Rekening bank untuk pembayaran"
-                    checked={currentLayout?.show_bank_info ?? false}
-                    onChange={() => handleToggle('show_bank_info')}
+                    onReset={() => handleResetOverride('show_stamp')}
                   />
                 </div>
               </div>
 
               {/* Footer Text */}
               <div className="space-y-3 pt-4 border-t">
-                <Label htmlFor="footer_text" className="text-base font-semibold">Teks Footer Kustom</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="footer_text" className="text-base font-semibold">Teks Footer Kustom</Label>
+                  {isOverridden('footer_text') && (
+                    <Button variant="ghost" size="sm" className="h-7 text-[10px] text-destructive" onClick={() => handleResetOverride('footer_text')}>
+                      Reset ke Global
+                    </Button>
+                  )}
+                </div>
                 <Input
                   id="footer_text"
-                  value={currentLayout?.footer_text || ''}
+                  value={currentLayout?.footer_text ?? ""}
                   onChange={(e) => handleInputChange('footer_text', e.target.value)}
-                  placeholder="Contoh: 'Terima kasih telah menggunakan jasa kami'"
-                  className="max-w-xl"
+                  placeholder="Gunakan pengaturan global..."
+                  className={`max-w-xl ${isOverridden('footer_text') ? 'border-primary ring-1 ring-primary/20' : 'opacity-70'}`}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Teks ini akan muncul di bagian bawah setiap halaman. Kosongkan jika tidak diperlukan.
-                </p>
               </div>
             </CardContent>
           </Card>
-
         </div>
 
         <div className="space-y-6">
@@ -340,8 +343,9 @@ export function DocumentLayoutEditor() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Eye className="h-5 w-5" />
-                Preview
+                Preview {documentTypeLabels[activeDocumentType]}
               </CardTitle>
+              <p className="text-xs text-muted-foreground">Preview ini menggunakan logika prioritas (Override > Global)</p>
             </CardHeader>
             <CardContent>
               <DocumentPreview 
@@ -349,6 +353,7 @@ export function DocumentLayoutEditor() {
                 layout={currentLayout}
                 company={company}
                 documentSettings={documentSettings}
+                getResolvedValue={getResolvedValue}
               />
             </CardContent>
           </Card>
@@ -362,20 +367,34 @@ function FormToggle({
   label,
   description,
   checked,
+  isOverridden,
   onChange,
+  onReset,
 }: {
   label: string;
   description: string;
   checked: boolean;
+  isOverridden: boolean;
   onChange: () => void;
+  onReset: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border p-3">
-      <div>
-        <p className="font-medium text-sm">{label}</p>
+    <div className={`flex items-center justify-between rounded-lg border p-3 transition-all ${isOverridden ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/10' : 'opacity-80'}`}>
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <p className="font-medium text-sm">{label}</p>
+          {isOverridden && <Badge className="h-4 px-1 text-[8px] uppercase">Override</Badge>}
+        </div>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <div className="flex items-center gap-3">
+        {isOverridden && (
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={onReset}>
+            <Loader2 className="h-3 w-3" />
+          </Button>
+        )}
+        <Switch checked={checked} onCheckedChange={onChange} />
+      </div>
     </div>
   );
 }
@@ -385,16 +404,15 @@ interface DocumentPreviewProps {
   layout: DocumentLayout;
   company?: any;
   documentSettings?: any;
+  getResolvedValue: (key: keyof DocumentLayout) => any;
 }
 
-function DocumentPreview({ type, layout, company, documentSettings }: DocumentPreviewProps) {
-  const isLandscape = layout?.page_orientation === 'landscape';
+function DocumentPreview({ type, layout, company, documentSettings, getResolvedValue }: DocumentPreviewProps) {
+  const isLandscape = getResolvedValue('page_orientation') === 'landscape';
   const aspectRatio = isLandscape ? 'aspect-[1.4/1]' : 'aspect-[0.7/1]';
   
-  // Get accent color from settings
-  const accentColor = type === 'invoice' 
-    ? (documentSettings?.invoice_accent_color || '#16a34a')
-    : (documentSettings?.eticket_header_color || '#16a34a');
+  // Get accent color from settings (Priority: Specific > Global)
+  const accentColor = documentSettings.invoice_accent_color || '#16a34a';
   
   // Helper to convert hex to RGB
   const hexToRgb = (hex: string) => {
@@ -407,12 +425,12 @@ function DocumentPreview({ type, layout, company, documentSettings }: DocumentPr
   return (
     <div className={`w-full border-2 border-dashed border-muted-foreground/30 rounded-lg overflow-hidden ${aspectRatio} bg-white relative shadow-sm flex flex-col`}>
       {/* Header Background with Logo and Company Info */}
-      {layout?.show_header && (
+      {getResolvedValue('show_header') && (
         <div 
           className="px-3 py-2 text-white flex items-center gap-2"
           style={{ backgroundColor: accentRGB }}
         >
-          {layout?.show_logo && company?.logo && (
+          {getResolvedValue('show_logo') && company?.logo && (
             <img 
               src={company.logo} 
               alt="Logo" 
@@ -422,14 +440,14 @@ function DocumentPreview({ type, layout, company, documentSettings }: DocumentPr
               }}
             />
           )}
-          {layout?.show_logo && !company?.logo && (
+          {getResolvedValue('show_logo') && !company?.logo && (
             <div className="h-6 w-6 bg-white/20 rounded flex items-center justify-center">
               <FileText className="h-4 w-4" />
             </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold truncate">{company?.name || 'Company Name'}</div>
-            {layout?.show_company_info && (
+            {getResolvedValue('show_company_info') && (
               <div className="text-[10px] opacity-90 truncate">{company?.address || 'Address'}</div>
             )}
           </div>
@@ -460,16 +478,16 @@ function DocumentPreview({ type, layout, company, documentSettings }: DocumentPr
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-muted-foreground/20 flex items-end justify-between text-[8px] text-muted-foreground/60">
         <div className="max-w-[60%] truncate">
-          {layout?.footer_text || 'Footer dokumen'}
+          {getResolvedValue('footer_text') || 'Footer dokumen'}
         </div>
         <div className="flex items-center gap-2">
-          {layout?.show_signature && (
+          {getResolvedValue('show_signature') && (
             <div className="text-center">
               <div className="w-6 h-3 border-b border-muted-foreground/30" />
               <div className="text-[6px]">Ttd</div>
             </div>
           )}
-          {layout?.show_stamp && (
+          {getResolvedValue('show_stamp') && (
             <div className="w-4 h-4 border border-dashed border-muted-foreground/30 rounded-full" />
           )}
         </div>
