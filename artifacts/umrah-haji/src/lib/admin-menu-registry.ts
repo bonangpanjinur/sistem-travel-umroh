@@ -118,6 +118,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1009, required_permission: PERMISSIONS.SETTINGS },
   { key: 'api-connect',         label: 'API Connect ke Apps',   path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Pengaturan',         sort_order: 1010, required_permission: PERMISSIONS.API_CONNECT },
   { key: 'supabase-setup',      label: 'Panduan Setup Supabase', path: '/admin/supabase-setup',       icon: 'Database',        group_name: 'Pengaturan',         sort_order: 1011, required_permission: PERMISSIONS.SUPABASE_SETUP },
+  { key: 'webhooks',            label: 'Webhook Outgoing',       path: '/admin/webhooks',             icon: 'Webhook',         group_name: 'Pengaturan',         sort_order: 1012, required_permission: PERMISSIONS.WEBHOOKS },
 ];
 
 /**

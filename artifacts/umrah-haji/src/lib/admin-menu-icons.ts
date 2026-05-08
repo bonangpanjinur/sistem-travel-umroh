@@ -17,6 +17,9 @@ import {
   ShieldAlert, ShieldCheck, KeyRound, Palette, ScanSearch,
   MessageCircle, Layers, Settings, Circle,
   ListOrdered, LayoutGrid, LineChart,
+  Webhook, Target, Navigation, Plug, Database, Crown,
+  PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
+  Radio, Mail, Bell, MessagesSquare, WifiOff, Image,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -41,6 +44,9 @@ export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
   MessageCircle, Layers, Settings, ListOrdered, LayoutGrid, LineChart,
   ChartLine, PersonStanding,
   Circle,
+  Webhook, Target, Navigation, Plug, Database, Crown,
+  PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
+  Radio, Mail, Bell, MessagesSquare, WifiOff, Image,
 };
 
 /** Resolve an icon by name, falling back to Circle when unknown/missing. */

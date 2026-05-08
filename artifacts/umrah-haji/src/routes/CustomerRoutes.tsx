@@ -25,6 +25,7 @@ const JamaahFeedback = lazy(() => import("@/pages/jamaah/JamaahFeedback"));
 const JamaahNotifications = lazy(() => import("@/pages/jamaah/JamaahNotifications"));
 const JamaahVisaTracker = lazy(() => import("@/pages/jamaah/JamaahVisaTracker"));
 const JamaahPanduanIbadah = lazy(() => import("@/pages/jamaah/JamaahPanduanIbadah"));
+const JamaahPetaLokasi = lazy(() => import("@/pages/jamaah/JamaahPetaLokasi"));
 const KalkulatorCicilan = lazy(() => import("@/pages/customer/KalkulatorCicilan"));
 
 /**
@@ -75,6 +76,7 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/notifications" element={<CustomerRoute><JamaahNotifications /></CustomerRoute>} />
       <Route path="/jamaah/visa" element={<CustomerRoute><JamaahVisaTracker /></CustomerRoute>} />
       <Route path="/jamaah/panduan-ibadah" element={<CustomerRoute><Suspense fallback={<LoadingState />}><JamaahPanduanIbadah /></Suspense></CustomerRoute>} />
+      <Route path="/jamaah/peta-lokasi" element={<CustomerRoute><JamaahPetaLokasi /></CustomerRoute>} />
 
       {/* Booking — setiap user terautentikasi bisa booking */}
       <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />

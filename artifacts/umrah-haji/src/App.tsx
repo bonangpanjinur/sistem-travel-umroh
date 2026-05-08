@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { TenantProvider } from "@/contexts/TenantContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { EnvDiagnostic } from "@/components/EnvDiagnostic";
 import NotFound from "./pages/NotFound";
@@ -33,6 +34,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TenantProvider>
+          <LanguageProvider>
           <ThemeProvider>
             <TooltipProvider>
               <Toaster />
@@ -51,6 +53,7 @@ const App = () => (
               </BrowserRouter>
             </TooltipProvider>
           </ThemeProvider>
+          </LanguageProvider>
         </TenantProvider>
       </AuthProvider>
     </QueryClientProvider>

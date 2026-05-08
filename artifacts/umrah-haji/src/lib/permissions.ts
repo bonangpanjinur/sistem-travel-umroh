@@ -118,6 +118,9 @@ export const PERMISSIONS = {
 
   // Ringkasan AI Otomatis
   AI_SUMMARY: 'ai-summary',
+
+  // Webhook Outgoing
+  WEBHOOKS: 'webhooks',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

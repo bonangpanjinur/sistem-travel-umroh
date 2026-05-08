@@ -99,6 +99,7 @@ const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
 const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
 const AdminFinanceTerpadu = lazy(() => import("@/pages/admin/AdminFinanceTerpadu"));
 const AdminAISummary = lazy(() => import("@/pages/admin/AdminAISummary"));
+const AdminWebhooks = lazy(() => import("@/pages/admin/AdminWebhooks"));
 
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
@@ -249,6 +250,9 @@ export default function AdminRoutes() {
 
       {/* Ringkasan AI Otomatis */}
       <Route path="ai-summary" element={<P k={PERMISSIONS.AI_SUMMARY}><LazyPage><AdminAISummary /></LazyPage></P>} />
+
+      {/* Webhook Outgoing */}
+      <Route path="webhooks" element={<P k={PERMISSIONS.WEBHOOKS}><LazyPage><AdminWebhooks /></LazyPage></P>} />
 
       {/* Master Data */}
       <Route path="master-data" element={<P k={PERMISSIONS.MASTER_DATA}><AdminMasterData /></P>} />
