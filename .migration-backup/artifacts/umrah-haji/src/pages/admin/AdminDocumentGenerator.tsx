@@ -24,7 +24,7 @@ import {
   generateLeaveLetter, generateJamaahLeaveLetter, generatePassportLetter,
   generateInvoice, generateGeneralLetter, generateETicket, generateUmrahCertificate,
   type LeaveLetterData, type JamaahLeaveLetterData, type PassportLetterData,
-  type InvoiceData, type GeneralLetterData, type ETicketData, type UmrahCertificateData
+  type InvoiceData, type InvoiceDataExtended, type GeneralLetterData, type ETicketData, type UmrahCertificateData
 } from '@/lib/document-generator';
 
 interface Employee {
@@ -276,7 +276,7 @@ const AdminDocumentGenerator = () => {
       if (depIds.length === 0) return [];
       const { data, error } = await supabase
         .from('bookings')
-        .select(`*, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single))`)
+        .select(`id, booking_code, room_type, total_price, total_pax, base_price, discount_amount, paid_amount, remaining_amount, payment_status, created_at, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single))`)
         .in('departure_id', depIds)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -410,7 +410,7 @@ const AdminDocumentGenerator = () => {
       reason: employeeLeaveForm.reason,
       destination: employeeLeaveForm.destination
     };
-    return { generate: async () => generateLeaveLetter(data, await getLetterNumber('cuti_karyawan', 'CUTI-KRY'), company) };
+    return { generate: async () => await generateLeaveLetter(data, await getLetterNumber('cuti_karyawan', 'CUTI-KRY'), company) };
   };
 
   const handleGenerateJamaahLeaveLetter = () => {
@@ -433,7 +433,7 @@ const AdminDocumentGenerator = () => {
       endDate: new Date(departure.return_date),
       purpose: jamaahLeaveForm.purpose
     };
-    return { generate: async () => generateJamaahLeaveLetter(data, await getLetterNumber('cuti_jamaah', 'CUTI-JMH'), company) };
+    return { generate: async () => await generateJamaahLeaveLetter(data, await getLetterNumber('cuti_jamaah', 'CUTI-JMH'), company) };
   };
 
   const handleGeneratePassportLetter = () => {
@@ -450,7 +450,7 @@ const AdminDocumentGenerator = () => {
       purpose: passportForm.purpose,
       departureDate: departure ? new Date(departure.departure_date) : undefined
     };
-    return { generate: async () => generatePassportLetter(data, await getLetterNumber('paspor', 'PASPOR'), company) };
+    return { generate: async () => await generatePassportLetter(data, await getLetterNumber('paspor', 'PASPOR'), company) };
   };
 
   const handleGenerateInvoice = () => {
@@ -459,7 +459,7 @@ const AdminDocumentGenerator = () => {
     const customer = booking.customer as any;
     const departure = booking.departure as any;
     const pkg = departure?.package as any;
-    const data: InvoiceData = {
+    const data: InvoiceDataExtended = {
       invoiceNumber: `INV-${booking.booking_code}`,
       invoiceDate: new Date(),
       dueDate: invoiceForm.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -468,6 +468,11 @@ const AdminDocumentGenerator = () => {
       subtotal: booking.base_price,
       discount: booking.discount_amount || 0,
       total: booking.total_price,
+      paidAmount: booking.paid_amount || 0,
+      remainingAmount: booking.remaining_amount || 0,
+      paymentStatus: (booking.paid_amount || 0) >= booking.total_price ? 'paid' : (booking.paid_amount || 0) > 0 ? 'partial' : 'pending',
+      packageName: pkg?.name,
+      departureDate: departure?.departure_date ? new Date(departure.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
       notes: invoiceForm.notes || 'Pembayaran dapat dilakukan secara bertahap. Pelunasan paling lambat 2 minggu sebelum keberangkatan.',
       bankInfo: bankAccount ? { 
         bankName: bankAccount.bank_name, 
@@ -475,7 +480,7 @@ const AdminDocumentGenerator = () => {
         accountName: bankAccount.account_name 
       } : undefined
     };
-    return { generate: async () => generateInvoice(data, company) };
+    return { generate: async () => await generateInvoice(data, company) };
   };
 
   const handleGenerateETicket = () => {
@@ -506,7 +511,7 @@ const AdminDocumentGenerator = () => {
       hotelMadinah: hotelMadinah?.name,
       roomType: roomTypeLabels[booking.room_type] || booking.room_type
     };
-    return { generate: async () => generateETicket(data, company) };
+    return { generate: async () => await generateETicket(data, company) };
   };
 
   const handleGenerateCertificate = () => {
@@ -525,7 +530,7 @@ const AdminDocumentGenerator = () => {
       returnDate: new Date(departure?.return_date),
       certificateNumber: `CERT-${booking.booking_code}`
     };
-    return { generate: async () => generateUmrahCertificate(data, company) };
+    return { generate: async () => await generateUmrahCertificate(data, company) };
   };
 
   const handleGenerateGeneralLetter = () => {
@@ -534,7 +539,7 @@ const AdminDocumentGenerator = () => {
     }
     return { generate: async () => {
       const letterNumber = await getLetterNumber('surat_umum', 'SURAT');
-      return generateGeneralLetter({
+      return await generateGeneralLetter({
         letterNumber, letterDate: new Date(),
         recipient: { name: generalForm.recipientName, position: generalForm.recipientPosition, institution: generalForm.recipientInstitution, address: generalForm.recipientAddress },
         subject: generalForm.subject, content: generalForm.content,
@@ -773,15 +778,21 @@ const AdminDocumentGenerator = () => {
                                     title="Download Invoice"
                                     onClick={async () => {
                                       const pkg = (dep as any)?.package;
-                                      const data: InvoiceData = {
-                                        invoiceNumber: `INV-${booking.booking_code}`,
+                                      const b = booking as any;
+                                      const data: InvoiceDataExtended = {
+                                        invoiceNumber: `INV-${b.booking_code}`,
                                         invoiceDate: new Date(),
                                         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                                         customer: { name: customer.full_name, address: customer.address || '-', phone: customer.phone || '-', email: customer.email },
-                                        items: [{ description: `Paket ${pkg?.name || 'Umrah'} - ${booking.room_type}`, quantity: 1, unitPrice: booking.total_price, total: booking.total_price }],
-                                        subtotal: booking.total_price,
-                                        discount: (booking as any).discount_amount || 0,
-                                        total: booking.total_price,
+                                        items: [{ description: `Paket ${pkg?.name || 'Umrah'} - ${b.room_type}`, quantity: 1, unitPrice: b.total_price, total: b.total_price }],
+                                        subtotal: b.total_price,
+                                        discount: b.discount_amount || 0,
+                                        total: b.total_price,
+                                        paidAmount: b.paid_amount || 0,
+                                        remainingAmount: b.remaining_amount || 0,
+                                        paymentStatus: (b.paid_amount || 0) >= b.total_price ? 'paid' : (b.paid_amount || 0) > 0 ? 'partial' : 'pending',
+                                        packageName: pkg?.name,
+                                        departureDate: (dep as any)?.departure_date ? new Date((dep as any).departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
                                         notes: 'Terima kasih atas kepercayaan Anda.',
                                         bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined
                                       };

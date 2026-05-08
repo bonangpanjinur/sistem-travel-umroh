@@ -24,7 +24,6 @@ import { WhatsAppButtonSettings } from "@/components/admin/appearance/WhatsAppBu
 import { PackageListCustomization } from "@/components/admin/appearance/PackageListCustomization";
 import { BankAccountsSettings } from "@/components/admin/appearance/BankAccountsSettings";
 import { DocumentLayoutEditor } from "@/components/admin/appearance/DocumentLayoutEditor";
-import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
 import { useWebsiteSettings, useThemePresets, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -236,14 +235,6 @@ export default function AdminAppearance() {
             <Square className="h-4 w-4" />
             <span>Card Paket</span>
           </TabsTrigger>
-          <TabsTrigger value="document-settings" className="gap-2 py-2">
-            <FileText className="h-4 w-4" />
-            <span>Pengaturan Invoice</span>
-          </TabsTrigger>
-          <TabsTrigger value="document-layout" className="gap-2 py-2">
-            <LayoutTemplate className="h-4 w-4" />
-            <span>Layout Dokumen</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="template">
@@ -399,13 +390,7 @@ export default function AdminAppearance() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="document-settings">
-          <DocumentSettingsForm />
-        </TabsContent>
 
-        <TabsContent value="document-layout">
-          <DocumentLayoutEditor />
-        </TabsContent>
 
         <TabsContent value="bank-accounts">
           <BankAccountsSettings />

@@ -46,6 +46,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@types/uuid": "^11.0.0",
     "@vitejs/plugin-react": "catalog:",
     "@workspace/api-client-react": "workspace:*",
     "autoprefixer": "^10.5.0",
@@ -79,12 +80,13 @@
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
     "@supabase/supabase-js": "^2.105.1",
+    "@types/qrcode": "^1.5.5",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "qrcode": "^1.5.4",
-    "@types/qrcode": "^1.5.5",
     "react-router-dom": "^7.14.2",
+    "uuid": "^14.0.0",
     "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   }

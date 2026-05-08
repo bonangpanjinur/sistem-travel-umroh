@@ -10,10 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Search, ShieldCheck, CheckCircle2, XCircle, RotateCcw, Crown, Info } from "lucide-react";
+import { Search, ShieldCheck, CheckCircle2, XCircle, RotateCcw, Crown, Info, RefreshCw, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { ROLE_DEFAULT_PERMISSIONS, RECOMMENDED_MENUS } from "@/lib/admin-menu-registry";
 
 type AppRole =
   | 'owner' | 'branch_manager' | 'finance' | 'operational'
@@ -93,6 +94,27 @@ export default function AdminRoleManagement() {
       toast.success('Izin role diperbarui');
     },
     onError: (e: any) => toast.error('Gagal: ' + (e?.message || '')),
+  });
+
+  const seedDefaultMutation = useMutation({
+    mutationFn: async () => {
+      const defaultKeys = ROLE_DEFAULT_PERMISSIONS[activeRole] || [];
+      const allKeys = RECOMMENDED_MENUS.map(m => m.required_permission);
+      const enablePayload = defaultKeys.map(k => ({ role: activeRole, permission_key: k, is_enabled: true }));
+      const disablePayload = allKeys
+        .filter(k => !defaultKeys.includes(k))
+        .map(k => ({ role: activeRole, permission_key: k, is_enabled: false }));
+      const allPayload = [...enablePayload, ...disablePayload];
+      const { error } = await (supabase.from('role_permissions' as any) as any)
+        .upsert(allPayload, { onConflict: 'role,permission_key' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
+      queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+      toast.success(`Izin default untuk role ${activeRole} berhasil diterapkan`);
+    },
+    onError: (e: any) => toast.error('Gagal menerapkan default: ' + (e?.message || '')),
   });
 
   const bulkMutation = useMutation({
@@ -189,10 +211,21 @@ export default function AdminRoleManagement() {
                     <CardTitle className="text-lg">{activeRoleMeta.label}</CardTitle>
                     <CardDescription>{activeRoleMeta.description}</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                       {stats.enabled}/{stats.total} aktif
                     </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => seedDefaultMutation.mutate()}
+                      disabled={seedDefaultMutation.isPending}
+                      className="text-blue-700 border-blue-200 hover:bg-blue-50"
+                      title={`Terapkan izin default untuk role ${activeRole}`}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5 mr-1", seedDefaultMutation.isPending && "animate-spin")} />
+                      Terapkan Default
+                    </Button>
                   </div>
                 </div>
               </CardHeader>

@@ -9,7 +9,7 @@ import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { RECOMMENDED_MENUS } from '@/lib/admin-menu-registry';
+import { RECOMMENDED_MENUS, ROLE_DEFAULT_PERMISSIONS } from '@/lib/admin-menu-registry';
 import { getInheritedRoles } from '@/lib/permissions';
 import { AppRole } from '@/types/database';
 
@@ -73,7 +73,7 @@ export const useDynamicMenus = () => {
 
   // Registry fallback (used when DB is empty / unreachable) — keeps sidebar usable.
   const fallbackMenus: MenuItem[] = useMemo(
-    () => RECOMMENDED_MENUS.map((m, idx) => ({
+    () => RECOMMENDED_MENUS.map((m) => ({
       id: `fallback-${m.key}`,
       key: m.key,
       label: m.label,
@@ -85,6 +85,19 @@ export const useDynamicMenus = () => {
     })),
     []
   );
+
+  // Role-based fallback for effectiveKeys when Supabase is not connected
+  // or role_permissions table is empty. Uses ROLE_DEFAULT_PERMISSIONS as the default.
+  const roleBasedFallbackKeys = useMemo(() => {
+    if (isSuperAdmin || !isStaffUser || !user) return [] as string[];
+    const userRoles: string[] = (user as any)?.roles || [];
+    const keys = new Set<string>();
+    userRoles.forEach((role) => {
+      const defaults = ROLE_DEFAULT_PERMISSIONS[role] || [];
+      defaults.forEach((k) => keys.add(k));
+    });
+    return Array.from(keys);
+  }, [isSuperAdmin, isStaffUser, user]);
 
   // Fetch all menus (DB) - with optimized caching
   const { data: dbMenus = [], isLoading, error, refetch } = useQuery({
@@ -128,7 +141,14 @@ export const useDynamicMenus = () => {
   // Super admin → all menus. Others → only menus whose required_permission is
   // present in the effective permission set. Menus without a required_permission
   // remain visible to every staff user (e.g. a generic admin landing).
-  const allowedSet = useMemo(() => new Set(effectiveKeys), [effectiveKeys]);
+  // If effectiveKeys is empty (DB unreachable / no permissions seeded),
+  // fall back to the role-based defaults so the sidebar is always usable.
+  const resolvedEffectiveKeys = useMemo(
+    () => (effectiveKeys.length > 0 ? effectiveKeys : roleBasedFallbackKeys),
+    [effectiveKeys, roleBasedFallbackKeys]
+  );
+
+  const allowedSet = useMemo(() => new Set(resolvedEffectiveKeys), [resolvedEffectiveKeys]);
 
   /**
    * Tolerant permission match — handles drift between menu_items.required_permission

@@ -1207,6 +1207,47 @@ export type Database = {
           },
         ]
       }
+      customer_mahrams: {
+        Row: {
+          id: string
+          customer_id: string
+          mahram_name: string
+          mahram_relation: string
+          mahram_customer_id: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          customer_id: string
+          mahram_name: string
+          mahram_relation: string
+          mahram_customer_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          customer_id?: string
+          mahram_name?: string
+          mahram_relation?: string
+          mahram_customer_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_mahrams_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -1216,6 +1257,7 @@ export type Database = {
           branch_id: string | null
           city: string | null
           created_at: string | null
+          district: string | null
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -1238,6 +1280,7 @@ export type Database = {
           province: string | null
           updated_at: string | null
           user_id: string | null
+          village: string | null
         }
         Insert: {
           address?: string | null
@@ -1247,6 +1290,7 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          district?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1269,6 +1313,7 @@ export type Database = {
           province?: string | null
           updated_at?: string | null
           user_id?: string | null
+          village?: string | null
         }
         Update: {
           address?: string | null
@@ -1278,6 +1323,7 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          district?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1300,6 +1346,7 @@ export type Database = {
           province?: string | null
           updated_at?: string | null
           user_id?: string | null
+          village?: string | null
         }
         Relationships: [
           {

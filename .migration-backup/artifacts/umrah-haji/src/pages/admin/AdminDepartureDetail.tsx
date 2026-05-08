@@ -50,12 +50,15 @@ import {
   Bug,
   CheckCircle2,
   ChevronDown,
+  BedDouble,
+  ExternalLink,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
+import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -636,9 +639,10 @@ export default function AdminDepartureDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="info">Informasi</TabsTrigger>
           <TabsTrigger value="jamaah">Jemaah</TabsTrigger>
+          <TabsTrigger value="kamar">Kamar</TabsTrigger>
           <TabsTrigger value="perlengkapan">Perlengkapan</TabsTrigger>
           <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
           <TabsTrigger value="operasional">Operasional</TabsTrigger>
@@ -1010,6 +1014,21 @@ export default function AdminDepartureDetail() {
                     <Printer className="h-4 w-4 mr-2" />
                     Rooming List
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab("kamar")}
+                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <BedDouble className="h-4 w-4 mr-2" />
+                    Kelola Kamar
+                  </Button>
+                  <Link to={`/admin/room-assignments?departure=${id}`}>
+                    <Button size="sm" variant="ghost" className="text-primary">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Buka Rooming
+                    </Button>
+                  </Link>
                 </div>
               </div>
               {passengerStats.total > 0 && (
@@ -1162,6 +1181,15 @@ export default function AdminDepartureDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Kamar & Rooming */}
+        <TabsContent value="kamar" className="space-y-4">
+          <DepartureRoomingTab
+            departureId={id}
+            hotelMakkah={departure.hotel_makkah as any}
+            hotelMadinah={departure.hotel_madinah as any}
+          />
         </TabsContent>
 
         {/* Tab: Perlengkapan */}

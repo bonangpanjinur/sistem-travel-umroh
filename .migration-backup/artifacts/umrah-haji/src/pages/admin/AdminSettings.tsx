@@ -22,7 +22,8 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
-import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
+import { DocumentLayoutEditor } from "@/components/admin/appearance/DocumentLayoutEditor";
+import { DocumentSettingsFormExtended } from "@/components/admin/DocumentSettingsForm.extended";
 import { SidebarManager } from "@/components/admin/SidebarManager";
 import { useCompanySettings, useBankAccounts, BankAccount } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
@@ -351,7 +352,16 @@ export default function AdminSettings() {
           {activeSection === "documents" && (
             <>
               <SectionHead icon={FileText} title="Dokumen & Template Surat" desc="Pengaturan kop surat, warna invoice, dan tampilan dokumen PDF" />
-              <DocumentSettingsForm />
+              <div className="space-y-8">
+                <DocumentSettingsFormExtended />
+                <div className="pt-8 border-t">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Palette className="h-5 w-5 text-primary" />
+                    Layout & Preview Per Dokumen
+                  </h3>
+                  <DocumentLayoutEditor />
+                </div>
+              </div>
             </>
           )}
 
@@ -417,7 +427,7 @@ export default function AdminSettings() {
           {/* TAMPILAN */}
           {activeSection === "appearance" && (
             <>
-              <SectionHead icon={Palette} title="Tampilan & Branding" desc="Warna tema dan identitas visual sistem" />
+              <SectionHead icon={Palette} title="Tampilan & Branding" desc="Warna tema, identitas visual, dan desain dokumen" />
               <Card>
                 <CardContent className="pt-6 space-y-6">
                   <div>
@@ -452,6 +462,24 @@ export default function AdminSettings() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="font-semibold text-sm">Pengaturan Tampilan Lanjutan</p>
+                      <p className="text-xs text-muted-foreground">
+                        Logo perusahaan, banner carousel, template landing page, tema custom, font & branding lengkap
+                      </p>
+                    </div>
+                    <Button size="sm" asChild>
+                      <a href="/admin/appearance">Buka</a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+
             </>
           )}
 

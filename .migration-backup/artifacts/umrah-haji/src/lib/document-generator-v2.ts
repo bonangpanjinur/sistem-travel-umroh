@@ -190,7 +190,13 @@ function addLetterhead(
   // Add logo if available and enabled
   if (settings.letterhead_show_logo && company.logo) {
     try {
-      doc.addImage(company.logo, 'PNG', 14, y, 30, 20);
+      let format = 'PNG';
+      if (company.logo.startsWith('data:image/jpeg') || company.logo.startsWith('data:image/jpg')) {
+        format = 'JPEG';
+      } else if (company.logo.startsWith('data:image/webp')) {
+        format = 'WEBP';
+      }
+      doc.addImage(company.logo, format, pageWidth / 2 - 15, y, 30, 20);
       y += 25;
     } catch (e) {
       // Logo failed to load, continue without it
@@ -204,12 +210,16 @@ function addLetterhead(
   y += 8;
 
   // Company details
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(company.address, pageWidth / 2, y, { align: 'center' });
-  y += 6;
+  
+  const addressLines = doc.splitTextToSize(company.address, pageWidth - 40);
+  doc.text(addressLines, pageWidth / 2, y, { align: 'center' });
+  y += (addressLines.length * 5);
+  
   doc.text(`Telp: ${company.phone} | Email: ${company.email}`, pageWidth / 2, y, { align: 'center' });
   y += 6;
+  
   if (settings.letterhead_show_website && company.website) {
     doc.text(company.website, pageWidth / 2, y, { align: 'center' });
     y += 6;

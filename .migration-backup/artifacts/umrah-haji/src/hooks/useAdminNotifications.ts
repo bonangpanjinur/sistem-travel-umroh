@@ -189,7 +189,10 @@ export function useAdminNotifications() {
             }
           }
           if (status === 'CHANNEL_ERROR') {
-            console.error('[Admin Notifications] Channel error:', status);
+            // Log as debug in dev, avoid noisy errors in production unless needed
+            if (import.meta.env.DEV) {
+              console.debug('[Admin Notifications] Channel error - usually due to RLS or rate limits');
+            }
           }
         });
     }
