@@ -47,6 +47,7 @@ const AdminSupportTickets = lazy(() => import("@/pages/admin/AdminSupportTickets
 const AdminSecurityAudit = lazy(() => import("@/pages/admin/AdminSecurityAudit"));
 const Admin2FASettings = lazy(() => import("@/pages/admin/Admin2FASettings"));
 const AdminWhatsApp = lazy(() => import("@/pages/admin/AdminWhatsApp"));
+const KorespondensiHubPage = lazy(() => import("@/pages/admin/KorespondensiHubPage"));
 const AdminAdvancedReports = lazy(() => import("@/pages/admin/AdminAdvancedReports"));
 const AdminHR = lazy(() => import("@/pages/admin/AdminHR"));
 const AdminHajiManagement = lazy(() => import("@/pages/admin/AdminHajiManagement"));
@@ -171,6 +172,7 @@ export default function AdminRoutes() {
       {/* Support & Komunikasi */}
       <Route path="support" element={<P k={PERMISSIONS.SUPPORT}><AdminSupportTickets /></P>} />
       <Route path="whatsapp" element={<P k={PERMISSIONS.WHATSAPP}><AdminWhatsApp /></P>} />
+      <Route path="correspondence" element={<KorespondensiHubPage />} />
       <Route path="marketing-materials" element={<P k={PERMISSIONS.MARKETING_MATERIALS}><AdminMarketingMaterials /></P>} />
 
       {/* Dokumen & Surat */}

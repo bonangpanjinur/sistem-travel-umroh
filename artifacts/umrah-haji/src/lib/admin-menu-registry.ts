@@ -75,8 +75,9 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'document-verification', label: 'Verifikasi Dokumen', path: '/admin/document-verification', icon: 'FileSearch',     group_name: 'Dokumen',            sort_order: 801, required_permission: PERMISSIONS.DOCUMENT_VERIFICATION },
   { key: 'document-types',      label: 'Jenis Dokumen',        path: '/admin/document-types',        icon: 'FileCog',        group_name: 'Dokumen',            sort_order: 802, required_permission: PERMISSIONS.DOCUMENT_TYPES },
   { key: 'documents-generator', label: 'Generator Surat',      path: '/admin/documents-generator',  icon: 'FileText',        group_name: 'Dokumen',            sort_order: 803, required_permission: PERMISSIONS.DOCUMENTS_GENERATOR },
-  { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 804, required_permission: PERMISSIONS.OFFLINE_CONTENT },
-  { key: 'support',             label: 'Tiket Support',        path: '/admin/support',               icon: 'LifeBuoy',       group_name: 'Dokumen',            sort_order: 805, required_permission: PERMISSIONS.SUPPORT },
+  { key: 'correspondence',      label: 'Hub Korespondensi',    path: '/admin/correspondence',        icon: 'MessagesSquare',  group_name: 'Dokumen',            sort_order: 804, required_permission: PERMISSIONS.WHATSAPP },
+  { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 805, required_permission: PERMISSIONS.OFFLINE_CONTENT },
+  { key: 'support',             label: 'Tiket Support',        path: '/admin/support',               icon: 'LifeBuoy',       group_name: 'Dokumen',            sort_order: 806, required_permission: PERMISSIONS.SUPPORT },
 
   // ── Master Data (900s) ────────────────────────────────────────────────────
   { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },
