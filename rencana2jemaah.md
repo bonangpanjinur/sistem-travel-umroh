@@ -135,50 +135,50 @@ Diurutkan berdasarkan **dampak langsung ke jamaah selama proses ibadah**:
 | Q7 | Tab Riwayat di MyLoyalty | Perbaikan | ✅ Sudah ada sebelumnya (tab "Riwayat Poin") |
 | Q8 | Action button di notifikasi (deep link ke halaman terkait) | Perbaikan | ✅ Done — smart URL detection by keywords |
 
-### Fase 2 — Fitur Inti Jamaah (3-5 hari kerja)
-*Fitur yang paling sering dibutuhkan jamaah saat aktif perjalanan:*
+### Fase 2 — Fitur Inti Jamaah ✅ SELESAI
+*Diselesaikan: Mei 2026*
 
-| ID | Fitur | Prioritas |
-|----|-------|-----------|
-| F1 | **Jadwal Waktu Sholat Makkah & Madinah** | Tinggi |
-| F2 | **Kwitansi / Invoice Digital PDF** | Tinggi |
-| F3 | **Info Kamar Hotel** (tambah di JamaahPortal & Digital ID) | Tinggi |
-| F4 | **Pengumuman dari Pembimbing** (feed di JamaahPortal) | Tinggi |
-| F5 | **Kalkulator Kurs Riyal ↔ IDR** | Menengah |
-| F6 | **Panduan Kesehatan di Saudi** (tab baru di PanduanIbadah) | Menengah |
-| F7 | **Onboarding / Welcome Flow** untuk jamaah baru | Tinggi |
-| F8 | **Checklist Dokumen Required** di JamaahDocuments | Menengah |
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| F1 | **Jadwal Waktu Sholat Makkah & Madinah** | Tinggi | ✅ Done — `/jamaah/waktu-sholat`, Aladhan API + countdown real-time |
+| F2 | **Kwitansi / Invoice Digital PDF** | Tinggi | ✅ Done — `/jamaah/invoice/:id`, jspdf download + share + print |
+| F3 | **Info Kamar Hotel** di JamaahPortal | Tinggi | ✅ Done — card "Detail Akomodasi" dengan rating & check-in/out |
+| F4 | **Pengumuman dari Pembimbing** di JamaahPortal | Tinggi | ✅ Done — feed notif type=announcement di portal |
+| F5 | **Kalkulator Kurs Riyal ↔ IDR** | Menengah | ✅ Done — `/jamaah/kalkulator-kurs`, live rate + tabel konversi |
+| F6 | **Panduan Kesehatan di Saudi** (tab baru di PanduanIbadah) | Menengah | ✅ Done — tab ke-5 "Kesehatan" dengan 6 topik lengkap |
+| F7 | **Onboarding / Welcome Flow** untuk jamaah baru | Tinggi | ✅ Done — `/jamaah/welcome`, 5-langkah interaktif, 1× saja |
+| F8 | **Checklist Dokumen Required** di JamaahDocuments | Menengah | ✅ Done — checklist visual per dokumen wajib + status verifikasi |
 
 ### Fase 3 — Fitur Sosial & Komunitas (5-7 hari kerja)
 *Fitur yang membangun koneksi antar jamaah dan dengan tim:*
 
-| ID | Fitur | Prioritas |
-|----|-------|-----------|
-| S1 | **Chat Jamaah ↔ Tim/Muthawif** (real-time via Supabase Realtime) | Tinggi |
-| S2 | **Daftar Teman Seperombongan** | Tinggi |
-| S3 | **Galeri Foto Perjalanan** (upload + lihat bersama) | Menengah |
-| S4 | **Riwayat Perjalanan Alumni** | Menengah |
-| S5 | **Referral dari Portal Jamaah** | Rendah |
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| S1 | **Chat Jamaah ↔ Tim/Muthawif** (real-time via Supabase Realtime) | Tinggi | 🔴 Belum |
+| S2 | **Daftar Teman Seperombongan** | Tinggi | 🔴 Belum |
+| S3 | **Galeri Foto Perjalanan** (upload + lihat bersama) | Menengah | 🔴 Belum |
+| S4 | **Riwayat Perjalanan Alumni** | Menengah | 🔴 Belum |
+| S5 | **Referral dari Portal Jamaah** | Rendah | 🔴 Belum |
 
 ### Fase 4 — Fitur Finansial & Spiritual (3-4 hari kerja)
 
-| ID | Fitur | Prioritas |
-|----|-------|-----------|
-| Z1 | **Kalkulator Zakat** (fitrah, maal, fidyah) | Menengah |
-| Z2 | **Proyeksi lunas tabungan** di MySavings | Menengah |
-| Z3 | **Payment Timeline** visual di BookingDetail | Sedang |
-| Z4 | **Attachment file** di CustomerSupport | Sedang |
-| Z5 | **Setting notifikasi & bahasa** di CustomerSettings | Sedang |
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| Z1 | **Kalkulator Zakat** (fitrah, maal, fidyah) | Menengah | 🔴 Belum |
+| Z2 | **Proyeksi lunas tabungan** di MySavings | Menengah | 🔴 Belum |
+| Z3 | **Payment Timeline** visual di BookingDetail | Sedang | 🔴 Belum |
+| Z4 | **Attachment file** di CustomerSupport | Sedang | 🔴 Belum |
+| Z5 | **Setting notifikasi & bahasa** di CustomerSettings | Sedang | 🔴 Belum |
 
 ### Fase 5 — Operasional & Self-Service (2-3 hari kerja)
 
-| ID | Fitur | Prioritas |
-|----|-------|-----------|
-| O1 | **Check-in Mandiri (QR)** | Menengah |
-| O2 | **Info Transportasi / Bus** di itinerary | Menengah |
-| O3 | **Status Bagasi** | Rendah |
-| O4 | **Download Kontrak/Perjanjian** | Rendah |
-| O5 | **Widget Cuaca Makkah & Madinah** | Rendah |
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| O1 | **Check-in Mandiri (QR)** | Menengah | 🔴 Belum |
+| O2 | **Info Transportasi / Bus** di itinerary | Menengah | 🔴 Belum |
+| O3 | **Status Bagasi** | Rendah | 🔴 Belum |
+| O4 | **Download Kontrak/Perjanjian** | Rendah | 🔴 Belum |
+| O5 | **Widget Cuaca Makkah & Madinah** | Rendah | 🔴 Belum |
 
 ---
 

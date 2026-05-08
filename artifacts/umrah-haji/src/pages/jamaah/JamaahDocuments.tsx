@@ -283,6 +283,85 @@ export default function JamaahDocuments() {
           </CardContent>
         </Card>
 
+        {/* F8: Checklist Dokumen Wajib */}
+        {documentTypes && documentTypes.filter((t: any) => t.is_required).length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                Checklist Dokumen Wajib
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {documentTypes
+                .filter((t: any) => t.is_required)
+                .map((docType: any) => {
+                  const uploaded = documents?.find(
+                    (d: any) => d.document_type?.id === docType.id && d.status !== "rejected"
+                  );
+                  const verified = uploaded?.status === "verified";
+                  const pending = uploaded?.status === "pending";
+                  const rejected = documents?.find(
+                    (d: any) => d.document_type?.id === docType.id && d.status === "rejected"
+                  );
+
+                  return (
+                    <div
+                      key={docType.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                        verified
+                          ? "bg-green-50 border-green-200"
+                          : pending
+                          ? "bg-yellow-50 border-yellow-200"
+                          : rejected
+                          ? "bg-red-50 border-red-200"
+                          : "bg-muted/30 border-muted"
+                      }`}
+                    >
+                      <div className="flex-shrink-0">
+                        {verified ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        ) : pending ? (
+                          <Clock className="h-5 w-5 text-yellow-600" />
+                        ) : rejected ? (
+                          <AlertCircle className="h-5 w-5 text-red-600" />
+                        ) : (
+                          <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{docType.name}</p>
+                        {docType.description && (
+                          <p className="text-xs text-muted-foreground">{docType.description}</p>
+                        )}
+                      </div>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          verified
+                            ? "bg-green-100 text-green-700"
+                            : pending
+                            ? "bg-yellow-100 text-yellow-700"
+                            : rejected
+                            ? "bg-red-100 text-red-700"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {verified ? "✓ Terverifikasi" : pending ? "Menunggu" : rejected ? "Ditolak" : "Belum Upload"}
+                      </span>
+                    </div>
+                  );
+                })}
+              {progressPct === 100 && (
+                <div className="text-center py-2">
+                  <p className="text-sm font-semibold text-green-700">
+                    🎉 Semua dokumen wajib sudah terverifikasi!
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Upload Button */}
         <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
           <DialogTrigger asChild>

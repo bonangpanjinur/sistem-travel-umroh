@@ -11,11 +11,12 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
-  CreditCard, Plane, MapPin, Phone,
+  CreditCard, Plane, Phone,
   Calendar, Hotel, Users, FolderOpen, QrCode,
   Download, Wifi, WifiOff, ChevronRight,
   Bell, BookOpen, HelpCircle, CalendarDays, Map,
-  Star, Camera, Loader2, Package, ArrowRight
+  Star, Camera, Loader2, Package, ArrowRight,
+  Clock, DollarSign, FileText, Megaphone
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
@@ -105,6 +106,23 @@ export default function JamaahPortal() {
       return data;
     },
     enabled: !!customer?.id,
+  });
+
+  const { data: announcements } = useQuery({
+    queryKey: ["jamaah-announcements", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "announcement")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) return [];
+      return data ?? [];
+    },
+    enabled: !!user?.id,
   });
 
   const { data: loyalty } = useQuery({
@@ -435,6 +453,27 @@ export default function JamaahPortal() {
               <p className="text-xs">FAQ</p>
             </Card>
           </Link>
+          {/* Fase 2 — fitur baru */}
+          <Link to="/jamaah/waktu-sholat">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Clock className="h-6 w-6 mx-auto mb-1 text-teal-600" />
+              <p className="text-xs">Waktu Sholat</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/kalkulator-kurs">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <DollarSign className="h-6 w-6 mx-auto mb-1 text-emerald-700" />
+              <p className="text-xs">Kurs Riyal</p>
+            </Card>
+          </Link>
+          {booking && (
+            <Link to={`/jamaah/invoice/${booking.id}`}>
+              <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+                <FileText className="h-6 w-6 mx-auto mb-1 text-violet-600" />
+                <p className="text-xs">Invoice</p>
+              </Card>
+            </Link>
+          )}
         </div>
 
         {/* Payment Progress */}
@@ -516,6 +555,69 @@ export default function JamaahPortal() {
           </Card>
         )}
 
+        {/* F3: Detail Akomodasi Hotel */}
+        {departure && (departure.hotel_makkah || departure.hotel_madinah) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Hotel className="h-4 w-4" />
+                  Detail Akomodasi
+                </CardTitle>
+                {booking?.booking_status === "confirmed" && (
+                  <Badge variant="secondary" className="text-xs">Konfirmasi</Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {departure.hotel_makkah && (
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-0.5">🕌 Makkah Al-Mukarramah</p>
+                      <p className="font-semibold text-sm">{departure.hotel_makkah.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {"⭐".repeat(Math.min(departure.hotel_makkah.star_rating || 4, 5))} {departure.hotel_makkah.star_rating} Bintang
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {departure.hotel_madinah && (
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-0.5">🕌 Madinah Al-Munawwarah</p>
+                      <p className="font-semibold text-sm">{departure.hotel_madinah.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {"⭐".repeat(Math.min(departure.hotel_madinah.star_rating || 4, 5))} {departure.hotel_madinah.star_rating} Bintang
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {departure.departure_date && (
+                  <div className="p-2 bg-primary/5 rounded-lg">
+                    <p className="text-muted-foreground">Check-in</p>
+                    <p className="font-semibold">
+                      {format(new Date(departure.departure_date), "d MMM yyyy", { locale: id })}
+                    </p>
+                  </div>
+                )}
+                {departure.return_date && (
+                  <div className="p-2 bg-primary/5 rounded-lg">
+                    <p className="text-muted-foreground">Check-out</p>
+                    <p className="font-semibold">
+                      {format(new Date(departure.return_date), "d MMM yyyy", { locale: id })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Q2: Tombol feedback untuk booking yang sudah selesai */}
         {booking?.booking_status === "completed" && (
           <Card className="border-amber-200 bg-amber-50">
@@ -569,6 +671,37 @@ export default function JamaahPortal() {
             customerName={customer.full_name}
             muthawifPhone={muthawifPhone}
           />
+        )}
+
+        {/* F4: Pengumuman dari Pembimbing */}
+        {announcements && announcements.length > 0 && (
+          <Card className="border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-primary" />
+                Pengumuman
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {announcements.map((ann: any) => (
+                <div key={ann.id} className="p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-sm">{ann.title}</p>
+                    {!ann.is_read && (
+                      <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ann.message}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    {format(new Date(ann.created_at), "d MMM yyyy, HH:mm", { locale: id })}
+                  </p>
+                </div>
+              ))}
+              <Button asChild variant="ghost" size="sm" className="w-full text-xs">
+                <Link to="/jamaah/notifications">Lihat semua notifikasi →</Link>
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* Emergency Contacts */}

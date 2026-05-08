@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   ChevronLeft, ChevronDown, Search, Star, WifiOff, Wifi,
   BookOpen, Compass, MapPin, Lightbulb, Download, Check,
-  BookMarked,
+  BookMarked, Heart,
 } from "lucide-react";
 import { toast } from "sonner";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
@@ -284,11 +284,88 @@ const TIPS_PERJALANAN: ContentItem[] = [
   },
 ];
 
+// F6 — Data Panduan Kesehatan di Saudi Arabia
+const PANDUAN_KESEHATAN: ContentItem[] = [
+  {
+    id: "cuaca-makkah",
+    title: "Cuaca & Suhu di Arab Saudi",
+    content: "Suhu di Makkah bisa mencapai 45–50°C di musim panas. Persiapkan diri dengan baik.",
+    steps: [
+      { no: 1, title: "Gunakan Tabir Surya", desc: "SPF 50+ setiap keluar ruangan. Pakai topi/payung untuk melindungi kepala dari sinar matahari langsung." },
+      { no: 2, title: "Minum Air Minimal 3–4 Liter/Hari", desc: "Di cuaca panas ekstrem, tubuh kehilangan cairan sangat cepat. Selalu bawa air minum." },
+      { no: 3, title: "Hindari Aktivitas di Luar saat Puncak Panas", desc: "Pukul 11.00–15.00 waktu setempat biasanya paling panas. Istirahat di hotel atau dalam masjid." },
+      { no: 4, title: "Kenali Gejala Heat Stroke", desc: "Pusing, mual, kulit panas & kering (tidak berkeringat) adalah tanda bahaya. Segera cari tempat sejuk dan hubungi tim medis." },
+      { no: 5, title: "AC Masjid Sangat Dingin", desc: "Selalu bawa jaket atau selendang tipis. Perbedaan suhu dalam-luar masjid bisa menyebabkan masuk angin." },
+    ],
+  },
+  {
+    id: "mabuk-udara",
+    title: "Mabuk Perjalanan & Jet Lag",
+    content: "Penerbangan ke Arab Saudi memakan waktu 8–10 jam. Persiapkan fisik Anda.",
+    steps: [
+      { no: 1, title: "Konsumsi Obat Mabuk", desc: "Minum obat anti-mabuk 30 menit sebelum naik pesawat jika perlu. Konsultasikan dengan dokter terlebih dahulu." },
+      { no: 2, title: "Adaptasi Zona Waktu", desc: "Arab Saudi lebih lambat 4 jam dari WIB. Tidur lebih awal 1–2 hari sebelum berangkat untuk membantu adaptasi." },
+      { no: 3, title: "Tetap Terhidrasi di Pesawat", desc: "Udara kabin pesawat sangat kering. Minum air setiap 30–60 menit, hindari kopi dan alkohol." },
+      { no: 4, title: "Gerakkan Kaki Secara Berkala", desc: "Bangun dan berjalan setiap 1–2 jam untuk mencegah penggumpalan darah (DVT) di kaki." },
+    ],
+  },
+  {
+    id: "obat-wajib",
+    title: "Obat-obatan yang Wajib Dibawa",
+    content: "Siapkan kit obat pribadi lengkap sebelum berangkat.",
+    steps: [
+      { no: 1, title: "Obat Demam & Nyeri", desc: "Paracetamol/ibuprofen untuk demam, sakit kepala, atau nyeri otot akibat banyak berjalan." },
+      { no: 2, title: "Obat Diare & Maag", desc: "Oralit, loperamide, dan antasida. Makanan Arab bisa tidak cocok untuk sebagian jamaah." },
+      { no: 3, title: "Obat Batuk & Pilek", desc: "Perubahan cuaca drastis dan kepadatan jamaah meningkatkan risiko infeksi saluran pernapasan." },
+      { no: 4, title: "Obat Alergi", desc: "Cetirizine atau loratadin untuk alergi debu — Makkah dan Madinah bisa sangat berdebu." },
+      { no: 5, title: "Plester & Balsam", desc: "Untuk lecet di kaki akibat banyak berjalan. Pilih alas kaki yang nyaman dan sudah dipakai sebelumnya." },
+      { no: 6, title: "Obat Rutin Pribadi", desc: "Bawa stok obat rutin (tekanan darah, diabetes, jantung, dll) lebih dari cukup. Obat tertentu susah ditemukan di Saudi." },
+    ],
+  },
+  {
+    id: "hipertensi-diabetes",
+    title: "Jamaah dengan Kondisi Khusus",
+    content: "Panduan tambahan untuk jamaah yang memiliki penyakit hipertensi, diabetes, atau jantung.",
+    steps: [
+      { no: 1, title: "Konsultasi Dokter Sebelum Berangkat", desc: "Pastikan kondisi terkontrol dan mendapat surat keterangan sehat dari dokter." },
+      { no: 2, title: "Bawa Obat Lebih dari Cukup", desc: "Untuk 10–15 hari lebih dari durasi perjalanan. Obat resep tertentu tidak mudah didapat di Saudi." },
+      { no: 3, title: "Monitor Tekanan Darah & Gula", desc: "Bawa tensimeter portable dan glucometer jika perlu. Cuaca panas memengaruhi kadar gula darah." },
+      { no: 4, title: "Kenali Batasan Fisik", desc: "Tidak semua ritual wajib dilakukan sendiri — beberapa boleh diwakilkan (badal). Diskusikan dengan muthawif." },
+      { no: 5, title: "Informasikan ke Muthawif", desc: "Beritahu kondisi kesehatan Anda kepada muthawif agar mendapat perhatian dan bantuan khusus." },
+    ],
+  },
+  {
+    id: "masjid-ramai",
+    title: "Keselamatan di Kerumunan",
+    content: "Masjidil Haram bisa menampung jutaan jamaah. Keselamatan adalah prioritas.",
+    steps: [
+      { no: 1, title: "Jangan Terpisah dari Rombongan", desc: "Selalu hafalkan nama hotel, muthawif, dan nomor telepon darurat sebelum pergi." },
+      { no: 2, title: "Tandai Identitas di Gelang", desc: "Tulis nama, nomor kamar, nama hotel, dan nomor HP muthawif di gelang identitas." },
+      { no: 3, title: "Gunakan Masker", desc: "Di tempat ramai, masker melindungi dari infeksi pernapasan yang mudah menyebar." },
+      { no: 4, title: "Prioritaskan Jamaah yang Membutuhkan", desc: "Dalam kerumunan, beri jalan bagi lansia, anak-anak, dan difabel. Jangan terburu-buru." },
+      { no: 5, title: "Ikuti Arahan Petugas", desc: "Petugas Saudi dan petugas haji Indonesia bertugas memastikan keselamatan. Patuhi arahan mereka." },
+    ],
+  },
+  {
+    id: "makanan-minuman",
+    title: "Makanan & Kebersihan",
+    content: "Tips menjaga kesehatan pencernaan selama di Saudi Arabia.",
+    steps: [
+      { no: 1, title: "Waspadai Air Zam-zam", desc: "Air zam-zam sangat aman diminum, tapi jangan minum dari wadah tidak bersih." },
+      { no: 2, title: "Pilih Makanan yang Matang", desc: "Hindari makanan mentah atau setengah matang. Pilih restoran Indonesia yang sudah terjamin kebersihannya." },
+      { no: 3, title: "Cuci Tangan Sebelum Makan", desc: "Hand sanitizer selalu di kantong. Fasilitas cuci tangan tersedia di masjid." },
+      { no: 4, title: "Jangan Berlebihan Makan Kurma", desc: "Kurma mengandung gula tinggi. Batasi konsumsi jika Anda memiliki diabetes." },
+      { no: 5, title: "Bawa Suplemen Vitamin", desc: "Vitamin C dan multivitamin membantu menjaga imunitas selama perjalanan panjang." },
+    ],
+  },
+];
+
 const TABS = [
   { value: "doa", label: "Doa Umroh", icon: BookOpen, data: DOA_UMROH },
   { value: "manasik", label: "Manasik Umroh", icon: Compass, data: MANASIK_UMROH },
   { value: "haji", label: "Panduan Haji", icon: MapPin, data: PANDUAN_HAJI },
   { value: "tips", label: "Tips & Info", icon: Lightbulb, data: TIPS_PERJALANAN },
+  { value: "kesehatan", label: "Kesehatan", icon: Heart, data: PANDUAN_KESEHATAN },
 ];
 
 export default function JamaahPanduanIbadah() {
@@ -403,7 +480,7 @@ export default function JamaahPanduanIbadah() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); setSearch(""); setExpandedId(null); }}>
-          <TabsList className="grid grid-cols-4 w-full h-auto gap-0.5 p-1">
+          <TabsList className="grid grid-cols-5 w-full h-auto gap-0.5 p-1">
             {TABS.map(t => {
               const Icon = t.icon;
               return (
@@ -515,11 +592,11 @@ export default function JamaahPanduanIbadah() {
 
         {/* Stats footer */}
         <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground py-2">
-          <span>{DOA_UMROH.length} doa umroh</span>
+          <span>{DOA_UMROH.length} doa</span>
           <span>•</span>
-          <span>{MANASIK_UMROH.length} tahap manasik</span>
+          <span>{MANASIK_UMROH.length} manasik</span>
           <span>•</span>
-          <span>{PANDUAN_HAJI.length} tahap haji</span>
+          <span>{PANDUAN_KESEHATAN.length} tips kesehatan</span>
           <span>•</span>
           <span>{favorites.length} favorit</span>
         </div>
