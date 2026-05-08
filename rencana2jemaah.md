@@ -1,237 +1,341 @@
-# Rencana Pengembangan — Modul Jamaah & Customer
-> Dibuat: Mei 2026 | Berdasarkan analisis kode aktual seluruh halaman jamaah/customer
+# Rencana Pengembangan — Portal Jamaah, Customer & Admin
+> Dibuat: Mei 2026 | Diperbarui: Mei 2026 (setelah Fase 1–5 selesai)
+> Berdasarkan analisis kode aktual seluruh halaman jamaah/customer/admin
 
 ---
 
 ## Ringkasan Eksekutif
 
-Portal jamaah saat ini sudah memiliki fondasi yang kuat — **20 halaman**, fitur SOS, live location, panduan offline, peta lokasi, dan checklist persiapan. Namun masih ada **18 fitur belum dibangun** dan **13 poin yang perlu diperbaiki** untuk menjadikannya pengalaman jamaah yang benar-benar komprehensif dan kompetitif.
+Portal Vinstour kini memiliki **31 halaman jamaah/customer** yang sudah production-ready, mencakup fitur chat real-time, galeri foto, kalkulator zakat, payment timeline, QR check-in, widget cuaca, dan banyak lagi. Fondasi sudah sangat kuat. Fase berikutnya berfokus pada **penguatan sisi admin/operasional**, **otomasi proses bisnis**, **gamifikasi engagement jamaah**, dan **integrasi AI**.
 
 ---
 
-## A. INVENTARIS — APA YANG SUDAH ADA ✅
+## A. INVENTARIS LENGKAP — HALAMAN YANG SUDAH ADA ✅
 
 ### Customer Portal (Desktop-first)
 | Halaman | URL | Fitur Utama |
 |---------|-----|-------------|
-| Customer Dashboard | `/customer/dashboard` | Countdown, checklist persiapan, booking, tabungan, manasik, loyalty, notifikasi, simulasi cicilan |
-| Daftar Booking | `/my-bookings` | List semua booking + status |
-| Detail Booking | `/my-bookings/:id` | Info paket, penumpang, hotel, maskapai, upload KTP/paspor |
-| Upload Pembayaran | `/my-bookings/:id/payment` | Upload bukti transfer + detail bank |
-| Tabungan | `/customer/my-savings` | List rencana tabungan, setor setoran |
-| Loyalitas | `/customer/my-loyalty` | Poin, tier, tukar hadiah |
-| Support | `/customer/support` | Buka tiket support |
-| Pengaturan | `/customer/settings` | Profil, ganti password, data mahram |
+| Customer Dashboard | `/customer/dashboard` | Countdown, checklist, booking, tabungan, loyalty, notifikasi |
+| Daftar Booking | `/my-bookings` | List semua booking + status pembayaran |
+| Detail Booking | `/my-bookings/:id` | Paket, penumpang, hotel, maskapai, upload dokumen, **payment timeline** |
+| Upload Pembayaran | `/my-bookings/:id/payment` | Upload bukti transfer + detail rekening |
+| Tabungan | `/customer/my-savings` | List rencana tabungan, setor cicilan, **proyeksi lunas** |
+| Loyalitas | `/customer/my-loyalty` | Poin, tier, tukar hadiah, riwayat poin |
+| Support | `/customer/support` | Buat tiket + **upload lampiran hingga 3 file** |
+| Pengaturan | `/customer/settings` | Profil, mahram, keamanan, **preferensi notifikasi & bahasa** |
 | Kalkulator Cicilan | `/kalkulator-cicilan` | Simulasi cicilan tabungan |
 
-### Jamaah Portal (Mobile-first / PWA)
+### Jamaah Portal (Mobile-first / PWA) — **31 halaman aktif**
 | Halaman | URL | Fitur Utama |
 |---------|-----|-------------|
-| Beranda Jamaah | `/jamaah` | Hub utama, countdown hari, quick actions, SOS, live location, kontak darurat |
-| ID Digital | `/jamaah/digital-id` | QR code jamaah, info paket & hotel |
-| Itinerary | `/jamaah/itinerary` | Jadwal harian perjalanan per hari |
-| Dokumen | `/jamaah/documents` | Upload & status verifikasi dokumen |
-| Riwayat Pembayaran | `/jamaah/payment-history` | History semua transaksi |
-| Feedback | `/jamaah/feedback/:bookingId` | Rating bintang + komentar |
-| Notifikasi | `/jamaah/notifications` | List semua notifikasi |
-| Tracker Visa | `/jamaah/visa` | Status proses visa step-by-step |
-| Panduan Ibadah | `/jamaah/panduan-ibadah` | Doa, manasik, tips — offline PWA |
-| Peta Lokasi | `/jamaah/peta-lokasi` | Peta Makkah & Madinah, 14 lokasi + tips |
-| Doa & Panduan (Alt) | `/jamaah/doa-panduan` | Doa dari database + favorit + offline cache |
+| Beranda Jamaah | `/jamaah` | Hub utama, countdown, quick actions, SOS, live location, **cuaca real-time** |
+| ID Digital | `/jamaah/digital-id` | QR code jamaah, info paket & hotel, Web Share API |
+| Itinerary | `/jamaah/itinerary` | Jadwal harian + **info transportasi/bus accordion** |
+| Dokumen | `/jamaah/documents` | Upload & verifikasi + checklist dokumen wajib |
+| Riwayat Pembayaran | `/jamaah/payment-history` | History transaksi + filter status & search |
+| Feedback | `/jamaah/feedback/:id` | Rating bintang + komentar |
+| Notifikasi | `/jamaah/notifications` | List notif + action button deep link |
+| Tracker Visa | `/jamaah/visa` | Status visa step-by-step |
+| Panduan Ibadah | `/jamaah/panduan-ibadah` | Doa, manasik, tips, kesehatan — offline PWA |
+| Peta Lokasi | `/jamaah/peta-lokasi` | 14 lokasi penting Makkah & Madinah |
+| Doa & Panduan | `/jamaah/doa-panduan` | Doa dari DB + favorit + offline cache |
+| Waktu Sholat | `/jamaah/waktu-sholat` | Jadwal sholat Makkah & Madinah via Aladhan API |
+| Invoice Digital | `/jamaah/invoice/:id` | Download PDF + cetak + share |
+| Kalkulator Kurs | `/jamaah/kalkulator-kurs` | Live rate SAR ↔ IDR + tabel konversi |
+| Welcome Onboarding | `/jamaah/welcome` | 5-langkah onboarding interaktif (1× saja) |
+| Chat | `/jamaah/chat` | Chat real-time jamaah ↔ muthawif via Supabase Realtime |
+| Rombongan | `/jamaah/rombongan` | Daftar teman seperombongan + kontak WA |
+| Galeri Foto | `/jamaah/galeri` | Upload & lihat foto bersama ke Supabase Storage |
+| Riwayat Perjalanan | `/jamaah/riwayat-perjalanan` | Semua perjalanan alumni + stats |
+| Referral | `/jamaah/referral` | Kode referral unik + share WA + info poin |
+| Kalkulator Zakat | `/jamaah/kalkulator-zakat` | Fitrah, Maal, Fidyah + info nisab |
+| Check-in Mandiri | `/jamaah/checkin` | QR code check-in + download PNG + progress 5 langkah |
+| Status Bagasi | `/jamaah/bagasi` | Timeline 5 tahap bagasi + info kuota + aturan |
+| Kontrak PDF | `/jamaah/kontrak` | Preview + unduh PDF perjanjian via jsPDF |
 
 ### Komponen Khusus
-- **SOSButton** — tombol darurat + geolocation + kirim ke Supabase + WhatsApp
-- **LiveLocationShare** — berbagi lokasi GPS real-time (toggle on/off)
+- **SOSButton** — tombol darurat + geolocation + Supabase + WhatsApp
+- **LiveLocationShare** — berbagi lokasi GPS real-time
 - **JamaahBottomNav** — navigasi bawah 5 tab
-- **CountdownTimer** — hitung mundur detik ke keberangkatan
-- **AgentAttributionBadge** — badge agen perujuk
+- **CuacaWidget** — cuaca Makkah & Madinah real-time (Open-Meteo)
+- **NotificationPreferences** — toggle 6 jenis notifikasi + pilihan bahasa
 
 ---
 
-## B. YANG BELUM ADA — FITUR BARU 🔴
-
-Diurutkan berdasarkan **dampak langsung ke jamaah selama proses ibadah**:
-
-### PRIORITAS TINGGI (Harus Ada)
-
-| # | Fitur | Kenapa Penting | URL Rencana |
-|---|-------|----------------|-------------|
-| 1 | **Chat Jamaah ↔ Tim/Muthawif** | Saat ini hanya tiket support — lambat & tidak real-time. Jamaah di Saudi butuh respons instan dari muthawif | `/jamaah/chat` |
-| 2 | **Kwitansi / Invoice Digital PDF** | Jamaah tidak bisa download bukti pembayaran. Diperlukan untuk klaim asuransi, reimburse kantor, atau arsip pribadi | `/jamaah/invoice/:bookingId` |
-| 3 | **Daftar Teman Seperombongan** | Jamaah tidak tahu siapa saja yang ada dalam satu rombongan/keberangkatan. Penting untuk koordinasi di lapangan | `/jamaah/rombongan` |
-| 4 | **Info Kamar Hotel** | Jamaah tidak tahu nomor kamarnya di Makkah/Madinah. Sering terjadi kebingungan saat tiba | Tambah di `/jamaah` & `/jamaah/digital-id` |
-| 5 | **Jadwal Waktu Sholat Makkah & Madinah** | Ibadah utama. Jamaah perlu tahu waktu sholat di lokasi tujuan, bukan di Indonesia | `/jamaah/waktu-sholat` |
-| 6 | **Onboarding / Welcome Flow** | Jamaah baru masuk langsung ke dashboard kosong tanpa panduan. Perlu flow 3-4 langkah untuk orientasi | `/jamaah/welcome` |
-| 7 | **Pengumuman dari Pembimbing / Feed** | Tidak ada channel untuk muthawif kirim pengumuman mendadak (perubahan jadwal, instruksi darurat) ke jamaahnya | Komponen di `/jamaah` |
-
-### PRIORITAS MENENGAH (Sangat Direkomendasikan)
-
-| # | Fitur | Kenapa Penting | URL Rencana |
-|---|-------|----------------|-------------|
-| 8 | **Kalkulator Kurs Riyal (SAR ↔ IDR)** | Jamaah butuh konversi mata uang saat belanja di Saudi. Sederhana tapi sangat sering dibutuhkan | `/jamaah/kalkulator-kurs` |
-| 9 | **Info Transportasi / Bus Rombongan** | Jamaah tidak tahu nomor bus, jadwal shuttle Makkah-Madinah, rute transportasi selama di Saudi | Tambah di itinerary atau halaman baru |
-| 10 | **Panduan Kesehatan di Saudi** | Hawa panas ekstrem, dehidrasi, penyakit yang sering muncul. Tidak ada panduan medis sama sekali | Tab baru di `/jamaah/panduan-ibadah` |
-| 11 | **Galeri Foto Perjalanan (Shared)** | Jamaah bisa upload foto selama perjalanan, dilihat oleh sesama rombongan. Kenangan ibadah | `/jamaah/galeri` |
-| 12 | **Kalkulator Zakat** | Relevan tinggi untuk jamaah haji/umroh — zakat fitrah, zakat maal, fidyah. Nilai spiritual + praktis | `/jamaah/kalkulator-zakat` |
-| 13 | **Riwayat Perjalanan (Alumni)** | Jamaah yang sudah selesai umroh tidak punya "kenangan" digital. Perlu halaman history semua perjalanan | `/jamaah/riwayat-perjalanan` |
-| 14 | **Referral dari Portal Jamaah** | Jamaah yang puas bisa refer teman, tapi tidak ada halaman referral khusus di portal jamaah | `/jamaah/referral` |
-
-### PRIORITAS TAMBAHAN (Nice to Have)
-
-| # | Fitur | Kenapa Penting | URL Rencana |
-|---|-------|----------------|-------------|
-| 15 | **Check-in Mandiri (Self Check-in QR)** | Jamaah scan QR di bandara/hotel untuk check-in sendiri tanpa antri ke meja admin | `/jamaah/checkin` |
-| 16 | **Status Bagasi** | Tracking posisi bagasi selama perjalanan. Berguna saat bagasi terpisah dari jamaah | Tambah di `/jamaah` |
-| 17 | **Download Kontrak / Perjanjian** | Jamaah perlu akses dokumen perjanjian perjalanan untuk keperluan asuransi/klaim | Tambah di `/jamaah/documents` |
-| 18 | **Cuaca Makkah & Madinah** | Widget cuaca real-time di tujuan — bantu jamaah bersiapkan pakaian dan persiapan fisik | Widget di `/jamaah` |
-
----
-
-## C. YANG PERLU DIPERBAIKI — PERBAIKAN 🔧
-
-### UX & Navigasi
-
-| # | Masalah | Dampak | Solusi |
-|---|---------|--------|--------|
-| U1 | **Dua portal terpisah membingungkan** — `/customer/dashboard` (desktop) vs `/jamaah` (mobile) tanpa unified navigation. Jamaah tidak tahu harus masuk ke mana | Tinggi | Buat unified entry point dengan auto-redirect berdasarkan device + header yang menunjukkan kedua portal terhubung |
-| U2 | **JamaahBottomNav hanya 5 tab** — tidak ada akses langsung ke Panduan Ibadah, Peta Lokasi, atau Itinerary dari bottom nav | Tinggi | Tambah tab "Ibadah" yang berisi submenu: Panduan, Peta, Waktu Sholat, atau ganti icon yang lebih relevan |
-| U3 | **Ikon duplikat di Quick Actions** — ada 2x FileText (FAQ & Dokumen), dan MapPin dipakai untuk Itinerary & Peta. Membingungkan jamaah | Sedang | Ganti ikon: Dokumen → FolderOpen, Itinerary → CalendarDays, Peta → Map, Panduan → BookOpen |
-| U4 | **Empty state saat belum ada booking** — JamaahPortal menampilkan halaman kosong tanpa panduan langkah berikutnya | Sedang | Tampilkan onboarding card: "Belum ada booking aktif — Lihat Paket → Booking → Tunggu Konfirmasi" |
-| U5 | **JamaahFeedback tidak bisa diakses dari portal** — URL-nya `/jamaah/feedback/:bookingId` tapi tidak ada tombol di mana pun untuk navigasi ke sana | Tinggi | Tambah tombol "Beri Feedback" di BookingDetail dan JamaahPortal setelah keberangkatan selesai |
-
-### Fitur yang Sudah Ada tapi Kurang Lengkap
-
-| # | Halaman | Masalah | Solusi |
-|---|---------|---------|--------|
-| F1 | **JamaahItinerary** | Tidak ada tombol download/share itinerary. Jamaah harus screenshot manual | Tambah tombol share native + download PDF |
-| F2 | **JamaahDigitalID** | Ada tombol Share tapi tidak ada share ke WhatsApp atau share native API | Implementasi Web Share API + tombol WhatsApp langsung |
-| F3 | **CustomerSettings** | Tidak ada setting notifikasi, pilihan bahasa (sudah ada LanguageContext), atau toggle dark mode dari sisi jamaah | Tambah tab Preferensi: Bahasa, Notifikasi, Tema |
-| F4 | **CustomerSupport** | Tidak bisa attach file/screenshot saat buat tiket. Sering jamaah perlu lampirkan bukti | Tambah field upload file di form tiket |
-| F5 | **BookingDetail** | Informasi pembayaran tidak ada timeline visual — kapan DP, kapan cicilan, kapan pelunasan | Tambah payment timeline/milestone di halaman detail |
-| F6 | **JamaahPaymentHistory** | Tidak ada filter berdasarkan status, tanggal, atau booking. Susah dicari untuk booking lama | Tambah filter + search |
-| F7 | **JamaahDocuments** | Tidak ada checklist dokumen yang diperlukan (paspor, KTP, foto, surat nikah, dll). Jamaah tidak tahu apa yang harus disiapkan | Tambah required documents checklist per jenis paket |
-| F8 | **MyLoyalty** | Tidak ada riwayat penukaran poin. Setelah redeem tidak ada jejak transaksi poin | Tambah tab Riwayat Poin & Penukaran |
-| F9 | **JamaahPortal** — Upload foto profil | Jamaah tidak bisa ganti foto profil dari portal jamaah. Hanya admin yang bisa via `/admin/customers` | Tambah tombol ganti foto profil di header JamaahPortal |
-| F10 | **BookingWizard** | Step "Sumber Pendaftaran (PIC)" kurang jelas bagi jamaah awam — terminologinya teknis | Ubah label menjadi lebih ramah pengguna: "Siapa yang merekomendasikan Anda?" |
-| F11 | **JamaahNotifications** | Tidak ada aksi dari notifikasi — hanya baca saja. Tidak ada deep link ke halaman terkait | Tambah action button di notifikasi (mis. "Bayar Sekarang", "Lihat Dokumen") |
-| F12 | **PaymentUpload** | Setelah upload tidak ada konfirmasi via WhatsApp ke admin. Admin harus cek manual | Tambah trigger notifikasi ke admin setelah upload berhasil |
-| F13 | **MySavings** | Tidak ada proyeksi kapan tabungan lunas berdasarkan setoran rata-rata yang sudah masuk | Tambah widget proyeksi lunas berdasarkan historis setoran |
-
----
-
-## D. PRIORITAS & ROADMAP
-
-### Fase 1 — Quick Wins ✅ SELESAI
-*Diselesaikan: Mei 2026*
-
-| ID | Item | Jenis | Status |
-|----|------|-------|--------|
-| Q1 | Perbaiki ikon duplikat di Quick Actions JamaahPortal | Perbaikan | ✅ Done — CalendarDays/FolderOpen/HelpCircle/Map |
-| Q2 | Tambah tombol Feedback di BookingDetail & JamaahPortal | Perbaikan | ✅ Done — muncul saat booking_status=completed |
-| Q3 | Tambah Web Share API di JamaahDigitalID & JamaahItinerary | Perbaikan | ✅ Done — share native + WhatsApp fallback clipboard |
-| Q4 | Tambah filter di JamaahPaymentHistory | Perbaikan | ✅ Done — filter status + search kode booking |
-| Q5 | Empty state yang informatif di JamaahPortal saat tidak ada booking | Perbaikan | ✅ Done — 3 langkah onboarding + CTA ke paket |
-| Q6 | Upload foto profil dari JamaahPortal header | Perbaikan | ✅ Done — klik avatar → upload ke Supabase Storage |
-| Q7 | Tab Riwayat di MyLoyalty | Perbaikan | ✅ Sudah ada sebelumnya (tab "Riwayat Poin") |
-| Q8 | Action button di notifikasi (deep link ke halaman terkait) | Perbaikan | ✅ Done — smart URL detection by keywords |
-
-### Fase 2 — Fitur Inti Jamaah ✅ SELESAI
-*Diselesaikan: Mei 2026*
-
-| ID | Fitur | Prioritas | Status |
-|----|-------|-----------|--------|
-| F1 | **Jadwal Waktu Sholat Makkah & Madinah** | Tinggi | ✅ Done — `/jamaah/waktu-sholat`, Aladhan API + countdown real-time |
-| F2 | **Kwitansi / Invoice Digital PDF** | Tinggi | ✅ Done — `/jamaah/invoice/:id`, jspdf download + share + print |
-| F3 | **Info Kamar Hotel** di JamaahPortal | Tinggi | ✅ Done — card "Detail Akomodasi" dengan rating & check-in/out |
-| F4 | **Pengumuman dari Pembimbing** di JamaahPortal | Tinggi | ✅ Done — feed notif type=announcement di portal |
-| F5 | **Kalkulator Kurs Riyal ↔ IDR** | Menengah | ✅ Done — `/jamaah/kalkulator-kurs`, live rate + tabel konversi |
-| F6 | **Panduan Kesehatan di Saudi** (tab baru di PanduanIbadah) | Menengah | ✅ Done — tab ke-5 "Kesehatan" dengan 6 topik lengkap |
-| F7 | **Onboarding / Welcome Flow** untuk jamaah baru | Tinggi | ✅ Done — `/jamaah/welcome`, 5-langkah interaktif, 1× saja |
-| F8 | **Checklist Dokumen Required** di JamaahDocuments | Menengah | ✅ Done — checklist visual per dokumen wajib + status verifikasi |
-
-### Fase 3 — Fitur Sosial & Komunitas ✅ SELESAI
-*Diselesaikan: Mei 2026*
-
-| ID | Fitur | Prioritas | Status |
-|----|-------|-----------|--------|
-| S1 | **Chat Jamaah ↔ Tim/Muthawif** (real-time via Supabase Realtime) | Tinggi | ✅ Done — `/jamaah/chat`, realtime subscription + polling fallback |
-| S2 | **Daftar Teman Seperombongan** | Tinggi | ✅ Done — `/jamaah/rombongan`, list per departure + kontak WA |
-| S3 | **Galeri Foto Perjalanan** (upload + lihat bersama) | Menengah | ✅ Done — `/jamaah/galeri`, upload ke Supabase Storage + delete + share |
-| S4 | **Riwayat Perjalanan Alumni** | Menengah | ✅ Done — `/jamaah/riwayat-perjalanan`, semua booking + stats alumni |
-| S5 | **Referral dari Portal Jamaah** | Rendah | ✅ Done — `/jamaah/referral`, kode referral + share WA + poin info |
-
-### Fase 4 — Fitur Finansial & Spiritual ✅ SELESAI
-*Diselesaikan: Mei 2026*
-
-| ID | Fitur | Prioritas | Status |
-|----|-------|-----------|--------|
-| Z1 | **Kalkulator Zakat** (fitrah, maal, fidyah) | Menengah | ✅ Done — `/jamaah/kalkulator-zakat`, 3 tab: Fitrah/Maal/Fidyah + nisab info |
-| Z2 | **Proyeksi lunas tabungan** di MySavings | Menengah | ✅ Done — widget proyeksi di setiap plan aktif, komparasi dengan target |
-| Z3 | **Payment Timeline** visual di BookingDetail | Sedang | ✅ Done — timeline vertikal DP→Cicilan→Pelunasan + sisa pembayaran |
-| Z4 | **Attachment file** di CustomerSupport | Sedang | ✅ Done — upload maks 3 file (foto/PDF) saat buat tiket |
-| Z5 | **Setting notifikasi & bahasa** di CustomerSettings | Sedang | ✅ Done — tab Preferensi baru: pilih bahasa + toggle 6 jenis notifikasi |
-
-### Fase 5 — Operasional & Self-Service ✅ SELESAI
-*Diselesaikan: Mei 2026*
-
-| ID | Fitur | Prioritas | Status |
-|----|-------|-----------|--------|
-| O1 | **Check-in Mandiri (QR)** | Menengah | ✅ Done — `/jamaah/checkin`, QR dari booking code, download PNG, progress 5 langkah |
-| O2 | **Info Transportasi / Bus** di itinerary | Menengah | ✅ Done — accordion di JamaahItinerary: jadwal bus, titik jemput, estimasi waktu |
-| O3 | **Status Bagasi** | Rendah | ✅ Done — `/jamaah/bagasi`, timeline 5 tahap, info kuota 32kg, aturan penting |
-| O4 | **Download Kontrak/Perjanjian** | Rendah | ✅ Done — `/jamaah/kontrak`, preview + unduh PDF via jsPDF + fitur cetak |
-| O5 | **Widget Cuaca Makkah & Madinah** | Rendah | ✅ Done — CuacaWidget di beranda jamaah, real-time dari Open-Meteo (bebas API key) |
-
----
-
-## E. RINGKASAN ANGKA
+## B. RINGKASAN ANGKA SAAT INI
 
 | Kategori | Jumlah |
 |----------|--------|
-| Halaman jamaah/customer yang sudah ada | 20 halaman |
-| Fitur baru yang belum ada | 18 fitur |
-| Poin yang perlu diperbaiki | 13 poin |
-| Total item di roadmap | 31 item |
-| Estimasi total hari kerja | ~18-22 hari |
+| Halaman jamaah/customer aktif | **31 halaman** |
+| Fase yang selesai | **5 dari 10 fase** |
+| Komponen khusus jamaah | **8 komponen** |
+| Integrasi API eksternal | Supabase, Aladhan, Open-Meteo, jsPDF, QRCode |
+| Estimasi hari kerja tersisa | ~20-28 hari kerja |
 
 ---
 
-## F. QUICK REFERENCE — HALAMAN YANG HARUS ADA (Target)
+## C. ROADMAP SELESAI — FASE 1–5 ✅
+
+### Fase 1 — Quick Wins ✅ SELESAI
+| ID | Item | Status |
+|----|------|--------|
+| Q1 | Perbaiki ikon duplikat Quick Actions JamaahPortal | ✅ Done |
+| Q2 | Tombol Feedback di BookingDetail & JamaahPortal | ✅ Done |
+| Q3 | Web Share API di JamaahDigitalID & JamaahItinerary | ✅ Done |
+| Q4 | Filter di JamaahPaymentHistory | ✅ Done |
+| Q5 | Empty state informatif di JamaahPortal | ✅ Done |
+| Q6 | Upload foto profil dari header JamaahPortal | ✅ Done |
+| Q7 | Tab Riwayat Poin di MyLoyalty | ✅ Done |
+| Q8 | Action button deep link di JamaahNotifications | ✅ Done |
+
+### Fase 2 — Fitur Inti Jamaah ✅ SELESAI
+| ID | Fitur | Status |
+|----|-------|--------|
+| F1 | Waktu Sholat Makkah & Madinah (Aladhan API) | ✅ Done — `/jamaah/waktu-sholat` |
+| F2 | Invoice Digital PDF (jspdf) | ✅ Done — `/jamaah/invoice/:id` |
+| F3 | Info Kamar Hotel di JamaahPortal | ✅ Done — card akomodasi + rating |
+| F4 | Pengumuman dari Pembimbing feed di portal | ✅ Done — notif type=announcement |
+| F5 | Kalkulator Kurs Riyal ↔ IDR | ✅ Done — `/jamaah/kalkulator-kurs` |
+| F6 | Panduan Kesehatan di Saudi (tab baru) | ✅ Done — 6 topik lengkap |
+| F7 | Welcome Onboarding Flow | ✅ Done — `/jamaah/welcome`, 5 langkah |
+| F8 | Checklist Dokumen Required | ✅ Done — checklist visual per dokumen |
+
+### Fase 3 — Fitur Sosial & Komunitas ✅ SELESAI
+| ID | Fitur | Status |
+|----|-------|--------|
+| S1 | Chat Jamaah ↔ Muthawif real-time | ✅ Done — `/jamaah/chat` |
+| S2 | Daftar Teman Seperombongan | ✅ Done — `/jamaah/rombongan` |
+| S3 | Galeri Foto Perjalanan | ✅ Done — `/jamaah/galeri` |
+| S4 | Riwayat Perjalanan Alumni | ✅ Done — `/jamaah/riwayat-perjalanan` |
+| S5 | Referral dari Portal Jamaah | ✅ Done — `/jamaah/referral` |
+
+### Fase 4 — Fitur Finansial & Spiritual ✅ SELESAI
+| ID | Fitur | Status |
+|----|-------|--------|
+| Z1 | Kalkulator Zakat (Fitrah, Maal, Fidyah) | ✅ Done — `/jamaah/kalkulator-zakat` |
+| Z2 | Proyeksi Lunas Tabungan di MySavings | ✅ Done — widget proyeksi + komparasi target |
+| Z3 | Payment Timeline visual di BookingDetail | ✅ Done — timeline DP→Cicilan→Pelunasan |
+| Z4 | Attachment file di CustomerSupport | ✅ Done — maks 3 file, 5MB each |
+| Z5 | Setting notifikasi & bahasa di CustomerSettings | ✅ Done — tab Preferensi baru |
+
+### Fase 5 — Operasional & Self-Service ✅ SELESAI
+| ID | Fitur | Status |
+|----|-------|--------|
+| O1 | Check-in Mandiri (QR Code) | ✅ Done — `/jamaah/checkin` |
+| O2 | Info Transportasi / Bus di Itinerary | ✅ Done — accordion jadwal bus |
+| O3 | Status Bagasi dengan tracking | ✅ Done — `/jamaah/bagasi` |
+| O4 | Download Kontrak / Perjanjian PDF | ✅ Done — `/jamaah/kontrak` |
+| O5 | Widget Cuaca Makkah & Madinah | ✅ Done — CuacaWidget real-time |
+
+---
+
+## D. ROADMAP BARU — FASE 6–10 🔴
+
+### Fase 6 — Dashboard Admin & Laporan Keuangan (3-4 hari kerja)
+> **Tujuan:** Memberikan manajemen visibilitas penuh atas kesehatan bisnis secara real-time.
+
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| A1 | **Dashboard Laporan Keuangan** — grafik pendapatan bulanan, booking vs target, konversi tabungan→booking | Tinggi | 🔴 Belum |
+| A2 | **Laporan Keberangkatan** — daftar semua jamaah per tanggal, status dokumen, visa, pembayaran dalam satu view | Tinggi | 🔴 Belum |
+| A3 | **Export Laporan ke Excel/PDF** — admin bisa download rekapan keuangan bulanan, daftar jamaah per paket | Menengah | 🔴 Belum |
+| A4 | **Ringkasan Performa Agen** — komisioner per agen, jumlah referral yang convert, top agen bulan ini | Menengah | 🔴 Belum |
+| A5 | **Monitoring Tabungan Aktif** — daftar jamaah yang tabungannya terlambat setor + kirim reminder otomatis | Menengah | 🔴 Belum |
+
+**Catatan teknis:**
+- Gunakan Recharts (sudah terinstall) untuk grafik
+- Export Excel: gunakan `xlsx` package
+- Export PDF: gunakan `jspdf` yang sudah ada
+- Data dari tabel `bookings`, `payments`, `savings_plans`, `savings_payments`
+
+---
+
+### Fase 7 — Manajemen Operasional Muthawif (3-4 hari kerja)
+> **Tujuan:** Digitalisasi proses operasional perjalanan yang selama ini dilakukan manual.
+
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| M1 | **Manajemen Muthawif** — profil muthawif, assignment per keberangkatan, jadwal tugas | Tinggi | 🔴 Belum |
+| M2 | **Pembagian Kamar Hotel** — admin bisa assign nomor kamar per jamaah, jamaah lihat nomor kamarnya di portal | Tinggi | 🔴 Belum |
+| M3 | **Manifest Jamaah per Keberangkatan** — daftar jamaah lengkap untuk diserahkan ke maskapai/imigrasi, bisa di-export | Tinggi | 🔴 Belum |
+| M4 | **Absensi / Presensi Digital** — muthawif bisa centang jamaah yang hadir saat bus jemput, sholat berjamaah, dll | Menengah | 🔴 Belum |
+| M5 | **Panduan Muthawif (Dashboard Khusus)** — tampilan khusus untuk role `muthawif`: list jamaah, chat, absensi, peta | Menengah | 🔴 Belum |
+| M6 | **Broadcast WhatsApp dari Admin** — kirim pesan WA massal ke semua jamaah satu keberangkatan (via WA API atau deep link) | Menengah | 🔴 Belum |
+
+**Catatan teknis:**
+- Tabel baru: `muthawif`, `room_assignments`, `attendance_records`
+- Role baru di Supabase: `muthawif`
+- WA blast: gunakan wa.me/ deep link dengan template pesan
+
+---
+
+### Fase 8 — Engagement & Gamifikasi Jamaah (2-3 hari kerja)
+> **Tujuan:** Meningkatkan keterlibatan jamaah di dalam app dan menciptakan pengalaman ibadah yang lebih bermakna.
+
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| G1 | **Badge & Pencapaian Ibadah** — badge digital untuk: "Pertama Thawaf", "Sholat 40x di Nabawi", "Ziarah Raudhah", dll | Menengah | 🔴 Belum |
+| G2 | **Target Ibadah Harian** — jamaah bisa set target (misal: baca 1 juz/hari, sholat dhuha, sedekah) + centang setiap hari | Menengah | 🔴 Belum |
+| G3 | **Jurnal Ibadah Digital** — catatan pribadi jamaah selama perjalanan (teks + foto), hanya terlihat oleh dirinya sendiri | Menengah | 🔴 Belum |
+| G4 | **Leaderboard Galeri** — foto dengan like terbanyak dari rombongan tampil di atas, mendorong partisipasi aktif | Rendah | 🔴 Belum |
+| G5 | **Sertifikat Umroh Digital** — setelah booking_status=completed, jamaah bisa download/share sertifikat umroh bergaya formal | Rendah | 🔴 Belum |
+| G6 | **Doa Counter** — jamaah bisa set target dzikir (misal: 100x Subhanallah) + tracker per sesi | Rendah | 🔴 Belum |
+
+**Catatan teknis:**
+- Tabel baru: `badges`, `jamaah_badges`, `ibadah_targets`, `ibadah_journal`
+- Sertifikat: jsPDF dengan template desain branded
+- Like galeri: kolom `likes` di tabel `trip_photos`
+
+---
+
+### Fase 9 — Integrasi & Otomasi (4-5 hari kerja)
+> **Tujuan:** Mengurangi kerja manual admin dan meningkatkan kecepatan layanan melalui otomasi.
+
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| I1 | **Notifikasi WhatsApp Otomatis** — otomatis kirim WA ke jamaah saat pembayaran dikonfirmasi, H-7 keberangkatan, visa approved, dll | Tinggi | 🔴 Belum |
+| I2 | **Payment Gateway Midtrans** — integrasi pembayaran online langsung dari portal (tanpa upload manual bukti transfer) | Tinggi | 🔴 Belum |
+| I3 | **Validasi Nomor Paspor Real-time** — cek format paspor saat input, beri peringatan jika masa berlaku kurang dari 6 bulan | Menengah | 🔴 Belum |
+| I4 | **Pengingat Cicilan Otomatis** — kirim notif in-app + WA ke jamaah 3 hari sebelum tanggal setor tabungan | Menengah | 🔴 Belum |
+| I5 | **Integrasi SISKOHAT** (Sistem Komputerisasi Haji Terpadu Kemenag) — tampilkan nomor porsi haji jamaah + estimasi keberangkatan | Menengah | 🔴 Belum |
+| I6 | **Auto-generate Nomor Rekening Virtual** — setiap jamaah punya kode unik transfer, admin langsung tahu siapa yang bayar | Rendah | 🔴 Belum |
+
+**Catatan teknis:**
+- WA Notif: Fonnte / WA Cloud API / wa.me template
+- Payment: Midtrans Snap SDK (ada di npm)
+- SISKOHAT: API publik Kemenag jika tersedia, atau form manual + link
+- Virtual Account: biasanya via payment gateway (Midtrans VA)
+
+---
+
+### Fase 10 — AI & Smart Analytics (4-5 hari kerja)
+> **Tujuan:** Menggunakan kecerdasan buatan untuk meningkatkan pengalaman jamaah dan insight bisnis.
+
+| ID | Fitur | Prioritas | Status |
+|----|-------|-----------|--------|
+| AI1 | **Chatbot FAQ Jamaah** — jamaah bisa tanya pertanyaan umum (dokumen apa yang diperlukan? bagaimana cara bayar? dll) dijawab oleh AI | Tinggi | 🔴 Belum |
+| AI2 | **Rekomendasi Paket Cerdas** — berdasarkan budget, tanggal, dan preferensi jamaah, sistem sarankan paket yang paling cocok | Menengah | 🔴 Belum |
+| AI3 | **Analisis Sentimen Feedback** — AI analisis semua ulasan jamaah dan kategorikan: positif/negatif/netral + insight per aspek (hotel, muthawif, dll) | Menengah | 🔴 Belum |
+| AI4 | **Prediksi Filling Rate** — prediksi berapa persen keberangkatan akan terisi berdasarkan data historis, bantu admin alokasi seat | Rendah | 🔴 Belum |
+| AI5 | **Smart Notification Timing** — AI pelajari kapan jamaah paling sering buka app dan kirim notifikasi di waktu yang tepat | Rendah | 🔴 Belum |
+| AI6 | **Ringkasan Perjalanan AI** — setelah pulang, AI generate ringkasan perjalanan personal ("Anda menempuh X km, sholat di Y masjid...") | Rendah | 🔴 Belum |
+
+**Catatan teknis:**
+- Chatbot: OpenAI API (Replit AI integration) atau Gemini Free Tier
+- Sentimen: gunakan model NLP sederhana atau OpenAI classification
+- Rekomendasi: rule-based dulu (filter budget + tanggal), baru ML jika data cukup
+
+---
+
+## E. BACKLOG — PERBAIKAN YANG BELUM DIKERJAKAN 🔧
+
+Beberapa item dari dokumen awal yang belum sempat ditangani:
+
+| ID | Halaman | Masalah | Prioritas |
+|----|---------|---------|-----------|
+| P1 | **JamaahDocuments** | Checklist dokumen tidak dinamis per jenis paket (Haji vs Umroh berbeda persyaratan) | Menengah |
+| P2 | **JamaahDoa & PanduanIbadah** | Konten tumpang tindih — pertimbangkan merge ke satu halaman | Rendah |
+| P3 | **PaymentUpload** | Setelah upload belum ada trigger notif ke admin via WA | Menengah |
+| P4 | **JamaahPortal** | Bottom nav hanya 5 tab — fitur baru sulit ditemukan jamaah | Menengah |
+| P5 | **BookingWizard** | Label "PIC / Sumber Pendaftaran" kurang ramah pengguna | Rendah |
+| P6 | **CustomerDashboard** | Tidak ada shortcut ke halaman Fase 5 baru (Check-in, Kontrak, Bagasi) | Rendah |
+| P7 | **JamaahGaleri** | Belum ada fitur like/react pada foto rombongan | Rendah |
+| P8 | **MyBookings** | Tidak ada filter berdasarkan tahun atau status pembayaran | Rendah |
+
+---
+
+## F. PRIORITAS FASE BERIKUTNYA
+
+Berdasarkan dampak bisnis dan kesulitan teknis:
 
 ```
-/jamaah                     ✅ Ada — perlu perbaikan empty state & ikon
-/jamaah/digital-id          ✅ Ada — perlu Web Share API
-/jamaah/itinerary           ✅ Ada — perlu download/share
-/jamaah/documents           ✅ Ada — perlu required docs checklist
-/jamaah/payment-history     ✅ Ada — perlu filter
-/jamaah/feedback/:id        ✅ Ada — perlu akses dari dashboard
-/jamaah/notifications       ✅ Ada — perlu action button
-/jamaah/visa                ✅ Ada — cukup baik
-/jamaah/panduan-ibadah      ✅ Ada — perlu tab Kesehatan
-/jamaah/peta-lokasi         ✅ Ada — baru dibangun
-/jamaah/doa-panduan         ✅ Ada — duplikat dengan panduan-ibadah, pertimbangkan merge
-/jamaah/chat                🔴 Belum ada — PRIORITAS TINGGI
-/jamaah/rombongan           🔴 Belum ada — PRIORITAS TINGGI
-/jamaah/waktu-sholat        🔴 Belum ada — PRIORITAS TINGGI
-/jamaah/invoice/:id         🔴 Belum ada — PRIORITAS TINGGI
-/jamaah/kalkulator-kurs     🔴 Belum ada — PRIORITAS MENENGAH
-/jamaah/kalkulator-zakat    🔴 Belum ada — PRIORITAS MENENGAH
-/jamaah/galeri              🔴 Belum ada — PRIORITAS MENENGAH
-/jamaah/riwayat-perjalanan  🔴 Belum ada — PRIORITAS MENENGAH
-/jamaah/referral            🔴 Belum ada — PRIORITAS RENDAH
-/jamaah/checkin             🔴 Belum ada — PRIORITAS RENDAH
-/jamaah/welcome             🔴 Belum ada — PRIORITAS TINGGI
+SEGERA (Minggu ini):
+  → Fase 6: Dashboard Admin & Laporan Keuangan
+    Alasan: Admin butuh visibilitas bisnis sebelum fitur baru ditambah
+
+BERIKUTNYA (Minggu depan):
+  → Fase 7: Manajemen Operasional Muthawif
+    Alasan: Digitalisasi proses yang paling banyak dikerjakan manual saat ini
+
+JANGKA MENENGAH (2-3 minggu ke depan):
+  → Fase 8: Engagement & Gamifikasi
+    Alasan: Meningkatkan retention jamaah dan diferensiasi dari kompetitor
+
+  → Fase 9: Integrasi & Otomasi
+    Alasan: Efisiensi admin, kurangi kerja manual
+
+JANGKA PANJANG (1+ bulan):
+  → Fase 10: AI & Smart Analytics
+    Alasan: Perlu data yang cukup terlebih dahulu sebelum AI bermakna
 ```
 
 ---
 
-## G. CATATAN TEKNIS
+## G. QUICK REFERENCE — SEMUA URL AKTIF
 
-- **Chat real-time**: Gunakan Supabase Realtime (subscription ke tabel `chat_messages`) — tidak perlu backend tambahan
-- **Invoice PDF**: Gunakan `jspdf` + `jspdf-autotable` yang sudah terinstall — tinggal buat template
-- **Waktu Sholat**: Gunakan API publik Aladhan (`api.aladhan.com`) yang gratis dan reliable, atau data statis untuk mode offline
-- **Kurs Riyal**: Gunakan API publik Exchange Rate atau data statis yang diupdate manual mingguan
-- **Web Share API**: Sudah didukung di semua browser modern dan iOS Safari — untuk share digital ID & itinerary
-- **Galeri Foto**: Upload ke Supabase Storage (sudah ada infrastrukturnya), tabel baru `trip_photos`
-- **Kalkulator Zakat**: Pure frontend — tidak perlu backend, hanya formula kalkulasi
-- **Merge Panduan**: `/jamaah/doa-panduan` dan `/jamaah/panduan-ibadah` punya konten tumpang tindih — pertimbangkan merge ke satu halaman dengan lebih banyak tab
+```
+CUSTOMER PORTAL (Desktop):
+/customer/dashboard          ✅ Ada
+/customer/my-savings         ✅ Ada + proyeksi lunas
+/customer/my-loyalty         ✅ Ada
+/customer/support            ✅ Ada + upload lampiran
+/customer/settings           ✅ Ada + tab preferensi
+/my-bookings                 ✅ Ada
+/my-bookings/:id             ✅ Ada + payment timeline
+/my-bookings/:id/payment     ✅ Ada
+/kalkulator-cicilan          ✅ Ada
+
+JAMAAH PORTAL (Mobile PWA):
+/jamaah                      ✅ Ada + cuaca widget
+/jamaah/digital-id           ✅ Ada
+/jamaah/itinerary            ✅ Ada + info bus
+/jamaah/documents            ✅ Ada + checklist
+/jamaah/payment-history      ✅ Ada + filter
+/jamaah/feedback/:id         ✅ Ada
+/jamaah/notifications        ✅ Ada + deep link
+/jamaah/visa                 ✅ Ada
+/jamaah/panduan-ibadah       ✅ Ada + tab kesehatan
+/jamaah/peta-lokasi          ✅ Ada
+/jamaah/doa-panduan          ✅ Ada
+/jamaah/waktu-sholat         ✅ Ada
+/jamaah/invoice/:id          ✅ Ada
+/jamaah/kalkulator-kurs      ✅ Ada
+/jamaah/welcome              ✅ Ada
+/jamaah/chat                 ✅ Ada
+/jamaah/rombongan            ✅ Ada
+/jamaah/galeri               ✅ Ada
+/jamaah/riwayat-perjalanan   ✅ Ada
+/jamaah/referral             ✅ Ada
+/jamaah/kalkulator-zakat     ✅ Ada
+/jamaah/checkin              ✅ Ada
+/jamaah/bagasi               ✅ Ada
+/jamaah/kontrak              ✅ Ada
+
+AKAN DIBUAT — FASE 6–10:
+/admin/laporan/keuangan      🔴 Fase 6
+/admin/laporan/keberangkatan 🔴 Fase 6
+/admin/laporan/agen          🔴 Fase 6
+/admin/muthawif              🔴 Fase 7
+/admin/muthawif/:id          🔴 Fase 7
+/admin/pembagian-kamar       🔴 Fase 7
+/admin/manifest/:departureId 🔴 Fase 7
+/jamaah/badge                🔴 Fase 8
+/jamaah/target-ibadah        🔴 Fase 8
+/jamaah/jurnal               🔴 Fase 8
+/jamaah/sertifikat           🔴 Fase 8
+/jamaah/chatbot              🔴 Fase 10
+```
+
+---
+
+## H. CATATAN TEKNIS PENTING
+
+- **Database**: Semua tabel Supabase — hindari breaking changes, gunakan `(supabase as any).from()` untuk tabel baru
+- **File upload**: Bucket `payment-proofs`, `customer-documents`, `support-attachments`, `trip-photos` sudah ada
+- **PDF**: `jspdf` + `jspdf-autotable` sudah terinstall, gunakan pattern yang sama dengan JamaahInvoice & JamaahKontrak
+- **Charts**: `recharts` sudah terinstall — gunakan untuk Fase 6
+- **QR Code**: `qrcode` sudah terinstall
+- **Real-time**: Supabase Realtime untuk chat & notifikasi
+- **AI**: Cek Replit AI integration skill sebelum implementasi Fase 10
+- **PWA**: Service Worker sudah aktif — fitur offline harus diuji manual
+- **Role**: `customer`, `jamaah`, `super_admin`, `agent` — tambah `muthawif` di Fase 7
