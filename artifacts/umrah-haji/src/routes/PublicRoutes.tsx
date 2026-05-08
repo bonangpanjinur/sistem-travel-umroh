@@ -22,6 +22,7 @@ const AgentWebsite = lazy(() => import("@/pages/public/AgentWebsite"));
 const LandingPage = lazy(() => import("@/pages/public/LandingPage"));
 const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
 const TeamPage = lazy(() => import("@/pages/public/TeamPage"));
+const BookingStatusPage = lazy(() => import("@/pages/public/BookingStatusPage"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -55,6 +56,7 @@ export default function PublicRoutes() {
       <Route path="/a/:agentSlug" element={<LazyPage><AgentWebsite /></LazyPage>} />
       <Route path="/lp/:slug" element={<LazyPage><LandingPage /></LazyPage>} />
       <Route path="/team" element={<LazyPage><TeamPage /></LazyPage>} />
+      <Route path="/cek-booking" element={<LazyPage><BookingStatusPage /></LazyPage>} />
       <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>

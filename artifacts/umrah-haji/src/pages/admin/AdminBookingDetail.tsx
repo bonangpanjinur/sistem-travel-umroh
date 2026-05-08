@@ -197,12 +197,15 @@ export default function AdminBookingDetail() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, status) => {
       toast.success("Status booking berhasil diperbarui");
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       setShowStatusConfirm(false);
       setNewStatus(null);
+      if (status === 'completed') {
+        toast.info('Sertifikat dapat digenerate sekarang dari halaman dokumen.');
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || "Gagal memperbarui status");
@@ -843,6 +846,59 @@ export default function AdminBookingDetail() {
             </Card>
           )}
         </div>
+      </div>
+
+      {/* Activity Timeline */}
+      <div className="mt-2">
+        <Card className="border-none shadow-md overflow-hidden">
+          <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 border-b flex items-center gap-2">
+            <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground">Timeline Aktivitas</h2>
+          </div>
+          <CardContent className="p-6">
+            <div className="relative">
+              <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border" />
+              <div className="space-y-5 ml-10">
+                {/* Booking Created */}
+                <div className="relative">
+                  <div className="absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 border-2 border-primary/30">
+                    <span className="text-[10px] font-bold text-primary">+</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Booking Dibuat</p>
+                    <p className="text-[11px] text-muted-foreground">{booking.created_at ? formatDate(booking.created_at) : '-'} — oleh sistem</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Kode: <span className="font-mono font-semibold">{booking.booking_code}</span></p>
+                  </div>
+                </div>
+                {/* Payment Events */}
+                {payments && payments.length > 0 && [...payments].reverse().map((pay: any) => (
+                  <div key={pay.id} className="relative">
+                    <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${pay.status === 'paid' || pay.status === 'verified' ? 'bg-green-100 border-green-400' : pay.status === 'pending' ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-100 border-gray-400'}`}>
+                      <span className="text-[10px] font-bold text-emerald-700">₫</span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">
+                        Pembayaran {pay.status === 'paid' || pay.status === 'verified' ? 'Diverifikasi' : pay.status === 'pending' ? 'Menunggu Verifikasi' : 'Dibatalkan'}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{pay.created_at ? formatDate(pay.created_at) : '-'}</p>
+                      <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">{pay.amount ? formatCurrency(pay.amount) : '-'} via {pay.payment_method || '-'}</p>
+                    </div>
+                  </div>
+                ))}
+                {/* Current Status */}
+                <div className="relative">
+                  <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${booking.booking_status === 'completed' ? 'bg-green-100 border-green-400' : booking.booking_status === 'cancelled' ? 'bg-red-100 border-red-400' : 'bg-blue-100 border-blue-400'}`}>
+                    <span className="text-[10px] font-bold text-blue-700">●</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Status Saat Ini</p>
+                    <p className="text-[11px] text-muted-foreground">{booking.updated_at ? formatDate(booking.updated_at) : '-'}</p>
+                    <p className="text-[11px] font-semibold mt-0.5">{getBookingStatusLabel(booking.booking_status ?? '')}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Status Change Confirmation */}

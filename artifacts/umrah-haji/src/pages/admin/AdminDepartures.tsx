@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import {
   Zap, AlertCircle
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MONTHS = [
   { value: "01", label: "Januari" },
@@ -47,6 +48,99 @@ const MONTHS = [
 ];
 
 const ITEMS_PER_PAGE = 20;
+
+const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+function CalendarDepartureView({ allDepartures, navigate }: { allDepartures: any[]; navigate: (path: string) => void }) {
+  const now = new Date();
+  const [calYear, setCalYear] = useState(now.getFullYear());
+  const [calMonth, setCalMonth] = useState(now.getMonth()); // 0-indexed
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay = new Date(calYear, calMonth + 1, 0);
+  const startOffset = firstDay.getDay();
+  const totalDays = lastDay.getDate();
+
+  const departuresByDay = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const dep of allDepartures) {
+      if (!dep.departure_date) continue;
+      const d = new Date(dep.departure_date);
+      if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+        const day = d.getDate();
+        if (!map[day]) map[day] = [];
+        map[day].push(dep);
+      }
+    }
+    return map;
+  }, [allDepartures, calYear, calMonth]);
+
+  const monthLabel = new Date(calYear, calMonth, 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+
+  const cells: (number | null)[] = [
+    ...Array(startOffset).fill(null),
+    ...Array.from({ length: totalDays }, (_, i) => i + 1),
+  ];
+
+  return (
+    <Card className="border-0 shadow-sm">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg capitalize">{monthLabel}</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8"
+              onClick={() => { const d = new Date(calYear, calMonth - 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs"
+              onClick={() => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); }}>
+              Hari ini
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8"
+              onClick={() => { const d = new Date(calYear, calMonth + 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border">
+          {DAY_NAMES.map(d => (
+            <div key={d} className="bg-muted/50 text-center text-xs font-semibold py-2 text-muted-foreground">{d}</div>
+          ))}
+          {cells.map((day, idx) => {
+            const deps = day ? (departuresByDay[day] || []) : [];
+            const isToday = day === now.getDate() && calYear === now.getFullYear() && calMonth === now.getMonth();
+            return (
+              <div key={idx} className={`bg-background min-h-[70px] p-1.5 ${!day ? 'opacity-30' : ''}`}>
+                {day && (
+                  <>
+                    <span className={`text-xs font-semibold block mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]' : 'text-muted-foreground'}`}>
+                      {day}
+                    </span>
+                    {deps.map(dep => (
+                      <button
+                        key={dep.id}
+                        onClick={() => navigate(`/admin/departures/${dep.id}`)}
+                        className="w-full text-left text-[10px] bg-primary/10 text-primary rounded px-1 py-0.5 mb-0.5 truncate hover:bg-primary/20 transition-colors"
+                        title={dep.package?.name || dep.id}
+                      >
+                        {dep.package?.code || dep.package?.name || 'Keberangkatan'}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {allDepartures.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground py-6">Tidak ada data keberangkatan untuk ditampilkan di kalender.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminDepartures() {
   const queryClient = useQueryClient();
@@ -346,6 +440,20 @@ export default function AdminDepartures() {
       </div>
 
       {/* Main Content Card */}
+      <Tabs defaultValue="list" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <TabsList className="h-9">
+            <TabsTrigger value="list" className="gap-1.5 text-sm"><CalendarDays className="h-3.5 w-3.5" />Daftar</TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-1.5 text-sm"><Calendar className="h-3.5 w-3.5" />Kalender</TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Calendar View */}
+        <TabsContent value="calendar">
+          <CalendarDepartureView allDepartures={departures} navigate={navigate} />
+        </TabsContent>
+
+        <TabsContent value="list">
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -602,6 +710,9 @@ export default function AdminDepartures() {
           )}
         </CardContent>
       </Card>
+
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

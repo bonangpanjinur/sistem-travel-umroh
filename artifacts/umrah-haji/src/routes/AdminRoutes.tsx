@@ -11,7 +11,7 @@ const AdminLayout = lazy(() => import("@/components/admin/AdminLayoutDynamicImpr
 
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
-const AdminPackages = lazy(() => import("@/pages/admin/AdminPackages"));
+const AdminPackages = lazy(() => import("@/pages/admin/AdminPackages-Enhanced"));
 const AdminPackageDetail = lazy(() => import("@/pages/admin/AdminPackageDetail"));
 const AdminBookings = lazy(() => import("@/pages/admin/AdminBookings"));
 const AdminBookingDetail = lazy(() => import("@/pages/admin/AdminBookingDetail"));

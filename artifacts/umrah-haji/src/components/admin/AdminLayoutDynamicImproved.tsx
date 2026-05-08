@@ -30,6 +30,8 @@ import {
   Search,
   User,
   Shield,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -42,6 +44,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef, memo } from 'react';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -139,6 +142,7 @@ function AdminLayoutDynamicImproved() {
   const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();
   const { getSetting } = useCompanySettings();
   const adminNotifications = useAdminNotifications();
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -446,6 +450,15 @@ function AdminLayoutDynamicImproved() {
             <Suspense fallback={<Skeleton className="h-9 w-9 rounded-md" />}>
               <CommandPalette />
             </Suspense>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleDark}
+              className="h-9 w-9"
+              aria-label="Toggle dark mode"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <NotificationBell
               notifications={adminNotifications.notifications}
               unreadCount={adminNotifications.unreadCount}

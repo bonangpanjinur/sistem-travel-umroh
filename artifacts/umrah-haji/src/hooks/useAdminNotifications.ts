@@ -181,6 +181,22 @@ export function useAdminNotifications() {
             });
           }
         )
+        // 5. Support Tickets
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'support_tickets' },
+          async (payload) => {
+            if (!payload || !payload.new) return;
+            const ticket = payload.new as any;
+            addNotification({
+              type: 'booking',
+              title: '🎫 Tiket Support Baru',
+              message: `Tiket baru: "${ticket.subject || 'Tanpa Judul'}" dari ${ticket.customer_name || 'Customer'}`,
+              link: '/admin/support',
+              data: ticket,
+            });
+          }
+        )
         .subscribe((status) => {
           // Ubah console.warn menjadi console.debug yang hanya aktif di development
           if (status === 'CLOSED') {
