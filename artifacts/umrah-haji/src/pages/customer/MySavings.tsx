@@ -4,159 +4,188 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
-import { 
-  Wallet, Calendar, Receipt, Upload, 
-  CheckCircle, Clock, AlertCircle, Plus, Eye
+import {
+  Wallet, Calendar, Receipt, Upload,
+  CheckCircle, Clock, AlertCircle, Plus, Eye,
+  BanknoteIcon, Copy
 } from 'lucide-react';
 
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-blue-100 text-blue-800',
+// ── helpers ────────────────────────────────────────────────────────────────
+const STATUS_CLS: Record<string, string> = {
+  active:    'bg-blue-100 text-blue-800',
   completed: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
   converted: 'bg-purple-100 text-purple-800',
+  dp_paid:   'bg-yellow-100 text-yellow-800',
 };
-
-const PAYMENT_STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
+const STATUS_LABEL: Record<string, string> = {
+  active:    'Aktif',
+  completed: 'Lunas',
+  cancelled: 'Dibatalkan',
+  converted: 'Sudah Booking',
+  dp_paid:   'Menunggu DP',
+};
+const PAY_CLS: Record<string, string> = {
+  pending:  'bg-yellow-100 text-yellow-800',
   verified: 'bg-green-100 text-green-800',
   rejected: 'bg-red-100 text-red-800',
+  paid:     'bg-green-100 text-green-800',
+};
+const PAY_LABEL: Record<string, string> = {
+  pending:  'Menunggu',
+  verified: 'Diterima',
+  rejected: 'Ditolak',
+  paid:     'Diterima',
 };
 
 export default function MySavings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [uploadingProof, setUploadingProof] = useState(false);
 
-  // Fetch user's savings plans
+  const [payDialogPlanId, setPayDialogPlanId] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('transfer');
+  const [payFile, setPayFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const [historyPlanId, setHistoryPlanId] = useState<string | null>(null);
+
+  // ── queries ───────────────────────────────────────────────────────────────
   const { data: savingsPlans = [], isLoading } = useQuery({
     queryKey: ['my-savings-plans', user?.id],
     queryFn: async () => {
       if (!user) return [];
-
-      // Get customer first
       const { data: customer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
+        .from('customers').select('id').eq('user_id', user.id).single();
       if (!customer) return [];
-
       const { data, error } = await supabase
         .from('savings_plans')
-        .select(`
-          *,
-          package:packages(*)
-        `)
+        .select('*, package:packages(*)')
         .eq('customer_id', customer.id)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       return data;
     },
     enabled: !!user,
   });
 
-  // Fetch payments for selected plan
-  const { data: payments = [] } = useQuery({
-    queryKey: ['savings-payments', selectedPlan],
+  const { data: historyPayments = [], isLoading: loadingHistory } = useQuery({
+    queryKey: ['savings-payments', historyPlanId],
     queryFn: async () => {
-      if (!selectedPlan) return [];
-
+      if (!historyPlanId) return [];
       const { data, error } = await supabase
         .from('savings_payments')
         .select('*')
-        .eq('savings_plan_id', selectedPlan)
+        .eq('savings_plan_id', historyPlanId)
         .order('payment_date', { ascending: false });
-
       if (error) throw error;
       return data;
     },
-    enabled: !!selectedPlan,
+    enabled: !!historyPlanId,
   });
 
-  // Payment mutation
-  const paymentMutation = useMutation({
-    mutationFn: async ({ amount, proofUrl }: { amount: number; proofUrl: string }) => {
-      if (!selectedPlan) throw new Error('No plan selected');
-
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ['bank-accounts'],
+    queryFn: async () => {
       const { data, error } = await supabase
-        .from('savings_payments')
-        .insert({
-          savings_plan_id: selectedPlan,
-          amount,
-          proof_url: proofUrl,
-          payment_code: `SAV${Date.now()}`, // Temporary, will be replaced by DB function
-          status: 'pending',
-        })
-        .select()
-        .single();
-
+        .from('bank_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_primary', { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
+    },
+  });
+
+  const activePlan: any = savingsPlans.find((p: any) =>
+    p.status === 'active' || p.status === 'dp_paid'
+  );
+  const payDialogPlan: any = savingsPlans.find((p: any) => p.id === payDialogPlanId);
+
+  // ── payment mutation ──────────────────────────────────────────────────────
+  const paymentMutation = useMutation({
+    mutationFn: async ({ amount, proofUrl }: { amount: number; proofUrl?: string }) => {
+      const planId = payDialogPlanId;
+      if (!planId) throw new Error('No plan selected');
+      const code = `SAV${Date.now().toString(36).toUpperCase()}`;
+      const { error } = await supabase.from('savings_payments').insert({
+        savings_plan_id: planId,
+        amount,
+        proof_url: proofUrl ?? null,
+        payment_code: code,
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: payMethod,
+        status: 'pending',
+      } as any);
+      if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Pembayaran berhasil disubmit, menunggu verifikasi');
-      queryClient.invalidateQueries({ queryKey: ['savings-payments', selectedPlan] });
-      setPaymentDialogOpen(false);
-      setPaymentAmount('');
+      toast.success('✅ Pembayaran berhasil dikirim, menunggu verifikasi admin');
+      queryClient.invalidateQueries({ queryKey: ['savings-payments'] });
+      setPayDialogPlanId(null);
+      setPayAmount('');
+      setPayFile(null);
     },
-    onError: (error: Error) => {
-      toast.error('Gagal submit pembayaran: ' + error.message);
-    },
+    onError: (e: Error) => toast.error('❌ ' + e.message),
   });
 
-  const handleUploadProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedPlan) return;
-
-    setUploadingProof(true);
-    try {
-      const fileName = `${user?.id}/${selectedPlan}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from('payment-proofs')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('payment-proofs')
-        .getPublicUrl(fileName);
-
-      await paymentMutation.mutateAsync({
-        amount: parseFloat(paymentAmount),
-        proofUrl: urlData.publicUrl,
-      });
-    } catch (error: any) {
-      toast.error('Gagal upload bukti: ' + error.message);
-    } finally {
-      setUploadingProof(false);
+  const handleSubmitPayment = async () => {
+    const amount = parseFloat(payAmount);
+    if (!payAmount || isNaN(amount) || amount <= 0) {
+      toast.error('Masukkan jumlah yang valid');
+      return;
     }
+
+    let proofUrl: string | undefined;
+
+    if (payFile) {
+      setUploading(true);
+      try {
+        const fileName = `${user?.id}/${payDialogPlanId}/${Date.now()}-${payFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('payment-proofs')
+          .upload(fileName, payFile);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('payment-proofs').getPublicUrl(fileName);
+          proofUrl = urlData.publicUrl;
+        }
+        // If upload fails, continue without proof URL (silent, admin can follow up)
+      } catch {
+        // ignore upload error, submit payment without proof
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    await paymentMutation.mutateAsync({ amount, proofUrl });
   };
 
+  // ── helpers ───────────────────────────────────────────────────────────────
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => toast.success('Disalin!'));
+  };
+
+  // ── auth guard ────────────────────────────────────────────────────────────
   if (!user) {
     return (
       <DynamicPublicLayout>
         <div className="container mx-auto px-4 py-16 text-center">
           <Wallet className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
           <h1 className="text-2xl font-bold mb-4">Silakan Login</h1>
-          <p className="text-muted-foreground mb-6">
-            Login untuk melihat tabungan umroh Anda
-          </p>
+          <p className="text-muted-foreground mb-6">Login untuk melihat tabungan umroh Anda</p>
           <Button asChild>
             <Link to="/auth/login?redirect=/customer/my-savings">Login</Link>
           </Button>
@@ -165,206 +194,127 @@ export default function MySavings() {
     );
   }
 
+  // ── render ────────────────────────────────────────────────────────────────
   return (
     <DynamicPublicLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-3">
-              <Wallet className="h-8 w-8 text-primary" />
-              Tabungan Saya
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Wallet className="h-7 w-7 text-primary" /> Tabungan Saya
             </h1>
-            <p className="text-muted-foreground">
-              Pantau progress tabungan umroh Anda
-            </p>
+            <p className="text-muted-foreground text-sm mt-0.5">Pantau progress tabungan umroh Anda</p>
           </div>
-          <Button asChild>
-            <Link to="/savings">
-              <Plus className="h-4 w-4 mr-2" />
-              Daftar Tabungan Baru
-            </Link>
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/savings"><Plus className="h-4 w-4 mr-1" /> Daftar Baru</Link>
           </Button>
         </div>
 
         {isLoading ? (
-          <div className="grid gap-6">
-            {[1, 2].map((i) => (
-              <Skeleton key={i} className="h-48" />
-            ))}
+          <div className="space-y-4">
+            {[1, 2].map(i => <Skeleton key={i} className="h-48" />)}
           </div>
         ) : savingsPlans.length === 0 ? (
           <Card>
             <CardContent className="py-16 text-center">
-              <Wallet className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <Wallet className="h-14 w-14 mx-auto text-muted-foreground mb-4 opacity-50" />
               <h3 className="text-lg font-semibold mb-2">Belum Ada Tabungan</h3>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-muted-foreground mb-6 text-sm">
                 Mulai perjalanan ibadah Anda dengan mendaftar tabungan umroh
               </p>
-              <Button asChild>
-                <Link to="/savings">Lihat Paket Tabungan</Link>
-              </Button>
+              <Button asChild><Link to="/savings">Lihat Paket Tabungan</Link></Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6">
-            {savingsPlans.map((plan) => {
-              const progress = ((plan.paid_amount || 0) / plan.target_amount) * 100;
-              
+          <div className="space-y-6">
+            {savingsPlans.map((plan: any) => {
+              const progress = plan.target_amount > 0 ? ((plan.paid_amount || 0) / plan.target_amount) * 100 : 0;
+              const remaining = Math.max(0, plan.target_amount - (plan.paid_amount || 0));
+              const isActive = plan.status === 'active' || plan.status === 'dp_paid';
+
               return (
-                <Card key={plan.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
+                <Card key={plan.id} className={isActive ? 'border-primary/40 shadow-md' : ''}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
                         <CardTitle className="text-lg">{plan.package?.name}</CardTitle>
-                        <CardDescription>
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           Terdaftar: {new Date(plan.created_at!).toLocaleDateString('id-ID')}
-                        </CardDescription>
+                        </p>
                       </div>
-                      <Badge className={STATUS_COLORS[plan.status || 'active']}>
-                        {plan.status === 'active' ? 'Aktif' : 
-                         plan.status === 'completed' ? 'Lunas' :
-                         plan.status === 'converted' ? 'Sudah Booking' : 'Dibatalkan'}
+                      <Badge className={STATUS_CLS[plan.status ?? 'active']}>
+                        {STATUS_LABEL[plan.status ?? 'active'] ?? plan.status}
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Progress Bar */}
+                  <CardContent className="space-y-5">
+                    {/* Progress */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span className="font-medium">{progress.toFixed(1)}%</span>
+                        <span className="text-muted-foreground">Progress Tabungan</span>
+                        <span className="font-semibold">{progress.toFixed(1)}%</span>
                       </div>
                       <Progress value={progress} className="h-3" />
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Terkumpul: <span className="font-medium text-primary">{formatCurrency(plan.paid_amount || 0)}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Target: <span className="font-medium">{formatCurrency(plan.target_amount)}</span>
-                        </span>
+                        <span className="text-green-600 font-medium">{formatCurrency(plan.paid_amount || 0)} terkumpul</span>
+                        <span className="text-muted-foreground">Target: {formatCurrency(plan.target_amount)}</span>
                       </div>
                     </div>
 
-                    {/* Info Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Cicilan/Bulan</p>
-                        <p className="font-semibold">{formatCurrency(plan.monthly_amount)}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Tenor</p>
-                        <p className="font-semibold">{plan.tenor_months} Bulan</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Sisa</p>
-                        <p className="font-semibold text-primary">{formatCurrency(plan.remaining_amount || 0)}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Target Lunas</p>
-                        <p className="font-semibold">
-                          {new Date(plan.target_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
-                        </p>
-                      </div>
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {[
+                        { label: 'Cicilan/Bulan', value: formatCurrency(plan.monthly_amount) },
+                        { label: 'Tenor', value: `${plan.tenor_months} Bulan` },
+                        { label: 'Sisa', value: formatCurrency(remaining), cls: 'text-primary font-bold' },
+                        { label: 'Target Lunas', value: new Date(plan.target_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) },
+                      ].map(s => (
+                        <div key={s.label} className="p-3 rounded-lg bg-muted/50 text-center">
+                          <p className="text-xs text-muted-foreground">{s.label}</p>
+                          <p className={`text-sm font-semibold mt-0.5 ${s.cls ?? ''}`}>{s.value}</p>
+                        </div>
+                      ))}
                     </div>
+
+                    {/* DP status alert */}
+                    {plan.dp_amount > 0 && (
+                      <Alert className={
+                        plan.dp_status === 'verified' ? 'border-green-200 bg-green-50' :
+                        plan.dp_status === 'rejected' ? 'border-red-200 bg-red-50' :
+                        'border-yellow-200 bg-yellow-50'
+                      }>
+                        {plan.dp_status === 'verified' ? <CheckCircle className="h-4 w-4 text-green-600" /> :
+                         plan.dp_status === 'rejected' ? <AlertCircle className="h-4 w-4 text-red-600" /> :
+                         <Clock className="h-4 w-4 text-yellow-600" />}
+                        <AlertDescription className="text-sm">
+                          <strong>DP {formatCurrency(plan.dp_amount)}:</strong>{' '}
+                          {plan.dp_status === 'verified' ? 'Sudah diverifikasi ✓' :
+                           plan.dp_status === 'rejected' ? 'Ditolak — hubungi admin' :
+                           'Menunggu verifikasi admin'}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Separator />
 
                     {/* Actions */}
-                    <div className="flex gap-3">
-                      {plan.status === 'active' && (
-                        <Dialog open={paymentDialogOpen && selectedPlan === plan.id} onOpenChange={(open) => {
-                          setPaymentDialogOpen(open);
-                          if (open) setSelectedPlan(plan.id);
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button onClick={() => setSelectedPlan(plan.id)}>
-                              <Upload className="h-4 w-4 mr-2" />
-                              Bayar Cicilan
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Bayar Cicilan Tabungan</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="p-4 bg-muted rounded-lg">
-                                <p className="text-sm text-muted-foreground">Cicilan yang disarankan:</p>
-                                <p className="text-2xl font-bold text-primary">{formatCurrency(plan.monthly_amount)}</p>
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label>Jumlah Pembayaran</Label>
-                                <Input
-                                  type="number"
-                                  placeholder="Masukkan jumlah"
-                                  value={paymentAmount}
-                                  onChange={(e) => setPaymentAmount(e.target.value)}
-                                />
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Upload Bukti Transfer</Label>
-                                <Input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleUploadProof}
-                                  disabled={!paymentAmount || uploadingProof}
-                                />
-                              </div>
-
-                              {uploadingProof && (
-                                <p className="text-sm text-muted-foreground text-center">
-                                  Mengupload...
-                                </p>
-                              )}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                    <div className="flex gap-2 flex-wrap">
+                      {isActive && (
+                        <Button
+                          className="flex-1"
+                          onClick={() => { setPayDialogPlanId(plan.id); setPayAmount(String(plan.monthly_amount || '')); }}
+                        >
+                          <Upload className="h-4 w-4 mr-2" /> Bayar Cicilan
+                        </Button>
                       )}
-                      
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" onClick={() => setSelectedPlan(plan.id)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Riwayat Pembayaran
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Riwayat Pembayaran</DialogTitle>
-                          </DialogHeader>
-                          <div className="max-h-96 overflow-y-auto">
-                            {payments.length === 0 ? (
-                              <p className="text-center text-muted-foreground py-8">
-                                Belum ada pembayaran
-                              </p>
-                            ) : (
-                              <div className="space-y-3">
-                                {payments.map((payment) => (
-                                  <div 
-                                    key={payment.id} 
-                                    className="flex items-center justify-between p-4 border rounded-lg"
-                                  >
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <Receipt className="h-5 w-5 text-primary" />
-                                      </div>
-                                      <div>
-                                        <p className="font-medium">{formatCurrency(payment.amount)}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                          {new Date(payment.payment_date).toLocaleDateString('id-ID')}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <Badge className={PAYMENT_STATUS_COLORS[payment.status || 'pending']}>
-                                      {payment.status === 'verified' ? 'Terverifikasi' :
-                                       payment.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
-                                    </Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button
+                        variant="outline"
+                        className={isActive ? '' : 'flex-1'}
+                        onClick={() => { setHistoryPlanId(plan.id); }}
+                      >
+                        <Eye className="h-4 w-4 mr-2" /> Riwayat
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -373,6 +323,164 @@ export default function MySavings() {
           </div>
         )}
       </div>
+
+      {/* ── Payment Dialog ── */}
+      <Dialog open={!!payDialogPlanId} onOpenChange={open => { if (!open) { setPayDialogPlanId(null); setPayAmount(''); setPayFile(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Bayar Cicilan Tabungan</DialogTitle>
+          </DialogHeader>
+          {payDialogPlan && (
+            <div className="space-y-4 py-2">
+              {/* Suggested amount */}
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-center">
+                <p className="text-xs text-muted-foreground">Cicilan yang disarankan</p>
+                <p className="text-2xl font-bold text-primary">{formatCurrency(payDialogPlan.monthly_amount)}</p>
+              </div>
+
+              {/* Bank accounts */}
+              {bankAccounts.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <BanknoteIcon className="h-4 w-4 text-primary" /> Transfer ke rekening:
+                  </p>
+                  {bankAccounts.map((b: any) => (
+                    <div key={b.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg text-sm">
+                      <div>
+                        <p className="font-semibold">{b.bank_name}</p>
+                        <p className="font-mono text-base">{b.account_number}</p>
+                        <p className="text-muted-foreground text-xs">{b.account_name}</p>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-8"
+                        onClick={() => copyToClipboard(b.account_number)}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <Label>Jumlah Transfer (Rp)</Label>
+                <Input
+                  type="number"
+                  value={payAmount}
+                  onChange={e => setPayAmount(e.target.value)}
+                  placeholder="Masukkan jumlah"
+                />
+                <div className="flex gap-1.5 flex-wrap">
+                  {[1, 2, 3].map(mul => (
+                    <button key={mul} type="button"
+                      className="text-xs px-2 py-1 rounded border bg-muted hover:bg-muted/80"
+                      onClick={() => setPayAmount(String(payDialogPlan.monthly_amount * mul))}>
+                      {mul}× = {formatCurrency(payDialogPlan.monthly_amount * mul)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Method */}
+              <div className="space-y-1.5">
+                <Label>Metode Pembayaran</Label>
+                <Select value={payMethod} onValueChange={setPayMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="transfer">Transfer Bank</SelectItem>
+                    <SelectItem value="qris">QRIS</SelectItem>
+                    <SelectItem value="cash">Tunai di Kantor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Optional file upload */}
+              <div className="space-y-1.5">
+                <Label>Bukti Transfer <span className="text-muted-foreground font-normal">(opsional)</span></Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={e => setPayFile(e.target.files?.[0] || null)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {payFile ? `📎 ${payFile.name}` : 'Tidak wajib, bisa dilengkapi nanti'}
+                </p>
+              </div>
+
+              <Alert>
+                <Clock className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Pembayaran akan dikonfirmasi oleh admin dalam 1×24 jam kerja.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setPayDialogPlanId(null)}>Batal</Button>
+            <Button
+              className="flex-1"
+              onClick={handleSubmitPayment}
+              disabled={paymentMutation.isPending || uploading || !payAmount}
+            >
+              {uploading ? 'Mengupload...' : paymentMutation.isPending ? 'Mengirim...' : 'Kirim Pembayaran'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── History Dialog ── */}
+      <Dialog open={!!historyPlanId} onOpenChange={open => { if (!open) setHistoryPlanId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" /> Riwayat Pembayaran
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
+            {loadingHistory ? (
+              <Skeleton className="h-24" />
+            ) : historyPayments.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8 text-sm">Belum ada pembayaran.</p>
+            ) : (
+              historyPayments.map((pay: any) => (
+                <div key={pay.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                      pay.status === 'verified' || pay.status === 'paid' ? 'bg-green-100' :
+                      pay.status === 'rejected' ? 'bg-red-100' : 'bg-yellow-100'
+                    }`}>
+                      {pay.status === 'verified' || pay.status === 'paid' ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : pay.status === 'rejected' ? (
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-yellow-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{formatCurrency(pay.amount)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {pay.payment_date
+                          ? new Date(pay.payment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : '-'} · {pay.payment_method ?? 'Transfer'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge className={PAY_CLS[pay.status ?? 'pending']}>
+                      {PAY_LABEL[pay.status ?? 'pending']}
+                    </Badge>
+                    {pay.notes && (
+                      <p className="text-xs text-muted-foreground mt-1 max-w-[120px] text-right">"{pay.notes}"</p>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DynamicPublicLayout>
   );
 }
