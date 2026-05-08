@@ -8,10 +8,13 @@ const OperationalDashboard = lazy(() => import("@/pages/operational/OperationalD
 const ManifestPage = lazy(() => import("@/pages/operational/ManifestPage"));
 const CheckinPage = lazy(() => import("@/pages/operational/CheckinPage"));
 const LuggagePage = lazy(() => import("@/pages/operational/LuggagePage"));
-const RoomingListPage = lazy(() => import("@/pages/operational/RoomingListPage"));
+const RoomingListPage = lazy(() => import("@/pages/operational/RoomingListPageImproved"));
 const QRCodePage = lazy(() => import("@/pages/operational/QRCodePage"));
 const EquipmentPage = lazy(() => import("@/pages/operational/EquipmentPage"));
 const BusManagementPage = lazy(() => import("@/pages/operational/BusManagementPage"));
+const DepartureReadinessPage = lazy(() => import("@/pages/operational/DepartureReadinessPage"));
+const TripTimelinePage = lazy(() => import("@/pages/operational/TripTimelinePage"));
+const OperationalDocumentPage = lazy(() => import("@/pages/operational/OperationalDocumentPage"));
 const EmployeeAttendance = lazy(() => import("@/pages/hr/EmployeeAttendance"));
 
 const OPERATIONAL_ROLES = ['super_admin', 'owner', 'branch_manager', 'operational', 'equipment'] as const;
@@ -39,6 +42,9 @@ export default function OperationalRoutes() {
         <Route path="qrcode" element={<LazyPage><QRCodePage /></LazyPage>} />
         <Route path="equipment" element={<LazyPage><EquipmentPage /></LazyPage>} />
         <Route path="bus" element={<LazyPage><BusManagementPage /></LazyPage>} />
+        <Route path="readiness" element={<LazyPage><DepartureReadinessPage /></LazyPage>} />
+        <Route path="timeline" element={<LazyPage><TripTimelinePage /></LazyPage>} />
+        <Route path="documents" element={<LazyPage><OperationalDocumentPage /></LazyPage>} />
       </Route>
 
       <Route
@@ -50,7 +56,6 @@ export default function OperationalRoutes() {
         }
       />
 
-      {/* Public attendance page - any logged-in employee can access */}
       <Route
         path="/absensi"
         element={

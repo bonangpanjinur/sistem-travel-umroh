@@ -10,7 +10,7 @@ import { id } from "date-fns/locale";
 import {
   Plane, Users, Luggage, CheckCircle, BedDouble, Package,
   FileText, DollarSign, ArrowRight, AlertCircle, TrendingUp,
-  Calendar, Clock
+  Calendar, Clock, ListChecks, Flag, QrCode
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/format";
@@ -43,7 +43,6 @@ export default function OperationalDashboard() {
     queryKey: ['operational-stats'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
-
       const [
         { count: todayCheckins },
         { count: luggageCount },
@@ -77,11 +76,10 @@ export default function OperationalDashboard() {
 
   const paymentPct = stats ? Math.round((stats.paidBookings / Math.max(stats.totalBookings, 1)) * 100) : 0;
 
-  // Quick links to operational modules with their status
   const moduleCards = [
     {
       title: "Kamar / Rooming",
-      desc: "Penugasan kamar per jamaah",
+      desc: "Penugasan & auto-assign kamar jamaah",
       icon: BedDouble,
       href: "/operational/rooming",
       color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
@@ -99,7 +97,7 @@ export default function OperationalDashboard() {
     },
     {
       title: "Manifest",
-      desc: "Daftar penumpang keberangkatan",
+      desc: "Daftar penumpang + export Excel/PDF",
       icon: Users,
       href: "/operational/manifest",
       color: "bg-green-500/10 text-green-600 dark:text-green-400",
@@ -107,8 +105,8 @@ export default function OperationalDashboard() {
       statLabel: "terdaftar",
     },
     {
-      title: "Luggage",
-      desc: "Pelacakan bagasi jamaah",
+      title: "Luggage Tracking",
+      desc: "Pelacakan & status koper jamaah",
       icon: Luggage,
       href: "/operational/luggage",
       color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
@@ -116,20 +114,47 @@ export default function OperationalDashboard() {
       statLabel: "teregistrasi",
     },
     {
+      title: "Check-in & QR",
+      desc: "Scan QR kamera di setiap checkpoint",
+      icon: QrCode,
+      href: "/operational/checkin",
+      color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+      stat: `${stats?.todayCheckins || 0} hari ini`,
+      statLabel: "check-in",
+    },
+    {
       title: "Generate Dokumen",
       desc: "Surat, invoice & e-ticket jamaah",
       icon: FileText,
-      href: "/admin/documents",
+      href: "/operational/documents",
       color: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-      stat: "Cuti, Paspor",
+      stat: "Surat Cuti",
       statLabel: "Invoice, E-Ticket",
+    },
+    {
+      title: "Checklist Kesiapan",
+      desc: "Pantau status siap per jamaah",
+      icon: ListChecks,
+      href: "/operational/readiness",
+      color: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+      stat: "Bayar · Kamar",
+      statLabel: "Dokumen · Perlengkapan",
+    },
+    {
+      title: "Timeline Perjalanan",
+      desc: "Progress harian selama perjalanan",
+      icon: Flag,
+      href: "/operational/timeline",
+      color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+      stat: "Day-by-day",
+      statLabel: "tracking",
     },
     {
       title: "Keuangan",
       desc: "Status pembayaran per jamaah",
       icon: DollarSign,
       href: "/finance",
-      color: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       stat: `${paymentPct}% lunas`,
       statLabel: `${stats?.paidBookings || 0} dari ${stats?.totalBookings || 0}`,
     },
@@ -142,7 +167,6 @@ export default function OperationalDashboard() {
         <p className="text-muted-foreground">Pantau keberangkatan, kamar, perlengkapan, dokumen, dan keuangan jamaah</p>
       </div>
 
-      {/* ── Quick Stats Row ── */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         {[
           { label: "Check-in Hari Ini", value: stats?.todayCheckins || 0, icon: CheckCircle, color: "text-green-600", bgColor: "bg-green-500/10" },
@@ -166,7 +190,6 @@ export default function OperationalDashboard() {
         ))}
       </div>
 
-      {/* ── Payment Progress ── */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
@@ -193,11 +216,10 @@ export default function OperationalDashboard() {
         </CardContent>
       </Card>
 
-      {/* ── Module Cards ── */}
       <div>
         <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-primary" />
-          Modul Operasional Terintegrasi
+          Modul Operasional
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {moduleCards.map(mod => (
@@ -220,7 +242,6 @@ export default function OperationalDashboard() {
         </div>
       </div>
 
-      {/* ── Upcoming Departures ── */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -283,7 +304,12 @@ export default function OperationalDashboard() {
                           <Clock className="h-3 w-3" />
                           {daysLeft > 0 ? `${daysLeft}h lagi` : daysLeft === 0 ? 'Hari ini' : 'Sudah berangkat'}
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-wrap justify-end">
+                          <Link to={`/operational/readiness?departure=${dep.id}`}>
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1">
+                              <ListChecks className="h-3 w-3" />Siapkan
+                            </Button>
+                          </Link>
                           <Link to={`/operational/rooming?departure=${dep.id}`}>
                             <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1">
                               <BedDouble className="h-3 w-3" />Kamar
