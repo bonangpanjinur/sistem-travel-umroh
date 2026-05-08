@@ -16,7 +16,7 @@ import {
   CalendarDays, AlertCircle, Search, Star, RefreshCcw,
   Navigation, Heart, Shield, HelpCircle, ChevronDown,
   ChevronRight, UserCheck, XCircle, Clock, BellRing,
-  CheckCheck, Siren, X
+  CheckCheck, Siren, X, FileBarChart
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -602,7 +602,12 @@ export default function MuthawifDashboard() {
               </div>
 
               {/* Quick action buttons */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
+                <Button size="sm" variant="outline" className="h-9 text-xs" asChild>
+                  <Link to="/muthawif/laporan-harian">
+                    <FileBarChart className="h-3.5 w-3.5 mr-1.5" /> Laporan Harian
+                  </Link>
+                </Button>
                 <Button size="sm" variant="outline" className="h-9 text-xs" asChild>
                   <Link to="/admin/manifest">
                     <Users className="h-3.5 w-3.5 mr-1.5" /> Manifest

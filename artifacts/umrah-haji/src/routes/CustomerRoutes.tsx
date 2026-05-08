@@ -51,6 +51,7 @@ const JamaahKontrak = lazy(() => import("@/pages/jamaah/JamaahKontrak"));
 
 // Fase 7 — Manajemen Operasional Muthawif
 const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"));
+const MuthawifLaporanHarian = lazy(() => import("@/pages/muthawif/MuthawifLaporanHarian"));
 
 // Fase 8 — Engagement & Gamifikasi Jamaah
 const JamaahBadges = lazy(() => import("@/pages/jamaah/JamaahBadges"));
@@ -155,6 +156,11 @@ export default function CustomerRoutes() {
       <Route path="/muthawif/dashboard" element={
         <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
           <LazyPage><MuthawifDashboard /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/muthawif/laporan-harian" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><MuthawifLaporanHarian /></LazyPage>
         </ProtectedRoute>
       } />
 
