@@ -30,7 +30,7 @@ const AdminMasterData = lazy(() => import("@/pages/admin/AdminMasterData"));
 const AdminLeads = lazy(() => import("@/pages/admin/AdminLeads"));
 const AdminLeadDetail = lazy(() => import("@/pages/admin/AdminLeadDetail"));
 const AdminLeadAnalytics = lazy(() => import("@/pages/admin/AdminLeadAnalytics"));
-const AdminRoomAssignments = lazy(() => import("@/pages/admin/AdminRoomAssignments"));
+const AdminRoomAssignments = lazy(() => import("@/pages/admin/AdminRoomAssignmentsImproved"));
 const AdminDepartures = lazy(() => import("@/pages/admin/AdminDepartures"));
 const AdminDepartureDetail = lazy(() => import("@/pages/admin/AdminDepartureDetail"));
 const AdminSavingsPlans = lazy(() => import("@/pages/admin/AdminSavingsPlans"));
@@ -57,7 +57,9 @@ const AdminDocumentGenerator = lazy(() => import("@/pages/admin/AdminDocumentGen
 const AdminScheduledReports = lazy(() => import("@/pages/admin/AdminScheduledReports"));
 const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
 const AdminBanners = lazy(() => import("@/pages/admin/AdminBanners"));
-
+const AdminEquipmentMaster = lazy(() => import("@/pages/admin/AdminEquipmentMaster"));
+const AdminEquipmentSettings = lazy(() => import("@/pages/admin/AdminEquipmentSettings"));
+const AdminStockOpname = lazy(() => import("@/pages/admin/AdminStockOpname"));
 
 const AdminLandingPages = lazy(() => import("@/pages/admin/AdminLandingPages"));
 const AdminLandingPageEditor = lazy(() => import("@/pages/admin/AdminLandingPageEditor"));
@@ -143,6 +145,9 @@ export default function AdminRoutes() {
       <Route path="bookings/create" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookingCreate /></P>} />
       <Route path="bookings/:id" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookingDetail /></P>} />
       <Route path="equipment" element={<P k={PERMISSIONS.EQUIPMENT}><EquipmentPage /></P>} />
+      <Route path="equipment-master" element={<P k={PERMISSIONS.EQUIPMENT_MASTER}><AdminEquipmentMaster /></P>} />
+      <Route path="equipment-settings" element={<P k={PERMISSIONS.EQUIPMENT_SETTINGS}><AdminEquipmentSettings /></P>} />
+      <Route path="stock-opname" element={<P k={PERMISSIONS.STOCK_OPNAME}><AdminStockOpname /></P>} />
       <Route path="itinerary-templates" element={<P k={PERMISSIONS.ITINERARY_TEMPLATES}><AdminItineraryTemplates /></P>} />
       <Route path="savings" element={<P k={PERMISSIONS.SAVINGS}><AdminSavingsPlans /></P>} />
       <Route path="room-assignments" element={<P k={PERMISSIONS.ROOM_ASSIGNMENTS}><AdminRoomAssignments /></P>} />

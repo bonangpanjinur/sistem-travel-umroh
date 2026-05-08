@@ -33,6 +33,9 @@ export const PERMISSIONS = {
   MANASIK: 'manasik',
   ITINERARY_TEMPLATES: 'itinerary-templates',
   EQUIPMENT: 'equipment',
+  EQUIPMENT_MASTER: 'equipment-master',
+  EQUIPMENT_SETTINGS: 'equipment-settings',
+  STOCK_OPNAME: 'stock-opname',
 
   // Keuangan
   PAYMENTS: 'payments',

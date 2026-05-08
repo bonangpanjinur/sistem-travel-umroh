@@ -7,7 +7,7 @@ const AgentLayout = lazy(() => import("@/pages/agent/AgentLayout"));
 const AgentDashboard = lazy(() => import("@/pages/agent/AgentDashboard"));
 const AgentRegister = lazy(() => import("@/pages/agent/AgentRegister"));
 const AgentRegisterGroup = lazy(() => import("@/pages/agent/AgentRegisterGroup"));
-const AgentJamaah = lazy(() => import("@/pages/agent/AgentJamaah"));
+const AgentJamaah = lazy(() => import("@/pages/agent/AgentJamaahEnhanced"));
 const AgentCommissions = lazy(() => import("@/pages/agent/AgentCommissions"));
 const AgentPackages = lazy(() => import("@/pages/agent/AgentPackages"));
 const AgentWallet = lazy(() => import("@/pages/agent/AgentWallet"));

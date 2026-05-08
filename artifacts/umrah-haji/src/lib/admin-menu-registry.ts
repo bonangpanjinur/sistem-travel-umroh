@@ -47,6 +47,9 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'manasik',             label: 'Manasik',               path: '/admin/manasik',              icon: 'BookMarked',      group_name: 'Keberangkatan',      sort_order: 404, required_permission: PERMISSIONS.MANASIK },
   { key: 'itinerary-templates', label: 'Template Itinerary',    path: '/admin/itinerary-templates',  icon: 'ListOrdered',     group_name: 'Keberangkatan',      sort_order: 405, required_permission: PERMISSIONS.ITINERARY_TEMPLATES },
   { key: 'equipment',           label: 'Perlengkapan',          path: '/admin/equipment',            icon: 'Backpack',        group_name: 'Keberangkatan',      sort_order: 406, required_permission: PERMISSIONS.EQUIPMENT },
+  { key: 'equipment-master',    label: 'Master Perlengkapan',   path: '/admin/equipment-master',     icon: 'PackageOpen',     group_name: 'Keberangkatan',      sort_order: 407, required_permission: PERMISSIONS.EQUIPMENT_MASTER },
+  { key: 'equipment-settings',  label: 'Setting Perlengkapan',  path: '/admin/equipment-settings',   icon: 'Settings2',       group_name: 'Keberangkatan',      sort_order: 408, required_permission: PERMISSIONS.EQUIPMENT_SETTINGS },
+  { key: 'stock-opname',        label: 'Stock Opname',          path: '/admin/stock-opname',         icon: 'ClipboardCheck',  group_name: 'Keberangkatan',      sort_order: 409, required_permission: PERMISSIONS.STOCK_OPNAME },
 
   // ── Keuangan (500s) ───────────────────────────────────────────────────────
   { key: 'payments',            label: 'Pembayaran',            path: '/admin/payments',             icon: 'CreditCard',      group_name: 'Keuangan',           sort_order: 501, required_permission: PERMISSIONS.PAYMENTS },
@@ -134,7 +137,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   branch_manager: [
     'dashboard', 'analytics',
     'leads', 'bookings', 'packages', 'coupons', 'banners',
-    'departures', 'room-assignments', 'equipment', 'haji', 'manasik',
+    'departures', 'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
     'payments', 'finance-cash', 'savings', 'reports',
     'customers', 'agents', 'branches', 'visa',
     'document-verification', 'document-types',
@@ -165,7 +168,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   operational: [
     'dashboard',
-    'departures', 'room-assignments', 'equipment', 'haji', 'manasik', 'itinerary-templates',
+    'departures', 'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik', 'itinerary-templates',
     'customers', 'bookings',
     'document-verification', 'documents-generator',
     'visa',
@@ -173,7 +176,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   equipment: [
     'dashboard',
-    'equipment',
+    'equipment', 'equipment-master', 'equipment-settings', 'stock-opname',
     'departures',
     'customers',
   ],
