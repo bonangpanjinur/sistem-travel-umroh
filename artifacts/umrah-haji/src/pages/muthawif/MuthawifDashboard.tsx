@@ -16,12 +16,12 @@ import {
   CalendarDays, AlertCircle, Search, Star, RefreshCcw,
   Navigation, Heart, Shield, HelpCircle, ChevronDown,
   ChevronRight, UserCheck, XCircle, Clock, BellRing,
-  CheckCheck, Siren, X, FileBarChart
+  CheckCheck, Siren, X, FileBarChart, Hash
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -68,6 +68,375 @@ function groupByRoomType(passengers: any[]): Record<string, any[]> {
     grouped[key].push(p);
   }
   return grouped;
+}
+
+// ─── GlobalSearch ─────────────────────────────────────────────────────────────
+
+const RECENT_KEY = "muthawif_recent_searches";
+const MAX_RECENT  = 5;
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
+interface SearchResult {
+  customerId: string;
+  name: string;
+  phone: string | null;
+  gender: string | null;
+  bookingCode: string | null;
+  bookingStatus: string | null;
+  packageName: string | null;
+  departureDate: string | null;
+  departureStatus: string | null;
+}
+
+function GlobalSearch({ muthawifId }: { muthawifId: string | undefined }) {
+  const navigate = useNavigate();
+  const [open, setOpen]     = useState(false);
+  const [term, setTerm]     = useState("");
+  const [cursor, setCursor] = useState(0);
+  const inputRef            = useRef<HTMLInputElement>(null);
+  const listRef             = useRef<HTMLDivElement>(null);
+  const debounced           = useDebounce(term.trim(), 280);
+
+  // Recent searches from localStorage
+  const [recent, setRecent] = useState<SearchResult[]>(() => {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); }
+    catch { return []; }
+  });
+
+  const saveRecent = useCallback((item: SearchResult) => {
+    setRecent(prev => {
+      const next = [item, ...prev.filter(r => r.customerId !== item.customerId)].slice(0, MAX_RECENT);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setOpen(o => !o);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (open) {
+      setCursor(0);
+      setTerm("");
+      setTimeout(() => inputRef.current?.focus(), 60);
+    }
+  }, [open]);
+
+  // Supabase search query — searches across ALL departures of this muthawif
+  const { data: results = [], isFetching } = useQuery<SearchResult[]>({
+    queryKey: ["muthawif-global-search", muthawifId, debounced],
+    enabled: !!muthawifId && debounced.length >= 2,
+    staleTime: 10_000,
+    queryFn: async () => {
+      // First get all departure IDs for this muthawif
+      const { data: deps } = await supabase
+        .from("departures")
+        .select("id, departure_date, status, package:packages(name)")
+        .eq("muthawif_id", muthawifId);
+
+      if (!deps?.length) return [];
+
+      const depIds = deps.map((d: any) => d.id);
+      const depMap: Record<string, any> = {};
+      for (const d of deps) depMap[d.id] = d;
+
+      // Search bookings + customer names
+      const isCode = /^[A-Z0-9-]+$/.test(debounced.toUpperCase());
+      let query = supabase
+        .from("bookings")
+        .select(`
+          id, booking_code, booking_status, departure_id,
+          customer:customers(id, full_name, phone, gender)
+        `)
+        .in("departure_id", depIds)
+        .neq("booking_status", "cancelled")
+        .limit(12);
+
+      if (isCode) {
+        query = query.ilike("booking_code", `%${debounced}%`);
+      } else {
+        // filter by customer name via join — use customer full_name
+        const { data: customers } = await supabase
+          .from("customers")
+          .select("id")
+          .ilike("full_name", `%${debounced}%`)
+          .limit(20);
+
+        if (!customers?.length) return [];
+        const cIds = customers.map((c: any) => c.id);
+        query = query.in("customer_id", cIds);
+      }
+
+      const { data: bookings } = await query;
+      if (!bookings?.length) return [];
+
+      return bookings.map((b: any) => {
+        const dep = depMap[b.departure_id] || {};
+        return {
+          customerId:      b.customer?.id   || "",
+          name:            b.customer?.full_name || "-",
+          phone:           b.customer?.phone,
+          gender:          b.customer?.gender,
+          bookingCode:     b.booking_code,
+          bookingStatus:   b.booking_status,
+          packageName:     dep.package?.name || null,
+          departureDate:   dep.departure_date || null,
+          departureStatus: dep.status || null,
+        } as SearchResult;
+      });
+    },
+  });
+
+  const displayed: SearchResult[] = debounced.length >= 2 ? results : recent;
+  const showingRecent             = debounced.length < 2;
+
+  // Arrow-key + Enter navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!open) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); setCursor(c => Math.min(c + 1, displayed.length - 1)); }
+      if (e.key === "ArrowUp")   { e.preventDefault(); setCursor(c => Math.max(c - 1, 0)); }
+      if (e.key === "Enter" && displayed[cursor]) {
+        e.preventDefault();
+        handleSelect(displayed[cursor]);
+      }
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, cursor, displayed]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    const el = listRef.current?.querySelector(`[data-idx="${cursor}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
+
+  const handleSelect = (item: SearchResult) => {
+    saveRecent(item);
+    setOpen(false);
+    navigate(`/muthawif/jamaah/${item.customerId}`);
+  };
+
+  const statusColor = (s: string | null) => {
+    if (s === "ongoing")   return "bg-emerald-100 text-emerald-800 border-emerald-200";
+    if (s === "scheduled") return "bg-blue-100 text-blue-800 border-blue-200";
+    if (s === "completed") return "bg-gray-100 text-gray-700 border-gray-200";
+    return "bg-muted text-muted-foreground border-border";
+  };
+
+  const statusLabel = (s: string | null) => {
+    if (s === "ongoing")   return "Berlangsung";
+    if (s === "scheduled") return "Terjadwal";
+    if (s === "completed") return "Selesai";
+    return s || "-";
+  };
+
+  return (
+    <>
+      {/* Trigger button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-2 text-xs text-muted-foreground px-2.5 hidden sm:flex"
+        onClick={() => setOpen(true)}
+      >
+        <Search className="h-3.5 w-3.5" />
+        Cari jamaah…
+        <kbd className="ml-1 px-1 py-0.5 text-[10px] bg-muted border rounded font-mono">⌘K</kbd>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 sm:hidden"
+        onClick={() => setOpen(true)}
+      >
+        <Search className="h-4 w-4" />
+      </Button>
+
+      {/* Search modal */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden top-[10vh] translate-y-0 sm:top-[15vh]">
+          {/* Input row */}
+          <div className="flex items-center gap-2 px-4 py-3 border-b">
+            {isFetching
+              ? <RefreshCcw className="h-4 w-4 text-muted-foreground animate-spin shrink-0" />
+              : <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            }
+            <input
+              ref={inputRef}
+              value={term}
+              onChange={e => { setTerm(e.target.value); setCursor(0); }}
+              placeholder="Ketik nama jamaah atau kode booking…"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            {term && (
+              <button onClick={() => setTerm("")} className="text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <kbd
+              className="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] bg-muted border rounded font-mono text-muted-foreground cursor-pointer"
+              onClick={() => setOpen(false)}
+            >
+              Esc
+            </kbd>
+          </div>
+
+          {/* Results */}
+          <div ref={listRef} className="overflow-y-auto max-h-[65vh]">
+
+            {/* Section heading */}
+            {displayed.length > 0 && (
+              <p className="px-4 pt-3 pb-1 text-[10px] uppercase font-semibold tracking-wide text-muted-foreground">
+                {showingRecent ? "Pencarian terakhir" : `${displayed.length} hasil ditemukan`}
+              </p>
+            )}
+
+            {/* No results */}
+            {debounced.length >= 2 && !isFetching && results.length === 0 && (
+              <div className="py-10 text-center">
+                <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground">Tidak ada jamaah yang cocok dengan</p>
+                <p className="text-sm font-medium mt-0.5">"{debounced}"</p>
+              </div>
+            )}
+
+            {/* Loading skeleton */}
+            {isFetching && results.length === 0 && (
+              <div className="p-4 space-y-2">
+                {[1,2,3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
+              </div>
+            )}
+
+            {/* Hint when empty */}
+            {debounced.length < 2 && recent.length === 0 && (
+              <div className="py-10 text-center space-y-1 text-muted-foreground">
+                <Search className="h-8 w-8 mx-auto opacity-25 mb-2" />
+                <p className="text-sm">Ketik minimal 2 huruf untuk mulai mencari</p>
+                <p className="text-xs">Cari berdasarkan nama lengkap atau kode booking</p>
+              </div>
+            )}
+
+            {/* Result items */}
+            {displayed.map((item, idx) => {
+              const isActive = idx === cursor;
+              return (
+                <button
+                  key={`${item.customerId}-${idx}`}
+                  data-idx={idx}
+                  onClick={() => handleSelect(item)}
+                  onMouseEnter={() => setCursor(idx)}
+                  className={`w-full text-left flex items-center gap-3 px-4 py-3 transition-colors ${
+                    isActive ? "bg-primary/8 border-l-2 border-l-primary" : "hover:bg-muted/50 border-l-2 border-l-transparent"
+                  }`}
+                >
+                  {/* Avatar circle */}
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                    item.gender === "female" || item.gender === "perempuan"
+                      ? "bg-pink-100 text-pink-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}>
+                    {item.name.charAt(0).toUpperCase()}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-medium truncate max-w-[160px]">{item.name}</span>
+                      {item.gender && (
+                        <Badge variant="outline" className={`text-[9px] px-1 py-0 shrink-0 ${
+                          item.gender === "female" || item.gender === "perempuan"
+                            ? "border-pink-300 text-pink-700"
+                            : "border-blue-300 text-blue-700"
+                        }`}>
+                          {item.gender === "female" || item.gender === "perempuan" ? "P" : "L"}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {item.bookingCode && (
+                        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-mono">
+                          <Hash className="h-2.5 w-2.5" />{item.bookingCode}
+                        </span>
+                      )}
+                      {item.packageName && (
+                        <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                          {item.packageName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: departure badge */}
+                  <div className="shrink-0 text-right space-y-1">
+                    {item.departureStatus && (
+                      <Badge className={`text-[9px] border px-1.5 py-0 ${statusColor(item.departureStatus)}`}>
+                        {statusLabel(item.departureStatus)}
+                      </Badge>
+                    )}
+                    {item.departureDate && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(parseISO(item.departureDate), "MMM yyyy", { locale: idLocale })}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Clear recent */}
+            {showingRecent && recent.length > 0 && (
+              <div className="px-4 py-3 border-t">
+                <button
+                  onClick={() => {
+                    setRecent([]);
+                    localStorage.removeItem(RECENT_KEY);
+                  }}
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Hapus riwayat pencarian
+                </button>
+              </div>
+            )}
+
+            {/* Footer hint */}
+            <div className="px-4 py-2.5 border-t bg-muted/30 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1 border rounded font-mono bg-white text-[9px]">↑↓</kbd> navigasi
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1 border rounded font-mono bg-white text-[9px]">↵</kbd> buka profil
+                </span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">Semua keberangkatan</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 // ─── SOS Banner ──────────────────────────────────────────────────────────────
@@ -511,14 +880,15 @@ export default function MuthawifDashboard() {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <div className="bg-card border-b px-4 py-4 sticky top-0 z-20">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold">Dashboard Muthawif</h1>
-            <p className="text-xs text-muted-foreground">{muthawif?.name || user?.email || "..."}</p>
+      <div className="bg-card border-b px-4 py-3 sticky top-0 z-20">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-base font-bold leading-tight">Dashboard Muthawif</h1>
+            <p className="text-xs text-muted-foreground truncate">{muthawif?.name || user?.email || "..."}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={muthawif?.is_active ? "default" : "secondary"} className="text-[10px]">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <GlobalSearch muthawifId={muthawif?.id} />
+            <Badge variant={muthawif?.is_active ? "default" : "secondary"} className="text-[10px] hidden sm:inline-flex">
               {muthawif?.is_active ? "Aktif" : "Nonaktif"}
             </Badge>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
