@@ -15,9 +15,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShieldCheck, Menu, BarChart3, AlertCircle, KeyRound, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Menu, BarChart3, AlertCircle, KeyRound, RefreshCw, Grid3X3 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { RoleMenuMapper } from '@/components/admin/RoleMenuMapper';
+import { RolePermissionMatrix } from '@/components/admin/RolePermissionMatrix';
 
 // Lazy-load the heavy role permission editor + menu sync manager so the
 // consolidated RBAC page stays snappy on first paint.
@@ -63,11 +64,16 @@ export default function AdminRoleManagementEnhanced() {
         </p>
       </div>
 
-      <Tabs defaultValue="permissions" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+      <Tabs defaultValue="matrix" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
+          <TabsTrigger value="matrix" className="flex items-center gap-2">
+            <Grid3X3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Matriks Visual</span>
+            <span className="sm:hidden">Matriks</span>
+          </TabsTrigger>
           <TabsTrigger value="permissions" className="flex items-center gap-2">
             <KeyRound className="h-4 w-4" />
-            <span className="hidden sm:inline">Izin Role</span>
+            <span className="hidden sm:inline">Izin per Role</span>
             <span className="sm:hidden">Izin</span>
           </TabsTrigger>
           <TabsTrigger value="menu-mapping" className="flex items-center gap-2">
@@ -91,6 +97,24 @@ export default function AdminRoleManagementEnhanced() {
             <span className="sm:hidden">Info</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab 0: Visual Permission Matrix */}
+        <TabsContent value="matrix" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Grid3X3 className="h-5 w-5 text-primary" />
+                Matriks Permission vs Role
+              </CardTitle>
+              <CardDescription>
+                Tampilan visual seluruh permission dan role dalam satu tabel. Klik sel untuk assign atau revoke permission secara langsung.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RolePermissionMatrix />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab 1: Role Permission Editor (default per role) */}
         <TabsContent value="permissions" className="mt-6">
