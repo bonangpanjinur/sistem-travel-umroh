@@ -26,6 +26,7 @@ import { SOSButton } from "@/components/jamaah/SOSButton";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
 import { useNotifications } from "@/hooks/useNotifications";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -512,7 +513,29 @@ export default function JamaahPortal() {
               <p className="text-xs">Kalk. Zakat</p>
             </Card>
           </Link>
+          {/* Fase 5 — Operasional & Self-Service */}
+          <Link to="/jamaah/checkin">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <QrCode className="h-6 w-6 mx-auto mb-1 text-violet-600" />
+              <p className="text-xs">Check-in</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/bagasi">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Download className="h-6 w-6 mx-auto mb-1 text-cyan-600" />
+              <p className="text-xs">Bagasi</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/kontrak">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <FileText className="h-6 w-6 mx-auto mb-1 text-orange-500" />
+              <p className="text-xs">Kontrak</p>
+            </Card>
+          </Link>
         </div>
+
+        {/* O5: Widget Cuaca Makkah & Madinah */}
+        <CuacaWidget />
 
         {/* Payment Progress */}
         {booking && (

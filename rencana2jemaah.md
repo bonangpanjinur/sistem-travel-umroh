@@ -171,15 +171,16 @@ Diurutkan berdasarkan **dampak langsung ke jamaah selama proses ibadah**:
 | Z4 | **Attachment file** di CustomerSupport | Sedang | ✅ Done — upload maks 3 file (foto/PDF) saat buat tiket |
 | Z5 | **Setting notifikasi & bahasa** di CustomerSettings | Sedang | ✅ Done — tab Preferensi baru: pilih bahasa + toggle 6 jenis notifikasi |
 
-### Fase 5 — Operasional & Self-Service (2-3 hari kerja)
+### Fase 5 — Operasional & Self-Service ✅ SELESAI
+*Diselesaikan: Mei 2026*
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| O1 | **Check-in Mandiri (QR)** | Menengah | 🔴 Belum |
-| O2 | **Info Transportasi / Bus** di itinerary | Menengah | 🔴 Belum |
-| O3 | **Status Bagasi** | Rendah | 🔴 Belum |
-| O4 | **Download Kontrak/Perjanjian** | Rendah | 🔴 Belum |
-| O5 | **Widget Cuaca Makkah & Madinah** | Rendah | 🔴 Belum |
+| O1 | **Check-in Mandiri (QR)** | Menengah | ✅ Done — `/jamaah/checkin`, QR dari booking code, download PNG, progress 5 langkah |
+| O2 | **Info Transportasi / Bus** di itinerary | Menengah | ✅ Done — accordion di JamaahItinerary: jadwal bus, titik jemput, estimasi waktu |
+| O3 | **Status Bagasi** | Rendah | ✅ Done — `/jamaah/bagasi`, timeline 5 tahap, info kuota 32kg, aturan penting |
+| O4 | **Download Kontrak/Perjanjian** | Rendah | ✅ Done — `/jamaah/kontrak`, preview + unduh PDF via jsPDF + fitur cetak |
+| O5 | **Widget Cuaca Makkah & Madinah** | Rendah | ✅ Done — CuacaWidget di beranda jamaah, real-time dari Open-Meteo (bebas API key) |
 
 ---
 
