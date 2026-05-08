@@ -56,6 +56,7 @@ import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2"
 import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
+import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
 import { format as dfFormat } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -612,61 +613,17 @@ export default function AdminBookingDetail() {
                 <Users className="h-5 w-5" />
                 Daftar Jamaah (Manifest)
               </h2>
-              <Badge variant="secondary" className="font-bold">{passengers?.length || 0} Terdaftar</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="font-bold">{passengers?.length || 0} Terdaftar</Badge>
+              </div>
             </div>
-            <CardContent className="p-0">
-              {!passengers || passengers.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-muted-foreground">Belum ada daftar jamaah</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">Nama Lengkap</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">Hubungan</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">No. Paspor</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider text-right">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {passengers.map((p) => (
-                        <TableRow key={p.id} className="hover:bg-muted/10 transition-colors">
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-bold text-sm">{p.customer?.full_name}</span>
-                              <span className="text-[10px] text-muted-foreground uppercase font-medium">{p.customer?.gender === 'male' ? 'Laki-laki' : 'Perempuan'}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize text-[10px] font-bold bg-muted/50">
-                              {(p as any).relationship || 'Diri Sendiri'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{p.customer?.passport_number || '-'}</TableCell>
-                          <TableCell className="text-right">
-                            <EditCustomerDialog 
-                              customer={p.customer}
-                              onSuccess={() => {
-                                queryClient.invalidateQueries({ queryKey: ['booking-passengers', id] });
-                                queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
-                              }}
-                              trigger={
-                                <Button variant="ghost" size="sm" className="h-8 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
-                                  <Pencil className="h-3.5 w-3.5 mr-1" />
-                                  Edit
-                                </Button>
-                              }
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+            <CardContent className="p-0 pt-3">
+              <BulkPassengerExport
+                passengers={passengers || []}
+                booking={booking}
+                companyInfo={companyInfo}
+                bookingId={id}
+              />
             </CardContent>
           </Card>
 
