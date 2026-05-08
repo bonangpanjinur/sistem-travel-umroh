@@ -149,16 +149,16 @@ Diurutkan berdasarkan **dampak langsung ke jamaah selama proses ibadah**:
 | F7 | **Onboarding / Welcome Flow** untuk jamaah baru | Tinggi | ✅ Done — `/jamaah/welcome`, 5-langkah interaktif, 1× saja |
 | F8 | **Checklist Dokumen Required** di JamaahDocuments | Menengah | ✅ Done — checklist visual per dokumen wajib + status verifikasi |
 
-### Fase 3 — Fitur Sosial & Komunitas (5-7 hari kerja)
-*Fitur yang membangun koneksi antar jamaah dan dengan tim:*
+### Fase 3 — Fitur Sosial & Komunitas ✅ SELESAI
+*Diselesaikan: Mei 2026*
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| S1 | **Chat Jamaah ↔ Tim/Muthawif** (real-time via Supabase Realtime) | Tinggi | 🔴 Belum |
-| S2 | **Daftar Teman Seperombongan** | Tinggi | 🔴 Belum |
-| S3 | **Galeri Foto Perjalanan** (upload + lihat bersama) | Menengah | 🔴 Belum |
-| S4 | **Riwayat Perjalanan Alumni** | Menengah | 🔴 Belum |
-| S5 | **Referral dari Portal Jamaah** | Rendah | 🔴 Belum |
+| S1 | **Chat Jamaah ↔ Tim/Muthawif** (real-time via Supabase Realtime) | Tinggi | ✅ Done — `/jamaah/chat`, realtime subscription + polling fallback |
+| S2 | **Daftar Teman Seperombongan** | Tinggi | ✅ Done — `/jamaah/rombongan`, list per departure + kontak WA |
+| S3 | **Galeri Foto Perjalanan** (upload + lihat bersama) | Menengah | ✅ Done — `/jamaah/galeri`, upload ke Supabase Storage + delete + share |
+| S4 | **Riwayat Perjalanan Alumni** | Menengah | ✅ Done — `/jamaah/riwayat-perjalanan`, semua booking + stats alumni |
+| S5 | **Referral dari Portal Jamaah** | Rendah | ✅ Done — `/jamaah/referral`, kode referral + share WA + poin info |
 
 ### Fase 4 — Fitur Finansial & Spiritual (3-4 hari kerja)
 

@@ -474,6 +474,37 @@ export default function JamaahPortal() {
               </Card>
             </Link>
           )}
+          {/* Fase 3 — Fitur Sosial & Komunitas */}
+          <Link to="/jamaah/chat">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Megaphone className="h-6 w-6 mx-auto mb-1 text-blue-500" />
+              <p className="text-xs">Chat</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/rombongan">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Users className="h-6 w-6 mx-auto mb-1 text-indigo-600" />
+              <p className="text-xs">Rombongan</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/galeri">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Camera className="h-6 w-6 mx-auto mb-1 text-pink-500" />
+              <p className="text-xs">Galeri</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/riwayat-perjalanan">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Star className="h-6 w-6 mx-auto mb-1 text-amber-500" />
+              <p className="text-xs">Riwayat</p>
+            </Card>
+          </Link>
+          <Link to="/jamaah/referral">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Package className="h-6 w-6 mx-auto mb-1 text-green-600" />
+              <p className="text-xs">Referral</p>
+            </Card>
+          </Link>
         </div>
 
         {/* Payment Progress */}

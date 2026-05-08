@@ -34,6 +34,13 @@ const JamaahInvoice = lazy(() => import("@/pages/jamaah/JamaahInvoice"));
 const JamaahKalkulatorKurs = lazy(() => import("@/pages/jamaah/JamaahKalkulatorKurs"));
 const JamaahWelcome = lazy(() => import("@/pages/jamaah/JamaahWelcome"));
 
+// Fase 3 — Fitur Sosial & Komunitas
+const JamaahChat = lazy(() => import("@/pages/jamaah/JamaahChat"));
+const JamaahRombongan = lazy(() => import("@/pages/jamaah/JamaahRombongan"));
+const JamaahGaleri = lazy(() => import("@/pages/jamaah/JamaahGaleri"));
+const JamaahRiwayatPerjalanan = lazy(() => import("@/pages/jamaah/JamaahRiwayatPerjalanan"));
+const JamaahReferral = lazy(() => import("@/pages/jamaah/JamaahReferral"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -89,6 +96,13 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/invoice/:bookingId" element={<CustomerRoute><JamaahInvoice /></CustomerRoute>} />
       <Route path="/jamaah/kalkulator-kurs" element={<CustomerRoute><JamaahKalkulatorKurs /></CustomerRoute>} />
       <Route path="/jamaah/welcome" element={<CustomerRoute><JamaahWelcome /></CustomerRoute>} />
+
+      {/* Fase 3 — Fitur Sosial & Komunitas */}
+      <Route path="/jamaah/chat" element={<CustomerRoute><JamaahChat /></CustomerRoute>} />
+      <Route path="/jamaah/rombongan" element={<CustomerRoute><JamaahRombongan /></CustomerRoute>} />
+      <Route path="/jamaah/galeri" element={<CustomerRoute><JamaahGaleri /></CustomerRoute>} />
+      <Route path="/jamaah/riwayat-perjalanan" element={<CustomerRoute><JamaahRiwayatPerjalanan /></CustomerRoute>} />
+      <Route path="/jamaah/referral" element={<CustomerRoute><JamaahReferral /></CustomerRoute>} />
 
       {/* Booking — setiap user terautentikasi bisa booking */}
       <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />
