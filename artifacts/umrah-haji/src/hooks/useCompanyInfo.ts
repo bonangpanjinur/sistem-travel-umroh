@@ -93,50 +93,83 @@ export function useCompanyInfo() {
   const companyLogoUrl = unwrap(m?.get("company_logo_url"));
   const logoUrl = companyLogoUrl || websiteSettings?.logo_url || undefined;
 
-  // Preference: pdf_global_* > legacy keys
+  // Priority: pdf_global_* (new consolidated keys) > legacy keys > defaults
+  // This ensures backward compatibility while using the new consolidated settings
   const documentSettings: DocumentSettings = {
-    letterhead_show_logo: unwrapBoolean(m?.get("pdf_global_show_logo") ?? m?.get("letterhead_show_logo"), true),
-    letterhead_show_website: unwrapBoolean(m?.get("pdf_global_show_website") ?? m?.get("letterhead_show_website"), true),
+    // Letterhead settings - use new global keys with fallback to legacy
+    letterhead_show_logo: unwrapBoolean(
+      m?.get("pdf_global_show_logo") ?? m?.get("letterhead_show_logo"), 
+      true
+    ),
+    letterhead_show_website: unwrapBoolean(
+      m?.get("pdf_global_show_website") ?? m?.get("letterhead_show_website"), 
+      true
+    ),
+    
+    // Invoice numbering
     invoice_number_prefix: unwrap(m?.get("invoice_number_prefix")) || "INV",
     invoice_number_format: unwrap(m?.get("invoice_number_format")) || "YYYY-MM-{SEQ}",
+    
+    // Invoice content visibility
     invoice_show_bank_info: unwrapBoolean(m?.get("invoice_show_bank_info"), true),
     invoice_show_notes_section: unwrapBoolean(m?.get("invoice_show_notes_section"), true),
     invoice_show_package_info: unwrapBoolean(m?.get("invoice_show_package_info"), true),
     invoice_watermark_paid: unwrapBoolean(m?.get("invoice_watermark_paid"), true),
-    eticket_header_color: unwrap(m?.get("eticket_header_color")) || "#16a34a",
+    
+    // Colors - use new global keys with fallback to legacy document-specific keys
+    eticket_header_color: unwrap(m?.get("pdf_global_accent_color") ?? m?.get("eticket_header_color")) || "#16a34a",
     certificate_border_color: unwrap(m?.get("certificate_border_color")) || "#daa520",
     certificate_text_color: unwrap(m?.get("certificate_text_color")) || "#165634",
-    document_footer_show_timestamp: unwrapBoolean(m?.get("pdf_global_show_timestamp") ?? m?.get("document_footer_show_timestamp"), true),
-    document_footer_show_page_number: unwrapBoolean(m?.get("pdf_global_show_page_number") ?? m?.get("document_footer_show_page_number"), true),
-    invoice_accent_color: unwrap(m?.get("pdf_global_accent_color") ?? m?.get("invoice_accent_color")) || "#16a34a",
-    pdf_default_font: (unwrap(m?.get("pdf_global_font_family") ?? m?.get("pdf_default_font")) as any) || "helvetica",
+    
+    // Footer metadata - use new global keys with fallback to legacy
+    document_footer_show_timestamp: unwrapBoolean(
+      m?.get("pdf_global_show_timestamp") ?? m?.get("document_footer_show_timestamp"), 
+      true
+    ),
+    document_footer_show_page_number: unwrapBoolean(
+      m?.get("pdf_global_show_page_number") ?? m?.get("document_footer_show_page_number"), 
+      true
+    ),
+    
+    // Accent color - primary brand color used across documents
+    invoice_accent_color: unwrap(
+      m?.get("pdf_global_accent_color") ?? m?.get("invoice_accent_color")
+    ) || "#16a34a",
+    
+    // Font - use new global key with fallback to legacy
+    pdf_default_font: (unwrap(
+      m?.get("pdf_global_font_family") ?? m?.get("pdf_default_font")
+    ) as any) || "helvetica",
   };
 
   // Fetch and parse invoice layout with priority logic (Specific > Global)
+  // This implements the override hierarchy: per-document settings > global settings > defaults
   const invoiceLayoutRaw = m?.get("document_layout_invoice");
   let invoiceLayout: DocumentLayout | undefined = undefined;
+  
   if (invoiceLayoutRaw) {
     try {
       const parsed = typeof invoiceLayoutRaw === 'string' ? JSON.parse(invoiceLayoutRaw) : invoiceLayoutRaw;
       
-      // Apply priority: Override if defined, else use global
+      // Apply priority: Document-specific override (if defined) > Global setting > Default
       invoiceLayout = {
-        show_logo: parsed.show_logo ?? documentSettings.letterhead_show_logo,
-        show_header: parsed.show_header ?? true,
-        show_company_info: parsed.show_company_info ?? true,
-        show_date: parsed.show_date ?? true,
-        show_signature: parsed.show_signature ?? true,
-        show_stamp: parsed.show_stamp ?? true,
-        show_bank_info: parsed.show_bank_info ?? documentSettings.invoice_show_bank_info,
+        show_logo: parsed.show_logo !== undefined ? parsed.show_logo : documentSettings.letterhead_show_logo,
+        show_header: parsed.show_header !== undefined ? parsed.show_header : true,
+        show_company_info: parsed.show_company_info !== undefined ? parsed.show_company_info : true,
+        show_date: parsed.show_date !== undefined ? parsed.show_date : true,
+        show_signature: parsed.show_signature !== undefined ? parsed.show_signature : true,
+        show_stamp: parsed.show_stamp !== undefined ? parsed.show_stamp : true,
+        show_bank_info: parsed.show_bank_info !== undefined ? parsed.show_bank_info : documentSettings.invoice_show_bank_info,
         footer_text: parsed.footer_text ?? "",
-        page_orientation: parsed.page_orientation ?? (documentSettings.pdf_default_font === 'times' ? 'portrait' : 'portrait'),
+        page_orientation: parsed.page_orientation ?? "portrait",
       };
     } catch (e) {
       console.error("Failed to parse invoice layout", e);
+      invoiceLayout = undefined;
     }
   }
 
-  // If no specific layout, use global defaults
+  // If no specific layout was parsed, use global defaults
   if (!invoiceLayout) {
     invoiceLayout = {
       show_logo: documentSettings.letterhead_show_logo,
@@ -147,7 +180,7 @@ export function useCompanyInfo() {
       show_stamp: true,
       show_bank_info: documentSettings.invoice_show_bank_info,
       footer_text: "",
-      page_orientation: 'portrait',
+      page_orientation: "portrait",
     };
   }
 

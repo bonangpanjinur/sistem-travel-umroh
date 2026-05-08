@@ -67,20 +67,30 @@ export function DocumentLayoutEditor() {
   const handleToggle = (key: keyof DocumentLayout) => {
     setLayouts(prev => {
       const currentVal = prev[activeDocumentType][key];
-      // If currently undefined, we toggle based on global default (inverse of global)
-      // But for simplicity in UI, if it's undefined, we treat it as "not set", 
-      // when user clicks, we set it to the opposite of what's currently resolved.
+      // If currently undefined, toggle based on global default
+      // If already overridden, toggle the override value
       
-      const resolvedVal = getResolvedValue(key);
-      const newVal = !resolvedVal;
-
-      return {
-        ...prev,
-        [activeDocumentType]: {
-          ...prev[activeDocumentType],
-          [key]: newVal,
-        },
-      };
+      if (currentVal === undefined) {
+        // Not overridden yet, set override to opposite of global
+        const resolvedVal = getResolvedValue(key);
+        const newVal = !resolvedVal;
+        return {
+          ...prev,
+          [activeDocumentType]: {
+            ...prev[activeDocumentType],
+            [key]: newVal,
+          },
+        };
+      } else {
+        // Already overridden, toggle the override value
+        return {
+          ...prev,
+          [activeDocumentType]: {
+            ...prev[activeDocumentType],
+            [key]: !currentVal,
+          },
+        };
+      }
     });
   };
 
@@ -112,6 +122,8 @@ export function DocumentLayoutEditor() {
         { key: `document_layout_${activeDocumentType}`, value: JSON.stringify(layouts[activeDocumentType]) },
       ];
       await updateMultipleSettings(settings);
+      // Show success feedback
+      console.log(`Layout untuk ${documentTypeLabels[activeDocumentType]} berhasil disimpan`);
     } finally {
       setIsSaving(false);
     }
@@ -124,10 +136,8 @@ export function DocumentLayoutEditor() {
 
     // Fallback to global settings from hook
     switch (key) {
-      case 'show_logo': return documentSettings.letterhead_show_logo;
-      case 'page_orientation': 
-        if (activeDocumentType === 'certificate') return 'landscape'; // Default hardcoded for certificate
-        return documentSettings.pdf_default_font === 'times' ? 'portrait' : 'portrait'; // Placeholder logic
+      case 'show_logo': return documentSettings.letterhead_show_logo ?? true;
+      case 'page_orientation': return 'portrait'; // Default to portrait
       case 'show_header': return true;
       case 'show_company_info': return true;
       case 'show_date': return true;
@@ -157,49 +167,58 @@ export function DocumentLayoutEditor() {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <LayoutTemplate className="h-5 w-5" />
-            Layout & Override Dokumen
+            Layout & Override Per Dokumen
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Gunakan pengaturan di bawah ini untuk menimpa (override) pengaturan global khusus untuk dokumen ini.
+            Kustomisasi tampilan spesifik untuk setiap jenis dokumen. Pengaturan yang tidak diisi akan menggunakan pengaturan global.
           </p>
         </div>
-        <Button onClick={handleSave} disabled={isSaving || isUpdating}>
+        <Button onClick={handleSave} disabled={isSaving || isUpdating} className="gap-2">
           {isSaving || isUpdating ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Printer className="h-4 w-4 mr-2" />
+            <Settings2 className="h-4 w-4" />
           )}
-          Simpan Layout {documentTypeLabels[activeDocumentType]}
+          Simpan {documentTypeLabels[activeDocumentType]}
         </Button>
       </div>
 
       {/* Document Type Selection */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {(Object.keys(documentTypeLabels) as DocumentType[]).map((type) => (
-          <Card
-            key={type}
-            className={`cursor-pointer transition-all hover:shadow-md ${
-              activeDocumentType === type
-                ? 'ring-2 ring-primary border-primary'
-                : 'hover:border-primary/50'
-            }`}
-            onClick={() => setActiveDocumentType(type)}
-          >
-            <CardContent className="p-4 text-center">
-              <div className="mb-2">
-                {type === 'invoice' && <CreditCard className="h-6 w-6 mx-auto text-primary" />}
-                {type === 'passport_letter' && <ShieldPlus className="h-6 w-6 mx-auto text-primary" />}
-                {type === 'leave_letter' && <FileCheck className="h-6 w-6 mx-auto text-primary" />}
-                {type === 'certificate' && <Award className="h-6 w-6 mx-auto text-primary" />}
-                {type === 'general_letter' && <Mail className="h-6 w-6 mx-auto text-primary" />}
-              </div>
-              <p className="font-medium text-sm">{documentTypeLabels[type]}</p>
-              <Badge variant={Object.keys(layouts[type]).length > 0 ? "default" : "secondary"} className="mt-1 text-[10px]">
-                {Object.keys(layouts[type]).length} Override
-              </Badge>
-            </CardContent>
-          </Card>
-        ))}
+        {(Object.keys(documentTypeLabels) as DocumentType[]).map((type) => {
+          const overrideCount = Object.keys(layouts[type]).length;
+          return (
+            <Card
+              key={type}
+              className={`cursor-pointer transition-all hover:shadow-md ${
+                activeDocumentType === type
+                  ? 'ring-2 ring-primary border-primary bg-primary/5'
+                  : 'hover:border-primary/50 hover:shadow-sm'
+              }`}
+              onClick={() => setActiveDocumentType(type)}
+            >
+              <CardContent className="p-4 text-center">
+                <div className="mb-2">
+                  {type === 'invoice' && <CreditCard className="h-6 w-6 mx-auto text-primary" />}
+                  {type === 'passport_letter' && <ShieldPlus className="h-6 w-6 mx-auto text-primary" />}
+                  {type === 'leave_letter' && <FileCheck className="h-6 w-6 mx-auto text-primary" />}
+                  {type === 'certificate' && <Award className="h-6 w-6 mx-auto text-primary" />}
+                  {type === 'general_letter' && <Mail className="h-6 w-6 mx-auto text-primary" />}
+                </div>
+                <p className="font-medium text-sm">{documentTypeLabels[type]}</p>
+                {overrideCount > 0 ? (
+                  <Badge className="mt-1 text-[10px] font-semibold bg-primary/20 text-primary">
+                    {overrideCount} Override
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="mt-1 text-[10px] opacity-60">
+                    Global
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -379,18 +398,32 @@ function FormToggle({
   onReset: () => void;
 }) {
   return (
-    <div className={`flex items-center justify-between rounded-lg border p-3 transition-all ${isOverridden ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/10' : 'opacity-80'}`}>
+    <div className={`flex items-center justify-between rounded-lg border p-3 transition-all ${
+      isOverridden 
+        ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' 
+        : 'border-muted hover:border-muted-foreground/30 opacity-75 hover:opacity-100'
+    }`}>
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <p className="font-medium text-sm">{label}</p>
-          {isOverridden && <Badge className="h-4 px-1 text-[8px] uppercase">Override</Badge>}
+          {isOverridden && (
+            <Badge className="h-4 px-1.5 text-[8px] uppercase font-semibold bg-primary/20 text-primary hover:bg-primary/30">
+              Override
+            </Badge>
+          )}
         </div>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {isOverridden && (
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={onReset}>
-            <Loader2 className="h-3 w-3" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10" 
+            onClick={onReset}
+            title="Reset ke pengaturan global"
+          >
+            ✕ Reset
           </Button>
         )}
         <Switch checked={checked} onCheckedChange={onChange} />
@@ -412,7 +445,8 @@ function DocumentPreview({ type, layout, company, documentSettings, getResolvedV
   const aspectRatio = isLandscape ? 'aspect-[1.4/1]' : 'aspect-[0.7/1]';
   
   // Get accent color from settings (Priority: Specific > Global)
-  const accentColor = documentSettings.invoice_accent_color || '#16a34a';
+  // Use pdf_global_accent_color if available, fallback to invoice_accent_color
+  const accentColor = documentSettings.pdf_global_accent_color || documentSettings.invoice_accent_color || '#16a34a';
   
   // Helper to convert hex to RGB
   const hexToRgb = (hex: string) => {
@@ -434,21 +468,21 @@ function DocumentPreview({ type, layout, company, documentSettings, getResolvedV
             <img 
               src={company.logo} 
               alt="Logo" 
-              className="h-6 w-6 object-contain rounded"
+              className="h-6 w-6 object-contain rounded flex-shrink-0"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
             />
           )}
           {getResolvedValue('show_logo') && !company?.logo && (
-            <div className="h-6 w-6 bg-white/20 rounded flex items-center justify-center">
+            <div className="h-6 w-6 bg-white/20 rounded flex items-center justify-center flex-shrink-0">
               <FileText className="h-4 w-4" />
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold truncate">{company?.name || 'Company Name'}</div>
+            <div className="text-xs font-bold truncate">{company?.name || 'Nama Perusahaan'}</div>
             {getResolvedValue('show_company_info') && (
-              <div className="text-[10px] opacity-90 truncate">{company?.address || 'Address'}</div>
+              <div className="text-[10px] opacity-90 truncate">{company?.address || 'Alamat Perusahaan'}</div>
             )}
           </div>
         </div>
@@ -478,24 +512,28 @@ function DocumentPreview({ type, layout, company, documentSettings, getResolvedV
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-muted-foreground/20 flex items-end justify-between text-[8px] text-muted-foreground/60">
         <div className="max-w-[60%] truncate">
-          {getResolvedValue('footer_text') || 'Footer dokumen'}
+          {getResolvedValue('footer_text') ? (
+            <span className="font-medium">{getResolvedValue('footer_text')}</span>
+          ) : (
+            <span className="italic opacity-50">Footer dokumen</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {getResolvedValue('show_signature') && (
             <div className="text-center">
               <div className="w-6 h-3 border-b border-muted-foreground/30" />
-              <div className="text-[6px]">Ttd</div>
+              <div className="text-[6px] font-medium">Ttd</div>
             </div>
           )}
           {getResolvedValue('show_stamp') && (
-            <div className="w-4 h-4 border border-dashed border-muted-foreground/30 rounded-full" />
+            <div className="w-4 h-4 border border-dashed border-muted-foreground/30 rounded-full flex items-center justify-center text-[6px]">✓</div>
           )}
         </div>
       </div>
 
       {/* Type Label */}
       <div className="absolute top-1 right-1">
-        <Badge variant="outline" className="text-[10px]">
+        <Badge variant="outline" className="text-[10px] font-semibold">
           {documentTypeLabels[type]}
         </Badge>
       </div>

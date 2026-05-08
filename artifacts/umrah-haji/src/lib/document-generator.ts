@@ -205,8 +205,10 @@ const defaultCompanyInfo: CompanyInfo = {
 };
 
 // Helper to add letterhead with logo support
+// Uses the override hierarchy: Document layout > Global settings > Defaults
 function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
   const layout = company.layout;
+  // If document-specific layout hides header, skip letterhead
   if (layout?.show_header === false) {
     return 15; // Return minimal Y position if header is hidden
   }
@@ -221,7 +223,8 @@ function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
   doc.rect(0, 0, pageWidth, 50, 'F');
   
   // Add logo if available and enabled
-  const showLogo = layout ? layout.show_logo : true;
+  // Priority: Document layout override > Global setting > Default (true)
+  const showLogo = layout?.show_logo !== undefined ? layout.show_logo : true;
   let logoLoaded = false;
   if (showLogo && company.logo) {
     try {
@@ -251,6 +254,7 @@ function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
   doc.text(company.name, logoOffset, 18, { align: 'left' });
   
   // Company details (white text on accent background)
+  // Priority: Document layout override > Global setting > Default (true)
   if (layout?.show_company_info !== false) {
     doc.setFontSize(8.5);
     doc.setFont(doc.getFont().fontName, 'normal');
@@ -275,11 +279,12 @@ function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
 }
 
 // Helper to add footer
+// Uses the override hierarchy: Document layout > Global settings > Defaults
 function addFooter(doc: jsPDF, pageNum: number, totalPages: number, company: CompanyInfo = defaultCompanyInfo) {
   const pageHeight = doc.internal.pageSize.height;
   const pageWidth = doc.internal.pageSize.width;
   const settings = company.settings;
-  const layout = company.layout;
+  const layout = company.layout; // Contains per-document overrides
   
   // Footer line
   doc.setDrawColor(200, 200, 200);
@@ -325,8 +330,14 @@ export async function generateInvoice(
       console.warn('Failed to pre-process logo:', e);
     }
   }
+  
+  // Extract layout and settings
+  // layout contains per-document overrides (from DocumentLayoutEditor)
+  // settings contains global and invoice-specific settings
   const layout = company.layout;
   const settings = company.settings;
+  
+  // Priority: Document layout override > Global setting > Default
   const orientation = layout?.page_orientation || 'portrait';
   const font = settings?.pdf_default_font || 'helvetica';
   
@@ -368,6 +379,7 @@ export async function generateInvoice(
   const rightX = 14 + colW + 10;
   
   // Left: Invoice dates
+  // Priority: Document layout override > Default (true)
   if (layout?.show_date !== false) {
     doc.setFillColor(248, 250, 252);
     doc.rect(leftX, y - 2, colW, 30, 'F');
@@ -464,8 +476,10 @@ export async function generateInvoice(
     doc.setTextColor(0, 0, 0);
   }
 
-  // ── Items Table ──────────────────────────────────────────────────────
-  const formatCurrency = (amount: number) => {
+  // ── Items Table ────────────────────────────────────────────────────
+  // Show bank info if enabled in settings or layout
+  // Priority: Document layout override > Global setting > Default (true)
+  const tableData: any[] = [];ount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   };
 
@@ -574,10 +588,9 @@ export async function generateInvoice(
   }
   
   y = Math.max(y + totH + 8, ty + 12);
-  doc.setTextColor(0, 0, 0);
-  
-  // ── Bank Info ────────────────────────────────────────────────────────
-  const showBank = settings?.invoice_show_bank_info !== false && layout?.show_bank_info !== false;
+  doc.setTextColor(0,  // ── Bank Info ──────────────────────────────────────────────────────
+  // Priority: Document layout override > Global setting > Default (true)
+  if (layout?.show_bank_info !== false && settings?.invoice_show_bank_info !== false && data.bankInfo) { false;
   const bankInfo = data.bankInfo;
   if (showBank && bankInfo) {
     doc.setFillColor(239, 246, 255);
