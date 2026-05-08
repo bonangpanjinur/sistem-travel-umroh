@@ -72,7 +72,7 @@ export default function JamaahReferral() {
   });
 
   const companyName = getSetting("company_name") ?? "Vinstour";
-  const referralCode = customer?.referral_code ?? customer?.id?.slice(0, 8).toUpperCase() ?? "---";
+  const referralCode = (customer as any)?.referral_code ?? customer?.id?.slice(0, 8).toUpperCase() ?? "---";
   const appUrl = window.location.origin;
 
   const referralLink = `${appUrl}/?ref=${referralCode}`;

@@ -24,7 +24,7 @@ function showNotification(title: string, body: string, url = "/", tag?: string) 
   // Prefer Service Worker for better mobile support
   if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
     navigator.serviceWorker.ready
-      .then(reg => reg.showNotification(title, { ...options, vibrate: [300, 150, 300] }))
+      .then(reg => reg.showNotification(title, { ...options, vibrate: [300, 150, 300] } as NotificationOptions))
       .catch(() => {
         // Fallback to direct Notification API
         const n = new Notification(title, options);

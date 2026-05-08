@@ -104,10 +104,10 @@ export default function AdminAbsensiDigital() {
 
   // Build combined list
   const combined = useMemo(() => {
-    return passengers.map((p: any) => {
-      const rec = (attendanceRecords as any[]).find(r => r.customer_id === p.customerId);
+    return (passengers as any[]).map((p: any) => {
+      const rec = (attendanceRecords as any[]).find((r: any) => r.customer_id === p.customerId);
       return { ...p, attendance: rec || null, status: rec?.status as AttendanceStatus | null };
-    }).filter(p => {
+    }).filter((p: any) => {
       if (!search) return true;
       const q = search.toLowerCase();
       return p.fullName.toLowerCase().includes(q) || p.bookingCode?.toLowerCase().includes(q);
@@ -117,10 +117,10 @@ export default function AdminAbsensiDigital() {
   // Summary
   const summary = useMemo(() => {
     const total = combined.length;
-    const hadir = combined.filter(p => p.status === "hadir").length;
-    const absen = combined.filter(p => p.status === "absen").length;
-    const terlambat = combined.filter(p => p.status === "terlambat").length;
-    const izin = combined.filter(p => p.status === "izin").length;
+    const hadir = combined.filter((p: any) => p.status === "hadir").length;
+    const absen = combined.filter((p: any) => p.status === "absen").length;
+    const terlambat = combined.filter((p: any) => p.status === "terlambat").length;
+    const izin = combined.filter((p: any) => p.status === "izin").length;
     const belum = total - hadir - absen - terlambat - izin;
     return { total, hadir, absen, terlambat, izin, belum };
   }, [combined]);
@@ -172,11 +172,11 @@ export default function AdminAbsensiDigital() {
   }
 
   function exportExcel() {
-    const rows = combined.map((p, i) => ({
+    const rows = combined.map((p: any, i: number) => ({
       "No": i + 1,
       "Nama": p.fullName,
       "Kode Booking": p.bookingCode || "-",
-      "Status": p.status ? STATUS_CONFIG[p.status]?.label : "Belum Diisi",
+      "Status": p.status ? STATUS_CONFIG[p.status as AttendanceStatus]?.label : "Belum Diisi",
       "Waktu Checkin": (p.attendance as any)?.checked_at ? format(parseISO((p.attendance as any).checked_at), "HH:mm dd/MM/yyyy") : "-",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -325,8 +325,8 @@ export default function AdminAbsensiDigital() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {combined.map((p, i) => {
-                        const status = p.status;
+                      {combined.map((p: any, i: number) => {
+                        const status = p.status as AttendanceStatus | null;
                         const cfg = status ? STATUS_CONFIG[status] : null;
                         const isUpdating = updatingId === p.customerId;
                         return (

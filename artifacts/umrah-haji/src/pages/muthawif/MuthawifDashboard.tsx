@@ -493,7 +493,6 @@ function SOSPanel({
         queryClient.invalidateQueries({ queryKey: ["muthawif-sos", departureId] });
         toast.error("🚨 SOS BARU! Ada jamaah yang membutuhkan bantuan segera.", {
           duration: 10000,
-          important: true,
         });
         if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
         // Browser / OS notification

@@ -82,7 +82,7 @@ export default function AdminPrediksiSeat() {
 
   const sorted = [...enriched].sort((a, b) => {
     if (sortBy === "risk") {
-      const order = { critical: 0, high: 1, medium: 2, low: 3 };
+      const order: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
       return (order[a.risk] || 0) - (order[b.risk] || 0);
     }
     if (sortBy === "date") return a.daysToDepart - b.daysToDepart;
@@ -198,7 +198,7 @@ export default function AdminPrediksiSeat() {
               </TableHeader>
               <TableBody>
                 {sorted.map((dep: any) => {
-                  const rc = RISK_CONFIG[dep.risk];
+                  const rc = RISK_CONFIG[dep.risk as keyof typeof RISK_CONFIG];
                   return (
                     <TableRow key={dep.id}>
                       <TableCell>

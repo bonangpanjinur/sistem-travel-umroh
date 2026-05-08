@@ -110,7 +110,7 @@ export default function MyBookings() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Tahun</SelectItem>
-                {Array.from(new Set(bookings?.map(b => b.created_at ? new Date(b.created_at).getFullYear().toString() : null).filter(Boolean) ?? [])).sort((a, b) => Number(b) - Number(a)).map(y => (
+                {Array.from(new Set(bookings?.map(b => b.created_at ? new Date(b.created_at).getFullYear().toString() : null).filter((y): y is string => y !== null) ?? [])).sort((a, b) => Number(b) - Number(a)).map(y => (
                   <SelectItem key={y} value={y}>{y}</SelectItem>
                 ))}
               </SelectContent>

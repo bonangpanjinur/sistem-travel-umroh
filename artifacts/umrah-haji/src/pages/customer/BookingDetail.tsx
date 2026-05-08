@@ -568,7 +568,7 @@ export default function BookingDetail() {
                       {payments.map((payment, idx) => {
                         const isVerified = payment.status === 'paid';
                         const isPending = payment.status === 'pending';
-                        const isRejected = payment.status === 'rejected';
+                        const isRejected = (payment.status as string) === 'rejected';
                         return (
                           <div key={payment.id} className="flex gap-3 relative">
                             <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 ${
