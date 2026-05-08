@@ -64,7 +64,7 @@ export default function JamaahReferral() {
       const { data } = await supabase
         .from("customers")
         .select("id")
-        .eq("referred_by", customer.id);
+        .eq("referred_by" as any, customer.id);
       const total = data?.length ?? 0;
       return { total, confirmed: Math.floor(total * 0.8) };
     },

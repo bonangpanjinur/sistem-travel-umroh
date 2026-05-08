@@ -597,11 +597,11 @@ export default function BookingDetail() {
                                 </div>
                                 <div className="text-right flex-shrink-0">
                                   <p className="font-bold text-sm">{formatCurrency(payment.amount)}</p>
-                                  <Badge
-                                    variant={isVerified ? 'default' : isRejected ? 'destructive' : 'secondary'}
+                                    <Badge 
+                                    variant={isVerified ? 'default' : isRejected ? 'destructive' : 'secondary'} 
                                     className="text-[10px] py-0 mt-0.5"
                                   >
-                                    {isVerified ? 'Terverifikasi' : isPending ? 'Menunggu' : 'Ditolak'}
+                                    {isVerified ? 'Terverifikasi' : isPending ? 'Menunggu' : isRejected ? 'Ditolak' : 'Status Tidak Diketahui'}
                                   </Badge>
                                 </div>
                               </div>

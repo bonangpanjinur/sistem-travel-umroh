@@ -25,12 +25,12 @@ interface AlumniBooking {
   departure: {
     departure_date: string;
     return_date: string;
-    package: { name: string; type: string; duration_days: number };
-    hotel_makkah?: { name: string; star_rating: number };
-    hotel_madinah?: { name: string; star_rating: number };
-    airline?: { name: string };
-    muthawif?: { name: string };
-  };
+    package: { name: string; type: string; duration_days: number } | null;
+    hotel_makkah?: { name: string; star_rating: number } | null;
+    hotel_madinah?: { name: string; star_rating: number } | null;
+    airline?: { name: string } | null;
+    muthawif?: { name: string } | null;
+  } | null;
 }
 
 const packageTypeLabel: Record<string, { label: string; color: string; bg: string }> = {
@@ -89,7 +89,13 @@ export default function JamaahRiwayatPerjalanan() {
         .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (error) return [];
-      return (data ?? []) as AlumniBooking[];
+      return (data as any[]).map(item => ({
+        ...item,
+        departure: item.departure ? {
+          ...item.departure,
+          package: item.departure.package && !(item.departure.package as any).error ? item.departure.package : null
+        } : null
+      })) as AlumniBooking[];
     },
     enabled: !!customer?.id,
   });

@@ -230,6 +230,7 @@ export default function AgentDashboard() {
       const monthComm =
         commissions
           ?.filter((c) => {
+            if (!c.created_at) return false;
             const dt = parseISO(c.created_at);
             return dt >= mStart && dt <= mEnd;
           })
@@ -237,6 +238,7 @@ export default function AgentDashboard() {
 
       const monthBook =
         allBookings?.filter((b) => {
+          if (!b.created_at) return false;
           const dt = parseISO(b.created_at);
           return dt >= mStart && dt <= mEnd;
         }).length || 0;
@@ -287,14 +289,14 @@ export default function AgentDashboard() {
   // This month bookings
   const thisMonthBookings = useMemo(() => {
     const mStart = startOfMonth(new Date());
-    return allBookings?.filter((b) => parseISO(b.created_at) >= mStart).length || 0;
+    return allBookings?.filter((b) => b.created_at && parseISO(b.created_at) >= mStart).length || 0;
   }, [allBookings]);
 
   const thisMonthComm = useMemo(() => {
     const mStart = startOfMonth(new Date());
     return (
       commissions
-        ?.filter((c) => parseISO(c.created_at) >= mStart)
+        ?.filter((c) => c.created_at && parseISO(c.created_at) >= mStart)
         .reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0
     );
   }, [commissions]);
