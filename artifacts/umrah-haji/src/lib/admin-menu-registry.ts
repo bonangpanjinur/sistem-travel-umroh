@@ -82,6 +82,18 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'wa-blast-keberangkatan', label: 'Broadcast WA Keberangkatan', path: '/admin/wa-blast',            icon: 'MessageSquare',   group_name: 'Keberangkatan',      sort_order: 412, required_permission: PERMISSIONS.WA_BLAST_KEBERANGKATAN },
   { key: 'muthawif-dashboard',     label: 'Dashboard Muthawif',      path: '/muthawif/dashboard',           icon: 'UserCog',         group_name: 'Keberangkatan',      sort_order: 413, required_permission: PERMISSIONS.MUTHAWIF_DASHBOARD },
 
+  // ── Fase 9 — Integrasi & Otomasi (550s) ──────────────────────────────────
+  { key: 'wa-otomatis',      label: 'WA Otomatis',           path: '/admin/wa-otomatis',      icon: 'MessageSquareDot',  group_name: 'Integrasi & Otomasi', sort_order: 551, required_permission: PERMISSIONS.WA_OTOMATIS },
+  { key: 'midtrans',         label: 'Midtrans Payment',      path: '/admin/midtrans',         icon: 'CreditCard',        group_name: 'Integrasi & Otomasi', sort_order: 552, required_permission: PERMISSIONS.MIDTRANS },
+  { key: 'cicilan-reminder', label: 'Reminder Cicilan',      path: '/admin/cicilan-reminder', icon: 'BellRing',          group_name: 'Integrasi & Otomasi', sort_order: 553, required_permission: PERMISSIONS.CICILAN_REMINDER },
+  { key: 'virtual-account',  label: 'Virtual Account',       path: '/admin/virtual-account',  icon: 'Landmark',          group_name: 'Integrasi & Otomasi', sort_order: 554, required_permission: PERMISSIONS.VIRTUAL_ACCOUNT },
+
+  // ── Fase 10 — AI & Smart Analytics (560s) ────────────────────────────────
+  { key: 'sentimen-feedback',  label: 'Analisis Sentimen',      path: '/admin/sentimen-feedback',  icon: 'Smile',             group_name: 'AI & Analytics',      sort_order: 561, required_permission: PERMISSIONS.SENTIMEN_FEEDBACK },
+  { key: 'prediksi-seat',      label: 'Prediksi Seat',          path: '/admin/prediksi-seat',      icon: 'TrendingUp',        group_name: 'AI & Analytics',      sort_order: 562, required_permission: PERMISSIONS.PREDIKSI_SEAT },
+  { key: 'smart-notif',        label: 'Smart Notifikasi',       path: '/admin/smart-notif',        icon: 'BrainCircuit',      group_name: 'AI & Analytics',      sort_order: 563, required_permission: PERMISSIONS.SMART_NOTIF },
+  { key: 'rekomendasi-paket',  label: 'Rekomendasi Paket AI',  path: '/admin/rekomendasi-paket',  icon: 'Sparkles',          group_name: 'AI & Analytics',      sort_order: 564, required_permission: PERMISSIONS.REKOMENDASI_PAKET },
+
   // ── Jamaah & Agen (600s) ──────────────────────────────────────────────────
   { key: 'customers',           label: 'Data Jamaah',           path: '/admin/customers',            icon: 'Users',           group_name: 'Jamaah & Agen',      sort_order: 601, required_permission: PERMISSIONS.CUSTOMERS },
   { key: 'agents',              label: 'Agen',                  path: '/admin/agents',               icon: 'UserSquare2',     group_name: 'Jamaah & Agen',      sort_order: 602, required_permission: PERMISSIONS.AGENTS },
@@ -177,6 +189,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'blog',
     'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'monitoring-tabungan',
     'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
+    'wa-otomatis', 'midtrans', 'cicilan-reminder', 'virtual-account',
+    'sentimen-feedback', 'prediksi-seat', 'smart-notif', 'rekomendasi-paket',
   ],
 
   finance: [
@@ -214,6 +228,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'office-assets',
     'visa',
     'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
+    'wa-otomatis', 'midtrans', 'cicilan-reminder', 'virtual-account',
+    'sentimen-feedback', 'prediksi-seat', 'smart-notif', 'rekomendasi-paket',
   ],
 
   equipment: [

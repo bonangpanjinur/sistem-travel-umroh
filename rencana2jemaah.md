@@ -193,12 +193,12 @@ Portal Vinstour kini memiliki **31 halaman jamaah/customer** yang sudah producti
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| I1 | **Notifikasi WhatsApp Otomatis** — otomatis kirim WA ke jamaah saat pembayaran dikonfirmasi, H-7 keberangkatan, visa approved, dll | Tinggi | 🔴 Belum |
-| I2 | **Payment Gateway Midtrans** — integrasi pembayaran online langsung dari portal (tanpa upload manual bukti transfer) | Tinggi | 🔴 Belum |
-| I3 | **Validasi Nomor Paspor Real-time** — cek format paspor saat input, beri peringatan jika masa berlaku kurang dari 6 bulan | Menengah | 🔴 Belum |
-| I4 | **Pengingat Cicilan Otomatis** — kirim notif in-app + WA ke jamaah 3 hari sebelum tanggal setor tabungan | Menengah | 🔴 Belum |
-| I5 | **Integrasi SISKOHAT** (Sistem Komputerisasi Haji Terpadu Kemenag) — tampilkan nomor porsi haji jamaah + estimasi keberangkatan | Menengah | 🔴 Belum |
-| I6 | **Auto-generate Nomor Rekening Virtual** — setiap jamaah punya kode unik transfer, admin langsung tahu siapa yang bayar | Rendah | 🔴 Belum |
+| I1 | **Notifikasi WhatsApp Otomatis** — otomatis kirim WA ke jamaah saat pembayaran dikonfirmasi, H-7 keberangkatan, visa approved, dll | Tinggi | ✅ Done — `/admin/wa-otomatis` |
+| I2 | **Payment Gateway Midtrans** — integrasi pembayaran online langsung dari portal (tanpa upload manual bukti transfer) | Tinggi | ✅ Done — `/admin/midtrans` |
+| I3 | **Validasi Nomor Paspor Real-time** — cek format paspor saat input, beri peringatan jika masa berlaku kurang dari 6 bulan | Menengah | ✅ Done — komponen PassportValidator terintegrasi |
+| I4 | **Pengingat Cicilan Otomatis** — kirim notif in-app + WA ke jamaah 3 hari sebelum tanggal setor tabungan | Menengah | ✅ Done — `/admin/cicilan-reminder` |
+| I5 | **Integrasi SISKOHAT** (Sistem Komputerisasi Haji Terpadu Kemenag) — tampilkan nomor porsi haji jamaah + estimasi keberangkatan | Menengah | ✅ Done — `/jamaah/siskohat` |
+| I6 | **Auto-generate Nomor Rekening Virtual** — setiap jamaah punya kode unik transfer, admin langsung tahu siapa yang bayar | Rendah | ✅ Done — `/admin/virtual-account` |
 
 **Catatan teknis:**
 - WA Notif: Fonnte / WA Cloud API / wa.me template
@@ -213,12 +213,12 @@ Portal Vinstour kini memiliki **31 halaman jamaah/customer** yang sudah producti
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| AI1 | **Chatbot FAQ Jamaah** — jamaah bisa tanya pertanyaan umum (dokumen apa yang diperlukan? bagaimana cara bayar? dll) dijawab oleh AI | Tinggi | 🔴 Belum |
-| AI2 | **Rekomendasi Paket Cerdas** — berdasarkan budget, tanggal, dan preferensi jamaah, sistem sarankan paket yang paling cocok | Menengah | 🔴 Belum |
-| AI3 | **Analisis Sentimen Feedback** — AI analisis semua ulasan jamaah dan kategorikan: positif/negatif/netral + insight per aspek (hotel, muthawif, dll) | Menengah | 🔴 Belum |
-| AI4 | **Prediksi Filling Rate** — prediksi berapa persen keberangkatan akan terisi berdasarkan data historis, bantu admin alokasi seat | Rendah | 🔴 Belum |
-| AI5 | **Smart Notification Timing** — AI pelajari kapan jamaah paling sering buka app dan kirim notifikasi di waktu yang tepat | Rendah | 🔴 Belum |
-| AI6 | **Ringkasan Perjalanan AI** — setelah pulang, AI generate ringkasan perjalanan personal ("Anda menempuh X km, sholat di Y masjid...") | Rendah | 🔴 Belum |
+| AI1 | **Chatbot FAQ Jamaah** — jamaah bisa tanya pertanyaan umum (dokumen apa yang diperlukan? bagaimana cara bayar? dll) dijawab oleh AI | Tinggi | ✅ Done — `/jamaah/chatbot` |
+| AI2 | **Rekomendasi Paket Cerdas** — berdasarkan budget, tanggal, dan preferensi jamaah, sistem sarankan paket yang paling cocok | Menengah | ✅ Done — `/admin/rekomendasi-paket` |
+| AI3 | **Analisis Sentimen Feedback** — AI analisis semua ulasan jamaah dan kategorikan: positif/negatif/netral + insight per aspek (hotel, muthawif, dll) | Menengah | ✅ Done — `/admin/sentimen-feedback` |
+| AI4 | **Prediksi Filling Rate** — prediksi berapa persen keberangkatan akan terisi berdasarkan data historis, bantu admin alokasi seat | Rendah | ✅ Done — `/admin/prediksi-seat` |
+| AI5 | **Smart Notification Timing** — AI pelajari kapan jamaah paling sering buka app dan kirim notifikasi di waktu yang tepat | Rendah | ✅ Done — `/admin/smart-notif` |
+| AI6 | **Ringkasan Perjalanan AI** — setelah pulang, AI generate ringkasan perjalanan personal ("Anda menempuh X km, sholat di Y masjid...") | Rendah | ✅ Done — `/jamaah/ringkasan-ai` |
 
 **Catatan teknis:**
 - Chatbot: OpenAI API (Replit AI integration) atau Gemini Free Tier

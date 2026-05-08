@@ -796,6 +796,33 @@ export default function JamaahPortal() {
           </CardContent>
         </Card>
 
+        {/* Fase 9 & 10 — Layanan Digital & AI */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Layanan Digital & AI
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { to: "/jamaah/siskohat",     icon: "🕌", label: "Porsi Haji (SISKOHAT)" },
+                { to: "/jamaah/chatbot",      icon: "🤖", label: "Chatbot Bantuan" },
+                { to: "/jamaah/ringkasan-ai", icon: "✨", label: "Ringkasan Perjalanan AI" },
+              ].map(item => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/40 hover:bg-muted transition-colors"
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  <span className="text-xs font-medium leading-tight">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Emergency Contacts */}
         <Card>
           <CardHeader className="pb-2">

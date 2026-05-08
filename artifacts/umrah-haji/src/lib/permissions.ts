@@ -133,6 +133,18 @@ export const PERMISSIONS = {
   ABSENSI_DIGITAL: 'absensi-digital',
   WA_BLAST_KEBERANGKATAN: 'wa-blast-keberangkatan',
   MUTHAWIF_DASHBOARD: 'muthawif-dashboard',
+
+  // Fase 9 — Integrasi & Otomasi
+  WA_OTOMATIS: 'wa-otomatis',
+  MIDTRANS: 'midtrans',
+  CICILAN_REMINDER: 'cicilan-reminder',
+  VIRTUAL_ACCOUNT: 'virtual-account',
+
+  // Fase 10 — AI & Smart Analytics
+  SENTIMEN_FEEDBACK: 'sentimen-feedback',
+  PREDIKSI_SEAT: 'prediksi-seat',
+  SMART_NOTIF: 'smart-notif',
+  REKOMENDASI_PAKET: 'rekomendasi-paket',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

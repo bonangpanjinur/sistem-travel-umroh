@@ -114,6 +114,18 @@ const AdminAbsensiDigital = lazy(() => import("@/pages/admin/AdminAbsensiDigital
 const AdminWABlastKeberangkatan = lazy(() => import("@/pages/admin/AdminWABlastKeberangkatan"));
 const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"));
 
+// Fase 9 — Integrasi & Otomasi
+const AdminWAOtomatis = lazy(() => import("@/pages/admin/AdminWAOtomatis"));
+const AdminMidtrans = lazy(() => import("@/pages/admin/AdminMidtrans"));
+const AdminCicilanReminder = lazy(() => import("@/pages/admin/AdminCicilanReminder"));
+const AdminVirtualAccount = lazy(() => import("@/pages/admin/AdminVirtualAccount"));
+
+// Fase 10 — AI & Smart Analytics
+const AdminSentimenFeedback = lazy(() => import("@/pages/admin/AdminSentimenFeedback"));
+const AdminPrediksiSeat = lazy(() => import("@/pages/admin/AdminPrediksiSeat"));
+const AdminSmartNotif = lazy(() => import("@/pages/admin/AdminSmartNotif"));
+const AdminRekomendasiPaket = lazy(() => import("@/pages/admin/AdminRekomendasiPaket"));
+
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
 function LazyPage({ children }: { children: React.ReactNode }) {
@@ -293,6 +305,18 @@ export default function AdminRoutes() {
       <Route path="manifest" element={<P k={PERMISSIONS.MANIFEST_JAMAAH}><AdminManifestJamaah /></P>} />
       <Route path="absensi" element={<P k={PERMISSIONS.ABSENSI_DIGITAL}><AdminAbsensiDigital /></P>} />
       <Route path="wa-blast" element={<P k={PERMISSIONS.WA_BLAST_KEBERANGKATAN}><AdminWABlastKeberangkatan /></P>} />
+
+      {/* Fase 9 — Integrasi & Otomasi */}
+      <Route path="wa-otomatis" element={<P k={PERMISSIONS.WA_OTOMATIS}><AdminWAOtomatis /></P>} />
+      <Route path="midtrans" element={<P k={PERMISSIONS.MIDTRANS}><AdminMidtrans /></P>} />
+      <Route path="cicilan-reminder" element={<P k={PERMISSIONS.CICILAN_REMINDER}><AdminCicilanReminder /></P>} />
+      <Route path="virtual-account" element={<P k={PERMISSIONS.VIRTUAL_ACCOUNT}><AdminVirtualAccount /></P>} />
+
+      {/* Fase 10 — AI & Smart Analytics */}
+      <Route path="sentimen-feedback" element={<P k={PERMISSIONS.SENTIMEN_FEEDBACK}><AdminSentimenFeedback /></P>} />
+      <Route path="prediksi-seat" element={<P k={PERMISSIONS.PREDIKSI_SEAT}><AdminPrediksiSeat /></P>} />
+      <Route path="smart-notif" element={<P k={PERMISSIONS.SMART_NOTIF}><AdminSmartNotif /></P>} />
+      <Route path="rekomendasi-paket" element={<P k={PERMISSIONS.REKOMENDASI_PAKET}><AdminRekomendasiPaket /></P>} />
     </Route>
   );
 }
