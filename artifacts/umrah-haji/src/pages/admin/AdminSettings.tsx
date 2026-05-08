@@ -202,7 +202,7 @@ export default function AdminSettings() {
 
       {/* ── Content ── */}
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-2xl space-y-6">
+        <div className={`space-y-6 ${activeSection === "documents" ? "max-w-4xl" : "max-w-2xl"}`}>
 
           {/* PROFIL & AKUN */}
           {activeSection === "profile" && (
