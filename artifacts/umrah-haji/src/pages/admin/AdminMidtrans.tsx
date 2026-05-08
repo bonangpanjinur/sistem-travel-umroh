@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
@@ -59,6 +59,28 @@ export default function AdminMidtrans() {
   const [testLoading, setTestLoading] = useState(false);
   const [sandboxMode, setSandboxMode] = useState(() => localStorage.getItem("midtrans_sandbox") !== "false");
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('app_settings')
+          .select('key,value')
+          .in('key', ['midtrans_config', 'midtrans_methods', 'midtrans_sandbox']);
+        if (!data?.length) return;
+        for (const row of data) {
+          const val = JSON.parse(row.value);
+          if (row.key === 'midtrans_config') setConfig(val);
+          if (row.key === 'midtrans_methods') {
+            const merged: Record<string, boolean> = {};
+            PAYMENT_METHODS.forEach(m => { merged[m.id] = val[m.id] ?? m.enabled; });
+            setMethods(merged);
+          }
+          if (row.key === 'midtrans_sandbox') setSandboxMode(val === true || val === 'true');
+        }
+      } catch {}
+    })();
+  }, []);
+
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ["midtrans-transactions"],
     queryFn: async () => {
@@ -75,15 +97,20 @@ export default function AdminMidtrans() {
     },
   });
 
-  function saveConfig() {
+  async function saveConfig() {
     setSaving(true);
     localStorage.setItem("midtrans_config", JSON.stringify(config));
     localStorage.setItem("midtrans_methods", JSON.stringify(methods));
     localStorage.setItem("midtrans_sandbox", sandboxMode ? "true" : "false");
-    setTimeout(() => {
-      setSaving(false);
-      toast.success("Konfigurasi Midtrans berhasil disimpan");
-    }, 800);
+    try {
+      await supabase.from('app_settings').upsert([
+        { key: 'midtrans_config', value: JSON.stringify(config), updated_at: new Date().toISOString() },
+        { key: 'midtrans_methods', value: JSON.stringify(methods), updated_at: new Date().toISOString() },
+        { key: 'midtrans_sandbox', value: JSON.stringify(sandboxMode), updated_at: new Date().toISOString() },
+      ], { onConflict: 'key' });
+    } catch {}
+    setSaving(false);
+    toast.success("Konfigurasi Midtrans berhasil disimpan");
   }
 
   async function testConnection() {

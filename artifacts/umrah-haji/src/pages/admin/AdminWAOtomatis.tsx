@@ -167,6 +167,25 @@ export default function AdminWAOtomatis() {
   const [sendingTest, setSendingTest] = useState<string | null>(null);
   const [testPhone, setTestPhone] = useState("");
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const keys = ['wa_otomatis_triggers', ...TRIGGER_EVENTS.map(t => `wa_template_${t.id}`)];
+        const { data } = await supabase.from('app_settings').select('key,value').in('key', keys);
+        if (!data?.length) return;
+        for (const row of data) {
+          const val = JSON.parse(row.value);
+          if (row.key === 'wa_otomatis_triggers') {
+            setTriggerStates(val);
+            localStorage.setItem('wa_otomatis_triggers', JSON.stringify(val));
+          } else if (row.key.startsWith('wa_template_')) {
+            localStorage.setItem(row.key, val);
+          }
+        }
+      } catch {}
+    })();
+  }, []);
+
   const { data: waConfig } = useQuery({
     queryKey: ["wa-config"],
     queryFn: async () => {
@@ -187,10 +206,16 @@ export default function AdminWAOtomatis() {
     },
   });
 
-  function toggleTrigger(id: string, val: boolean) {
+  async function toggleTrigger(id: string, val: boolean) {
     const next = { ...triggerStates, [id]: val };
     setTriggerStates(next);
     localStorage.setItem("wa_otomatis_triggers", JSON.stringify(next));
+    try {
+      await supabase.from('app_settings').upsert(
+        { key: 'wa_otomatis_triggers', value: JSON.stringify(next), updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+    } catch {}
     toast.success(val ? `Trigger "${TRIGGER_EVENTS.find(t => t.id === id)?.label}" diaktifkan` : `Trigger dinonaktifkan`);
   }
 
@@ -200,8 +225,14 @@ export default function AdminWAOtomatis() {
     setEditingTrigger(trigger.id);
   }
 
-  function saveTemplate(id: string) {
+  async function saveTemplate(id: string) {
     localStorage.setItem(`wa_template_${id}`, editTemplate);
+    try {
+      await supabase.from('app_settings').upsert(
+        { key: `wa_template_${id}`, value: JSON.stringify(editTemplate), updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+    } catch {}
     setEditingTrigger(null);
     toast.success("Template berhasil disimpan");
   }

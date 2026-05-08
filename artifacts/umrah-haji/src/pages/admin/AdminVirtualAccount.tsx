@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
@@ -46,6 +46,19 @@ export default function AdminVirtualAccount() {
     try { return JSON.parse(localStorage.getItem("va_data") || "{}"); } catch { return {}; }
   });
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from('virtual_accounts').select('customer_id,bank_code,va_number');
+        if (!data?.length) return;
+        const map: Record<string, string> = {};
+        for (const row of data) map[`${row.customer_id}_${row.bank_code}`] = row.va_number;
+        setVaData(prev => ({ ...prev, ...map }));
+        localStorage.setItem("va_data", JSON.stringify({ ...JSON.parse(localStorage.getItem("va_data") || "{}"), ...map }));
+      } catch {}
+    })();
+  }, []);
+
   const { data: customers = [], isLoading, refetch } = useQuery({
     queryKey: ["va-customers"],
     queryFn: async () => {
@@ -72,32 +85,39 @@ export default function AdminVirtualAccount() {
     return vaData[`${customerId}_${selectedBank}`] || null;
   }
 
-  function generateForCustomer(customer: any) {
+  async function generateForCustomer(customer: any) {
     setGeneratingIds(prev => new Set(prev).add(customer.id));
-    setTimeout(() => {
-      const va = generateVA(customer.id, selectedBank);
-      const key = `${customer.id}_${selectedBank}`;
-      const next = { ...vaData, [key]: va };
-      setVaData(next);
-      localStorage.setItem("va_data", JSON.stringify(next));
-      setGeneratingIds(prev => { const s = new Set(prev); s.delete(customer.id); return s; });
-      toast.success(`VA ${selectedBank} digenerate untuk ${customer.full_name}`);
-    }, 500);
+    const va = generateVA(customer.id, selectedBank);
+    const key = `${customer.id}_${selectedBank}`;
+    const next = { ...vaData, [key]: va };
+    setVaData(next);
+    localStorage.setItem("va_data", JSON.stringify(next));
+    try {
+      await supabase.from('virtual_accounts').upsert(
+        { customer_id: customer.id, bank_code: selectedBank, va_number: va },
+        { onConflict: 'customer_id,bank_code' }
+      );
+    } catch {}
+    setGeneratingIds(prev => { const s = new Set(prev); s.delete(customer.id); return s; });
+    toast.success(`VA ${selectedBank} digenerate untuk ${customer.full_name}`);
   }
 
-  function generateAll() {
+  async function generateAll() {
     setGeneratingAll(true);
     let next = { ...vaData };
+    const rows: any[] = [];
     for (const customer of filtered) {
       const va = generateVA(customer.id, selectedBank);
       next[`${customer.id}_${selectedBank}`] = va;
+      rows.push({ customer_id: customer.id, bank_code: selectedBank, va_number: va });
     }
-    setTimeout(() => {
-      setVaData(next);
-      localStorage.setItem("va_data", JSON.stringify(next));
-      setGeneratingAll(false);
-      toast.success(`${filtered.length} Virtual Account ${selectedBank} berhasil digenerate`);
-    }, 1000);
+    setVaData(next);
+    localStorage.setItem("va_data", JSON.stringify(next));
+    try {
+      await supabase.from('virtual_accounts').upsert(rows, { onConflict: 'customer_id,bank_code' });
+    } catch {}
+    setGeneratingAll(false);
+    toast.success(`${filtered.length} Virtual Account ${selectedBank} berhasil digenerate`);
   }
 
   function copyVA(va: string, name: string) {

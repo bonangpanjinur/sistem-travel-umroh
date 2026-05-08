@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { supabase as supabaseRaw } from "@/integrations/supabase/client";
+const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,9 +50,33 @@ export default function JamaahDoaCounter() {
   const [customTarget, setCustomTarget] = useState(33);
   const [vibrate, setVibrate] = useState(() => localStorage.getItem(vibratePref) !== "false");
 
-  function saveSessions(list: Session[]) {
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('jamaah_doa_sessions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (data?.length) {
+          setSessions(data as Session[]);
+          localStorage.setItem(storageKey, JSON.stringify(data));
+        }
+      } catch {}
+    })();
+  }, [user?.id]);
+
+  async function saveSessions(list: Session[]) {
     setSessions(list);
     localStorage.setItem(storageKey, JSON.stringify(list));
+    if (!user?.id) return;
+    try {
+      await supabase.from('jamaah_doa_sessions').upsert(
+        list.map(s => ({ ...s, user_id: user.id })),
+        { onConflict: 'id' }
+      );
+    } catch {}
   }
 
   const activeSession = sessions.find(s => s.id === activeSessionId);

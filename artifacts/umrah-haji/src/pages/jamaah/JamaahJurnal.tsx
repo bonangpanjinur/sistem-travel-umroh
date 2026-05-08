@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { supabase as supabaseRaw } from "@/integrations/supabase/client";
+const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,9 +68,58 @@ export default function JamaahJurnal() {
     tags: "",
   });
 
-  function saveEntries(list: JournalEntry[]) {
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('jamaah_jurnal')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (data?.length) {
+          const mapped = data.map((r: any) => ({
+            id: r.id,
+            date: r.date,
+            title: r.title,
+            content: r.content,
+            mood: r.mood,
+            location: r.location,
+            tags: r.tags || [],
+            created_at: r.created_at,
+          }));
+          setEntries(mapped);
+          localStorage.setItem(storageKey, JSON.stringify(mapped));
+        }
+      } catch {}
+    })();
+  }, [user?.id]);
+
+  async function saveEntries(list: JournalEntry[]) {
     setEntries(list);
     localStorage.setItem(storageKey, JSON.stringify(list));
+  }
+
+  async function saveEntryToDb(entry: JournalEntry, isEdit: boolean) {
+    if (!user?.id) return;
+    try {
+      if (isEdit) {
+        await supabase.from('jamaah_jurnal').update({
+          date: entry.date, title: entry.title, content: entry.content,
+          mood: entry.mood, location: entry.location, tags: entry.tags,
+        }).eq('id', entry.id);
+      } else {
+        await supabase.from('jamaah_jurnal').insert({
+          id: entry.id, user_id: user.id, date: entry.date, title: entry.title,
+          content: entry.content, mood: entry.mood, location: entry.location, tags: entry.tags,
+        });
+      }
+    } catch {}
+  }
+
+  async function deleteEntryFromDb(id: string) {
+    if (!user?.id) return;
+    try { await supabase.from('jamaah_jurnal').delete().eq('id', id); } catch {}
   }
 
   function submitForm() {
@@ -76,7 +127,9 @@ export default function JamaahJurnal() {
     if (!form.content.trim()) { toast.error("Isi jurnal harus diisi"); return; }
     const tags = form.tags.split(",").map(t => t.trim()).filter(Boolean);
     if (editEntry) {
-      saveEntries(entries.map(e => e.id === editEntry.id ? { ...e, ...form, tags } : e));
+      const updated = { ...editEntry, ...form, tags };
+      saveEntries(entries.map(e => e.id === editEntry.id ? updated : e));
+      saveEntryToDb(updated, true);
       toast.success("Jurnal diperbarui");
     } else {
       const newEntry: JournalEntry = {
@@ -86,6 +139,7 @@ export default function JamaahJurnal() {
         created_at: new Date().toISOString(),
       };
       saveEntries([newEntry, ...entries]);
+      saveEntryToDb(newEntry, false);
       toast.success("Jurnal berhasil disimpan 📖");
     }
     closeForm();
@@ -93,6 +147,7 @@ export default function JamaahJurnal() {
 
   function deleteEntry(id: string) {
     saveEntries(entries.filter(e => e.id !== id));
+    deleteEntryFromDb(id);
     setViewEntry(null);
     toast.success("Jurnal dihapus");
   }

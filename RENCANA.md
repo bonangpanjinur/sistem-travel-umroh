@@ -146,19 +146,19 @@
 |---|------|---------|--------|
 | P1 | ~~Dashboard Keuangan Terpadu~~ | ~~Data hardcoded/random~~ | ✅ **Selesai Mei 2026** |
 | P2 | ~~KPI Target bisa diatur~~ | ~~`MONTHLY_TARGETS` hardcoded di kode~~ | ✅ **Selesai Mei 2026** — disimpan ke `company_settings`, dialog "Atur Target" di UI |
-| P3 | **Email Engine di API Server** | `/api/email/send` tidak ada — semua email tidak terkirim | Tambah endpoint Express + Resend/Nodemailer |
-| P4 | **SQL Migrations ke Supabase** | 12 file SQL belum dijalankan — banyak tabel belum ada | Jalankan urut di Supabase SQL Editor (lihat §8) |
+| P3 | ~~**Email Engine di API Server**~~ | ~~`/api/email/send` tidak ada~~ | ✅ **Selesai** — endpoint Express + Nodemailer sudah ada. Set `SMTP_HOST/PORT/USER/PASS/FROM` di Replit Secrets untuk mengaktifkan |
+| P4 | **SQL Migrations ke Supabase** | 12 file SQL belum dijalankan — banyak tabel belum ada | Jalankan urut di Supabase SQL Editor (lihat §8) — semua file ada di folder `migrations/` |
 | P5 | **Supabase Env Vars** | App jalan demo mode tanpa credential | Set 4 env vars di Replit Secrets (lihat §9) |
 
 ### 🟡 PRIORITAS MENENGAH
 
 | # | Item | Masalah | Solusi |
 |---|------|---------|--------|
-| M1 | **Konfigurasi Midtrans** | Tersimpan di localStorage — tidak aman, tidak sinkron | Pindah ke tabel `app_settings` di Supabase |
-| M2 | **Virtual Account** | Nomor VA di localStorage — tidak ada di DB | Simpan ke DB atau integrasi Xendit/Midtrans VA |
-| M3 | **WA Otomatis trigger** | Config di localStorage | Pindah ke DB |
-| M4 | **Target Agen Bulanan** | Di localStorage per browser | Pindah ke DB |
-| M5 | **Jurnal & Ibadah Jamaah** | Doa counter, jurnal, target ibadah, badges di localStorage | Pindah ke tabel jamaah di Supabase |
+| M1 | ~~**Konfigurasi Midtrans**~~ | ~~Tersimpan di localStorage~~ | ✅ **Selesai** — sync ke `app_settings` Supabase (fallback localStorage jika offline) |
+| M2 | ~~**Virtual Account**~~ | ~~Nomor VA di localStorage~~ | ✅ **Selesai** — sync ke tabel `virtual_accounts` Supabase |
+| M3 | ~~**WA Otomatis trigger**~~ | ~~Config di localStorage~~ | ✅ **Selesai** — trigger state & template sync ke `app_settings` Supabase |
+| M4 | ~~**Target Agen Bulanan**~~ | ~~Di localStorage per browser~~ | ✅ **Selesai** — sync ke `agent_monthly_targets` Supabase |
+| M5 | ~~**Jurnal & Ibadah Jamaah**~~ | ~~Doa counter, jurnal, target ibadah di localStorage~~ | ✅ **Selesai** — sync ke `jamaah_doa_sessions`, `jamaah_jurnal`, `jamaah_ibadah_targets/logs` Supabase |
 
 ### 🟢 PRIORITAS RENDAH
 
@@ -172,22 +172,27 @@
 
 ## 8. SQL MIGRATIONS — URUTAN EKSEKUSI
 
+> Semua file SQL sekarang terpusat di folder **`migrations/`** di root project.
+
 Jalankan file-file ini di **Supabase SQL Editor** sesuai urutan:
 
 ```
-1. artifacts/umrah-haji/src/lib/migrations/fase1-membership-branch-commission.sql
-2. artifacts/umrah-haji/src/lib/migrations/fase2-public-website.sql
-3. artifacts/umrah-haji/src/lib/migrations/fase3-customer-portal.sql
-4. artifacts/umrah-haji/src/lib/migrations/fase4-6-analytics-notif-operational.sql
-5. artifacts/umrah-haji/src/lib/migrations/whatsapp-tables.sql
-6. artifacts/umrah-haji/src/lib/migrations/dashboard-access-config.sql
-7. artifacts/umrah-haji/src/lib/migrations/hr-enhancements.sql
-8. artifacts/umrah-haji/src/lib/migrations/operational-integration.sql
-9. artifacts/umrah-haji/src/lib/migrations/flexible-rooming-groups.sql
-10. artifacts/umrah-haji/src/lib/migrations/multi-mahram-rooming.sql
-11. supabase-migrations/phase4-push-visa.sql
-12. supabase-migrations/phase5-rbac-improvements.sql
+1.  migrations/fase1-membership-branch-commission.sql
+2.  migrations/fase2-public-website.sql
+3.  migrations/fase3-customer-portal.sql
+4.  migrations/fase4-6-analytics-notif-operational.sql
+5.  migrations/whatsapp-tables.sql
+6.  migrations/dashboard-access-config.sql
+7.  migrations/hr-enhancements.sql
+8.  migrations/operational-integration.sql
+9.  migrations/flexible-rooming-groups.sql
+10. migrations/multi-mahram-rooming.sql
+11. migrations/phase4-push-visa.sql
+12. migrations/phase5-rbac-improvements.sql
+13. migrations/fase6-app-settings-va-targets-jamaah.sql  ← BARU (untuk M1–M5)
 ```
+
+Lihat `migrations/README.md` untuk instruksi lengkap.
 
 ---
 

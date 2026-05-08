@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { supabase as supabaseRaw } from "@/integrations/supabase/client";
+const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,14 +68,58 @@ export default function JamaahTargetIbadah() {
   const [editTarget, setEditTarget] = useState<Target | null>(null);
   const [form, setForm] = useState({ name: "", icon: "⭐", unit: "kali", daily_target: 1, category: "spiritual" });
 
-  function saveTargets(list: Target[]) {
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const { data: targetsData } = await supabase
+          .from('jamaah_ibadah_targets')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at');
+        if (targetsData?.length) {
+          const mapped = targetsData.map((r: any) => ({
+            id: r.id, name: r.name, icon: r.icon, unit: r.unit,
+            daily_target: r.daily_target, category: r.category, active: r.active,
+          }));
+          setTargets(mapped);
+          localStorage.setItem(storageKey, JSON.stringify(mapped));
+
+          const ids = mapped.map((t: Target) => t.id);
+          const { data: logsData } = await supabase
+            .from('jamaah_ibadah_logs')
+            .select('target_id,log_date,count')
+            .in('target_id', ids);
+          if (logsData?.length) {
+            const logMap: DailyLog = {};
+            for (const l of logsData) {
+              if (!logMap[l.log_date]) logMap[l.log_date] = {};
+              logMap[l.log_date][l.target_id] = l.count;
+            }
+            setLogs(logMap);
+            localStorage.setItem(logKey, JSON.stringify(logMap));
+          }
+        }
+      } catch {}
+    })();
+  }, [user?.id]);
+
+  async function saveTargets(list: Target[]) {
     setTargets(list);
     localStorage.setItem(storageKey, JSON.stringify(list));
   }
 
-  function saveLog(newLogs: DailyLog) {
+  async function saveLog(newLogs: DailyLog, changedTargetId?: string) {
     setLogs(newLogs);
     localStorage.setItem(logKey, JSON.stringify(newLogs));
+    if (!user?.id || !changedTargetId) return;
+    try {
+      const count = newLogs[today]?.[changedTargetId] || 0;
+      await supabase.from('jamaah_ibadah_logs').upsert(
+        { user_id: user.id, target_id: changedTargetId, log_date: today, count, updated_at: new Date().toISOString() },
+        { onConflict: 'target_id,log_date' }
+      );
+    } catch {}
   }
 
   function getTodayCount(targetId: string) {
@@ -86,12 +132,29 @@ export default function JamaahTargetIbadah() {
     const current = getTodayCount(targetId);
     if (current >= target.daily_target) { toast.info("Target hari ini sudah tercapai! 🎉"); return; }
     const newLogs = { ...logs, [today]: { ...(logs[today] || {}), [targetId]: current + unit } };
-    saveLog(newLogs);
+    saveLog(newLogs, targetId);
   }
 
   function setCount(targetId: string, count: number) {
     const newLogs = { ...logs, [today]: { ...(logs[today] || {}), [targetId]: count } };
-    saveLog(newLogs);
+    saveLog(newLogs, targetId);
+  }
+
+  async function saveTargetToDb(target: Target, isEdit: boolean) {
+    if (!user?.id) return;
+    try {
+      if (isEdit) {
+        await supabase.from('jamaah_ibadah_targets').update({
+          name: target.name, icon: target.icon, unit: target.unit,
+          daily_target: target.daily_target, category: target.category, active: target.active,
+        }).eq('id', target.id);
+      } else {
+        await supabase.from('jamaah_ibadah_targets').insert({
+          id: target.id, user_id: user.id, name: target.name, icon: target.icon,
+          unit: target.unit, daily_target: target.daily_target, category: target.category, active: target.active,
+        });
+      }
+    } catch {}
   }
 
   function addFromPreset(preset: typeof PRESET_TARGETS[0]) {
@@ -105,16 +168,21 @@ export default function JamaahTargetIbadah() {
       active: true,
     };
     saveTargets([...targets, newTarget]);
+    saveTargetToDb(newTarget, false);
     toast.success(`Target "${preset.name}" ditambahkan`);
   }
 
   function saveCustomTarget() {
     if (!form.name.trim()) { toast.error("Nama target harus diisi"); return; }
     if (editTarget) {
-      saveTargets(targets.map(t => t.id === editTarget.id ? { ...t, ...form } : t));
+      const updated = { ...editTarget, ...form };
+      saveTargets(targets.map(t => t.id === editTarget.id ? updated : t));
+      saveTargetToDb(updated, true);
       toast.success("Target diperbarui");
     } else {
-      saveTargets([...targets, { id: Date.now().toString(), ...form, active: true }]);
+      const newTarget = { id: Date.now().toString(), ...form, active: true };
+      saveTargets([...targets, newTarget]);
+      saveTargetToDb(newTarget, false);
       toast.success("Target ditambahkan");
     }
     setShowAdd(false);
@@ -124,10 +192,16 @@ export default function JamaahTargetIbadah() {
 
   function deleteTarget(id: string) {
     saveTargets(targets.filter(t => t.id !== id));
+    if (user?.id) {
+      supabase.from('jamaah_ibadah_targets').delete().eq('id', id).then(() => {}).catch(() => {});
+    }
   }
 
   function toggleActive(id: string) {
-    saveTargets(targets.map(t => t.id === id ? { ...t, active: !t.active } : t));
+    const updated = targets.map(t => t.id === id ? { ...t, active: !t.active } : t);
+    saveTargets(updated);
+    const changed = updated.find(t => t.id === id);
+    if (changed) saveTargetToDb(changed, true);
   }
 
   // Weekly streak

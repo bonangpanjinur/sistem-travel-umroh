@@ -89,7 +89,20 @@ export default function AgentTargets() {
   const { data: target, isLoading: targetLoading } = useQuery<MonthlyTarget>({
     queryKey: ['agent-target', agentData?.id, monthKey],
     enabled: !!agentData?.id,
-    queryFn: () => {
+    queryFn: async () => {
+      try {
+        const { data: row } = await (supabase as any)
+          .from('agent_monthly_targets')
+          .select('booking_target,commission_target,jamaah_target')
+          .eq('agent_id', agentData!.id)
+          .eq('month_key', monthKey)
+          .maybeSingle();
+        if (row) {
+          const result = { bookingTarget: row.booking_target, commissionTarget: row.commission_target, jamaahTarget: row.jamaah_target };
+          localStorage.setItem(storageKey, JSON.stringify(result));
+          return result;
+        }
+      } catch {}
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
       return { bookingTarget: 10, commissionTarget: 10_000_000, jamaahTarget: 10 };
@@ -99,6 +112,16 @@ export default function AgentTargets() {
   const setTargetMutation = useMutation({
     mutationFn: async (data: MonthlyTarget) => {
       localStorage.setItem(storageKey, JSON.stringify(data));
+      try {
+        await (supabase as any).from('agent_monthly_targets').upsert({
+          agent_id: agentData!.id,
+          month_key: monthKey,
+          booking_target: data.bookingTarget,
+          commission_target: data.commissionTarget,
+          jamaah_target: data.jamaahTarget,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'agent_id,month_key' });
+      } catch {}
       return data;
     },
     onSuccess: () => {
