@@ -162,11 +162,11 @@
 
 ### 🟢 PRIORITAS RENDAH
 
-| # | Item | Masalah |
-|---|------|---------|
-| L1 | **AI Summary** | Narasi dari angka dummy — ganti dengan data Supabase nyata |
-| L2 | **File Duplikat** | 5 halaman duplikat (`AdminPackages-Enhanced`, `AdminReports_Updated`, dll) — perlu dibersihkan |
-| L3 | **Midtrans Snap Nyata** | Integrasi payment gateway online agar customer tidak perlu upload bukti manual |
+| # | Item | Masalah | Status |
+|---|------|---------|--------|
+| L1 | ~~**AI Summary**~~ | ~~Narasi dari angka dummy~~ | ✅ **Selesai** — query Supabase real (bookings, payments, leads, feedback) + fallback demo mode |
+| L2 | ~~**File Duplikat**~~ | ~~5 halaman duplikat~~ | ✅ **Selesai** — original dihapus, enhanced/updated/improved di-rename ke nama bersih, routes diupdate |
+| L3 | ~~**Midtrans Snap Nyata**~~ | ~~Customer harus upload bukti manual~~ | ✅ **Selesai** — endpoint `/api/midtrans/create-transaction`, Snap.js di PaymentUpload, konfirmasi otomatis |
 
 ---
 

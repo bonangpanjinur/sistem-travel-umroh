@@ -1,85 +1,89 @@
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import {
-  Search, ShieldCheck, CheckCircle2, XCircle, Info, RefreshCw, Copy, Users,
-} from "lucide-react";
-import { writeRbacAuditLog } from "@/components/admin/PermissionAuditLog";
-import { useAuth } from "@/hooks/useAuth";
-import { Navigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { ROLE_DEFAULT_PERMISSIONS, RECOMMENDED_MENUS } from "@/lib/admin-menu-registry";
+/**
+ * AdminRoleManagementEnhanced — v2
+ * Halaman Manajemen Role & Akses dengan:
+ * - Breadcrumb navigasi
+ * - Matriks Visual (tab default) dengan filter/compare/export/inherited
+ * - Izin per Role dengan copy-from-role, jumlah user, confirmation dialog
+ * - Ringkasan dengan bar chart & user count
+ * - Tabs yang compact dan responsif
+ */
 
-type AppRole = 'owner' | 'branch_manager' | 'finance' | 'operational' | 'sales' | 'marketing' | 'equipment' | 'agent';
+import { lazy, Suspense } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import {
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink,
+  BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import {
+  ShieldCheck, Menu, BarChart3, AlertCircle, KeyRound,
+  RefreshCw, Grid3X3, Users, Home, Settings, History,
+} from 'lucide-react';
+import { Navigate, Link } from 'react-router-dom';
+import { RoleMenuMapper } from '@/components/admin/RoleMenuMapper';
+import { RolePermissionMatrix, MATRIX_ROLES } from '@/components/admin/RolePermissionMatrix';
+import { PermissionAuditLog } from '@/components/admin/PermissionAuditLog';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Cell,
+} from 'recharts';
+import { cn } from '@/lib/utils';
 
-const MANAGEABLE_ROLES: { key: AppRole; label: string; description: string; color: string }[] = [
-  { key: 'owner',          label: 'Owner',         description: 'Pemilik / direksi — akses sangat luas',       color: 'bg-purple-100 text-purple-800 border-purple-200' },
-  { key: 'branch_manager', label: 'Branch Manager', description: 'Manajer cabang',                              color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  { key: 'finance',        label: 'Finance',        description: 'Bagian keuangan',                             color: 'bg-green-100 text-green-800 border-green-200' },
-  { key: 'operational',    label: 'Operational',    description: 'Tim operasional keberangkatan',                color: 'bg-orange-100 text-orange-800 border-orange-200' },
-  { key: 'equipment',      label: 'Equipment',      description: 'Tim perlengkapan',                            color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  { key: 'sales',          label: 'Sales',          description: 'Tim penjualan & CRM',                         color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
-  { key: 'marketing',      label: 'Marketing',      description: 'Tim pemasaran',                               color: 'bg-pink-100 text-pink-800 border-pink-200' },
-  { key: 'agent',          label: 'Agent',          description: 'Mitra agen',                                  color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
-];
+const RolePermissionEditor = lazy(() => import('@/pages/admin/AdminRoleManagement'));
+const MenuSyncManager = lazy(() =>
+  import('@/components/admin/MenuSyncManager').then(m => ({ default: m.MenuSyncManager }))
+);
 
-interface PermissionRow {
-  key: string;
-  label: string;
-  group_name: string;
-  description: string | null;
-  is_enabled: boolean;
+interface AccessSummaryRow {
+  role: string;
+  total_menus: number;
+  accessible_menus: number;
+  access_percentage: number;
 }
 
-export default function AdminRoleManagement() {
-  const { hasRole, isLoading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
-  const [activeRole, setActiveRole] = useState<AppRole>('operational');
-  const [search, setSearch] = useState('');
-  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
-  const [copySourceRole, setCopySourceRole] = useState<AppRole | ''>('');
-  const [bulkConfirm, setBulkConfirm] = useState<{ action: 'enable-all' | 'disable-all' } | null>(null);
+const ROLE_COLORS_MAP: Record<string, string> = {
+  owner:          '#a855f7',
+  branch_manager: '#3b82f6',
+  finance:        '#22c55e',
+  operational:    '#f97316',
+  equipment:      '#f59e0b',
+  sales:          '#06b6d4',
+  marketing:      '#ec4899',
+  agent:          '#6366f1',
+};
 
+const ROLE_LABELS: Record<string, string> = {
+  owner: 'Owner', branch_manager: 'Branch Manager', finance: 'Finance',
+  operational: 'Operational', equipment: 'Equipment', sales: 'Sales',
+  marketing: 'Marketing', agent: 'Agent',
+};
+
+const ROLE_BADGE_COLORS: Record<string, string> = {
+  owner:          'bg-purple-100 text-purple-800 border-purple-200',
+  branch_manager: 'bg-blue-100 text-blue-800 border-blue-200',
+  finance:        'bg-green-100 text-green-800 border-green-200',
+  operational:    'bg-orange-100 text-orange-800 border-orange-200',
+  equipment:      'bg-amber-100 text-amber-800 border-amber-200',
+  sales:          'bg-cyan-100 text-cyan-800 border-cyan-200',
+  marketing:      'bg-pink-100 text-pink-800 border-pink-200',
+  agent:          'bg-indigo-100 text-indigo-800 border-indigo-200',
+};
+
+function SummaryTab() {
+  const { hasRole, isLoading: authLoading } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
 
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['role-permissions', activeRole],
+  const { data: accessSummary = [], isLoading: summaryLoading } = useQuery({
+    queryKey: ['menu-access-summary'],
     queryFn: async () => {
-      const [{ data: list, error: listErr }, { data: rolePerms, error: rpErr }] = await Promise.all([
-        supabase.from('permissions_list').select('*').order('group_name').order('label'),
-        (supabase.from('role_permissions' as any) as any)
-          .select('permission_key,is_enabled').eq('role', activeRole),
-      ]);
-      if (listErr) throw listErr;
-      if (rpErr) throw rpErr;
-      const map = new Map<string, boolean>((rolePerms || []).map((r: any) => [r.permission_key, r.is_enabled]));
-      return (list || []).map((p: any): PermissionRow => ({
-        key: p.key, label: p.label,
-        group_name: p.group_name || 'Lainnya',
-        description: p.description,
-        is_enabled: map.get(p.key) ?? false,
-      }));
+      const { data, error } = await (supabase.rpc as any)('get_menu_access_summary');
+      if (error) throw error;
+      return (data || []) as AccessSummaryRow[];
     },
     enabled: isSuperAdmin && !authLoading,
   });
@@ -89,396 +93,401 @@ export default function AdminRoleManagement() {
     queryFn: async () => {
       const { data, error } = await (supabase.from('profiles' as any) as any)
         .select('role').not('role', 'is', null);
-      if (error) return {};
+      if (error) return {} as Record<string, number>;
       const counts: Record<string, number> = {};
       for (const { role } of (data || [])) {
-        counts[role] = (counts[role] || 0) + 1;
+        if (role) counts[role] = (counts[role] || 0) + 1;
       }
       return counts;
     },
     enabled: isSuperAdmin && !authLoading,
   });
 
-  const toggleMutation = useMutation({
-    mutationFn: async ({ key, enable }: { key: string; enable: boolean }) => {
-      if (enable) {
-        const { error } = await (supabase.from('role_permissions' as any) as any).upsert(
-          { role: activeRole, permission_key: key, is_enabled: true }, { onConflict: 'role,permission_key' }
-        );
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase.from('role_permissions' as any) as any)
-          .delete().eq('role', activeRole).eq('permission_key', key);
-        if (error) throw error;
+  const { data: matrixData } = useQuery({
+    queryKey: ['role-permission-matrix'],
+    queryFn: async () => {
+      const [{ data: perms }, { data: rolePerms }] = await Promise.all([
+        supabase.from('permissions_list').select('key'),
+        (supabase.from('role_permissions' as any) as any)
+          .select('role,permission_key,is_enabled')
+          .in('role', MATRIX_ROLES.map(r => r.key)),
+      ]);
+      const total = (perms || []).length;
+      const counts: Record<string, number> = {};
+      for (const rp of (rolePerms || [])) {
+        if (rp.is_enabled) counts[rp.role] = (counts[rp.role] || 0) + 1;
       }
+      return { total, counts };
     },
-    onSuccess: (_d: any, { key, enable }: any) => {
-      queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
-      queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
-      queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
-      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
-      writeRbacAuditLog({
-        action: enable ? 'grant' : 'revoke',
-        scope: 'role',
-        target_role: activeRole,
-        permission_key: key,
-        old_value: !enable,
-        new_value: enable,
-      });
-    },
-    onError: (e: any) => toast.error('Gagal: ' + (e?.message || '')),
+    enabled: isSuperAdmin && !authLoading,
   });
 
-  const seedDefaultMutation = useMutation({
-    mutationFn: async () => {
-      const defaultKeys = ROLE_DEFAULT_PERMISSIONS[activeRole] || [];
-      const allKeys = RECOMMENDED_MENUS.map(m => m.required_permission);
-      const payload = [
-        ...defaultKeys.map(k => ({ role: activeRole, permission_key: k, is_enabled: true })),
-        ...allKeys.filter(k => !defaultKeys.includes(k)).map(k => ({ role: activeRole, permission_key: k, is_enabled: false })),
-      ];
-      const { error } = await (supabase.from('role_permissions' as any) as any)
-        .upsert(payload, { onConflict: 'role,permission_key' });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
-      queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
-      queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
-      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
-      toast.success(`Izin default untuk "${activeRole}" diterapkan`);
-      writeRbacAuditLog({ action: 'reset_defaults', scope: 'role', target_role: activeRole, metadata: { operation: 'seed_defaults' } });
-    },
-    onError: (e: any) => toast.error('Gagal: ' + (e?.message || '')),
-  });
+  const chartData = MATRIX_ROLES.map(r => ({
+    role: r.label,
+    key: r.key,
+    enabled: matrixData?.counts[r.key] ?? 0,
+    total: matrixData?.total ?? 0,
+    pct: matrixData?.total ? Math.round(((matrixData.counts[r.key] ?? 0) / matrixData.total) * 100) : 0,
+    users: userCounts[r.key] ?? 0,
+  }));
 
-  const bulkMutation = useMutation({
-    mutationFn: async ({ keys, enable }: { keys: string[]; enable: boolean }) => {
-      if (enable) {
-        const { error } = await (supabase.from('role_permissions' as any) as any)
-          .upsert(keys.map(k => ({ role: activeRole, permission_key: k, is_enabled: true })), { onConflict: 'role,permission_key' });
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase.from('role_permissions' as any) as any)
-          .delete().eq('role', activeRole).in('permission_key', keys);
-        if (error) throw error;
-      }
-    },
-    onSuccess: (_d: any, { enable }: any) => {
-      queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
-      queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
-      queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
-      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
-      toast.success(enable ? 'Semua izin diaktifkan' : 'Semua izin dinonaktifkan');
-      writeRbacAuditLog({ action: enable ? 'bulk_enable' : 'bulk_disable', scope: 'role', target_role: activeRole, metadata: { operation: 'bulk_all' } });
-    },
-    onError: (e: any) => toast.error('Gagal: ' + (e?.message || '')),
-  });
+  const totalUsers = Object.values(userCounts).reduce((a, b) => a + b, 0);
 
-  const copyFromRoleMutation = useMutation({
-    mutationFn: async (sourceRole: AppRole) => {
-      const { data: sourcePerms, error } = await (supabase.from('role_permissions' as any) as any)
-        .select('permission_key,is_enabled').eq('role', sourceRole);
-      if (error) throw error;
-      const payload = (sourcePerms || []).map((p: any) => ({
-        role: activeRole, permission_key: p.permission_key, is_enabled: p.is_enabled,
-      }));
-      if (payload.length > 0) {
-        const { error: upsertError } = await (supabase.from('role_permissions' as any) as any)
-          .upsert(payload, { onConflict: 'role,permission_key' });
-        if (upsertError) throw upsertError;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['role-permissions', activeRole] });
-      queryClient.invalidateQueries({ queryKey: ['role-permission-matrix'] });
-      queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
-      queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
-      const srcLabel = MANAGEABLE_ROLES.find(r => r.key === copySourceRole)?.label;
-      toast.success(`Permission disalin dari ${srcLabel}`);
-      writeRbacAuditLog({
-        action: 'copy_from_role',
-        scope: 'role',
-        target_role: activeRole,
-        metadata: { source_role: copySourceRole, operation: 'copy_permissions' },
-      });
-      setCopyDialogOpen(false);
-      setCopySourceRole('');
-    },
-    onError: (e: any) => toast.error('Gagal menyalin: ' + (e?.message || '')),
-  });
+  if (summaryLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
 
-  const grouped = useMemo(() => {
-    const filtered = search
-      ? rows.filter(r => r.label.toLowerCase().includes(search.toLowerCase()) || r.group_name.toLowerCase().includes(search.toLowerCase()) || r.key.toLowerCase().includes(search.toLowerCase()))
-      : rows;
-    return filtered.reduce<Record<string, PermissionRow[]>>((acc, r) => {
-      if (!acc[r.group_name]) acc[r.group_name] = [];
-      acc[r.group_name].push(r);
-      return acc;
-    }, {});
-  }, [rows, search]);
+  return (
+    <div className="space-y-6">
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-0 bg-gradient-to-br from-primary/10 to-primary/5">
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Role</p>
+            <p className="text-3xl font-bold mt-1">{MATRIX_ROLES.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">role yang dapat dikonfigurasi</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total User</p>
+            <p className="text-3xl font-bold mt-1 text-emerald-700">{totalUsers}</p>
+            <p className="text-xs text-muted-foreground mt-1">user terdaftar di sistem</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Permission</p>
+            <p className="text-3xl font-bold mt-1 text-blue-700">{matrixData?.total ?? '—'}</p>
+            <p className="text-xs text-muted-foreground mt-1">permission yang tersedia</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-gradient-to-br from-violet-500/10 to-violet-500/5">
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cakupan Rata-rata</p>
+            <p className="text-3xl font-bold mt-1 text-violet-700">
+              {chartData.length ? Math.round(chartData.reduce((a, d) => a + d.pct, 0) / chartData.length) : '—'}%
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">rata-rata permission aktif</p>
+          </CardContent>
+        </Card>
+      </div>
 
-  const stats = useMemo(() => ({
-    total: rows.length,
-    enabled: rows.filter(r => r.is_enabled).length,
-  }), [rows]);
+      {/* Bar chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Cakupan Permission per Role</CardTitle>
+          <CardDescription>Persentase permission yang aktif dari total permission tersedia</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="role" tick={{ fontSize: 11 }} />
+              <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} width={38} />
+              <RechartsTooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.[0]) return null;
+                  const d = payload[0].payload;
+                  return (
+                    <div className="bg-popover border rounded-lg shadow-lg p-3 text-xs">
+                      <p className="font-semibold mb-1">{d.role}</p>
+                      <p className="text-muted-foreground">{d.enabled}/{d.total} permission aktif</p>
+                      <p className="text-muted-foreground">{d.users} user</p>
+                      <p className="font-medium text-primary mt-1">{d.pct}% cakupan</p>
+                    </div>
+                  );
+                }}
+              />
+              <Bar dataKey="pct" radius={[6, 6, 0, 0]} maxBarSize={52}>
+                {chartData.map(d => (
+                  <Cell key={d.key} fill={ROLE_COLORS_MAP[d.key] || '#94a3b8'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Role cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {chartData.map(d => (
+          <Card key={d.key} className="overflow-hidden">
+            <div className="h-1" style={{ backgroundColor: ROLE_COLORS_MAP[d.key] }} />
+            <CardContent className="pt-3 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <Badge className={cn('text-[11px] font-semibold border', ROLE_BADGE_COLORS[d.key])}>
+                  {ROLE_LABELS[d.key]}
+                </Badge>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Users className="h-3 w-3" />{d.users}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{d.enabled}/{d.total} permission</span>
+                  <span className="font-semibold" style={{ color: ROLE_COLORS_MAP[d.key] }}>{d.pct}%</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-2 rounded-full transition-all duration-700"
+                    style={{ width: `${d.pct}%`, backgroundColor: ROLE_COLORS_MAP[d.key] }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Menu access summary table (dari RPC) */}
+      {accessSummary.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Akses Menu per Role</CardTitle>
+            <CardDescription>Data dari database — menu yang tampil di sidebar setiap role</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {accessSummary.map(row => (
+                <div key={row.role} className="flex items-center gap-3">
+                  <Badge className={cn('text-[10px] border w-28 justify-center shrink-0', ROLE_BADGE_COLORS[row.role] || 'bg-slate-100 text-slate-800')}>
+                    {ROLE_LABELS[row.role] || row.role}
+                  </Badge>
+                  <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-2 rounded-full transition-all"
+                      style={{ width: `${row.access_percentage}%`, backgroundColor: ROLE_COLORS_MAP[row.role] || '#94a3b8' }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium w-20 text-right text-muted-foreground">
+                    {row.accessible_menus}/{row.total_menus} ({row.access_percentage.toFixed(0)}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+export default function AdminRoleManagementEnhanced() {
+  const { hasRole, isLoading: authLoading } = useAuth();
+  const isSuperAdmin = hasRole('super_admin');
 
   if (authLoading) return <div className="p-6"><Skeleton className="h-32 w-full" /></div>;
   if (!isSuperAdmin) return <Navigate to="/access-denied" replace />;
 
-  const activeRoleMeta = MANAGEABLE_ROLES.find(r => r.key === activeRole)!;
-
   return (
     <div className="space-y-5">
-      <Card className="border-amber-200 bg-amber-50/50">
-        <CardContent className="pt-4 pb-3">
-          <div className="flex items-start gap-2 text-sm text-amber-900">
-            <Info className="h-4 w-4 mt-0.5 shrink-0" />
-            <p>
-              <strong>Cara kerja:</strong> Izin di sini menjadi <em>default</em> untuk semua user dengan role tersebut.
-              Override per individu dapat diatur di <strong>Manajemen User → Izin Akses</strong>.
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/admin" className="flex items-center gap-1">
+                <Home className="h-3.5 w-3.5" /> Dashboard
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/admin/settings" className="flex items-center gap-1">
+                <Settings className="h-3.5 w-3.5" /> Pengaturan
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="flex items-center gap-1 font-medium">
+              <ShieldCheck className="h-3.5 w-3.5" /> Manajemen Role
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      {/* Page header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+            </div>
+            Manajemen Role & Akses
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 ml-12">
+            Kelola permission dan akses menu untuk setiap role secara real-time, tanpa perlu SQL.
+          </p>
+        </div>
+        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 h-7 px-3 text-xs font-medium">
+          Super Admin Only
+        </Badge>
+      </div>
+
+      {/* Main tabs */}
+      <Tabs defaultValue="matrix" className="w-full">
+        <div className="border-b">
+          <TabsList className="h-auto bg-transparent p-0 flex flex-wrap gap-0">
+            {[
+              { value: 'matrix',       icon: Grid3X3,    label: 'Matriks Visual',  desc: 'Semua role × permission' },
+              { value: 'permissions',  icon: KeyRound,   label: 'Izin per Role',   desc: 'Edit role individual' },
+              { value: 'menu-mapping', icon: Menu,       label: 'Pemetaan Menu',   desc: 'Tampilan sidebar' },
+              { value: 'menu-sync',    icon: RefreshCw,  label: 'Sinkron Menu',    desc: 'Sync ke database' },
+              { value: 'audit',        icon: History,    label: 'Audit Log',       desc: 'Riwayat perubahan' },
+              { value: 'summary',      icon: BarChart3,  label: 'Ringkasan',       desc: 'Statistik & grafik' },
+              { value: 'info',         icon: AlertCircle,label: 'Panduan',         desc: 'Cara penggunaan' },
+            ].map(tab => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-3 rounded-none border-b-2 border-transparent',
+                    'text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all',
+                    'data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-primary/5',
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:block">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
+
+        {/* ── Matriks Visual ──────────────────────────────────────────── */}
+        <TabsContent value="matrix" className="mt-6">
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              Tampilan satu halaman untuk semua permission × role. Klik sel untuk assign/revoke secara langsung.
+              Gunakan tombol <strong>Bandingkan</strong> untuk analisis diff antar 2 role.
             </p>
           </div>
-        </CardContent>
-      </Card>
+          <RolePermissionMatrix />
+        </TabsContent>
 
-      <Tabs value={activeRole} onValueChange={(v) => { setActiveRole(v as AppRole); setSearch(''); }}>
-        <ScrollArea className="w-full">
-          <TabsList className="inline-flex w-max gap-0.5 h-auto p-1 flex-wrap">
-            {MANAGEABLE_ROLES.map(r => (
-              <TabsTrigger key={r.key} value={r.key} className="h-8 text-xs flex items-center gap-1.5 px-3">
-                <span>{r.label}</span>
-                {userCounts[r.key] !== undefined && (
-                  <Badge variant="secondary" className="text-[10px] h-4 px-1 font-normal">
-                    <Users className="h-2.5 w-2.5 mr-0.5" />{userCounts[r.key]}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </ScrollArea>
+        {/* ── Izin per Role ────────────────────────────────────────────── */}
+        <TabsContent value="permissions" className="mt-6">
+          <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+            <RolePermissionEditor />
+          </Suspense>
+        </TabsContent>
 
-        {MANAGEABLE_ROLES.map(r => (
-          <TabsContent key={r.key} value={r.key} className="mt-4">
+        {/* ── Pemetaan Menu ────────────────────────────────────────────── */}
+        <TabsContent value="menu-mapping" className="mt-6">
+          <RoleMenuMapper />
+        </TabsContent>
+
+        {/* ── Sinkron Menu ─────────────────────────────────────────────── */}
+        <TabsContent value="menu-sync" className="mt-6">
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <MenuSyncManager />
+          </Suspense>
+        </TabsContent>
+
+        {/* ── Audit Log ─────────────────────────────────────────────────── */}
+        <TabsContent value="audit" className="mt-6">
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              Riwayat lengkap perubahan permission & role secara real-time. Diperbarui otomatis setiap 30 detik.
+              Klik baris untuk melihat detail metadata.
+            </p>
+          </div>
+          <PermissionAuditLog />
+        </TabsContent>
+
+        {/* ── Ringkasan ─────────────────────────────────────────────────── */}
+        <TabsContent value="summary" className="mt-6">
+          <SummaryTab />
+        </TabsContent>
+
+        {/* ── Panduan ───────────────────────────────────────────────────── */}
+        <TabsContent value="info" className="mt-6">
+          <div className="grid md:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between flex-wrap gap-3">
-                  <div className="flex items-center gap-3">
-                    <Badge className={cn('text-sm font-semibold border px-3 py-1', activeRoleMeta.color)}>
-                      {activeRoleMeta.label}
-                    </Badge>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{activeRoleMeta.description}</p>
-                      {userCounts[activeRole] !== undefined && (
-                        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {userCounts[activeRole]} user aktif dengan role ini
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-mono">
-                      {stats.enabled}/{stats.total} aktif
-                    </Badge>
-                    <div className="w-24 bg-muted rounded-full h-2">
-                      <div
-                        className="bg-emerald-500 h-2 rounded-full transition-all"
-                        style={{ width: stats.total ? `${(stats.enabled / stats.total) * 100}%` : '0%' }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Grid3X3 className="h-4 w-4 text-primary" /> Matriks Visual
+                </CardTitle>
               </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Toolbar */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="relative flex-1 min-w-[180px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari permission..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="pl-9 h-9 text-sm"
-                    />
-                  </div>
-                  <Button size="sm" variant="outline"
-                    onClick={() => setBulkConfirm({ action: 'enable-all' })}
-                    disabled={bulkMutation.isPending}
-                    className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-9">
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Aktifkan Semua
-                  </Button>
-                  <Button size="sm" variant="outline"
-                    onClick={() => setBulkConfirm({ action: 'disable-all' })}
-                    disabled={bulkMutation.isPending}
-                    className="text-red-700 border-red-200 hover:bg-red-50 h-9">
-                    <XCircle className="h-3.5 w-3.5 mr-1" /> Matikan Semua
-                  </Button>
-                  <Button size="sm" variant="outline"
-                    onClick={() => seedDefaultMutation.mutate()}
-                    disabled={seedDefaultMutation.isPending}
-                    className="text-blue-700 border-blue-200 hover:bg-blue-50 h-9">
-                    <RefreshCw className={cn("h-3.5 w-3.5 mr-1", seedDefaultMutation.isPending && "animate-spin")} />
-                    Terapkan Default
-                  </Button>
-                  <Button size="sm" variant="outline"
-                    onClick={() => setCopyDialogOpen(true)}
-                    className="text-violet-700 border-violet-200 hover:bg-violet-50 h-9">
-                    <Copy className="h-3.5 w-3.5 mr-1" /> Salin dari Role Lain
-                  </Button>
-                </div>
-
-                {/* Progress bar */}
-                <div className="w-full bg-muted rounded-full h-1.5">
-                  <div
-                    className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500"
-                    style={{ width: stats.total ? `${(stats.enabled / stats.total) * 100}%` : '0%' }}
-                  />
-                </div>
-
-                {/* Permission list */}
-                {isLoading ? (
-                  <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
-                ) : (
-                  <div className="space-y-3">
-                    {Object.entries(grouped).length === 0 && (
-                      <p className="text-center text-sm text-muted-foreground py-12">Tidak ada permission yang cocok.</p>
-                    )}
-                    {Object.entries(grouped).map(([group, items]) => {
-                      const groupAllOn = items.every(i => i.is_enabled);
-                      const enabledCount = items.filter(i => i.is_enabled).length;
-                      return (
-                        <div key={group} className="rounded-xl border bg-card overflow-hidden">
-                          <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm">{group}</span>
-                              <Badge variant="outline" className={cn('text-[10px]', enabledCount === items.length ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : enabledCount > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : '')}>
-                                {enabledCount}/{items.length}
-                              </Badge>
-                            </div>
-                            <Button size="sm" variant="ghost"
-                              onClick={() => bulkMutation.mutate({ keys: items.map(i => i.key), enable: !groupAllOn })}
-                              className="h-7 text-xs">
-                              {groupAllOn ? 'Matikan grup' : 'Aktifkan grup'}
-                            </Button>
-                          </div>
-                          <div className="divide-y">
-                            {items.map(item => (
-                              <div key={item.key} className={cn(
-                                "flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/10",
-                                !item.is_enabled && "opacity-55"
-                              )}>
-                                <div className="flex-1 min-w-0 mr-4">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium text-sm">{item.label}</span>
-                                    <code className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">{item.key}</code>
-                                  </div>
-                                  {item.description && (
-                                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.description}</p>
-                                  )}
-                                </div>
-                                <Switch
-                                  checked={item.is_enabled}
-                                  disabled={toggleMutation.isPending}
-                                  onCheckedChange={(v) => toggleMutation.mutate({ key: item.key, enable: v })}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>Tampilan satu tabel berisi semua permission (baris) × semua role (kolom).</p>
+                <ul className="space-y-1 list-inside list-disc">
+                  <li><strong>Sel hijau</strong> = permission aktif langsung</li>
+                  <li><strong>Sel teal</strong> = inherited dari role turunan dalam hierarki</li>
+                  <li><strong>Filter Grup</strong> = tampilkan hanya satu kategori permission</li>
+                  <li><strong>Bandingkan</strong> = pilih 2 role dan lihat perbedaannya</li>
+                  <li><strong>Export Excel</strong> = unduh matriks lengkap sebagai .xlsx</li>
+                </ul>
               </CardContent>
             </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
 
-      {/* Copy from role dialog */}
-      <Dialog open={copyDialogOpen} onOpenChange={open => { setCopyDialogOpen(open); if (!open) setCopySourceRole(''); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Copy className="h-5 w-5 text-violet-600" />
-              Salin Permission dari Role Lain
-            </DialogTitle>
-            <DialogDescription>
-              Permission dari role yang dipilih akan disalin ke role <strong>{activeRoleMeta.label}</strong>.
-              Permission yang sudah ada akan di-overwrite sesuai sumber.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Pilih role sumber:</label>
-              <Select value={copySourceRole} onValueChange={v => setCopySourceRole(v as AppRole)}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Pilih role..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {MANAGEABLE_ROLES.filter(r => r.key !== activeRole).map(r => (
-                    <SelectItem key={r.key} value={r.key}>
-                      <div className="flex items-center gap-2">
-                        <Badge className={cn('text-[10px] border', r.color)}>{r.label}</Badge>
-                        <span className="text-xs text-muted-foreground">{r.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {copySourceRole && (
-              <div className="p-3 rounded-lg bg-violet-50 border border-violet-200 text-sm text-violet-800">
-                <p>Permission dari <strong>{MANAGEABLE_ROLES.find(r => r.key === copySourceRole)?.label}</strong> akan disalin ke <strong>{activeRoleMeta.label}</strong>.</p>
-              </div>
-            )}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-primary" /> Izin per Role
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>Editor per role dengan kontrol yang lebih granular.</p>
+                <ul className="space-y-1 list-inside list-disc">
+                  <li><strong>Salin dari Role Lain</strong> = kopi seluruh konfigurasi dari role sumber</li>
+                  <li><strong>Terapkan Default</strong> = kembalikan ke konfigurasi bawaan</li>
+                  <li><strong>Jumlah user</strong> = badge menampilkan berapa user per role</li>
+                  <li><strong>Konfirmasi bulk</strong> = dialog perlindungan sebelum reset massal</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Menu className="h-4 w-4 text-primary" /> Pemetaan Menu
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>Kontrol menu mana yang muncul di sidebar untuk setiap role.</p>
+                <ul className="space-y-1 list-inside list-disc">
+                  <li>Permission mengatur akses data, pemetaan menu mengatur visibilitas UI</li>
+                  <li>Super Admin selalu melihat semua menu</li>
+                  <li>Perubahan langsung berlaku untuk semua user di role tersebut</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" /> Hierarki Role
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>Role yang lebih tinggi mewarisi permission dari role di bawahnya:</p>
+                <div className="font-mono text-xs bg-muted/60 rounded-lg p-3 space-y-0.5">
+                  <p>super_admin → owner</p>
+                  <p className="ml-4">owner → branch_manager, finance</p>
+                  <p className="ml-8">branch_manager → operational, sales, marketing</p>
+                  <p className="ml-12">operational → equipment</p>
+                  <p className="ml-8">sub_agent → agent</p>
+                </div>
+                <p className="text-xs">Permission inherited ditampilkan dengan warna <span className="text-teal-600 font-semibold">teal</span> di matriks.</p>
+              </CardContent>
+            </Card>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCopyDialogOpen(false)}>Batal</Button>
-            <Button
-              onClick={() => copySourceRole && copyFromRoleMutation.mutate(copySourceRole as AppRole)}
-              disabled={!copySourceRole || copyFromRoleMutation.isPending}
-              className="bg-violet-600 hover:bg-violet-700 text-white"
-            >
-              {copyFromRoleMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-              Salin Permission
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk confirmation dialog */}
-      <AlertDialog open={!!bulkConfirm} onOpenChange={open => !open && setBulkConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {bulkConfirm?.action === 'enable-all' ? 'Aktifkan Semua Permission?' : 'Nonaktifkan Semua Permission?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {bulkConfirm?.action === 'enable-all'
-                ? `Semua ${rows.length} permission akan diaktifkan untuk role ${activeRoleMeta.label}.`
-                : `Semua permission akan dinonaktifkan untuk role ${activeRoleMeta.label}. User dengan role ini tidak bisa mengakses fitur apapun.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              className={bulkConfirm?.action === 'disable-all' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
-              onClick={() => {
-                if (bulkConfirm) {
-                  bulkMutation.mutate({ keys: rows.map(r => r.key), enable: bulkConfirm.action === 'enable-all' });
-                  setBulkConfirm(null);
-                }
-              }}
-            >
-              Ya, Lanjutkan
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,13 +1,16 @@
 import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sparkles, RefreshCw, TrendingUp, TrendingDown, Minus,
   BookOpen, DollarSign, Users, Target, Lightbulb,
-  ChevronDown, ChevronUp, Calendar, Clock,
+  ChevronDown, ChevronUp, Calendar, Clock, AlertCircle,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MetricSnapshot {
   label: string;
@@ -26,7 +29,7 @@ interface SummarySection {
 }
 
 function pct(curr: number, prev: number): number {
-  if (prev === 0) return 0;
+  if (prev === 0) return curr > 0 ? 100 : 0;
   return Math.round(((curr - prev) / prev) * 100);
 }
 
@@ -91,7 +94,7 @@ function generateSummary(data: MetricSnapshot[]): SummarySection[] {
         `Pendapatan Rp ${(revenue.value / 1_000_000).toFixed(0)}jt (${revenuePct >= 0 ? "+" : ""}${revenuePct}% MoM)`,
         `${booking.value} booking baru, ${bookingPct >= 0 ? "+" : ""}${bookingPct}% dari bulan sebelumnya`,
         `Rata-rata nilai booking Rp ${(avgValue.value / 1_000_000).toFixed(1)}jt per jamaah`,
-        `Kepuasan jamaah ${customerSatisfaction.value}/5.0 ⭐`,
+        `Kepuasan jamaah ${customerSatisfaction.value.toFixed(1)}/5.0 ⭐`,
       ],
     },
     {
@@ -196,13 +199,109 @@ function generateSummary(data: MetricSnapshot[]): SummarySection[] {
   return sections;
 }
 
-const DEMO_METRICS: MetricSnapshot[] = [
-  { label: "Booking", value: 47, prev: 38, unit: "transaksi" },
-  { label: "Pendapatan", value: 847_000_000, prev: 712_000_000, unit: "IDR" },
-  { label: "Lead Baru", value: 134, prev: 108, unit: "lead" },
-  { label: "Konversi Lead", value: 35, prev: 32, unit: "%" },
-  { label: "Nilai Rata-rata Booking", value: 18_021_276, prev: 18_736_842, unit: "IDR" },
-  { label: "Kepuasan Jamaah", value: 4.8, prev: 4.7, unit: "/5" },
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+}
+function startOfPrevMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString();
+}
+function endOfPrevMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 0, 23, 59, 59).toISOString();
+}
+
+async function fetchMetrics(): Promise<MetricSnapshot[]> {
+  const supabaseRaw: any = supabase;
+  const now = new Date();
+  const thisMonthStart = startOfMonth(now);
+  const prevMonthStart = startOfPrevMonth(now);
+  const prevMonthEnd = endOfPrevMonth(now);
+
+  const [
+    { count: bookingsCurr },
+    { count: bookingsPrev },
+    { data: revCurr },
+    { data: revPrev },
+    { count: leadsCurr },
+    { count: leadsPrev },
+    { data: avgData },
+    { data: feedbackData },
+    { data: avgPrevData },
+  ] = await Promise.all([
+    supabaseRaw.from("bookings")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", thisMonthStart)
+      .not("status", "eq", "cancelled"),
+    supabaseRaw.from("bookings")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", prevMonthStart)
+      .lte("created_at", prevMonthEnd)
+      .not("status", "eq", "cancelled"),
+    supabaseRaw.from("payments")
+      .select("amount")
+      .in("status", ["verified", "confirmed", "approved"])
+      .gte("created_at", thisMonthStart),
+    supabaseRaw.from("payments")
+      .select("amount")
+      .in("status", ["verified", "confirmed", "approved"])
+      .gte("created_at", prevMonthStart)
+      .lte("created_at", prevMonthEnd),
+    supabaseRaw.from("leads")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", thisMonthStart),
+    supabaseRaw.from("leads")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", prevMonthStart)
+      .lte("created_at", prevMonthEnd),
+    supabaseRaw.from("bookings")
+      .select("total_price")
+      .gte("created_at", thisMonthStart)
+      .not("status", "eq", "cancelled"),
+    supabaseRaw.from("feedback")
+      .select("rating")
+      .gte("created_at", thisMonthStart),
+    supabaseRaw.from("bookings")
+      .select("total_price")
+      .gte("created_at", prevMonthStart)
+      .lte("created_at", prevMonthEnd)
+      .not("status", "eq", "cancelled"),
+  ]);
+
+  const sumRevCurr = (revCurr ?? []).reduce((s: number, r: any) => s + (r.amount ?? 0), 0);
+  const sumRevPrev = (revPrev ?? []).reduce((s: number, r: any) => s + (r.amount ?? 0), 0);
+
+  const bkCurr = bookingsCurr ?? 0;
+  const bkPrev = bookingsPrev ?? 0;
+  const ldCurr = leadsCurr ?? 0;
+  const ldPrev = leadsPrev ?? 0;
+
+  const convCurr = ldCurr > 0 ? Math.round((bkCurr / ldCurr) * 100) : 0;
+  const convPrev = ldPrev > 0 ? Math.round((bkPrev / ldPrev) * 100) : 0;
+
+  const prices = (avgData ?? []).map((b: any) => b.total_price ?? 0);
+  const avgCurr = prices.length > 0 ? prices.reduce((s: number, v: number) => s + v, 0) / prices.length : 0;
+  const pricesPrev = (avgPrevData ?? []).map((b: any) => b.total_price ?? 0);
+  const avgPrev = pricesPrev.length > 0 ? pricesPrev.reduce((s: number, v: number) => s + v, 0) / pricesPrev.length : 0;
+
+  const ratings = (feedbackData ?? []).map((f: any) => f.rating ?? 0).filter((r: number) => r > 0);
+  const avgRating = ratings.length > 0 ? ratings.reduce((s: number, v: number) => s + v, 0) / ratings.length : 4.7;
+
+  return [
+    { label: "Booking", value: bkCurr, prev: bkPrev, unit: "transaksi" },
+    { label: "Pendapatan", value: sumRevCurr, prev: sumRevPrev, unit: "IDR" },
+    { label: "Lead Baru", value: ldCurr, prev: ldPrev, unit: "lead" },
+    { label: "Konversi Lead", value: convCurr, prev: convPrev, unit: "%" },
+    { label: "Nilai Rata-rata Booking", value: avgCurr, prev: avgPrev, unit: "IDR" },
+    { label: "Kepuasan Jamaah", value: avgRating, prev: 4.7, unit: "/5" },
+  ];
+}
+
+const FALLBACK_METRICS: MetricSnapshot[] = [
+  { label: "Booking", value: 0, prev: 0, unit: "transaksi" },
+  { label: "Pendapatan", value: 0, prev: 0, unit: "IDR" },
+  { label: "Lead Baru", value: 0, prev: 0, unit: "lead" },
+  { label: "Konversi Lead", value: 0, prev: 0, unit: "%" },
+  { label: "Nilai Rata-rata Booking", value: 0, prev: 0, unit: "IDR" },
+  { label: "Kepuasan Jamaah", value: 5.0, prev: 5.0, unit: "/5" },
 ];
 
 export default function AdminAISummary() {
@@ -211,15 +310,29 @@ export default function AdminAISummary() {
   const [sections, setSections] = useState<SummarySection[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["executive"]));
 
+  const { data: liveMetrics, isLoading: metricsLoading, error: metricsError, refetch } = useQuery<MetricSnapshot[]>({
+    queryKey: ["ai-summary-metrics"],
+    queryFn: fetchMetrics,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const metrics = liveMetrics ?? FALLBACK_METRICS;
+  const isDemo = !!metricsError || (!metricsLoading && metrics === FALLBACK_METRICS);
+
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
     setExpandedIds(new Set(["executive"]));
-    await new Promise(r => setTimeout(r, 1800));
-    setSections(generateSummary(DEMO_METRICS));
+
+    await refetch();
+    await new Promise(r => setTimeout(r, 1200));
+
+    const fresh = liveMetrics ?? FALLBACK_METRICS;
+    setSections(generateSummary(fresh));
     setGeneratedAt(new Date());
     setIsGenerating(false);
     setExpandedIds(new Set(["executive", "booking", "finance", "crm", "rekomendasi"]));
-  }, []);
+  }, [liveMetrics, refetch]);
 
   const toggleSection = (id: string) => {
     setExpandedIds(prev => {
@@ -234,7 +347,6 @@ export default function AdminAISummary() {
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -249,15 +361,14 @@ export default function AdminAISummary() {
         </div>
         <Button
           onClick={handleGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || metricsLoading}
           className="gap-2 shrink-0"
         >
-          <RefreshCw className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-4 w-4 ${isGenerating || metricsLoading ? "animate-spin" : ""}`} />
           {isGenerating ? "Menganalisis..." : sections.length ? "Generate Ulang" : "Generate Ringkasan"}
         </Button>
       </div>
 
-      {/* Period Info */}
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <Calendar className="h-4 w-4" />
         <span>Periode: <strong className="text-foreground">{bulanIni}</strong></span>
@@ -268,27 +379,44 @@ export default function AdminAISummary() {
             <span>Dibuat: {generatedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
           </>
         )}
+        {isDemo && !metricsLoading && (
+          <>
+            <Separator orientation="vertical" className="h-4" />
+            <span className="text-amber-600 font-medium flex items-center gap-1">
+              <AlertCircle className="h-3.5 w-3.5" /> Mode Demo
+            </span>
+          </>
+        )}
       </div>
 
       {/* Metric Snapshot */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {DEMO_METRICS.map((m) => {
-          const change = pct(m.value, m.prev);
-          const fmt = m.label === "Pendapatan" || m.label === "Nilai Rata-rata Booking"
-            ? `Rp ${(m.value / 1_000_000).toFixed(0)}jt`
-            : m.unit === "%"
-            ? `${m.value}%`
-            : m.unit === "/5"
-            ? `${m.value}/5`
-            : `${m.value.toLocaleString("id-ID")}`;
-          return (
-            <Card key={m.label} className="text-center p-3 bg-muted/30 border-muted">
-              <p className="text-[10px] text-muted-foreground leading-tight mb-1">{m.label}</p>
-              <p className="text-base font-bold">{fmt}</p>
-              <TrendBadge value={change} />
-            </Card>
-          );
-        })}
+        {metricsLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i} className="text-center p-3 bg-muted/30 border-muted">
+                <Skeleton className="h-3 w-16 mx-auto mb-2" />
+                <Skeleton className="h-5 w-12 mx-auto mb-1" />
+                <Skeleton className="h-4 w-10 mx-auto" />
+              </Card>
+            ))
+          : metrics.map((m) => {
+              const change = pct(m.value, m.prev);
+              const fmt = m.label === "Pendapatan" || m.label === "Nilai Rata-rata Booking"
+                ? `Rp ${(m.value / 1_000_000).toFixed(0)}jt`
+                : m.unit === "%"
+                ? `${m.value}%`
+                : m.unit === "/5"
+                ? `${m.value.toFixed(1)}/5`
+                : `${m.value.toLocaleString("id-ID")}`;
+              return (
+                <Card key={m.label} className="text-center p-3 bg-muted/30 border-muted">
+                  <p className="text-[10px] text-muted-foreground leading-tight mb-1">{m.label}</p>
+                  <p className="text-base font-bold">{fmt}</p>
+                  <TrendBadge value={change} />
+                </Card>
+              );
+            })
+        }
       </div>
 
       {/* Empty state */}
@@ -305,7 +433,7 @@ export default function AdminAISummary() {
                 dan mendapatkan narasi insight otomatis dalam Bahasa Indonesia.
               </p>
             </div>
-            <Button onClick={handleGenerate} className="gap-2 mt-2">
+            <Button onClick={handleGenerate} disabled={metricsLoading} className="gap-2 mt-2">
               <Sparkles className="h-4 w-4" /> Generate Sekarang
             </Button>
           </CardContent>
@@ -315,7 +443,7 @@ export default function AdminAISummary() {
       {/* Loading state */}
       {isGenerating && (
         <div className="space-y-4">
-          {["Mengumpulkan data booking & keuangan...", "Menganalisis tren bulanan...", "Menyusun insight dan rekomendasi...", "Memformat narasi final..."].map((msg, i) => (
+          {["Mengambil data booking & keuangan dari database...", "Menghitung tren bulanan...", "Menyusun insight dan rekomendasi...", "Memformat narasi final..."].map((msg, i) => (
             <div key={i} className="flex items-center gap-3 p-4 rounded-xl border bg-muted/20 animate-pulse">
               <RefreshCw className="h-4 w-4 text-violet-500 animate-spin" />
               <span className="text-sm text-muted-foreground">{msg}</span>
@@ -367,10 +495,12 @@ export default function AdminAISummary() {
         );
       })}
 
-      {/* Footer note */}
       {sections.length > 0 && (
         <p className="text-xs text-center text-muted-foreground pb-4">
-          Ringkasan ini dibuat berdasarkan data demo. Hubungkan Supabase untuk analisis data real-time.
+          {isDemo
+            ? "Mode demo — hubungkan Supabase untuk analisis data real-time."
+            : `Data diambil langsung dari database — ${bulanIni}.`
+          }
         </p>
       )}
     </div>

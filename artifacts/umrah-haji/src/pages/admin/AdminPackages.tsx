@@ -13,7 +13,7 @@ import {
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
   Power, PowerOff, ChevronDown, Layers, TrendingUp, DollarSign, Users, Zap,
   ArrowUpRight, ArrowDownRight, Download, FileSpreadsheet, FileText,
-  AlertTriangle, CheckSquare, Square, BarChart3, Box
+  AlertTriangle, CheckSquare, Square, BarChart3
 } from "lucide-react";
 import {
   Dialog,
@@ -42,7 +42,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
-import { PackageMarketingActions } from "@/components/admin/packages/PackageMarketingActions";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { usePackageAnalytics } from "@/hooks/usePackageAnalytics";
@@ -59,7 +58,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { exportToExcel, exportToPDF } from "@/lib/export-utils";
@@ -71,44 +69,15 @@ import {
 } from "@/lib/export-utils-enhanced";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Share2, Settings2 } from "lucide-react";
-import { PackageChangeSettingsDialog } from "@/components/admin/packages/PackageChangeSettingsDialog";
-import { PackageChangeRulesManager } from "@/components/admin/packages/PackageChangeRulesManager";
-import { useAuth } from "@/hooks/useAuth";
-import { useDynamicMenus } from "@/hooks/useDynamicMenus";
 
 export default function AdminPackages() {
-  const getUpcomingDepartures = (departures: any[]) => {
-    if (!departures) return [];
-    const today = new Date().toISOString().split('T')[0];
-    return departures.filter(d => d.departure_date >= today && d.status === 'open');
-  };
-
-  const toggleStatExpanded = (statId: string) => {
-    setExpandedStats(prev => 
-      prev.includes(statId) ? prev.filter(id => id !== statId) : [...prev, statId]
-    );
-  };
-
-  const togglePackageCardExpanded = (packageId: string) => {
-    setExpandedPackageCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(packageId)) {
-        newSet.delete(packageId);
-      } else {
-        newSet.add(packageId);
-      }
-      return newSet;
-    });
-  };
-
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
   const [deletePackage, setDeletePackage] = useState<any>(null);
   const [packageTypeFilter, setPackageTypeFilter] = useState<"all" | "regular" | "tabungan">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [quickFilter, setQuickFilter] = useState<"all" | "almost_full" | "soon" | "cheapest" | "popular">("all");
+  const [quickFilter, setQuickFilter] = useState<"all" | "almost_full" | "soon">("all");
   const [showFilters, setShowFilters] = useState(false);
   const [statsFilters, setStatsFilters] = useState<PackageStatsFilters>({});
   const [selectedDateRange, setSelectedDateRange] = useState<"7days" | "30days" | "90days" | "custom">("30days");
@@ -123,17 +92,8 @@ export default function AdminPackages() {
   const [isExporting, setIsExporting] = useState(false);
   const [isManifestDialogOpen, setIsManifestDialogOpen] = useState(false);
   const [selectedPackageForManifest, setSelectedPackageForManifest] = useState<any>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isRulesOpen, setIsRulesOpen] = useState(false);
-  const [expandedPackageCards, setExpandedPackageCards] = useState<Set<string>>(new Set());
-  const [selectedPackageForRules, setSelectedPackageForRules] = useState<any>(null);
-  const [expandedStats, setExpandedStats] = useState<string[]>([]);
   
   const queryClient = useQueryClient();
-  const { isSuperAdmin, hasRole } = useAuth();
-  const { revokedKeys } = useDynamicMenus();
-  
-  const canManagePackageChange = isSuperAdmin() || hasRole('owner') || !revokedKeys.includes('settings-package-change');
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
   const { data: analytics, isLoading: isAnalyticsLoading } = usePackageAnalytics();
   
@@ -147,7 +107,7 @@ export default function AdminPackages() {
           airline:airlines(name),
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, star_rating),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, star_rating),
-          package_type_ref:package_types(name, code),
+          package_type_ref:package_types(name),
           departures(id, departure_date, quota, booked_count, status, price_quad, price_triple, price_double, price_single)
         `)
         .order('created_at', { ascending: false });
@@ -251,30 +211,14 @@ export default function AdminPackages() {
     },
   });
 
+  const getUpcomingDepartures = (departures: any[]) => {
+    if (!departures) return [];
+    const today = new Date().toISOString().split('T')[0];
+    return departures.filter(d => d.departure_date >= today && d.status === 'open');
+  };
+
   const filteredPackages = useMemo(() => {
-    if (!packages) return [];
-
-    // Pre-calculate minPrice and maxBooked for filtering
-    const allPrices = packages.map(p => {
-      const today = new Date().toISOString().split('T')[0];
-      const openDeps = (p.departures as any[])?.filter(
-        (d: any) => d.departure_date >= today && d.status === 'open'
-      ) || [];
-      const depPrices = openDeps.flatMap((d: any) =>
-        [d.price_quad, d.price_triple, d.price_double, d.price_single].filter((pr: number) => pr && pr > 0)
-      );
-      if (depPrices.length > 0) return Math.min(...depPrices);
-      const pkgPrices = [p.price_quad, p.price_triple, p.price_double, p.price_single]
-        .filter((pr: number) => pr && pr > 0);
-      return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
-    }).filter(p => p > 0);
-    
-    const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
-
-    const allBooked = packages.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0);
-    const maxBooked = allBooked.length > 0 ? Math.max(...allBooked) : 0;
-
-    return packages.filter(pkg => {
+    return packages?.filter(pkg => {
       if (searchTerm && !(
         pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pkg.code.toLowerCase().includes(searchTerm.toLowerCase())
@@ -282,48 +226,14 @@ export default function AdminPackages() {
         return false;
       }
       
-      // Check package_type_id relationship for tabungan filter
-      // Also check for packages that have savings_target set (tabungan packages have this field)
-      const hasSavingsTarget = !!pkg.savings_target;
-      const pkgTypeCode = pkg.package_type_ref?.code;
-      
-      if (packageTypeFilter === "tabungan") {
-        // Tabungan packages: have savings_target OR have package_type_ref.code === 'tabungan'
-        if (!hasSavingsTarget && pkgTypeCode !== 'tabungan') return false;
-      }
-      if (packageTypeFilter === "regular") {
-        // Regular packages: have NO savings_target AND package_type_ref.code !== 'tabungan'
-        if (hasSavingsTarget || pkgTypeCode === 'tabungan') return false;
-      }
+      if (packageTypeFilter === "tabungan" && pkg.package_type !== "tabungan") return false;
+      if (packageTypeFilter === "regular" && pkg.package_type === "tabungan") return false;
 
       if (statusFilter === "active" && !pkg.is_active) return false;
       if (statusFilter === "inactive" && pkg.is_active) return false;
 
-      const todayStr = new Date().toISOString().split('T')[0];
-      const upcoming = (pkg.departures as any[])?.filter(d => d.departure_date >= todayStr && d.status === 'open') || [];
+      const upcoming = getUpcomingDepartures(pkg.departures || []);
       
-      if (quickFilter === "cheapest") {
-        const openDeps = upcoming;
-        const depPrices = openDeps.flatMap((d: any) =>
-          [d.price_quad, d.price_triple, d.price_double, d.price_single].filter((pr: number) => pr && pr > 0)
-        );
-        let lowestPrice = 0;
-        if (depPrices.length > 0) {
-          lowestPrice = Math.min(...depPrices);
-        } else {
-          const pkgPrices = [pkg.price_quad, pkg.price_triple, pkg.price_double, pkg.price_single]
-            .filter((pr: number) => pr && pr > 0);
-          lowestPrice = pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
-        }
-        
-        if (lowestPrice === 0 || lowestPrice !== minPrice) return false;
-      }
-
-      if (quickFilter === "popular") {
-        const totalBooked = pkg.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0;
-        if (totalBooked === 0 || totalBooked !== maxBooked) return false;
-      }
-
       if (quickFilter === "almost_full") {
         const hasAlmostFull = upcoming.some(d => (d.quota - (d.booked_count || 0)) < 5);
         if (!hasAlmostFull) return false;
@@ -342,7 +252,7 @@ export default function AdminPackages() {
       }
       
       return true;
-    });
+    }) || [];
   }, [packages, searchTerm, packageTypeFilter, statusFilter, quickFilter]);
 
   const filteredTypes = useMemo(() => {
@@ -378,7 +288,6 @@ export default function AdminPackages() {
     setEditingType(null);
   };
 
-  // Moved logic inside useMemo and other places to avoid initialization issues in minified builds
   const getLowestPrice = (pkg: any) => {
     const today = new Date().toISOString().split('T')[0];
     const openDeps = (pkg.departures as any[])?.filter(
@@ -567,41 +476,31 @@ export default function AdminPackages() {
           </div>
         </div>
 
-        {/* Alert Badges for Warnings - Enhanced */}
+        {/* Alert Badges for Warnings */}
         {(packagesWithLowQuota > 0 || packagesWithMissingData > 0) && (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {packagesWithLowQuota > 0 && (
-              <Card className="border-rose-200/70 bg-gradient-to-br from-rose-50 to-rose-50/50 backdrop-blur rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-rose-500/5 to-transparent" />
-                <CardContent className="p-5 flex items-start gap-4 relative z-10">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-rose-100 to-rose-50 flex items-center justify-center flex-shrink-0 shadow-sm">
-                    <div className="relative">
-                      <AlertTriangle className="h-6 w-6 text-rose-600 animate-pulse" />
-                    </div>
+              <Card className="border-rose-200/50 bg-rose-50/50 backdrop-blur rounded-2xl">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center animate-pulse">
+                    <AlertTriangle className="h-5 w-5 text-rose-600" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-rose-900 mb-1 flex items-center gap-2">
-                      <span className="inline-block h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                      Kuota Menipis
-                    </p>
-                    <p className="text-xs text-rose-700 leading-relaxed">{packagesWithLowQuota} paket memiliki kuota kurang dari 5 pax. Segera tambah jadwal keberangkatan atau promosikan paket ini.</p>
+                  <div>
+                    <p className="text-sm font-bold text-rose-900">Kuota Menipis</p>
+                    <p className="text-xs text-rose-700">{packagesWithLowQuota} paket memiliki kuota kurang dari 5 pax</p>
                   </div>
                 </CardContent>
               </Card>
             )}
             {packagesWithMissingData > 0 && (
-              <Card className="border-amber-200/70 bg-gradient-to-br from-amber-50 to-amber-50/50 backdrop-blur rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent" />
-                <CardContent className="p-5 flex items-start gap-4 relative z-10">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0 shadow-sm">
-                    <AlertCircle className="h-6 w-6 text-amber-600" />
+              <Card className="border-amber-200/50 bg-amber-50/50 backdrop-blur rounded-2xl">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center animate-pulse">
+                    <AlertCircle className="h-5 w-5 text-amber-600" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-amber-900 mb-1 flex items-center gap-2">
-                      <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-                      Data Tidak Lengkap
-                    </p>
-                    <p className="text-xs text-amber-700 leading-relaxed">{packagesWithMissingData} paket aktif belum memiliki jadwal keberangkatan. Tambahkan jadwal keberangkatan untuk mengaktifkan penjualan.</p>
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Data Tidak Lengkap</p>
+                    <p className="text-xs text-amber-700">{packagesWithMissingData} paket aktif tanpa jadwal keberangkatan</p>
                   </div>
                 </CardContent>
               </Card>
@@ -700,30 +599,6 @@ export default function AdminPackages() {
               >
                 <Clock className="h-3.5 w-3.5" />
                 Segera Berangkat
-              </Button>
-              <Button 
-                variant={quickFilter === "cheapest" ? "default" : "outline"} 
-                size="sm" 
-                onClick={() => setQuickFilter("cheapest")}
-                className={cn(
-                  "rounded-full px-4 h-9 gap-2",
-                  quickFilter !== "cheapest" && "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                )}
-              >
-                <DollarSign className="h-3.5 w-3.5" />
-                Termurah
-              </Button>
-              <Button 
-                variant={quickFilter === "popular" ? "default" : "outline"} 
-                size="sm" 
-                onClick={() => setQuickFilter("popular")}
-                className={cn(
-                  "rounded-full px-4 h-9 gap-2",
-                  quickFilter !== "popular" && "border-purple-200 text-purple-600 hover:bg-purple-50"
-                )}
-              >
-                <TrendingUp className="h-3.5 w-3.5" />
-                Terpopuler
               </Button>
             </div>
 
@@ -857,16 +732,6 @@ export default function AdminPackages() {
                   const isLowQuota = remainingQuota > 0 && remainingQuota < 5;
                   const hasNoDepartures = !pkg.departures || pkg.departures.length === 0;
 
-                  // Calculate if this is the cheapest or most popular
-                  const allPrices = packages?.map(p => getLowestPrice(p)).filter(p => p > 0) || [];
-                  const minPrice = Math.min(...allPrices);
-                  const isCheapest = lowestPrice > 0 && lowestPrice === minPrice;
-
-                  const totalBooked = pkg.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0;
-                  const allBooked = packages?.map(p => p.departures?.reduce((sum: number, d: any) => sum + (d.booked_count || 0), 0) || 0) || [];
-                  const maxBooked = Math.max(...allBooked);
-                  const isPopular = totalBooked > 0 && totalBooked === maxBooked;
-
                   // Determine progress bar color based on occupancy
                   let progressColor = "bg-emerald-500"; // Green - Safe
                   let progressLabel = "Aman";
@@ -917,16 +782,6 @@ export default function AdminPackages() {
                         {isLowQuota && (
                           <Badge className="bg-rose-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase animate-pulse flex items-center gap-1">
                             <AlertTriangle className="h-3 w-3" /> KUOTA MENIPIS
-                          </Badge>
-                        )}
-                        {isCheapest && (
-                          <Badge className="bg-emerald-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" /> TERMURAH
-                          </Badge>
-                        )}
-                        {isPopular && (
-                          <Badge className="bg-purple-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3" /> TERPOPULER
                           </Badge>
                         )}
                         {hasNoDepartures && pkg.is_active && (
@@ -997,45 +852,26 @@ export default function AdminPackages() {
                                   {progressLabel}
                                 </p>
                               </div>
-                              <div className="flex flex-col items-end gap-1">
-                                <span className={cn(
-                                  "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                                  occupancyRate > 90 ? "bg-rose-100 text-rose-600" : 
-                                  occupancyRate > 50 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
-                                )}>
-                                  {mainDep.booked_count} / {mainDep.quota} PAX
-                                </span>
-                                {mainDep.break_even_pax > 0 && (
-                                  <span className={cn(
-                                    "text-[9px] font-bold px-1.5 py-0.5 rounded-md border",
-                                    mainDep.booked_count >= mainDep.break_even_pax 
-                                      ? "bg-green-50 text-green-600 border-green-200" 
-                                      : "bg-slate-50 text-slate-500 border-slate-200"
-                                  )}>
-                                    BEP: {mainDep.break_even_pax}
-                                  </span>
-                                )}
-                              </div>
+                              <span className={cn(
+                                "text-xs font-bold px-2 py-1 rounded-full",
+                                occupancyRate > 90 ? "bg-rose-100 text-rose-600" : 
+                                occupancyRate > 50 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
+                              )}>
+                                {mainDep.booked_count} / {mainDep.quota} PAX
+                              </span>
                             </div>
                             <div className="space-y-1">
-                              <div className="relative h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                <div 
-                                  className={cn("h-full transition-all", progressColor)}
-                                  style={{ width: `${occupancyRate}%` }}
-                                />
-                                {mainDep.break_even_pax > 0 && mainDep.break_even_pax < mainDep.quota && (
-                                  <div 
-                                    className="absolute top-0 bottom-0 w-0.5 bg-destructive/50 z-10"
-                                    style={{ left: `${(mainDep.break_even_pax / mainDep.quota) * 100}%` }}
-                                    title={`Titik Impas: ${mainDep.break_even_pax} Pax`}
-                                  />
+                              <Progress 
+                                value={occupancyRate} 
+                                className="h-3 bg-slate-100 rounded-full" 
+                                indicatorClassName={cn(
+                                  "rounded-full transition-all",
+                                  progressColor
                                 )}
-                              </div>
+                              />
                               <div className="flex justify-between text-[9px] text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Box className="h-2.5 w-2.5 text-orange-500" /> 45% Perlengkapan
-                                </span>
-                                <span>{occupancyRate.toFixed(0)}% Terisi</span>
+                                <span>0%</span>
+                                <span>{occupancyRate.toFixed(0)}%</span>
                                 <span>100%</span>
                               </div>
                             </div>
@@ -1133,17 +969,6 @@ export default function AdminPackages() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="rounded-xl p-1 w-48">
-                              <div className="px-1 py-1.5">
-                                <PackageMarketingActions
-                                  pkg={pkg as any}
-                                  companyPhone="62812345678"
-                                  companyName="Vins Tour Travel"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="w-full justify-start text-xs"
-                                />
-                              </div>
-                              <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
                                 onClick={() => toggleFeaturedMutation.mutate({ id: pkg.id, is_featured: !pkg.is_featured })}
@@ -1168,15 +993,6 @@ export default function AdminPackages() {
                                 )}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
-                                onClick={() => {
-                                  setSelectedPackageForRules(pkg);
-                                  setIsRulesOpen(true);
-                                }}
-                              >
-                                <AlertCircle className="h-4 w-4 text-blue-500" /> Aturan Denda
-                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
                                 onClick={() => setDeletePackage(pkg)}
@@ -1393,100 +1209,8 @@ export default function AdminPackages() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-       {/* Settings Dialog */}
-      <PackageChangeSettingsDialog 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-      />
-
-      {/* Package Change Rules Manager */}
-      {selectedPackageForRules && (
-        <PackageChangeRulesManager
-          packageId={selectedPackageForRules.id}
-          packageName={selectedPackageForRules.name}
-          isOpen={isRulesOpen}
-          onClose={() => {
-            setIsRulesOpen(false);
-            setSelectedPackageForRules(null);
-          }}
-        />
-      )}
       </div>
     </TooltipProvider>
-  );
-}
-
-function CollapsibleAnalyticsCard({ 
-  title, 
-  value, 
-  description, 
-  icon: Icon, 
-  loading, 
-  color, 
-  trend, 
-  trendUp,
-  statId,
-  isExpanded,
-  onToggle,
-  details
-}: any) {
-  const colorMap: any = {
-    primary: "bg-primary/10 text-primary",
-    emerald: "bg-emerald-500/10 text-emerald-600",
-    blue: "bg-blue-500/10 text-blue-600",
-    amber: "bg-amber-500/10 text-amber-600",
-  };
-
-  return (
-    <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <Card className="border-none shadow-sm overflow-hidden rounded-3xl bg-card/50 backdrop-blur group hover:shadow-md transition-all duration-300">
-        <CollapsibleTrigger asChild>
-          <CardContent className="p-6 cursor-pointer">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1 flex-1">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</p>
-                {loading ? (
-                  <Skeleton className="h-8 w-24" />
-                ) : (
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl font-black text-foreground">{value}</h3>
-                    {trend && (
-                      <span className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5",
-                        trendUp ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
-                      )}>
-                        {trendUp ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
-                        {trend}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <p className="text-[10px] font-medium text-muted-foreground line-clamp-1">{description}</p>
-              </div>
-              <div className={cn("p-3 rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 flex-shrink-0", colorMap[color])}>
-                <Icon className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </CollapsibleTrigger>
-        
-        {details && (
-          <CollapsibleContent>
-            <div className="px-6 pb-6 pt-0 border-t border-border/50">
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                {Object.entries(details).map(([key, val]: any) => (
-                  <div key={key} className="bg-muted/30 rounded-xl p-3">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
-                    <p className="text-lg font-bold text-foreground">{val}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CollapsibleContent>
-        )}
-      </Card>
-    </Collapsible>
   );
 }
 
