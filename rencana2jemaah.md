@@ -160,15 +160,16 @@ Diurutkan berdasarkan **dampak langsung ke jamaah selama proses ibadah**:
 | S4 | **Riwayat Perjalanan Alumni** | Menengah | ✅ Done — `/jamaah/riwayat-perjalanan`, semua booking + stats alumni |
 | S5 | **Referral dari Portal Jamaah** | Rendah | ✅ Done — `/jamaah/referral`, kode referral + share WA + poin info |
 
-### Fase 4 — Fitur Finansial & Spiritual (3-4 hari kerja)
+### Fase 4 — Fitur Finansial & Spiritual ✅ SELESAI
+*Diselesaikan: Mei 2026*
 
 | ID | Fitur | Prioritas | Status |
 |----|-------|-----------|--------|
-| Z1 | **Kalkulator Zakat** (fitrah, maal, fidyah) | Menengah | 🔴 Belum |
-| Z2 | **Proyeksi lunas tabungan** di MySavings | Menengah | 🔴 Belum |
-| Z3 | **Payment Timeline** visual di BookingDetail | Sedang | 🔴 Belum |
-| Z4 | **Attachment file** di CustomerSupport | Sedang | 🔴 Belum |
-| Z5 | **Setting notifikasi & bahasa** di CustomerSettings | Sedang | 🔴 Belum |
+| Z1 | **Kalkulator Zakat** (fitrah, maal, fidyah) | Menengah | ✅ Done — `/jamaah/kalkulator-zakat`, 3 tab: Fitrah/Maal/Fidyah + nisab info |
+| Z2 | **Proyeksi lunas tabungan** di MySavings | Menengah | ✅ Done — widget proyeksi di setiap plan aktif, komparasi dengan target |
+| Z3 | **Payment Timeline** visual di BookingDetail | Sedang | ✅ Done — timeline vertikal DP→Cicilan→Pelunasan + sisa pembayaran |
+| Z4 | **Attachment file** di CustomerSupport | Sedang | ✅ Done — upload maks 3 file (foto/PDF) saat buat tiket |
+| Z5 | **Setting notifikasi & bahasa** di CustomerSettings | Sedang | ✅ Done — tab Preferensi baru: pilih bahasa + toggle 6 jenis notifikasi |
 
 ### Fase 5 — Operasional & Self-Service (2-3 hari kerja)
 

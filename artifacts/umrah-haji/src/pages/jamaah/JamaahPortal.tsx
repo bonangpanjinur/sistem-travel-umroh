@@ -505,6 +505,13 @@ export default function JamaahPortal() {
               <p className="text-xs">Referral</p>
             </Card>
           </Link>
+          {/* Fase 4 — Fitur Finansial & Spiritual */}
+          <Link to="/jamaah/kalkulator-zakat">
+            <Card className="p-3 text-center hover:bg-accent transition-colors cursor-pointer">
+              <Star className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+              <p className="text-xs">Kalk. Zakat</p>
+            </Card>
+          </Link>
         </div>
 
         {/* Payment Progress */}

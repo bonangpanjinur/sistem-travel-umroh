@@ -277,6 +277,42 @@ export default function MySavings() {
                       ))}
                     </div>
 
+                    {/* Z2: Proyeksi Lunas */}
+                    {isActive && plan.monthly_amount > 0 && remaining > 0 && (() => {
+                      const bulanSisa = Math.ceil(remaining / plan.monthly_amount);
+                      const proyeksiLunas = new Date();
+                      proyeksiLunas.setMonth(proyeksiLunas.getMonth() + bulanSisa);
+                      const targetLunas = plan.target_date ? new Date(plan.target_date) : null;
+                      const isAhead = targetLunas && proyeksiLunas <= targetLunas;
+                      const selisihBulan = targetLunas
+                        ? Math.abs(Math.round((proyeksiLunas.getTime() - targetLunas.getTime()) / (1000 * 60 * 60 * 24 * 30)))
+                        : 0;
+                      return (
+                        <div className={`rounded-xl border p-3 ${isAhead ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                          <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                            📊 Proyeksi Lunas (berdasarkan cicilan bulanan)
+                          </p>
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className={`text-base font-bold ${isAhead ? 'text-green-700' : 'text-amber-700'}`}>
+                                {proyeksiLunas.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                ≈ {bulanSisa} bulan lagi ({bulanSisa} × {formatCurrency(plan.monthly_amount)})
+                              </p>
+                            </div>
+                            <div className={`text-right text-xs px-2 py-1 rounded-lg font-medium ${
+                              isAhead ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {isAhead
+                                ? `${selisihBulan} bln lebih cepat ✨`
+                                : `${selisihBulan} bln melebihi target`}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* DP status alert */}
                     {plan.dp_amount > 0 && (
                       <Alert className={

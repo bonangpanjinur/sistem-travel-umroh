@@ -547,38 +547,86 @@ export default function BookingDetail() {
               </Button>
             )}
 
-            {/* Payment History */}
+            {/* Payment Timeline */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
-                  Riwayat Pembayaran
+                  Timeline Pembayaran
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {!payments || payments.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">
+                  <p className="text-muted-foreground text-center py-4 text-sm">
                     Belum ada pembayaran.
                   </p>
                 ) : (
-                  <div className="space-y-3">
-                    {payments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-mono text-sm">{payment.payment_code}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(payment.created_at!), "d MMM yyyy, HH:mm", { locale: id })}
-                          </p>
+                  <div className="relative">
+                    {/* vertical line */}
+                    <div className="absolute left-[18px] top-3 bottom-3 w-0.5 bg-gray-200" />
+                    <div className="space-y-4">
+                      {payments.map((payment, idx) => {
+                        const isVerified = payment.status === 'paid';
+                        const isPending = payment.status === 'pending';
+                        const isRejected = payment.status === 'rejected';
+                        return (
+                          <div key={payment.id} className="flex gap-3 relative">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 ${
+                              isVerified ? 'bg-green-100 border-green-400' :
+                              isRejected ? 'bg-red-100 border-red-400' :
+                              'bg-yellow-100 border-yellow-400'
+                            }`}>
+                              {isVerified
+                                ? <CheckCircle className="h-4 w-4 text-green-600" />
+                                : isRejected
+                                ? <AlertCircle className="h-4 w-4 text-red-500" />
+                                : <Clock className="h-4 w-4 text-yellow-600" />}
+                            </div>
+                            <div className="flex-1 pb-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-800">
+                                    {idx === 0 && payments.length > 1 ? 'DP / Uang Muka' :
+                                     idx === payments.length - 1 && payments.length > 1 ? 'Pelunasan' :
+                                     `Cicilan ke-${idx + 1}`}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground font-mono">{payment.payment_code}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {format(new Date(payment.created_at!), "d MMM yyyy, HH:mm", { locale: id })}
+                                  </p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <p className="font-bold text-sm">{formatCurrency(payment.amount)}</p>
+                                  <Badge
+                                    variant={isVerified ? 'default' : isRejected ? 'destructive' : 'secondary'}
+                                    className="text-[10px] py-0 mt-0.5"
+                                  >
+                                    {isVerified ? 'Terverifikasi' : isPending ? 'Menunggu' : 'Ditolak'}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* Remaining milestone */}
+                      {(booking.remaining_amount ?? 0) > 0 && (
+                        <div className="flex gap-3 relative">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 border-dashed border-gray-300 bg-gray-50">
+                            <Circle className="h-4 w-4 text-gray-300" />
+                          </div>
+                          <div className="flex-1 pb-2">
+                            <p className="text-sm font-medium text-gray-500">Sisa Pembayaran</p>
+                            <p className="text-base font-bold text-destructive">{formatCurrency(booking.remaining_amount ?? 0)}</p>
+                            {booking.payment_deadline && (
+                              <p className="text-xs text-muted-foreground">
+                                Jatuh tempo: {format(new Date(booking.payment_deadline), "d MMM yyyy", { locale: id })}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold">{formatCurrency(payment.amount)}</p>
-                          <Badge variant={payment.status === 'paid' ? 'default' : 'secondary'}>
-                            {payment.status === 'paid' ? 'Terverifikasi' : 
-                             payment.status === 'pending' ? 'Menunggu Verifikasi' : payment.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
