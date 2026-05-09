@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,21 +14,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Webhook, Plus, Trash2, Edit2, Send, CheckCircle,
   XCircle, Clock, AlertCircle, Copy, RefreshCw, Eye, EyeOff,
-  Zap, Globe, ShieldCheck,
+  Zap, Globe, ShieldCheck, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { format, parseISO } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+
+const supabaseAny = supabase as any;
 
 interface WebhookConfig {
   id: string;
@@ -34,22 +32,23 @@ interface WebhookConfig {
   url: string;
   secret: string;
   events: string[];
-  isActive: boolean;
-  createdAt: string;
-  lastTriggered?: string;
-  lastStatus?: "success" | "failed" | "pending";
-  successCount: number;
-  failCount: number;
+  is_active: boolean;
+  success_count: number;
+  fail_count: number;
+  last_triggered_at: string | null;
+  last_status: "success" | "failed" | "pending" | null;
+  created_at: string;
 }
 
 interface WebhookLog {
   id: string;
-  webhookId: string;
+  webhook_id: string;
   event: string;
   status: "success" | "failed";
-  statusCode: number;
-  timestamp: string;
-  duration: number;
+  status_code: number | null;
+  duration_ms: number | null;
+  error_msg: string | null;
+  created_at: string;
 }
 
 const AVAILABLE_EVENTS = [
@@ -67,72 +66,179 @@ const AVAILABLE_EVENTS = [
 
 const EVENT_GROUPS = Array.from(new Set(AVAILABLE_EVENTS.map(e => e.group)));
 
-const DEFAULT_WEBHOOKS: WebhookConfig[] = [
-  {
-    id: "wh-demo-1",
-    name: "ERP Akuntansi",
-    url: "https://erp.contoh.com/api/webhooks/vinstour",
-    secret: "sk_wh_demo123456",
-    events: ["payment.received", "payment.verified", "booking.created"],
-    isActive: true,
-    createdAt: "2025-01-15",
-    lastTriggered: "2025-05-07T14:32:00Z",
-    lastStatus: "success",
-    successCount: 142,
-    failCount: 3,
-  },
-  {
-    id: "wh-demo-2",
-    name: "Notifikasi Slack Internal",
-    url: "https://hooks.slack.com/services/xxx/yyy/zzz",
-    secret: "sk_wh_slack789",
-    events: ["sos.alert", "booking.cancelled", "lead.created"],
-    isActive: false,
-    createdAt: "2025-02-20",
-    lastTriggered: "2025-04-12T09:15:00Z",
-    lastStatus: "failed",
-    successCount: 67,
-    failCount: 12,
-  },
-];
-
-const DEMO_LOGS: WebhookLog[] = [
-  { id: "log-1", webhookId: "wh-demo-1", event: "payment.received", status: "success", statusCode: 200, timestamp: "2025-05-07T14:32:00Z", duration: 234 },
-  { id: "log-2", webhookId: "wh-demo-1", event: "booking.created", status: "success", statusCode: 200, timestamp: "2025-05-07T13:10:00Z", duration: 189 },
-  { id: "log-3", webhookId: "wh-demo-2", event: "lead.created", status: "failed", statusCode: 503, timestamp: "2025-04-12T09:15:00Z", duration: 5000 },
-  { id: "log-4", webhookId: "wh-demo-1", event: "payment.verified", status: "success", statusCode: 200, timestamp: "2025-05-06T11:22:00Z", duration: 312 },
-];
-
-function StatusBadge({ status }: { status: "success" | "failed" | "pending" | undefined }) {
+function StatusBadge({ status }: { status: "success" | "failed" | "pending" | null | undefined }) {
   if (!status) return <Badge variant="outline" className="text-xs">Belum pernah</Badge>;
   if (status === "success") return <Badge className="gap-1 bg-green-100 text-green-700 border-green-200 text-xs"><CheckCircle className="h-3 w-3" />Berhasil</Badge>;
   if (status === "failed") return <Badge className="gap-1 bg-red-100 text-red-700 border-red-200 text-xs"><XCircle className="h-3 w-3" />Gagal</Badge>;
   return <Badge className="gap-1 bg-yellow-100 text-yellow-700 border-yellow-200 text-xs"><Clock className="h-3 w-3" />Pending</Badge>;
 }
 
+const EMPTY_FORM = { name: "", url: "", secret: "", events: [] as string[], is_active: true };
+
 export default function AdminWebhooks() {
-  const [webhooks, setWebhooks] = useLocalStorage<WebhookConfig[]>("admin-webhooks", DEFAULT_WEBHOOKS);
-  const [logs] = useState<WebhookLog[]>(DEMO_LOGS);
+  const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<WebhookConfig | null>(null);
   const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
-  const [testing, setTesting] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", url: "", secret: "", events: [] as string[], isActive: true });
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+
+  // ── Fetch webhooks ───────────────────────────────────────────────────────
+  const { data: webhooks = [], isLoading } = useQuery<WebhookConfig[]>({
+    queryKey: ["webhook_configs"],
+    queryFn: async () => {
+      const { data, error } = await supabaseAny
+        .from("webhook_configs")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data ?? [];
+    },
+  });
+
+  // ── Fetch logs ───────────────────────────────────────────────────────────
+  const { data: logs = [] } = useQuery<WebhookLog[]>({
+    queryKey: ["webhook_logs"],
+    queryFn: async () => {
+      const { data, error } = await supabaseAny
+        .from("webhook_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data ?? [];
+    },
+  });
+
+  // ── Save (create/update) ─────────────────────────────────────────────────
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (editing) {
+        const { error } = await supabaseAny
+          .from("webhook_configs")
+          .update({ name: form.name, url: form.url, secret: form.secret, events: form.events, is_active: form.is_active })
+          .eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabaseAny
+          .from("webhook_configs")
+          .insert({ name: form.name, url: form.url, secret: form.secret, events: form.events, is_active: form.is_active });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["webhook_configs"] });
+      toast.success(editing ? "Webhook diperbarui" : "Webhook ditambahkan");
+      setShowDialog(false);
+    },
+    onError: (e: any) => toast.error("Gagal menyimpan: " + e.message),
+  });
+
+  // ── Delete ───────────────────────────────────────────────────────────────
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabaseAny.from("webhook_configs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["webhook_configs"] });
+      queryClient.invalidateQueries({ queryKey: ["webhook_logs"] });
+      toast.success("Webhook dihapus");
+    },
+    onError: (e: any) => toast.error("Gagal menghapus: " + e.message),
+  });
+
+  // ── Toggle active ────────────────────────────────────────────────────────
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabaseAny.from("webhook_configs").update({ is_active }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["webhook_configs"] }),
+    onError: (e: any) => toast.error("Gagal mengubah status: " + e.message),
+  });
+
+  // ── Test webhook (actually send HTTP POST to the URL) ────────────────────
+  async function testWebhook(wh: WebhookConfig) {
+    setTestingId(wh.id);
+    const startMs = Date.now();
+    const payload = {
+      event: "webhook.test",
+      timestamp: new Date().toISOString(),
+      webhook_id: wh.id,
+      data: { message: "Test ping dari Vinstour" },
+    };
+
+    let statusCode = 0;
+    let status: "success" | "failed" = "failed";
+    let errorMsg: string | null = null;
+
+    try {
+      const res = await fetch("/api/v1/webhook-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_url: wh.url, secret: wh.secret, payload }),
+      });
+      statusCode = res.status;
+      status = res.ok ? "success" : "failed";
+      if (!res.ok) errorMsg = `HTTP ${res.status}`;
+    } catch (e: any) {
+      status = "failed";
+      errorMsg = e.message;
+    }
+
+    const durationMs = Date.now() - startMs;
+
+    // Simpan log ke Supabase
+    await supabaseAny.from("webhook_logs").insert({
+      webhook_id: wh.id,
+      event: "webhook.test",
+      status,
+      status_code: statusCode || null,
+      duration_ms: durationMs,
+      error_msg: errorMsg,
+      payload,
+    });
+
+    // Update stats di webhook config
+    await supabaseAny.from("webhook_configs").update({
+      last_triggered_at: new Date().toISOString(),
+      last_status: status,
+      success_count: status === "success" ? (wh.success_count + 1) : wh.success_count,
+      fail_count: status === "failed" ? (wh.fail_count + 1) : wh.fail_count,
+    }).eq("id", wh.id);
+
+    queryClient.invalidateQueries({ queryKey: ["webhook_configs"] });
+    queryClient.invalidateQueries({ queryKey: ["webhook_logs"] });
+    setTestingId(null);
+
+    if (status === "success") {
+      toast.success(`Test berhasil! Server merespons HTTP ${statusCode} dalam ${durationMs}ms`);
+    } else {
+      toast.error(`Test gagal: ${errorMsg || "Tidak dapat terhubung ke " + wh.url}`);
+    }
+  }
+
+  function generateSecret() {
+    return "sk_wh_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+  }
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", url: "", secret: generateSecret(), events: [], isActive: true });
+    setForm({ ...EMPTY_FORM, secret: generateSecret() });
     setShowDialog(true);
   }
 
   function openEdit(wh: WebhookConfig) {
     setEditing(wh);
-    setForm({ name: wh.name, url: wh.url, secret: wh.secret, events: [...wh.events], isActive: wh.isActive });
+    setForm({ name: wh.name, url: wh.url, secret: wh.secret, events: [...wh.events], is_active: wh.is_active });
     setShowDialog(true);
-  }
-
-  function generateSecret() {
-    return "sk_wh_" + Math.random().toString(36).slice(2, 18);
   }
 
   function toggleEvent(event: string) {
@@ -142,58 +248,25 @@ export default function AdminWebhooks() {
     }));
   }
 
-  function saveWebhook() {
-    if (!form.name.trim() || !form.url.trim()) {
-      toast.error("Nama dan URL wajib diisi");
-      return;
-    }
-    if (!/^https?:\/\/.+/.test(form.url)) {
-      toast.error("URL harus valid (dimulai dengan http:// atau https://)");
-      return;
-    }
-    if (form.events.length === 0) {
-      toast.error("Pilih minimal satu event");
-      return;
-    }
-
-    if (editing) {
-      setWebhooks(prev => prev.map(w => w.id === editing.id ? { ...w, ...form } : w));
-      toast.success("Webhook diperbarui");
-    } else {
-      const newWh: WebhookConfig = {
-        id: "wh-" + Date.now(),
-        ...form,
-        createdAt: new Date().toISOString().split("T")[0],
-        successCount: 0,
-        failCount: 0,
-      };
-      setWebhooks(prev => [...prev, newWh]);
-      toast.success("Webhook ditambahkan");
-    }
-    setShowDialog(false);
-  }
-
-  function deleteWebhook(id: string) {
-    setWebhooks(prev => prev.filter(w => w.id !== id));
-    toast.success("Webhook dihapus");
-  }
-
-  function toggleActive(id: string) {
-    setWebhooks(prev => prev.map(w => w.id === id ? { ...w, isActive: !w.isActive } : w));
-  }
-
-  async function testWebhook(id: string) {
-    setTesting(id);
-    await new Promise(r => setTimeout(r, 1500));
-    setTesting(null);
-    toast.success("Ping terkirim! Periksa server tujuan untuk konfirmasi.");
+  function handleSave() {
+    if (!form.name.trim() || !form.url.trim()) { toast.error("Nama dan URL wajib diisi"); return; }
+    if (!/^https?:\/\/.+/.test(form.url)) { toast.error("URL harus valid (dimulai dengan http:// atau https://)"); return; }
+    if (form.events.length === 0) { toast.error("Pilih minimal satu event"); return; }
+    saveMutation.mutate();
   }
 
   function copySecret(secret: string) {
     navigator.clipboard.writeText(secret).then(() => toast.success("Secret disalin"));
   }
 
-  const webhookLogs = (id: string) => logs.filter(l => l.webhookId === id);
+  const webhookLogs = (id: string) => logs.filter(l => l.webhook_id === id);
+
+  const stats = {
+    total: webhooks.length,
+    active: webhooks.filter(w => w.is_active).length,
+    totalSuccess: webhooks.reduce((a, w) => a + w.success_count, 0),
+    totalFail: webhooks.reduce((a, w) => a + w.fail_count, 0),
+  };
 
   return (
     <div className="space-y-6">
@@ -215,10 +288,10 @@ export default function AdminWebhooks() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Webhook", value: webhooks.length, icon: Webhook, color: "text-primary" },
-          { label: "Aktif", value: webhooks.filter(w => w.isActive).length, icon: CheckCircle, color: "text-green-600" },
-          { label: "Total Berhasil", value: webhooks.reduce((a, w) => a + w.successCount, 0), icon: Zap, color: "text-blue-600" },
-          { label: "Total Gagal", value: webhooks.reduce((a, w) => a + w.failCount, 0), icon: XCircle, color: "text-red-500" },
+          { label: "Total Webhook", value: stats.total, icon: Webhook, color: "text-primary" },
+          { label: "Aktif", value: stats.active, icon: CheckCircle, color: "text-green-600" },
+          { label: "Total Berhasil", value: stats.totalSuccess, icon: Zap, color: "text-blue-600" },
+          { label: "Total Gagal", value: stats.totalFail, icon: XCircle, color: "text-red-500" },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-3">
@@ -236,23 +309,29 @@ export default function AdminWebhooks() {
 
       {/* Webhook List */}
       <div className="space-y-4">
-        {webhooks.length === 0 && (
+        {isLoading && (
+          <Card className="py-12 text-center">
+            <Loader2 className="h-8 w-8 mx-auto text-muted-foreground animate-spin mb-2" />
+            <p className="text-muted-foreground text-sm">Memuat webhook...</p>
+          </Card>
+        )}
+        {!isLoading && webhooks.length === 0 && (
           <Card className="py-12 text-center">
             <Webhook className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">Belum ada webhook. Klik "Tambah Webhook" untuk memulai.</p>
           </Card>
         )}
         {webhooks.map(wh => (
-          <Card key={wh.id} className={!wh.isActive ? "opacity-60" : ""}>
+          <Card key={wh.id} className={!wh.is_active ? "opacity-60" : ""}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-base">{wh.name}</CardTitle>
-                    <Badge variant={wh.isActive ? "default" : "secondary"} className="text-xs">
-                      {wh.isActive ? "Aktif" : "Nonaktif"}
+                    <Badge variant={wh.is_active ? "default" : "secondary"} className="text-xs">
+                      {wh.is_active ? "Aktif" : "Nonaktif"}
                     </Badge>
-                    <StatusBadge status={wh.lastStatus} />
+                    <StatusBadge status={wh.last_status} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <Globe className="h-3 w-3" />
@@ -260,7 +339,10 @@ export default function AdminWebhooks() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Switch checked={wh.isActive} onCheckedChange={() => toggleActive(wh.id)} />
+                  <Switch
+                    checked={wh.is_active}
+                    onCheckedChange={(v) => toggleMutation.mutate({ id: wh.id, is_active: v })}
+                  />
                 </div>
               </div>
             </CardHeader>
@@ -270,7 +352,7 @@ export default function AdminWebhooks() {
                 <p className="text-xs font-medium mb-1 flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Webhook Secret</p>
                 <div className="flex gap-2">
                   <Input
-                    value={showSecret[wh.id] ? wh.secret : "•".repeat(wh.secret.length)}
+                    value={showSecret[wh.id] ? wh.secret : "•".repeat(Math.min(wh.secret.length, 32))}
                     readOnly
                     className="font-mono text-xs h-8"
                   />
@@ -296,16 +378,18 @@ export default function AdminWebhooks() {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-muted/50 rounded-lg p-2">
-                  <p className="text-lg font-bold text-green-600">{wh.successCount}</p>
+                  <p className="text-lg font-bold text-green-600">{wh.success_count}</p>
                   <p className="text-[10px] text-muted-foreground">Berhasil</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-2">
-                  <p className="text-lg font-bold text-red-500">{wh.failCount}</p>
+                  <p className="text-lg font-bold text-red-500">{wh.fail_count}</p>
                   <p className="text-[10px] text-muted-foreground">Gagal</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-2">
                   <p className="text-sm font-bold text-muted-foreground">
-                    {wh.lastTriggered ? new Date(wh.lastTriggered).toLocaleDateString("id-ID") : "—"}
+                    {wh.last_triggered_at
+                      ? format(parseISO(wh.last_triggered_at), "dd MMM HH:mm", { locale: idLocale })
+                      : "—"}
                   </p>
                   <p className="text-[10px] text-muted-foreground">Terakhir aktif</p>
                 </div>
@@ -322,8 +406,9 @@ export default function AdminWebhooks() {
                           ? <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
                           : <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
                         <span className="flex-1 truncate">{log.event}</span>
-                        <span className="shrink-0">HTTP {log.statusCode}</span>
-                        <span className="shrink-0">{log.duration}ms</span>
+                        {log.status_code ? <span className="shrink-0">HTTP {log.status_code}</span> : null}
+                        {log.duration_ms ? <span className="shrink-0">{log.duration_ms}ms</span> : null}
+                        {log.error_msg ? <span className="shrink-0 text-red-400 truncate max-w-[120px]">{log.error_msg}</span> : null}
                       </div>
                     ))}
                   </div>
@@ -332,14 +417,27 @@ export default function AdminWebhooks() {
 
               <Separator />
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="gap-1" onClick={() => testWebhook(wh.id)} disabled={testing === wh.id}>
-                  {testing === wh.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  Test Ping
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1"
+                  onClick={() => testWebhook(wh)}
+                  disabled={testingId === wh.id}
+                >
+                  {testingId === wh.id
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing...</>
+                    : <><Send className="h-3.5 w-3.5" /> Test Ping</>}
                 </Button>
                 <Button size="sm" variant="outline" className="gap-1" onClick={() => openEdit(wh)}>
                   <Edit2 className="h-3.5 w-3.5" /> Edit
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1 text-destructive hover:text-destructive" onClick={() => deleteWebhook(wh.id)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-destructive hover:text-destructive"
+                  onClick={() => deleteMutation.mutate(wh.id)}
+                  disabled={deleteMutation.isPending}
+                >
                   <Trash2 className="h-3.5 w-3.5" /> Hapus
                 </Button>
               </div>
@@ -356,7 +454,7 @@ export default function AdminWebhooks() {
             <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
               <p className="font-semibold">Cara Kerja Webhook</p>
               <p>Setiap kali event terjadi (mis. booking baru), Vinstour akan mengirim HTTP POST ke URL tujuan dengan payload JSON berisi detail event. Gunakan <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded font-mono text-xs">X-Vinstour-Signature</code> header untuk verifikasi keaslian request menggunakan secret Anda.</p>
-              <p className="text-xs opacity-80">Payload dikirim dalam format JSON. Retry otomatis 3x jika server tujuan tidak merespons (timeout 10 detik).</p>
+              <p className="text-xs opacity-80">Data disimpan ke database — webhook dan riwayat log tidak hilang saat refresh. Test Ping benar-benar mengirim HTTP POST ke URL tujuan.</p>
             </div>
           </div>
         </CardContent>
@@ -411,13 +509,15 @@ export default function AdminWebhooks() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} id="wh-active" />
+              <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} id="wh-active" />
               <Label htmlFor="wh-active">Webhook Aktif</Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)}>Batal</Button>
-            <Button onClick={saveWebhook}>{editing ? "Simpan Perubahan" : "Tambah Webhook"}</Button>
+            <Button onClick={handleSave} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Menyimpan...</> : (editing ? "Simpan Perubahan" : "Tambah Webhook")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

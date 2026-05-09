@@ -1,0 +1,29 @@
+Daftar Fitur yang Belum Terintegrasi
+🔴 KRITIS — Sepenuhnya Palsu / Data Tidak Tersimpan
+#	Halaman	Masalah
+1	AdminWebhooks	Seluruh data webhook hanya ada di useState lokal, tidak tersimpan ke Supabase sama sekali. Tombol "Test Webhook" hanya pura-pura delay 1.5 detik tanpa benar-benar memanggil URL apapun
+2	JamaahRingkasanAI	Tombol "Generate AI" hanya menjalankan fungsi template teks lokal dengan delay 1.2 detik — bukan AI sungguhan. Tidak ada panggilan ke API AI (OpenAI dll)
+3	AdminSmartNotif	Pengaturan hanya disimpan ke localStorage. "AI mempelajari waktu terbaik" adalah angka open-rate yang hardcoded (85%, 78%, dll) — bukan AI sungguhan
+🟠 PENTING — Endpoint API Hilang di Backend
+#	Fitur	Masalah
+4	Push Notifications	Frontend (AdminPushNotifications) memanggil POST /api/push/send tapi endpoint ini tidak ada di API server. Tombol kirim push notif akan selalu error
+🟡 PERLU RAHASIA (SECRETS) — Kode sudah benar, tapi butuh konfigurasi
+#	Fitur	Secret yang Dibutuhkan
+5	Midtrans (Pembayaran Online)	MIDTRANS_SERVER_KEY + MIDTRANS_CLIENT_KEY
+6	Email/SMTP (Konfirmasi Email)	SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+7	Push Notifications	VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY (dan endpoint no.4 harus dibuat dulu)
+8	Supabase (Auth + Database)	VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY + SUPABASE_SERVICE_ROLE_KEY
+🔵 FUNGSIONAL TERBATAS — Ada tapi tidak sepenuhnya selesai
+#	Halaman	Situasi
+9	AdminSISKOHAT	Log sinkronisasi tersimpan ke Supabase, tapi SISKOHAT API resmi Kemenag tidak terintegrasi (perlu akun resmi PPIU)
+10	Admin2FA Settings	Pengaturan tersimpan ke Supabase, tapi enforcement TOTP sungguhan belum diimplementasi — toggle tersimpan tapi 2FA tidak benar-benar aktif
+11	AdminAISummary	Data diambil dari Supabase (real), tapi "AI Insight" adalah kalkulasi statistik biasa — tidak ada LLM/AI sebenarnya
+✅ Yang Sudah Benar-Benar Terintegrasi
+Semua halaman lainnya (190+ halaman) sudah menggunakan Supabase dengan benar — AdminBookings, AdminPayments, AdminDepartures, AdminPackages, AdminCustomers, AdminAgents, semua Finance, semua Laporan, Branch, Muthawif, Jamaah Portal, Agent Portal, dsb. Delay setTimeout di CicilanReminder/PembayaranReminder/WABlast adalah rate limiting yang disengaja antar pesan WA bulk — itu benar.
+
+Prioritas perbaikan yang saya sarankan:
+
+Buat endpoint /api/push/send (no.4) → Push Notif bisa langsung jalan
+Integrasikan AdminWebhooks ke Supabase (no.1)
+Tambahkan VAPID keys & Midtrans keys di Secrets (no.5,7)
+Putuskan apakah RingkasanAI & SmartNotif perlu AI sungguhan atau cukup seperti sekarang

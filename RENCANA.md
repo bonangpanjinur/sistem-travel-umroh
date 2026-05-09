@@ -66,7 +66,7 @@
 | Loyalitas | `/customer/my-loyalty` | ✅ |
 | Support | `/customer/support` | ✅ |
 | Pengaturan | `/customer/settings` | ✅ |
-| **Status Refund/Pembatalan** | `/customer/refund-status` | ✅ **BARU** |
+| Status Refund/Pembatalan | `/customer/refund-status` | ✅ |
 
 ### Portal Jamaah (Mobile PWA) — `/jamaah/*`
 | Halaman | URL | Status |
@@ -93,11 +93,11 @@
 | Sertifikat | `/jamaah/sertifikat` | ✅ |
 | SISKOHAT Jamaah | `/jamaah/siskohat` | ✅ |
 | Chatbot AI | `/jamaah/chatbot` | ✅ |
-| Ringkasan AI | `/jamaah/ringkasan-ai` | ✅ |
+| Ringkasan AI | `/jamaah/ringkasan-ai` | ✅ ⚠️ Template lokal, bukan LLM sungguhan |
 | Pembayaran Mandiri | `/jamaah/payment` | ✅ |
 | Checklist | `/jamaah/checklist` | ✅ |
 | Manasik Digital | `/jamaah/manasik` | ✅ |
-| **SOS Status** | `/jamaah/sos-status` | ✅ **BARU (Fitur 01)** |
+| SOS Status | `/jamaah/sos-status` | ✅ |
 
 ### Portal Admin — `/admin/*`
 | Halaman | URL | Status |
@@ -122,16 +122,21 @@
 | Muthawif | `/admin/muthawif` | ✅ |
 | Komisi | `/admin/commissions` | ✅ |
 | SDM/HR | `/admin/hr` | ✅ |
-| Notifikasi | `/admin/notifications` | ✅ |
+| Notifikasi (In-App) | `/admin/notifications` | ✅ |
+| Push Notifikasi Jamaah | `/admin/push-notifications` | ✅ Tersimpan ke Supabase `customer_notifications`. Browser push butuh VAPID keys |
+| Webhook Outgoing | `/admin/webhooks` | ✅ **DIPERBAIKI** — Tersimpan ke Supabase `webhook_configs`. Test Ping sungguhan via server proxy |
+| Smart Notif | `/admin/smart-notif` | ⚠️ Pengaturan ke localStorage. Open-rate hardcoded, bukan AI |
+| AI Summary | `/admin/ai-summary` | ⚠️ Data dari Supabase nyata, "AI Insight" adalah kalkulasi statistik biasa |
 | Laporan | `/admin/reports` | ✅ |
 | Log Audit | `/admin/audit` | ✅ |
 | Pengaturan | `/admin/settings` | ✅ |
 | SOS Alerts | `/admin/sos-alerts` | ✅ |
-| **SISKOHAT Kemenag** | `/admin/siskohat` | ✅ **BARU (Fitur 03)** |
-| **Approval Workflow** | `/admin/approvals` | ✅ **BARU (Fitur 04)** |
-| **Kontrak Vendor** | `/admin/vendor-contracts` | ✅ **BARU (Fitur 05)** |
-| **Pelatihan Agen** | `/admin/training` | ✅ **BARU (Fitur 07)** |
-| **Galeri Media** | `/admin/media-gallery` | ✅ **BARU (Fitur 08)** |
+| SISKOHAT Kemenag | `/admin/siskohat` | ✅ Log ke Supabase. API Kemenag resmi butuh akun PPIU |
+| Approval Workflow | `/admin/approvals` | ✅ |
+| Kontrak Vendor | `/admin/vendor-contracts` | ✅ |
+| Pelatihan Agen | `/admin/training` | ✅ |
+| Galeri Media | `/admin/media-gallery` | ✅ |
+| 2FA Settings | `/admin/settings` (tab) | ⚠️ Toggle tersimpan ke Supabase, enforcement TOTP belum diimplementasi |
 
 ### Portal Agen — `/agent/*`
 | Halaman | URL | Status |
@@ -144,7 +149,7 @@
 | CRM Pipeline | `/agent/crm` | ✅ |
 | Marketing Kit | `/agent/marketing` | ✅ |
 | Pengaturan | `/agent/settings` | ✅ |
-| **Pelatihan** | `/agent/training` | ✅ **BARU (Fitur 07)** |
+| Pelatihan | `/agent/training` | ✅ |
 
 ### Portal Cabang — `/cabang/*`
 | Halaman | URL | Status |
@@ -154,8 +159,8 @@
 | Booking | `/cabang/bookings` | ✅ |
 | Laporan | `/cabang/laporan` | ✅ |
 | Diskon | `/cabang/diskon` | ✅ |
-| **Approval** | `/cabang/approvals` | ✅ **BARU (Fitur 04)** |
-| **Target KPI Cabang** | `/cabang/kpi-targets` | ✅ **BARU** |
+| Approval | `/cabang/approvals` | ✅ |
+| Target KPI Cabang | `/cabang/kpi-targets` | ✅ |
 
 ### Portal Muthawif — `/muthawif/*`
 | Halaman | URL | Status |
@@ -163,7 +168,7 @@
 | Dashboard | `/muthawif/dashboard` | ✅ |
 | Laporan Harian | `/muthawif/laporan-harian` | ✅ |
 | Profil Jamaah | `/muthawif/jamaah/:id` | ✅ |
-| **Panel SOS** | `/muthawif/sos` | ✅ **BARU (Fitur 01)** |
+| Panel SOS | `/muthawif/sos` | ✅ |
 
 ---
 
@@ -212,20 +217,27 @@
 - `agent_override_commissions` table (fase17)
 - Kolom `level` di `agents` (fase17)
 
-### Fitur 11 — Target KPI Cabang Mandiri ✅ SELESAI
-- `BranchKPITargets.tsx` — halaman baru di `/cabang/kpi-targets`
-- Branch manager atur target sendiri per bulan: booking, revenue, customer baru, agen aktif, konversi
-- Progress KPI cards real-time vs target + animated progress bar
-- Grafik tren booking 6 bulan terakhir
-- Breakdown performa per agen bulan berjalan
-- Tabel riwayat target yang pernah ditetapkan
-- Nav item "Target KPI" ditambahkan ke sidebar BranchLayout
-- `branch_monthly_targets` table dengan RLS (fase19)
-
 ### Fitur 10 — Kalkulator Bagasi Mandiri Jamaah ✅ SELESAI (UI)
 - `JamaahBagasi.tsx` upgrade: tab kalkulator bawaan
 - `baggage_reference_items` table + seed 20 item (fase17)
 - Kolom `bagasi_kg_allowed` di `bookings` (fase17)
+
+### Fitur 11 — Target KPI Cabang Mandiri ✅ SELESAI
+- `BranchKPITargets.tsx` — halaman baru di `/cabang/kpi-targets`
+- `branch_monthly_targets` table dengan RLS (fase19)
+
+### Fitur 12 — Webhook Outgoing ✅ DIPERBAIKI
+- `AdminWebhooks.tsx` — CRUD tersimpan ke Supabase `webhook_configs` (bukan localStorage)
+- Test Ping sungguhan via server proxy `/api/v1/webhook-test` dengan HMAC-SHA256 signature
+- Log tersimpan ke `webhook_logs`, stats (success/fail count) diperbarui otomatis
+- `webhook_configs`, `webhook_logs` tables (fase20)
+
+### Fitur 13 — Browser Push Notifications ✅ ENDPOINT DIBUAT
+- `POST /api/push/send` — kirim web push ke semua subscriber (web-push + VAPID)
+- `POST /api/push/subscribe` — simpan subscription browser
+- `GET /api/push/vapid-public-key` — frontend ambil public key
+- `push_subscriptions` table (fase20)
+- **Perlu**: `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` di Replit Secrets (generate: `npx web-push generate-vapid-keys`)
 
 ---
 
@@ -248,10 +260,12 @@
 | 11 | `migrations/phase4-push-visa.sql` | Proses push visa & tracking |
 | 12 | `migrations/phase5-rbac-improvements.sql` | Penyempurnaan RBAC & audit log |
 | 13 | `migrations/fase6-app-settings-va-targets-jamaah.sql` | app_settings, virtual_accounts, targets jamaah |
-| 14 | `supabase/migrations/fase16_new_tables.sql` | sos_alerts, visa_status_logs, approval_requests/actions, dashboard_access_config, financial_summary, transactions, expenses, marketing, equipment, sales_targets, trip_timeline |
-| 15 | `supabase/migrations/fase17_remaining_tables.sql` | vendor_contracts, departure_budgets, training_modules/quizzes/progress, media_gallery, siskohat_sync_logs, approval_configs, agent_override_commissions, baggage_reference_items |
-| 16 | `supabase/migrations/fase18_core_settings.sql` | company_settings (+ KPI targets seed), bank_accounts, website_settings, contact_page_content |
-| 17 | `supabase/migrations/fase19_branch_kpi_targets.sql` | branch_monthly_targets — target KPI per cabang per bulan |
+| 14 | `supabase/migrations/consolidated_fase_13_14_15.sql` | agent_leads, discount_requests, chat_leads, manasik_schedules, manasik_attendance, package_reviews |
+| 15 | `supabase/migrations/fase16_new_tables.sql` | sos_alerts, visa_status_logs, approval_requests/actions, dashboard_access_config, financial_summary, transactions, expenses, marketing, equipment, sales_targets, trip_timeline |
+| 16 | `supabase/migrations/fase17_remaining_tables.sql` | vendor_contracts, departure_budgets, training_modules/quizzes/progress, media_gallery, siskohat_sync_logs, approval_configs, agent_override_commissions, baggage_reference_items |
+| 17 | `supabase/migrations/fase18_core_settings.sql` | company_settings (+ KPI targets seed), bank_accounts, website_settings, contact_page_content |
+| 18 | `supabase/migrations/fase19_branch_kpi_targets.sql` | branch_monthly_targets — target KPI per cabang per bulan |
+| 19 | `supabase/migrations/fase20_webhooks_push.sql` | webhook_configs, webhook_logs, push_subscriptions |
 
 ### Cara Menjalankan
 
@@ -264,17 +278,23 @@
 
 ## BAGIAN 5 — ENVIRONMENT VARIABLES (Replit Secrets)
 
-| Secret | Keterangan |
-|--------|-----------|
-| `VITE_SUPABASE_URL` | URL project Supabase (`https://xxx.supabase.co`) |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key dari Supabase |
-| `SUPABASE_URL` | URL yang sama untuk API server |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (jangan expose ke frontend!) |
-| `SMTP_HOST` | Host SMTP (`smtp.gmail.com`) |
-| `SMTP_PORT` | Port SMTP (`587`) |
-| `SMTP_USER` | Username/email SMTP |
-| `SMTP_PASS` | Password SMTP atau App Password |
-| `SMTP_FROM` | Alamat pengirim (`noreply@vinstour.com`) |
+| Secret | Keterangan | Status |
+|--------|-----------|--------|
+| `VITE_SUPABASE_URL` | URL project Supabase (`https://xxx.supabase.co`) | ⚠️ Perlu diset |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key dari Supabase | ⚠️ Perlu diset |
+| `SUPABASE_URL` | URL yang sama untuk API server | ⚠️ Perlu diset |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (jangan expose ke frontend!) | ⚠️ Perlu diset |
+| `SMTP_HOST` | Host SMTP (`smtp.gmail.com`) | ⚠️ Opsional — untuk email |
+| `SMTP_PORT` | Port SMTP (`587`) | ⚠️ Opsional |
+| `SMTP_USER` | Username/email SMTP | ⚠️ Opsional |
+| `SMTP_PASS` | Password SMTP atau App Password | ⚠️ Opsional |
+| `SMTP_FROM` | Alamat pengirim (`noreply@vinstour.com`) | ⚠️ Opsional |
+| `MIDTRANS_SERVER_KEY` | Server key dari dashboard Midtrans | ⚠️ Opsional — untuk payment online |
+| `MIDTRANS_CLIENT_KEY` | Client key (untuk Snap.js di frontend) | ⚠️ Opsional |
+| `MIDTRANS_ENV` | `sandbox` (default) atau `production` | ⚠️ Opsional |
+| `VAPID_PUBLIC_KEY` | Generate: `npx web-push generate-vapid-keys` | ⚠️ Opsional — untuk browser push |
+| `VAPID_PRIVATE_KEY` | Generate: `npx web-push generate-vapid-keys` | ⚠️ Opsional |
+| `VAPID_EMAIL` | `mailto:admin@vinstour.com` | ⚠️ Opsional |
 
 ---
 
@@ -289,6 +309,8 @@
 - **TypeScript**: gunakan `const supabase: any = supabaseRaw` untuk tabel baru yang belum di-type
 - **Permissions**: tambahkan permission key baru di `src/lib/permissions.ts`
 - **Demo mode**: app jalan tanpa Supabase — error `42P01` (table not found) ditangani gracefully
+- **Webhook test**: dikirim via `/api/v1/webhook-test` (server-side) agar tidak kena CORS
+- **Browser push**: endpoint `/api/push/send` butuh `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`
 
 ---
 
@@ -296,13 +318,16 @@
 
 | Prioritas | Item | Status |
 |-----------|------|--------|
-| ✅ P1 | Semua halaman 10 fitur lanjutan | **SELESAI** |
+| ✅ P1 | Semua halaman 11 fitur lanjutan | **SELESAI** |
 | ✅ P2 | `CustomerRefundStatus.tsx` + route | **SELESAI** |
-| ✅ P3 | SQL migrations fase 16 & 17 | **SELESAI** |
-| ⚠️ P4 | Jalankan SQL migrations ke Supabase | **Menunggu user** (aksi manual di dashboard Supabase) |
-| ⚠️ P5 | Set Supabase env vars di Replit Secrets | **Menunggu user** (aksi manual) |
-| ✅ P6 | KPI targets editor di dashboard | Admin klik "Atur Target" → dialog edit & simpan ke `company_settings` |
-| ✅ P7 | Target KPI Cabang Mandiri | Branch manager atur target sendiri di `/cabang/kpi-targets` |
+| ✅ P3 | SQL migrations fase 16–20 | **SELESAI** |
+| ✅ P4 | Endpoint `/api/push/send` (browser push) | **SELESAI** — butuh VAPID keys di Secrets |
+| ✅ P5 | AdminWebhooks → Supabase (bukan localStorage) | **SELESAI** — tabel `webhook_configs` + `webhook_logs` |
+| ✅ P6 | Test Ping webhook sungguhan | **SELESAI** — server proxy + HMAC signature |
+| ⚠️ P7 | Jalankan SQL migrations ke Supabase (fase 1–20) | **Menunggu user** (aksi manual di dashboard Supabase) |
+| ⚠️ P8 | Set env vars: Supabase, VAPID, Midtrans, SMTP | **Menunggu user** (aksi manual di Replit Secrets) |
+| ⚠️ P9 | JamaahRingkasanAI — gunakan AI sungguhan? | **Keputusan user** — saat ini template lokal |
+| ⚠️ P10 | AdminSmartNotif — gunakan AI sungguhan? | **Keputusan user** — saat ini localStorage + angka hardcoded |
 
 ---
 
