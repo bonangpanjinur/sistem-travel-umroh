@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import {
   Building2, CreditCard, Bell, Plus, Trash2, Loader2, Database, AlertTriangle,
   FileText, User, ShieldAlert, Palette, Menu, Lock, Eye, Globe, Phone,
-  Mail, MapPin, Edit, Smartphone, ChevronRight, Save, Settings
+  Mail, MapPin, Edit, Smartphone, ChevronRight, Save, Settings,
+  Key, EyeOff, CheckCircle2, XCircle, Info, Copy,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
@@ -51,7 +52,7 @@ type BankFormData = z.infer<typeof bankSchema>;
 
 type SettingsSection =
   | "profile" | "company" | "bank" | "documents"
-  | "notifications" | "appearance" | "sidebar" | "security" | "danger";
+  | "notifications" | "appearance" | "sidebar" | "security" | "apikeys" | "danger";
 
 interface NavItem {
   id: SettingsSection;
@@ -70,6 +71,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "appearance",    label: "Tampilan",             icon: Palette,     description: "Warna tema & branding" },
   { id: "sidebar",       label: "Menu Sidebar",         icon: Menu,        description: "Susunan & urutan menu", adminOnly: true },
   { id: "security",      label: "Keamanan",             icon: Lock,        description: "Autentikasi & sesi aktif" },
+  { id: "apikeys",       label: "Integrasi & API Keys", icon: Key,         description: "Supabase, VAPID, Midtrans, SMTP", adminOnly: true },
   { id: "danger",        label: "Zona Bahaya",          icon: ShieldAlert, description: "Reset & tindakan berbahaya", adminOnly: true },
 ];
 
@@ -89,6 +91,18 @@ export default function AdminSettings() {
     email_booking: false, email_payment: false,
   });
 
+  const API_KEY_FIELDS = [
+    "integration_supabase_url", "integration_supabase_anon_key",
+    "integration_supabase_service_url", "integration_supabase_service_role_key",
+    "integration_vapid_public_key", "integration_vapid_private_key",
+    "integration_midtrans_server_key", "integration_midtrans_client_key",
+    "integration_fonnte_api_key", "integration_fonnte_sender",
+    "integration_smtp_host", "integration_smtp_port", "integration_smtp_user", "integration_smtp_pass",
+  ] as const;
+
+  const [apiKeyValues, setApiKeyValues] = useState<Record<string, string>>({});
+  const [showFields, setShowFields] = useState<Record<string, boolean>>({});
+
   const companyForm = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
     defaultValues: {
@@ -101,6 +115,15 @@ export default function AdminSettings() {
     resolver: zodResolver(bankSchema),
     defaultValues: { bank_name: "", account_number: "", account_name: "", branch_name: "", is_primary: false },
   });
+
+  useEffect(() => {
+    if (!isLoading) {
+      const vals: Record<string, string> = {};
+      API_KEY_FIELDS.forEach(k => { vals[k] = getSetting(k) || ""; });
+      setApiKeyValues(vals);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -150,6 +173,13 @@ export default function AdminSettings() {
     else createAccount(payload as any);
     setIsBankDialogOpen(false);
     setEditingBank(null);
+  };
+
+  const handleSaveApiKeys = () => {
+    const updates = Object.entries(apiKeyValues)
+      .filter(([, v]) => v !== undefined)
+      .map(([key, value]) => ({ key, value }));
+    updateMultipleSettings(updates);
   };
 
   const handleResetDatabase = async () => {
@@ -517,6 +547,122 @@ export default function AdminSettings() {
             </>
           )}
 
+          {/* INTEGRASI & API KEYS */}
+          {activeSection === "apikeys" && isSuperAdmin() && (
+            <>
+              <SectionHead icon={Key} title="Integrasi & API Keys" desc="Konfigurasi koneksi layanan eksternal: Supabase, push notification, pembayaran, dan komunikasi" />
+
+              {/* Info banner */}
+              <div className="flex gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                  <p className="font-semibold">Tentang penyimpanan API Keys</p>
+                  <p>Kunci yang Anda masukkan disimpan di database Supabase dan tersedia untuk fitur frontend. Untuk fitur server-side (push notification, pembayaran), tambahkan juga kunci yang sama ke <strong>Replit Secrets</strong>.</p>
+                </div>
+              </div>
+
+              {/* Supabase */}
+              <ApiKeyGroup
+                title="Supabase" icon={Database} color="blue"
+                description="Koneksi database & autentikasi utama aplikasi"
+                fields={[
+                  { key: "integration_supabase_url",              label: "Supabase URL",             placeholder: "https://xxxx.supabase.co",   secret: false, hint: "VITE_SUPABASE_URL" },
+                  { key: "integration_supabase_anon_key",         label: "Anon / Publishable Key",   placeholder: "eyJhbGciOiJ...",             secret: true,  hint: "VITE_SUPABASE_PUBLISHABLE_KEY" },
+                  { key: "integration_supabase_service_url",      label: "Service URL (server)",     placeholder: "https://xxxx.supabase.co",   secret: false, hint: "SUPABASE_URL" },
+                  { key: "integration_supabase_service_role_key", label: "Service Role Key (server)", placeholder: "eyJhbGciOiJ...",            secret: true,  hint: "SUPABASE_SERVICE_ROLE_KEY" },
+                ]}
+                values={apiKeyValues}
+                showFields={showFields}
+                onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
+                onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+              />
+
+              {/* VAPID Push */}
+              <ApiKeyGroup
+                title="Push Notification (VAPID)" icon={Bell} color="purple"
+                description="Diperlukan untuk mengirim notifikasi browser ke jamaah"
+                fields={[
+                  { key: "integration_vapid_public_key",  label: "VAPID Public Key",  placeholder: "BNJ...",  secret: false, hint: "VAPID_PUBLIC_KEY" },
+                  { key: "integration_vapid_private_key", label: "VAPID Private Key", placeholder: "oXq...",  secret: true,  hint: "VAPID_PRIVATE_KEY" },
+                ]}
+                values={apiKeyValues}
+                showFields={showFields}
+                onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
+                onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                extra={
+                  <div className="px-4 pb-3">
+                    <p className="text-xs text-muted-foreground">Generate key baru dengan perintah: <code className="bg-muted px-1 rounded font-mono">npx web-push generate-vapid-keys</code></p>
+                  </div>
+                }
+              />
+
+              {/* Midtrans */}
+              <ApiKeyGroup
+                title="Midtrans (Pembayaran Online)" icon={CreditCard} color="green"
+                description="Diperlukan untuk menerima pembayaran virtual account & kartu kredit"
+                fields={[
+                  { key: "integration_midtrans_server_key", label: "Server Key",                placeholder: "SB-Mid-server-...", secret: true,  hint: "MIDTRANS_SERVER_KEY" },
+                  { key: "integration_midtrans_client_key", label: "Client Key (untuk frontend)", placeholder: "SB-Mid-client-...", secret: false, hint: "MIDTRANS_CLIENT_KEY" },
+                ]}
+                values={apiKeyValues}
+                showFields={showFields}
+                onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
+                onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                extra={
+                  <div className="px-4 pb-3">
+                    <a href="https://dashboard.midtrans.com" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      <Globe className="h-3 w-3" />Buka Midtrans Dashboard
+                    </a>
+                  </div>
+                }
+              />
+
+              {/* WhatsApp / Fonnte */}
+              <ApiKeyGroup
+                title="WhatsApp (Fonnte)" icon={Smartphone} color="emerald"
+                description="Kirim notifikasi WhatsApp otomatis ke jamaah"
+                fields={[
+                  { key: "integration_fonnte_api_key", label: "Fonnte API Key",     placeholder: "xxxxxxxxxxxxxxxxxx", secret: true,  hint: "FONNTE_API_KEY" },
+                  { key: "integration_fonnte_sender",  label: "Nomor Pengirim",      placeholder: "6281234567890",      secret: false, hint: "Nomor WhatsApp aktif" },
+                ]}
+                values={apiKeyValues}
+                showFields={showFields}
+                onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
+                onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                extra={
+                  <div className="px-4 pb-3">
+                    <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      <Globe className="h-3 w-3" />Daftar / login Fonnte
+                    </a>
+                  </div>
+                }
+              />
+
+              {/* SMTP Email */}
+              <ApiKeyGroup
+                title="SMTP Email" icon={Mail} color="amber"
+                description="Pengiriman email otomatis (invoice, kwitansi, notifikasi)"
+                fields={[
+                  { key: "integration_smtp_host", label: "SMTP Host",      placeholder: "smtp.gmail.com",  secret: false, hint: "SMTP_HOST" },
+                  { key: "integration_smtp_port", label: "SMTP Port",      placeholder: "587",             secret: false, hint: "SMTP_PORT" },
+                  { key: "integration_smtp_user", label: "Username / Email", placeholder: "no-reply@...",  secret: false, hint: "SMTP_USER" },
+                  { key: "integration_smtp_pass", label: "Password / App Password", placeholder: "••••••", secret: true,  hint: "SMTP_PASS" },
+                ]}
+                values={apiKeyValues}
+                showFields={showFields}
+                onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
+                onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+              />
+
+              {/* Save button */}
+              <div className="flex justify-end">
+                <Button onClick={handleSaveApiKeys} disabled={isUpdating} size="lg">
+                  {isUpdating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Menyimpan...</> : <><Save className="h-4 w-4 mr-2" />Simpan Semua API Keys</>}
+                </Button>
+              </div>
+            </>
+          )}
+
           {/* ZONA BAHAYA */}
           {activeSection === "danger" && isSuperAdmin() && (
             <>
@@ -624,5 +770,132 @@ function SectionHead({ icon: Icon, title, desc }: { icon: React.ElementType; tit
         <p className="text-sm text-muted-foreground">{desc}</p>
       </div>
     </div>
+  );
+}
+
+interface ApiKeyField {
+  key: string;
+  label: string;
+  placeholder: string;
+  secret: boolean;
+  hint: string;
+}
+
+interface ApiKeyGroupProps {
+  title: string;
+  icon: React.ElementType;
+  color: string;
+  description: string;
+  fields: ApiKeyField[];
+  values: Record<string, string>;
+  showFields: Record<string, boolean>;
+  onChange: (key: string, value: string) => void;
+  onToggleShow: (key: string) => void;
+  extra?: React.ReactNode;
+}
+
+const COLOR_MAP: Record<string, string> = {
+  blue:    "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800",
+  purple:  "bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800",
+  green:   "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800",
+  emerald: "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800",
+  amber:   "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800",
+};
+
+const ICON_COLOR_MAP: Record<string, string> = {
+  blue:    "text-blue-600",
+  purple:  "text-purple-600",
+  green:   "text-green-600",
+  emerald: "text-emerald-600",
+  amber:   "text-amber-600",
+};
+
+function ApiKeyGroup({ title, icon: Icon, color, description, fields, values, showFields, onChange, onToggleShow, extra }: ApiKeyGroupProps) {
+  const configuredCount = fields.filter(f => !!values[f.key]).length;
+  const allConfigured   = configuredCount === fields.length;
+  const anyConfigured   = configuredCount > 0;
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // simple feedback — could use toast but avoiding extra import here
+    });
+  };
+
+  return (
+    <Card className={`border ${COLOR_MAP[color] ?? ""}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-lg bg-white dark:bg-muted flex items-center justify-center shadow-sm border`}>
+              <Icon className={`h-4 w-4 ${ICON_COLOR_MAP[color] ?? "text-primary"}`} />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+              <CardDescription className="text-xs">{description}</CardDescription>
+            </div>
+          </div>
+          <Badge variant={allConfigured ? "default" : anyConfigured ? "secondary" : "outline"}
+            className={cn("text-[10px] shrink-0", allConfigured && "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400")}>
+            {allConfigured
+              ? <><CheckCircle2 className="h-3 w-3 mr-1" />{configuredCount}/{fields.length} Terkonfigurasi</>
+              : anyConfigured
+              ? <><Info className="h-3 w-3 mr-1" />{configuredCount}/{fields.length} Terkonfigurasi</>
+              : <><XCircle className="h-3 w-3 mr-1" />Belum dikonfigurasi</>}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 pb-3">
+        {fields.map(f => {
+          const val    = values[f.key] || "";
+          const isSet  = !!val;
+          const shown  = showFields[f.key] || false;
+          return (
+            <div key={f.key} className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  {f.label}
+                  {isSet
+                    ? <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    : <XCircle className="h-3 w-3 text-muted-foreground/50" />}
+                </Label>
+                <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">{f.hint}</span>
+              </div>
+              <div className="flex gap-1.5">
+                <div className="relative flex-1">
+                  <Input
+                    type={f.secret && !shown ? "password" : "text"}
+                    value={val}
+                    onChange={e => onChange(f.key, e.target.value)}
+                    placeholder={f.placeholder}
+                    className="pr-8 font-mono text-xs h-8"
+                  />
+                </div>
+                {f.secret && (
+                  <Button
+                    type="button" variant="ghost" size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => onToggleShow(f.key)}
+                    title={shown ? "Sembunyikan" : "Tampilkan"}
+                  >
+                    {shown ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </Button>
+                )}
+                {isSet && (
+                  <Button
+                    type="button" variant="ghost" size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => copyToClipboard(val)}
+                    title="Salin"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+      {extra}
+    </Card>
   );
 }
