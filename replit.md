@@ -1,61 +1,82 @@
 # Vinstour Travel — Umroh & Haji Management Portal
 
-A full-featured travel management system for Umroh & Haji services (Vinstour Travel). Supports jamaah booking, admin management, agent commissions, operational tracking, and a public-facing portal.
+Sistem manajemen perjalanan umroh & haji lengkap untuk Vinstour Travel. Mencakup booking jamaah, panel admin, komisi agen, tracking operasional, dan portal publik.
 
-## Run & Operate
+> **Rencana lengkap, status semua halaman, dan catatan teknis ada di [`RENCANA.md`](./RENCANA.md)**
 
-- `pnpm --filter @workspace/umrah-haji run dev` — run the frontend (port assigned by workflow)
-- `pnpm --filter @workspace/api-server run dev` — run the API server
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+---
 
-## Required Environment Variables
+## Cara Menjalankan
 
-### Frontend (Vite — prefix with `VITE_`)
-- `VITE_SUPABASE_URL` — Supabase project URL (required for auth and database)
-- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anon/public key
+```bash
+# Frontend (port 5000)
+pnpm --filter @workspace/umrah-haji run dev
 
-### API Server
-- `SUPABASE_URL` — Supabase project URL (required for API key validation)
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (required for API key validation)
-- `PORT` — assigned automatically by workflow
+# API Server (port 8080)
+PORT=8080 pnpm --filter @workspace/api-server run dev
 
-> **Note:** The app runs in demo mode without Supabase credentials. Auth is disabled and API routes return sample data. For production, all Supabase env vars must be set.
+# Typecheck semua paket
+pnpm run typecheck
+
+# Build library (wajib sebelum typecheck api-server)
+pnpm run typecheck:libs
+```
+
+---
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- Frontend: React + Vite, Tailwind CSS v3, react-router-dom, @tanstack/react-query
-- Backend: Express 5, pino logging
-- Database: Supabase (PostgreSQL) — accessed directly via @supabase/supabase-js client
-- API codegen: Orval (from OpenAPI spec in `lib/api-spec/`)
-- Build: esbuild (API server)
+- **Monorepo**: pnpm workspaces, Node.js 24, TypeScript 5.9
+- **Frontend**: React 19 + Vite 7, Tailwind CSS v3, react-router-dom, @tanstack/react-query
+- **Backend**: Express 5, pino logging
+- **Database**: Supabase (PostgreSQL) via `@supabase/supabase-js`
+- **API codegen**: Orval dari OpenAPI spec di `lib/api-spec/`
+- **Build**: esbuild (API server)
 
-## Where things live
+---
 
-- `artifacts/umrah-haji/src/` — React frontend source
-  - `pages/` — all page components (admin, agent, customer, jamaah, operational, public)
-  - `routes/` — route modules (AdminRoutes, PublicRoutes, etc.)
-  - `hooks/` — data hooks (all Supabase queries)
-  - `components/` — UI components
-  - `integrations/supabase/` — Supabase client and type definitions
-- `artifacts/api-server/src/routes/v1/` — Public API routes (packages, departures, leads)
-- `lib/api-spec/openapi.yaml` — API contract (source of truth)
+## Struktur Direktori
 
-## Architecture decisions
+```
+artifacts/
+  umrah-haji/src/   — Frontend React (pages, routes, hooks, components)
+  api-server/src/   — Public API Express (routes/v1/)
+lib/
+  api-spec/         — openapi.yaml (source of truth)
+  api-zod/          — Zod schemas (auto-generated)
+  db/               — Drizzle schema
+```
 
-- Supabase is the primary data store — all hooks call Supabase directly from the frontend
-- The Express API server (`/api/v1/`) serves as a public-facing API with optional API key auth via Supabase
-- API key auth bypasses gracefully when Supabase is not configured (demo/dev mode)
-- Theme and SEO metadata are stored in localStorage and applied before React renders (prevents flash)
-- BrowserRouter uses `import.meta.env.BASE_URL` as basename for correct path-based routing on Replit
+---
 
-## User preferences
+## Environment Variables yang Diperlukan
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+Lihat detail lengkap di **RENCANA.md → Bagian 3**.
+
+| Secret | Keterangan |
+|--------|-----------|
+| `VITE_SUPABASE_URL` | URL project Supabase |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key Supabase |
+| `SUPABASE_URL` | URL untuk API server |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server only) |
+
+> App berjalan dalam **demo mode** tanpa Supabase. Auth tidak aktif, data tidak tersimpan.
+
+---
+
+## User Preferences
+
+- File rencana tunggal: `RENCANA.md` — jangan buat file rencana/catatan lain
+- Tailwind v3 via PostCSS — jangan gunakan `@tailwindcss/vite`
+- Semua tabel Supabase baru wajib RLS + policy per role
+- Notifikasi admin: tambah listener di `useAdminNotifications.ts`, jangan buat channel baru
+
+---
 
 ## Gotchas
 
-- Run `pnpm install` after pulling changes that add new dependencies
-- The frontend uses Tailwind CSS v3 (PostCSS plugin), not Tailwind v4
-- Do not use `@tailwindcss/vite` plugin — use the postcss approach in `vite.config.ts`
+- Jalankan `pnpm run typecheck:libs` dahulu sebelum typecheck api-server
+- Frontend pakai Tailwind CSS v3 (PostCSS plugin), bukan Tailwind v4
+- Jangan gunakan `@tailwindcss/vite` plugin
+- Aset Kantor admin: `/admin/office-assets` (bukan `/operational/assets`)
+- Quick Menu Grid "Portal Jamaah" → `/jamaah-info`

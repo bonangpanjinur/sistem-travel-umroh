@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
-> Terakhir diperbarui: Mei 2026 | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
-> File ini menggabungkan semua dokumen rencana sebelumnya menjadi satu sumber kebenaran tunggal.
+> Terakhir diperbarui: Juni 2026 | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
+> **Ini adalah satu-satunya file rencana. Jangan buat file rencana lain.**
 
 ---
 
@@ -8,19 +8,40 @@
 
 | Simbol | Artinya |
 |--------|---------|
-| ✅ | Selesai & terhubung ke data nyata |
-| ⚠️ | UI ada tapi ada catatan penting |
-| 🔴 | Belum dibangun / tidak berfungsi |
+| ✅ | Selesai & berfungsi |
+| ⚠️ | Ada catatan penting / menunggu aksi |
+| 🔴 | Belum dibangun |
 
 ---
 
-## BAGIAN 1 — INFRASTRUKTUR
+## BAGIAN 1 — CARA MENJALANKAN
+
+```bash
+# Frontend (port 5000)
+pnpm --filter @workspace/umrah-haji run dev
+
+# API Server (port 8080)
+PORT=8080 pnpm --filter @workspace/api-server run dev
+
+# Typecheck semua paket
+pnpm run typecheck
+
+# Build library (wajib sebelum typecheck api-server)
+pnpm run typecheck:libs
+
+# Regenerate API hooks dari OpenAPI spec
+pnpm --filter @workspace/api-spec run codegen
+```
+
+---
+
+## BAGIAN 2 — INFRASTRUKTUR
 
 | Item | Status | Catatan |
 |------|--------|---------|
-| pnpm monorepo (umrah-haji + api-server + api-spec) — Port 5000 / 8080 | ✅ | |
-| React 19 + Vite 7 + TypeScript + Tailwind v3 — 0 error TS | ✅ | Typecheck pass setelah 7 bugfix deployment |
-| Supabase Auth + Database (demo mode graceful) | ✅ | App jalan tanpa Supabase, tapi fitur mati |
+| pnpm monorepo (umrah-haji + api-server + api-spec + lib/) | ✅ | Port 5000 / 8080 |
+| React 19 + Vite 7 + TypeScript 5.9 + Tailwind v3 | ✅ | 0 error TS — typecheck bersih |
+| Supabase Auth + Database (graceful demo mode) | ✅ | App jalan tanpa Supabase, fitur data mati |
 | RBAC granular — Visual Permission Matrix + Audit Log | ✅ | |
 | PWA / Service Worker | ✅ | |
 | Dark Mode global | ✅ | |
@@ -29,15 +50,41 @@
 | Export PDF (jsPDF + autoTable) — 10+ halaman | ✅ | |
 | OpenAPI Spec + Codegen (Orval) — type-safe hooks | ✅ | |
 | Error Boundary global | ✅ | |
+| Workflow Replit — Start application + Start API server | ✅ | Keduanya RUNNING |
 
 ---
 
-## BAGIAN 2 — SEMUA HALAMAN AKTIF (70+ Halaman)
+## BAGIAN 3 — ENVIRONMENT VARIABLES (Replit Secrets)
+
+| Secret | Keterangan | Status |
+|--------|-----------|--------|
+| `VITE_SUPABASE_URL` | URL project Supabase (`https://xxx.supabase.co`) | ⚠️ Perlu diset |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key dari Supabase | ⚠️ Perlu diset |
+| `SUPABASE_URL` | URL yang sama untuk API server | ⚠️ Perlu diset |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (jangan expose ke frontend!) | ⚠️ Perlu diset |
+| `SMTP_HOST` | Host SMTP (`smtp.gmail.com`) | ⚠️ Opsional — untuk email |
+| `SMTP_PORT` | Port SMTP (`587`) | ⚠️ Opsional |
+| `SMTP_USER` | Username/email SMTP | ⚠️ Opsional |
+| `SMTP_PASS` | Password SMTP atau App Password | ⚠️ Opsional |
+| `SMTP_FROM` | Alamat pengirim (`noreply@vinstour.com`) | ⚠️ Opsional |
+| `MIDTRANS_SERVER_KEY` | Server key dari dashboard Midtrans | ⚠️ Opsional — untuk payment online |
+| `MIDTRANS_CLIENT_KEY` | Client key (untuk Snap.js di frontend) | ⚠️ Opsional |
+| `MIDTRANS_ENV` | `sandbox` (default) atau `production` | ⚠️ Opsional |
+| `VAPID_PUBLIC_KEY` | Generate: `npx web-push generate-vapid-keys` | ⚠️ Opsional — untuk browser push |
+| `VAPID_PRIVATE_KEY` | Generate: `npx web-push generate-vapid-keys` | ⚠️ Opsional |
+| `VAPID_EMAIL` | `mailto:admin@vinstour.com` | ⚠️ Opsional |
+
+> **Catatan:** Tanpa Supabase, app jalan dalam demo mode. Auth tidak aktif, data tidak tersimpan.
+
+---
+
+## BAGIAN 4 — SEMUA HALAMAN (80+ Halaman)
 
 ### Portal Publik — `/`
 | Halaman | URL | Status |
 |---------|-----|--------|
-| Landing Page | `/` | ✅ |
+| Landing Page + Banner Carousel | `/` | ✅ |
+| Quick Menu Grid (Layanan Utama, Portal Jamaah, Informasi) | `/` (section) | ✅ |
 | Daftar Paket | `/packages` | ✅ |
 | Bandingkan Paket | `/packages/compare` | ✅ |
 | Detail Paket | `/packages/:idSlug` | ✅ |
@@ -51,9 +98,13 @@
 | Kalkulator Biaya | `/kalkulator` | ✅ |
 | Kalkulator Cicilan | `/kalkulator-cicilan` | ✅ |
 | Cek Status Booking | `/cek-booking` | ✅ |
+| Kurs Mata Uang Real-time | `/kurs` | ✅ |
+| Fitur Portal | `/fitur` | ✅ |
+| **Landing Jamaah** | `/jamaah-info` | ✅ Baru — hero, 8 fitur, cara pakai, testimoni |
 | Tabungan Umroh | `/savings` | ✅ |
 | Website Agen | `/a/:agentSlug` | ✅ |
 | Website Cabang | `/b/:branchSlug` | ✅ |
+| Landing Page Kustom | `/lp/:slug` | ✅ |
 
 ### Portal Customer — `/customer/*`
 | Halaman | URL | Status |
@@ -93,7 +144,7 @@
 | Sertifikat | `/jamaah/sertifikat` | ✅ |
 | SISKOHAT Jamaah | `/jamaah/siskohat` | ✅ |
 | Chatbot AI | `/jamaah/chatbot` | ✅ |
-| Ringkasan AI | `/jamaah/ringkasan-ai` | ✅ ⚠️ Template lokal, bukan LLM sungguhan |
+| Ringkasan AI | `/jamaah/ringkasan-ai` | ⚠️ Template lokal, bukan LLM sungguhan |
 | Pembayaran Mandiri | `/jamaah/payment` | ✅ |
 | Checklist | `/jamaah/checklist` | ✅ |
 | Manasik Digital | `/jamaah/manasik` | ✅ |
@@ -102,41 +153,103 @@
 ### Portal Admin — `/admin/*`
 | Halaman | URL | Status |
 |---------|-----|--------|
-| Dashboard | `/admin/dashboard` | ✅ |
+| Dashboard | `/admin` | ✅ |
 | Analytics | `/admin/analytics` | ✅ |
-| KPI Dashboard | `/admin/kpi-dashboard` | ✅ Target disimpan ke DB via tombol "Atur Target" |
-| Dashboard Keuangan | `/admin/keuangan-dashboard` | ✅ |
+| KPI Dashboard | `/admin/kpi-dashboard` | ✅ |
+| Ringkasan AI | `/admin/ai-summary` | ⚠️ Kalkulasi statistik, bukan AI |
+| **Notification Bell** | Header admin (semua halaman) | ✅ Baru — summary pills, lead + dokumen alerts |
+| Leads & Prospek | `/admin/leads`, `/admin/leads/:id` | ✅ |
+| Leads Analytics | `/admin/leads/analytics` | ✅ |
+| Follow-up Reminder | `/admin/follow-up` | ✅ |
+| Chat Leads (Widget) | `/admin/chat-leads` | ✅ |
 | Booking | `/admin/bookings`, `/admin/bookings/:id` | ✅ |
-| Paket | `/admin/packages` | ✅ |
-| Lead Scoring | `/admin/leads` | ✅ |
-| CRM Kanban | `/admin/crm` | ✅ |
-| Keberangkatan | `/admin/departures`, `/admin/departures/:id` | ✅ |
-| Keuangan P&L | `/admin/keuangan` | ✅ |
-| Keuangan Kas | `/admin/kas` | ✅ |
-| Keuangan AR | `/admin/ar` | ✅ |
-| Hotel | `/admin/hotels` | ✅ |
-| Vendor | `/admin/vendors` | ✅ |
+| Buat Booking | `/admin/bookings/create` | ✅ |
+| Paket Umroh & Haji | `/admin/packages`, `/admin/packages/:id` | ✅ |
+| Tipe Paket | `/admin/package-types` | ✅ |
+| Kupon & Promo | `/admin/coupons` | ✅ |
+| Jadwal Keberangkatan | `/admin/departures`, `/admin/departures/:id` | ✅ |
+| Tracking Real-time | `/admin/departure-tracking` | ✅ |
+| Monitor SOS | `/admin/sos-alerts` | ✅ |
+| Kamar & Rooming | `/admin/room-assignments` | ✅ |
+| Manajemen Haji | `/admin/haji` | ✅ |
+| Manasik | `/admin/manasik` | ✅ |
+| Template Itinerary | `/admin/itinerary-templates` | ✅ |
+| Perlengkapan | `/admin/equipment` | ✅ |
+| Master Perlengkapan | `/admin/equipment-master` | ✅ |
+| Setting Perlengkapan | `/admin/equipment-settings` | ✅ |
+| Stock Opname | `/admin/stock-opname` | ✅ |
+| **Aset Kantor** | `/admin/office-assets` | ✅ Dipindahkan dari /operational ke dalam admin |
+| Dashboard Keuangan | `/admin/finance-terpadu` | ✅ |
+| Pembayaran | `/admin/payments` | ✅ |
+| Kas & Bank | `/admin/finance-cash` | ✅ |
+| Piutang (AR) | `/admin/finance/ar` | ✅ |
+| Hutang (AP) | `/admin/finance/ap` | ✅ |
+| Laporan P&L | `/admin/finance` | ✅ |
+| Program Tabungan | `/admin/savings`, `/admin/savings-management` | ✅ |
+| Laporan | `/admin/reports` | ✅ |
+| Laporan Lanjutan | `/admin/advanced-reports` | ✅ |
+| Laporan Terjadwal | `/admin/scheduled-reports` | ✅ |
+| Laporan Keuangan | `/admin/laporan/keuangan` | ✅ |
+| Laporan Keberangkatan | `/admin/laporan/keberangkatan` | ✅ |
+| Performa Agen | `/admin/laporan/agen` | ✅ |
+| Monitoring Tabungan | `/admin/laporan/tabungan` | ✅ |
+| Data Jamaah | `/admin/customers`, `/admin/customers/:id` | ✅ |
 | Agen | `/admin/agents` | ✅ |
 | Cabang | `/admin/branches` | ✅ |
-| Pelanggan | `/admin/customers` | ✅ |
-| Muthawif | `/admin/muthawif` | ✅ |
-| Komisi | `/admin/commissions` | ✅ |
-| SDM/HR | `/admin/hr` | ✅ |
-| Notifikasi (In-App) | `/admin/notifications` | ✅ |
-| Push Notifikasi Jamaah | `/admin/push-notifications` | ✅ Tersimpan ke Supabase `customer_notifications`. Browser push butuh VAPID keys |
-| Webhook Outgoing | `/admin/webhooks` | ✅ **DIPERBAIKI** — Tersimpan ke Supabase `webhook_configs`. Test Ping sungguhan via server proxy |
-| Smart Notif | `/admin/smart-notif` | ⚠️ Pengaturan ke localStorage. Open-rate hardcoded, bukan AI |
-| AI Summary | `/admin/ai-summary` | ⚠️ Data dari Supabase nyata, "AI Insight" adalah kalkulasi statistik biasa |
-| Laporan | `/admin/reports` | ✅ |
-| Log Audit | `/admin/audit` | ✅ |
-| Pengaturan | `/admin/settings` | ✅ |
-| SOS Alerts | `/admin/sos-alerts` | ✅ |
-| SISKOHAT Kemenag | `/admin/siskohat` | ✅ Log ke Supabase. API Kemenag resmi butuh akun PPIU |
+| Keanggotaan | `/admin/memberships` | ✅ |
+| Komisi Cabang | `/admin/branch-commissions` | ✅ |
+| Laporan Komisi Agen | `/admin/agent-commission-report` | ✅ |
+| Program Loyalitas | `/admin/loyalty` | ✅ |
+| Referral | `/admin/referrals` | ✅ |
+| Visa | `/admin/visa` | ✅ |
+| Manifest Jamaah | `/admin/manifest` | ✅ |
+| Absensi Digital | `/admin/absensi` | ✅ |
+| WA Blast Keberangkatan | `/admin/wa-blast` | ✅ |
+| SDM / HR | `/admin/hr` | ✅ |
+| Penggajian | `/admin/hr/payroll` | ✅ |
+| Verifikasi Dokumen | `/admin/document-verification` | ✅ |
+| Jenis Dokumen | `/admin/document-types` | ✅ |
+| Generator Surat | `/admin/documents-generator` | ✅ |
+| Hub Korespondensi | `/admin/correspondence` | ✅ |
+| Konten Offline | `/admin/offline-content` | ✅ |
+| Tiket Support | `/admin/support` | ✅ |
+| Blog & Artikel | `/admin/blog` | ✅ |
+| Pengumuman | `/admin/announcements` | ✅ |
+| Banner Carousel | `/admin/banners` | ✅ |
+| Landing Page | `/admin/landing-pages`, `/admin/landing-pages/:id` | ✅ |
+| Materi Marketing | `/admin/marketing-materials` | ✅ |
+| WhatsApp Blast | `/admin/whatsapp` | ✅ |
+| Template Email | `/admin/email-templates` | ✅ |
+| Push Notifikasi | `/admin/push-notifications` | ✅ |
+| WA Otomatis | `/admin/wa-otomatis` | ✅ |
+| Midtrans Payment | `/admin/midtrans` | ✅ |
+| Reminder Cicilan | `/admin/cicilan-reminder` | ✅ |
+| Virtual Account | `/admin/virtual-account` | ✅ |
+| Analisis Sentimen | `/admin/sentimen-feedback` | ✅ |
+| Prediksi Seat | `/admin/prediksi-seat` | ✅ |
+| Smart Notifikasi | `/admin/smart-notif` | ⚠️ Pengaturan localStorage, bukan AI sungguhan |
+| Rekomendasi Paket AI | `/admin/rekomendasi-paket` | ✅ |
+| Hotel | `/admin/hotels` | ✅ |
+| Maskapai | `/admin/airlines` | ✅ |
+| Bandara | `/admin/airports` | ✅ |
+| Vendor | `/admin/vendors` | ✅ |
+| Muthawif | `/admin/muthawifs`, `/admin/muthawifs/:id` | ✅ |
+| Penyedia Bus | `/admin/bus-providers` | ✅ |
+| Master Data Lainnya | `/admin/master-data` | ✅ |
+| SISKOHAT Kemenag | `/admin/siskohat` | ✅ |
 | Approval Workflow | `/admin/approvals` | ✅ |
 | Kontrak Vendor | `/admin/vendor-contracts` | ✅ |
 | Pelatihan Agen | `/admin/training` | ✅ |
 | Galeri Media | `/admin/media-gallery` | ✅ |
-| 2FA Settings | `/admin/settings` (tab) | ⚠️ Toggle tersimpan ke Supabase, enforcement TOTP belum diimplementasi |
+| Manajemen User | `/admin/users` | ✅ |
+| Manajemen Role | `/admin/roles` | ✅ |
+| Audit Keamanan | `/admin/security-audit` | ✅ |
+| Pengaturan 2FA | `/admin/2fa` | ⚠️ Toggle tersimpan, enforcement TOTP belum |
+| Tampilan & Tema | `/admin/appearance` | ✅ |
+| Pengaturan Umum | `/admin/settings` | ✅ |
+| API Connect | `/admin/api-connect` | ✅ |
+| Webhook Outgoing | `/admin/webhooks` | ✅ |
+| PWA Settings | `/admin/pwa-settings` | ✅ |
 
 ### Portal Agen — `/agent/*`
 | Halaman | URL | Status |
@@ -172,78 +285,29 @@
 
 ---
 
-## BAGIAN 3 — FITUR LANJUTAN (Fase 16+)
+## BAGIAN 5 — RIWAYAT PERUBAHAN TERKINI
 
-### Fitur 01 — SOS Real-time ✅ SELESAI
-- JamaahSOSStatus.tsx — jamaah kirim dan pantau SOS
-- MuthawifSOS.tsx — muthawif terima dan tangani SOS
-- sos_alerts table dengan RLS
+### Sesi Juni 2026 (Replit Migration + Enhancement)
 
-### Fitur 02 — Notifikasi Otomatis Perubahan Status Visa ✅ SELESAI
-- `useVisaStatusUpdate.ts` — hook update visa + WhatsApp notif + log
-
-### Fitur 03 — Integrasi SISKOHAT Kemenag ✅ SELESAI
-- `AdminSISKOHAT.tsx` — ekspor data jamaah haji ke format Kemenag
-- `siskohat_sync_logs` table (fase17)
-
-### Fitur 04 — Approval Workflow Berjenjang ✅ SELESAI
-- `AdminApprovals.tsx` — multi-level approval untuk refund/diskon/pembatalan
-- `BranchApprovals.tsx` — approval di level cabang
-- `CustomerRefundStatus.tsx` — customer pantau status pengajuan mereka
-- `useApprovalWorkflow.ts` — logika approval + eskalasi
-- `approval_requests`, `approval_actions`, `approval_configs` tables (fase16+17)
-
-### Fitur 05 — Manajemen Kontrak Vendor ✅ SELESAI
-- `AdminVendorContracts.tsx` — CRUD kontrak + reminder expired
-- `vendor_contracts` table (fase17)
-
-### Fitur 06 — Budget vs Realisasi per Keberangkatan ✅ SELESAI
-- `DepartureBudgetTab` di `AdminDepartureDetail.tsx`
-- `useDepartureBudget.ts` — hook CRUD budget + variance kalkulasi
-- `departure_budgets` table (fase17)
-
-### Fitur 07 — Modul Pelatihan Produk Agen ✅ SELESAI
-- `AdminTraining.tsx` — admin kelola modul + kuis
-- `AgentTraining.tsx` — agen ikuti pelatihan + kuis
-- `training_modules`, `training_quizzes`, `agent_training_progress` tables (fase17)
-
-### Fitur 08 — Video Testimoni & Virtual Tour 360° ✅ SELESAI
-- `AdminMediaGallery.tsx` — admin kelola video + virtual tour + foto hotel
-- `media_gallery` table (fase17)
-- Koneksi ke `/testimonials` dan detail paket publik
-
-### Fitur 09 — Jaringan Sub-Agen Multi-Level ✅ SELESAI (UI)
-- `AgentNetwork.tsx` upgrade: tree view + rekrut + performa
-- `agent_override_commissions` table (fase17)
-- Kolom `level` di `agents` (fase17)
-
-### Fitur 10 — Kalkulator Bagasi Mandiri Jamaah ✅ SELESAI (UI)
-- `JamaahBagasi.tsx` upgrade: tab kalkulator bawaan
-- `baggage_reference_items` table + seed 20 item (fase17)
-- Kolom `bagasi_kg_allowed` di `bookings` (fase17)
-
-### Fitur 11 — Target KPI Cabang Mandiri ✅ SELESAI
-- `BranchKPITargets.tsx` — halaman baru di `/cabang/kpi-targets`
-- `branch_monthly_targets` table dengan RLS (fase19)
-
-### Fitur 12 — Webhook Outgoing ✅ DIPERBAIKI
-- `AdminWebhooks.tsx` — CRUD tersimpan ke Supabase `webhook_configs` (bukan localStorage)
-- Test Ping sungguhan via server proxy `/api/v1/webhook-test` dengan HMAC-SHA256 signature
-- Log tersimpan ke `webhook_logs`, stats (success/fail count) diperbarui otomatis
-- `webhook_configs`, `webhook_logs` tables (fase20)
-
-### Fitur 13 — Browser Push Notifications ✅ ENDPOINT DIBUAT
-- `POST /api/push/send` — kirim web push ke semua subscriber (web-push + VAPID)
-- `POST /api/push/subscribe` — simpan subscription browser
-- `GET /api/push/vapid-public-key` — frontend ambil public key
-- `push_subscriptions` table (fase20)
-- **Perlu**: `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` di Replit Secrets (generate: `npx web-push generate-vapid-keys`)
+| # | Perubahan | File |
+|---|-----------|------|
+| 1 | Fix TS7030 di `kurs.ts` — tambah `return` ke semua `res.json()` | `api-server/src/routes/v1/kurs.ts` |
+| 2 | Fix TS2339 di `KursPage.tsx` — hapus `.toLocaleFixed` yang tidak valid | `pages/public/KursPage.tsx` |
+| 3 | Build lib (`tsc --build`) — `lib/api-zod/dist/index.d.ts` ter-generate | `tsconfig.json` |
+| 4 | Tambah `QuickMenuGrid` di homepage — 3 seksi: Layanan Utama, Portal Jamaah, Informasi | `components/home/QuickMenuGrid.tsx` |
+| 5 | Bottom nav defaults diperbarui — path yang benar ke `/packages`, `/departures`, dll | `hooks/usePWAConfig.ts` |
+| 6 | Buat halaman `/jamaah-info` — landing page jamaah lengkap dengan 8 fitur, cara pakai, testimoni, CTA | `pages/public/JamaahInfoPage.tsx` |
+| 7 | Admin menu registry dibersihkan — hapus group "Aset & Inventaris" terpisah, pindahkan "Aset Kantor" ke group Dokumen dengan path `/admin/office-assets` | `lib/admin-menu-registry.ts` |
+| 8 | Route `/admin/office-assets` ditambahkan ke AdminRoutes | `routes/AdminRoutes.tsx` |
+| 9 | Link "Pelajari / Buka Portal" di QuickMenuGrid → `/jamaah-info` | `components/home/QuickMenuGrid.tsx` |
+| 10 | `useAdminNotifications` — tambah listener `leads` (INSERT) dan `customer_documents` (INSERT) | `hooks/useAdminNotifications.ts` |
+| 11 | `NotificationBell` redesign — summary pills per kategori (Leads/Support/Dokumen/Pembayaran/SOS), ikon per tipe, dismiss per item, SOS pulse merah | `components/admin/NotificationBell.tsx` |
 
 ---
 
-## BAGIAN 4 — DATABASE MIGRATIONS
+## BAGIAN 6 — DATABASE MIGRATIONS (Urutan Eksekusi)
 
-### Urutan Eksekusi SQL (jalankan berurutan di Supabase SQL Editor)
+Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 
 | # | File | Isi |
 |---|------|-----|
@@ -260,145 +324,82 @@
 | 11 | `migrations/phase4-push-visa.sql` | Proses push visa & tracking |
 | 12 | `migrations/phase5-rbac-improvements.sql` | Penyempurnaan RBAC & audit log |
 | 13 | `migrations/fase6-app-settings-va-targets-jamaah.sql` | app_settings, virtual_accounts, targets jamaah |
-| 14 | `supabase/migrations/consolidated_fase_13_14_15.sql` | agent_leads, discount_requests, chat_leads, manasik_schedules, manasik_attendance, package_reviews |
-| 15 | `supabase/migrations/fase16_new_tables.sql` | sos_alerts, visa_status_logs, approval_requests/actions, dashboard_access_config, financial_summary, transactions, expenses, marketing, equipment, sales_targets, trip_timeline |
-| 16 | `supabase/migrations/fase17_remaining_tables.sql` | vendor_contracts, departure_budgets, training_modules/quizzes/progress, media_gallery, siskohat_sync_logs, approval_configs, agent_override_commissions, baggage_reference_items |
-| 17 | `supabase/migrations/fase18_core_settings.sql` | company_settings (+ KPI targets seed), bank_accounts, website_settings, contact_page_content |
-| 18 | `supabase/migrations/fase19_branch_kpi_targets.sql` | branch_monthly_targets — target KPI per cabang per bulan |
+| 14 | `supabase/migrations/consolidated_fase_13_14_15.sql` | agent_leads, discount_requests, chat_leads, manasik_schedules, package_reviews |
+| 15 | `supabase/migrations/fase16_new_tables.sql` | sos_alerts, visa_status_logs, approval_requests, financial_summary, equipment, sales_targets |
+| 16 | `supabase/migrations/fase17_remaining_tables.sql` | vendor_contracts, departure_budgets, training_modules, media_gallery, siskohat_sync_logs |
+| 17 | `supabase/migrations/fase18_core_settings.sql` | company_settings, bank_accounts, website_settings |
+| 18 | `supabase/migrations/fase19_branch_kpi_targets.sql` | branch_monthly_targets |
 | 19 | `supabase/migrations/fase20_webhooks_push.sql` | webhook_configs, webhook_logs, push_subscriptions |
 
-### Cara Menjalankan
-
-1. Buka [Supabase Dashboard](https://app.supabase.com) → pilih project
-2. Klik **SQL Editor** → **New query**
-3. Copy-paste isi file SQL → klik **Run**
-4. Ulangi sesuai urutan di atas
-
 ---
 
-## BAGIAN 5 — ENVIRONMENT VARIABLES (Replit Secrets)
+## BAGIAN 7 — CATATAN TEKNIS PENTING
 
-| Secret | Keterangan | Status |
-|--------|-----------|--------|
-| `VITE_SUPABASE_URL` | URL project Supabase (`https://xxx.supabase.co`) | ⚠️ Perlu diset |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key dari Supabase | ⚠️ Perlu diset |
-| `SUPABASE_URL` | URL yang sama untuk API server | ⚠️ Perlu diset |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (jangan expose ke frontend!) | ⚠️ Perlu diset |
-| `SMTP_HOST` | Host SMTP (`smtp.gmail.com`) | ⚠️ Opsional — untuk email |
-| `SMTP_PORT` | Port SMTP (`587`) | ⚠️ Opsional |
-| `SMTP_USER` | Username/email SMTP | ⚠️ Opsional |
-| `SMTP_PASS` | Password SMTP atau App Password | ⚠️ Opsional |
-| `SMTP_FROM` | Alamat pengirim (`noreply@vinstour.com`) | ⚠️ Opsional |
-| `MIDTRANS_SERVER_KEY` | Server key dari dashboard Midtrans | ⚠️ Opsional — untuk payment online |
-| `MIDTRANS_CLIENT_KEY` | Client key (untuk Snap.js di frontend) | ⚠️ Opsional |
-| `MIDTRANS_ENV` | `sandbox` (default) atau `production` | ⚠️ Opsional |
-| `VAPID_PUBLIC_KEY` | Generate: `npx web-push generate-vapid-keys` | ⚠️ Opsional — untuk browser push |
-| `VAPID_PRIVATE_KEY` | Generate: `npx web-push generate-vapid-keys` | ⚠️ Opsional |
-| `VAPID_EMAIL` | `mailto:admin@vinstour.com` | ⚠️ Opsional |
-
----
-
-## BAGIAN 6 — CATATAN TEKNIS
-
-- **Tabel baru**: semua wajib aktifkan RLS + buat policy per role
-- **Notifikasi**: lewat `useAdminNotifications.ts` — tambahkan tipe baru, jangan buat channel terpisah
-- **Routing**: lazy import di file Routes, daftarkan di `menu_items` via SQL seed
+- **Typecheck**: selalu jalankan `pnpm run typecheck:libs` dahulu sebelum `pnpm --filter @workspace/api-server run typecheck`
+- **Tabel baru Supabase**: wajib aktifkan RLS + buat policy per role
+- **Notifikasi admin**: tambahkan listener baru di `useAdminNotifications.ts` — JANGAN buat channel terpisah (singleton pattern)
+- **Routing**: lazy import di file Routes.tsx, daftarkan di `admin-menu-registry.ts`
 - **WhatsApp**: gunakan pola `whatsapp-notifier.ts` yang sudah ada
 - **PDF/Excel**: gunakan `jspdf` + `jspdf-autotable` / `xlsx` yang sudah terinstall
 - **Mobile-responsive + dark mode + loading skeleton** wajib di setiap halaman baru
 - **TypeScript**: gunakan `const supabase: any = supabaseRaw` untuk tabel baru yang belum di-type
-- **Permissions**: tambahkan permission key baru di `src/lib/permissions.ts`
-- **Demo mode**: app jalan tanpa Supabase — error `42P01` (table not found) ditangani gracefully
+- **Permissions**: tambahkan permission key baru di `src/lib/permissions.ts` DAN `admin-menu-registry.ts`
+- **Demo mode**: error `42P01` (table not found) ditangani gracefully — app tidak crash
 - **Webhook test**: dikirim via `/api/v1/webhook-test` (server-side) agar tidak kena CORS
 - **Browser push**: endpoint `/api/push/send` butuh `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`
+- **Tailwind**: gunakan v3 via PostCSS — JANGAN gunakan `@tailwindcss/vite` plugin
+- **Quick Menu Grid**: link "Portal Jamaah" menuju `/jamaah-info` (bukan `/jamaah` langsung)
+- **Aset Kantor**: path admin sekarang `/admin/office-assets` (sebelumnya `/operational/assets`)
 
 ---
 
-## BAGIAN 7 — STATUS PENGERJAAN
+## BAGIAN 8 — AKSI YANG MASIH MENUNGGU USER
 
-| Prioritas | Item | Status |
-|-----------|------|--------|
-| ✅ P1 | Semua halaman 11 fitur lanjutan | **SELESAI** |
-| ✅ P2 | `CustomerRefundStatus.tsx` + route | **SELESAI** |
-| ✅ P3 | SQL migrations fase 16–20 | **SELESAI** |
-| ✅ P4 | Endpoint `/api/push/send` (browser push) | **SELESAI** — butuh VAPID keys di Secrets |
-| ✅ P5 | AdminWebhooks → Supabase (bukan localStorage) | **SELESAI** — tabel `webhook_configs` + `webhook_logs` |
-| ✅ P6 | Test Ping webhook sungguhan | **SELESAI** — server proxy + HMAC signature |
-| ✅ P7 | UI Integrasi & API Keys di AdminSettings | **SELESAI** — 5 grup: Supabase, VAPID, Midtrans, Fonnte, SMTP |
-| ✅ P8 | Tombol Test Koneksi per integrasi | **SELESAI** — Supabase (HTTP real), VAPID/Midtrans (format), Fonnte (HTTP real) |
-| ✅ P9 | Kirim Email Test sungguhan dari UI | **SELESAI** — endpoint `/api/v1/test-smtp` + dialog di AdminSettings |
-| ✅ P10 | UI manajemen & test API key di panel Admin | **SELESAI** — tab baru "Test API" di AdminApiConnect (lihat Bagian 9) |
-| ⚠️ P11 | Jalankan SQL migrations ke Supabase (fase 1–20) | **Menunggu user** (aksi manual di dashboard Supabase) |
-| ⚠️ P12 | Set env vars: Supabase, VAPID, Midtrans, SMTP | **Menunggu user** (aksi manual di Replit Secrets) |
-| ⚠️ P13 | JamaahRingkasanAI — gunakan AI sungguhan? | **Keputusan user** — saat ini template lokal |
-| ⚠️ P14 | AdminSmartNotif — gunakan AI sungguhan? | **Keputusan user** — saat ini localStorage + angka hardcoded |
+| Prioritas | Item | Catatan |
+|-----------|------|---------|
+| ⚠️ P1 | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` di Replit Secrets | Auth & data tidak aktif tanpa ini |
+| ⚠️ P2 | Set `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` di Replit Secrets | API server butuh ini |
+| ⚠️ P3 | Jalankan SQL migrations (Bagian 6) ke Supabase — urutan 1–19 | Manual di Supabase SQL Editor |
+| ⚠️ P4 | Generate VAPID keys: `npx web-push generate-vapid-keys` | Untuk browser push notifications |
+| ⚠️ P5 | Set SMTP credentials untuk kirim email | Opsional, untuk notifikasi email |
+| ⚠️ P6 | Set Midtrans keys untuk payment online | Opsional, untuk pembayaran digital |
+| ⚠️ P7 | Putuskan: AI Summary — pakai LLM sungguhan atau tetap kalkulasi statistik? | Saat ini: template lokal |
 
 ---
 
-## BAGIAN 8 — FITUR INTEGRASI & API KEYS (Baru)
+## BAGIAN 9 — STRUKTUR FILE PENTING
 
-> Semua diakses di: **Admin → Pengaturan → Integrasi & API Keys** (khusus Super Admin)
+```
+artifacts/
+  umrah-haji/src/
+    pages/
+      admin/          — semua halaman admin (80+ file)
+      public/         — halaman publik termasuk /jamaah-info (JamaahInfoPage.tsx)
+      jamaah/         — portal jamaah mobile
+      customer/       — portal customer
+      agent/          — portal agen
+    routes/
+      AdminRoutes.tsx      — semua route /admin/*
+      PublicRoutes.tsx     — semua route publik + /jamaah-info
+      JamaahRoutes.tsx     — semua route /jamaah/*
+    hooks/
+      useAdminNotifications.ts  — real-time notif (10 listener, singleton channel)
+      useDynamicMenus.ts        — menu admin dari DB/registry
+    components/
+      admin/
+        AdminLayoutDynamicImproved.tsx  — layout utama admin
+        NotificationBell.tsx            — bell dengan summary pills
+      home/
+        QuickMenuGrid.tsx  — grid menu homepage
+    lib/
+      admin-menu-registry.ts  — daftar menu + grup + permission
+      permissions.ts          — semua permission key
 
-| Grup | Tombol Test | Kirim Test Sungguhan | Keterangan |
-|------|-------------|----------------------|------------|
-| Supabase | ✅ HTTP fetch ke `/rest/v1/` | — | Cek URL + Anon Key valid |
-| VAPID Push | ✅ Validasi format kunci | — | Panjang & prefix base64url |
-| Midtrans | ✅ Validasi prefix key | — | Deteksi Sandbox vs Produksi |
-| WhatsApp (Fonnte) | ✅ HTTP ke `/get-devices` | — | Tampilkan perangkat terhubung |
-| SMTP Email | ✅ Validasi format konfigurasi | ✅ Kirim email HTML via server | Endpoint `/api/v1/test-smtp` |
+  api-server/src/
+    routes/v1/         — kurs.ts, packages.ts, departures.ts, leads.ts, dll
 
-**Endpoint server-side baru:**
-- `POST /api/v1/test-smtp` — Kirim email test menggunakan nodemailer. Params: `{ host, port, user, pass, to }`. Fallback ke env vars jika kosong.
-- Email HTML berisi tabel konfigurasi + timestamp WIB.
-
----
-
----
-
-## BAGIAN 9 — UI MANAJEMEN & TEST API KEY (Panel Admin)
-
-> Diakses di: **Admin → Pengaturan → API Connect ke Apps** (`/admin/api-connect`)
-
-### Tab yang tersedia
-
-| Tab | Fungsi |
-|-----|--------|
-| **API Keys** | Buat key baru (nama + permissions), lihat daftar, hapus/revoke. Tombol "Test sekarang" otomatis memindahkan key baru ke tab Test API. |
-| **Test API** | Request builder langsung dari browser — pilih endpoint, masukkan key, edit body JSON (untuk POST), kirim, lihat response + latency. Riwayat 10 request terakhir tersimpan di session. **Rate Limit Monitor** otomatis muncul setelah request pertama. |
-| **Dokumentasi** | Referensi endpoint lengkap dengan contoh cURL + contoh response, bisa di-klik per endpoint. |
-| **Webhooks** | Daftarkan URL eksternal + pilih events untuk menerima notifikasi otomatis. |
-
-### Fitur Test API (detail)
-
-- **Endpoint selector** — pilih dari: Health Check, GET /v1/packages, GET /v1/departures, POST /v1/leads
-- **API key input** — ketik manual atau lihat daftar key aktif (prefix saja, full key harus di-paste manual demi keamanan)
-- **Request body editor** — textarea JSON dengan template otomatis per endpoint, tombol reset ke template
-- **Status badge** — warna hijau (2xx) / kuning (4xx) / merah (5xx / network error)
-- **Latency** — ditampilkan dalam milidetik per request
-- **Response viewer** — JSON pretty-print dalam dark code block, tombol salin
-- **Riwayat** — hingga 10 request terakhir, expand/collapse per item, tombol hapus semua
-- **Network error** — pesan jelas jika API server tidak berjalan
-
-### Rate Limit Monitor (detail)
-
-Muncul otomatis di bawah info banner setelah request pertama yang mengandung header rate limit dari server.
-
-- **Dua bucket independen**: General (100 req / 15 menit) dan Leads (10 req / 1 jam)
-- **Progress bar berwarna**: hijau (>50% tersisa) → kuning (20–50%) → merah (≤20% / hampir habis)
-- **Counter live**: jumlah request tersisa ditampilkan besar, disertai jumlah terpakai dan persentase
-- **Countdown timer**: detik mundur real-time hingga window reset, ticking setiap 1 detik via `setInterval`
-- **Label reset**: menampilkan "Sudah reset" ketika countdown mencapai 0
-- **Timestamp update**: terakhir diperbarui (jam:menit:detik) di sudut kanan bawah setiap kartu
-- **Header parsing**: mendukung RFC 9440 / draft-7 (`RateLimit-*`) dan format lama (`X-RateLimit-*`)
-- **Deteksi bucket**: via header `RateLimit-Policy` (`w=3600` → leads, `w=900` → general)
-
-### Catatan implementasi
-
-- Semua request dikirim langsung dari browser ke `window.location.origin/api/...` (memanfaatkan proxy Vite `/api → localhost:8080`)
-- Tidak ada perubahan di sisi server — fitur ini murni client-side
-- File: `artifacts/umrah-haji/src/pages/admin/AdminApiConnect.tsx`
-- State: `rlGeneral`, `rlLeads` (`RateLimitBucket`), countdown via `useEffect` + `setInterval`
-
----
-
-*File ini adalah satu-satunya dokumen rencana. File lama (RENCANA_PENGEMBANGAN_LANJUTAN.md, rencana2jemaah.md, migrations/README.md) telah dihapus dan dikonsolidasi ke sini.*
+lib/
+  api-zod/   — Zod schemas (wajib build dulu: pnpm run typecheck:libs)
+  api-spec/  — openapi.yaml (source of truth untuk codegen)
+  db/        — Drizzle schema (belum dipakai, masih Supabase direct)
+```
