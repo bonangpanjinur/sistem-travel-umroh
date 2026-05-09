@@ -14,6 +14,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -52,6 +60,8 @@ import {
   ChevronDown,
   BedDouble,
   ExternalLink,
+  CreditCard,
+  ChevronDownIcon,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -592,7 +602,7 @@ export default function AdminDepartureDetail() {
       "Telepon": p.customer?.phone || "-",
       "Email": p.customer?.email || "-",
       "Kode Booking": p.booking?.booking_code || "-",
-      "Status Check-in": p.checkin_status || "-",
+      "Status Check-in": p.customer?.id && attendanceMap.has(p.customer.id) ? "Sudah Check-in" : "Belum",
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -619,6 +629,88 @@ export default function AdminDepartureDetail() {
     toast.success("Manifest Excel berhasil di-download");
   };
 
+  const exportKeuanganExcel = async () => {
+    if (!departure) return;
+    const supabaseRaw: any = supabase;
+    const { data: bookings, error } = await supabaseRaw
+      .from("bookings")
+      .select(`
+        booking_code, total_price, paid_amount, payment_status,
+        booking_status, payment_deadline, created_at,
+        customer:customers(full_name, phone)
+      `)
+      .eq("departure_id", id!)
+      .neq("booking_status", "cancelled")
+      .order("booking_code");
+
+    if (error || !bookings?.length) {
+      toast.error("Tidak ada data keuangan untuk diekspor");
+      return;
+    }
+
+    const pkgName = departure.package?.name || "Keberangkatan";
+
+    const rows = bookings.map((b: any, idx: number) => ({
+      "No":                idx + 1,
+      "Kode Booking":      b.booking_code || "-",
+      "Nama Jamaah":       b.customer?.full_name || "-",
+      "Telepon":           b.customer?.phone || "-",
+      "Total Harga":       b.total_price || 0,
+      "Sudah Dibayar":     b.paid_amount || 0,
+      "Sisa Pembayaran":   Math.max(0, (b.total_price || 0) - (b.paid_amount || 0)),
+      "Status Pembayaran": b.payment_status || "-",
+      "Status Booking":    b.booking_status || "-",
+      "Batas Pelunasan":   b.payment_deadline
+        ? format(new Date(b.payment_deadline), "dd/MM/yyyy")
+        : "-",
+      "Tgl Booking":       b.created_at
+        ? format(new Date(b.created_at), "dd/MM/yyyy")
+        : "-",
+    }));
+
+    // Baris total
+    const totalHarga = bookings.reduce((s: number, b: any) => s + (b.total_price || 0), 0);
+    const totalBayar = bookings.reduce((s: number, b: any) => s + (b.paid_amount || 0), 0);
+    rows.push({
+      "No":                "" as any,
+      "Kode Booking":      "TOTAL",
+      "Nama Jamaah":       `${bookings.length} booking`,
+      "Telepon":           "",
+      "Total Harga":       totalHarga,
+      "Sudah Dibayar":     totalBayar,
+      "Sisa Pembayaran":   totalHarga - totalBayar,
+      "Status Pembayaran": "",
+      "Status Booking":    "",
+      "Batas Pelunasan":   "",
+      "Tgl Booking":       "",
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 4 }, { wch: 16 }, { wch: 28 }, { wch: 16 },
+      { wch: 18 }, { wch: 18 }, { wch: 18 },
+      { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 14 },
+    ];
+
+    // Info sheet
+    const wsInfo = XLSX.utils.json_to_sheet([
+      { "Keterangan": "Paket",              "Nilai": pkgName },
+      { "Keterangan": "Tanggal Berangkat",  "Nilai": departure.departure_date ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId }) : "-" },
+      { "Keterangan": "No. Penerbangan",    "Nilai": departure.flight_number || "-" },
+      { "Keterangan": "Total Booking",      "Nilai": bookings.length },
+      { "Keterangan": "Total Tagihan",      "Nilai": formatCurrency(totalHarga) },
+      { "Keterangan": "Total Terbayar",     "Nilai": formatCurrency(totalBayar) },
+      { "Keterangan": "Total Sisa",         "Nilai": formatCurrency(totalHarga - totalBayar) },
+      { "Keterangan": "Dicetak",            "Nilai": format(new Date(), "dd MMMM yyyy HH:mm", { locale: localeId }) },
+    ]);
+    wsInfo["!cols"] = [{ wch: 20 }, { wch: 30 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsInfo, "Ringkasan");
+    XLSX.utils.book_append_sheet(wb, ws, "Rekap Keuangan");
+    XLSX.writeFile(wb, `Keuangan-${pkgName}-${departure.departure_date}.xlsx`);
+    toast.success("Rekap Keuangan Excel berhasil di-download");
+  };
 
   if (departureLoading) {
     return (
@@ -1029,34 +1121,40 @@ export default function AdminDepartureDetail() {
                     <ScanLine className="h-4 w-4 mr-2" />
                     QR Check-in
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={exportManifestPDF}
-                    disabled={filteredPassengers.length === 0}
-                  >
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Manifest
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={exportRoomingListPDF}
-                    disabled={filteredPassengers.length === 0}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Rooming List
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={exportManifestExcel}
-                    disabled={filteredPassengers.length === 0}
-                    className="border-green-300 text-green-700 hover:bg-green-50"
-                  >
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Excel
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={filteredPassengers.length === 0}
+                      >
+                        <FileDown className="h-4 w-4 mr-2" />
+                        Export
+                        <ChevronDownIcon className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuLabel>Manifest Jamaah</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={exportManifestPDF}>
+                        <FileDown className="h-4 w-4 mr-2 text-blue-600" />
+                        Manifest PDF (+ QR)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={exportManifestExcel}>
+                        <FileDown className="h-4 w-4 mr-2 text-green-600" />
+                        Manifest Excel
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Kamar &amp; Keuangan</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={exportRoomingListPDF}>
+                        <Printer className="h-4 w-4 mr-2 text-indigo-600" />
+                        Rooming List PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={exportKeuanganExcel}>
+                        <CreditCard className="h-4 w-4 mr-2 text-amber-600" />
+                        Rekap Keuangan Excel
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     size="sm"
                     variant="outline"
