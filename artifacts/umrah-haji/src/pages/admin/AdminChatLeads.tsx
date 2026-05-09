@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +46,30 @@ export default function AdminChatLeads() {
   const [editStatus, setEditStatus] = useState<LeadStatus>("new");
   const [editNotes, setEditNotes] = useState("");
   const [page, setPage] = useState(1);
+  const [newLeadFlash, setNewLeadFlash] = useState(false);
   const PER_PAGE = 25;
+
+  useEffect(() => {
+    const channel = (supabase as any)
+      .channel("chat-leads-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_leads" },
+        (payload: any) => {
+          if (!payload?.new) return;
+          queryClient.setQueryData(["admin-chat-leads"], (prev: any[] = []) => [
+            payload.new,
+            ...prev,
+          ]);
+          setNewLeadFlash(true);
+          setTimeout(() => setNewLeadFlash(false), 3000);
+        }
+      )
+      .subscribe();
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const { data: leads = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["admin-chat-leads"],
@@ -145,12 +168,22 @@ export default function AdminChatLeads() {
           <h1 className="text-xl font-bold flex items-center gap-2">
             <MessageCircle className="h-5 w-5 text-primary" />
             Leads dari Chat Widget
+            <span className="flex items-center gap-1 text-xs font-normal text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              Live
+            </span>
           </h1>
           <p className="text-sm text-muted-foreground">
             Calon jamaah yang meninggalkan kontak via chat publik
           </p>
         </div>
         <div className="flex gap-2">
+          {newLeadFlash && (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5 animate-in fade-in slide-in-from-right-4 duration-300">
+              <MessageCircle className="h-3.5 w-3.5" />
+              Lead baru masuk!
+            </div>
+          )}
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={cn("h-4 w-4 mr-1", isFetching && "animate-spin")} /> Refresh
           </Button>

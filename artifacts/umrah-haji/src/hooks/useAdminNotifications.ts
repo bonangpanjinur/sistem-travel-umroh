@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 export interface AdminNotification {
   id: string;
-  type: 'booking' | 'payment' | 'device_registration';
+  type: 'booking' | 'payment' | 'device_registration' | 'chat_lead';
   title: string;
   message: string;
   createdAt: Date;
@@ -194,6 +194,22 @@ export function useAdminNotifications() {
               message: `Tiket baru: "${ticket.subject || 'Tanpa Judul'}" dari ${ticket.customer_name || 'Customer'}`,
               link: '/admin/support',
               data: ticket,
+            });
+          }
+        )
+        // 6. New Chat Leads (real-time dari Chat Widget publik)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'chat_leads' },
+          (payload) => {
+            if (!payload || !payload.new) return;
+            const lead = payload.new as any;
+            addNotification({
+              type: 'chat_lead',
+              title: '💬 Lead Baru dari Chat Widget!',
+              message: `${lead.name || 'Pengunjung'} (${lead.phone || '-'}) meninggalkan kontak${lead.message ? `: "${lead.message.slice(0, 60)}${lead.message.length > 60 ? '…' : ''}"` : ''}`,
+              link: '/admin/chat-leads',
+              data: lead,
             });
           }
         )

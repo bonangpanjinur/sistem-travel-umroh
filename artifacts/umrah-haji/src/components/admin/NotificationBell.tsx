@@ -1,4 +1,4 @@
-import { Bell, Check, Trash2, Calendar, CreditCard } from "lucide-react";
+import { Bell, Check, Trash2, Calendar, CreditCard, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -96,12 +96,16 @@ export function NotificationBell({
                   <div className="flex gap-3">
                     <div className={cn(
                       "p-2 rounded-full shrink-0",
-                      notification.type === 'booking' 
-                        ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
+                      notification.type === 'booking'
+                        ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                        : notification.type === 'chat_lead'
+                        ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
                         : "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
                     )}>
                       {notification.type === 'booking' ? (
                         <Calendar className="h-4 w-4" />
+                      ) : notification.type === 'chat_lead' ? (
+                        <MessageCircle className="h-4 w-4" />
                       ) : (
                         <CreditCard className="h-4 w-4" />
                       )}
