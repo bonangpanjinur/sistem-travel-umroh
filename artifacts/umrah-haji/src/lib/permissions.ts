@@ -138,6 +138,7 @@ export const PERMISSIONS = {
   WA_OTOMATIS: 'wa-otomatis',
   MIDTRANS: 'midtrans',
   CICILAN_REMINDER: 'cicilan-reminder',
+  PEMBAYARAN_REMINDER: 'pembayaran-reminder',
   VIRTUAL_ACCOUNT: 'virtual-account',
 
   // Fase 10 — AI & Smart Analytics

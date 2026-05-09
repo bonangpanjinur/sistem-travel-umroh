@@ -118,6 +118,7 @@ const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"
 const AdminWAOtomatis = lazy(() => import("@/pages/admin/AdminWAOtomatis"));
 const AdminMidtrans = lazy(() => import("@/pages/admin/AdminMidtrans"));
 const AdminCicilanReminder = lazy(() => import("@/pages/admin/AdminCicilanReminder"));
+const AdminPembayaranReminder = lazy(() => import("@/pages/admin/AdminPembayaranReminder"));
 const AdminVirtualAccount = lazy(() => import("@/pages/admin/AdminVirtualAccount"));
 
 // Fase 10 — AI & Smart Analytics
@@ -304,6 +305,7 @@ export default function AdminRoutes() {
       <Route path="wa-otomatis" element={<P k={PERMISSIONS.WA_OTOMATIS}><AdminWAOtomatis /></P>} />
       <Route path="midtrans" element={<P k={PERMISSIONS.MIDTRANS}><AdminMidtrans /></P>} />
       <Route path="cicilan-reminder" element={<P k={PERMISSIONS.CICILAN_REMINDER}><AdminCicilanReminder /></P>} />
+      <Route path="pembayaran-reminder" element={<P k={PERMISSIONS.PEMBAYARAN_REMINDER}><AdminPembayaranReminder /></P>} />
       <Route path="virtual-account" element={<P k={PERMISSIONS.VIRTUAL_ACCOUNT}><AdminVirtualAccount /></P>} />
 
       {/* Fase 10 — AI & Smart Analytics */}

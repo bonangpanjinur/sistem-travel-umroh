@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Search, Plane, Calendar, CreditCard, User, Package,
   CheckCircle2, Clock, XCircle, AlertCircle, Loader2,
-  MessageCircle, Share2, Printer, PhoneCall
+  MessageCircle, Share2, Printer, PhoneCall, Bell, BellOff
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { format } from "date-fns";
@@ -74,6 +74,40 @@ export default function BookingStatusPage() {
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
+  // Reminder subscription state
+  const [reminderPhone, setReminderPhone] = useState("");
+  const [reminderDays, setReminderDays] = useState("3");
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const [reminderSubscribed, setReminderSubscribed] = useState(false);
+
+  const handleSubscribeReminder = async () => {
+    if (!result || !reminderPhone.trim()) return;
+    setReminderLoading(true);
+    try {
+      const supabaseRaw: any = supabase;
+      const { error: insertErr } = await supabaseRaw
+        .from('payment_deadline_reminders')
+        .upsert({
+          booking_id:       result.id,
+          booking_code:     result.booking_code,
+          phone:            reminderPhone.trim(),
+          full_name:        result.customer?.full_name || null,
+          payment_deadline: result.payment_deadline || null,
+          remaining_amount: Math.max(0, result.total_price - (result.paid_amount || 0)),
+          days_before:      parseInt(reminderDays),
+          status:           'pending',
+        }, { onConflict: 'booking_id' });
+
+      if (insertErr) throw insertErr;
+      setReminderSubscribed(true);
+      toast.success("Pengingat berhasil diaktifkan! Admin akan menghubungi Anda via WhatsApp.");
+    } catch (e: any) {
+      toast.error("Gagal mengaktifkan pengingat: " + (e.message || "Coba lagi"));
+    } finally {
+      setReminderLoading(false);
+    }
+  };
+
   const handleSearch = async () => {
     const code = bookingCode.trim().toUpperCase();
     if (!code) return;
@@ -103,7 +137,11 @@ export default function BookingStatusPage() {
     if (err) { setError("Gagal memuat data. Coba lagi."); return; }
     if (!data) { setError("Kode booking tidak ditemukan. Pastikan kode yang Anda masukkan benar."); return; }
 
-    setResult(data as BookingResult);
+    const booking = data as BookingResult;
+    setResult(booking);
+    setReminderSubscribed(false);
+    // Pre-fill phone dari data customer
+    if (booking.customer?.phone) setReminderPhone(booking.customer.phone);
   };
 
   const statusCfg = result ? (STATUS_CONFIG[result.booking_status] || STATUS_CONFIG.pending) : null;
@@ -343,6 +381,83 @@ export default function BookingStatusPage() {
                     </div>
                   )}
                 </div>
+
+                <Separator />
+
+                {/* Pengingat Pelunasan — hanya tampil jika ada sisa bayar + deadline */}
+                {remaining > 0 && result.payment_deadline && result.booking_status !== 'cancelled' && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-amber-500" />
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pengingat Pelunasan</p>
+                      </div>
+
+                      {reminderSubscribed ? (
+                        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-50 border border-green-200">
+                          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-semibold text-green-800">Pengingat diaktifkan!</p>
+                            <p className="text-xs text-green-700 mt-0.5">
+                              Admin akan menghubungi Anda di <strong>{reminderPhone}</strong> via WhatsApp H-{reminderDays} sebelum batas pelunasan.
+                            </p>
+                            <button
+                              onClick={() => setReminderSubscribed(false)}
+                              className="text-xs text-green-600 underline mt-1 hover:text-green-800"
+                            >
+                              Ubah nomor atau jadwal
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3">
+                          <p className="text-xs text-amber-700">
+                            Aktifkan pengingat agar kami menghubungi Anda via WhatsApp sebelum batas waktu pelunasan.
+                          </p>
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-gray-700">Nomor WhatsApp Anda</label>
+                            <Input
+                              placeholder="Contoh: 0812xxxxxxxx"
+                              value={reminderPhone}
+                              onChange={e => setReminderPhone(e.target.value)}
+                              className="bg-white text-sm"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-gray-700">Ingatkan saya</label>
+                            <div className="flex gap-2">
+                              {["1", "2", "3", "5"].map(d => (
+                                <button
+                                  key={d}
+                                  onClick={() => setReminderDays(d)}
+                                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                                    reminderDays === d
+                                      ? "bg-amber-500 text-white border-amber-500"
+                                      : "bg-white border-gray-200 text-gray-600 hover:border-amber-300"
+                                  }`}
+                                >
+                                  H-{d}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <Button
+                            className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+                            disabled={reminderLoading || !reminderPhone.trim()}
+                            onClick={handleSubscribeReminder}
+                          >
+                            {reminderLoading
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <Bell className="h-4 w-4" />
+                            }
+                            Aktifkan Pengingat H-{reminderDays}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 
