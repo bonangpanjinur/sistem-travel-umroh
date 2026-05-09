@@ -55,6 +55,7 @@ import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
 import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
 import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
@@ -81,6 +82,7 @@ export default function AdminBookingDetail() {
   const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
   const waNotifier = useWhatsAppNotifier();
+  const emailNotifier = useEmailNotifier();
   const { logDocument } = useDocumentLogger();
   
   // Permission check - use isAdmin() which includes super_admin, owner, branch_manager
@@ -224,6 +226,26 @@ export default function AdminBookingDetail() {
           console.error('Auto commission failed:', commErr);
           toast.warning('Status diperbarui, tapi komisi gagal dicatat otomatis. Silakan catat manual di halaman Agent.');
         }
+
+        // Kirim email konfirmasi booking
+        if (booking) {
+          const customer = booking.customers as any;
+          const dep = booking.departures as any;
+          const email = customer?.email;
+          if (email) {
+            emailNotifier.sendBookingConfirmation({
+              to: email,
+              customerName: customer.full_name || "Jamaah",
+              bookingCode: booking.booking_code || id,
+              packageName: dep?.packages?.name || "-",
+              departureDate: dep?.departure_date
+                ? new Date(dep.departure_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })
+                : "-",
+              totalPrice: Number(booking.total_price || 0),
+              silent: true,
+            });
+          }
+        }
       }
     },
     onError: (error: any) => {
@@ -253,6 +275,21 @@ export default function AdminBookingDetail() {
       toast.success('Pembayaran berhasil diperbarui');
       setSelectedPayment(null);
       setShowProofDialog(false);
+
+      // Kirim email konfirmasi pembayaran
+      if (result.status === 'paid' && booking) {
+        const customer = booking.customers as any;
+        const email = customer?.email;
+        if (email) {
+          emailNotifier.sendPaymentVerified({
+            to: email,
+            customerName: customer.full_name || "Jamaah",
+            bookingCode: booking.booking_code || id,
+            amount: Number(selectedPayment?.amount || 0),
+            silent: true,
+          });
+        }
+      }
 
       // Auto WA notification if trigger is enabled
       if (result.status === 'paid' && waNotifier.isReady) {

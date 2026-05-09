@@ -54,6 +54,7 @@ import {
 import { AddManualPaymentDialog } from "@/components/admin/AddManualPaymentDialog";
 import { Link } from "react-router-dom";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 
 const PAGE_SIZE = 20;
 
@@ -73,6 +74,7 @@ export default function AdminPayments() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isSendingReminders, setIsSendingReminders] = useState(false);
   const { sendPaymentConfirmation, isReady: waReady } = useWhatsAppNotifier();
+  const emailNotifier = useEmailNotifier();
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin-payments'],
@@ -178,6 +180,18 @@ export default function AdminPayments() {
 
   const handleApprove = (payment: Payment) => {
     verifyMutation.mutate({ paymentId: payment.id, status: 'paid' });
+    // Kirim email konfirmasi pembayaran
+    const bkForEmail = (payment as any).booking;
+    const customerEmail = bkForEmail?.customer?.email;
+    if (customerEmail) {
+      emailNotifier.sendPaymentVerified({
+        to: customerEmail,
+        customerName: bkForEmail?.customer?.full_name || "Jamaah",
+        bookingCode: bkForEmail?.booking_code || "-",
+        amount: Number(payment.amount),
+        silent: true,
+      });
+    }
     if (waReady && (payment as any).booking?.customer?.phone) {
       const bk = (payment as any).booking;
       sendPaymentConfirmation(bk.customer.phone, {

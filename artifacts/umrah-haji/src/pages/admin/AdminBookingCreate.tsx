@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 
 interface PackageData {
   id: string;
@@ -154,6 +155,7 @@ export default function AdminBookingCreate() {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
   const { sendBookingConfirm } = useWhatsAppNotifier();
+  const emailNotifier = useEmailNotifier();
 
   // Fetch active packages
   const { data: packages } = useQuery<PackageData[]>({
@@ -417,6 +419,26 @@ export default function AdminBookingCreate() {
     onSuccess: (booking) => {
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       toast.success("Booking berhasil dibuat!");
+      // Email konfirmasi booking — ambil email customer dari DB
+      const mainCustomerId = passengers[0]?.customer_id;
+      if (mainCustomerId && booking.booking_code) {
+        supabase.from('customers' as any).select('email, full_name').eq('id', mainCustomerId).single()
+          .then(({ data: customer }: { data: any }) => {
+            if (customer?.email) {
+              emailNotifier.sendBookingConfirmation({
+                to: customer.email,
+                customerName: customer.full_name || passengers[0]?.full_name || "Jamaah",
+                bookingCode: booking.booking_code!,
+                packageName: selectedPackage?.name || "-",
+                departureDate: selectedDeparture?.departure_date
+                  ? new Date(selectedDeparture.departure_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })
+                  : "-",
+                totalPrice: Number(booking.total_price || 0),
+                silent: true,
+              });
+            }
+          });
+      }
       // WA notification to main passenger
       const mainPax = passengers[0];
       if (mainPax?.phone && booking.booking_code) {

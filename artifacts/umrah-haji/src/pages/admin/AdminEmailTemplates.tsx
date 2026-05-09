@@ -14,7 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Mail, Copy, Eye, Info, RefreshCw, Send } from "lucide-react";
+import { Plus, Edit, Trash2, Mail, Copy, Eye, Info, RefreshCw, Send, Loader2 } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 const DEFAULT_TEMPLATES = [
   {
@@ -149,6 +151,39 @@ export default function AdminEmailTemplates() {
   const [previewTemplate, setPreviewTemplate] = useState<Partial<EmailTemplate> | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [isSeedingDefaults, setIsSeedingDefaults] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  const handleSendTest = async (template: Partial<EmailTemplate>) => {
+    if (!testEmail) { toast.error("Masukkan alamat email tujuan terlebih dahulu"); return; }
+    setIsSendingTest(true);
+    try {
+      const res = await fetch(`${API_BASE}/email/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: testEmail,
+          template: "custom",
+          subject: template.subject || "(Tanpa Subject)",
+          body: template.body || "",
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        const msg: string = json.error ?? `HTTP ${res.status}`;
+        if (msg.includes("SMTP") || msg.includes("dikonfigurasi")) {
+          toast.warning("Email tidak terkirim — SMTP belum dikonfigurasi. Tambahkan SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM di Secrets.");
+        } else {
+          toast.error("Gagal kirim test: " + msg);
+        }
+      } else {
+        toast.success(`Email test berhasil dikirim ke ${testEmail}`);
+      }
+    } catch {
+      toast.warning("Email tidak terkirim — API server tidak terjangkau.");
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   const { data: templates = [], isLoading } = useQuery<EmailTemplate[]>({
     queryKey: ["email-templates"],
@@ -461,6 +496,30 @@ export default function AdminEmailTemplates() {
                   </div>
                 </>
               )}
+              <Separator />
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Kirim Email Test</p>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="email@contoh.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => handleSendTest(previewTemplate)}
+                    disabled={isSendingTest}
+                    size="sm"
+                  >
+                    {isSendingTest ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+                    Kirim Test
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Email dikirim melalui SMTP server. Pastikan SMTP sudah dikonfigurasi di Secrets.
+                </p>
+              </div>
             </div>
           )}
         </DialogContent>
