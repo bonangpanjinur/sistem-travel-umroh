@@ -166,7 +166,7 @@ function SetTargetDialog({
 export default function AdminKPIDashboard() {
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
-  const canEditTargets = hasRole("super_admin") || hasRole("owner") || hasRole("admin");
+  const canEditTargets = hasRole("super_admin") || hasRole("owner") || hasRole("branch_manager") || hasRole("finance");
 
   const [period, setPeriod] = useState<"this_month" | "last_month" | "this_quarter">("this_month");
   const [showTargetDialog, setShowTargetDialog] = useState(false);

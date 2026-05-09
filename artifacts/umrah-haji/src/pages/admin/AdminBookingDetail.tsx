@@ -229,8 +229,8 @@ export default function AdminBookingDetail() {
 
         // Kirim email konfirmasi booking
         if (booking) {
-          const customer = booking.customers as any;
-          const dep = booking.departures as any;
+          const customer = (booking as any).customer as any;
+          const dep = (booking as any).departure as any;
           const email = customer?.email;
           if (email) {
             emailNotifier.sendBookingConfirmation({
@@ -278,7 +278,7 @@ export default function AdminBookingDetail() {
 
       // Kirim email konfirmasi pembayaran
       if (result.status === 'paid' && booking) {
-        const customer = booking.customers as any;
+        const customer = (booking as any).customer as any;
         const email = customer?.email;
         if (email) {
           emailNotifier.sendPaymentVerified({

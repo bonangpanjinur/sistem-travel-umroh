@@ -181,13 +181,13 @@ export default function JamaahManasik() {
             {upcoming.length > 0 && (
               <div>
                 <p className="text-sm font-bold mb-2">📅 Sesi Mendatang ({upcoming.length})</p>
-                <div className="space-y-2">{upcoming.map(s => <ScheduleCard key={s.id} s={s} />)}</div>
+                <div className="space-y-2">{upcoming.map((s: any) => <ScheduleCard key={s.id} s={s} />)}</div>
               </div>
             )}
             {past.length > 0 && (
               <div>
                 <p className="text-sm font-bold mb-2 text-muted-foreground">Sesi Sebelumnya ({past.length})</p>
-                <div className="space-y-2 opacity-70">{past.map(s => <ScheduleCard key={s.id} s={s} />)}</div>
+                <div className="space-y-2 opacity-70">{past.map((s: any) => <ScheduleCard key={s.id} s={s} />)}</div>
               </div>
             )}
           </>

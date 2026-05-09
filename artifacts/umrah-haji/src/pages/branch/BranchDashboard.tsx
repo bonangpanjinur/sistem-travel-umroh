@@ -47,7 +47,7 @@ export default function BranchDashboard() {
       const [bookingsRes, agentsRes, customersRes, revenueRes, pendingDiskon] = await Promise.all([
         supabase.from("bookings").select("id, status, total_price, created_at", { count: "exact" })
           .eq("branch_id", bId).gte("created_at", startMonth).lte("created_at", endMonth),
-        supabase.from("agents").select("id", { count: "exact" }).eq("branch_id", bId).eq("status", "active"),
+        (supabase as any).from("agents").select("id", { count: "exact" }).eq("branch_id", bId).eq("status", "active"),
         (supabase as any).from("customers").select("id", { count: "exact" }).eq("branch_id", bId),
         supabase.from("bookings").select("total_price")
           .eq("branch_id", bId).in("status", ["confirmed", "processing", "completed"])
