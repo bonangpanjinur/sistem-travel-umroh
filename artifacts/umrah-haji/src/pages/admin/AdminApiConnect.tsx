@@ -966,13 +966,25 @@ create policy "Authenticated manage webhooks" on public.webhook_endpoints
                                   }
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 mt-1">
+                              <div className="flex items-center gap-3 mt-1 flex-wrap">
                                 <span className="text-xs text-muted-foreground">
                                   {result.timestamp.toLocaleTimeString('id-ID')}
                                 </span>
                                 <span className="text-xs text-muted-foreground font-mono">
                                   key: {result.keyPrefix}
                                 </span>
+                                {result.rateLimit && (() => {
+                                  const rl = result.rateLimit;
+                                  const pct = rl.limit > 0 ? (rl.remaining / rl.limit) * 100 : 100;
+                                  const dotColor = pct <= 20 ? 'bg-red-500' : pct <= 50 ? 'bg-amber-400' : 'bg-green-500';
+                                  const textColor = pct <= 20 ? 'text-red-600' : pct <= 50 ? 'text-amber-600' : 'text-green-600';
+                                  return (
+                                    <span className={`inline-flex items-center gap-1 text-xs font-mono font-medium ${textColor}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                                      {rl.remaining}/{rl.limit} quota
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </CardHeader>
                           </button>
@@ -992,6 +1004,52 @@ create policy "Authenticated manage webhooks" on public.webhook_endpoints
                                 </div>
                               ) : (
                                 <>
+                                  {result.rateLimit && (() => {
+                                    const rl = result.rateLimit;
+                                    const used = rl.limit - rl.remaining;
+                                    const pct = rl.limit > 0 ? Math.round((rl.remaining / rl.limit) * 100) : 0;
+                                    const barColor = pct <= 20 ? 'bg-red-500' : pct <= 50 ? 'bg-amber-400' : 'bg-green-500';
+                                    const labelColor = pct <= 20 ? 'text-red-700' : pct <= 50 ? 'text-amber-700' : 'text-green-700';
+                                    const resetMin = Math.floor(rl.resetInSec / 60);
+                                    const resetSec = rl.resetInSec % 60;
+                                    return (
+                                      <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 space-y-2">
+                                        <p className="text-xs font-semibold text-violet-700 uppercase tracking-wider flex items-center gap-1.5">
+                                          <ShieldAlert className="h-3.5 w-3.5" />
+                                          Rate Limit saat request ini dikirim
+                                        </p>
+                                        <div className="grid grid-cols-3 gap-3">
+                                          <div className="text-center">
+                                            <p className={`text-lg font-bold ${labelColor}`}>{rl.remaining}</p>
+                                            <p className="text-xs text-muted-foreground">tersisa</p>
+                                          </div>
+                                          <div className="text-center">
+                                            <p className="text-lg font-bold text-foreground">{used}</p>
+                                            <p className="text-xs text-muted-foreground">terpakai</p>
+                                          </div>
+                                          <div className="text-center">
+                                            <p className="text-lg font-bold text-foreground">{rl.limit}</p>
+                                            <p className="text-xs text-muted-foreground">limit</p>
+                                          </div>
+                                        </div>
+                                        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                                          <div
+                                            className={`h-full rounded-full ${barColor}`}
+                                            style={{ width: `${pct}%` }}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                          <span>{pct}% tersisa</span>
+                                          {rl.resetInSec > 0 && (
+                                            <span className="flex items-center gap-1">
+                                              <Timer className="h-3 w-3" />
+                                              reset {resetMin > 0 ? `${resetMin}m ` : ''}{resetSec}s
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                   <div className="flex items-center justify-between">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                       Response Body
