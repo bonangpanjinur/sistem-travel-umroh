@@ -22,6 +22,7 @@ const defaultNavLinks: NavLink[] = [
   { href: '/', label: 'Beranda' },
   { href: '/packages', label: 'Paket Umroh' },
   { href: '/departures', label: 'Jadwal' },
+  { href: '/fitur', label: 'Fitur Portal' },
   { href: '/savings', label: 'Tabungan' },
   { href: '/about', label: 'Tentang Kami' },
   { href: '/contact', label: 'Hubungi Kami' },

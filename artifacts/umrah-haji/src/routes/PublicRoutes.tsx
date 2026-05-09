@@ -31,6 +31,7 @@ const KalkulatorCicilan = lazy(() => import("@/pages/customer/KalkulatorCicilan"
 const PublicBlog = lazy(() => import("@/pages/public/PublicBlog"));
 const PublicBlogDetail = lazy(() => import("@/pages/public/PublicBlogDetail"));
 const Testimonials = lazy(() => import("@/pages/public/Testimonials"));
+const FiturPortalPage = lazy(() => import("@/pages/public/FiturPortalPage"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -71,6 +72,7 @@ export default function PublicRoutes() {
       <Route path="/blog" element={<LazyPage><PublicBlog /></LazyPage>} />
       <Route path="/blog/:slug" element={<LazyPage><PublicBlogDetail /></LazyPage>} />
       <Route path="/testimonials" element={<LazyPage><Testimonials /></LazyPage>} />
+      <Route path="/fitur" element={<LazyPage><FiturPortalPage /></LazyPage>} />
       <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>
