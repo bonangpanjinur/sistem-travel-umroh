@@ -146,6 +146,9 @@ export const PERMISSIONS = {
   PREDIKSI_SEAT: 'prediksi-seat',
   SMART_NOTIF: 'smart-notif',
   REKOMENDASI_PAKET: 'rekomendasi-paket',
+
+  // Fase 14 — Live Chat & Konversi Publik
+  CHAT_LEADS: 'chat-leads',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

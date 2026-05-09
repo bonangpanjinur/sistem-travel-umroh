@@ -35,6 +35,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'packages',            label: 'Paket Umroh & Haji',    path: '/admin/packages',             icon: 'Package',         group_name: 'Penjualan',          sort_order: 203, required_permission: PERMISSIONS.PACKAGES },
   { key: 'package-types',       label: 'Tipe Paket',            path: '/admin/package-types',        icon: 'Tag',             group_name: 'Penjualan',          sort_order: 204, required_permission: PERMISSIONS.PACKAGE_TYPES },
   { key: 'coupons',             label: 'Kupon & Promo',         path: '/admin/coupons',              icon: 'Ticket',          group_name: 'Penjualan',          sort_order: 205, required_permission: PERMISSIONS.COUPONS },
+  { key: 'chat-leads',          label: 'Leads Chat Widget',     path: '/admin/chat-leads',           icon: 'MessageCircle',   group_name: 'Penjualan',          sort_order: 206, required_permission: PERMISSIONS.CHAT_LEADS },
 
   // ── Konten & Marketing (300s) ─────────────────────────────────────────────
   { key: 'blog',                label: 'Blog & Artikel',        path: '/admin/blog',                 icon: 'BookOpen',        group_name: 'Konten & Marketing', sort_order: 300, required_permission: PERMISSIONS.BLOG },
@@ -175,7 +176,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   branch_manager: [
     'dashboard', 'analytics', 'kpi-dashboard', 'ai-summary',
-    'leads', 'bookings', 'packages', 'coupons', 'banners',
+    'leads', 'chat-leads', 'bookings', 'packages', 'coupons', 'banners',
     'departures', 'departure-tracking', 'sos-alerts',
     'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
     'payments', 'finance-cash', 'finance-terpadu', 'savings', 'reports',
@@ -204,7 +205,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   sales: [
     'dashboard', 'kpi-dashboard', 'ai-summary',
-    'leads', 'bookings', 'packages', 'coupons',
+    'leads', 'chat-leads', 'bookings', 'packages', 'coupons',
     'customers', 'agents',
     'payments',
     'document-verification',
@@ -214,7 +215,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   marketing: [
     'dashboard', 'analytics',
     'blog',
-    'leads', 'landing-pages', 'banners', 'marketing-materials',
+    'leads', 'chat-leads', 'landing-pages', 'banners', 'marketing-materials',
     'coupons', 'referrals', 'loyalty', 'whatsapp',
     'email-templates', 'push-notifications',
   ],

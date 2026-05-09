@@ -28,6 +28,7 @@ const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
 const AdminPackageTypes = lazy(() => import("@/pages/admin/AdminPackageTypes"));
 const AdminMasterData = lazy(() => import("@/pages/admin/AdminMasterData"));
 const AdminLeads = lazy(() => import("@/pages/admin/AdminLeads"));
+const AdminChatLeads = lazy(() => import("@/pages/admin/AdminChatLeads"));
 const AdminLeadDetail = lazy(() => import("@/pages/admin/AdminLeadDetail"));
 const AdminLeadAnalytics = lazy(() => import("@/pages/admin/AdminLeadAnalytics"));
 const AdminFollowUpReminder = lazy(() => import("@/pages/admin/AdminFollowUpReminder"));
@@ -172,6 +173,7 @@ export default function AdminRoutes() {
       <Route path="leads/analytics" element={<P k={PERMISSIONS.LEADS}><AdminLeadAnalytics /></P>} />
       <Route path="leads/:id" element={<P k={PERMISSIONS.LEADS}><AdminLeadDetail /></P>} />
       <Route path="follow-up" element={<P k={PERMISSIONS.LEADS}><AdminFollowUpReminder /></P>} />
+      <Route path="chat-leads" element={<P k={PERMISSIONS.CHAT_LEADS}><AdminChatLeads /></P>} />
       <Route path="coupons" element={<P k={PERMISSIONS.COUPONS}><AdminCoupons /></P>} />
       <Route path="banners" element={<P k={PERMISSIONS.BANNERS}><AdminBanners /></P>} />
       <Route path="landing-pages" element={<P k={PERMISSIONS.LANDING_PAGES}><AdminLandingPages /></P>} />

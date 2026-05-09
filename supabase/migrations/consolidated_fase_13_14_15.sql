@@ -308,5 +308,34 @@ END;
 $$;
 
 -- =============================================================================
+-- SEED: Menu Item "Leads Chat Widget" (Fase 14)
+-- =============================================================================
+INSERT INTO menu_items (key, label, path, icon, group_name, sort_order, required_permission, is_visible)
+VALUES (
+  'chat-leads',
+  'Leads Chat Widget',
+  '/admin/chat-leads',
+  'MessageCircle',
+  'Penjualan',
+  206,
+  'chat-leads',
+  true
+)
+ON CONFLICT (key) DO UPDATE SET
+  label               = EXCLUDED.label,
+  path                = EXCLUDED.path,
+  icon                = EXCLUDED.icon,
+  group_name          = EXCLUDED.group_name,
+  sort_order          = EXCLUDED.sort_order,
+  required_permission = EXCLUDED.required_permission,
+  is_visible          = EXCLUDED.is_visible;
+
+-- Seed role_permissions agar 'chat-leads' langsung terlihat di sidebar
+INSERT INTO role_permissions (role, permission_key)
+SELECT unnest(ARRAY['super_admin','owner','branch_manager','sales','marketing']),
+       'chat-leads'
+ON CONFLICT DO NOTHING;
+
+-- =============================================================================
 -- SELESAI — Jalankan di Supabase Dashboard → SQL Editor
 -- =============================================================================
