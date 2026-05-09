@@ -40,6 +40,7 @@ const AdminSavings = lazy(() => import("@/pages/admin/AdminSavings"));
 const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocumentVerification"));
 const AdminDocumentTypes = lazy(() => import("@/pages/admin/AdminDocumentTypes"));
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
+const AdminPWASettings = lazy(() => import("@/pages/admin/AdminPWASettings"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
 const AdminFinanceCash = lazy(() => import("@/pages/admin/AdminFinanceCash"));
@@ -259,6 +260,7 @@ export default function AdminRoutes() {
       <Route path="security-audit" element={<P k={PERMISSIONS.SECURITY_AUDIT}><AdminSecurityAudit /></P>} />
       <Route path="2fa" element={<P k={PERMISSIONS.TWO_FA}><Admin2FASettings /></P>} />
       <Route path="appearance" element={<P k={PERMISSIONS.APPEARANCE}><AdminAppearance /></P>} />
+      <Route path="pwa-settings" element={<AdminPWASettings />} />
 
 
       <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />

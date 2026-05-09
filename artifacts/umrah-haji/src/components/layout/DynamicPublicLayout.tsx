@@ -4,6 +4,8 @@ import { DynamicFooter } from './DynamicFooter';
 import { WhatsAppWidget } from '@/components/shared/WhatsAppWidget';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { AnnouncementBar } from '@/components/public/AnnouncementBar';
+import { MobileBottomNav } from '@/components/pwa/MobileBottomNav';
+import { PWAInstallPrompt } from '@/components/pwa/PWAInstallPrompt';
 
 interface DynamicPublicLayoutProps {
   children: ReactNode;
@@ -18,6 +20,8 @@ export function DynamicPublicLayout({ children }: DynamicPublicLayoutProps) {
         <main className="flex-1">{children}</main>
         <DynamicFooter />
         <WhatsAppWidget />
+        <MobileBottomNav />
+        <PWAInstallPrompt />
       </div>
     </ThemeProvider>
   );

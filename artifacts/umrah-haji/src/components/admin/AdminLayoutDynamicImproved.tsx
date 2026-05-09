@@ -32,6 +32,7 @@ import {
   Shield,
   Moon,
   Sun,
+  Smartphone,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -399,6 +400,10 @@ function AdminLayoutDynamicImproved() {
               <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Pengaturan</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/admin/pwa-settings')}>
+                <Smartphone className="mr-2 h-4 w-4" />
+                <span>Aplikasi (PWA)</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/customer/settings')}>
                 <User className="mr-2 h-4 w-4" />

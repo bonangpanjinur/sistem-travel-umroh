@@ -1,0 +1,69 @@
+{
+  "name": "Vinstour Travel — Umroh & Haji",
+  "short_name": "Vinstour",
+  "description": "Platform manajemen Umroh & Haji digital. Cek paket, kalkulator biaya, dan pantau keberangkatan Anda.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f2518",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Vinstour Travel Portal"
+    }
+  ],
+  "categories": ["travel", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Paket Umroh",
+      "short_name": "Paket",
+      "description": "Lihat semua paket umroh tersedia",
+      "url": "/paket",
+      "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
+    },
+    {
+      "name": "Kalkulator Biaya",
+      "short_name": "Kalkulator",
+      "description": "Hitung estimasi biaya perjalanan",
+      "url": "/kalkulator",
+      "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
+    },
+    {
+      "name": "Kurs Mata Uang",
+      "short_name": "Kurs",
+      "description": "Cek nilai tukar SAR & USD terkini",
+      "url": "/kurs",
+      "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
+    }
+  ]
+}
