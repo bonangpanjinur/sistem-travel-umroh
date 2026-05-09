@@ -327,10 +327,11 @@
 | ✅ P7 | UI Integrasi & API Keys di AdminSettings | **SELESAI** — 5 grup: Supabase, VAPID, Midtrans, Fonnte, SMTP |
 | ✅ P8 | Tombol Test Koneksi per integrasi | **SELESAI** — Supabase (HTTP real), VAPID/Midtrans (format), Fonnte (HTTP real) |
 | ✅ P9 | Kirim Email Test sungguhan dari UI | **SELESAI** — endpoint `/api/v1/test-smtp` + dialog di AdminSettings |
-| ⚠️ P10 | Jalankan SQL migrations ke Supabase (fase 1–20) | **Menunggu user** (aksi manual di dashboard Supabase) |
-| ⚠️ P11 | Set env vars: Supabase, VAPID, Midtrans, SMTP | **Menunggu user** (aksi manual di Replit Secrets) |
-| ⚠️ P12 | JamaahRingkasanAI — gunakan AI sungguhan? | **Keputusan user** — saat ini template lokal |
-| ⚠️ P13 | AdminSmartNotif — gunakan AI sungguhan? | **Keputusan user** — saat ini localStorage + angka hardcoded |
+| ✅ P10 | UI manajemen & test API key di panel Admin | **SELESAI** — tab baru "Test API" di AdminApiConnect (lihat Bagian 9) |
+| ⚠️ P11 | Jalankan SQL migrations ke Supabase (fase 1–20) | **Menunggu user** (aksi manual di dashboard Supabase) |
+| ⚠️ P12 | Set env vars: Supabase, VAPID, Midtrans, SMTP | **Menunggu user** (aksi manual di Replit Secrets) |
+| ⚠️ P13 | JamaahRingkasanAI — gunakan AI sungguhan? | **Keputusan user** — saat ini template lokal |
+| ⚠️ P14 | AdminSmartNotif — gunakan AI sungguhan? | **Keputusan user** — saat ini localStorage + angka hardcoded |
 
 ---
 
@@ -349,6 +350,40 @@
 **Endpoint server-side baru:**
 - `POST /api/v1/test-smtp` — Kirim email test menggunakan nodemailer. Params: `{ host, port, user, pass, to }`. Fallback ke env vars jika kosong.
 - Email HTML berisi tabel konfigurasi + timestamp WIB.
+
+---
+
+---
+
+## BAGIAN 9 — UI MANAJEMEN & TEST API KEY (Panel Admin)
+
+> Diakses di: **Admin → Pengaturan → API Connect ke Apps** (`/admin/api-connect`)
+
+### Tab yang tersedia
+
+| Tab | Fungsi |
+|-----|--------|
+| **API Keys** | Buat key baru (nama + permissions), lihat daftar, hapus/revoke. Tombol "Test sekarang" otomatis memindahkan key baru ke tab Test API. |
+| **Test API** | Request builder langsung dari browser — pilih endpoint, masukkan key, edit body JSON (untuk POST), kirim, lihat response + latency. Riwayat 10 request terakhir tersimpan di session. |
+| **Dokumentasi** | Referensi endpoint lengkap dengan contoh cURL + contoh response, bisa di-klik per endpoint. |
+| **Webhooks** | Daftarkan URL eksternal + pilih events untuk menerima notifikasi otomatis. |
+
+### Fitur Test API (detail)
+
+- **Endpoint selector** — pilih dari: Health Check, GET /v1/packages, GET /v1/departures, POST /v1/leads
+- **API key input** — ketik manual atau lihat daftar key aktif (prefix saja, full key harus di-paste manual demi keamanan)
+- **Request body editor** — textarea JSON dengan template otomatis per endpoint, tombol reset ke template
+- **Status badge** — warna hijau (2xx) / kuning (4xx) / merah (5xx / network error)
+- **Latency** — ditampilkan dalam milidetik per request
+- **Response viewer** — JSON pretty-print dalam dark code block, tombol salin
+- **Riwayat** — hingga 10 request terakhir, expand/collapse per item, tombol hapus semua
+- **Network error** — pesan jelas jika API server tidak berjalan
+
+### Catatan implementasi
+
+- Semua request dikirim langsung dari browser ke `window.location.origin/api/...` (memanfaatkan proxy Vite `/api → localhost:8080`)
+- Tidak ada perubahan di sisi server — fitur ini murni client-side
+- File: `artifacts/umrah-haji/src/pages/admin/AdminApiConnect.tsx`
 
 ---
 

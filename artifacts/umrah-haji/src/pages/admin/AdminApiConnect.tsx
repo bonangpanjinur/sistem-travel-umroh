@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,10 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Loader2, Copy, Eye, EyeOff, Key, Code2,
   Webhook, CheckCircle2, Info, Zap, Globe, BookOpen, Lock,
+  FlaskConical, Send, Clock, ChevronDown, ChevronUp, RotateCcw,
+  AlertCircle, CheckCircle, XCircle, History,
 } from 'lucide-react';
 
 const db = supabase as any;
@@ -40,6 +43,18 @@ interface WebhookEndpoint {
   created_at: string;
 }
 
+interface TestResult {
+  id: string;
+  timestamp: Date;
+  endpoint: string;
+  method: string;
+  status: number | null;
+  latencyMs: number | null;
+  responseBody: any;
+  error: string | null;
+  keyPrefix: string;
+}
+
 const ALL_PERMISSIONS = [
   { key: 'packages.read',    label: 'Baca Paket',        desc: 'GET /v1/packages' },
   { key: 'departures.read',  label: 'Baca Keberangkatan', desc: 'GET /v1/departures' },
@@ -54,6 +69,55 @@ const ALL_EVENTS = [
   'lead.created',
   'departure.updated',
 ];
+
+const TEST_ENDPOINTS = [
+  {
+    id: 'health',
+    label: 'Health Check',
+    method: 'GET',
+    path: '/health',
+    permission: null,
+    requiresKey: false,
+    bodyTemplate: null,
+    desc: 'Periksa apakah API server aktif dan berjalan',
+  },
+  {
+    id: 'packages-list',
+    label: 'GET /v1/packages',
+    method: 'GET',
+    path: '/v1/packages',
+    permission: 'packages.read',
+    requiresKey: true,
+    bodyTemplate: null,
+    desc: 'Daftar paket Umroh & Haji aktif',
+  },
+  {
+    id: 'departures-list',
+    label: 'GET /v1/departures',
+    method: 'GET',
+    path: '/v1/departures',
+    permission: 'departures.read',
+    requiresKey: true,
+    bodyTemplate: null,
+    desc: 'Jadwal keberangkatan mendatang',
+  },
+  {
+    id: 'leads-post',
+    label: 'POST /v1/leads',
+    method: 'POST',
+    path: '/v1/leads',
+    permission: 'leads.write',
+    requiresKey: true,
+    bodyTemplate: JSON.stringify({
+      name: 'Ahmad Test',
+      phone: '081234567890',
+      email: 'test@example.com',
+      message: 'Ingin informasi paket umroh',
+      source: 'api',
+    }, null, 2),
+    desc: 'Buat lead / calon jamaah baru',
+  },
+] as const;
 
 const API_ENDPOINTS = [
   {
@@ -97,6 +161,27 @@ function MethodBadge({ method }: { method: string }) {
   );
 }
 
+function StatusBadge({ status }: { status: number | null }) {
+  if (status === null) return null;
+  const isSuccess = status >= 200 && status < 300;
+  const isClientErr = status >= 400 && status < 500;
+  const isServerErr = status >= 500;
+  const cls = isSuccess
+    ? 'bg-green-100 text-green-700 border-green-200'
+    : isClientErr
+    ? 'bg-amber-100 text-amber-700 border-amber-200'
+    : isServerErr
+    ? 'bg-red-100 text-red-700 border-red-200'
+    : 'bg-gray-100 text-gray-700 border-gray-200';
+  const Icon = isSuccess ? CheckCircle : isClientErr || isServerErr ? XCircle : AlertCircle;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-bold border ${cls}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {status}
+    </span>
+  );
+}
+
 export default function AdminApiConnect() {
   const queryClient = useQueryClient();
   const apiBase = `${window.location.origin}/api`;
@@ -111,6 +196,17 @@ export default function AdminApiConnect() {
   const [webhookDialog, setWebhookDialog] = useState(false);
   const [webhookForm, setWebhookForm] = useState({ name: '', url: '', events: [] as string[] });
   const [deleteWebhookId, setDeleteWebhookId] = useState<string | null>(null);
+
+  // Test API state
+  const [testEndpointId, setTestEndpointId] = useState<string>('health');
+  const [testApiKey, setTestApiKey] = useState('');
+  const [testBody, setTestBody] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [expandedResult, setExpandedResult] = useState<string | null>(null);
+  const responseRef = useRef<HTMLDivElement>(null);
+
+  const selectedEndpoint = TEST_ENDPOINTS.find(e => e.id === testEndpointId) ?? TEST_ENDPOINTS[0];
 
   const { data: apiKeys = [], isLoading: keysLoading, error: keysError } = useQuery({
     queryKey: ['admin-api-keys'],
@@ -208,6 +304,100 @@ export default function AdminApiConnect() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // When endpoint changes, reset body to template
+  const handleEndpointChange = (id: string) => {
+    setTestEndpointId(id);
+    const ep = TEST_ENDPOINTS.find(e => e.id === id);
+    setTestBody(ep?.bodyTemplate ?? '');
+  };
+
+  const sendTestRequest = async () => {
+    if (selectedEndpoint.requiresKey && !testApiKey.trim()) {
+      toast.error('Masukkan API key terlebih dahulu');
+      return;
+    }
+
+    setTestLoading(true);
+    const start = performance.now();
+    const resultId = crypto.randomUUID();
+
+    try {
+      const url = `${window.location.origin}/api${selectedEndpoint.path}`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (testApiKey.trim()) {
+        headers['X-API-Key'] = testApiKey.trim();
+      }
+
+      const fetchOptions: RequestInit = {
+        method: selectedEndpoint.method,
+        headers,
+      };
+
+      if (selectedEndpoint.method === 'POST' && testBody.trim()) {
+        try {
+          JSON.parse(testBody);
+          fetchOptions.body = testBody;
+        } catch {
+          toast.error('Request body bukan JSON yang valid');
+          setTestLoading(false);
+          return;
+        }
+      }
+
+      const res = await fetch(url, fetchOptions);
+      const latencyMs = Math.round(performance.now() - start);
+      let responseBody: any;
+      try {
+        responseBody = await res.json();
+      } catch {
+        responseBody = { raw: await res.text() };
+      }
+
+      const result: TestResult = {
+        id: resultId,
+        timestamp: new Date(),
+        endpoint: `${selectedEndpoint.method} ${selectedEndpoint.path}`,
+        method: selectedEndpoint.method,
+        status: res.status,
+        latencyMs,
+        responseBody,
+        error: null,
+        keyPrefix: testApiKey ? testApiKey.slice(0, 12) + '···' : '(tanpa key)',
+      };
+
+      setTestResults(prev => [result, ...prev].slice(0, 10));
+      setExpandedResult(resultId);
+
+      if (res.ok) {
+        toast.success(`${res.status} — Berhasil dalam ${latencyMs}ms`);
+      } else {
+        toast.error(`${res.status} — ${responseBody?.error ?? 'Request gagal'}`);
+      }
+
+      setTimeout(() => responseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+    } catch (err: any) {
+      const latencyMs = Math.round(performance.now() - start);
+      const result: TestResult = {
+        id: resultId,
+        timestamp: new Date(),
+        endpoint: `${selectedEndpoint.method} ${selectedEndpoint.path}`,
+        method: selectedEndpoint.method,
+        status: null,
+        latencyMs,
+        responseBody: null,
+        error: err.message ?? 'Network error',
+        keyPrefix: testApiKey ? testApiKey.slice(0, 12) + '···' : '(tanpa key)',
+      };
+      setTestResults(prev => [result, ...prev].slice(0, 10));
+      setExpandedResult(resultId);
+      toast.error('Gagal terhubung ke server: ' + err.message);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   const tableNotFound = keysError && (keysError as any)?.code === '42P01';
 
   return (
@@ -287,9 +477,10 @@ create policy "Authenticated manage webhooks" on public.webhook_endpoints
       )}
 
       <Tabs defaultValue="keys">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="keys" className="gap-2"><Key className="h-4 w-4" />API Keys</TabsTrigger>
-          <TabsTrigger value="docs" className="gap-2"><BookOpen className="h-4 w-4" />Dokumentasi API</TabsTrigger>
+          <TabsTrigger value="test" className="gap-2"><FlaskConical className="h-4 w-4" />Test API</TabsTrigger>
+          <TabsTrigger value="docs" className="gap-2"><BookOpen className="h-4 w-4" />Dokumentasi</TabsTrigger>
           <TabsTrigger value="webhooks" className="gap-2"><Webhook className="h-4 w-4" />Webhooks</TabsTrigger>
         </TabsList>
 
@@ -323,9 +514,24 @@ create policy "Authenticated manage webhooks" on public.webhook_endpoints
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                <Button size="sm" variant="outline" className="w-full" onClick={() => setCreatedKey(null)}>
-                  Saya sudah menyimpan key ini
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setTestApiKey(createdKey);
+                      setCreatedKey(null);
+                      toast.success('Key dipindahkan ke tab Test API');
+                    }}
+                  >
+                    <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                    Test sekarang
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => setCreatedKey(null)}>
+                    Saya sudah menyimpan key ini
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -398,6 +604,281 @@ create policy "Authenticated manage webhooks" on public.webhook_endpoints
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── TEST API TAB ──────────────────────────────────────────── */}
+        <TabsContent value="test" className="space-y-4">
+          <Card className="border-blue-100 bg-blue-50/50">
+            <CardContent className="py-3 flex gap-3">
+              <FlaskConical className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                Kirim request langsung ke API server dari browser ini. Cocok untuk memverifikasi API key dan melihat response sesungguhnya.
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* ── Request Builder ── */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    Request Builder
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Endpoint selector */}
+                  <div className="space-y-1.5">
+                    <Label>Endpoint</Label>
+                    <Select value={testEndpointId} onValueChange={handleEndpointChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEST_ENDPOINTS.map((ep) => (
+                          <SelectItem key={ep.id} value={ep.id}>
+                            <div className="flex items-center gap-2">
+                              <MethodBadge method={ep.method} />
+                              <span className="font-mono text-sm">{ep.path}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{selectedEndpoint.desc}</p>
+                    {selectedEndpoint.permission && (
+                      <div className="flex items-center gap-1.5">
+                        <Lock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Butuh permission:</span>
+                        <Badge variant="outline" className="text-xs py-0">{selectedEndpoint.permission}</Badge>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* API Key input */}
+                  {selectedEndpoint.requiresKey && (
+                    <div className="space-y-1.5">
+                      <Label>
+                        API Key <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={testApiKey}
+                          onChange={(e) => setTestApiKey(e.target.value)}
+                          placeholder="sk_live_..."
+                          type="password"
+                          className="font-mono text-sm"
+                        />
+                        {testApiKey && (
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="shrink-0"
+                            onClick={() => setTestApiKey('')}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                      {apiKeys.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Atau pilih dari key yang tersimpan:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {apiKeys.filter(k => k.is_active).map((k) => (
+                              <button
+                                key={k.id}
+                                className="text-xs bg-muted hover:bg-muted/80 border rounded px-2 py-0.5 font-mono transition-colors"
+                                onClick={() => {
+                                  toast.info(
+                                    'Key tersimpan hanya menampilkan prefix. Masukkan key lengkap secara manual.',
+                                    { duration: 4000 }
+                                  );
+                                }}
+                              >
+                                {k.name}: {k.key_prefix}···
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground/70">
+                            Untuk keamanan, key lengkap tidak disimpan di database. Salin dari saat key dibuat.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Request body (POST only) */}
+                  {selectedEndpoint.method === 'POST' && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label>Request Body (JSON)</Label>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setTestBody(selectedEndpoint.bodyTemplate ?? '')}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Reset template
+                        </Button>
+                      </div>
+                      <Textarea
+                        value={testBody}
+                        onChange={(e) => setTestBody(e.target.value)}
+                        className="font-mono text-sm min-h-[160px] resize-y"
+                        placeholder={selectedEndpoint.bodyTemplate ?? '{}'}
+                        spellCheck={false}
+                      />
+                    </div>
+                  )}
+
+                  <Button
+                    className="w-full"
+                    onClick={sendTestRequest}
+                    disabled={testLoading}
+                  >
+                    {testLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Mengirim...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Kirim Request
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* ── Response Panel ── */}
+            <div ref={responseRef} className="space-y-3">
+              {testResults.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+                      <FlaskConical className="h-7 w-7 text-muted-foreground" />
+                    </div>
+                    <p className="font-medium text-muted-foreground">Belum ada test</p>
+                    <p className="text-sm text-muted-foreground/70">Pilih endpoint dan klik "Kirim Request"</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <History className="h-4 w-4 text-muted-foreground" />
+                      Riwayat Request ({testResults.length})
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                      onClick={() => setTestResults([])}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Hapus semua
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {testResults.map((result) => {
+                      const isExpanded = expandedResult === result.id;
+                      return (
+                        <Card
+                          key={result.id}
+                          className={`overflow-hidden transition-all ${
+                            result.error ? 'border-red-200' :
+                            result.status && result.status < 300 ? 'border-green-200' :
+                            result.status && result.status < 500 ? 'border-amber-200' :
+                            'border-red-200'
+                          }`}
+                        >
+                          <button
+                            className="w-full text-left"
+                            onClick={() => setExpandedResult(isExpanded ? null : result.id)}
+                          >
+                            <CardHeader className="py-3 px-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <MethodBadge method={result.method} />
+                                  <code className="text-xs font-mono truncate text-foreground">
+                                    {result.endpoint}
+                                  </code>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {result.error ? (
+                                    <Badge variant="destructive" className="text-xs">Network Error</Badge>
+                                  ) : (
+                                    <StatusBadge status={result.status} />
+                                  )}
+                                  {result.latencyMs !== null && (
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {result.latencyMs}ms
+                                    </span>
+                                  )}
+                                  {isExpanded
+                                    ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                    : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  }
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-xs text-muted-foreground">
+                                  {result.timestamp.toLocaleTimeString('id-ID')}
+                                </span>
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  key: {result.keyPrefix}
+                                </span>
+                              </div>
+                            </CardHeader>
+                          </button>
+
+                          {isExpanded && (
+                            <CardContent className="pt-0 px-4 pb-4 border-t bg-muted/20 space-y-3">
+                              {result.error ? (
+                                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
+                                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                                  <div>
+                                    <p className="text-sm font-medium text-red-800">Network Error</p>
+                                    <p className="text-xs text-red-700 mt-0.5">{result.error}</p>
+                                    <p className="text-xs text-red-600 mt-1">
+                                      Pastikan API server berjalan di port 8080 dan tidak ada masalah jaringan.
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                      Response Body
+                                    </p>
+                                    <Button
+                                      size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                                      onClick={() => copyText(JSON.stringify(result.responseBody, null, 2), 'Response disalin!')}
+                                    >
+                                      <Copy className="h-3 w-3 mr-1" />Salin
+                                    </Button>
+                                  </div>
+                                  <pre className="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap break-all">
+                                    {JSON.stringify(result.responseBody, null, 2)}
+                                  </pre>
+                                </>
+                              )}
+                            </CardContent>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </TabsContent>
 
         {/* ── API DOCS TAB ─────────────────────────────────────────── */}
