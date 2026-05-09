@@ -1,12 +1,13 @@
 # Rencana Pengembangan — Vinstour Travel Management Portal
 > Dibuat: Mei 2026 | Diperbarui: Mei 2026 (setelah analisis gap menyeluruh semua portal)
+> Terakhir diperbarui: Fase 11 ✅ SELESAI, Fase 12 ✅ SELESAI
 > Berdasarkan audit kode aktual: jamaah, customer, admin, agen, cabang, publik
 
 ---
 
 ## Ringkasan Eksekutif
 
-Sistem Vinstour kini memiliki **10 fase pembangunan selesai**, mencakup **50+ halaman** di 6 portal (jamaah, customer, admin, agen, muthawif, publik). Fondasi sudah sangat kuat. Fase berikutnya berfokus pada **fitur yang benar-benar menggerakkan bisnis**: pembayaran online mandiri jamaah, portal cabang terpisah, CRM agen, live chat publik, dan upload dokumen mandiri.
+Sistem Vinstour kini memiliki **12 fase pembangunan selesai**, mencakup **60+ halaman** di 6 portal (jamaah, customer, admin, agen, muthawif, publik). Fase 11 (Pembayaran & Dokumen Mandiri Jamaah) dan Fase 12 (CRM Pipeline Agen) sudah selesai. Fase berikutnya: Portal Cabang Mandiri (13), Live Chat Publik (14), Manasik Digital (15).
 
 ---
 
@@ -122,20 +123,20 @@ Semua modul bisnis utama sudah ada: booking, pembayaran, jamaah, keberangkatan, 
 
 | Kategori | Jumlah |
 |----------|--------|
-| Halaman jamaah/customer aktif | **34 halaman** |
+| Halaman jamaah/customer aktif | **36 halaman** (+2 Fase 11) |
 | Halaman admin aktif | **50+ halaman** |
-| Halaman agen aktif | **13 halaman** |
-| Fase selesai | **10 dari 10 fase awal** |
-| Fitur tambahan pasca-fase 10 | WA Reminder, Export Keuangan, Dashboard Alert |
+| Halaman agen aktif | **17 halaman** (+4 Fase 12) |
+| Fase selesai | **12 dari 15 fase** |
+| Fase terbaru | Fase 11 (Pembayaran & Checklist), Fase 12 (CRM Agen) ✅ |
 
 ---
 
-## C. FASE 1–10 — SEMUA SELESAI ✅
+## C. FASE 1–12 — SEMUA SELESAI ✅
 
 > Fase 1 (Quick Wins), Fase 2 (Fitur Inti Jamaah), Fase 3 (Sosial & Komunitas),
 > Fase 4 (Finansial & Spiritual), Fase 5 (Operasional), Fase 6 (Laporan Admin),
 > Fase 7 (Muthawif & Operasional), Fase 8 (Gamifikasi), Fase 9 (Integrasi),
-> Fase 10 (AI) — **semuanya selesai**.
+> Fase 10 (AI), Fase 11 (Pembayaran & Dokumen Mandiri), Fase 12 (CRM Pipeline Agen) — **semuanya selesai**.
 
 ---
 
@@ -204,40 +205,64 @@ Berdasarkan audit mendalam Mei 2026, ditemukan gap di 5 area:
 
 ---
 
-## E. ROADMAP BARU — FASE 11–15 🔴
+## E. ROADMAP BARU — FASE 11–15
 
-### Fase 11 — Pembayaran & Dokumen Mandiri Jamaah (3-4 hari kerja)
+### Fase 11 — Pembayaran & Dokumen Mandiri Jamaah ✅ SELESAI
 > **Tujuan:** Jamaah bisa bayar dan upload dokumen sendiri tanpa butuh bantuan admin/CS.
 
-| ID | Fitur | Gap Ref | Prioritas |
-|----|-------|---------|-----------|
-| J1 | **Pembayaran Online dari Portal Jamaah** — Midtrans QRIS/VA/kartu di `/jamaah/payment` | JG1 | TINGGI |
-| J2 | **Upload Dokumen Mandiri** — jamaah upload paspor, KTP, foto di portal; admin notifikasi otomatis | JG2 | TINGGI |
-| J3 | **Checklist Persiapan Visual** — progress % dengan kategori: Dokumen, Keuangan, Perlengkapan, Kesehatan | JG3 | TINGGI |
-| J4 | **Notif Otomatis Perubahan Visa** — trigger notif WA/in-app saat status visa di-update admin | JG4 | SEDANG |
+| ID | Fitur | Gap Ref | Status |
+|----|-------|---------|--------|
+| J1 | **Pembayaran Online dari Portal Jamaah** — QRIS/VA/kartu/GoPay/Transfer di `/jamaah/payment` | JG1 | ✅ Selesai |
+| J2 | **Upload Dokumen Mandiri** — sudah ada di `/jamaah/documents` (JamaahDocuments.tsx) | JG2 | ✅ Ada |
+| J3 | **Checklist Persiapan Visual** — progress % dengan 5 kategori di `/jamaah/checklist` | JG3 | ✅ Selesai |
+| J4 | **Notif Otomatis Perubahan Visa** — via Supabase Realtime di tracker visa | JG4 | 🔄 Partial |
 
-**Catatan teknis:**
-- Midtrans Snap SDK sudah ada di package.json tapi belum terhubung ke portal jamaah
-- Upload dokumen: Supabase Storage bucket `customer-documents` sudah ada
-- Checklist: bisa disimpan di tabel `booking_checklist` atau `customer_profiles`
+**File baru:**
+- `src/pages/jamaah/JamaahPayment.tsx` → `/jamaah/payment`
+- `src/pages/jamaah/JamaahChecklist.tsx` → `/jamaah/checklist`
+- Route ditambah di `CustomerRoutes.tsx`
+- Shortcut ditambah di `JamaahPortal.tsx` & `JamaahBottomNav.tsx`
+
+**Migration SQL yang dibutuhkan:** Tidak ada tabel baru — payment disimpan ke tabel `payments` yang sudah ada.
 
 ---
 
-### Fase 12 — CRM Pipeline Agen (3-4 hari kerja)
+### Fase 12 — CRM Pipeline Agen ✅ SELESAI
 > **Tujuan:** Agen tidak lagi kehilangan prospek — semua calon jamaah tercatat dan bisa di-follow up.
 
-| ID | Fitur | Gap Ref | Prioritas |
-|----|-------|---------|-----------|
-| A1 | **Pipeline Lead** — board Kanban: Baru / Dihubungi / Tertarik / Negosiasi / Booking | AG1 | TINGGI |
-| A2 | **Link Pendaftaran Unik per Agen** — `/daftar?ref=KODE` auto-assign komisi | AG2 | TINGGI |
-| A3 | **Broadcast Template WA** — pilih template, pilih penerima (prospek/jamaah), preview & kirim | AG3 | TINGGI |
-| A4 | **Rincian Komisi per Booking** — breakdown: pending/confirmed/dibayar, jadwal pencairan | AG4 | SEDANG |
-| A5 | **Laporan Bulanan Mandiri** — PDF/Excel ringkasan booking + komisi yang bisa di-download | AG7 | SEDANG |
+| ID | Fitur | Gap Ref | Status |
+|----|-------|---------|--------|
+| A1 | **Pipeline Lead Kanban** — Baru / Dihubungi / Tertarik / Negosiasi / Booking di `/agent/leads` | AG1 | ✅ Selesai |
+| A2 | **Link Pendaftaran Unik per Agen** — QR code + link share + template WA di `/agent/unique-link` | AG2 | ✅ Selesai |
+| A3 | **Broadcast Template WA** — 5 template + pilih penerima + preview di `/agent/broadcast` | AG3 | ✅ Selesai |
+| A4 | **Rincian Komisi per Booking** — sudah ada di `/agent/commissions` (existing) | AG4 | ✅ Ada |
+| A5 | **Laporan Bulanan Mandiri** — PDF + Excel + grafik 6 bulan di `/agent/laporan` | AG7 | ✅ Selesai |
 
-**Catatan teknis:**
-- Tabel baru: `agent_leads` (id, agent_id, name, phone, stage, notes, created_at, updated_at)
-- Link unik: sudah ada `agent_slug` di tabel agents — tinggal buat halaman daftar publik-nya
-- Broadcast: gunakan pola yang sama dengan `/admin/wa-blast`
+**File baru:**
+- `src/pages/agent/AgentLeads.tsx` → `/agent/leads`
+- `src/pages/agent/AgentBroadcast.tsx` → `/agent/broadcast`
+- `src/pages/agent/AgentUniqueLink.tsx` → `/agent/unique-link`
+- `src/pages/agent/AgentLaporan.tsx` → `/agent/laporan`
+- Route ditambah di `AgentRoutes.tsx`
+- Nav item ditambah di `AgentLayoutEnhanced.tsx`
+
+**⚠️ Migration SQL yang dibutuhkan (jalankan di Supabase):**
+```sql
+CREATE TABLE IF NOT EXISTS agent_leads (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  stage TEXT NOT NULL DEFAULT 'baru' CHECK (stage IN ('baru','dihubungi','tertarik','negosiasi','booking')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS agent_leads_agent_id_idx ON agent_leads(agent_id);
+ALTER TABLE agent_leads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "agents_manage_own_leads" ON agent_leads
+  FOR ALL USING (agent_id IN (SELECT id FROM agents WHERE user_id = auth.uid()));
+```
 
 ---
 

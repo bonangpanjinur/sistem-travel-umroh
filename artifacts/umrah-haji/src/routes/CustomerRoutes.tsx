@@ -68,6 +68,10 @@ const JamaahSISKOHAT = lazy(() => import("@/pages/jamaah/JamaahSISKOHAT"));
 const JamaahChatbot = lazy(() => import("@/pages/jamaah/JamaahChatbot"));
 const JamaahRingkasanAI = lazy(() => import("@/pages/jamaah/JamaahRingkasanAI"));
 
+// Fase 11 — Pembayaran & Dokumen Mandiri
+const JamaahPayment = lazy(() => import("@/pages/jamaah/JamaahPayment"));
+const JamaahChecklist = lazy(() => import("@/pages/jamaah/JamaahChecklist"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -152,6 +156,10 @@ export default function CustomerRoutes() {
       {/* Fase 10 — AI & Smart Analytics */}
       <Route path="/jamaah/chatbot" element={<CustomerRoute><JamaahChatbot /></CustomerRoute>} />
       <Route path="/jamaah/ringkasan-ai" element={<CustomerRoute><JamaahRingkasanAI /></CustomerRoute>} />
+
+      {/* Fase 11 — Pembayaran & Dokumen Mandiri */}
+      <Route path="/jamaah/payment" element={<CustomerRoute><JamaahPayment /></CustomerRoute>} />
+      <Route path="/jamaah/checklist" element={<CustomerRoute><JamaahChecklist /></CustomerRoute>} />
 
       {/* Fase 7 — Dashboard Muthawif */}
       <Route path="/muthawif/dashboard" element={

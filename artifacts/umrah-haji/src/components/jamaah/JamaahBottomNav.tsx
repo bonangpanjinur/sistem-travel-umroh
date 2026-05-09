@@ -12,14 +12,15 @@ const navItems = [
 ];
 
 const moreMenuItems = [
+  { to: "/jamaah/payment", icon: CreditCard, label: "Bayar Online", color: "text-primary bg-primary/10" },
+  { to: "/jamaah/checklist", icon: FileText, label: "Checklist", color: "text-green-600 bg-green-50" },
   { to: "/jamaah/checkin", icon: LogIn, label: "Check-in", color: "text-blue-600 bg-blue-50" },
   { to: "/jamaah/bagasi", icon: Luggage, label: "Bagasi", color: "text-orange-600 bg-orange-50" },
   { to: "/jamaah/kontrak", icon: FileSignature, label: "Kontrak", color: "text-purple-600 bg-purple-50" },
   { to: "/jamaah/documents", icon: FileText, label: "Dokumen", color: "text-green-600 bg-green-50" },
   { to: "/jamaah/galeri", icon: Camera, label: "Galeri", color: "text-pink-600 bg-pink-50" },
   { to: "/jamaah/doa-panduan", icon: BookOpen, label: "Doa & Panduan", color: "text-emerald-600 bg-emerald-50" },
-  { to: "/jamaah/tabungan", icon: Wallet, label: "Tabungan", color: "text-amber-600 bg-amber-50" },
-  { to: "/jamaah/cicilan", icon: CreditCard, label: "Cicilan", color: "text-indigo-600 bg-indigo-50" },
+  { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600 bg-amber-50" },
   { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600 bg-teal-50" },
   { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600 bg-gray-50" },
 ];

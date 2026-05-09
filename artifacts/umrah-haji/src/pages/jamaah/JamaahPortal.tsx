@@ -454,10 +454,16 @@ export default function JamaahPortal() {
               <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Keuangan & Admin</span>
             </div>
             <div className="grid grid-cols-4 gap-2">
-              <Link to="/jamaah/payment-history">
+              <Link to="/jamaah/payment">
                 <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
                   <CreditCard className="h-6 w-6 mx-auto mb-1 text-green-600" />
-                  <p className="text-xs">Pembayaran</p>
+                  <p className="text-xs">Bayar Online</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/checklist">
+                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
+                  <Scale className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+                  <p className="text-xs">Checklist</p>
                 </Card>
               </Link>
               {booking ? (
@@ -477,12 +483,6 @@ export default function JamaahPortal() {
                 <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
                   <FileSignature className="h-6 w-6 mx-auto mb-1 text-orange-500" />
                   <p className="text-xs">Kontrak</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/checkin">
-                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
-                  <Scroll className="h-6 w-6 mx-auto mb-1 text-violet-600" />
-                  <p className="text-xs">Check-in</p>
                 </Card>
               </Link>
             </div>

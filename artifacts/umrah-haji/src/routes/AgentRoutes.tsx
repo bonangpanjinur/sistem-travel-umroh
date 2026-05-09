@@ -21,6 +21,12 @@ const AgentMyReferrals = lazy(() => import("@/pages/agent/AgentMyReferrals"));
 const AgentLeaderboard = lazy(() => import("@/pages/agent/AgentLeaderboard"));
 const AgentTargets = lazy(() => import("@/pages/agent/AgentTargets"));
 
+// Fase 12 — CRM Pipeline Agen
+const AgentLeads = lazy(() => import("@/pages/agent/AgentLeads"));
+const AgentBroadcast = lazy(() => import("@/pages/agent/AgentBroadcast"));
+const AgentUniqueLink = lazy(() => import("@/pages/agent/AgentUniqueLink"));
+const AgentLaporan = lazy(() => import("@/pages/agent/AgentLaporan"));
+
 /**
  * Role yang boleh mengakses portal agen.
  * - super_admin: untuk keperluan pengujian dan dukungan teknis.
@@ -94,6 +100,12 @@ export default function AgentRoutes() {
       {/* Gamifikasi & Target */}
       <Route path="leaderboard" element={<LazyPage><AgentLeaderboard /></LazyPage>} />
       <Route path="targets" element={<LazyPage><AgentTargets /></LazyPage>} />
+
+      {/* Fase 12 — CRM Pipeline Agen */}
+      <Route path="leads" element={<AgentOnlyPage><AgentLeads /></AgentOnlyPage>} />
+      <Route path="broadcast" element={<AgentOnlyPage><AgentBroadcast /></AgentOnlyPage>} />
+      <Route path="unique-link" element={<LazyPage><AgentUniqueLink /></LazyPage>} />
+      <Route path="laporan" element={<AgentOnlyPage><AgentLaporan /></AgentOnlyPage>} />
     </Route>
   );
 }
