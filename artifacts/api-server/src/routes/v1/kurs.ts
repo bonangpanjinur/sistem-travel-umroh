@@ -33,13 +33,13 @@ kursRouter.get('/', async (_req, res) => {
     data.rates['SAR'] = sarRate;
 
     cache = { data, timestamp: Date.now() };
-    res.json(data);
+    return res.json(data);
   } catch (err) {
     // Jika gagal dan ada cache lama, kembalikan cache
     if (cache) {
       return res.json({ ...(cache.data as object), _stale: true });
     }
-    res.status(502).json({ error: 'Gagal mengambil data kurs', detail: String(err) });
+    return res.status(502).json({ error: 'Gagal mengambil data kurs', detail: String(err) });
   }
 });
 

@@ -10,11 +10,11 @@ export interface BottomNavItem {
 }
 
 export const DEFAULT_BOTTOM_NAV: BottomNavItem[] = [
-  { id: "beranda",     label: "Beranda",     icon: "Home",       path: "/",          enabled: true,  order: 0 },
-  { id: "paket",       label: "Paket",       icon: "Package",    path: "/paket",     enabled: true,  order: 1 },
-  { id: "kalkulator",  label: "Kalkulator",  icon: "Calculator", path: "/kalkulator",enabled: true,  order: 2 },
-  { id: "kurs",        label: "Kurs",        icon: "DollarSign", path: "/kurs",      enabled: true,  order: 3 },
-  { id: "akun",        label: "Akun",        icon: "User",       path: "/login",     enabled: true,  order: 4 },
+  { id: "beranda",     label: "Beranda",     icon: "Home",       path: "/",           enabled: true,  order: 0 },
+  { id: "paket",       label: "Paket",       icon: "Package",    path: "/packages",   enabled: true,  order: 1 },
+  { id: "jadwal",      label: "Jadwal",      icon: "Calendar",   path: "/departures", enabled: true,  order: 2 },
+  { id: "kalkulator",  label: "Kalkulator",  icon: "Calculator", path: "/kalkulator", enabled: true,  order: 3 },
+  { id: "akun",        label: "Akun",        icon: "User",       path: "/auth/login", enabled: true,  order: 4 },
 ];
 
 export const ALL_NAV_OPTIONS: BottomNavItem[] = [

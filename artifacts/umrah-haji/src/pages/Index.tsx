@@ -18,6 +18,7 @@ import { IslamicCTASection } from '@/components/home/IslamicCTASection';
 import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
 import { NatureCTASection } from '@/components/home/NatureCTASection';
 import { RoyalCTASection } from '@/components/home/RoyalCTASection';
+import { QuickMenuGrid } from '@/components/home/QuickMenuGrid';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -72,6 +73,9 @@ const Index = () => {
           {showBanner && <BannerCarousel template={template as any} />}
         </>
       )}
+      {/* Quick Menu Grid – always visible right after banner/hero */}
+      <QuickMenuGrid settings={settings ?? undefined} />
+
       {enabledSections.map((section: HomepageSection) => {
         if (section.id === 'hero') {
           if (heroAsOverlay) return null; // already rendered above
