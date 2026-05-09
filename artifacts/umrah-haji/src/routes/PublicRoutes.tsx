@@ -2,6 +2,8 @@ import { Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { LoadingState } from "@/components/shared/LoadingState";
 
+const DashboardRedirect = lazy(() => import("@/pages/admin/DashboardRedirect"));
+
 const Index = lazy(() => import("@/pages/Index"));
 const Login = lazy(() => import("@/pages/auth/Login"));
 const Register = lazy(() => import("@/pages/auth/Register"));
@@ -40,7 +42,7 @@ export default function PublicRoutes() {
       <Route path="/" element={<LazyPage><Index /></LazyPage>} />
       <Route path="/login" element={<Navigate to="/auth/login" replace />} />
       <Route path="/register" element={<Navigate to="/auth/register" replace />} />
-      <Route path="/dashboard" element={<Navigate to="/admin" replace />} />
+      <Route path="/dashboard" element={<LazyPage><DashboardRedirect /></LazyPage>} />
       <Route path="/auth/login" element={<LazyPage><Login /></LazyPage>} />
       <Route path="/auth/register" element={<LazyPage><Register /></LazyPage>} />
       <Route path="/auth/forgot-password" element={<LazyPage><ForgotPassword /></LazyPage>} />

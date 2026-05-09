@@ -36,6 +36,7 @@ const AdminRoomAssignments = lazy(() => import("@/pages/admin/AdminRoomAssignmen
 const AdminDepartures = lazy(() => import("@/pages/admin/AdminDepartures"));
 const AdminDepartureDetail = lazy(() => import("@/pages/admin/AdminDepartureDetail"));
 const AdminSavingsPlans = lazy(() => import("@/pages/admin/AdminSavingsPlans"));
+const AdminSavings = lazy(() => import("@/pages/admin/AdminSavings"));
 const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocumentVerification"));
 const AdminDocumentTypes = lazy(() => import("@/pages/admin/AdminDocumentTypes"));
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
@@ -200,6 +201,7 @@ export default function AdminRoutes() {
       <Route path="stock-opname" element={<P k={PERMISSIONS.STOCK_OPNAME}><AdminStockOpname /></P>} />
       <Route path="itinerary-templates" element={<P k={PERMISSIONS.ITINERARY_TEMPLATES}><AdminItineraryTemplates /></P>} />
       <Route path="savings" element={<P k={PERMISSIONS.SAVINGS}><AdminSavingsPlans /></P>} />
+      <Route path="savings-management" element={<P k={PERMISSIONS.SAVINGS}><AdminSavings /></P>} />
       <Route path="room-assignments" element={<P k={PERMISSIONS.ROOM_ASSIGNMENTS}><AdminRoomAssignments /></P>} />
 
       {/* Keuangan & Akuntansi */}
