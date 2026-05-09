@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,22 +14,23 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
   AlertCircle, CheckCircle2, Clock, Phone, MapPin, Heart,
-  Shield, HelpCircle, RefreshCcw, Eye, MessageSquare, Info
+  Shield, HelpCircle, RefreshCcw, Eye, MessageSquare, Info,
+  AlertTriangle, Wifi, WifiOff, MessageCircle
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
 const EMERGENCY_TYPES: Record<string, { label: string; icon: any; color: string }> = {
-  medical: { label: "Medis/Kesehatan", icon: Heart, color: "text-red-600" },
-  lost: { label: "Tersesat/Hilang", icon: MapPin, color: "text-amber-600" },
-  security: { label: "Keamanan", icon: Shield, color: "text-orange-600" },
-  other: { label: "Lainnya", icon: HelpCircle, color: "text-blue-600" },
+  medical:  { label: "Medis/Kesehatan", icon: Heart,        color: "text-red-600" },
+  lost:     { label: "Tersesat/Hilang", icon: MapPin,       color: "text-amber-600" },
+  security: { label: "Keamanan",        icon: Shield,       color: "text-orange-600" },
+  other:    { label: "Lainnya",         icon: HelpCircle,   color: "text-blue-600" },
 };
 
 const SOS_STATUS: Record<string, { label: string; variant: any; color: string }> = {
-  active: { label: "Aktif", variant: "destructive", color: "bg-red-100 text-red-800" },
-  responding: { label: "Ditangani", variant: "default", color: "bg-amber-100 text-amber-800" },
-  resolved: { label: "Selesai", variant: "outline", color: "bg-green-100 text-green-800" },
+  active:     { label: "Aktif",      variant: "destructive", color: "bg-red-100 text-red-800" },
+  responding: { label: "Ditangani",  variant: "default",     color: "bg-amber-100 text-amber-800" },
+  resolved:   { label: "Selesai",    variant: "outline",     color: "bg-green-100 text-green-800" },
 };
 
 interface SOSAlert {
@@ -48,17 +49,18 @@ interface SOSAlert {
 }
 
 export default function AdminSOSAlerts() {
-  const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedAlert, setSelectedAlert] = useState<SOSAlert | null>(null);
-  const [responseNote, setResponseNote] = useState("");
-  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const queryClient   = useQueryClient();
+  const [statusFilter, setStatusFilter]       = useState("all");
+  const [selectedAlert, setSelectedAlert]     = useState<SOSAlert | null>(null);
+  const [responseNote, setResponseNote]       = useState("");
+  const [isLive, setIsLive]                   = useState(false);
+  const [newAlertFlash, setNewAlertFlash]     = useState(false);
 
   const { data: alerts = [], isLoading, refetch } = useQuery<SOSAlert[]>({
     queryKey: ["sos-alerts", statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from("sos_alerts" as any)
+      let query = (supabase as any)
+        .from("sos_alerts")
         .select("*, customer:customers(full_name, phone)")
         .order("created_at", { ascending: false })
         .limit(200);
@@ -70,19 +72,41 @@ export default function AdminSOSAlerts() {
       }
       return (data || []) as unknown as SOSAlert[];
     },
-    refetchInterval: 15000,
   });
 
-  useEffect(() => {
-    const interval = setInterval(() => setLastRefresh(new Date()), 15000);
-    return () => clearInterval(interval);
+  const triggerFlash = useCallback(() => {
+    setNewAlertFlash(true);
+    setTimeout(() => setNewAlertFlash(false), 4000);
+    if ("vibrate" in navigator) navigator.vibrate([300, 100, 300, 100, 300]);
   }, []);
+
+  useEffect(() => {
+    const channel = (supabase as any)
+      .channel("admin-sos-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "sos_alerts" }, (payload: any) => {
+        refetch();
+        triggerFlash();
+        const eType = EMERGENCY_TYPES[payload.new?.emergency_type] || EMERGENCY_TYPES.other;
+        toast.error(`🆘 SOS BARU: ${eType.label}`, {
+          description: "Ada jamaah membutuhkan bantuan segera!",
+          duration: 10000,
+        });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "sos_alerts" }, () => {
+        refetch();
+      })
+      .subscribe((status: string) => {
+        setIsLive(status === "SUBSCRIBED");
+      });
+
+    return () => { (supabase as any).removeChannel(channel); };
+  }, [refetch, triggerFlash]);
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes: string }) => {
       const updates: any = { status, response_notes: notes };
       if (status === "resolved") updates.resolved_at = new Date().toISOString();
-      const { error } = await supabase.from("sos_alerts" as any).update(updates).eq("id", id);
+      const { error } = await (supabase as any).from("sos_alerts").update(updates).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -95,28 +119,25 @@ export default function AdminSOSAlerts() {
   });
 
   const stats = {
-    active: alerts.filter((a) => a.status === "active").length,
+    active:     alerts.filter((a) => a.status === "active").length,
     responding: alerts.filter((a) => a.status === "responding").length,
-    resolved: alerts.filter((a) => a.status === "resolved").length,
-    total: alerts.length,
+    resolved:   alerts.filter((a) => a.status === "resolved").length,
+    total:      alerts.length,
   };
 
-  const openMaps = (lat: number, lng: number) => {
-    window.open(`https://maps.google.com/maps?q=${lat},${lng}`, "_blank");
+  const openMaps  = (lat: number, lng: number) => window.open(`https://maps.google.com/maps?q=${lat},${lng}`, "_blank");
+  const callPhone = (phone: string) => { window.location.href = `tel:${phone}`; };
+  const openWA    = (phone: string, name: string) => {
+    const msg = encodeURIComponent(`Assalamu'alaikum ${name}, kami dari tim Vinstour merespons laporan SOS Anda. Kami segera membantu.`);
+    window.open(`https://wa.me/${phone.replace(/\D/g, "").replace(/^0/, "62")}?text=${msg}`, "_blank");
   };
-
-  const callPhone = (phone: string) => {
-    window.location.href = `tel:${phone}`;
-  };
-
-  const tableExists = !(isLoading === false && alerts.length === 0);
 
   return (
     <div className="space-y-6 pb-10">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className={`flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl transition-colors ${newAlertFlash ? "bg-red-50 border-2 border-red-400 animate-pulse" : ""}`}>
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-red-500/10 rounded-xl">
-            <AlertCircle className="h-6 w-6 text-red-600" />
+          <div className={`p-2.5 rounded-xl ${stats.active > 0 ? "bg-red-500/20 animate-pulse" : "bg-red-500/10"}`}>
+            <AlertTriangle className={`h-6 w-6 ${stats.active > 0 ? "text-red-600" : "text-red-500"}`} />
           </div>
           <div>
             <h1 className="text-2xl font-bold">Monitor SOS & Darurat</h1>
@@ -124,32 +145,43 @@ export default function AdminSOSAlerts() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">Auto-refresh 15 detik · {format(lastRefresh, "HH:mm:ss")}</p>
+          <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${isLive ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200 bg-gray-50 text-gray-500"}`}>
+            {isLive ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+            {isLive ? "Live" : "Reconnecting..."}
+          </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCcw className="h-4 w-4 mr-1" /> Refresh
           </Button>
         </div>
       </div>
 
+      {newAlertFlash && (
+        <Alert className="border-red-400 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800 font-bold">
+            ⚠️ SOS BARU MASUK — Tindak segera!
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Alert className={stats.active > 0 ? "border-red-300 bg-red-50" : ""}>
         <AlertCircle className={`h-4 w-4 ${stats.active > 0 ? "text-red-600" : ""}`} />
         <AlertDescription>
           {stats.active > 0
             ? <strong className="text-red-700">⚠️ {stats.active} laporan SOS aktif memerlukan perhatian segera!</strong>
-            : "Tidak ada laporan SOS aktif. Pastikan tabel sos_alerts sudah dibuat di Supabase."
+            : <span className="text-muted-foreground">Tidak ada SOS aktif. Sistem memantau secara real-time.</span>
           }
         </AlertDescription>
       </Alert>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total SOS", value: stats.total, icon: AlertCircle, color: "text-slate-600" },
-          { label: "Aktif", value: stats.active, icon: AlertCircle, color: "text-red-600" },
-          { label: "Ditangani", value: stats.responding, icon: Clock, color: "text-amber-600" },
-          { label: "Selesai", value: stats.resolved, icon: CheckCircle2, color: "text-emerald-600" },
+          { label: "Total SOS",  value: stats.total,     icon: AlertCircle,  color: "text-slate-600",  bg: "" },
+          { label: "Aktif",      value: stats.active,    icon: AlertTriangle,color: "text-red-600",    bg: stats.active > 0 ? "border-red-300 bg-red-50" : "" },
+          { label: "Ditangani",  value: stats.responding,icon: Clock,        color: "text-amber-600",  bg: "" },
+          { label: "Selesai",    value: stats.resolved,  icon: CheckCircle2, color: "text-emerald-600",bg: "" },
         ].map((s) => (
-          <Card key={s.label} className={s.label === "Aktif" && s.value > 0 ? "border-red-300 bg-red-50" : ""}>
+          <Card key={s.label} className={s.bg}>
             <CardContent className="pt-4 flex items-center gap-3">
               <s.icon className={`h-7 w-7 ${s.color} flex-shrink-0`} />
               <div>
@@ -161,7 +193,6 @@ export default function AdminSOSAlerts() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex gap-3">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
@@ -174,7 +205,6 @@ export default function AdminSOSAlerts() {
         </Select>
       </div>
 
-      {/* Alerts Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -195,7 +225,7 @@ export default function AdminSOSAlerts() {
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                     <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    Belum ada laporan SOS. Pastikan migrasi SQL Fase 6 sudah dijalankan.
+                    Belum ada laporan SOS. Pastikan tabel sos_alerts sudah dibuat di Supabase.
                   </TableCell>
                 </TableRow>
               ) : alerts.map((a) => {
@@ -220,8 +250,7 @@ export default function AdminSOSAlerts() {
                     <TableCell>
                       {a.latitude && a.longitude ? (
                         <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => openMaps(a.latitude!, a.longitude!)}>
-                          <MapPin className="h-3 w-3 mr-1" />
-                          Lihat Lokasi
+                          <MapPin className="h-3 w-3 mr-1" />Lihat Lokasi
                         </Button>
                       ) : (
                         <span className="text-xs text-muted-foreground">Tidak tersedia</span>
@@ -239,6 +268,11 @@ export default function AdminSOSAlerts() {
                             <Phone className="h-3.5 w-3.5" />
                           </Button>
                         )}
+                        {a.customer?.phone && (
+                          <Button size="sm" variant="ghost" onClick={() => openWA(a.customer!.phone!, a.customer!.full_name)} title="WhatsApp" className="text-green-600">
+                            <MessageCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => { setSelectedAlert(a); setResponseNote(a.response_notes || ""); }}>
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
@@ -252,18 +286,17 @@ export default function AdminSOSAlerts() {
         </CardContent>
       </Card>
 
-      {/* Detail Dialog */}
       <Dialog open={!!selectedAlert} onOpenChange={(v) => { if (!v) setSelectedAlert(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-red-500" />
+              <AlertTriangle className="h-5 w-5 text-red-500" />
               Detail SOS — {selectedAlert?.customer?.full_name}
             </DialogTitle>
           </DialogHeader>
           {selectedAlert && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-3 text-sm bg-muted p-3 rounded-lg">
                 <div><p className="text-xs text-muted-foreground">Jenis</p><p className="font-medium">{EMERGENCY_TYPES[selectedAlert.emergency_type]?.label || selectedAlert.emergency_type}</p></div>
                 <div><p className="text-xs text-muted-foreground">Waktu</p><p className="font-medium">{format(parseISO(selectedAlert.created_at), "dd MMM yyyy HH:mm")}</p></div>
                 <div><p className="text-xs text-muted-foreground">No. HP</p><p className="font-medium">{selectedAlert.customer?.phone || "-"}</p></div>
@@ -272,38 +305,45 @@ export default function AdminSOSAlerts() {
 
               {selectedAlert.message && (
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Pesan</p>
+                  <p className="text-xs text-muted-foreground mb-1">Pesan Darurat</p>
                   <p className="text-sm bg-muted p-3 rounded">{selectedAlert.message}</p>
                 </div>
               )}
 
-              {selectedAlert.latitude && selectedAlert.longitude && (
-                <Button variant="outline" className="w-full" onClick={() => openMaps(selectedAlert.latitude!, selectedAlert.longitude!)}>
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Buka di Google Maps
-                </Button>
-              )}
-
-              {selectedAlert.customer?.phone && (
-                <Button variant="outline" className="w-full" onClick={() => callPhone(selectedAlert.customer!.phone!)}>
-                  <Phone className="h-4 w-4 mr-2" />
-                  Hubungi Jamaah
-                </Button>
-              )}
+              <div className="grid grid-cols-2 gap-2">
+                {selectedAlert.latitude && selectedAlert.longitude && (
+                  <Button variant="outline" onClick={() => openMaps(selectedAlert.latitude!, selectedAlert.longitude!)}>
+                    <MapPin className="h-4 w-4 mr-2" />Lokasi Maps
+                  </Button>
+                )}
+                {selectedAlert.customer?.phone && (
+                  <Button variant="outline" onClick={() => callPhone(selectedAlert.customer!.phone!)}>
+                    <Phone className="h-4 w-4 mr-2" />Telepon
+                  </Button>
+                )}
+                {selectedAlert.customer?.phone && (
+                  <Button variant="outline" className="text-green-700 border-green-300 col-span-full"
+                    onClick={() => openWA(selectedAlert.customer!.phone!, selectedAlert.customer!.full_name)}>
+                    <MessageCircle className="h-4 w-4 mr-2" />Hubungi via WhatsApp
+                  </Button>
+                )}
+              </div>
 
               <div>
                 <Label>Catatan Penanganan</Label>
-                <Textarea value={responseNote} onChange={(e) => setResponseNote(e.target.value)} rows={3} placeholder="Catat tindakan yang diambil..." />
+                <Textarea value={responseNote} onChange={(e) => setResponseNote(e.target.value)} rows={3} placeholder="Catat tindakan yang diambil..." className="mt-1" />
               </div>
 
               <div className="flex gap-2">
                 {selectedAlert.status !== "responding" && (
-                  <Button variant="outline" className="flex-1" onClick={() => updateStatus.mutate({ id: selectedAlert.id, status: "responding", notes: responseNote })}>
+                  <Button variant="outline" className="flex-1" disabled={updateStatus.isPending}
+                    onClick={() => updateStatus.mutate({ id: selectedAlert.id, status: "responding", notes: responseNote })}>
                     <Clock className="h-4 w-4 mr-2" /> Tandai Ditangani
                   </Button>
                 )}
                 {selectedAlert.status !== "resolved" && (
-                  <Button className="flex-1" onClick={() => updateStatus.mutate({ id: selectedAlert.id, status: "resolved", notes: responseNote })}>
+                  <Button className="flex-1" disabled={updateStatus.isPending}
+                    onClick={() => updateStatus.mutate({ id: selectedAlert.id, status: "resolved", notes: responseNote })}>
                     <CheckCircle2 className="h-4 w-4 mr-2" /> Tandai Selesai
                   </Button>
                 )}

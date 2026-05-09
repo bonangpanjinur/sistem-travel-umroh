@@ -74,6 +74,13 @@ const AdminPayroll = lazy(() => import("@/pages/admin/AdminPayroll"));
 const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
 const AdminVisaManagement = lazy(() => import("@/pages/admin/AdminVisaManagement"));
 const AdminAirlines = lazy(() => import("@/pages/admin/AdminAirlines"));
+
+// Batch Fitur 01–10
+const AdminSISKOHAT        = lazy(() => import("@/pages/admin/AdminSISKOHAT"));
+const AdminApprovals       = lazy(() => import("@/pages/admin/AdminApprovals"));
+const AdminVendorContracts = lazy(() => import("@/pages/admin/AdminVendorContracts"));
+const AdminTraining        = lazy(() => import("@/pages/admin/AdminTraining"));
+const AdminMediaGallery    = lazy(() => import("@/pages/admin/AdminMediaGallery"));
 const AdminAirports = lazy(() => import("@/pages/admin/AdminAirports"));
 const BranchManagerDashboard = lazy(() => import("@/pages/admin/dashboards/BranchManagerDashboard"));
 const FinanceDashboard = lazy(() => import("@/pages/admin/dashboards/FinanceDashboard"));
@@ -297,6 +304,13 @@ export default function AdminRoutes() {
       <Route path="muthawifs/:id" element={<P k={PERMISSIONS.MUTHAWIFS}><AdminMuthawifDetail /></P>} />
       <Route path="bus-providers" element={<P k={PERMISSIONS.BUS_PROVIDERS}><AdminBusProviders /></P>} />
       <Route path="vendors" element={<P k={PERMISSIONS.VENDORS}><AdminVendors /></P>} />
+
+      {/* Batch Fitur 01–10 */}
+      <Route path="siskohat"         element={<P k={PERMISSIONS.SISKOHAT}><LazyPage><AdminSISKOHAT /></LazyPage></P>} />
+      <Route path="approvals"        element={<P k={PERMISSIONS.APPROVALS}><LazyPage><AdminApprovals /></LazyPage></P>} />
+      <Route path="vendor-contracts" element={<P k={PERMISSIONS.VENDOR_CONTRACTS}><LazyPage><AdminVendorContracts /></LazyPage></P>} />
+      <Route path="training"         element={<P k={PERMISSIONS.TRAINING}><LazyPage><AdminTraining /></LazyPage></P>} />
+      <Route path="media-gallery"    element={<P k={PERMISSIONS.MEDIA_GALLERY}><LazyPage><AdminMediaGallery /></LazyPage></P>} />
 
       {/* Fase 7 — Manajemen Operasional Muthawif */}
       <Route path="manifest" element={<P k={PERMISSIONS.MANIFEST_JAMAAH}><AdminManifestJamaah /></P>} />

@@ -53,6 +53,10 @@ const JamaahKontrak = lazy(() => import("@/pages/jamaah/JamaahKontrak"));
 const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"));
 const MuthawifLaporanHarian = lazy(() => import("@/pages/muthawif/MuthawifLaporanHarian"));
 const MuthawifJamaahProfil = lazy(() => import("@/pages/muthawif/MuthawifJamaahProfil"));
+const MuthawifSOS = lazy(() => import("@/pages/muthawif/MuthawifSOS"));
+
+// FITUR 01 — SOS Real-time Jamaah
+const JamaahSOSStatus = lazy(() => import("@/pages/jamaah/JamaahSOSStatus"));
 
 // Fase 8 — Engagement & Gamifikasi Jamaah
 const JamaahBadges = lazy(() => import("@/pages/jamaah/JamaahBadges"));
@@ -167,6 +171,9 @@ export default function CustomerRoutes() {
       {/* Fase 15 — Manasik Digital */}
       <Route path="/jamaah/manasik" element={<CustomerRoute><JamaahManasik /></CustomerRoute>} />
 
+      {/* FITUR 01 — SOS Status Real-time Jamaah */}
+      <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />
+
       {/* Fase 7 — Dashboard Muthawif */}
       <Route path="/muthawif/dashboard" element={
         <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
@@ -181,6 +188,12 @@ export default function CustomerRoutes() {
       <Route path="/muthawif/jamaah/:customerId" element={
         <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
           <LazyPage><MuthawifJamaahProfil /></LazyPage>
+        </ProtectedRoute>
+      } />
+      {/* FITUR 01 — SOS Panel Muthawif */}
+      <Route path="/muthawif/sos" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><MuthawifSOS /></LazyPage>
         </ProtectedRoute>
       } />
 

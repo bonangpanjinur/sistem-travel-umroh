@@ -1,4 +1,4 @@
-import { Bell, Check, Trash2, Calendar, CreditCard, MessageCircle } from "lucide-react";
+import { Bell, Check, Trash2, Calendar, CreditCard, MessageCircle, AlertTriangle, ShieldCheck, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -100,12 +100,24 @@ export function NotificationBell({
                         ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
                         : notification.type === 'chat_lead'
                         ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+                        : notification.type === 'sos_alert'
+                        ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 animate-pulse"
+                        : notification.type === 'visa_update'
+                        ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                        : notification.type === 'approval_request'
+                        ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
                         : "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
                     )}>
                       {notification.type === 'booking' ? (
                         <Calendar className="h-4 w-4" />
                       ) : notification.type === 'chat_lead' ? (
                         <MessageCircle className="h-4 w-4" />
+                      ) : notification.type === 'sos_alert' ? (
+                        <AlertTriangle className="h-4 w-4" />
+                      ) : notification.type === 'visa_update' ? (
+                        <ShieldCheck className="h-4 w-4" />
+                      ) : notification.type === 'approval_request' ? (
+                        <ClipboardCheck className="h-4 w-4" />
                       ) : (
                         <CreditCard className="h-4 w-4" />
                       )}

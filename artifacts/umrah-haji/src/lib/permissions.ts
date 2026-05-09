@@ -149,6 +149,41 @@ export const PERMISSIONS = {
 
   // Fase 14 — Live Chat & Konversi Publik
   CHAT_LEADS: 'chat-leads',
+
+  // FITUR 01 — SOS Real-time (SOS_ALERTS sudah ada di atas sebagai 'sos-alerts')
+  MUTHAWIF_SOS: 'muthawif-sos',
+
+  // FITUR 02 — Notifikasi Visa Otomatis
+  VISA_NOTIFICATIONS: 'visa-notifications',
+  VISA_STATUS_LOGS: 'visa-status-logs',
+
+  // FITUR 03 — SISKOHAT Kemenag
+  SISKOHAT: 'siskohat',
+  SISKOHAT_EXPORT: 'siskohat-export',
+
+  // FITUR 04 — Approval Workflow Berjenjang
+  APPROVALS: 'approvals',
+  APPROVAL_CONFIGS: 'approval-configs',
+
+  // FITUR 05 — Kontrak Vendor
+  VENDOR_CONTRACTS: 'vendor-contracts',
+
+  // FITUR 06 — Budget vs Realisasi
+  DEPARTURE_BUDGET: 'departure-budget',
+
+  // FITUR 07 — Pelatihan Agen
+  TRAINING: 'training',
+  AGENT_TRAINING: 'agent-training',
+
+  // FITUR 08 — Media Gallery
+  MEDIA_GALLERY: 'media-gallery',
+
+  // FITUR 09 — Sub-Agen Multi-Level
+  AGENT_NETWORK: 'agent-network',
+  AGENT_OVERRIDE_COMMISSIONS: 'agent-override-commissions',
+
+  // FITUR 10 — Kalkulator Bagasi
+  BAGGAGE_CALCULATOR: 'baggage-calculator',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

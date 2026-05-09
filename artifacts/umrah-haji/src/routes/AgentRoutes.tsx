@@ -21,6 +21,9 @@ const AgentMyReferrals = lazy(() => import("@/pages/agent/AgentMyReferrals"));
 const AgentLeaderboard = lazy(() => import("@/pages/agent/AgentLeaderboard"));
 const AgentTargets = lazy(() => import("@/pages/agent/AgentTargets"));
 
+// FITUR 07 — Pelatihan Agen
+const AgentTraining = lazy(() => import("@/pages/agent/AgentTraining"));
+
 // Fase 12 — CRM Pipeline Agen
 const AgentLeads = lazy(() => import("@/pages/agent/AgentLeads"));
 const AgentBroadcast = lazy(() => import("@/pages/agent/AgentBroadcast"));
@@ -96,6 +99,9 @@ export default function AgentRoutes() {
       {/* Manajemen — hanya agent utama */}
       <Route path="website" element={<AgentManagePage><AgentWebsiteSettings /></AgentManagePage>} />
       <Route path="network" element={<AgentManagePage><AgentNetwork /></AgentManagePage>} />
+
+      {/* FITUR 07 — Pelatihan Agen */}
+      <Route path="training" element={<LazyPage><AgentTraining /></LazyPage>} />
 
       {/* Gamifikasi & Target */}
       <Route path="leaderboard" element={<LazyPage><AgentLeaderboard /></LazyPage>} />

@@ -69,6 +69,7 @@ import { EquipmentRealizationTab } from "@/components/operational/equipment/Equi
 import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
+import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -764,12 +765,13 @@ export default function AdminDepartureDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="info">Informasi</TabsTrigger>
           <TabsTrigger value="jamaah">Jemaah</TabsTrigger>
           <TabsTrigger value="kamar">Kamar</TabsTrigger>
           <TabsTrigger value="perlengkapan">Perlengkapan</TabsTrigger>
           <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
+          <TabsTrigger value="budget">Budget</TabsTrigger>
           <TabsTrigger value="operasional">Operasional</TabsTrigger>
         </TabsList>
 
@@ -1377,6 +1379,11 @@ export default function AdminDepartureDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Budget vs Realisasi — FITUR 06 */}
+        <TabsContent value="budget" className="space-y-4">
+          <DepartureBudgetTab departureId={id || ""} />
         </TabsContent>
 
         {/* Tab: Operasional */}

@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 export interface AdminNotification {
   id: string;
-  type: 'booking' | 'payment' | 'device_registration' | 'chat_lead';
+  type: 'booking' | 'payment' | 'device_registration' | 'chat_lead' | 'sos_alert' | 'visa_update' | 'approval_request';
   title: string;
   message: string;
   createdAt: Date;
@@ -210,6 +210,61 @@ export function useAdminNotifications() {
               message: `${lead.name || 'Pengunjung'} (${lead.phone || '-'}) meninggalkan kontak${lead.message ? `: "${lead.message.slice(0, 60)}${lead.message.length > 60 ? '…' : ''}"` : ''}`,
               link: '/admin/chat-leads',
               data: lead,
+            });
+          }
+        )
+        // 7. SOS Alerts dari Jamaah (real-time)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'sos_alerts' },
+          async (payload) => {
+            if (!payload || !payload.new) return;
+            const sos = payload.new as any;
+            const { data: customer } = await supabase
+              .from('customers')
+              .select('full_name, phone')
+              .eq('id', sos.customer_id)
+              .maybeSingle();
+
+            const typeLabels: Record<string, string> = {
+              medical: 'Medis/Kesehatan', lost: 'Tersesat/Hilang',
+              security: 'Keamanan', other: 'Lainnya',
+            };
+            addNotification({
+              type: 'sos_alert',
+              title: '🆘 SOS DARURAT — Butuh Perhatian Segera!',
+              message: `${customer?.full_name || 'Jamaah'} (${customer?.phone || '-'}) melaporkan: ${typeLabels[sos.emergency_type] || sos.emergency_type}`,
+              link: '/admin/sos-alerts',
+              data: sos,
+            });
+          }
+        )
+        // 8. Visa Status Updates — notif ke admin ketika ada perubahan
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'visa_applications' },
+          async (payload) => {
+            if (!payload || !payload.new || !payload.old) return;
+            const newVisa = payload.new as any;
+            const oldVisa = payload.old as any;
+            if (newVisa.status === oldVisa.status) return;
+            const { data: customer } = await supabase
+              .from('customers')
+              .select('full_name')
+              .eq('id', newVisa.customer_id)
+              .maybeSingle();
+
+            const statusLabels: Record<string, string> = {
+              approved: 'Disetujui ✅', rejected: 'Ditolak ❌',
+              processing: 'Diproses', submitted: 'Diajukan',
+            };
+            const label = statusLabels[newVisa.status] || newVisa.status;
+            addNotification({
+              type: 'visa_update',
+              title: '📋 Update Status Visa',
+              message: `Visa ${customer?.full_name || 'Jamaah'}: ${label}`,
+              link: '/admin/visa',
+              data: newVisa,
             });
           }
         )
