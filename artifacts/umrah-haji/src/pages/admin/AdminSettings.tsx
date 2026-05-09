@@ -13,8 +13,9 @@ import {
   Building2, CreditCard, Bell, Plus, Trash2, Loader2, Database, AlertTriangle,
   FileText, User, ShieldAlert, Palette, Menu, Lock, Eye, Globe, Phone,
   Mail, MapPin, Edit, Smartphone, ChevronRight, Save, Settings,
-  Key, EyeOff, CheckCircle2, XCircle, Info, Copy,
+  Key, EyeOff, CheckCircle2, XCircle, Info, Copy, Zap, AlertCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -180,6 +181,119 @@ export default function AdminSettings() {
       .filter(([, v]) => v !== undefined)
       .map(([key, value]) => ({ key, value }));
     updateMultipleSettings(updates);
+  };
+
+  const testSupabase = async () => {
+    const url = apiKeyValues["integration_supabase_url"]?.trim();
+    const key = apiKeyValues["integration_supabase_anon_key"]?.trim();
+    if (!url || !key) return { ok: false, message: "Isi Supabase URL dan Anon Key terlebih dahulu." };
+    try {
+      const res = await fetch(`${url}/rest/v1/`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok || res.status === 404 || res.status === 200) {
+        return { ok: true, message: `Koneksi Supabase berhasil! (HTTP ${res.status}) URL dan kunci valid.` };
+      }
+      if (res.status === 401 || res.status === 403) {
+        return { ok: false, message: `Autentikasi gagal (HTTP ${res.status}). Periksa Anon Key Anda.` };
+      }
+      return { ok: false, message: `Supabase merespons HTTP ${res.status}. Periksa konfigurasi.` };
+    } catch (e: any) {
+      return { ok: false, message: `Tidak dapat terhubung ke Supabase: ${e?.message ?? "Network error"}` };
+    }
+  };
+
+  const testVapid = async () => {
+    const pub  = apiKeyValues["integration_vapid_public_key"]?.trim();
+    const priv = apiKeyValues["integration_vapid_private_key"]?.trim();
+    if (!pub && !priv) return { ok: false, message: "Masukkan VAPID Public Key dan Private Key." };
+    const b64url = /^[A-Za-z0-9\-_]+$/;
+    if (pub && (pub.length < 80 || pub.length > 96 || !pub.startsWith("B"))) {
+      return { ok: false, warn: true, message: "VAPID Public Key terlihat tidak valid. Harus diawali 'B' dan panjang ~88 karakter (base64url)." };
+    }
+    if (priv && (priv.length < 38 || priv.length > 50 || !b64url.test(priv))) {
+      return { ok: false, warn: true, message: "VAPID Private Key terlihat tidak valid. Harus ~43 karakter base64url." };
+    }
+    const msgs: string[] = [];
+    if (pub)  msgs.push(`Public Key: ${pub.slice(0, 8)}...${pub.slice(-4)} (${pub.length} karakter) ✓`);
+    if (priv) msgs.push(`Private Key: ***...${priv.slice(-4)} (${priv.length} karakter) ✓`);
+    return { ok: true, message: `Format VAPID terlihat valid.\n${msgs.join("\n")}` };
+  };
+
+  const testMidtrans = async () => {
+    const serverKey = apiKeyValues["integration_midtrans_server_key"]?.trim();
+    const clientKey = apiKeyValues["integration_midtrans_client_key"]?.trim();
+    if (!serverKey && !clientKey) return { ok: false, message: "Masukkan Server Key atau Client Key Midtrans." };
+    const isSandboxServer = serverKey?.startsWith("SB-Mid-server-");
+    const isProdServer    = serverKey?.startsWith("Mid-server-");
+    const isSandboxClient = clientKey?.startsWith("SB-Mid-client-");
+    const isProdClient    = clientKey?.startsWith("Mid-client-");
+    if (serverKey && !isSandboxServer && !isProdServer) {
+      return { ok: false, warn: true, message: "Server Key tidak dikenali. Format yang benar: 'SB-Mid-server-...' (sandbox) atau 'Mid-server-...' (produksi)." };
+    }
+    if (clientKey && !isSandboxClient && !isProdClient) {
+      return { ok: false, warn: true, message: "Client Key tidak dikenali. Format yang benar: 'SB-Mid-client-...' (sandbox) atau 'Mid-client-...' (produksi)." };
+    }
+    const env  = (isSandboxServer || isSandboxClient) ? "Sandbox" : "Produksi";
+    const msgs = [];
+    if (serverKey) msgs.push(`Server Key: ${serverKey.slice(0, 14)}...***`);
+    if (clientKey) msgs.push(`Client Key: ${clientKey.slice(0, 14)}...***`);
+    return { ok: true, message: `Format Midtrans valid — mode ${env}.\n${msgs.join("\n")}` };
+  };
+
+  const testFonnte = async () => {
+    const apiKey = apiKeyValues["integration_fonnte_api_key"]?.trim();
+    const sender = apiKeyValues["integration_fonnte_sender"]?.trim();
+    if (!apiKey) return { ok: false, message: "Masukkan Fonnte API Key terlebih dahulu." };
+    try {
+      const res = await fetch("https://api.fonnte.com/get-devices", {
+        method: "GET",
+        headers: { Authorization: apiKey },
+        signal: AbortSignal.timeout(8000),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json.status === true || res.ok) {
+        const deviceInfo = Array.isArray(json.data) && json.data.length > 0
+          ? `Perangkat terhubung: ${json.data.map((d: any) => d.name || d.device).join(", ")}`
+          : "API Key valid. Belum ada perangkat terhubung.";
+        return { ok: true, message: `Koneksi Fonnte berhasil! ${deviceInfo}${sender ? `\nNomor pengirim: ${sender}` : ""}` };
+      }
+      if (json.reason === "authorization failed") {
+        return { ok: false, message: "API Key Fonnte tidak valid. Periksa kembali kunci Anda di dashboard Fonnte." };
+      }
+      return { ok: false, message: `Fonnte merespons: ${json.reason || JSON.stringify(json)}` };
+    } catch (e: any) {
+      return { ok: false, message: `Tidak dapat terhubung ke Fonnte: ${e?.message ?? "Network error"}` };
+    }
+  };
+
+  const testSmtp = async () => {
+    const host = apiKeyValues["integration_smtp_host"]?.trim();
+    const port = apiKeyValues["integration_smtp_port"]?.trim();
+    const user = apiKeyValues["integration_smtp_user"]?.trim();
+    const pass = apiKeyValues["integration_smtp_pass"]?.trim();
+    if (!host) return { ok: false, message: "Masukkan SMTP Host terlebih dahulu." };
+    const portNum = parseInt(port || "");
+    if (port && (isNaN(portNum) || portNum < 1 || portNum > 65535)) {
+      return { ok: false, warn: true, message: "SMTP Port tidak valid. Gunakan port 25, 465, 587, atau 2525." };
+    }
+    const commonPorts = [25, 465, 587, 2525];
+    const portNote = port && !commonPorts.includes(portNum) ? ` (port tidak umum, biasanya 587)` : "";
+    const msgs = [
+      `Host: ${host}`,
+      `Port: ${port || "tidak diset"}${portNote}`,
+      `Username: ${user || "tidak diset"}`,
+      `Password: ${pass ? "***diset***" : "tidak diset"}`,
+    ];
+    const allSet = host && port && user && pass;
+    return {
+      ok: !!allSet,
+      warn: !allSet,
+      message: allSet
+        ? `Konfigurasi SMTP lengkap dan terlihat valid.\n${msgs.join("\n")}\nNota: Test pengiriman nyata memerlukan koneksi server.`
+        : `Konfigurasi SMTP belum lengkap:\n${msgs.join("\n")}`,
+    };
   };
 
   const handleResetDatabase = async () => {
@@ -566,15 +680,16 @@ export default function AdminSettings() {
                 title="Supabase" icon={Database} color="blue"
                 description="Koneksi database & autentikasi utama aplikasi"
                 fields={[
-                  { key: "integration_supabase_url",              label: "Supabase URL",             placeholder: "https://xxxx.supabase.co",   secret: false, hint: "VITE_SUPABASE_URL" },
-                  { key: "integration_supabase_anon_key",         label: "Anon / Publishable Key",   placeholder: "eyJhbGciOiJ...",             secret: true,  hint: "VITE_SUPABASE_PUBLISHABLE_KEY" },
-                  { key: "integration_supabase_service_url",      label: "Service URL (server)",     placeholder: "https://xxxx.supabase.co",   secret: false, hint: "SUPABASE_URL" },
-                  { key: "integration_supabase_service_role_key", label: "Service Role Key (server)", placeholder: "eyJhbGciOiJ...",            secret: true,  hint: "SUPABASE_SERVICE_ROLE_KEY" },
+                  { key: "integration_supabase_url",              label: "Supabase URL",              placeholder: "https://xxxx.supabase.co", secret: false, hint: "VITE_SUPABASE_URL" },
+                  { key: "integration_supabase_anon_key",         label: "Anon / Publishable Key",    placeholder: "eyJhbGciOiJ...",          secret: true,  hint: "VITE_SUPABASE_PUBLISHABLE_KEY" },
+                  { key: "integration_supabase_service_url",      label: "Service URL (server)",      placeholder: "https://xxxx.supabase.co", secret: false, hint: "SUPABASE_URL" },
+                  { key: "integration_supabase_service_role_key", label: "Service Role Key (server)", placeholder: "eyJhbGciOiJ...",          secret: true,  hint: "SUPABASE_SERVICE_ROLE_KEY" },
                 ]}
                 values={apiKeyValues}
                 showFields={showFields}
                 onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
                 onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                onTest={testSupabase}
               />
 
               {/* VAPID Push */}
@@ -582,16 +697,17 @@ export default function AdminSettings() {
                 title="Push Notification (VAPID)" icon={Bell} color="purple"
                 description="Diperlukan untuk mengirim notifikasi browser ke jamaah"
                 fields={[
-                  { key: "integration_vapid_public_key",  label: "VAPID Public Key",  placeholder: "BNJ...",  secret: false, hint: "VAPID_PUBLIC_KEY" },
-                  { key: "integration_vapid_private_key", label: "VAPID Private Key", placeholder: "oXq...",  secret: true,  hint: "VAPID_PRIVATE_KEY" },
+                  { key: "integration_vapid_public_key",  label: "VAPID Public Key",  placeholder: "BNJ...", secret: false, hint: "VAPID_PUBLIC_KEY" },
+                  { key: "integration_vapid_private_key", label: "VAPID Private Key", placeholder: "oXq...", secret: true,  hint: "VAPID_PRIVATE_KEY" },
                 ]}
                 values={apiKeyValues}
                 showFields={showFields}
                 onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
                 onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                onTest={testVapid}
                 extra={
                   <div className="px-4 pb-3">
-                    <p className="text-xs text-muted-foreground">Generate key baru dengan perintah: <code className="bg-muted px-1 rounded font-mono">npx web-push generate-vapid-keys</code></p>
+                    <p className="text-xs text-muted-foreground">Generate key baru: <code className="bg-muted px-1 rounded font-mono">npx web-push generate-vapid-keys</code></p>
                   </div>
                 }
               />
@@ -601,16 +717,18 @@ export default function AdminSettings() {
                 title="Midtrans (Pembayaran Online)" icon={CreditCard} color="green"
                 description="Diperlukan untuk menerima pembayaran virtual account & kartu kredit"
                 fields={[
-                  { key: "integration_midtrans_server_key", label: "Server Key",                placeholder: "SB-Mid-server-...", secret: true,  hint: "MIDTRANS_SERVER_KEY" },
+                  { key: "integration_midtrans_server_key", label: "Server Key",                 placeholder: "SB-Mid-server-...", secret: true,  hint: "MIDTRANS_SERVER_KEY" },
                   { key: "integration_midtrans_client_key", label: "Client Key (untuk frontend)", placeholder: "SB-Mid-client-...", secret: false, hint: "MIDTRANS_CLIENT_KEY" },
                 ]}
                 values={apiKeyValues}
                 showFields={showFields}
                 onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
                 onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                onTest={testMidtrans}
                 extra={
                   <div className="px-4 pb-3">
-                    <a href="https://dashboard.midtrans.com" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                    <a href="https://dashboard.midtrans.com" target="_blank" rel="noopener noreferrer"
+                       className="text-xs text-primary hover:underline flex items-center gap-1">
                       <Globe className="h-3 w-3" />Buka Midtrans Dashboard
                     </a>
                   </div>
@@ -622,16 +740,18 @@ export default function AdminSettings() {
                 title="WhatsApp (Fonnte)" icon={Smartphone} color="emerald"
                 description="Kirim notifikasi WhatsApp otomatis ke jamaah"
                 fields={[
-                  { key: "integration_fonnte_api_key", label: "Fonnte API Key",     placeholder: "xxxxxxxxxxxxxxxxxx", secret: true,  hint: "FONNTE_API_KEY" },
-                  { key: "integration_fonnte_sender",  label: "Nomor Pengirim",      placeholder: "6281234567890",      secret: false, hint: "Nomor WhatsApp aktif" },
+                  { key: "integration_fonnte_api_key", label: "Fonnte API Key", placeholder: "xxxxxxxxxxxxxxxxxx", secret: true,  hint: "FONNTE_API_KEY" },
+                  { key: "integration_fonnte_sender",  label: "Nomor Pengirim", placeholder: "6281234567890",      secret: false, hint: "Nomor WhatsApp aktif" },
                 ]}
                 values={apiKeyValues}
                 showFields={showFields}
                 onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
                 onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                onTest={testFonnte}
                 extra={
                   <div className="px-4 pb-3">
-                    <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                    <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer"
+                       className="text-xs text-primary hover:underline flex items-center gap-1">
                       <Globe className="h-3 w-3" />Daftar / login Fonnte
                     </a>
                   </div>
@@ -643,15 +763,16 @@ export default function AdminSettings() {
                 title="SMTP Email" icon={Mail} color="amber"
                 description="Pengiriman email otomatis (invoice, kwitansi, notifikasi)"
                 fields={[
-                  { key: "integration_smtp_host", label: "SMTP Host",      placeholder: "smtp.gmail.com",  secret: false, hint: "SMTP_HOST" },
-                  { key: "integration_smtp_port", label: "SMTP Port",      placeholder: "587",             secret: false, hint: "SMTP_PORT" },
-                  { key: "integration_smtp_user", label: "Username / Email", placeholder: "no-reply@...",  secret: false, hint: "SMTP_USER" },
-                  { key: "integration_smtp_pass", label: "Password / App Password", placeholder: "••••••", secret: true,  hint: "SMTP_PASS" },
+                  { key: "integration_smtp_host", label: "SMTP Host",             placeholder: "smtp.gmail.com", secret: false, hint: "SMTP_HOST" },
+                  { key: "integration_smtp_port", label: "SMTP Port",             placeholder: "587",            secret: false, hint: "SMTP_PORT" },
+                  { key: "integration_smtp_user", label: "Username / Email",      placeholder: "no-reply@...",   secret: false, hint: "SMTP_USER" },
+                  { key: "integration_smtp_pass", label: "Password / App Password", placeholder: "••••••",       secret: true,  hint: "SMTP_PASS" },
                 ]}
                 values={apiKeyValues}
                 showFields={showFields}
                 onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
                 onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
+                onTest={testSmtp}
               />
 
               {/* Save button */}
@@ -781,6 +902,8 @@ interface ApiKeyField {
   hint: string;
 }
 
+type TestResult = { status: "idle" | "testing" | "ok" | "warn" | "error"; message: string };
+
 interface ApiKeyGroupProps {
   title: string;
   icon: React.ElementType;
@@ -791,6 +914,7 @@ interface ApiKeyGroupProps {
   showFields: Record<string, boolean>;
   onChange: (key: string, value: string) => void;
   onToggleShow: (key: string) => void;
+  onTest?: () => Promise<Omit<TestResult, "status">& { ok: boolean; warn?: boolean }>;
   extra?: React.ReactNode;
 }
 
@@ -810,23 +934,50 @@ const ICON_COLOR_MAP: Record<string, string> = {
   amber:   "text-amber-600",
 };
 
-function ApiKeyGroup({ title, icon: Icon, color, description, fields, values, showFields, onChange, onToggleShow, extra }: ApiKeyGroupProps) {
+function ApiKeyGroup({ title, icon: Icon, color, description, fields, values, showFields, onChange, onToggleShow, onTest, extra }: ApiKeyGroupProps) {
   const configuredCount = fields.filter(f => !!values[f.key]).length;
   const allConfigured   = configuredCount === fields.length;
   const anyConfigured   = configuredCount > 0;
 
+  const [testResult, setTestResult] = useState<TestResult>({ status: "idle", message: "" });
+
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      // simple feedback — could use toast but avoiding extra import here
-    });
+    navigator.clipboard.writeText(text).then(() => toast.success("Disalin ke clipboard"));
   };
+
+  const handleTest = async () => {
+    if (!onTest) return;
+    setTestResult({ status: "testing", message: "Menghubungkan..." });
+    try {
+      const res = await onTest();
+      setTestResult({ status: res.warn ? "warn" : res.ok ? "ok" : "error", message: res.message });
+    } catch (e: any) {
+      setTestResult({ status: "error", message: e?.message || "Terjadi kesalahan" });
+    }
+  };
+
+  const testBanner = testResult.status !== "idle" && (
+    <div className={cn(
+      "mx-4 mb-3 flex items-start gap-2 p-3 rounded-lg border text-xs",
+      testResult.status === "testing" && "bg-muted border-muted-foreground/20 text-muted-foreground",
+      testResult.status === "ok"      && "bg-green-50 dark:bg-green-950/20 border-green-200 text-green-700 dark:text-green-400",
+      testResult.status === "warn"    && "bg-amber-50 dark:bg-amber-950/20 border-amber-200 text-amber-700 dark:text-amber-400",
+      testResult.status === "error"   && "bg-red-50 dark:bg-red-950/20 border-red-200 text-red-700 dark:text-red-400",
+    )}>
+      {testResult.status === "testing" && <Loader2 className="h-3.5 w-3.5 shrink-0 mt-0.5 animate-spin" />}
+      {testResult.status === "ok"      && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+      {testResult.status === "warn"    && <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+      {testResult.status === "error"   && <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+      <span>{testResult.message}</span>
+    </div>
+  );
 
   return (
     <Card className={`border ${COLOR_MAP[color] ?? ""}`}>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg bg-white dark:bg-muted flex items-center justify-center shadow-sm border`}>
+            <div className="w-8 h-8 rounded-lg bg-white dark:bg-muted flex items-center justify-center shadow-sm border">
               <Icon className={`h-4 w-4 ${ICON_COLOR_MAP[color] ?? "text-primary"}`} />
             </div>
             <div>
@@ -834,21 +985,35 @@ function ApiKeyGroup({ title, icon: Icon, color, description, fields, values, sh
               <CardDescription className="text-xs">{description}</CardDescription>
             </div>
           </div>
-          <Badge variant={allConfigured ? "default" : anyConfigured ? "secondary" : "outline"}
-            className={cn("text-[10px] shrink-0", allConfigured && "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400")}>
-            {allConfigured
-              ? <><CheckCircle2 className="h-3 w-3 mr-1" />{configuredCount}/{fields.length} Terkonfigurasi</>
-              : anyConfigured
-              ? <><Info className="h-3 w-3 mr-1" />{configuredCount}/{fields.length} Terkonfigurasi</>
-              : <><XCircle className="h-3 w-3 mr-1" />Belum dikonfigurasi</>}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant={allConfigured ? "default" : anyConfigured ? "secondary" : "outline"}
+              className={cn("text-[10px]", allConfigured && "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400")}>
+              {allConfigured
+                ? <><CheckCircle2 className="h-3 w-3 mr-1" />{configuredCount}/{fields.length} Terkonfigurasi</>
+                : anyConfigured
+                ? <><Info className="h-3 w-3 mr-1" />{configuredCount}/{fields.length} Terkonfigurasi</>
+                : <><XCircle className="h-3 w-3 mr-1" />Belum dikonfigurasi</>}
+            </Badge>
+            {onTest && (
+              <Button
+                type="button" size="sm" variant="outline"
+                className="h-7 text-xs gap-1.5"
+                onClick={handleTest}
+                disabled={testResult.status === "testing" || !anyConfigured}
+              >
+                {testResult.status === "testing"
+                  ? <><Loader2 className="h-3 w-3 animate-spin" />Testing...</>
+                  : <><Zap className="h-3 w-3" />Test Koneksi</>}
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 pb-3">
         {fields.map(f => {
-          const val    = values[f.key] || "";
-          const isSet  = !!val;
-          const shown  = showFields[f.key] || false;
+          const val   = values[f.key] || "";
+          const isSet = !!val;
+          const shown = showFields[f.key] || false;
           return (
             <div key={f.key} className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -861,32 +1026,22 @@ function ApiKeyGroup({ title, icon: Icon, color, description, fields, values, sh
                 <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">{f.hint}</span>
               </div>
               <div className="flex gap-1.5">
-                <div className="relative flex-1">
-                  <Input
-                    type={f.secret && !shown ? "password" : "text"}
-                    value={val}
-                    onChange={e => onChange(f.key, e.target.value)}
-                    placeholder={f.placeholder}
-                    className="pr-8 font-mono text-xs h-8"
-                  />
-                </div>
+                <Input
+                  type={f.secret && !shown ? "password" : "text"}
+                  value={val}
+                  onChange={e => onChange(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  className="flex-1 font-mono text-xs h-8"
+                />
                 {f.secret && (
-                  <Button
-                    type="button" variant="ghost" size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => onToggleShow(f.key)}
-                    title={shown ? "Sembunyikan" : "Tampilkan"}
-                  >
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                    onClick={() => onToggleShow(f.key)} title={shown ? "Sembunyikan" : "Tampilkan"}>
                     {shown ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </Button>
                 )}
                 {isSet && (
-                  <Button
-                    type="button" variant="ghost" size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyToClipboard(val)}
-                    title="Salin"
-                  >
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                    onClick={() => copyToClipboard(val)} title="Salin">
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -895,6 +1050,7 @@ function ApiKeyGroup({ title, icon: Icon, color, description, fields, values, sh
           );
         })}
       </CardContent>
+      {testBanner}
       {extra}
     </Card>
   );
