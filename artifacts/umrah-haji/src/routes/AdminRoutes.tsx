@@ -69,6 +69,7 @@ const AdminLandingPages = lazy(() => import("@/pages/admin/AdminLandingPages"));
 const AdminLandingPageEditor = lazy(() => import("@/pages/admin/AdminLandingPageEditor"));
 const AdminBookingCreate = lazy(() => import("@/pages/admin/AdminBookingCreate"));
 const EquipmentPage = lazy(() => import("@/pages/operational/EquipmentPage"));
+const OfficeAssets = lazy(() => import("@/pages/operational/OfficeAssets"));
 const AdminMarketingMaterials = lazy(() => import("@/pages/admin/AdminMarketingMaterials"));
 const AdminFinanceAR = lazy(() => import("@/pages/admin/AdminFinanceAR"));
 const AdminFinanceAP = lazy(() => import("@/pages/admin/AdminFinanceAP"));
@@ -197,6 +198,7 @@ export default function AdminRoutes() {
       <Route path="bookings/create" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookingCreate /></P>} />
       <Route path="bookings/:id" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookingDetail /></P>} />
       <Route path="equipment" element={<P k={PERMISSIONS.EQUIPMENT}><EquipmentPage /></P>} />
+      <Route path="office-assets" element={<P k={PERMISSIONS.OFFICE_ASSETS}><LazyPage><OfficeAssets /></LazyPage></P>} />
       <Route path="equipment-master" element={<P k={PERMISSIONS.EQUIPMENT_MASTER}><AdminEquipmentMaster /></P>} />
       <Route path="equipment-settings" element={<P k={PERMISSIONS.EQUIPMENT_SETTINGS}><AdminEquipmentSettings /></P>} />
       <Route path="stock-opname" element={<P k={PERMISSIONS.STOCK_OPNAME}><AdminStockOpname /></P>} />

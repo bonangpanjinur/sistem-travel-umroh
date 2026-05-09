@@ -181,7 +181,7 @@ export default function KursPage() {
                   />
                 </div>
                 <p className="text-sm font-semibold text-primary">
-                  = {amountNum.toLocaleString("id-ID")} IDR → <span className="text-foreground">{convertedReverse.toLocaleFixed ? convertedReverse.toFixed(4) : convertedReverse.toFixed(4)} {selectedRate.code}</span>
+                  = {amountNum.toLocaleString("id-ID")} IDR → <span className="text-foreground">{convertedReverse.toFixed(4)} {selectedRate.code}</span>
                 </p>
               </div>
 

@@ -117,9 +117,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'correspondence',      label: 'Hub Korespondensi',    path: '/admin/correspondence',        icon: 'MessagesSquare',  group_name: 'Dokumen',            sort_order: 804, required_permission: PERMISSIONS.WHATSAPP },
   { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 805, required_permission: PERMISSIONS.OFFLINE_CONTENT },
   { key: 'support',             label: 'Tiket Support',        path: '/admin/support',               icon: 'LifeBuoy',       group_name: 'Dokumen',            sort_order: 806, required_permission: PERMISSIONS.SUPPORT },
-
-  // ── Aset Kantor (850s) ────────────────────────────────────────────────────
-  { key: 'office-assets',       label: 'Aset Kantor',           path: '/operational/assets',         icon: 'Briefcase',       group_name: 'Aset & Inventaris',  sort_order: 851, required_permission: PERMISSIONS.OFFICE_ASSETS },
+  { key: 'office-assets',       label: 'Aset Kantor',          path: '/admin/office-assets',         icon: 'Briefcase',      group_name: 'Dokumen',            sort_order: 807, required_permission: PERMISSIONS.OFFICE_ASSETS },
 
   // ── Master Data (900s) ────────────────────────────────────────────────────
   { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },
@@ -184,7 +182,6 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'memberships', 'branch-commissions', 'agent-commission-report',
     'document-verification', 'document-types',
     'hotels', 'airlines', 'airports',
-    'office-assets',
     'users', 'support',
     'push-notifications',
     'blog',
@@ -226,7 +223,6 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik', 'itinerary-templates',
     'customers', 'bookings',
     'document-verification', 'documents-generator',
-    'office-assets',
     'visa',
     'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
     'wa-otomatis', 'midtrans', 'cicilan-reminder', 'virtual-account',
@@ -236,7 +232,6 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   equipment: [
     'dashboard',
     'equipment', 'equipment-master', 'equipment-settings', 'stock-opname',
-    'office-assets',
     'departures',
     'customers',
   ],

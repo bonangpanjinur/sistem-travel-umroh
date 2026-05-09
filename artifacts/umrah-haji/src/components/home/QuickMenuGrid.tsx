@@ -302,11 +302,9 @@ export function QuickMenuGrid({ settings }: QuickMenuGridProps) {
                 {user ? 'Akses fitur perjalanan ibadah Anda' : 'Login untuk fitur lengkap'}
               </p>
             </div>
-            {user && (
-              <Link to="/jamaah" className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
-                Buka Portal <ChevronRight className="h-3 w-3" />
-              </Link>
-            )}
+            <Link to="/jamaah-info" className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+              {user ? 'Buka Portal' : 'Pelajari'} <ChevronRight className="h-3 w-3" />
+            </Link>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-2 sm:gap-3">
             {JAMAAH_MENU.map((item) => (
