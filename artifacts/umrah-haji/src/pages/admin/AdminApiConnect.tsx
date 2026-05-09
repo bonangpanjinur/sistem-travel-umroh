@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  Plus, Trash2, Loader2, Copy, Eye, EyeOff, Key, Code2,
+  Plus, Trash2, Loader2, Copy, Eye, EyeOff, Key,
   Webhook, CheckCircle2, Info, Zap, Globe, BookOpen, Lock,
   FlaskConical, Send, Clock, ChevronDown, ChevronUp, RotateCcw,
-  AlertCircle, CheckCircle, XCircle, History,
+  AlertCircle, CheckCircle, XCircle, History, ShieldAlert, Activity,
+  Timer, TrendingDown,
 } from 'lucide-react';
 
 const db = supabase as any;
@@ -53,6 +54,16 @@ interface TestResult {
   responseBody: any;
   error: string | null;
   keyPrefix: string;
+  rateLimit: { limit: number; remaining: number; resetInSec: number } | null;
+}
+
+interface RateLimitBucket {
+  limit: number;
+  remaining: number;
+  resetAt: Date;
+  label: string;
+  windowSec: number;
+  updatedAt: Date;
 }
 
 const ALL_PERMISSIONS = [
@@ -206,6 +217,23 @@ export default function AdminApiConnect() {
   const [expandedResult, setExpandedResult] = useState<string | null>(null);
   const responseRef = useRef<HTMLDivElement>(null);
 
+  // Rate limit monitor state
+  const [rlGeneral, setRlGeneral] = useState<RateLimitBucket | null>(null);
+  const [rlLeads, setRlLeads]     = useState<RateLimitBucket | null>(null);
+  const [rlCountdown, setRlCountdown] = useState<{ general: number; leads: number }>({ general: 0, leads: 0 });
+
+  // Live countdown — ticks every second
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      setRlCountdown({
+        general: rlGeneral ? Math.max(0, Math.ceil((rlGeneral.resetAt.getTime() - now) / 1000)) : 0,
+        leads:   rlLeads   ? Math.max(0, Math.ceil((rlLeads.resetAt.getTime()   - now) / 1000)) : 0,
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [rlGeneral, rlLeads]);
+
   const selectedEndpoint = TEST_ENDPOINTS.find(e => e.id === testEndpointId) ?? TEST_ENDPOINTS[0];
 
   const { data: apiKeys = [], isLoading: keysLoading, error: keysError } = useQuery({
@@ -355,6 +383,39 @@ export default function AdminApiConnect() {
         responseBody = { raw: await res.text() };
       }
 
+      // ── Parse rate-limit headers (RFC 9440 / draft-7 format) ──────────────
+      const rlLimit     = parseInt(res.headers.get('RateLimit-Limit')     || res.headers.get('X-RateLimit-Limit')     || '0', 10);
+      const rlRemaining = parseInt(res.headers.get('RateLimit-Remaining') || res.headers.get('X-RateLimit-Remaining') || '0', 10);
+      const rlResetRaw  = res.headers.get('RateLimit-Reset') || res.headers.get('X-RateLimit-Reset') || '';
+      const rlPolicy    = res.headers.get('RateLimit-Policy') || '';
+
+      let rlResetInSec = 0;
+      if (rlResetRaw) {
+        const parsed = Number(rlResetRaw);
+        // draft-7: delta-seconds; legacy: epoch seconds
+        rlResetInSec = parsed > 1_000_000_000 ? Math.ceil((parsed - Date.now() / 1000)) : parsed;
+        rlResetInSec = Math.max(0, rlResetInSec);
+      }
+
+      const rlInfo = rlLimit > 0 ? { limit: rlLimit, remaining: rlRemaining, resetInSec: rlResetInSec } : null;
+
+      // Detect which bucket this falls into (leads vs general) from the policy header
+      // leads window = 3600s, general = 900s
+      const isLeadsBucket = rlPolicy.includes('w=3600') || selectedEndpoint.path === '/v1/leads';
+      if (rlLimit > 0) {
+        const bucket: RateLimitBucket = {
+          limit: rlLimit,
+          remaining: rlRemaining,
+          resetAt: new Date(Date.now() + rlResetInSec * 1000),
+          label: isLeadsBucket ? 'Leads (per jam)' : 'General (per 15 menit)',
+          windowSec: isLeadsBucket ? 3600 : 900,
+          updatedAt: new Date(),
+        };
+        if (isLeadsBucket) setRlLeads(bucket);
+        else setRlGeneral(bucket);
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       const result: TestResult = {
         id: resultId,
         timestamp: new Date(),
@@ -365,6 +426,7 @@ export default function AdminApiConnect() {
         responseBody,
         error: null,
         keyPrefix: testApiKey ? testApiKey.slice(0, 12) + '···' : '(tanpa key)',
+        rateLimit: rlInfo,
       };
 
       setTestResults(prev => [result, ...prev].slice(0, 10));
@@ -389,6 +451,7 @@ export default function AdminApiConnect() {
         responseBody: null,
         error: err.message ?? 'Network error',
         keyPrefix: testApiKey ? testApiKey.slice(0, 12) + '···' : '(tanpa key)',
+        rateLimit: null,
       };
       setTestResults(prev => [result, ...prev].slice(0, 10));
       setExpandedResult(resultId);
@@ -616,6 +679,82 @@ create policy "Authenticated manage webhooks" on public.webhook_endpoints
               </div>
             </CardContent>
           </Card>
+
+          {/* ── Rate Limit Monitor ─────────────────────────────────── */}
+          {(rlGeneral || rlLeads) && (
+            <Card className="border-violet-100 bg-violet-50/40">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-violet-800">
+                  <ShieldAlert className="h-4 w-4" />
+                  Rate Limit Monitor
+                  <span className="ml-auto text-xs font-normal text-violet-500 flex items-center gap-1">
+                    <Activity className="h-3 w-3" />
+                    Live
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className={`grid gap-4 ${rlGeneral && rlLeads ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+                  {[
+                    rlGeneral ? { bucket: rlGeneral, countdown: rlCountdown.general } : null,
+                    rlLeads   ? { bucket: rlLeads,   countdown: rlCountdown.leads   } : null,
+                  ].filter(Boolean).map(({ bucket, countdown }: any) => {
+                    const pct = bucket.limit > 0 ? Math.round((bucket.remaining / bucket.limit) * 100) : 0;
+                    const used = bucket.limit - bucket.remaining;
+                    const isLow = pct <= 20;
+                    const isWarn = pct > 20 && pct <= 50;
+                    const barColor = isLow ? 'bg-red-500' : isWarn ? 'bg-amber-500' : 'bg-green-500';
+                    const textColor = isLow ? 'text-red-700' : isWarn ? 'text-amber-700' : 'text-green-700';
+                    const resetMin = Math.floor(countdown / 60);
+                    const resetSec = countdown % 60;
+                    return (
+                      <div key={bucket.label} className="bg-white rounded-lg border border-violet-100 p-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">{bucket.label}</span>
+                          {isLow && (
+                            <span className="text-xs font-semibold text-red-600 flex items-center gap-1">
+                              <TrendingDown className="h-3 w-3" />
+                              Hampir habis
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-baseline justify-between">
+                            <span className={`text-2xl font-bold ${textColor}`}>{bucket.remaining}</span>
+                            <span className="text-xs text-muted-foreground">/ {bucket.limit} request</span>
+                          </div>
+                          <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs text-muted-foreground pt-0.5">
+                            <span>{used} terpakai</span>
+                            <span>{pct}% tersisa</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-violet-50">
+                          <Timer className="h-3.5 w-3.5 text-violet-400" />
+                          <span className="text-xs text-muted-foreground">Reset dalam:</span>
+                          {countdown > 0 ? (
+                            <span className="text-xs font-mono font-semibold text-violet-700">
+                              {resetMin > 0 ? `${resetMin}m ` : ''}{resetSec}s
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-green-600">Sudah reset</span>
+                          )}
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            diupdate {bucket.updatedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-2">
             {/* ── Request Builder ── */}

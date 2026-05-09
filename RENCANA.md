@@ -364,7 +364,7 @@
 | Tab | Fungsi |
 |-----|--------|
 | **API Keys** | Buat key baru (nama + permissions), lihat daftar, hapus/revoke. Tombol "Test sekarang" otomatis memindahkan key baru ke tab Test API. |
-| **Test API** | Request builder langsung dari browser — pilih endpoint, masukkan key, edit body JSON (untuk POST), kirim, lihat response + latency. Riwayat 10 request terakhir tersimpan di session. |
+| **Test API** | Request builder langsung dari browser — pilih endpoint, masukkan key, edit body JSON (untuk POST), kirim, lihat response + latency. Riwayat 10 request terakhir tersimpan di session. **Rate Limit Monitor** otomatis muncul setelah request pertama. |
 | **Dokumentasi** | Referensi endpoint lengkap dengan contoh cURL + contoh response, bisa di-klik per endpoint. |
 | **Webhooks** | Daftarkan URL eksternal + pilih events untuk menerima notifikasi otomatis. |
 
@@ -379,11 +379,25 @@
 - **Riwayat** — hingga 10 request terakhir, expand/collapse per item, tombol hapus semua
 - **Network error** — pesan jelas jika API server tidak berjalan
 
+### Rate Limit Monitor (detail)
+
+Muncul otomatis di bawah info banner setelah request pertama yang mengandung header rate limit dari server.
+
+- **Dua bucket independen**: General (100 req / 15 menit) dan Leads (10 req / 1 jam)
+- **Progress bar berwarna**: hijau (>50% tersisa) → kuning (20–50%) → merah (≤20% / hampir habis)
+- **Counter live**: jumlah request tersisa ditampilkan besar, disertai jumlah terpakai dan persentase
+- **Countdown timer**: detik mundur real-time hingga window reset, ticking setiap 1 detik via `setInterval`
+- **Label reset**: menampilkan "Sudah reset" ketika countdown mencapai 0
+- **Timestamp update**: terakhir diperbarui (jam:menit:detik) di sudut kanan bawah setiap kartu
+- **Header parsing**: mendukung RFC 9440 / draft-7 (`RateLimit-*`) dan format lama (`X-RateLimit-*`)
+- **Deteksi bucket**: via header `RateLimit-Policy` (`w=3600` → leads, `w=900` → general)
+
 ### Catatan implementasi
 
 - Semua request dikirim langsung dari browser ke `window.location.origin/api/...` (memanfaatkan proxy Vite `/api → localhost:8080`)
 - Tidak ada perubahan di sisi server — fitur ini murni client-side
 - File: `artifacts/umrah-haji/src/pages/admin/AdminApiConnect.tsx`
+- State: `rlGeneral`, `rlLeads` (`RateLimitBucket`), countdown via `useEffect` + `setInterval`
 
 ---
 
