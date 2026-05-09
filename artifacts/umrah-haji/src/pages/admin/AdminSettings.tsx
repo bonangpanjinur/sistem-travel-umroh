@@ -103,6 +103,10 @@ export default function AdminSettings() {
 
   const [apiKeyValues, setApiKeyValues] = useState<Record<string, string>>({});
   const [showFields, setShowFields] = useState<Record<string, boolean>>({});
+  const [isSmtpTestOpen, setIsSmtpTestOpen] = useState(false);
+  const [smtpTestEmail, setSmtpTestEmail] = useState("");
+  const [smtpTestLoading, setSmtpTestLoading] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const companyForm = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -291,9 +295,38 @@ export default function AdminSettings() {
       ok: !!allSet,
       warn: !allSet,
       message: allSet
-        ? `Konfigurasi SMTP lengkap dan terlihat valid.\n${msgs.join("\n")}\nNota: Test pengiriman nyata memerlukan koneksi server.`
+        ? `Konfigurasi SMTP lengkap dan terlihat valid.\n${msgs.join("\n")}\nGunakan tombol "Kirim Email Test" untuk mengirim email sungguhan.`
         : `Konfigurasi SMTP belum lengkap:\n${msgs.join("\n")}`,
     };
+  };
+
+  const sendSmtpTest = async () => {
+    setSmtpTestLoading(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch("/api/v1/test-smtp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: apiKeyValues["integration_smtp_host"],
+          port: apiKeyValues["integration_smtp_port"],
+          user: apiKeyValues["integration_smtp_user"],
+          pass: apiKeyValues["integration_smtp_pass"],
+          to: smtpTestEmail,
+        }),
+      });
+      const data = await res.json();
+      setSmtpTestResult({
+        ok: data.success,
+        message: data.success
+          ? `Email test berhasil dikirim ke ${smtpTestEmail}! Cek inbox atau folder spam Anda.`
+          : (data.error || "Gagal mengirim email."),
+      });
+    } catch (e: any) {
+      setSmtpTestResult({ ok: false, message: `Tidak dapat terhubung ke server: ${e.message}` });
+    } finally {
+      setSmtpTestLoading(false);
+    }
   };
 
   const handleResetDatabase = async () => {
@@ -763,16 +796,29 @@ export default function AdminSettings() {
                 title="SMTP Email" icon={Mail} color="amber"
                 description="Pengiriman email otomatis (invoice, kwitansi, notifikasi)"
                 fields={[
-                  { key: "integration_smtp_host", label: "SMTP Host",             placeholder: "smtp.gmail.com", secret: false, hint: "SMTP_HOST" },
-                  { key: "integration_smtp_port", label: "SMTP Port",             placeholder: "587",            secret: false, hint: "SMTP_PORT" },
-                  { key: "integration_smtp_user", label: "Username / Email",      placeholder: "no-reply@...",   secret: false, hint: "SMTP_USER" },
-                  { key: "integration_smtp_pass", label: "Password / App Password", placeholder: "••••••",       secret: true,  hint: "SMTP_PASS" },
+                  { key: "integration_smtp_host", label: "SMTP Host",               placeholder: "smtp.gmail.com", secret: false, hint: "SMTP_HOST" },
+                  { key: "integration_smtp_port", label: "SMTP Port",               placeholder: "587",            secret: false, hint: "SMTP_PORT" },
+                  { key: "integration_smtp_user", label: "Username / Email",        placeholder: "no-reply@...",   secret: false, hint: "SMTP_USER" },
+                  { key: "integration_smtp_pass", label: "Password / App Password", placeholder: "••••••",         secret: true,  hint: "SMTP_PASS" },
                 ]}
                 values={apiKeyValues}
                 showFields={showFields}
                 onChange={(k, v) => setApiKeyValues(p => ({ ...p, [k]: v }))}
                 onToggleShow={k => setShowFields(p => ({ ...p, [k]: !p[k] }))}
                 onTest={testSmtp}
+                extra={
+                  <div className="px-4 pb-4 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Port umum: 587 (TLS), 465 (SSL), 25</p>
+                    <Button
+                      type="button" size="sm" variant="secondary"
+                      className="h-7 text-xs gap-1.5"
+                      disabled={!apiKeyValues["integration_smtp_host"] || !apiKeyValues["integration_smtp_user"] || !apiKeyValues["integration_smtp_pass"]}
+                      onClick={() => { setSmtpTestResult(null); setSmtpTestEmail(""); setIsSmtpTestOpen(true); }}
+                    >
+                      <Mail className="h-3 w-3" />Kirim Email Test
+                    </Button>
+                  </div>
+                }
               />
 
               {/* Save button */}
@@ -808,6 +854,60 @@ export default function AdminSettings() {
 
         </div>
       </main>
+
+      {/* ── Dialog SMTP Test ── */}
+      <Dialog open={isSmtpTestOpen} onOpenChange={v => { setIsSmtpTestOpen(v); if (!v) { setSmtpTestEmail(""); setSmtpTestResult(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-primary" />Kirim Email Test
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground space-y-1.5">
+              <p className="font-semibold text-foreground/70 mb-1">Konfigurasi yang digunakan:</p>
+              <p><strong>Host:</strong> {apiKeyValues["integration_smtp_host"] || "—"}</p>
+              <p><strong>Port:</strong> {apiKeyValues["integration_smtp_port"] || "—"}</p>
+              <p><strong>Pengirim:</strong> {apiKeyValues["integration_smtp_user"] || "—"}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Kirim ke alamat email:</Label>
+              <Input
+                type="email"
+                placeholder="contoh@email.com"
+                value={smtpTestEmail}
+                onChange={e => setSmtpTestEmail(e.target.value)}
+                disabled={smtpTestLoading}
+                onKeyDown={e => { if (e.key === "Enter" && smtpTestEmail && !smtpTestLoading) sendSmtpTest(); }}
+              />
+            </div>
+            {smtpTestResult && (
+              <div className={cn(
+                "flex items-start gap-2 p-3 rounded-lg border text-sm",
+                smtpTestResult.ok
+                  ? "bg-green-50 dark:bg-green-950/20 border-green-200 text-green-700 dark:text-green-400"
+                  : "bg-red-50 dark:bg-red-950/20 border-red-200 text-red-700 dark:text-red-400"
+              )}>
+                {smtpTestResult.ok
+                  ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                  : <XCircle className="h-4 w-4 shrink-0 mt-0.5" />}
+                <span>{smtpTestResult.message}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSmtpTestOpen(false)}>Tutup</Button>
+            <Button
+              onClick={sendSmtpTest}
+              disabled={smtpTestLoading || !smtpTestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(smtpTestEmail)}
+            >
+              {smtpTestLoading
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
+                : <><Mail className="h-4 w-4 mr-2" />Kirim Test</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Dialog Bank ── */}
       <Dialog open={isBankDialogOpen} onOpenChange={setIsBankDialogOpen}>

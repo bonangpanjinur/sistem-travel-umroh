@@ -324,10 +324,31 @@
 | ✅ P4 | Endpoint `/api/push/send` (browser push) | **SELESAI** — butuh VAPID keys di Secrets |
 | ✅ P5 | AdminWebhooks → Supabase (bukan localStorage) | **SELESAI** — tabel `webhook_configs` + `webhook_logs` |
 | ✅ P6 | Test Ping webhook sungguhan | **SELESAI** — server proxy + HMAC signature |
-| ⚠️ P7 | Jalankan SQL migrations ke Supabase (fase 1–20) | **Menunggu user** (aksi manual di dashboard Supabase) |
-| ⚠️ P8 | Set env vars: Supabase, VAPID, Midtrans, SMTP | **Menunggu user** (aksi manual di Replit Secrets) |
-| ⚠️ P9 | JamaahRingkasanAI — gunakan AI sungguhan? | **Keputusan user** — saat ini template lokal |
-| ⚠️ P10 | AdminSmartNotif — gunakan AI sungguhan? | **Keputusan user** — saat ini localStorage + angka hardcoded |
+| ✅ P7 | UI Integrasi & API Keys di AdminSettings | **SELESAI** — 5 grup: Supabase, VAPID, Midtrans, Fonnte, SMTP |
+| ✅ P8 | Tombol Test Koneksi per integrasi | **SELESAI** — Supabase (HTTP real), VAPID/Midtrans (format), Fonnte (HTTP real) |
+| ✅ P9 | Kirim Email Test sungguhan dari UI | **SELESAI** — endpoint `/api/v1/test-smtp` + dialog di AdminSettings |
+| ⚠️ P10 | Jalankan SQL migrations ke Supabase (fase 1–20) | **Menunggu user** (aksi manual di dashboard Supabase) |
+| ⚠️ P11 | Set env vars: Supabase, VAPID, Midtrans, SMTP | **Menunggu user** (aksi manual di Replit Secrets) |
+| ⚠️ P12 | JamaahRingkasanAI — gunakan AI sungguhan? | **Keputusan user** — saat ini template lokal |
+| ⚠️ P13 | AdminSmartNotif — gunakan AI sungguhan? | **Keputusan user** — saat ini localStorage + angka hardcoded |
+
+---
+
+## BAGIAN 8 — FITUR INTEGRASI & API KEYS (Baru)
+
+> Semua diakses di: **Admin → Pengaturan → Integrasi & API Keys** (khusus Super Admin)
+
+| Grup | Tombol Test | Kirim Test Sungguhan | Keterangan |
+|------|-------------|----------------------|------------|
+| Supabase | ✅ HTTP fetch ke `/rest/v1/` | — | Cek URL + Anon Key valid |
+| VAPID Push | ✅ Validasi format kunci | — | Panjang & prefix base64url |
+| Midtrans | ✅ Validasi prefix key | — | Deteksi Sandbox vs Produksi |
+| WhatsApp (Fonnte) | ✅ HTTP ke `/get-devices` | — | Tampilkan perangkat terhubung |
+| SMTP Email | ✅ Validasi format konfigurasi | ✅ Kirim email HTML via server | Endpoint `/api/v1/test-smtp` |
+
+**Endpoint server-side baru:**
+- `POST /api/v1/test-smtp` — Kirim email test menggunakan nodemailer. Params: `{ host, port, user, pass, to }`. Fallback ke env vars jika kosong.
+- Email HTML berisi tabel konfigurasi + timestamp WIB.
 
 ---
 
