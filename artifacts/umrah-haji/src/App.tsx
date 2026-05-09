@@ -18,6 +18,7 @@ import CustomerRoutes from "@/routes/CustomerRoutes";
 import AdminRoutes from "@/routes/AdminRoutes";
 import OperationalRoutes from "@/routes/OperationalRoutes";
 import AgentRoutes from "@/routes/AgentRoutes";
+import BranchRoutes from "@/routes/BranchRoutes";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,7 @@ const App = () => (
                   {AdminRoutes()}
                   {OperationalRoutes()}
                   {AgentRoutes()}
+                  {BranchRoutes()}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useLandingPage } from "@/hooks/useLandingPages";
 import { SectionRenderer } from "@/components/landing-builder/SectionRenderer";
 import { LoadingState } from "@/components/shared/LoadingState";
+import ChatWidget from "@/components/public/ChatWidget";
 
 export default function LandingPage() {
   const { slug } = useParams();
@@ -55,6 +56,7 @@ export default function LandingPage() {
             />
           ))}
       </main>
+      <ChatWidget tenantName={lp.title || "Vinstour Travel"} waNumber={waNumber} />
     </div>
   );
 }

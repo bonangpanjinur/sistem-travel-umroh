@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, QrCode, Shield, User, Bell, LayoutGrid, FileText, Luggage, LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard, MessageCircle, X } from "lucide-react";
+import { Home, QrCode, Shield, User, Bell, LayoutGrid, FileText, Luggage, LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard, MessageCircle, X, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useState } from "react";
@@ -21,6 +21,7 @@ const moreMenuItems = [
   { to: "/jamaah/galeri", icon: Camera, label: "Galeri", color: "text-pink-600 bg-pink-50" },
   { to: "/jamaah/doa-panduan", icon: BookOpen, label: "Doa & Panduan", color: "text-emerald-600 bg-emerald-50" },
   { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600 bg-amber-50" },
+  { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600 bg-indigo-50" },
   { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600 bg-teal-50" },
   { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600 bg-gray-50" },
 ];

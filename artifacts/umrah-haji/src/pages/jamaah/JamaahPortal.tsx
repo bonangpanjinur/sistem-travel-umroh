@@ -18,7 +18,7 @@ import {
   Star, Camera, Loader2, Package, ArrowRight,
   Clock, DollarSign, FileText, Megaphone,
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
-  MessageSquare, Image, Gift, Scale, Scroll
+  MessageSquare, Image, Gift, Scale, Scroll, GraduationCap
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
@@ -497,6 +497,12 @@ export default function JamaahPortal() {
               <span className="text-xs font-bold text-teal-700 uppercase tracking-wide">Ibadah & Spiritual</span>
             </div>
             <div className="grid grid-cols-4 gap-2">
+              <Link to="/jamaah/manasik">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <GraduationCap className="h-6 w-6 mx-auto mb-1 text-indigo-600" />
+                  <p className="text-xs">Manasik</p>
+                </Card>
+              </Link>
               <Link to="/jamaah/panduan-ibadah">
                 <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
                   <BookOpen className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
@@ -513,12 +519,6 @@ export default function JamaahPortal() {
                 <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
                   <BookMarked className="h-6 w-6 mx-auto mb-1 text-teal-500" />
                   <p className="text-xs">Doa</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/kalkulator-zakat">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <Scale className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-                  <p className="text-xs">Kalk. Zakat</p>
                 </Card>
               </Link>
             </div>

@@ -123,20 +123,24 @@ Semua modul bisnis utama sudah ada: booking, pembayaran, jamaah, keberangkatan, 
 
 | Kategori | Jumlah |
 |----------|--------|
-| Halaman jamaah/customer aktif | **36 halaman** (+2 Fase 11) |
-| Halaman admin aktif | **50+ halaman** |
-| Halaman agen aktif | **17 halaman** (+4 Fase 12) |
-| Fase selesai | **12 dari 15 fase** |
-| Fase terbaru | Fase 11 (Pembayaran & Checklist), Fase 12 (CRM Agen) ✅ |
+| Halaman jamaah/customer aktif | **37 halaman** (+1 Fase 15: Manasik) |
+| Halaman admin aktif | **50+ halaman** (AdminManasik sudah ada) |
+| Halaman agen aktif | **17 halaman** |
+| Halaman branch manager | **5 halaman** (+5 Fase 13) |
+| Komponen publik baru | ChatWidget + PublicPackageReviews (Fase 14, 15) |
+| Fase selesai | **15 dari 15 fase** ✅ SEMUA SELESAI |
+| Migration SQL | `supabase/migrations/consolidated_fase_13_14_15.sql` |
 
 ---
 
-## C. FASE 1–12 — SEMUA SELESAI ✅
+## C. FASE 1–15 — SEMUA SELESAI ✅
 
 > Fase 1 (Quick Wins), Fase 2 (Fitur Inti Jamaah), Fase 3 (Sosial & Komunitas),
 > Fase 4 (Finansial & Spiritual), Fase 5 (Operasional), Fase 6 (Laporan Admin),
 > Fase 7 (Muthawif & Operasional), Fase 8 (Gamifikasi), Fase 9 (Integrasi),
-> Fase 10 (AI), Fase 11 (Pembayaran & Dokumen Mandiri), Fase 12 (CRM Pipeline Agen) — **semuanya selesai**.
+> Fase 10 (AI), Fase 11 (Pembayaran & Dokumen Mandiri), Fase 12 (CRM Pipeline Agen),
+> Fase 13 (Panel Cabang Mandiri), Fase 14 (Live Chat & Konversi Publik),
+> Fase 15 (Manasik Digital & Review Publik) — **semuanya selesai**.
 
 ---
 
@@ -266,58 +270,67 @@ CREATE POLICY "agents_manage_own_leads" ON agent_leads
 
 ---
 
-### Fase 13 — Panel Cabang Mandiri (4-5 hari kerja)
+### Fase 13 — Panel Cabang Mandiri ✅ SELESAI
 > **Tujuan:** Manajer cabang punya dashboard sendiri tanpa perlu akses admin pusat.
 
-| ID | Fitur | Gap Ref | Prioritas |
-|----|-------|---------|-----------|
-| C1 | **Login & Layout Panel Cabang** — role `branch_manager`, route `/cabang/*` | CG1 | TINGGI |
-| C2 | **Dashboard Cabang** — KPI: booking bulan ini, revenue, agen aktif, jamaah terdaftar | CG1 | TINGGI |
-| C3 | **Laporan Revenue Cabang** — grafik pendapatan + tabel booking per bulan | CG2 | TINGGI |
-| C4 | **Monitor Performa Agen** — tabel agen di cabang: booking, komisi, target, status aktif | CG3 | SEDANG |
-| C5 | **Rekap Booking Cabang** — semua booking masuk via cabang, filter & export Excel | CG6 | SEDANG |
-| C6 | **Approval Diskon** — request diskon dari agen bisa di-approve/tolak manajer cabang | CG5 | SEDANG |
+| ID | Fitur | Gap Ref | Status |
+|----|-------|---------|--------|
+| C1 | **Login & Layout Panel Cabang** — role `branch_manager`, route `/cabang/*` | CG1 | ✅ Selesai |
+| C2 | **Dashboard Cabang** — KPI: booking bulan ini, revenue, agen aktif, jamaah terdaftar | CG1 | ✅ Selesai |
+| C3 | **Laporan Revenue Cabang** — grafik + tabel booking per bulan + export Excel & PDF | CG2 | ✅ Selesai |
+| C4 | **Monitor Performa Agen** — ranking, progress bar revenue, komisi per agen | CG3 | ✅ Selesai |
+| C5 | **Rekap Booking Cabang** — semua booking, filter status & cari, export Excel | CG6 | ✅ Selesai |
+| C6 | **Approval Diskon** — approve/tolak request diskon agen, riwayat review | CG5 | ✅ Selesai |
 
-**Catatan teknis:**
-- Role `branch_manager` sudah ada di sistem RBAC
-- RLS Supabase: filter semua query dengan `branch_id = auth.jwt().branch_id`
-- Layout: mirip `/agent` tapi lebih kaya fitur
+**File baru:**
+- `src/pages/branch/BranchLayout.tsx` — Layout dengan sidebar navigasi cabang
+- `src/pages/branch/BranchDashboard.tsx` → `/cabang`
+- `src/pages/branch/BranchLaporan.tsx` → `/cabang/laporan`
+- `src/pages/branch/BranchAgen.tsx` → `/cabang/agen`
+- `src/pages/branch/BranchBookings.tsx` → `/cabang/bookings`
+- `src/pages/branch/BranchDiskon.tsx` → `/cabang/diskon`
+- `src/routes/BranchRoutes.tsx` — Registered di App.tsx
+
+**⚠️ Migration SQL yang dibutuhkan:** Lihat file `supabase/migrations/consolidated_fase_13_14_15.sql` — tabel `discount_requests` + kolom `manager_user_id` di `branches`.
 
 ---
 
-### Fase 14 — Live Chat & Konversi Publik (2-3 hari kerja)
+### Fase 14 — Live Chat & Konversi Publik ✅ SELESAI
 > **Tujuan:** Ubah pengunjung website menjadi leads yang bisa di-follow up.
 
-| ID | Fitur | Gap Ref | Prioritas |
-|----|-------|---------|-----------|
-| P1 | **Widget Live Chat Pre-Sales** — tombol chat melayang di semua halaman publik, terhubung ke admin | PG1 | TINGGI |
-| P2 | **Formulir Lead Capture** — "Konsultasi Gratis" di setiap halaman paket → simpan ke leads admin | PG1 | TINGGI |
-| P3 | **Filter Paket Lengkap** — filter: bulan keberangkatan, range harga, durasi, tipe (Umroh/Haji/Plus) | PG2 | SEDANG |
-| P4 | **Sisa Seat Real-time** — tampilkan `(kuota - terisi)` di card paket + badge "Hampir Penuh" | PG4 | SEDANG |
-| P5 | **WhatsApp Click-to-Chat** — tombol WA mengambang di halaman paket dengan pesan pre-fill | PG5 | RENDAH |
+| ID | Fitur | Gap Ref | Status |
+|----|-------|---------|--------|
+| P1 | **Widget Live Chat Pre-Sales** — chat mengambang di semua landing page publik + bot reply | PG1 | ✅ Selesai |
+| P2 | **Formulir Lead Capture** — form nama+HP muncul setelah 2 pesan, simpan ke `chat_leads` | PG1 | ✅ Selesai |
+| P3 | **Filter Paket Lengkap** — filter harga, durasi, tipe sudah ada di halaman paket publik | PG2 | ✅ Ada |
+| P4 | **Sisa Seat Real-time** — badge "Hampir Penuh" sudah ada via Supabase query | PG4 | ✅ Ada |
+| P5 | **WhatsApp Click-to-Chat** — tombol WA di dalam chat widget, nomor dari config landing page | PG5 | ✅ Selesai |
 
-**Catatan teknis:**
-- Chat widget: bisa Supabase Realtime atau integrasi Tawk.to
-- Lead capture: tabel `leads` sudah ada di admin, tinggal hubungkan form publik
-- Filter paket: query Supabase dengan `.gte('departure_date', ...)` + `.lte('price', ...)`
+**File baru:**
+- `src/components/public/ChatWidget.tsx` — Widget chat melayang dengan bot respons, lead capture form, WA button
+- Ditambahkan ke `LandingPage.tsx` secara otomatis untuk semua landing page publik
+
+**⚠️ Migration SQL yang dibutuhkan:** Tabel `chat_leads` — lihat `supabase/migrations/consolidated_fase_13_14_15.sql`.
 
 ---
 
-### Fase 15 — Manajemen Manasik & Jadwal Ibadah (2-3 hari kerja)
+### Fase 15 — Manajemen Manasik & Jadwal Ibadah ✅ SELESAI
 > **Tujuan:** Digitalisasi proses manasik yang saat ini paling banyak dilakukan manual.
 
-| ID | Fitur | Gap Ref | Prioritas |
-|----|-------|---------|-----------|
-| M1 | **Jadwal Manasik di Portal Jamaah** — lihat jadwal, lokasi, deskripsi sesi | JG5 | SEDANG |
-| M2 | **Konfirmasi Hadir Manasik** — jamaah konfirmasi kehadiran dari portal, admin lihat rekapnya | JG5 | SEDANG |
-| M3 | **Materi Manasik Digital** — PDF/video per sesi bisa diakses jamaah | JG5 | SEDANG |
-| M4 | **Admin: Buat & Kelola Jadwal Manasik** — admin input jadwal, assign ke keberangkatan | JG5 | SEDANG |
-| M5 | **Rating & Review Paket → Tampil Publik** — setelah completed, ulasan masuk ke halaman paket | JG6 | SEDANG |
+| ID | Fitur | Gap Ref | Status |
+|----|-------|---------|--------|
+| M1 | **Jadwal Manasik di Portal Jamaah** — lihat jadwal, lokasi, tipe sesi, filter mendatang/lampau | JG5 | ✅ Selesai |
+| M2 | **Konfirmasi Hadir Manasik** — jamaah 1 tap konfirmasi kehadiran, badge confirmed muncul | JG5 | ✅ Selesai |
+| M3 | **Materi Manasik Digital** — link video YouTube/Vimeo + PDF per sesi, akses dari portal jamaah | JG5 | ✅ Selesai |
+| M4 | **Admin: Buat & Kelola Jadwal Manasik** — CRUD jadwal, assign ke cabang, lihat rekap konfirmasi | JG5 | ✅ Selesai |
+| M5 | **Rating & Review Paket → Tampil Publik** — jamaah beri bintang + komentar, tampil di halaman paket | JG6 | ✅ Selesai |
 
-**Catatan teknis:**
-- Tabel baru: `manasik_schedules` (departure_id, session_date, location, title, description)
-- Tabel baru: `manasik_attendance` (schedule_id, customer_id, confirmed_at, attended)
-- Review: tabel `booking_reviews` — sudah ada di feedback, tinggal expose ke halaman publik
+**File baru:**
+- `src/pages/jamaah/JamaahManasik.tsx` → `/jamaah/manasik` (shortcut di beranda + menu Lebih)
+- `src/pages/admin/AdminManasik.tsx` → `/admin/manasik` (sudah ada, sudah di-route)
+- `src/components/public/PublicPackageReviews.tsx` — Komponen review bintang untuk halaman paket publik
+
+**⚠️ Migration SQL yang dibutuhkan:** Tabel `manasik_schedules`, `manasik_attendance`, `package_reviews` — lihat `supabase/migrations/consolidated_fase_13_14_15.sql`.
 
 ---
 
