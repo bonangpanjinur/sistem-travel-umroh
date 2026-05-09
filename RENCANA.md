@@ -104,7 +104,7 @@
 |---------|-----|--------|
 | Dashboard | `/admin/dashboard` | ✅ |
 | Analytics | `/admin/analytics` | ✅ |
-| KPI Dashboard | `/admin/kpi` | ⚠️ Target hardcoded |
+| KPI Dashboard | `/admin/kpi-dashboard` | ✅ Target disimpan ke DB via tombol "Atur Target" |
 | Dashboard Keuangan | `/admin/keuangan-dashboard` | ✅ |
 | Booking | `/admin/bookings`, `/admin/bookings/:id` | ✅ |
 | Paket | `/admin/packages` | ✅ |
@@ -239,6 +239,7 @@
 | 13 | `migrations/fase6-app-settings-va-targets-jamaah.sql` | app_settings, virtual_accounts, targets jamaah |
 | 14 | `supabase/migrations/fase16_new_tables.sql` | sos_alerts, visa_status_logs, approval_requests/actions, dashboard_access_config, financial_summary, transactions, expenses, marketing, equipment, sales_targets, trip_timeline |
 | 15 | `supabase/migrations/fase17_remaining_tables.sql` | vendor_contracts, departure_budgets, training_modules/quizzes/progress, media_gallery, siskohat_sync_logs, approval_configs, agent_override_commissions, baggage_reference_items |
+| 16 | `supabase/migrations/fase18_core_settings.sql` | company_settings (+ KPI targets seed), bank_accounts, website_settings, contact_page_content |
 
 ### Cara Menjalankan
 
@@ -288,7 +289,7 @@
 | ✅ P3 | SQL migrations fase 16 & 17 | **SELESAI** |
 | ⚠️ P4 | Jalankan SQL migrations ke Supabase | **Menunggu user** (aksi manual di dashboard Supabase) |
 | ⚠️ P5 | Set Supabase env vars di Replit Secrets | **Menunggu user** (aksi manual) |
-| ⚠️ P6 | KPI targets hardcoded | Perlu UI editor targets — bisa dikerjakan sesuai permintaan |
+| ✅ P6 | KPI targets editor di dashboard | Admin klik "Atur Target" → dialog edit & simpan ke `company_settings` |
 
 ---
 
