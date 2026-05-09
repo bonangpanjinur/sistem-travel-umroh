@@ -1,5 +1,6 @@
-# Rencana Pengembangan — Vinstour Travel Portal
-> Diperbarui: Mei 2026 | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
+# Rencana & Status Pengembangan — Vinstour Travel Portal
+> Terakhir diperbarui: Mei 2026 | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
+> File ini menggabungkan semua dokumen rencana sebelumnya menjadi satu sumber kebenaran tunggal.
 
 ---
 
@@ -8,12 +9,12 @@
 | Simbol | Artinya |
 |--------|---------|
 | ✅ | Selesai & terhubung ke data nyata |
-| ⚠️ | UI ada tapi ada catatan penting (lihat keterangan) |
+| ⚠️ | UI ada tapi ada catatan penting |
 | 🔴 | Belum dibangun / tidak berfungsi |
 
 ---
 
-## 1. INFRASTRUKTUR
+## BAGIAN 1 — INFRASTRUKTUR
 
 | Item | Status | Catatan |
 |------|--------|---------|
@@ -31,199 +32,264 @@
 
 ---
 
-## 2. MODUL ADMIN
+## BAGIAN 2 — SEMUA HALAMAN AKTIF (70+ Halaman)
 
-| Modul | Fitur | Status | Catatan |
-|-------|-------|--------|---------|
-| Dashboard Utama | Multi-role, stat periodik, filter branch/agent | ✅ | Query Supabase nyata |
-| Analytics | Grafik multi-dimensi | ✅ | |
-| KPI Dashboard | Target vs aktual, progress bar animasi | ⚠️ | Target (`bookings: 150`, `revenue: 3,5M`) **hardcoded** di kode — belum bisa diubah dari UI |
-| **Dashboard Keuangan Terpadu** | Arus kas, proyeksi, perbandingan bulan, aging AR | ✅ | **Diperbaiki Mei 2026** — kini query dari `payments`, `cash_transactions`, `vendor_costs`, `bookings` nyata |
-| Booking | Wizard multi-step, detail, bulk aksi, export, WhatsApp notif | ✅ | |
-| Paket | CRUD + tipe + galeri + itinerary template | ✅ | |
-| Lead Scoring Otomatis | Skor di Kanban & tabel | ✅ | |
-| CRM & Lead — Kanban DnD | Kanban 5 kolom, drag-and-drop, follow-up reminder | ✅ | |
-| Notifikasi Bell Admin | Tersambung ke `useAdminNotifications` | ✅ | |
-| Keberangkatan | Detail, rooming, manifest, tracking, QR check-in | ✅ | |
-| Keuangan P&L | Per keberangkatan dari `vendor_costs` + `bookings` | ✅ | |
-| Keuangan Kas | Transaksi kas masuk/keluar dari `cash_transactions` | ✅ | |
-| Keuangan AR | Piutang dari `bookings.remaining_amount` | ✅ | |
-| Keuangan AP, Payroll, Tabungan, Komisi, Referral, Voucher | CRUD + tabel | ✅ | |
-| Virtual Account | Generate VA per customer | ⚠️ | Nomor VA disimpan di **localStorage** — hilang jika ganti device/browser. Belum terhubung payment gateway nyata |
-| Midtrans Config | Konfigurasi payment gateway | ⚠️ | Config disimpan di **localStorage**. Tidak ada integrasi Midtrans Snap yang nyata |
-| Email Templates | Template email konfirmasi, reminder, dll | ⚠️ | Template UI lengkap, tapi endpoint `/api/email/send` **tidak ada** di Express server — email tidak terkirim |
-| AI Summary | Narasi performa bulanan | ⚠️ | Narasi di-generate dari **snapshot data dummy hardcoded**, bukan dari Supabase nyata |
-| Rekomendasi Paket | Engine scoring paket | ✅ | Scoring dari data paket Supabase nyata |
-| Cicilan Reminder | WA blast reminder jatuh tempo | ✅ | Query dari `bookings`, kirim via Fonnte API |
-| WA Otomatis | Trigger otomatis untuk event booking/bayar | ⚠️ | Pengaturan trigger disimpan di **localStorage** |
-| WhatsApp Blast & Log | Blast massal, template, log kirim | ✅ | Terhubung ke `whatsapp_config` + Fonnte API |
-| Jamaah & Dokumen | Detail pelanggan, verifikasi dokumen, visa, manasik, haji, perlengkapan | ✅ | |
-| Stock Opname Perlengkapan | Stok & distribusi perlengkapan jamaah | ✅ | |
-| SOS Monitor | Monitor alert SOS jamaah real-time | ✅ | |
-| SDM / HR | Rekrutmen, kontrak, performance, absensi, aset | ✅ | |
-| Agen & Mitra | Agen, cabang, vendor, hotel, maskapai, bandara, muthawif, bus | ✅ | |
-| Keamanan | Role management, permission matrix, audit log, 2FA, API key | ✅ | |
-| Marketing | Landing page builder, banner, WA blast, materi, korespondensi | ✅ | |
-| Blog & Artikel | CRUD artikel — `/admin/blog` | ✅ | |
-| Laporan | Standar, lanjutan, terjadwal, analytics | ✅ | |
-| Webhook Outgoing | CRUD webhook, test ping, log — `/admin/webhooks` | ✅ | |
+### Portal Publik — `/`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Landing Page | `/` | ✅ |
+| Daftar Paket | `/packages` | ✅ |
+| Bandingkan Paket | `/packages/compare` | ✅ |
+| Detail Paket | `/packages/:idSlug` | ✅ |
+| Jadwal Keberangkatan | `/departures` | ✅ |
+| Blog | `/blog`, `/blog/:slug` | ✅ |
+| Kontak | `/contact` | ✅ |
+| Tentang Kami | `/about` | ✅ |
+| Tim | `/team` | ✅ |
+| FAQ | `/faq` | ✅ |
+| Testimoni | `/testimonials` | ✅ |
+| Kalkulator Biaya | `/kalkulator` | ✅ |
+| Kalkulator Cicilan | `/kalkulator-cicilan` | ✅ |
+| Cek Status Booking | `/cek-booking` | ✅ |
+| Tabungan Umroh | `/savings` | ✅ |
+| Website Agen | `/a/:agentSlug` | ✅ |
+| Website Cabang | `/b/:branchSlug` | ✅ |
 
----
+### Portal Customer — `/customer/*`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Dashboard | `/customer/dashboard` | ✅ |
+| Daftar Booking | `/my-bookings` | ✅ |
+| Detail Booking | `/my-bookings/:id` | ✅ |
+| Upload Pembayaran | `/my-bookings/:id/payment` | ✅ |
+| Tabungan | `/customer/my-savings` | ✅ |
+| Loyalitas | `/customer/my-loyalty` | ✅ |
+| Support | `/customer/support` | ✅ |
+| Pengaturan | `/customer/settings` | ✅ |
+| **Status Refund/Pembatalan** | `/customer/refund-status` | ✅ **BARU** |
 
-## 3. MODUL AGEN
+### Portal Jamaah (Mobile PWA) — `/jamaah/*`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Portal Hub | `/jamaah` | ✅ |
+| Digital ID | `/jamaah/digital-id` | ✅ |
+| Itinerary | `/jamaah/itinerary` | ✅ |
+| Dokumen | `/jamaah/documents` | ✅ |
+| Riwayat Bayar | `/jamaah/payment-history` | ✅ |
+| Feedback | `/jamaah/feedback` | ✅ |
+| Notifikasi | `/jamaah/notifications` | ✅ |
+| Tracker Visa | `/jamaah/visa-tracker` | ✅ |
+| Peta Lokasi | `/jamaah/peta-lokasi` | ✅ |
+| Doa & Panduan | `/jamaah/doa-panduan` | ✅ |
+| Panduan Ibadah | `/jamaah/panduan-ibadah` | ✅ |
+| Waktu Sholat | `/jamaah/waktu-sholat` | ✅ |
+| Invoice | `/jamaah/invoice` | ✅ |
+| Bagasi | `/jamaah/bagasi` | ✅ |
+| Kontrak | `/jamaah/kontrak` | ✅ |
+| Badges | `/jamaah/badges` | ✅ |
+| Target Ibadah | `/jamaah/target-ibadah` | ✅ |
+| Jurnal | `/jamaah/jurnal` | ✅ |
+| Doa Counter | `/jamaah/doa-counter` | ✅ |
+| Sertifikat | `/jamaah/sertifikat` | ✅ |
+| SISKOHAT Jamaah | `/jamaah/siskohat` | ✅ |
+| Chatbot AI | `/jamaah/chatbot` | ✅ |
+| Ringkasan AI | `/jamaah/ringkasan-ai` | ✅ |
+| Pembayaran Mandiri | `/jamaah/payment` | ✅ |
+| Checklist | `/jamaah/checklist` | ✅ |
+| Manasik Digital | `/jamaah/manasik` | ✅ |
+| **SOS Status** | `/jamaah/sos-status` | ✅ **BARU (Fitur 01)** |
 
-| Fitur | Status | Catatan |
-|-------|--------|---------|
-| Dashboard Agen — chart komisi & booking, 8 stat, sub-agent network | ✅ | |
-| Notifikasi Bell Agen | ✅ | |
-| Jamaah, Komisi, Wallet, Referral | ✅ | |
-| Leaderboard Agen | ✅ | |
-| Target Bulanan & Progress | ⚠️ | Target disimpan di **localStorage** per browser |
-| Digital Kit, Katalog Paket, Website Settings | ✅ | |
+### Portal Admin — `/admin/*`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Dashboard | `/admin/dashboard` | ✅ |
+| Analytics | `/admin/analytics` | ✅ |
+| KPI Dashboard | `/admin/kpi` | ⚠️ Target hardcoded |
+| Dashboard Keuangan | `/admin/keuangan-dashboard` | ✅ |
+| Booking | `/admin/bookings`, `/admin/bookings/:id` | ✅ |
+| Paket | `/admin/packages` | ✅ |
+| Lead Scoring | `/admin/leads` | ✅ |
+| CRM Kanban | `/admin/crm` | ✅ |
+| Keberangkatan | `/admin/departures`, `/admin/departures/:id` | ✅ |
+| Keuangan P&L | `/admin/keuangan` | ✅ |
+| Keuangan Kas | `/admin/kas` | ✅ |
+| Keuangan AR | `/admin/ar` | ✅ |
+| Hotel | `/admin/hotels` | ✅ |
+| Vendor | `/admin/vendors` | ✅ |
+| Agen | `/admin/agents` | ✅ |
+| Cabang | `/admin/branches` | ✅ |
+| Pelanggan | `/admin/customers` | ✅ |
+| Muthawif | `/admin/muthawif` | ✅ |
+| Komisi | `/admin/commissions` | ✅ |
+| SDM/HR | `/admin/hr` | ✅ |
+| Notifikasi | `/admin/notifications` | ✅ |
+| Laporan | `/admin/reports` | ✅ |
+| Log Audit | `/admin/audit` | ✅ |
+| Pengaturan | `/admin/settings` | ✅ |
+| SOS Alerts | `/admin/sos-alerts` | ✅ |
+| **SISKOHAT Kemenag** | `/admin/siskohat` | ✅ **BARU (Fitur 03)** |
+| **Approval Workflow** | `/admin/approvals` | ✅ **BARU (Fitur 04)** |
+| **Kontrak Vendor** | `/admin/vendor-contracts` | ✅ **BARU (Fitur 05)** |
+| **Pelatihan Agen** | `/admin/training` | ✅ **BARU (Fitur 07)** |
+| **Galeri Media** | `/admin/media-gallery` | ✅ **BARU (Fitur 08)** |
 
----
+### Portal Agen — `/agent/*`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Dashboard | `/agent/dashboard` | ✅ |
+| Booking | `/agent/bookings` | ✅ |
+| Pelanggan | `/agent/customers` | ✅ |
+| Komisi | `/agent/commissions` | ✅ |
+| Jaringan Sub-Agen | `/agent/network` | ✅ |
+| CRM Pipeline | `/agent/crm` | ✅ |
+| Marketing Kit | `/agent/marketing` | ✅ |
+| Pengaturan | `/agent/settings` | ✅ |
+| **Pelatihan** | `/agent/training` | ✅ **BARU (Fitur 07)** |
 
-## 4. MODUL CUSTOMER & JAMAAH
+### Portal Cabang — `/cabang/*`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Dashboard | `/cabang/dashboard` | ✅ |
+| Agen Binaan | `/cabang/agen` | ✅ |
+| Booking | `/cabang/bookings` | ✅ |
+| Laporan | `/cabang/laporan` | ✅ |
+| Diskon | `/cabang/diskon` | ✅ |
+| **Approval** | `/cabang/approvals` | ✅ **BARU (Fitur 04)** |
 
-| Fitur | Status | Catatan |
-|-------|--------|---------|
-| Dashboard Customer | ✅ | |
-| Notifikasi In-App Customer | ✅ | |
-| My Bookings, Detail Booking, Upload Pembayaran | ✅ | |
-| Tabungan, Loyalty, Support, Profil | ✅ | |
-| Perbandingan Paket | ✅ | |
-| Kalkulator Cicilan | ✅ | |
-| Countdown Keberangkatan | ✅ | |
-| Portal Jamaah Hub, Notifikasi Jamaah | ✅ | |
-| Digital ID (QR), Dokumen, Itinerary, Visa Tracker | ✅ | |
-| Riwayat Pembayaran, Feedback, Doa & Panduan | ✅ | |
-| SOS Alert | ✅ | Log ke DB + monitor admin real-time |
-| Peta Lokasi Ibadah | ✅ | 14 lokasi Makkah & Madinah — `/jamaah/peta-lokasi` |
-| Jurnal Ibadah, Doa Counter, Target Ibadah, Badges | ⚠️ | Data disimpan di **localStorage** — tidak tersinkron antar device |
-
----
-
-## 5. PORTAL PUBLIK
-
-| Fitur | URL | Status |
-|-------|-----|--------|
-| Landing Page Dinamis, Katalog Paket, Detail Paket | `/` `/packages` | ✅ |
-| Blog & Artikel | `/blog` `/blog/:slug` | ✅ |
-| Testimonial Jamaah | `/testimonials` | ✅ |
-| WhatsApp Floating Button | Global | ✅ |
-| Cek Status Booking, Jadwal Keberangkatan, About/Kontak | `/cek-booking` `/departures` | ✅ |
-| Website Agen & Cabang (slug) | `/a/:slug` `/b/:slug` | ✅ |
-| Flow Booking Online — wizard multi-step | `/booking/:id` | ✅ |
-| Kalkulator Biaya Umroh | `/kalkulator` | ✅ |
-| Kalkulator Cicilan Tabungan | `/kalkulator-cicilan` | ✅ |
-| Perbandingan Paket | `/packages/compare` | ✅ |
-| API Publik: GET packages, GET departures, POST leads | `/api/v1/` | ✅ |
-
----
-
-## 6. PEKERJAAN YANG SUDAH SELESAI
-
-| # | Fitur | Deskripsi | Status |
-|---|-------|-----------|--------|
-| 1 | **Fix TypeScript Deployment** | 7 error TS yang menyebabkan deploy gagal | ✅ Selesai Mei 2026 |
-| 2 | **Finance Terpadu — Data Nyata** | Ganti semua data hardcoded/random dengan query Supabase nyata (`payments`, `cash_transactions`, `vendor_costs`, `bookings`) | ✅ Selesai Mei 2026 |
-| 3 | **KPI Target Bisa Diatur Admin** | Target `bookings/revenue/leads/conversion` disimpan ke `company_settings` Supabase — admin ubah via dialog "Atur Target", berlaku untuk semua admin, fallback ke default jika belum diset | ✅ Selesai Mei 2026 |
-| 4 | **Panduan Ibadah Offline (PWA)** | Jamaah akses itinerary & doa tanpa internet | ✅ |
-| 5 | **Peta Lokasi Ibadah** | 14 lokasi Makkah & Madinah — `/jamaah/peta-lokasi` | ✅ |
-| 6 | **Multi-bahasa (i18n)** | Indonesia + Arab + Inggris — 80+ kunci terjemahan | ✅ |
-| 7 | **Rate Limiting API** | `express-rate-limit` di endpoint publik | ✅ |
-| 8 | **Webhook Outgoing** | CRUD webhook ke ERP eksternal, test ping, log | ✅ |
-
----
-
-## 7. YANG BELUM SELESAI / PERLU DIPERBAIKI
-
-> Diurutkan dari yang paling kritis untuk operasional nyata
-
-### 🔴 PRIORITAS TINGGI
-
-| # | Item | Masalah | Solusi |
-|---|------|---------|--------|
-| P1 | ~~Dashboard Keuangan Terpadu~~ | ~~Data hardcoded/random~~ | ✅ **Selesai Mei 2026** |
-| P2 | ~~KPI Target bisa diatur~~ | ~~`MONTHLY_TARGETS` hardcoded di kode~~ | ✅ **Selesai Mei 2026** — disimpan ke `company_settings`, dialog "Atur Target" di UI |
-| P3 | ~~**Email Engine di API Server**~~ | ~~`/api/email/send` tidak ada~~ | ✅ **Selesai** — endpoint Express + Nodemailer sudah ada. Set `SMTP_HOST/PORT/USER/PASS/FROM` di Replit Secrets untuk mengaktifkan |
-| P4 | **SQL Migrations ke Supabase** | 12 file SQL belum dijalankan — banyak tabel belum ada | Jalankan urut di Supabase SQL Editor (lihat §8) — semua file ada di folder `migrations/` |
-| P5 | **Supabase Env Vars** | App jalan demo mode tanpa credential | Set 4 env vars di Replit Secrets (lihat §9) |
-
-### 🟡 PRIORITAS MENENGAH
-
-| # | Item | Masalah | Solusi |
-|---|------|---------|--------|
-| M1 | ~~**Konfigurasi Midtrans**~~ | ~~Tersimpan di localStorage~~ | ✅ **Selesai** — sync ke `app_settings` Supabase (fallback localStorage jika offline) |
-| M2 | ~~**Virtual Account**~~ | ~~Nomor VA di localStorage~~ | ✅ **Selesai** — sync ke tabel `virtual_accounts` Supabase |
-| M3 | ~~**WA Otomatis trigger**~~ | ~~Config di localStorage~~ | ✅ **Selesai** — trigger state & template sync ke `app_settings` Supabase |
-| M4 | ~~**Target Agen Bulanan**~~ | ~~Di localStorage per browser~~ | ✅ **Selesai** — sync ke `agent_monthly_targets` Supabase |
-| M5 | ~~**Jurnal & Ibadah Jamaah**~~ | ~~Doa counter, jurnal, target ibadah di localStorage~~ | ✅ **Selesai** — sync ke `jamaah_doa_sessions`, `jamaah_jurnal`, `jamaah_ibadah_targets/logs` Supabase |
-
-### 🟢 PRIORITAS RENDAH
-
-| # | Item | Masalah | Status |
-|---|------|---------|--------|
-| L1 | ~~**AI Summary**~~ | ~~Narasi dari angka dummy~~ | ✅ **Selesai** — query Supabase real (bookings, payments, leads, feedback) + fallback demo mode |
-| L2 | ~~**File Duplikat**~~ | ~~5 halaman duplikat~~ | ✅ **Selesai** — original dihapus, enhanced/updated/improved di-rename ke nama bersih, routes diupdate |
-| L3 | ~~**Midtrans Snap Nyata**~~ | ~~Customer harus upload bukti manual~~ | ✅ **Selesai** — endpoint `/api/midtrans/create-transaction`, Snap.js di PaymentUpload, konfirmasi otomatis |
+### Portal Muthawif — `/muthawif/*`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Dashboard | `/muthawif/dashboard` | ✅ |
+| Laporan Harian | `/muthawif/laporan-harian` | ✅ |
+| Profil Jamaah | `/muthawif/jamaah/:id` | ✅ |
+| **Panel SOS** | `/muthawif/sos` | ✅ **BARU (Fitur 01)** |
 
 ---
 
-## 8. SQL MIGRATIONS — URUTAN EKSEKUSI
+## BAGIAN 3 — FITUR LANJUTAN (Fase 16+)
 
-> Semua file SQL sekarang terpusat di folder **`migrations/`** di root project.
+### Fitur 01 — SOS Real-time ✅ SELESAI
+- JamaahSOSStatus.tsx — jamaah kirim dan pantau SOS
+- MuthawifSOS.tsx — muthawif terima dan tangani SOS
+- sos_alerts table dengan RLS
 
-Jalankan file-file ini di **Supabase SQL Editor** sesuai urutan:
+### Fitur 02 — Notifikasi Otomatis Perubahan Status Visa ✅ SELESAI
+- `useVisaStatusUpdate.ts` — hook update visa + WhatsApp notif + log
 
-```
-1.  migrations/fase1-membership-branch-commission.sql
-2.  migrations/fase2-public-website.sql
-3.  migrations/fase3-customer-portal.sql
-4.  migrations/fase4-6-analytics-notif-operational.sql
-5.  migrations/whatsapp-tables.sql
-6.  migrations/dashboard-access-config.sql
-7.  migrations/hr-enhancements.sql
-8.  migrations/operational-integration.sql
-9.  migrations/flexible-rooming-groups.sql
-10. migrations/multi-mahram-rooming.sql
-11. migrations/phase4-push-visa.sql
-12. migrations/phase5-rbac-improvements.sql
-13. migrations/fase6-app-settings-va-targets-jamaah.sql  ← BARU (untuk M1–M5)
-```
+### Fitur 03 — Integrasi SISKOHAT Kemenag ✅ SELESAI
+- `AdminSISKOHAT.tsx` — ekspor data jamaah haji ke format Kemenag
+- `siskohat_sync_logs` table (fase17)
 
-Lihat `migrations/README.md` untuk instruksi lengkap.
+### Fitur 04 — Approval Workflow Berjenjang ✅ SELESAI
+- `AdminApprovals.tsx` — multi-level approval untuk refund/diskon/pembatalan
+- `BranchApprovals.tsx` — approval di level cabang
+- `CustomerRefundStatus.tsx` — customer pantau status pengajuan mereka
+- `useApprovalWorkflow.ts` — logika approval + eskalasi
+- `approval_requests`, `approval_actions`, `approval_configs` tables (fase16+17)
+
+### Fitur 05 — Manajemen Kontrak Vendor ✅ SELESAI
+- `AdminVendorContracts.tsx` — CRUD kontrak + reminder expired
+- `vendor_contracts` table (fase17)
+
+### Fitur 06 — Budget vs Realisasi per Keberangkatan ✅ SELESAI
+- `DepartureBudgetTab` di `AdminDepartureDetail.tsx`
+- `useDepartureBudget.ts` — hook CRUD budget + variance kalkulasi
+- `departure_budgets` table (fase17)
+
+### Fitur 07 — Modul Pelatihan Produk Agen ✅ SELESAI
+- `AdminTraining.tsx` — admin kelola modul + kuis
+- `AgentTraining.tsx` — agen ikuti pelatihan + kuis
+- `training_modules`, `training_quizzes`, `agent_training_progress` tables (fase17)
+
+### Fitur 08 — Video Testimoni & Virtual Tour 360° ✅ SELESAI
+- `AdminMediaGallery.tsx` — admin kelola video + virtual tour + foto hotel
+- `media_gallery` table (fase17)
+- Koneksi ke `/testimonials` dan detail paket publik
+
+### Fitur 09 — Jaringan Sub-Agen Multi-Level ✅ SELESAI (UI)
+- `AgentNetwork.tsx` upgrade: tree view + rekrut + performa
+- `agent_override_commissions` table (fase17)
+- Kolom `level` di `agents` (fase17)
+
+### Fitur 10 — Kalkulator Bagasi Mandiri Jamaah ✅ SELESAI (UI)
+- `JamaahBagasi.tsx` upgrade: tab kalkulator bawaan
+- `baggage_reference_items` table + seed 20 item (fase17)
+- Kolom `bagasi_kg_allowed` di `bookings` (fase17)
 
 ---
 
-## 9. ENVIRONMENT VARIABLES (Wajib Sebelum Produksi)
+## BAGIAN 4 — DATABASE MIGRATIONS
 
-| Variabel | Lokasi | Cara Set |
-|----------|--------|----------|
-| `VITE_SUPABASE_URL` | Frontend (Vite) | Replit Secrets → nama `VITE_SUPABASE_URL` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Frontend (Vite) | Replit Secrets → nama `VITE_SUPABASE_PUBLISHABLE_KEY` |
-| `SUPABASE_URL` | API Server | Replit Secrets → nama `SUPABASE_URL` |
-| `SUPABASE_SERVICE_ROLE_KEY` | API Server | Replit Secrets → nama `SUPABASE_SERVICE_ROLE_KEY` |
+### Urutan Eksekusi SQL (jalankan berurutan di Supabase SQL Editor)
+
+| # | File | Isi |
+|---|------|-----|
+| 1 | `migrations/fase1-membership-branch-commission.sql` | Tabel dasar: profiles, packages, bookings, payments, agents, branches, commissions |
+| 2 | `migrations/fase2-public-website.sql` | Blog, testimonials, landing page settings |
+| 3 | `migrations/fase3-customer-portal.sql` | Tabungan, loyalty, support tickets |
+| 4 | `migrations/fase4-6-analytics-notif-operational.sql` | Analytics, notifikasi, operasional |
+| 5 | `migrations/whatsapp-tables.sql` | Konfigurasi & log WhatsApp (Fonnte) |
+| 6 | `migrations/dashboard-access-config.sql` | Konfigurasi akses dashboard per role |
+| 7 | `migrations/hr-enhancements.sql` | SDM/HR: rekrutmen, kontrak, absensi |
+| 8 | `migrations/operational-integration.sql` | Rooming, manifest |
+| 9 | `migrations/flexible-rooming-groups.sql` | Grup kamar fleksibel |
+| 10 | `migrations/multi-mahram-rooming.sql` | Penempatan kamar multi-mahram |
+| 11 | `migrations/phase4-push-visa.sql` | Proses push visa & tracking |
+| 12 | `migrations/phase5-rbac-improvements.sql` | Penyempurnaan RBAC & audit log |
+| 13 | `migrations/fase6-app-settings-va-targets-jamaah.sql` | app_settings, virtual_accounts, targets jamaah |
+| 14 | `supabase/migrations/fase16_new_tables.sql` | sos_alerts, visa_status_logs, approval_requests/actions, dashboard_access_config, financial_summary, transactions, expenses, marketing, equipment, sales_targets, trip_timeline |
+| 15 | `supabase/migrations/fase17_remaining_tables.sql` | vendor_contracts, departure_budgets, training_modules/quizzes/progress, media_gallery, siskohat_sync_logs, approval_configs, agent_override_commissions, baggage_reference_items |
+
+### Cara Menjalankan
+
+1. Buka [Supabase Dashboard](https://app.supabase.com) → pilih project
+2. Klik **SQL Editor** → **New query**
+3. Copy-paste isi file SQL → klik **Run**
+4. Ulangi sesuai urutan di atas
 
 ---
 
-## 10. STATISTIK PROYEK
+## BAGIAN 5 — ENVIRONMENT VARIABLES (Replit Secrets)
 
-| Metrik | Jumlah |
-|--------|--------|
-| Total halaman | 140+ |
-| Halaman Admin | 87 |
-| Halaman Agen | 14 |
-| Halaman Customer | 8 |
-| Halaman Jamaah | 10 |
-| Halaman Operasional | 14 |
-| Halaman Publik | 13 |
-| React hooks/queries | 52+ |
-| Komponen UI & shared | 45+ |
-| API endpoints publik | 4 |
-| Konteks i18n | 3 bahasa (ID, EN, AR), 80+ kunci |
-| Total baris kode (estimasi) | ~85.000 baris |
-| File SQL migration | 12 file |
-| Fitur pakai data nyata Supabase | ~85% |
-| Fitur pakai localStorage (perlu dipindah ke DB) | ~8 fitur |
-| Fitur backend belum ada (email) | 1 endpoint |
+| Secret | Keterangan |
+|--------|-----------|
+| `VITE_SUPABASE_URL` | URL project Supabase (`https://xxx.supabase.co`) |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/public key dari Supabase |
+| `SUPABASE_URL` | URL yang sama untuk API server |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (jangan expose ke frontend!) |
+| `SMTP_HOST` | Host SMTP (`smtp.gmail.com`) |
+| `SMTP_PORT` | Port SMTP (`587`) |
+| `SMTP_USER` | Username/email SMTP |
+| `SMTP_PASS` | Password SMTP atau App Password |
+| `SMTP_FROM` | Alamat pengirim (`noreply@vinstour.com`) |
+
+---
+
+## BAGIAN 6 — CATATAN TEKNIS
+
+- **Tabel baru**: semua wajib aktifkan RLS + buat policy per role
+- **Notifikasi**: lewat `useAdminNotifications.ts` — tambahkan tipe baru, jangan buat channel terpisah
+- **Routing**: lazy import di file Routes, daftarkan di `menu_items` via SQL seed
+- **WhatsApp**: gunakan pola `whatsapp-notifier.ts` yang sudah ada
+- **PDF/Excel**: gunakan `jspdf` + `jspdf-autotable` / `xlsx` yang sudah terinstall
+- **Mobile-responsive + dark mode + loading skeleton** wajib di setiap halaman baru
+- **TypeScript**: gunakan `const supabase: any = supabaseRaw` untuk tabel baru yang belum di-type
+- **Permissions**: tambahkan permission key baru di `src/lib/permissions.ts`
+- **Demo mode**: app jalan tanpa Supabase — error `42P01` (table not found) ditangani gracefully
+
+---
+
+## BAGIAN 7 — STATUS PENGERJAAN
+
+| Prioritas | Item | Status |
+|-----------|------|--------|
+| ✅ P1 | Semua halaman 10 fitur lanjutan | **SELESAI** |
+| ✅ P2 | `CustomerRefundStatus.tsx` + route | **SELESAI** |
+| ✅ P3 | SQL migrations fase 16 & 17 | **SELESAI** |
+| ⚠️ P4 | Jalankan SQL migrations ke Supabase | **Menunggu user** (aksi manual di dashboard Supabase) |
+| ⚠️ P5 | Set Supabase env vars di Replit Secrets | **Menunggu user** (aksi manual) |
+| ⚠️ P6 | KPI targets hardcoded | Perlu UI editor targets — bisa dikerjakan sesuai permintaan |
+
+---
+
+*File ini adalah satu-satunya dokumen rencana. File lama (RENCANA_PENGEMBANGAN_LANJUTAN.md, rencana2jemaah.md, migrations/README.md) telah dihapus dan dikonsolidasi ke sini.*

@@ -27,6 +27,7 @@ const JamaahVisaTracker = lazy(() => import("@/pages/jamaah/JamaahVisaTracker"))
 const JamaahPanduanIbadah = lazy(() => import("@/pages/jamaah/JamaahPanduanIbadah"));
 const JamaahPetaLokasi = lazy(() => import("@/pages/jamaah/JamaahPetaLokasi"));
 const KalkulatorCicilan = lazy(() => import("@/pages/customer/KalkulatorCicilan"));
+const CustomerRefundStatus = lazy(() => import("@/pages/customer/CustomerRefundStatus"));
 
 // Fase 2 — Fitur Inti Jamaah
 const JamaahWaktuSholat = lazy(() => import("@/pages/jamaah/JamaahWaktuSholat"));
@@ -173,6 +174,9 @@ export default function CustomerRoutes() {
 
       {/* FITUR 01 — SOS Status Real-time Jamaah */}
       <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />
+
+      {/* FITUR 04 — Status Pengajuan Refund/Pembatalan Customer */}
+      <Route path="/customer/refund-status" element={<CustomerRoute><LazyPage><CustomerRefundStatus /></LazyPage></CustomerRoute>} />
 
       {/* Fase 7 — Dashboard Muthawif */}
       <Route path="/muthawif/dashboard" element={
