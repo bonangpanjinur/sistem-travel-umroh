@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import {
   Home, Users, DollarSign, BarChart3, Package,
-  Menu, X, LogOut, Building2, CheckSquare, Bell
+  Menu, X, LogOut, Building2, CheckSquare, Bell, Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,12 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 const navItems = [
-  { label: "Dashboard", href: "/cabang", icon: Home },
-  { label: "Laporan Revenue", href: "/cabang/laporan", icon: DollarSign },
-  { label: "Performa Agen", href: "/cabang/agen", icon: Users },
-  { label: "Rekap Booking", href: "/cabang/bookings", icon: Package },
-  { label: "Approval Diskon", href: "/cabang/diskon", icon: CheckSquare },
+  { label: "Dashboard",      href: "/cabang",             icon: Home },
+  { label: "Laporan Revenue", href: "/cabang/laporan",    icon: DollarSign },
+  { label: "Performa Agen",  href: "/cabang/agen",        icon: Users },
+  { label: "Rekap Booking",  href: "/cabang/bookings",    icon: Package },
+  { label: "Target KPI",     href: "/cabang/kpi-targets", icon: Target },
+  { label: "Approval Diskon", href: "/cabang/diskon",     icon: CheckSquare },
 ];
 
 const BRANCH_ROLES = ["super_admin", "owner", "branch_manager"] as const;

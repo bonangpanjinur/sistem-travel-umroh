@@ -8,7 +8,8 @@ const BranchLaporan = lazy(() => import("@/pages/branch/BranchLaporan"));
 const BranchAgen = lazy(() => import("@/pages/branch/BranchAgen"));
 const BranchBookings = lazy(() => import("@/pages/branch/BranchBookings"));
 const BranchDiskon    = lazy(() => import("@/pages/branch/BranchDiskon"));
-const BranchApprovals = lazy(() => import("@/pages/branch/BranchApprovals"));
+const BranchApprovals   = lazy(() => import("@/pages/branch/BranchApprovals"));
+const BranchKPITargets  = lazy(() => import("@/pages/branch/BranchKPITargets"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -29,7 +30,8 @@ export default function BranchRoutes() {
       <Route path="agen" element={<LazyPage><BranchAgen /></LazyPage>} />
       <Route path="bookings" element={<LazyPage><BranchBookings /></LazyPage>} />
       <Route path="diskon"    element={<LazyPage><BranchDiskon /></LazyPage>} />
-      <Route path="approvals" element={<LazyPage><BranchApprovals /></LazyPage>} />
+      <Route path="approvals"   element={<LazyPage><BranchApprovals /></LazyPage>} />
+      <Route path="kpi-targets" element={<LazyPage><BranchKPITargets /></LazyPage>} />
     </Route>
   );
 }

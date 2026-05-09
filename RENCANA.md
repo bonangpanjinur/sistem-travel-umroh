@@ -155,6 +155,7 @@
 | Laporan | `/cabang/laporan` | ✅ |
 | Diskon | `/cabang/diskon` | ✅ |
 | **Approval** | `/cabang/approvals` | ✅ **BARU (Fitur 04)** |
+| **Target KPI Cabang** | `/cabang/kpi-targets` | ✅ **BARU** |
 
 ### Portal Muthawif — `/muthawif/*`
 | Halaman | URL | Status |
@@ -211,6 +212,16 @@
 - `agent_override_commissions` table (fase17)
 - Kolom `level` di `agents` (fase17)
 
+### Fitur 11 — Target KPI Cabang Mandiri ✅ SELESAI
+- `BranchKPITargets.tsx` — halaman baru di `/cabang/kpi-targets`
+- Branch manager atur target sendiri per bulan: booking, revenue, customer baru, agen aktif, konversi
+- Progress KPI cards real-time vs target + animated progress bar
+- Grafik tren booking 6 bulan terakhir
+- Breakdown performa per agen bulan berjalan
+- Tabel riwayat target yang pernah ditetapkan
+- Nav item "Target KPI" ditambahkan ke sidebar BranchLayout
+- `branch_monthly_targets` table dengan RLS (fase19)
+
 ### Fitur 10 — Kalkulator Bagasi Mandiri Jamaah ✅ SELESAI (UI)
 - `JamaahBagasi.tsx` upgrade: tab kalkulator bawaan
 - `baggage_reference_items` table + seed 20 item (fase17)
@@ -240,6 +251,7 @@
 | 14 | `supabase/migrations/fase16_new_tables.sql` | sos_alerts, visa_status_logs, approval_requests/actions, dashboard_access_config, financial_summary, transactions, expenses, marketing, equipment, sales_targets, trip_timeline |
 | 15 | `supabase/migrations/fase17_remaining_tables.sql` | vendor_contracts, departure_budgets, training_modules/quizzes/progress, media_gallery, siskohat_sync_logs, approval_configs, agent_override_commissions, baggage_reference_items |
 | 16 | `supabase/migrations/fase18_core_settings.sql` | company_settings (+ KPI targets seed), bank_accounts, website_settings, contact_page_content |
+| 17 | `supabase/migrations/fase19_branch_kpi_targets.sql` | branch_monthly_targets — target KPI per cabang per bulan |
 
 ### Cara Menjalankan
 
@@ -290,6 +302,7 @@
 | ⚠️ P4 | Jalankan SQL migrations ke Supabase | **Menunggu user** (aksi manual di dashboard Supabase) |
 | ⚠️ P5 | Set Supabase env vars di Replit Secrets | **Menunggu user** (aksi manual) |
 | ✅ P6 | KPI targets editor di dashboard | Admin klik "Atur Target" → dialog edit & simpan ke `company_settings` |
+| ✅ P7 | Target KPI Cabang Mandiri | Branch manager atur target sendiri di `/cabang/kpi-targets` |
 
 ---
 
