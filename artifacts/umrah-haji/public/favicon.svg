@@ -1,3 +1,9 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <rect width="180" height="180" rx="36" fill="#15803d"/>
+  <!-- Crescent moon -->
+  <path d="M118 55 C118 88 97 118 70 127 C78 131 87 133 97 133 C127 133 151 109 151 79 C151 57 138 38 120 29 C120 38 119 47 118 55Z" fill="white" opacity="0.95"/>
+  <!-- Star 5-pointed -->
+  <path d="M72 64 L76 78 L91 78 L79 87 L83 101 L72 92 L61 101 L65 87 L53 78 L68 78Z" fill="white" opacity="0.92"/>
+  <!-- Bottom V letter -->
+  <path d="M38 150 L60 108 L72 135 L84 108 L106 150 Z" fill="white" opacity="0.18"/>
 </svg>

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/format";
 import { SOSButton } from "@/components/jamaah/SOSButton";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
@@ -38,7 +38,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const WELCOME_SEEN_KEY = "jamaah-welcome-seen";
+
 export default function JamaahPortal() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { getSetting } = useCompanySettings();
@@ -47,6 +50,14 @@ export default function JamaahPortal() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // P4: Redirect first-time users to welcome/onboarding flow
+  useEffect(() => {
+    const seen = localStorage.getItem(WELCOME_SEEN_KEY);
+    if (!seen) {
+      navigate("/jamaah/welcome", { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -199,7 +210,7 @@ export default function JamaahPortal() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 md:pb-4">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
         <div className="flex items-center justify-between">

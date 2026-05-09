@@ -281,3 +281,13 @@
     }
   }
 }
+
+/* ── Jamaah Portal — Desktop Sidebar Layout ── */
+@media (min-width: 768px) {
+  body.jamaah-portal-active.jamaah-sidebar-open {
+    padding-left: 240px;
+  }
+  body.jamaah-portal-active.jamaah-sidebar-collapsed {
+    padding-left: 64px;
+  }
+}

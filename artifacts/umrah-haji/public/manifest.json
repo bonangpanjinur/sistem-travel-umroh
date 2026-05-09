@@ -1,11 +1,12 @@
 {
   "name": "Vinstour Travel — Umroh & Haji",
   "short_name": "Vinstour",
-  "description": "Platform manajemen Umroh & Haji digital. Cek paket, kalkulator biaya, dan pantau keberangkatan Anda.",
-  "start_url": "/",
+  "description": "Platform manajemen Umroh & Haji digital. Pantau perjalanan ibadah, dokumen, itinerary, dan panduan ibadah.",
+  "start_url": "/jamaah",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f2518",
-  "theme_color": "#16a34a",
+  "theme_color": "#15803d",
   "orientation": "portrait-primary",
   "lang": "id",
   "icons": [
@@ -17,20 +18,31 @@
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/svg+xml"
     },
     {
       "src": "/images/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/images/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
@@ -45,25 +57,32 @@
   "categories": ["travel", "lifestyle"],
   "shortcuts": [
     {
-      "name": "Paket Umroh",
-      "short_name": "Paket",
-      "description": "Lihat semua paket umroh tersedia",
-      "url": "/paket",
-      "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
+      "name": "Portal Jamaah",
+      "short_name": "Portal",
+      "description": "Buka portal jamaah Anda",
+      "url": "/jamaah",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Kalkulator Biaya",
-      "short_name": "Kalkulator",
-      "description": "Hitung estimasi biaya perjalanan",
-      "url": "/kalkulator",
-      "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
+      "name": "Waktu Sholat",
+      "short_name": "Sholat",
+      "description": "Cek jadwal waktu sholat",
+      "url": "/jamaah/waktu-sholat",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Kurs Mata Uang",
-      "short_name": "Kurs",
-      "description": "Cek nilai tukar SAR & USD terkini",
-      "url": "/kurs",
-      "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
+      "name": "Panduan Ibadah",
+      "short_name": "Panduan",
+      "description": "Panduan doa dan ibadah umroh",
+      "url": "/jamaah/panduan-ibadah",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cek Status Booking",
+      "short_name": "Booking",
+      "description": "Cek status booking perjalanan",
+      "url": "/cek-booking",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

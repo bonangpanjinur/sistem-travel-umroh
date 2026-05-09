@@ -1,5 +1,5 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
-> Terakhir diperbarui: Juni 2026 | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
+> Terakhir diperbarui: Juni 2026 (Fase 1 selesai) | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
 > **Ini adalah satu-satunya file rencana. Jangan buat file rencana lain.**
 
 ---
@@ -302,6 +302,15 @@ pnpm --filter @workspace/api-spec run codegen
 | 9 | Link "Pelajari / Buka Portal" di QuickMenuGrid → `/jamaah-info` | `components/home/QuickMenuGrid.tsx` |
 | 10 | `useAdminNotifications` — tambah listener `leads` (INSERT) dan `customer_documents` (INSERT) | `hooks/useAdminNotifications.ts` |
 | 11 | `NotificationBell` redesign — summary pills per kategori (Leads/Support/Dokumen/Pembayaran/SOS), ikon per tipe, dismiss per item, SOS pulse merah | `components/admin/NotificationBell.tsx` |
+
+### Fase 1 — UX Portal Jamaah (selesai Juni 2026)
+
+| # | Item | Perubahan | File |
+|---|------|-----------|------|
+| P1 | ✅ Sidebar Desktop Portal Jamaah | `JamaahBottomNav.tsx` sekarang responsif: sidebar fixed kiri (collapsed/expanded, bisa di-toggle) di ≥ md, bottom nav + overlay "Lebih" di mobile. Body mendapat class `jamaah-portal-active` + `jamaah-sidebar-open/collapsed` via `useEffect`. CSS di `index.css` menambah `padding-left` otomatis ke seluruh 26 halaman jamaah tanpa menyentuh satu per satu. | `components/jamaah/JamaahBottomNav.tsx`, `src/index.css` |
+| P2 | ✅ Ikon PWA Beresolusi Tinggi | Favicon SVG diganti — ikon bulan sabit + bintang di atas background hijau (#15803d, rounded corners). PNG 192×192 dan 512×512 digenerate via ImageMagick. `manifest.json` diperbarui: `start_url` → `/jamaah`, shortcuts baru (Portal Jamaah, Waktu Sholat, Panduan Ibadah, Cek Booking), ikon PNG dipisah `purpose: any` dan `purpose: maskable`. | `public/favicon.svg`, `public/images/icon-192.png`, `public/images/icon-512.png`, `public/manifest.json` |
+| P3 | ✅ Offline Cache Konten Kritis | `sw.js` diperbarui ke `vinstour-v3`: STATIC_ASSETS mencakup ikon PNG baru; `JAMAAH_ROUTES` mendefinisikan 7 route kritis yang di-cache saat navigasi berhasil; push notification menggunakan ikon PNG dan membuka `/jamaah` saat diklik; `message` handler baru: `CACHE_JAMAAH` untuk pre-cache on demand. | `public/sw.js` |
+| P4 | ✅ Onboarding Jamaah Baru | `JamaahPortal.tsx`: auto-redirect ke `/jamaah/welcome` jika `localStorage["jamaah-welcome-seen"]` belum ada — user baru langsung lihat onboarding 5 langkah. `JamaahWelcome.tsx` sudah lengkap (sudah ada sebelumnya, tidak diubah). Wrapper utama portal: `pb-20 md:pb-4`. | `pages/jamaah/JamaahPortal.tsx` |
 
 ---
 
