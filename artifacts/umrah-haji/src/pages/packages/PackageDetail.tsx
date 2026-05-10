@@ -2,6 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { slugify, extractIdFromSlug } from '@/lib/slug';
 import { useQuery } from '@tanstack/react-query';
+import { trackPackageView } from '@/hooks/useRecentlyViewedPackages';
 import { supabase } from '@/integrations/supabase/client';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { Button } from '@/components/ui/button';
@@ -94,6 +95,21 @@ export default function PackageDetail() {
       }
     }
   }, [pkg, openDepartureId]);
+
+  // Track this package view in recently viewed history
+  useEffect(() => {
+    if (pkg) {
+      trackPackageView({
+        id: pkg.id,
+        name: pkg.name,
+        package_type: pkg.package_type,
+        duration_days: pkg.duration_days,
+        price_quad: pkg.price_quad,
+        currency: pkg.currency,
+        featured_image: pkg.featured_image ?? null,
+      });
+    }
+  }, [pkg?.id]);
 
   if (isLoading) {
     return (

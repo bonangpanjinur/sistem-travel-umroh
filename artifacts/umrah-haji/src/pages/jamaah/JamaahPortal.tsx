@@ -31,6 +31,8 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useGeoNotification } from "@/hooks/useGeoNotification";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
+import { useRecentlyViewedPackages } from "@/hooks/useRecentlyViewedPackages";
+import { slugify } from "@/lib/slug";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +49,7 @@ export default function JamaahPortal() {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { getSetting } = useCompanySettings();
+  const { items: recentlyViewed, clearAll: clearRecentlyViewed } = useRecentlyViewedPackages();
 
   // Notifikasi Geolokasi: alert ketika mendekati lokasi suci
   useGeoNotification(true);
@@ -489,6 +492,87 @@ export default function JamaahPortal() {
               </div>
               <Button asChild variant="outline" size="sm">
                 <Link to="/customer/settings">Lengkapi Profil</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recently Viewed Packages */}
+        {recentlyViewed.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Paket Baru Dilihat
+                </CardTitle>
+                <button
+                  onClick={clearRecentlyViewed}
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Hapus semua
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {recentlyViewed.map((pkg) => {
+                const slug = `${pkg.id}-${slugify(pkg.name)}`;
+                const typeLabel =
+                  pkg.package_type === "umroh"
+                    ? "Umroh"
+                    : pkg.package_type === "haji"
+                    ? "Haji"
+                    : pkg.package_type === "haji_plus"
+                    ? "Haji Plus"
+                    : "Umroh Plus";
+                return (
+                  <Link
+                    key={pkg.id}
+                    to={`/packages/${slug}`}
+                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors group"
+                  >
+                    {/* Thumbnail */}
+                    <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                      {pkg.featured_image ? (
+                        <img
+                          src={pkg.featured_image}
+                          alt={pkg.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="h-6 w-6 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm leading-snug line-clamp-1 group-hover:text-primary transition-colors">
+                        {pkg.name}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {typeLabel}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground">
+                          {pkg.duration_days} hari
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-primary mt-0.5">
+                        {formatCurrency(pkg.price_quad, pkg.currency)}
+                      </p>
+                    </div>
+
+                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  </Link>
+                );
+              })}
+
+              <Button asChild variant="ghost" size="sm" className="w-full text-xs mt-1">
+                <Link to="/packages">
+                  Lihat semua paket <ArrowRight className="h-3 w-3 ml-1" />
+                </Link>
               </Button>
             </CardContent>
           </Card>
