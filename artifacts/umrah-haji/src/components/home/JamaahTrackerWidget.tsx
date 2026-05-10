@@ -429,8 +429,9 @@ export function JamaahTrackerWidget() {
     enabled: !!user?.id,
   });
 
-  // Don't render if not logged in
-  if (!user) return null;
+  // Hanya tampilkan untuk tamu (belum login)
+  // Pengguna yang sudah login mengakses fitur ini via Portal Jamaah
+  if (user) return null;
 
   const dep = (booking as any)?.departures;
   const departureDate = dep?.departure_date ?? null;

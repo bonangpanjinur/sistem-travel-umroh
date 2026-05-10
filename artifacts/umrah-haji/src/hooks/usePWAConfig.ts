@@ -95,21 +95,13 @@ export function usePWAConfig() {
   }, [customData]);
 
   const headerNavLinks: HeaderNavLink[] = useMemo(() => {
+    // Only use explicitly saved PWA header nav config.
+    // Do NOT fall back to settings.nav_links — that field often contains
+    // cluttered or duplicate entries from older database imports.
     const saved = customData?.pwa_header_nav as HeaderNavLink[] | undefined;
-    // Also check website_settings nav_links for backward compatibility
-    const legacyLinks = settings?.nav_links as unknown as Array<{href: string; label: string}> | null;
     if (saved?.length) return saved;
-    if (legacyLinks?.length) {
-      return legacyLinks.map((l, i) => ({
-        id: l.href.replace(/\//g, '-').replace(/^-/, ''),
-        label: l.label,
-        href: l.href,
-        enabled: true,
-        order: i,
-      }));
-    }
     return DEFAULT_HEADER_NAV;
-  }, [customData, settings]);
+  }, [customData]);
 
   const iconConfig: PWAIconConfig = useMemo(() => {
     const saved = customData?.pwa_icon_config as Partial<PWAIconConfig> | undefined;
