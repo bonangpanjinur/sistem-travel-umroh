@@ -91,6 +91,9 @@ const JamaahPengingatIbadah = lazy(() => import("@/pages/jamaah/JamaahPengingatI
 // P15 — Pantau Keluarga
 const JamaahPantauKeluarga = lazy(() => import("@/pages/jamaah/JamaahPantauKeluarga"));
 
+// Wishlist Paket
+const JamaahWishlist = lazy(() => import("@/pages/jamaah/JamaahWishlist"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -222,6 +225,9 @@ export default function CustomerRoutes() {
           <LazyPage><MuthawifSOS /></LazyPage>
         </ProtectedRoute>
       } />
+
+      {/* Wishlist Paket */}
+      <Route path="/jamaah/wishlist" element={<CustomerRoute><JamaahWishlist /></CustomerRoute>} />
 
       {/* Booking — setiap user terautentikasi bisa booking */}
       <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />

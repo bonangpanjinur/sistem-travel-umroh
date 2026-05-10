@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info } from 'lucide-react';
+import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info, Heart } from 'lucide-react';
 
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Package } from '@/types/database';
 import { formatCurrency, getPackageTypeLabel, formatDuration, formatDate } from '@/lib/format';
 import { slugify } from '@/lib/slug';
 import { cn } from '@/lib/utils';
+import { useWishlist } from '@/hooks/useWishlist';
 import {
   Tooltip,
   TooltipContent,
@@ -56,6 +57,7 @@ export function PackageCard({
   showSeats = true
 }: PackageCardProps) {
   const isTabungan = (pkg.package_type as string) === 'tabungan';
+  const { isWishlisted, toggle: toggleWishlist } = useWishlist();
   
   // Get open future departures
   const openFutureDepartures = (pkg.departures || [])
@@ -197,6 +199,23 @@ export function PackageCard({
               </Badge>
             )}
           </div>
+
+          {/* Wishlist Button */}
+          <button
+            onClick={(e) => { e.preventDefault(); toggleWishlist(pkg.id); }}
+            className={cn(
+              "absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm border transition-all duration-200 active:scale-90 z-10",
+              isWishlisted(pkg.id)
+                ? "bg-rose-500/90 border-rose-400"
+                : "bg-black/30 border-white/20 hover:bg-black/50"
+            )}
+            aria-label={isWishlisted(pkg.id) ? "Hapus dari wishlist" : "Simpan ke wishlist"}
+          >
+            <Heart className={cn(
+              "h-3.5 w-3.5 transition-colors",
+              isWishlisted(pkg.id) ? "fill-white text-white" : "text-white"
+            )} />
+          </button>
 
           {/* Price Overlay */}
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">

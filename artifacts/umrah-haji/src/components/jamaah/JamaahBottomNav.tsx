@@ -31,6 +31,7 @@ const moreMenuItems = [
   { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600 bg-indigo-50" },
   { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "text-emerald-600 bg-emerald-50" },
   { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga", color: "text-blue-600 bg-blue-50" },
+  { to: "/jamaah/wishlist", icon: Heart, label: "Wishlist", color: "text-rose-600 bg-rose-50" },
   { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600 bg-teal-50" },
   { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600 bg-gray-50" },
 ];
