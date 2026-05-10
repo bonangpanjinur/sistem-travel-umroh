@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Download, Smartphone, CheckCircle2, Shield, Zap, Wifi, Star,
   Share2, MoreVertical, Plus, Monitor, X, ArrowDownToLine, Sparkles,
@@ -57,15 +57,17 @@ const FEATURES = [
   { icon: Star,   label: "Layar Penuh",        desc: "Tanpa address bar browser" },
 ];
 
-const fadeUp = {
+const EASE_SPRING: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+const fadeUp: Variants = {
   hidden:  { opacity: 0, y: 24 },
   visible: (i = 0) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.08, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: i * 0.08, duration: 0.45, ease: EASE_SPRING },
   }),
 };
 
-const stepVariant = {
+const stepVariant: Variants = {
   hidden:  { opacity: 0, x: -16 },
   visible: (i: number) => ({
     opacity: 1, x: 0,
