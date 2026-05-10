@@ -38,9 +38,9 @@ async function syncToProfile(ids: string[]) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return;
-  await supabase
+  await (supabase as any)
     .from("customer_accounts")
-    .update({ wishlist_packages: ids } as any)
+    .update({ wishlist_packages: ids })
     .eq("user_id", user.id);
 }
 
