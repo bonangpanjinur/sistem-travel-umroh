@@ -44,6 +44,14 @@ Platform manajemen Umroh & Haji digital berbasis React + Vite (port 5000) dengan
 
 ---
 
+### Fitur Terbaru (Sesi Ini)
+- [x] **Perbaikan TypeScript Build Errors** — 3 error Vercel deploy diperbaiki: `JamaahPortal.tsx` (countdown useEffect ordering), `JamaahTrackerIbadah.tsx` (rawatibBadi rename), `PantauJamaahPage.tsx` (null guard booking_status)
+- [x] **Dark Mode Toggle** — Moon/Sun di navbar desktop & mobile, hook `useDarkMode` dengan localStorage + `prefers-color-scheme`
+- [x] **Panduan Manasik Interaktif** — `/jamaah/manasik-interaktif` dengan step Tawaf(7)/Sa'i(7)/Wukuf(7), progress bar, tandai selesai
+- [x] **Notifikasi Geolokasi** — hook `useGeoNotification` aktif di JamaahPortal, alert ±500–1000m dari 5 lokasi suci
+- [x] **Fitur Offline** — service worker `vinstour-v4` dengan 16 route jamaah & islami di-cache
+- [x] **Pantau Keluarga Real-time** — `LiveLocationShare` terintegrasi di jamaah side; peta OpenStreetMap di `/pantau/{token}` polling setiap 30 detik
+
 ## 🔄 Sedang Dikerjakan
 
 _Tidak ada — semua fitur terencana sudah selesai._ 🎉

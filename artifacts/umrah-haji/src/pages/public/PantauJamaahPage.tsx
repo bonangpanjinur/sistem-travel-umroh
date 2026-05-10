@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Plane, Calendar, User, Package, CheckCircle2,
   Clock, XCircle, Shield, Phone, MapPin, Heart,
-  AlertCircle
+  AlertCircle, Navigation, ExternalLink, Signal, RefreshCw
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
 function decodeBookingToken(token: string): string {
@@ -45,10 +46,10 @@ export default function PantauJamaahPage() {
       const { data, error } = await supabase
         .from("bookings")
         .select(`
-          id, booking_code, booking_status, created_at,
-          customer:customers(full_name, branch_id),
+          id, booking_code, booking_status, created_at, customer_id,
+          customer:customers(id, full_name, branch_id),
           departure:departures(
-            departure_date, return_date, airport,
+            id, departure_date, return_date, airport,
             package:packages(name, code, duration_days),
             muthawif:muthawifs(name, phone)
           )
@@ -70,6 +71,26 @@ export default function PantauJamaahPage() {
   const customer = (booking as any)?.customer;
   const departure = (booking as any)?.departure;
   const muthawif = departure?.muthawif;
+  const customerId: string | null = customer?.id ?? (booking as any)?.customer_id ?? null;
+
+  // Live location — poll every 30 seconds
+  const { data: liveLocation, dataUpdatedAt, refetch: refetchLocation, isFetching: fetchingLocation } = useQuery({
+    queryKey: ["pantau-live-location", customerId],
+    enabled: !!customerId,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      if (!customerId) return null;
+      const { data, error } = await (supabase as any)
+        .from("jamaah_live_locations")
+        .select("latitude, longitude, accuracy, speed, heading, updated_at")
+        .eq("customer_id", customerId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) return null;
+      return data as { latitude: number; longitude: number; accuracy: number; speed: number | null; heading: number | null; updated_at: string } | null;
+    },
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
@@ -145,6 +166,97 @@ export default function PantauJamaahPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Live Location Map */}
+            {liveLocation && (
+              <Card className="overflow-hidden border-emerald-200">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <Navigation className="h-4 w-4 text-emerald-600" />
+                      Lokasi Real-time Jamaah
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => refetchLocation()}
+                      disabled={fetchingLocation}
+                      className="h-7 px-2 text-xs text-muted-foreground"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${fetchingLocation ? "animate-spin" : ""}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 space-y-3">
+                  {/* OpenStreetMap iframe embed */}
+                  <div className="rounded-xl overflow-hidden border border-border h-52 bg-muted">
+                    <iframe
+                      title="Lokasi Jamaah"
+                      width="100%"
+                      height="100%"
+                      frameBorder="0"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${liveLocation.longitude - 0.004},${liveLocation.latitude - 0.004},${liveLocation.longitude + 0.004},${liveLocation.latitude + 0.004}&layer=mapnik&marker=${liveLocation.latitude},${liveLocation.longitude}`}
+                      style={{ border: 0 }}
+                    />
+                  </div>
+
+                  {/* Location details */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg bg-muted p-2.5">
+                      <p className="text-muted-foreground mb-0.5">Koordinat</p>
+                      <p className="font-mono font-medium">
+                        {liveLocation.latitude.toFixed(5)}, {liveLocation.longitude.toFixed(5)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted p-2.5">
+                      <p className="text-muted-foreground mb-0.5">Akurasi GPS</p>
+                      <p className="font-medium">±{Math.round(liveLocation.accuracy ?? 0)} meter</p>
+                    </div>
+                    {liveLocation.speed != null && liveLocation.speed > 0 && (
+                      <div className="rounded-lg bg-muted p-2.5">
+                        <p className="text-muted-foreground mb-0.5">Kecepatan</p>
+                        <p className="font-medium">{(liveLocation.speed * 3.6).toFixed(1)} km/h</p>
+                      </div>
+                    )}
+                    <div className="rounded-lg bg-muted p-2.5">
+                      <p className="text-muted-foreground mb-0.5">Diperbarui</p>
+                      <p className="font-medium">
+                        {formatDistanceToNow(new Date(liveLocation.updated_at), { addSuffix: true, locale: localeId })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Open in Maps button */}
+                  <a
+                    href={`https://maps.google.com/maps?q=${liveLocation.latitude},${liveLocation.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="outline" size="sm" className="w-full text-xs">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                      Buka di Google Maps
+                    </Button>
+                  </a>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* No live location yet — show info hint */}
+            {!liveLocation && customerId && (
+              <Card className="border-dashed border-muted-foreground/30">
+                <CardContent className="p-4 flex gap-3 items-center">
+                  <Signal className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Lokasi GPS belum dibagikan</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Jamaah belum mengaktifkan live location. Halaman ini akan otomatis memperbarui setiap 30 detik.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Departure info */}
             {departure && (

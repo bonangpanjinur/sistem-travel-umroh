@@ -10,9 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
   ChevronLeft, Share2, Copy, CheckCheck, Users, QrCode,
-  Plane, Calendar, Info, Shield, Eye, EyeOff
+  Plane, Calendar, Info, Shield, Eye, EyeOff, Navigation
 } from "lucide-react";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -270,6 +271,24 @@ export default function JamaahPantauKeluarga() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Live GPS Location Sharing */}
+            {customer?.id && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Navigation className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold">Live Location GPS</p>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Aktifkan untuk membagikan posisi GPS Anda secara real-time ke keluarga melalui link pantau di atas.
+                  Lokasi diperbarui setiap 30 detik dan terlihat di peta halaman keluarga.
+                </p>
+                <LiveLocationShare
+                  customerId={customer.id}
+                  customerName={customer.full_name || "Jamaah"}
+                />
+              </div>
+            )}
 
             {/* What family sees */}
             {shareEnabled && (
