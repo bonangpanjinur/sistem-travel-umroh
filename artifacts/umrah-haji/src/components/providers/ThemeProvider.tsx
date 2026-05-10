@@ -109,8 +109,24 @@ function updateMetaTag(name: string, content: string, attr: 'name' | 'property' 
   element.setAttribute('content', content);
 }
 
+interface PWAIconConfig {
+  iconUrl?: string | null;
+  appName?: string;
+  shortName?: string;
+  themeColor?: string;
+  bgColor?: string;
+}
+
+function getPWAIconConfig(settings: WebsiteSettings | null | undefined): PWAIconConfig {
+  const raw = settings?.custom_sections as unknown;
+  if (!raw || Array.isArray(raw) || typeof raw !== 'object') return {};
+  return ((raw as Record<string, unknown>).pwa_icon_config ?? {}) as PWAIconConfig;
+}
+
 function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   if (!settings) return;
+
+  const pwa = getPWAIconConfig(settings);
 
   const title = settings.meta_title || settings.company_name || 'Umrah Haji';
   const description = settings.meta_description || settings.tagline || 'Sistem Manajemen Umrah & Haji';
@@ -125,15 +141,25 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   updateMetaTag('twitter:description', description);
   updateMetaTag('twitter:image', logo);
 
-  if (settings.primary_color) {
-    updateMetaTag('theme-color', `hsl(${settings.primary_color})`);
+  // theme-color: prefer the PWA hex override, then fall back to primary_color (HSL → hex conversion not needed — hex works fine)
+  const themeColor = pwa.themeColor || (settings.primary_color ? `hsl(${settings.primary_color})` : null);
+  if (themeColor) {
+    updateMetaTag('theme-color', themeColor);
   }
+
+  // PWA-specific: apple title uses the short name set in PWA Settings
+  const appleTitle =
+    pwa.shortName ||
+    (settings.company_name ? settings.company_name.split(' ')[0] : null) ||
+    title;
+  updateMetaTag('apple-mobile-web-app-title', appleTitle);
 
   if (settings.google_console_verification) {
     updateMetaTag('google-site-verification', settings.google_console_verification);
   }
 
-  const iconUrl = settings.favicon_url || settings.logo_url;
+  // Favicon / apple-touch-icon: prefer custom PWA icon, then favicon/logo
+  const iconUrl = pwa.iconUrl || settings.favicon_url || settings.logo_url;
   if (iconUrl) {
     let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
     if (!favicon) {
@@ -199,7 +225,7 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
     loadGoogleFonts(settings.heading_font, settings.body_font);
   }, [settings?.heading_font, settings?.body_font]);
 
-  // Effect 3: Meta tags — re-apply only when relevant SEO fields change.
+  // Effect 3: Meta tags — re-apply only when relevant SEO/PWA fields change.
   useEffect(() => {
     if (!settings) return;
     applyMetaTags(settings);
@@ -212,6 +238,8 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
     settings?.favicon_url,
     settings?.primary_color,
     settings?.google_console_verification,
+    // custom_sections holds pwa_icon_config (shortName, themeColor, iconUrl)
+    settings?.custom_sections,
   ]);
 
   // Effect 4: Cache write — only when the settings hash actually changes.
