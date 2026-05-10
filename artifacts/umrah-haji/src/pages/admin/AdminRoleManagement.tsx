@@ -284,6 +284,15 @@ function SummaryTab() {
 export default function AdminRoleManagementEnhanced() {
   const { hasRole, isLoading: authLoading } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const VALID_TABS = ['matrix','permissions','menu-mapping','menu-sync','user-overrides','audit','summary','info'];
+  const requested = searchParams.get('tab') || 'matrix';
+  const activeTab = VALID_TABS.includes(requested) ? requested : 'matrix';
+  const onTabChange = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', v);
+    setSearchParams(next, { replace: true });
+  };
 
   if (authLoading) return <div className="p-6"><Skeleton className="h-32 w-full" /></div>;
   if (!isSuperAdmin) return <Navigate to="/access-denied" replace />;
