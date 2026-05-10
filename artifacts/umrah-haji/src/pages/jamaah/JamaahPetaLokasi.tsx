@@ -23,6 +23,8 @@ interface Location {
   x: number;
   y: number;
   color: string;
+  lat: number;
+  lng: number;
 }
 
 const LOCATIONS: Location[] = [
@@ -39,8 +41,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "makkah",
-    x: 50,
-    y: 45,
+    x: 50, y: 45,
+    lat: 21.4225, lng: 39.8262,
     color: "#10b981",
   },
   {
@@ -56,8 +58,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "makkah",
-    x: 50,
-    y: 44,
+    x: 50, y: 44,
+    lat: 21.4225, lng: 39.8262,
     color: "#10b981",
   },
   {
@@ -73,8 +75,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "makkah",
-    x: 52,
-    y: 48,
+    x: 52, y: 48,
+    lat: 21.4230, lng: 39.8268,
     color: "#10b981",
   },
   {
@@ -90,8 +92,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "makkah",
-    x: 72,
-    y: 35,
+    x: 72, y: 35,
+    lat: 21.4134, lng: 39.8934,
     color: "#f59e0b",
   },
   {
@@ -107,8 +109,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "makkah",
-    x: 85,
-    y: 55,
+    x: 85, y: 55,
+    lat: 21.3553, lng: 39.9844,
     color: "#f59e0b",
   },
   {
@@ -124,8 +126,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "makkah",
-    x: 78,
-    y: 42,
+    x: 78, y: 42,
+    lat: 21.3788, lng: 39.9249,
     color: "#f59e0b",
   },
   {
@@ -141,8 +143,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "makkah",
-    x: 68,
-    y: 38,
+    x: 68, y: 38,
+    lat: 21.4205, lng: 39.8743,
     color: "#ef4444",
   },
   {
@@ -158,8 +160,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "sunnah",
     city: "makkah",
-    x: 32,
-    y: 22,
+    x: 32, y: 22,
+    lat: 21.4571, lng: 39.8647,
     color: "#8b5cf6",
   },
   {
@@ -174,8 +176,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "sunnah",
     city: "makkah",
-    x: 38,
-    y: 72,
+    x: 38, y: 72,
+    lat: 21.3968, lng: 39.8333,
     color: "#8b5cf6",
   },
   {
@@ -191,8 +193,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "wajib",
     city: "madinah",
-    x: 50,
-    y: 45,
+    x: 50, y: 45,
+    lat: 24.4672, lng: 39.6112,
     color: "#10b981",
   },
   {
@@ -208,8 +210,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "sunnah",
     city: "madinah",
-    x: 49,
-    y: 44,
+    x: 49, y: 44,
+    lat: 24.4672, lng: 39.6112,
     color: "#10b981",
   },
   {
@@ -225,8 +227,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "sunnah",
     city: "madinah",
-    x: 35,
-    y: 65,
+    x: 35, y: 65,
+    lat: 24.4397, lng: 39.6174,
     color: "#8b5cf6",
   },
   {
@@ -241,8 +243,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "sunnah",
     city: "madinah",
-    x: 28,
-    y: 30,
+    x: 28, y: 30,
+    lat: 24.4739, lng: 39.5922,
     color: "#8b5cf6",
   },
   {
@@ -258,8 +260,8 @@ const LOCATIONS: Location[] = [
     ],
     importance: "sunnah",
     city: "madinah",
-    x: 65,
-    y: 20,
+    x: 65, y: 20,
+    lat: 24.4950, lng: 39.6121,
     color: "#8b5cf6",
   },
 ];
@@ -392,6 +394,44 @@ export default function JamaahPetaLokasi() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">{selected.description}</p>
+
+              {/* Navigation Buttons */}
+              <div className="flex gap-2">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${selected.lat},${selected.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg py-2 px-3 hover:bg-blue-100 transition-colors font-medium"
+                >
+                  <Navigation className="h-3.5 w-3.5" />
+                  Google Maps
+                </a>
+                <a
+                  href={`https://waze.com/ul?ll=${selected.lat},${selected.lng}&navigate=yes`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-teal-50 text-teal-700 border border-teal-200 rounded-lg py-2 px-3 hover:bg-teal-100 transition-colors font-medium"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Waze
+                </a>
+              </div>
+
+              {/* OSM Iframe embed */}
+              <div className="w-full rounded-xl overflow-hidden border" style={{ height: 180 }}>
+                <iframe
+                  width="100%"
+                  height="180"
+                  frameBorder="0"
+                  scrolling="no"
+                  marginHeight={0}
+                  marginWidth={0}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${selected.lng - 0.008},${selected.lat - 0.006},${selected.lng + 0.008},${selected.lat + 0.006}&layer=mapnik&marker=${selected.lat},${selected.lng}`}
+                  style={{ border: 0 }}
+                  title={`Peta ${selected.name}`}
+                />
+              </div>
+
               <div>
                 <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1">
                   <Info className="h-3.5 w-3.5" /> Tips & Panduan

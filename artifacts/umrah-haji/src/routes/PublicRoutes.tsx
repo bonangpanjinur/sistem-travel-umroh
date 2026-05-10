@@ -34,6 +34,7 @@ const Testimonials = lazy(() => import("@/pages/public/Testimonials"));
 const FiturPortalPage = lazy(() => import("@/pages/public/FiturPortalPage"));
 const KursPage = lazy(() => import("@/pages/public/KursPage"));
 const JamaahInfoPage = lazy(() => import("@/pages/public/JamaahInfoPage"));
+const PantauJamaahPage = lazy(() => import("@/pages/public/PantauJamaahPage"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -77,6 +78,7 @@ export default function PublicRoutes() {
       <Route path="/fitur" element={<LazyPage><FiturPortalPage /></LazyPage>} />
       <Route path="/kurs" element={<LazyPage><KursPage /></LazyPage>} />
       <Route path="/jamaah-info" element={<LazyPage><JamaahInfoPage /></LazyPage>} />
+      <Route path="/pantau/:token" element={<LazyPage><PantauJamaahPage /></LazyPage>} />
       <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>

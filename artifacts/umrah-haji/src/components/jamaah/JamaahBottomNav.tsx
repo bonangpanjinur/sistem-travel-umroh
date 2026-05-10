@@ -4,8 +4,9 @@ import {
   LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard,
   MessageCircle, X, GraduationCap, CalendarDays, Users, Clock,
   BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart, Star,
-  BellRing
+  BellRing, Moon, Sun, UsersRound
 } from "lucide-react";
+import { useDarkMode } from "@/hooks/useDarkMode";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useState, useEffect } from "react";
@@ -29,6 +30,7 @@ const moreMenuItems = [
   { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600 bg-amber-50" },
   { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600 bg-indigo-50" },
   { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "text-emerald-600 bg-emerald-50" },
+  { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga", color: "text-blue-600 bg-blue-50" },
   { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600 bg-teal-50" },
   { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600 bg-gray-50" },
 ];
@@ -77,6 +79,7 @@ const sidebarGroups = [
     label: "Akun",
     items: [
       { to: "/jamaah/notifications", icon: Bell, label: "Notifikasi", showBadge: true },
+      { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga" },
       { to: "/customer/settings", icon: User, label: "Profil & Pengaturan" },
     ],
   },
@@ -87,6 +90,7 @@ const SIDEBAR_COLLAPSED_KEY = "jamaah-sidebar-collapsed";
 export function JamaahBottomNav() {
   const location = useLocation();
   const { unreadCount } = useNotifications();
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const [moreOpen, setMoreOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
@@ -200,16 +204,29 @@ export function JamaahBottomNav() {
         </nav>
 
         {/* Sidebar Footer */}
-        {!sidebarCollapsed && (
-          <div className="border-t px-3 py-3 shrink-0">
+        <div className="border-t px-2 py-2 shrink-0 space-y-1">
+          {/* Dark mode toggle */}
+          <button
+            onClick={toggleDark}
+            title={isDark ? "Mode Terang" : "Mode Gelap"}
+            className={cn(
+              "flex items-center rounded-lg transition-colors text-muted-foreground hover:bg-muted hover:text-foreground w-full",
+              sidebarCollapsed ? "justify-center h-10" : "gap-3 px-2 py-2"
+            )}
+          >
+            {isDark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+            {!sidebarCollapsed && <span className="text-sm">{isDark ? "Mode Terang" : "Mode Gelap"}</span>}
+          </button>
+
+          {!sidebarCollapsed && (
             <Link
               to="/"
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block px-2"
             >
               ← Kembali ke Website
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
 
       {/* ── MOBILE "LEBIH" OVERLAY ── */}
@@ -243,6 +260,17 @@ export function JamaahBottomNav() {
                   <span className="text-[10px] text-center leading-tight font-medium">{item.label}</span>
                 </Link>
               ))}
+
+              {/* Dark mode toggle tile */}
+              <button
+                onClick={() => { toggleDark(); setMoreOpen(false); }}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-muted transition-colors"
+              >
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                  {isDark ? <Sun className="h-5 w-5 text-amber-500" /> : <Moon className="h-5 w-5 text-indigo-500" />}
+                </div>
+                <span className="text-[10px] text-center leading-tight font-medium">{isDark ? "Mode Terang" : "Mode Gelap"}</span>
+              </button>
             </div>
           </div>
         </div>

@@ -151,7 +151,7 @@ const SUGGESTED_QUESTIONS = [
   "Panduan ibadah umroh?",
 ];
 
-function findAnswer(question: string): string {
+function findLocalAnswer(question: string): string {
   const q = question.toLowerCase();
   for (const [keyword, answer] of Object.entries(FAQ_KNOWLEDGE_BASE)) {
     if (q.includes(keyword)) return answer;
@@ -163,6 +163,26 @@ function findAnswer(question: string): string {
   if (q.includes("halo") || q.includes("hi") || q.includes("assalamu") || q.includes("selamat")) return "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Chatbot Vinstour Travel. Saya siap membantu Anda dengan pertanyaan seputar:\n\n• Dokumen & persyaratan\n• Pembayaran & cicilan\n• Proses visa\n• Info hotel & jadwal\n• Panduan ibadah\n• Dan masih banyak lagi!\n\nSilakan ketik pertanyaan Anda atau pilih dari pertanyaan yang tersedia di bawah.";
   if (q.includes("terima kasih") || q.includes("makasih") || q.includes("jazak")) return "Wa iyyakum! Jazakallahu khairan 🤲\n\nJika ada pertanyaan lain, jangan ragu untuk bertanya. Semoga perjalanan ibadah Anda menjadi berkah dan mabrur. Barakallahu fiikum!";
   return `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum menemukan jawaban spesifik untuk pertanyaan tersebut. Silakan:\n\n1. Coba pertanyaan lain yang lebih spesifik\n2. Chat langsung dengan pembimbing → */jamaah/chat*\n3. Buat tiket dukungan → */customer/support*\n\nTim kami siap membantu Anda dengan lebih detail!`;
+}
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+async function fetchAIAnswer(
+  message: string,
+  history: { role: string; content: string }[]
+): Promise<{ answer: string; source: "ai" | "faq" }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/chatbot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, conversationHistory: history }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) throw new Error("API error");
+    return await res.json();
+  } catch {
+    return { answer: findLocalAnswer(message), source: "faq" };
+  }
 }
 
 export default function JamaahChatbot() {
@@ -177,30 +197,35 @@ export default function JamaahChatbot() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiMode, setAiMode] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function sendMessage(text?: string) {
+  async function sendMessage(text?: string) {
     const msg = (text || input).trim();
-    if (!msg) return;
+    if (!msg || loading) return;
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: msg, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
-    setTimeout(() => {
-      const answer = findAnswer(msg);
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: answer,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, botMsg]);
-      setLoading(false);
-    }, 800 + Math.random() * 500);
+
+    // Build conversation history for context
+    const history = messages.slice(-8).map(m => ({ role: m.role, content: m.content }));
+
+    const { answer, source } = await fetchAIAnswer(msg, history);
+    if (source === "ai" && !aiMode) setAiMode(true);
+
+    const botMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: answer,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, botMsg]);
+    setLoading(false);
   }
 
   function rateMessage(msgId: string, liked: boolean) {
@@ -245,7 +270,10 @@ export default function JamaahChatbot() {
               </div>
               <div>
                 <p className="font-semibold text-sm">Asisten Virtual</p>
-                <p className="text-xs text-green-500 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />Online</p>
+                <p className="text-xs text-green-500 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
+                  {aiMode ? "AI aktif" : "Online"}
+                </p>
               </div>
             </div>
           </div>

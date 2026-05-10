@@ -106,6 +106,97 @@ self.addEventListener("fetch", (event) => {
 // Scheduled notification timers (persisted across soft navigations)
 const scheduledNotifTimers = new Map();
 
+// ── BACKGROUND SYNC ──────────────────────────────────────────────────────────
+// Replay queued offline actions when connectivity is restored.
+const OFFLINE_QUEUE_KEY = "vinstour-offline-queue";
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === "vinstour-sync-queue") {
+    event.waitUntil(replayOfflineQueue());
+  }
+});
+
+async function replayOfflineQueue() {
+  let queue;
+  try {
+    const db = await openQueueDB();
+    queue = await getAllFromDB(db);
+  } catch {
+    return;
+  }
+
+  if (!queue || queue.length === 0) return;
+
+  const remaining = [];
+  for (const action of queue) {
+    if (!action.url || !action.payload) continue;
+    try {
+      const res = await fetch(action.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(action.payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Notify all clients about successful sync
+      const allClients = await clients.matchAll();
+      allClients.forEach((c) =>
+        c.postMessage({ type: "SYNC_SUCCESS", actionId: action.id, label: action.label })
+      );
+    } catch {
+      if ((action.retries || 0) < 3) {
+        remaining.push({ ...action, retries: (action.retries || 0) + 1 });
+      }
+    }
+  }
+
+  try {
+    const db = await openQueueDB();
+    await clearDB(db);
+    for (const item of remaining) {
+      await putInDB(db, item);
+    }
+  } catch {
+    // best-effort
+  }
+}
+
+function openQueueDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("vinstour-sync-db", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("queue", { keyPath: "id" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function getAllFromDB(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("queue", "readonly");
+    const req = tx.objectStore("queue").getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function clearDB(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("queue", "readwrite");
+    const req = tx.objectStore("queue").clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function putInDB(db, item) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("queue", "readwrite");
+    const req = tx.objectStore("queue").put(item);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 

@@ -46,7 +46,32 @@
   }
 
   .dark {
-    /* Dark mode color overrides are now applied by ThemeProvider */
+    /* Dark mode color overrides */
+    --background: 160 15% 8%;
+    --foreground: 160 20% 92%;
+    --card: 160 12% 11%;
+    --card-foreground: 160 20% 92%;
+    --popover: 160 12% 10%;
+    --popover-foreground: 160 20% 92%;
+    --primary: 160 70% 40%;
+    --primary-foreground: 160 10% 98%;
+    --secondary: 160 12% 16%;
+    --secondary-foreground: 160 20% 88%;
+    --muted: 160 12% 16%;
+    --muted-foreground: 160 10% 55%;
+    --accent: 45 80% 45%;
+    --accent-foreground: 45 10% 5%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 10% 20%;
+    --input: 160 10% 20%;
+    --ring: 160 70% 40%;
+    --success: 142 60% 35%;
+    --success-foreground: 142 10% 98%;
+    --warning: 38 80% 50%;
+    --warning-foreground: 38 10% 5%;
+    --info: 199 75% 45%;
+    --info-foreground: 199 10% 98%;
   }
 }
 

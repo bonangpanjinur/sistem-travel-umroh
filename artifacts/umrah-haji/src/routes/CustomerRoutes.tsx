@@ -87,6 +87,9 @@ const JamaahTrackerIbadah = lazy(() => import("@/pages/jamaah/JamaahTrackerIbada
 // Pengingat Ibadah — push notification lokal
 const JamaahPengingatIbadah = lazy(() => import("@/pages/jamaah/JamaahPengingatIbadah"));
 
+// P15 — Pantau Keluarga
+const JamaahPantauKeluarga = lazy(() => import("@/pages/jamaah/JamaahPantauKeluarga"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -185,6 +188,9 @@ export default function CustomerRoutes() {
 
       {/* Pengingat Ibadah — notifikasi otomatis shalat, zikir & manasik */}
       <Route path="/jamaah/pengingat-ibadah" element={<CustomerRoute><JamaahPengingatIbadah /></CustomerRoute>} />
+
+      {/* P15 — Pantau Keluarga */}
+      <Route path="/jamaah/pantau-keluarga" element={<CustomerRoute><JamaahPantauKeluarga /></CustomerRoute>} />
 
       {/* FITUR 01 — SOS Status Real-time Jamaah */}
       <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />
