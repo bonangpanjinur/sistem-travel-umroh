@@ -9,13 +9,15 @@ import { Progress } from "@/components/ui/progress";
 import {
   Search, Plane, Calendar, CreditCard, User, Package,
   CheckCircle2, Clock, XCircle, AlertCircle, Loader2,
-  MessageCircle, Share2, Printer, PhoneCall, Bell, BellOff
+  MessageCircle, Share2, Printer, PhoneCall, Bell,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { useWebsiteSettings } from "@/hooks/useWebsiteSettings";
 
 interface BookingResult {
   id: string;
@@ -65,16 +67,19 @@ function getJourneyStep(bookingStatus: string, paymentStatus: string): number {
   return 1;
 }
 
-const WA_NUMBER = '628123456789';
-
 export default function BookingStatusPage() {
+  const { data: settings } = useWebsiteSettings();
+
+  // Ambil nomor WA dari pengaturan admin, fallback ke default
+  const waRaw = settings?.footer_whatsapp || "628123456789";
+  const WA_NUMBER = waRaw.replace(/\D/g, "").replace(/^0/, "62");
+
   const [bookingCode, setBookingCode] = useState("");
   const [result, setResult] = useState<BookingResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
-  // Reminder subscription state
   const [reminderPhone, setReminderPhone] = useState("");
   const [reminderDays, setReminderDays] = useState("3");
   const [reminderLoading, setReminderLoading] = useState(false);
@@ -140,7 +145,6 @@ export default function BookingStatusPage() {
     const booking = data as BookingResult;
     setResult(booking);
     setReminderSubscribed(false);
-    // Pre-fill phone dari data customer
     if (booking.customer?.phone) setReminderPhone(booking.customer.phone);
   };
 
@@ -162,39 +166,37 @@ export default function BookingStatusPage() {
   };
 
   const waMsg = result
-    ? encodeURIComponent(`Halo Vinstour Travel, saya ingin menanyakan status booking saya dengan kode: ${result.booking_code}. Nama: ${result.customer?.full_name}. Mohon bantuannya.`)
+    ? encodeURIComponent(`Halo ${settings?.company_name || 'Travel'}, saya ingin menanyakan status booking saya dengan kode: ${result.booking_code}. Nama: ${result.customer?.full_name}. Mohon bantuannya.`)
     : '';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-primary font-bold text-lg">← Beranda</Link>
-          <h1 className="font-bold text-gray-800">Cek Status Booking</h1>
-          <div className="w-20" />
-        </div>
-      </header>
+    <DynamicPublicLayout>
+      <div className="min-h-[70vh] bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20 py-10 px-4">
+        <div className="max-w-lg mx-auto space-y-6">
 
-      <div className="flex-1 flex flex-col items-center justify-start py-12 px-4">
-        <div className="w-full max-w-lg space-y-6">
-
-          {/* Search Hero */}
+          {/* Hero */}
           <div className="text-center space-y-2">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-2">
               <Search className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">Cek Status Pemesanan</h2>
-            <p className="text-muted-foreground text-sm">
-              Masukkan kode booking untuk melihat status perjalanan Anda tanpa perlu login.
+            <h1 className="text-2xl font-bold text-foreground">Cek Status Pemesanan</h1>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+              Masukkan kode booking untuk melihat status perjalanan Anda — tanpa perlu login.
             </p>
           </div>
+
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Link to="/" className="hover:text-primary transition-colors">Beranda</Link>
+            <span>/</span>
+            <span className="text-foreground font-medium">Cek Booking</span>
+          </nav>
 
           {/* Search Box */}
           <Card className="shadow-md border-0">
             <CardContent className="pt-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">Kode Booking</label>
+                <label className="text-sm font-semibold text-foreground">Kode Booking</label>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Contoh: BK-2024-001"
@@ -204,7 +206,7 @@ export default function BookingStatusPage() {
                     className="text-center font-mono text-base tracking-widest uppercase"
                     maxLength={20}
                   />
-                  <Button onClick={handleSearch} disabled={loading || !bookingCode.trim()} className="px-6">
+                  <Button onClick={handleSearch} disabled={loading || !bookingCode.trim()} className="px-6 shrink-0">
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -217,15 +219,15 @@ export default function BookingStatusPage() {
 
           {/* Error */}
           {error && searched && (
-            <Card className="border-red-200 bg-red-50">
+            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900">
               <CardContent className="pt-5 flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm text-red-700 font-medium mb-2">{error}</p>
-                  <Button size="sm" variant="outline" className="gap-2 border-red-300 text-red-700 hover:bg-red-100" asChild>
-                    <a href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('Halo Vinstour Travel, saya butuh bantuan cek status booking saya.')}`} target="_blank" rel="noreferrer">
+                  <p className="text-sm text-red-700 dark:text-red-400 font-medium mb-2">{error}</p>
+                  <Button size="sm" variant="outline" className="gap-2 border-red-300 text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-400" asChild>
+                    <a href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('Halo, saya butuh bantuan cek status booking saya.')}`} target="_blank" rel="noreferrer">
                       <MessageCircle className="h-4 w-4" />
-                      Hubungi Admin
+                      Hubungi Admin via WhatsApp
                     </a>
                   </Button>
                 </div>
@@ -233,9 +235,10 @@ export default function BookingStatusPage() {
             </Card>
           )}
 
-          {/* Result */}
+          {/* Result Card */}
           {result && statusCfg && payCfg && (
             <Card className="shadow-lg border-0 overflow-hidden">
+
               {/* Status Banner */}
               <div className={`px-6 py-4 ${result.booking_status === 'completed' ? 'bg-green-600' : result.booking_status === 'cancelled' ? 'bg-red-500' : 'bg-primary'}`}>
                 <div className="flex items-center justify-between text-white">
@@ -248,29 +251,25 @@ export default function BookingStatusPage() {
                     <p className="text-base font-bold">{statusCfg.label}</p>
                   </div>
                 </div>
-
-                {/* Action buttons */}
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={handleShare}
                     className="flex items-center gap-1.5 text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full transition-colors"
                   >
-                    <Share2 className="h-3.5 w-3.5" />
-                    Bagikan
+                    <Share2 className="h-3.5 w-3.5" /> Bagikan
                   </button>
                   <button
                     onClick={() => window.print()}
                     className="flex items-center gap-1.5 text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full transition-colors"
                   >
-                    <Printer className="h-3.5 w-3.5" />
-                    Cetak
+                    <Printer className="h-3.5 w-3.5" /> Cetak
                   </button>
                 </div>
               </div>
 
-              {/* Journey Progress Timeline */}
+              {/* Journey Timeline */}
               {result.booking_status !== 'cancelled' && result.booking_status !== 'refunded' && (
-                <div className="px-6 py-4 bg-gray-50 border-b">
+                <div className="px-6 py-4 bg-muted/40 border-b">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tahap Perjalanan</p>
                   <div className="flex items-center">
                     {JOURNEY_STEPS.map((step, idx) => {
@@ -285,16 +284,16 @@ export default function BookingStatusPage() {
                                 ? 'bg-primary text-white'
                                 : active
                                   ? 'bg-primary/20 border-2 border-primary text-primary'
-                                  : 'bg-gray-200 text-gray-400'
+                                  : 'bg-muted text-muted-foreground'
                             }`}>
                               <Icon className="h-4 w-4" />
                             </div>
-                            <span className={`text-[10px] font-medium whitespace-nowrap ${done || active ? 'text-primary' : 'text-gray-400'}`}>
+                            <span className={`text-[10px] font-medium whitespace-nowrap ${done || active ? 'text-primary' : 'text-muted-foreground'}`}>
                               {step.label}
                             </span>
                           </div>
                           {idx < JOURNEY_STEPS.length - 1 && (
-                            <div className={`flex-1 h-0.5 mx-1 mb-4 ${idx < journeyStep - 1 ? 'bg-primary' : 'bg-gray-200'}`} />
+                            <div className={`flex-1 h-0.5 mx-1 mb-4 ${idx < journeyStep - 1 ? 'bg-primary' : 'bg-muted'}`} />
                           )}
                         </div>
                       );
@@ -304,6 +303,7 @@ export default function BookingStatusPage() {
               )}
 
               <CardContent className="pt-5 space-y-5">
+
                 {/* Paket & Keberangkatan */}
                 {result.departure && (
                   <div className="space-y-2">
@@ -311,7 +311,7 @@ export default function BookingStatusPage() {
                     <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40">
                       <Package className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                       <div>
-                        <p className="font-semibold">{result.departure.package?.name}</p>
+                        <p className="font-semibold text-sm">{result.departure.package?.name}</p>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                           <Calendar className="h-3.5 w-3.5" />
                           <span>
@@ -330,11 +330,11 @@ export default function BookingStatusPage() {
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Pemesan</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold">{result.customer?.full_name}</p>
+                      <p className="font-semibold text-sm">{result.customer?.full_name}</p>
                       <p className="text-sm text-muted-foreground">{result.customer?.phone}</p>
                     </div>
                   </div>
@@ -346,12 +346,8 @@ export default function BookingStatusPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pembayaran</p>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${payCfg.color}`}>
-                      {payCfg.label}
-                    </span>
+                    <Badge variant="outline" className={`text-xs ${payCfg.color}`}>{payCfg.label}</Badge>
                   </div>
-
-                  {/* Progress Bar */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Terbayar</span>
@@ -363,18 +359,17 @@ export default function BookingStatusPage() {
                       <span>dari {formatCurrency(result.total_price)}</span>
                     </div>
                   </div>
-
                   {remaining > 0 && (
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-xs text-amber-700 font-medium">Sisa Pembayaran</p>
-                          <p className="text-lg font-bold text-amber-800">{formatCurrency(remaining)}</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Sisa Pembayaran</p>
+                          <p className="text-lg font-bold text-amber-800 dark:text-amber-300">{formatCurrency(remaining)}</p>
                         </div>
                         {result.payment_deadline && (
                           <div className="text-right">
-                            <p className="text-[10px] text-amber-600">Batas waktu</p>
-                            <p className="text-xs font-semibold text-amber-800">{formatDate(result.payment_deadline)}</p>
+                            <p className="text-[10px] text-amber-600 dark:text-amber-500">Batas waktu</p>
+                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">{formatDate(result.payment_deadline)}</p>
                           </div>
                         )}
                       </div>
@@ -382,9 +377,7 @@ export default function BookingStatusPage() {
                   )}
                 </div>
 
-                <Separator />
-
-                {/* Pengingat Pelunasan — hanya tampil jika ada sisa bayar + deadline */}
+                {/* Pengingat Pelunasan */}
                 {remaining > 0 && result.payment_deadline && result.booking_status !== 'cancelled' && (
                   <>
                     <Separator />
@@ -393,39 +386,35 @@ export default function BookingStatusPage() {
                         <Bell className="h-4 w-4 text-amber-500" />
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pengingat Pelunasan</p>
                       </div>
-
                       {reminderSubscribed ? (
-                        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-50 border border-green-200">
+                        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-50 border border-green-200 dark:bg-green-950/20 dark:border-green-900">
                           <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-sm font-semibold text-green-800">Pengingat diaktifkan!</p>
-                            <p className="text-xs text-green-700 mt-0.5">
+                            <p className="text-sm font-semibold text-green-800 dark:text-green-400">Pengingat diaktifkan!</p>
+                            <p className="text-xs text-green-700 dark:text-green-500 mt-0.5">
                               Admin akan menghubungi Anda di <strong>{reminderPhone}</strong> via WhatsApp H-{reminderDays} sebelum batas pelunasan.
                             </p>
-                            <button
-                              onClick={() => setReminderSubscribed(false)}
-                              className="text-xs text-green-600 underline mt-1 hover:text-green-800"
-                            >
+                            <button onClick={() => setReminderSubscribed(false)} className="text-xs text-green-600 underline mt-1 hover:text-green-800">
                               Ubah nomor atau jadwal
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3">
-                          <p className="text-xs text-amber-700">
+                        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/10 dark:border-amber-900 space-y-3">
+                          <p className="text-xs text-amber-700 dark:text-amber-400">
                             Aktifkan pengingat agar kami menghubungi Anda via WhatsApp sebelum batas waktu pelunasan.
                           </p>
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-gray-700">Nomor WhatsApp Anda</label>
+                            <label className="text-xs font-medium text-foreground">Nomor WhatsApp Anda</label>
                             <Input
                               placeholder="Contoh: 0812xxxxxxxx"
                               value={reminderPhone}
                               onChange={e => setReminderPhone(e.target.value)}
-                              className="bg-white text-sm"
+                              className="bg-white dark:bg-background text-sm"
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-gray-700">Ingatkan saya</label>
+                            <label className="text-xs font-medium text-foreground">Ingatkan saya</label>
                             <div className="flex gap-2">
                               {["1", "2", "3", "5"].map(d => (
                                 <button
@@ -434,7 +423,7 @@ export default function BookingStatusPage() {
                                   className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                                     reminderDays === d
                                       ? "bg-amber-500 text-white border-amber-500"
-                                      : "bg-white border-gray-200 text-gray-600 hover:border-amber-300"
+                                      : "bg-white dark:bg-background border-border text-muted-foreground hover:border-amber-300"
                                   }`}
                                 >
                                   H-{d}
@@ -447,10 +436,7 @@ export default function BookingStatusPage() {
                             disabled={reminderLoading || !reminderPhone.trim()}
                             onClick={handleSubscribeReminder}
                           >
-                            {reminderLoading
-                              ? <Loader2 className="h-4 w-4 animate-spin" />
-                              : <Bell className="h-4 w-4" />
-                            }
+                            {reminderLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                             Aktifkan Pengingat H-{reminderDays}
                           </Button>
                         </div>
@@ -461,26 +447,24 @@ export default function BookingStatusPage() {
 
                 <Separator />
 
-                {/* WhatsApp Contact */}
+                {/* WhatsApp / Telepon */}
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Butuh Bantuan?</p>
                   <div className="grid grid-cols-2 gap-2">
                     <Button className="gap-2 bg-green-600 hover:bg-green-700 text-white w-full" asChild>
                       <a href={`https://wa.me/${WA_NUMBER}?text=${waMsg}`} target="_blank" rel="noreferrer">
-                        <MessageCircle className="h-4 w-4" />
-                        WhatsApp
+                        <MessageCircle className="h-4 w-4" /> WhatsApp
                       </a>
                     </Button>
                     <Button variant="outline" className="gap-2 w-full" asChild>
                       <a href={`tel:+${WA_NUMBER}`}>
-                        <PhoneCall className="h-4 w-4" />
-                        Telepon
+                        <PhoneCall className="h-4 w-4" /> Telepon
                       </a>
                     </Button>
                   </div>
                 </div>
 
-                {/* Footer */}
+                {/* Timestamp */}
                 <div className="text-xs text-muted-foreground pt-1 border-t">
                   Dibuat: {result.created_at ? format(new Date(result.created_at), 'd MMM yyyy, HH:mm', { locale: localeId }) : '-'}
                 </div>
@@ -488,25 +472,31 @@ export default function BookingStatusPage() {
             </Card>
           )}
 
-          {/* Info card saat belum ada hasil */}
+          {/* Hint saat belum ada hasil */}
           {!result && !error && (
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-700">
-              <AlertCircle className="h-5 w-5 shrink-0 text-blue-500" />
-              <span>Tidak tahu kode booking Anda? Hubungi admin via WhatsApp dengan nama lengkap Anda.</span>
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100 dark:bg-blue-950/20 dark:border-blue-900 text-sm text-blue-700 dark:text-blue-400">
+              <AlertCircle className="h-5 w-5 shrink-0 text-blue-500 mt-0.5" />
+              <span>Tidak tahu kode booking Anda? Hubungi admin via WhatsApp dengan nama lengkap Anda, kami akan bantu carikan.</span>
+            </div>
+          )}
+
+          {/* CTA daftar / login */}
+          {!result && (
+            <div className="text-center pt-2">
+              <p className="text-xs text-muted-foreground mb-3">Atau masuk ke akun Anda untuk melihat semua booking</p>
+              <div className="flex justify-center gap-3">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/auth/login">Masuk</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/register">Daftar Sekarang</Link>
+                </Button>
+              </div>
             </div>
           )}
 
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="py-6 border-t bg-white text-center text-xs text-muted-foreground">
-        <Link to="/" className="hover:text-primary transition-colors">← Kembali ke Beranda</Link>
-        <span className="mx-2">·</span>
-        <a href={`https://wa.me/${WA_NUMBER}`} target="_blank" rel="noreferrer" className="hover:text-green-600 transition-colors">
-          Hubungi Kami
-        </a>
-      </footer>
-    </div>
+    </DynamicPublicLayout>
   );
 }
