@@ -131,74 +131,50 @@ export default function CustomerRoutes() {
       {/* Tabungan */}
       <Route path="/savings/success/:planId" element={<CustomerRoute><SavingsSuccess /></CustomerRoute>} />
 
-      {/* Portal Jamaah */}
+      {/* ── Portal Jamaah — Memerlukan Login (data personal) ── */}
       <Route path="/jamaah" element={<CustomerRoute><JamaahPortal /></CustomerRoute>} />
       <Route path="/jamaah/digital-id" element={<CustomerRoute><JamaahDigitalID /></CustomerRoute>} />
-      <Route path="/jamaah/doa-panduan" element={<CustomerRoute><JamaahDoaPanduan /></CustomerRoute>} />
       <Route path="/jamaah/itinerary" element={<CustomerRoute><JamaahItinerary /></CustomerRoute>} />
       <Route path="/jamaah/documents" element={<CustomerRoute><JamaahDocuments /></CustomerRoute>} />
       <Route path="/jamaah/payment-history" element={<CustomerRoute><JamaahPaymentHistory /></CustomerRoute>} />
       <Route path="/jamaah/feedback/:bookingId" element={<CustomerRoute><JamaahFeedback /></CustomerRoute>} />
       <Route path="/jamaah/notifications" element={<CustomerRoute><JamaahNotifications /></CustomerRoute>} />
       <Route path="/jamaah/visa" element={<CustomerRoute><JamaahVisaTracker /></CustomerRoute>} />
-      <Route path="/jamaah/panduan-ibadah" element={<CustomerRoute><Suspense fallback={<LoadingState />}><JamaahPanduanIbadah /></Suspense></CustomerRoute>} />
-      <Route path="/jamaah/peta-lokasi" element={<CustomerRoute><JamaahPetaLokasi /></CustomerRoute>} />
-
-      {/* Fase 2 — Fitur Inti Jamaah */}
-      <Route path="/jamaah/waktu-sholat" element={<CustomerRoute><JamaahWaktuSholat /></CustomerRoute>} />
-      <Route path="/jamaah/invoice/:bookingId" element={<CustomerRoute><JamaahInvoice /></CustomerRoute>} />
-      <Route path="/jamaah/kalkulator-kurs" element={<CustomerRoute><JamaahKalkulatorKurs /></CustomerRoute>} />
       <Route path="/jamaah/welcome" element={<CustomerRoute><JamaahWelcome /></CustomerRoute>} />
-
-      {/* Fase 3 — Fitur Sosial & Komunitas */}
       <Route path="/jamaah/chat" element={<CustomerRoute><JamaahChat /></CustomerRoute>} />
       <Route path="/jamaah/rombongan" element={<CustomerRoute><JamaahRombongan /></CustomerRoute>} />
       <Route path="/jamaah/galeri" element={<CustomerRoute><JamaahGaleri /></CustomerRoute>} />
       <Route path="/jamaah/riwayat-perjalanan" element={<CustomerRoute><JamaahRiwayatPerjalanan /></CustomerRoute>} />
       <Route path="/jamaah/referral" element={<CustomerRoute><JamaahReferral /></CustomerRoute>} />
-
-      {/* Fase 4 — Fitur Finansial & Spiritual */}
-      <Route path="/jamaah/kalkulator-zakat" element={<CustomerRoute><JamaahKalkulatorZakat /></CustomerRoute>} />
-
-      {/* Fase 5 — Operasional & Self-Service */}
+      <Route path="/jamaah/invoice/:bookingId" element={<CustomerRoute><JamaahInvoice /></CustomerRoute>} />
       <Route path="/jamaah/checkin" element={<CustomerRoute><JamaahCheckin /></CustomerRoute>} />
       <Route path="/jamaah/bagasi" element={<CustomerRoute><JamaahBagasi /></CustomerRoute>} />
       <Route path="/jamaah/kontrak" element={<CustomerRoute><JamaahKontrak /></CustomerRoute>} />
-
-      {/* Fase 8 — Engagement & Gamifikasi Jamaah */}
       <Route path="/jamaah/badges" element={<CustomerRoute><JamaahBadges /></CustomerRoute>} />
-      <Route path="/jamaah/target-ibadah" element={<CustomerRoute><JamaahTargetIbadah /></CustomerRoute>} />
       <Route path="/jamaah/jurnal" element={<CustomerRoute><JamaahJurnal /></CustomerRoute>} />
-      <Route path="/jamaah/doa-counter" element={<CustomerRoute><JamaahDoaCounter /></CustomerRoute>} />
       <Route path="/jamaah/sertifikat" element={<CustomerRoute><JamaahSertifikat /></CustomerRoute>} />
-
-      {/* Fase 9 — Integrasi & Otomasi */}
       <Route path="/jamaah/siskohat" element={<CustomerRoute><JamaahSISKOHAT /></CustomerRoute>} />
-
-      {/* Fase 10 — AI & Smart Analytics */}
       <Route path="/jamaah/chatbot" element={<CustomerRoute><JamaahChatbot /></CustomerRoute>} />
       <Route path="/jamaah/ringkasan-ai" element={<CustomerRoute><JamaahRingkasanAI /></CustomerRoute>} />
-
-      {/* Fase 11 — Pembayaran & Dokumen Mandiri */}
       <Route path="/jamaah/payment" element={<CustomerRoute><JamaahPayment /></CustomerRoute>} />
-      <Route path="/jamaah/checklist" element={<CustomerRoute><JamaahChecklist /></CustomerRoute>} />
-
-      {/* Fase 15 — Manasik Digital */}
-      <Route path="/jamaah/manasik" element={<CustomerRoute><JamaahManasik /></CustomerRoute>} />
-      <Route path="/jamaah/manasik-interaktif" element={<CustomerRoute><JamaahManasikInteraktif /></CustomerRoute>} />
-
-      {/* Fase 2 UX — Profil Kesehatan & Tracker Ibadah */}
       <Route path="/jamaah/kesehatan" element={<CustomerRoute><JamaahKesehatan /></CustomerRoute>} />
-      <Route path="/jamaah/tracker-ibadah" element={<CustomerRoute><JamaahTrackerIbadah /></CustomerRoute>} />
-
-      {/* Pengingat Ibadah — notifikasi otomatis shalat, zikir & manasik */}
-      <Route path="/jamaah/pengingat-ibadah" element={<CustomerRoute><JamaahPengingatIbadah /></CustomerRoute>} />
-
-      {/* P15 — Pantau Keluarga */}
+      <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />
       <Route path="/jamaah/pantau-keluarga" element={<CustomerRoute><JamaahPantauKeluarga /></CustomerRoute>} />
 
-      {/* FITUR 01 — SOS Status Real-time Jamaah */}
-      <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />
+      {/* ── Konten Islami & Alat Ibadah — PUBLIK, tidak perlu login ── */}
+      <Route path="/jamaah/doa-panduan" element={<LazyPage><JamaahDoaPanduan /></LazyPage>} />
+      <Route path="/jamaah/panduan-ibadah" element={<LazyPage><JamaahPanduanIbadah /></LazyPage>} />
+      <Route path="/jamaah/peta-lokasi" element={<LazyPage><JamaahPetaLokasi /></LazyPage>} />
+      <Route path="/jamaah/waktu-sholat" element={<LazyPage><JamaahWaktuSholat /></LazyPage>} />
+      <Route path="/jamaah/kalkulator-kurs" element={<LazyPage><JamaahKalkulatorKurs /></LazyPage>} />
+      <Route path="/jamaah/kalkulator-zakat" element={<LazyPage><JamaahKalkulatorZakat /></LazyPage>} />
+      <Route path="/jamaah/doa-counter" element={<LazyPage><JamaahDoaCounter /></LazyPage>} />
+      <Route path="/jamaah/manasik" element={<LazyPage><JamaahManasik /></LazyPage>} />
+      <Route path="/jamaah/manasik-interaktif" element={<LazyPage><JamaahManasikInteraktif /></LazyPage>} />
+      <Route path="/jamaah/tracker-ibadah" element={<LazyPage><JamaahTrackerIbadah /></LazyPage>} />
+      <Route path="/jamaah/target-ibadah" element={<LazyPage><JamaahTargetIbadah /></LazyPage>} />
+      <Route path="/jamaah/checklist" element={<LazyPage><JamaahChecklist /></LazyPage>} />
+      <Route path="/jamaah/pengingat-ibadah" element={<LazyPage><JamaahPengingatIbadah /></LazyPage>} />
 
       {/* FITUR 04 — Status Pengajuan Refund/Pembatalan Customer */}
       <Route path="/customer/refund-status" element={<CustomerRoute><LazyPage><CustomerRefundStatus /></LazyPage></CustomerRoute>} />

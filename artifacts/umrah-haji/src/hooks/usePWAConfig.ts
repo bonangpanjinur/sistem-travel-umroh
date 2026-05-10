@@ -10,6 +10,14 @@ export interface BottomNavItem {
   order: number;
 }
 
+export interface HeaderNavLink {
+  id: string;
+  label: string;
+  href: string;
+  enabled: boolean;
+  order: number;
+}
+
 export interface PWAIconConfig {
   iconUrl: string | null;
   appName: string;
@@ -53,6 +61,19 @@ export const ALL_NAV_OPTIONS: BottomNavItem[] = [
   { id: "akun",       label: "Akun",       icon: "User",        path: "/auth/login",        enabled: true,  order: 15 },
 ];
 
+export const DEFAULT_HEADER_NAV: HeaderNavLink[] = [
+  { id: "jadwal",       label: "Jadwal",      href: "/departures",  enabled: true,  order: 0 },
+  { id: "blog",         label: "Artikel",     href: "/blog",        enabled: true,  order: 1 },
+  { id: "tentang",      label: "Tentang",     href: "/about",       enabled: true,  order: 2 },
+  { id: "kontak",       label: "Kontak",      href: "/contact",     enabled: true,  order: 3 },
+  { id: "paket",        label: "Paket",       href: "/packages",    enabled: false, order: 4 },
+  { id: "kalkulator",   label: "Kalkulator",  href: "/kalkulator",  enabled: false, order: 5 },
+  { id: "testimoni",    label: "Testimoni",   href: "/testimonials",enabled: false, order: 6 },
+  { id: "toko",         label: "Toko",        href: "/toko",        enabled: false, order: 7 },
+  { id: "cek-booking",  label: "Cek Booking", href: "/cek-booking", enabled: false, order: 8 },
+  { id: "kurs",         label: "Kurs SAR",    href: "/kurs",        enabled: false, order: 9 },
+];
+
 function getCustomData(settings: ReturnType<typeof useWebsiteSettings>["data"]): Record<string, any> {
   const raw = settings?.custom_sections as unknown;
   if (!raw) return {};
@@ -72,6 +93,23 @@ export function usePWAConfig() {
     if (saved?.length) return saved;
     return DEFAULT_BOTTOM_NAV;
   }, [customData]);
+
+  const headerNavLinks: HeaderNavLink[] = useMemo(() => {
+    const saved = customData?.pwa_header_nav as HeaderNavLink[] | undefined;
+    // Also check website_settings nav_links for backward compatibility
+    const legacyLinks = settings?.nav_links as unknown as Array<{href: string; label: string}> | null;
+    if (saved?.length) return saved;
+    if (legacyLinks?.length) {
+      return legacyLinks.map((l, i) => ({
+        id: l.href.replace(/\//g, '-').replace(/^-/, ''),
+        label: l.label,
+        href: l.href,
+        enabled: true,
+        order: i,
+      }));
+    }
+    return DEFAULT_HEADER_NAV;
+  }, [customData, settings]);
 
   const iconConfig: PWAIconConfig = useMemo(() => {
     const saved = customData?.pwa_icon_config as Partial<PWAIconConfig> | undefined;
@@ -105,11 +143,29 @@ export function usePWAConfig() {
     });
   }, [customData, updateSettings]);
 
+  const saveHeaderNavLinks = useCallback((newLinks: HeaderNavLink[]) => {
+    updateSettings.mutate({
+      custom_sections: {
+        ...customData,
+        pwa_header_nav: newLinks,
+      } as any,
+    });
+  }, [customData, updateSettings]);
+
   const reset = useCallback(() => {
     updateSettings.mutate({
       custom_sections: {
         ...customData,
         pwa_bottom_nav: DEFAULT_BOTTOM_NAV,
+      } as any,
+    });
+  }, [customData, updateSettings]);
+
+  const resetHeaderNav = useCallback(() => {
+    updateSettings.mutate({
+      custom_sections: {
+        ...customData,
+        pwa_header_nav: DEFAULT_HEADER_NAV,
       } as any,
     });
   }, [customData, updateSettings]);
@@ -123,13 +179,25 @@ export function usePWAConfig() {
     [items],
   );
 
+  const activeHeaderLinks = useMemo(
+    () =>
+      headerNavLinks
+        .filter((l) => l.enabled)
+        .sort((a, b) => a.order - b.order),
+    [headerNavLinks],
+  );
+
   return {
     items,
+    headerNavLinks,
     iconConfig,
     activeItems,
+    activeHeaderLinks,
     save,
     saveIconConfig,
+    saveHeaderNavLinks,
     reset,
+    resetHeaderNav,
     isSaving: updateSettings.isPending,
     isLoading,
     settings,

@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { usePWAConfig } from '@/hooks/usePWAConfig';
 import { cn } from '@/lib/utils';
 
 interface NavLink {
@@ -172,6 +173,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const [mobileSection, setMobileSection] = useState<string | null>(null);
   const { user, profile, isAdmin, signOut } = useAuth();
   const { data: mainSettings } = useWebsiteSettings();
+  const { activeHeaderLinks } = usePWAConfig();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const settings = tenantSettings || mainSettings;
   const navigate = useNavigate();
@@ -190,7 +192,10 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const companyName = settings?.company_name || 'UmrohTravel';
   const tagline = settings?.tagline || 'Perjalanan Suci Anda';
   const logoUrl = settings?.logo_url;
-  const navLinks = ((settings?.nav_links as unknown as NavLink[] | null) || defaultNavLinks) as NavLink[];
+  // Use PWA-configurable header links (falls back to defaultNavLinks via usePWAConfig)
+  const navLinks: NavLink[] = activeHeaderLinks.length > 0
+    ? activeHeaderLinks.map((l) => ({ href: l.href, label: l.label }))
+    : defaultNavLinks;
   const customSections = settings?.custom_sections as unknown as CustomSectionsData | null;
   const headerMode: HeaderDisplayMode = customSections?.headerDisplayMode || 'logo_name_tagline';
 

@@ -13,23 +13,38 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Cloud, Target, ShoppingBag, Star,
 };
 
-export function MobileBottomNav() {
-  const { activeItems } = usePWAConfig();
+interface MobileBottomNavProps {
+  /** When true (standalone PWA mode), show on all screen sizes */
+  standalone?: boolean;
+}
+
+export function MobileBottomNav({ standalone = false }: MobileBottomNavProps) {
+  const { activeItems, iconConfig } = usePWAConfig();
   const location = useLocation();
 
   if (activeItems.length === 0) return null;
 
+  const themeColor = iconConfig.themeColor || "#15803d";
+
   return (
     <>
-      {/* Spacer agar konten tidak tertutup navbar bawah */}
-      <div className="h-16 md:hidden" aria-hidden />
+      {/* Spacer so page content isn't hidden behind the nav bar */}
+      <div
+        className={cn("h-16", standalone ? "block" : "block md:hidden")}
+        aria-hidden
+      />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t border-border safe-area-bottom">
+      <nav
+        className={cn(
+          "fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border safe-area-bottom",
+          standalone ? "block" : "block md:hidden",
+        )}
+      >
         <div
           className="grid h-16"
           style={{ gridTemplateColumns: `repeat(${activeItems.length}, 1fr)` }}
         >
-          {activeItems.map((item) => {
+          {activeItems.map((item, idx) => {
             const Icon = ICON_MAP[item.icon] ?? Home;
             const isActive =
               item.path === "/"
@@ -41,20 +56,27 @@ export function MobileBottomNav() {
                 to={item.path}
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors select-none",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <div
                   className={cn(
                     "flex items-center justify-center w-10 h-6 rounded-full transition-colors",
-                    isActive ? "bg-primary/10" : ""
+                    isActive ? "bg-primary/10" : "",
                   )}
+                  style={isActive && standalone ? { backgroundColor: `${themeColor}20` } : undefined}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon
+                    className="h-5 w-5"
+                    style={isActive && standalone ? { color: themeColor } : undefined}
+                  />
                 </div>
-                <span className="leading-none">{item.label}</span>
+                <span
+                  className="leading-none"
+                  style={isActive && standalone ? { color: themeColor } : undefined}
+                >
+                  {item.label}
+                </span>
               </NavLink>
             );
           })}

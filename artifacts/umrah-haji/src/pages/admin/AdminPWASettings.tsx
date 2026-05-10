@@ -19,8 +19,10 @@ import { toast } from "sonner";
 import {
   usePWAConfig,
   ALL_NAV_OPTIONS,
+  DEFAULT_HEADER_NAV,
   DEFAULT_ICON_CONFIG,
   BottomNavItem,
+  HeaderNavLink,
   PWAIconConfig,
 } from "@/hooks/usePWAConfig";
 import { cn } from "@/lib/utils";
@@ -80,12 +82,53 @@ function NavItemRow({ item, index, onChange }: {
   );
 }
 
+function HeaderNavRow({ item, index, onChange }: {
+  item: HeaderNavLink;
+  index: number;
+  onChange: (updated: HeaderNavLink) => void;
+}) {
+  return (
+    <Draggable draggableId={item.id} index={index}>
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          className={cn(
+            "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-shadow",
+            snapshot.isDragging && "shadow-lg ring-1 ring-primary",
+          )}
+        >
+          <div {...provided.dragHandleProps} className="cursor-grab text-muted-foreground">
+            <GripVertical className="h-4 w-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={cn("text-sm font-medium", !item.enabled && "text-muted-foreground")}>{item.label}</p>
+            <p className="text-xs text-muted-foreground truncate">{item.href}</p>
+          </div>
+          <Switch
+            checked={item.enabled}
+            onCheckedChange={(checked) => onChange({ ...item, enabled: checked })}
+          />
+        </div>
+      )}
+    </Draggable>
+  );
+}
+
 export default function AdminPWASettings() {
-  const { items, iconConfig: serverIconConfig, save, saveIconConfig, reset, isSaving, isLoading } = usePWAConfig();
+  const {
+    items,
+    headerNavLinks: serverHeaderNavLinks,
+    iconConfig: serverIconConfig,
+    save, saveIconConfig, saveHeaderNavLinks,
+    reset, resetHeaderNav,
+    isSaving, isLoading,
+  } = usePWAConfig();
 
   const [localItems, setLocalItems] = useState<BottomNavItem[]>(() =>
     ALL_NAV_OPTIONS.slice().sort((a, b) => a.order - b.order),
   );
+  const [localHeaderNav, setLocalHeaderNav] = useState<HeaderNavLink[]>(DEFAULT_HEADER_NAV);
   const [iconConfig, setIconConfig] = useState<PWAIconConfig>(DEFAULT_ICON_CONFIG);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -101,11 +144,17 @@ export default function AdminPWASettings() {
           return saved ?? opt;
         }).sort((a, b) => a.order - b.order),
       );
+      // Merge saved header nav with default options
+      const mergedHeader = DEFAULT_HEADER_NAV.map((opt) => {
+        const saved = serverHeaderNavLinks.find((l) => l.id === opt.id);
+        return saved ?? opt;
+      }).sort((a, b) => a.order - b.order);
+      setLocalHeaderNav(mergedHeader);
       setIconConfig(serverIconConfig);
       setIconPreview(serverIconConfig.iconUrl);
       setInitialized(true);
     }
-  }, [isLoading, initialized, items, serverIconConfig]);
+  }, [isLoading, initialized, items, serverHeaderNavLinks, serverIconConfig]);
 
   const activeCount = localItems.filter((i) => i.enabled).length;
   const previewItems = localItems.filter((i) => i.enabled).slice(0, 5);
@@ -126,13 +175,36 @@ export default function AdminPWASettings() {
     const enabled = localItems.filter((i) => i.enabled);
     if (enabled.length === 0) { toast.error("Aktifkan minimal 1 menu."); return; }
     save(localItems);
-    toast.success("Menu navigasi disimpan ke database!");
+    toast.success("Menu navigasi bawah disimpan ke database!");
   };
 
   const handleReset = () => {
     reset();
     setLocalItems(ALL_NAV_OPTIONS.slice().sort((a, b) => a.order - b.order));
     toast.info("Menu dikembalikan ke default.");
+  };
+
+  const handleHeaderNavSave = () => {
+    saveHeaderNavLinks(localHeaderNav);
+    toast.success("Navigasi header disimpan ke database!");
+  };
+
+  const handleHeaderNavReset = () => {
+    resetHeaderNav();
+    setLocalHeaderNav(DEFAULT_HEADER_NAV.slice().sort((a, b) => a.order - b.order));
+    toast.info("Navigasi header dikembalikan ke default.");
+  };
+
+  const handleHeaderNavDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const reordered = Array.from(localHeaderNav);
+    const [moved] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, moved);
+    setLocalHeaderNav(reordered.map((item, idx) => ({ ...item, order: idx })));
+  };
+
+  const handleHeaderNavChange = (updated: HeaderNavLink) => {
+    setLocalHeaderNav((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
   };
 
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,15 +275,17 @@ export default function AdminPWASettings() {
           <p className="font-semibold mb-1">Tentang Fitur Aplikasi (PWA)</p>
           <p>
             Saat dipasang di ponsel, website tampil seperti aplikasi native — tanpa address bar,
-            dengan menu bawah kustom, dan bisa dibuka dari ikon di layar utama. Pengunjung yang
-            membuka lewat browser biasa akan diarahkan ke halaman instalasi.
+            dengan menu bawah kustom, dan bisa dibuka dari ikon di layar utama.
+            <strong> Pengunjung browser biasa tetap melihat website lengkap</strong> dengan
+            navbar, footer, dan semua konten — tampilan aplikasi hanya muncul setelah diinstal.
           </p>
         </div>
       </div>
 
       <Tabs defaultValue="menu">
-        <TabsList className="mb-4">
-          <TabsTrigger value="menu">Menu Navigasi</TabsTrigger>
+        <TabsList className="mb-4 flex-wrap h-auto gap-1">
+          <TabsTrigger value="menu">Menu Bawah</TabsTrigger>
+          <TabsTrigger value="header">Navigasi Header</TabsTrigger>
           <TabsTrigger value="icon">Ikon &amp; Tampilan</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="panduan">Cara Pasang</TabsTrigger>
@@ -303,6 +377,97 @@ export default function AdminPWASettings() {
                   </div>
                   <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-foreground/30 rounded-full" />
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ── TAB: NAVIGASI HEADER ── */}
+        <TabsContent value="header">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Link Navigasi Header</CardTitle>
+                <CardDescription>
+                  Aktifkan/nonaktifkan dan seret untuk mengubah urutan link di navbar website.
+                  Link ini tampil di desktop dan menu mobile hamburger.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Aktif: <strong>{localHeaderNav.filter((l) => l.enabled).length}</strong> dari {localHeaderNav.length}
+                  </span>
+                </div>
+
+                <DragDropContext onDragEnd={handleHeaderNavDragEnd}>
+                  <Droppable droppableId="header-nav">
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                        {localHeaderNav.map((item, index) => (
+                          <HeaderNavRow key={item.id} item={item} index={index} onChange={handleHeaderNavChange} />
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+
+                <Separator />
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" size="sm" onClick={handleHeaderNavReset} disabled={isSaving} className="flex-1">
+                    <RotateCcw className="h-4 w-4 mr-1.5" />Reset Default
+                  </Button>
+                  <Button size="sm" onClick={handleHeaderNavSave} disabled={isSaving} className="flex-1">
+                    {isSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                    Simpan
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Header nav preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Preview Navbar</CardTitle>
+                <CardDescription>Tampilan link di navigation bar website</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-xl border border-border overflow-hidden shadow-sm">
+                  {/* Simulated navbar */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-background border-b border-border gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <span className="text-xs font-bold text-primary">V</span>
+                      </div>
+                      <div>
+                        <div className="h-2.5 w-20 bg-foreground/80 rounded-full" />
+                        <div className="h-1.5 w-14 bg-muted-foreground/50 rounded-full mt-1" />
+                      </div>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-1">
+                      {localHeaderNav.filter((l) => l.enabled).slice(0, 5).map((link) => (
+                        <div
+                          key={link.id}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-accent text-foreground/80"
+                        >
+                          {link.label}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-7 w-14 rounded-lg border border-border text-[10px] flex items-center justify-center text-muted-foreground">Masuk</div>
+                      <div className="h-7 w-14 rounded-lg bg-primary text-[10px] flex items-center justify-center text-primary-foreground font-semibold">Daftar</div>
+                    </div>
+                  </div>
+                  <div className="bg-muted h-24 flex items-center justify-center text-xs text-muted-foreground">
+                    Konten halaman
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Link aktif tampil setelah menu dropdown Layanan, Portal Jamaah, dan Islami di desktop.
+                  Di mobile, muncul di dalam menu hamburger.
+                </p>
               </CardContent>
             </Card>
           </div>
