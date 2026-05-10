@@ -151,6 +151,28 @@ export function SOSButton({ customerName, customerId, departureId, muthawifPhone
     } catch {
       // graceful fail if table not yet created or departure_id column not yet added
     }
+
+    // ── Fire push notification to muthawif/tour leader in background ──────
+    if (departureId) {
+      try {
+        const emergencyLabels: Record<string, string> = {
+          medical: "Medis/Kesehatan", lost: "Tersesat/Hilang",
+          security: "Keamanan", other: "Darurat Lainnya",
+        };
+        fetch("/api/push/sos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            departure_id:   departureId,
+            emergency_type: emergencyType,
+            customer_name:  customerName,
+            booking_code:   bookingCode || undefined,
+          }),
+        }).catch(() => {}); // fire-and-forget — do not block the UI
+      } catch {
+        // non-critical
+      }
+    }
   };
 
   const sendSOS = async () => {

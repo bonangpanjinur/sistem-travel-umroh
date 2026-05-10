@@ -14,10 +14,11 @@ import { toast } from "sonner";
 import {
   AlertTriangle, CheckCircle2, Clock, Heart, HelpCircle,
   Loader2, MapPin, Phone, Shield, Wifi, WifiOff, MessageSquare,
-  Plane, Package, Users,
+  Plane, Package, Users, Bell, BellOff, BellDot,
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { useMuthawifPushSubscription } from "@/hooks/useMuthawifPushSubscription";
 
 const EMERGENCY_TYPES: Record<string, { label: string; icon: any; color: string }> = {
   medical:  { label: "Medis/Kesehatan", icon: Heart,      color: "text-red-600" },
@@ -65,6 +66,10 @@ export default function MuthawifSOS() {
   const [statusFilter, setStatusFilter]   = useState<"all" | "active" | "responding" | "resolved">("active");
   const [selectedDepId, setSelectedDepId] = useState<string>("all");
 
+  // ── 0. Push notification subscription ────────────────────────────────────
+  // (loaded after muthawif profile is fetched — see below)
+  const [muthawifIdForPush, setMuthawifIdForPush] = useState<string | undefined>(undefined);
+
   // ── 1. Load muthawif profile (matched by email) ──────────────────────────
   const { data: muthawif } = useQuery({
     queryKey: ["muthawif-sos-profile", user?.email],
@@ -75,8 +80,16 @@ export default function MuthawifSOS() {
         .select("id, name, phone")
         .eq("email", user!.email)
         .maybeSingle();
+      if (data?.id) setMuthawifIdForPush(data.id);
       return data;
     },
+  });
+
+  // ── Push subscription (auto-subscribes if permission already granted) ──
+  const push = useMuthawifPushSubscription({
+    muthawifId:    muthawifIdForPush,
+    userId:        user?.id,
+    autoSubscribe: true,
   });
 
   // ── 2. Load departures assigned to this muthawif ────────────────────────
@@ -205,9 +218,42 @@ export default function MuthawifSOS() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs bg-white/20 px-2 py-1 rounded-full">
-            {isLive ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5 opacity-60" />}
-            <span>{isLive ? "Live" : "Offline"}</span>
+          <div className="flex items-center gap-2">
+            {/* Push notification toggle */}
+            {push.isSupported && (
+              push.permission === "denied" ? (
+                <div
+                  className="flex items-center gap-1.5 text-xs bg-white/10 px-2 py-1 rounded-full opacity-60 cursor-not-allowed"
+                  title="Izin notifikasi ditolak di browser"
+                >
+                  <BellOff className="h-3.5 w-3.5" />
+                </div>
+              ) : push.isSubscribed ? (
+                <button
+                  className="flex items-center gap-1.5 text-xs bg-white/20 px-2 py-1 rounded-full hover:bg-white/30 transition-colors"
+                  onClick={() => push.unsubscribe()}
+                  disabled={push.isLoading}
+                  title="Push notifikasi aktif — klik untuk matikan"
+                >
+                  {push.isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellDot className="h-3.5 w-3.5 text-green-300" />}
+                  <span className="hidden sm:inline">Push aktif</span>
+                </button>
+              ) : (
+                <button
+                  className="flex items-center gap-1.5 text-xs bg-amber-400/90 text-amber-900 px-2 py-1 rounded-full hover:bg-amber-300 transition-colors font-medium"
+                  onClick={() => push.subscribe()}
+                  disabled={push.isLoading || !muthawifIdForPush}
+                  title="Aktifkan push notifikasi agar SOS terkirim saat app di background"
+                >
+                  {push.isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+                  <span>Aktifkan Push</span>
+                </button>
+              )
+            )}
+            <div className="flex items-center gap-1.5 text-xs bg-white/20 px-2 py-1 rounded-full">
+              {isLive ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5 opacity-60" />}
+              <span>{isLive ? "Live" : "Offline"}</span>
+            </div>
           </div>
         </div>
       </div>

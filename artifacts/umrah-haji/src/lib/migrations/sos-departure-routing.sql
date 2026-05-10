@@ -87,7 +87,27 @@ CREATE POLICY "muthawif_update_group_sos" ON sos_alerts
     )
   );
 
--- 7. Add helpful comment
+-- 7. Add muthawif_id to push_subscriptions for targeted SOS push routing
+ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS muthawif_id uuid REFERENCES muthawifs(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_muthawif_id ON push_subscriptions(muthawif_id);
+
+-- Update push_subscriptions RLS so muthawifs can manage their own subscription
+DROP POLICY IF EXISTS "muthawif_manage_own_push_sub" ON push_subscriptions;
+CREATE POLICY "muthawif_manage_own_push_sub" ON push_subscriptions
+  FOR ALL USING (
+    muthawif_id IN (
+      SELECT id FROM muthawifs
+      WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    )
+  )
+  WITH CHECK (
+    muthawif_id IN (
+      SELECT id FROM muthawifs
+      WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    )
+  );
+
+-- 8. Add helpful comment
 COMMENT ON COLUMN sos_alerts.departure_id IS
   'Keberangkatan asal jamaah yang mengirim SOS. Digunakan untuk routing ke muthawif dan tour leader yang tepat.';
 COMMENT ON COLUMN departures.tour_leader_user_id IS
