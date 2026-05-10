@@ -52,23 +52,32 @@ export default function AdminSentimenFeedback() {
     queryKey: ["sentimen-feedback", monthFilter],
     queryFn: async () => {
       const since = subMonths(new Date(), parseInt(monthFilter)).toISOString();
+      // testimonials.id = bookingId (set by JamaahFeedback), content = ulasan text
       const { data, error } = await supabase
-        .from("feedback")
+        .from("testimonials")
         .select(`
-          id, rating, comment, created_at,
-          booking:bookings(booking_code, departure:departures(package:packages(name)))
+          id, rating, content, created_at, name, location,
+          booking:bookings!bookings_id_fkey(booking_code, departure:departures(package:packages(name)))
         `)
         .gte("created_at", since)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        // fallback tanpa join jika relasi belum ada
+        const { data: d2 } = await supabase
+          .from("testimonials")
+          .select("id, rating, content, created_at, name, location")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false });
+        return (d2 || []).map((t: any) => ({ ...t, comment: t.content }));
+      }
+      return (data || []).map((t: any) => ({ ...t, comment: t.content }));
     },
   });
 
   const analyzed = useMemo(() => (feedbacks as any[]).map(f => ({
     ...f,
-    sentiment: analyzeSentiment(f.comment || "", f.rating),
-    aspects: extractAspectMentions(f.comment || ""),
+    sentiment: analyzeSentiment(f.comment || f.content || "", f.rating),
+    aspects: extractAspectMentions(f.comment || f.content || ""),
   })), [feedbacks]);
 
   const positiveCount = analyzed.filter(f => f.sentiment === "positive").length;

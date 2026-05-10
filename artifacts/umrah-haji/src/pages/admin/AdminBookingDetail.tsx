@@ -207,6 +207,28 @@ export default function AdminBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       setShowStatusConfirm(false);
       setNewStatus(null);
+
+      // === Kirim notifikasi in-app ke jamaah berdasarkan status baru ===
+      const notifMap: Record<string, { title: string; message: string }> = {
+        confirmed:   { title: "Booking Dikonfirmasi ✅", message: "Selamat! Booking Anda telah dikonfirmasi. Silakan lanjutkan proses pembayaran dan persiapan dokumen." },
+        processing:  { title: "Booking Sedang Diproses 🔄", message: "Booking Anda sedang dalam proses oleh tim kami. Kami akan segera menghubungi Anda." },
+        completed:   { title: "Perjalanan Selesai 🕋", message: "Alhamdulillah! Perjalanan Anda telah selesai. Mohon berikan feedback dan ulasan Anda." },
+        cancelled:   { title: "Booking Dibatalkan ❌", message: "Booking Anda telah dibatalkan. Hubungi kami untuk informasi lebih lanjut atau refund." },
+        refunded:    { title: "Refund Sedang Diproses 💰", message: "Permintaan refund Anda sedang diproses. Dana akan dikembalikan dalam 3-7 hari kerja." },
+      };
+      if (notifMap[status] && booking) {
+        const customerId = (booking as any).customer?.id ?? (booking as any).customer_id;
+        if (customerId) {
+          await (supabase as any).from('customer_notifications').insert({
+            customer_id: customerId,
+            type: 'booking',
+            title: notifMap[status].title,
+            message: notifMap[status].message,
+            is_read: false,
+          }).then(() => {});
+        }
+      }
+
       if (status === 'completed') {
         toast.info('Sertifikat dapat digenerate sekarang dari halaman dokumen.');
       }

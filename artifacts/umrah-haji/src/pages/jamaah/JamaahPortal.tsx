@@ -45,6 +45,16 @@ import {
 
 const WELCOME_SEEN_KEY = "jamaah-welcome-seen";
 
+function getRoomTypeLabel(type?: string): string {
+  const map: Record<string, string> = {
+    quad: "Quad (4 orang)",
+    triple: "Triple (3 orang)",
+    double: "Double (2 orang)",
+    single: "Single (1 orang)",
+  };
+  return type ? (map[type] || type) : "-";
+}
+
 export default function JamaahPortal() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -978,6 +988,14 @@ export default function JamaahPortal() {
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+              {/* Nomor Kamar Jamaah */}
+              {(booking as any)?.room_number && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-xs font-medium text-green-700 mb-0.5">🛏️ Nomor Kamar Anda</p>
+                  <p className="font-bold text-green-800 text-lg">{(booking as any).room_number}</p>
+                  <p className="text-xs text-green-600">Tipe: {getRoomTypeLabel((booking as any).room_type)}</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2 text-xs">

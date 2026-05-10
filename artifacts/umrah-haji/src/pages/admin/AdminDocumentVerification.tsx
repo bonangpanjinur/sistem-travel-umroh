@@ -71,6 +71,25 @@ export default function AdminDocumentVerification() {
         .eq('id', docId);
 
       if (error) throw error;
+
+      // Kirim notifikasi ke jamaah
+      const doc = documents?.find((d: any) => d.id === docId);
+      if (doc?.customer?.id) {
+        const docName = doc.document_type?.name || "Dokumen";
+        const title = status === 'verified'
+          ? `Dokumen ${docName} Terverifikasi ✅`
+          : `Dokumen ${docName} Ditolak ❌`;
+        const message = status === 'verified'
+          ? `Dokumen ${docName} Anda telah diverifikasi oleh admin. Silakan cek status dokumen di portal jamaah.`
+          : `Dokumen ${docName} Anda ditolak. Alasan: ${notes || 'Hubungi admin untuk info lebih lanjut'}.`;
+        await (supabase as any).from('customer_notifications').insert({
+          customer_id: doc.customer.id,
+          type: 'document',
+          title,
+          message,
+          is_read: false,
+        }).then(() => {});
+      }
     },
     onSuccess: () => {
       toast.success("Dokumen berhasil diverifikasi");

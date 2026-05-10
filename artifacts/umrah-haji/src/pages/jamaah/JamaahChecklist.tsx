@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -112,13 +112,66 @@ function loadChecked(): Set<string> {
   }
 }
 
-function saveChecked(checked: Set<string>) {
+function saveCheckedLocal(checked: Set<string>) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...checked]));
 }
 
 export default function JamaahChecklist() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [checked, setChecked] = useState<Set<string>>(loadChecked);
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["dokumen"]));
+
+  // Ambil customer_id
+  const { data: customer } = useQuery({
+    queryKey: ["checklist-customer", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await (supabase as any).from("customers").select("id").eq("user_id", user.id).maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Muat checklist dari Supabase (merge dengan localStorage)
+  const { data: dbChecklist } = useQuery({
+    queryKey: ["jamaah-checklist-db", customer?.id],
+    queryFn: async () => {
+      if (!customer?.id) return [];
+      const { data, error } = await (supabase as any)
+        .from("jamaah_checklist")
+        .select("item_id")
+        .eq("customer_id", customer.id)
+        .eq("is_checked", true);
+      if (error) return [];
+      return (data || []).map((r: any) => r.item_id) as string[];
+    },
+    enabled: !!customer?.id,
+  });
+
+  // Saat data DB berhasil dimuat, merge dengan localStorage
+  useEffect(() => {
+    if (dbChecklist && dbChecklist.length > 0) {
+      setChecked(prev => {
+        const merged = new Set([...prev, ...dbChecklist]);
+        saveCheckedLocal(merged);
+        return merged;
+      });
+    }
+  }, [dbChecklist]);
+
+  // Simpan ke Supabase saat berubah
+  const saveMutation = useMutation({
+    mutationFn: async ({ itemId, isChecked }: { itemId: string; isChecked: boolean }) => {
+      if (!customer?.id) return;
+      await (supabase as any).from("jamaah_checklist").upsert({
+        customer_id: customer.id,
+        item_id: itemId,
+        is_checked: isChecked,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "customer_id,item_id" });
+    },
+  });
 
   const totalItems = CHECKLIST_CATEGORIES.reduce((s, c) => s + c.items.length, 0);
   const totalChecked = checked.size;
@@ -127,9 +180,12 @@ export default function JamaahChecklist() {
   const toggle = (id: string) => {
     setChecked(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      saveChecked(next);
+      const isChecked = !next.has(id);
+      if (isChecked) next.add(id);
+      else next.delete(id);
+      saveCheckedLocal(next);
+      // Simpan ke DB (fire and forget)
+      saveMutation.mutate({ itemId: id, isChecked });
       return next;
     });
   };

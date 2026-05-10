@@ -226,6 +226,26 @@ pnpm --filter @workspace/api-spec run codegen
 
 ## BAGIAN 5 — RIWAYAT PERUBAHAN TERKINI
 
+### Sesi Mei 2026 — Integrasi Gap Fix (Analisis Menyeluruh)
+
+**Gap yang ditemukan & diperbaiki:**
+
+| # | Gap | Fix | File Utama |
+|---|-----|-----|------------|
+| 1 | `AdminSentimenFeedback` baca dari tabel `feedback` yang tidak ada | Ganti ke `testimonials` (yang diisi JamaahFeedback), field `content` → `comment` | `AdminSentimenFeedback.tsx` |
+| 2 | Verifikasi dokumen tidak memberi tahu jamaah | Tambah insert `customer_notifications` saat verify/reject | `AdminDocumentVerification.tsx` |
+| 3 | Perubahan status booking tidak memberi tahu jamaah | Tambah insert `customer_notifications` untuk semua status | `AdminBookingDetail.tsx` |
+| 4 | `JamaahChecklist` hanya simpan ke localStorage | Upgrade ke Supabase-persistent (`jamaah_checklist` table) + localStorage fallback | `JamaahChecklist.tsx` |
+| 5 | Upload dokumen jamaah tidak memberi tahu admin | Tambah insert ke `notifications` setelah upload berhasil | `JamaahDocuments.tsx` |
+| 6 | Nomor kamar tidak terlihat dari portal jamaah | Tampilkan `booking.room_number` + tipe kamar di card Detail Akomodasi | `JamaahPortal.tsx` |
+| 7 | Tabel `jamaah_checklist`, `attendance`, `customer_notifications`, `feedback`, `visa_status_logs`, `room_occupants` belum ada | Migration SQL lengkap dengan RLS + policy | `supabase/migrations/fase21_integration_fixes.sql` |
+| 8 | Kolom `booking_id` di `testimonials` dan `room_number` di `bookings` belum ada | ALTER TABLE via migration fase21 | `fase21_integration_fixes.sql` |
+
+**Migration baru: `supabase/migrations/fase21_integration_fixes.sql`**
+Jalankan setelah fase20 di Supabase SQL Editor.
+
+---
+
 ### Sesi Mei 2026 — E-Commerce Toko + Upload Bukti Bayar
 
 | # | Perubahan | File |
@@ -289,6 +309,9 @@ Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 | 17 | `supabase/migrations/fase18_core_settings.sql` | company_settings, bank_accounts |
 | 18 | `supabase/migrations/fase19_branch_kpi_targets.sql` | branch_monthly_targets |
 | 19 | `supabase/migrations/fase20_webhooks_push.sql` | webhooks, push subscriptions |
+| 20 | `supabase/migrations/store_ecommerce.sql` | toko e-commerce |
+| 21 | `supabase/migrations/store_product_reviews.sql` | review produk |
+| 22 | `supabase/migrations/fase21_integration_fixes.sql` | **customer_notifications, jamaah_checklist, attendance, feedback, visa_status_logs, room_occupants** + kolom baru |
 
 ---
 

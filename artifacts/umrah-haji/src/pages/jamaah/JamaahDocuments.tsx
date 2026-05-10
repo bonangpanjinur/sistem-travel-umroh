@@ -217,6 +217,17 @@ export default function JamaahDocuments() {
         notes: notes || null,
       });
       if (insErr) throw insErr;
+
+      // Kirim notifikasi realtime ke admin via tabel notifications (payload channel)
+      try {
+        await (supabase as any).from('notifications').insert({
+          type: 'document',
+          title: 'Dokumen Baru Diunggah',
+          message: `${customer?.full_name || 'Jamaah'} mengunggah dokumen baru. Silakan verifikasi.`,
+          is_read: false,
+          link: '/admin/document-verification',
+        }).then(() => {});
+      } catch {}
     },
     onSuccess: () => {
       toast.success("Dokumen berhasil diunggah. Menunggu verifikasi staff.");
