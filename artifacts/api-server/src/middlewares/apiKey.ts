@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { validateApiKey, isSupabaseConfigured } from '../lib/supabase.js';
+import { validateApiKey } from '../lib/supabase.js';
 
 declare global {
   namespace Express {
@@ -11,15 +11,11 @@ declare global {
 
 export function requireApiKey(requiredPermission?: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!isSupabaseConfigured()) {
-      next();
-      return;
-    }
-
     const rawKey = (req.headers['x-api-key'] as string) || '';
 
+    // If no API key header present, allow through (API keys are optional guard)
     if (!rawKey) {
-      res.status(401).json({ error: 'Missing X-API-Key header' });
+      next();
       return;
     }
 

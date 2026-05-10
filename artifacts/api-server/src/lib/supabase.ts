@@ -1,45 +1,43 @@
-const SUPABASE_URL = process.env['SUPABASE_URL'] || '';
-const SUPABASE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'] || '';
+import { db } from "./db.js";
+import { apiKeys } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
 
-export function isSupabaseConfigured() {
-  return Boolean(SUPABASE_URL && SUPABASE_KEY);
+// isSupabaseConfigured is kept for backward compatibility — always returns true
+// now that we use the Replit Postgres database directly.
+export function isSupabaseConfigured(): boolean {
+  return true;
 }
 
-export async function supabaseFetch(path: string, options: RequestInit = {}) {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
-  }
-  const url = `${SUPABASE_URL}/rest/v1${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-      ...(options.headers ?? {}),
-    },
-  });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    const msg = (data as any)?.message || res.statusText;
-    throw Object.assign(new Error(msg), { status: res.status });
-  }
-  return data;
+// supabaseFetch is kept only for any legacy callers that might still reference it.
+// All new code should use Drizzle ORM via ./db.ts instead.
+export async function supabaseFetch(_path: string, _options: RequestInit = {}): Promise<never> {
+  throw new Error(
+    "supabaseFetch is deprecated. Use Drizzle ORM via lib/db instead.",
+  );
 }
 
-export async function validateApiKey(rawKey: string): Promise<{ valid: boolean; permissions: string[] }> {
+export async function validateApiKey(
+  rawKey: string,
+): Promise<{ valid: boolean; permissions: string[] }> {
   try {
-    const rows = await supabaseFetch(
-      `/api_keys?key_hash=eq.${encodeURIComponent(rawKey)}&is_active=eq.true&select=id,permissions`,
-    );
-    if (!Array.isArray(rows) || rows.length === 0) return { valid: false, permissions: [] };
-    supabaseFetch(`/api_keys?id=eq.${rows[0].id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ last_used_at: new Date().toISOString() }),
-    }).catch(() => {});
-    return { valid: true, permissions: rows[0].permissions ?? [] };
+    const rows = await db
+      .select({ id: apiKeys.id, permissions: apiKeys.permissions })
+      .from(apiKeys)
+      .where(and(eq(apiKeys.keyHash, rawKey), eq(apiKeys.isActive, true)))
+      .limit(1);
+
+    if (rows.length === 0) return { valid: false, permissions: [] };
+
+    // Update last_used_at asynchronously (fire-and-forget)
+    db.update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.id, rows[0].id))
+      .catch(() => {});
+
+    const permissions = Array.isArray(rows[0].permissions)
+      ? (rows[0].permissions as string[])
+      : [];
+    return { valid: true, permissions };
   } catch {
     return { valid: false, permissions: [] };
   }

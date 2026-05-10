@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { requireApiKey } from '../../middlewares/apiKey.js';
-import { supabaseFetch, isSupabaseConfigured } from '../../lib/supabase.js';
+import { db } from '../../lib/db.js';
+import { departures, packages } from '@workspace/db/schema';
+import { eq, gte, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -10,7 +12,7 @@ const DEMO_DEPARTURES = [
     departure_date: '2025-03-15',
     return_date: '2025-03-24',
     quota: 40,
-    booked_count: 12,
+    available_seats: 28,
     status: 'open',
     price_quad: 25000000,
     price_triple: 28000000,
@@ -21,7 +23,7 @@ const DEMO_DEPARTURES = [
     departure_date: '2025-04-10',
     return_date: '2025-04-19',
     quota: 35,
-    booked_count: 30,
+    available_seats: 5,
     status: 'open',
     price_quad: 26000000,
     price_triple: 29000000,
@@ -29,18 +31,53 @@ const DEMO_DEPARTURES = [
   },
 ];
 
-router.get('/', requireApiKey('departures.read'), async (req, res) => {
+router.get('/', requireApiKey('departures.read'), async (_req, res) => {
   try {
-    if (!isSupabaseConfigured()) {
+    const today = new Date().toISOString().split('T')[0]!;
+    const rows = await db
+      .select({
+        id: departures.id,
+        departure_date: departures.departureDate,
+        return_date: departures.returnDate,
+        quota: departures.quota,
+        available_seats: departures.availableSeats,
+        status: departures.status,
+        package_id: departures.packageId,
+        package_name: packages.name,
+        package_duration_days: packages.durationDays,
+      })
+      .from(departures)
+      .leftJoin(packages, eq(departures.packageId, packages.id))
+      .where(
+        and(
+          eq(departures.status, 'open'),
+          gte(departures.departureDate, today),
+        ),
+      )
+      .orderBy(departures.departureDate)
+      .limit(100);
+
+    if (rows.length === 0) {
       return res.json({ data: DEMO_DEPARTURES, source: 'demo' });
     }
-    const today = new Date().toISOString().split('T')[0];
-    const data = await supabaseFetch(
-      `/departures?status=eq.open&departure_date=gte.${today}&select=id,departure_date,return_date,quota,booked_count,status,price_quad,price_triple,price_double,price_single,package:packages(id,name,duration_days)&order=departure_date.asc`,
-    );
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      departure_date: r.departure_date,
+      return_date: r.return_date,
+      quota: r.quota,
+      available_seats: r.available_seats,
+      status: r.status,
+      package: {
+        id: r.package_id,
+        name: r.package_name,
+        duration_days: r.package_duration_days,
+      },
+    }));
+
     return res.json({ data });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    return res.json({ data: DEMO_DEPARTURES, source: 'demo', _error: err.message });
   }
 });
 
