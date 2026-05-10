@@ -20,7 +20,7 @@ import {
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
   MessageSquare, Image, Gift, Scale, Scroll, GraduationCap
 } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, differenceInSeconds } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/format";
@@ -50,6 +50,7 @@ export default function JamaahPortal() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [liveCountdown, setLiveCountdown] = useState({ h: 0, m: 0, s: 0 });
 
   // P4: Redirect first-time users to welcome/onboarding flow
   useEffect(() => {
@@ -78,6 +79,25 @@ export default function JamaahPortal() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
+
+  // P6: Live countdown timer (jam & menit)
+  useEffect(() => {
+    const tick = () => {
+      const departure = (booking as any)?.departure?.departure_date;
+      if (!departure) return;
+      const now = new Date();
+      const target = new Date(departure);
+      const totalSeconds = differenceInSeconds(target, now);
+      if (totalSeconds <= 0) return;
+      const h = Math.floor((totalSeconds % 86400) / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      setLiveCountdown({ h, m, s });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [(booking as any)?.departure?.departure_date]);
 
   const { data: customer } = useQuery({
     queryKey: ["jamaah-customer", user?.id],
@@ -326,24 +346,67 @@ export default function JamaahPortal() {
       )}
 
       <div className="p-4 space-y-4">
-        {/* Countdown Card */}
+        {/* P6: Enhanced Departure Countdown Widget */}
         {daysUntilDeparture !== null && daysUntilDeparture > 0 && (
-          <Card className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
+          <Card className="bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground overflow-hidden">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="text-sm opacity-80">Keberangkatan dalam</p>
-                  <p className="text-4xl font-bold">{daysUntilDeparture}</p>
-                  <p className="text-sm opacity-80">hari lagi</p>
+                  <p className="text-xs opacity-75 uppercase tracking-wide font-medium">Hitung Mundur Keberangkatan</p>
+                  <p className="text-sm font-medium mt-0.5 opacity-90">
+                    {format(new Date(departure?.departure_date || ""), "EEEE, dd MMMM yyyy", { locale: id })}
+                  </p>
                 </div>
-                <Plane className="h-16 w-16 opacity-20" />
+                <Plane className="h-8 w-8 opacity-20" />
               </div>
+
+              {/* Countdown digits */}
+              <div className="flex items-end gap-2 mb-3">
+                <div className="text-center">
+                  <div className="bg-white/15 rounded-xl px-3 py-2 min-w-[56px]">
+                    <p className="text-3xl font-bold font-mono leading-none">{String(daysUntilDeparture).padStart(2, "0")}</p>
+                  </div>
+                  <p className="text-[10px] opacity-70 mt-1">Hari</p>
+                </div>
+                <p className="text-2xl font-bold opacity-50 mb-3">:</p>
+                <div className="text-center">
+                  <div className="bg-white/15 rounded-xl px-3 py-2 min-w-[56px]">
+                    <p className="text-3xl font-bold font-mono leading-none">{String(liveCountdown.h).padStart(2, "0")}</p>
+                  </div>
+                  <p className="text-[10px] opacity-70 mt-1">Jam</p>
+                </div>
+                <p className="text-2xl font-bold opacity-50 mb-3">:</p>
+                <div className="text-center">
+                  <div className="bg-white/15 rounded-xl px-3 py-2 min-w-[56px]">
+                    <p className="text-3xl font-bold font-mono leading-none">{String(liveCountdown.m).padStart(2, "0")}</p>
+                  </div>
+                  <p className="text-[10px] opacity-70 mt-1">Menit</p>
+                </div>
+                <p className="text-2xl font-bold opacity-50 mb-3">:</p>
+                <div className="text-center">
+                  <div className="bg-white/15 rounded-xl px-3 py-2 min-w-[56px]">
+                    <p className="text-3xl font-bold font-mono leading-none tabular-nums">{String(liveCountdown.s).padStart(2, "0")}</p>
+                  </div>
+                  <p className="text-[10px] opacity-70 mt-1">Detik</p>
+                </div>
+              </div>
+
               <Separator className="my-3 bg-primary-foreground/20" />
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4" />
-                <span>
-                  {format(new Date(departure?.departure_date || ""), "EEEE, dd MMMM yyyy", { locale: id })}
-                </span>
+
+              {/* Preparation mini-checklist */}
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <Link to="/jamaah/checklist" className="flex flex-col items-center gap-1 bg-white/10 rounded-lg p-2 hover:bg-white/20 transition-colors text-center">
+                  <span className="text-base">{booking?.payment_status === "paid" ? "✅" : "💳"}</span>
+                  <span className="opacity-80 leading-tight">Pembayaran</span>
+                </Link>
+                <Link to="/jamaah/documents" className="flex flex-col items-center gap-1 bg-white/10 rounded-lg p-2 hover:bg-white/20 transition-colors text-center">
+                  <span className="text-base">📄</span>
+                  <span className="opacity-80 leading-tight">Dokumen</span>
+                </Link>
+                <Link to="/jamaah/kesehatan" className="flex flex-col items-center gap-1 bg-white/10 rounded-lg p-2 hover:bg-white/20 transition-colors text-center">
+                  <span className="text-base">❤️</span>
+                  <span className="opacity-80 leading-tight">Kesehatan</span>
+                </Link>
               </div>
             </CardContent>
           </Card>

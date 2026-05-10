@@ -7,14 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BookOpen, Calendar, MapPin, Clock, CheckCircle2, Users,
-  PlayCircle, FileText, ChevronRight, Star, Loader2
+  PlayCircle, FileText, ChevronRight, Star, Loader2, Brain
 } from "lucide-react";
 import { format, parseISO, isPast, isFuture } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import JamaahManasikKuis from "@/components/jamaah/JamaahManasikKuis";
 
 export default function JamaahManasik() {
   const { user } = useAuth();
@@ -92,12 +95,12 @@ export default function JamaahManasik() {
 
   const ScheduleCard = ({ s }: { s: any }) => {
     const confirmed = confirmedIds.has(s.id);
-    const past = isPast(parseISO(s.scheduled_date));
+    const isPastSchedule = isPast(parseISO(s.scheduled_date));
     return (
       <Card className={cn(
         "cursor-pointer hover:shadow-md transition-shadow",
         confirmed && "border-green-300 bg-green-50/30",
-        !confirmed && !past && "border-primary/30"
+        !confirmed && !isPastSchedule && "border-primary/30"
       )} onClick={() => setSelectedSchedule(s)}>
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2">
@@ -120,9 +123,7 @@ export default function JamaahManasik() {
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
           </div>
-
           {s.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{s.description}</p>}
-
           {(s.video_url || s.material_url) && (
             <div className="flex gap-2 mt-2">
               {s.video_url && (
@@ -146,11 +147,12 @@ export default function JamaahManasik() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-primary text-white px-4 pt-10 pb-6">
+      {/* Header */}
+      <div className="bg-primary text-white px-4 pt-10 pb-4">
         <h1 className="text-xl font-bold flex items-center gap-2">
-          <BookOpen className="h-5 w-5" /> Jadwal Manasik
+          <BookOpen className="h-5 w-5" /> Manasik Digital
         </h1>
-        <p className="text-white/80 text-sm mt-1">Program bimbingan ibadah Umroh/Haji</p>
+        <p className="text-white/80 text-sm mt-1">Jadwal bimbingan & kuis pemahaman ibadah</p>
         <div className="flex gap-3 mt-3 text-sm">
           <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
             <p className="font-bold">{schedules.length}</p>
@@ -158,7 +160,7 @@ export default function JamaahManasik() {
           </div>
           <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
             <p className="font-bold">{attendances.length}</p>
-            <p className="text-[10px] text-white/70">Dikonfirmasi</p>
+            <p className="text-[10px] text-white/70">Konfirmasi</p>
           </div>
           <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
             <p className="font-bold">{upcoming.length}</p>
@@ -167,32 +169,57 @@ export default function JamaahManasik() {
         </div>
       </div>
 
-      <div className="p-4 space-y-5">
-        {isLoading ? (
-          <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}</div>
-        ) : schedules.length === 0 ? (
-          <div className="text-center py-12">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="font-medium">Belum ada jadwal manasik</p>
-            <p className="text-sm text-muted-foreground">Jadwal akan ditampilkan di sini setelah dibuat oleh admin</p>
+      <Tabs defaultValue="jadwal" className="w-full">
+        <TabsList className="w-full rounded-none border-b h-11 bg-background sticky top-0 z-10">
+          <TabsTrigger value="jadwal" className="flex-1 gap-1.5 text-sm">
+            <Calendar className="h-4 w-4" /> Jadwal
+          </TabsTrigger>
+          <TabsTrigger value="kuis" className="flex-1 gap-1.5 text-sm">
+            <Brain className="h-4 w-4" /> Kuis Mandiri
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── TAB JADWAL ── */}
+        <TabsContent value="jadwal" className="mt-0">
+          <div className="p-4 space-y-5">
+            {isLoading ? (
+              <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}</div>
+            ) : schedules.length === 0 ? (
+              <div className="text-center py-12">
+                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="font-medium">Belum ada jadwal manasik</p>
+                <p className="text-sm text-muted-foreground mt-1">Jadwal akan ditampilkan setelah dibuat oleh admin cabang</p>
+                <div className="mt-4 bg-primary/5 border border-primary/20 rounded-2xl p-4 text-left text-sm">
+                  <p className="font-semibold text-primary mb-2">💡 Sementara itu, coba Kuis Mandiri!</p>
+                  <p className="text-muted-foreground text-xs">
+                    Uji pemahaman manasik Anda dengan 27 soal pilihan ganda yang mencakup Ihram, Tawaf, Sa'i, Wukuf Arafah, Lempar Jumrah, dan Tahallul.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {upcoming.length > 0 && (
+                  <div>
+                    <p className="text-sm font-bold mb-2">📅 Sesi Mendatang ({upcoming.length})</p>
+                    <div className="space-y-2">{upcoming.map((s: any) => <ScheduleCard key={s.id} s={s} />)}</div>
+                  </div>
+                )}
+                {past.length > 0 && (
+                  <div>
+                    <p className="text-sm font-bold mb-2 text-muted-foreground">Sesi Sebelumnya ({past.length})</p>
+                    <div className="space-y-2 opacity-70">{past.map((s: any) => <ScheduleCard key={s.id} s={s} />)}</div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        ) : (
-          <>
-            {upcoming.length > 0 && (
-              <div>
-                <p className="text-sm font-bold mb-2">📅 Sesi Mendatang ({upcoming.length})</p>
-                <div className="space-y-2">{upcoming.map((s: any) => <ScheduleCard key={s.id} s={s} />)}</div>
-              </div>
-            )}
-            {past.length > 0 && (
-              <div>
-                <p className="text-sm font-bold mb-2 text-muted-foreground">Sesi Sebelumnya ({past.length})</p>
-                <div className="space-y-2 opacity-70">{past.map((s: any) => <ScheduleCard key={s.id} s={s} />)}</div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+        </TabsContent>
+
+        {/* ── TAB KUIS ── */}
+        <TabsContent value="kuis" className="mt-0">
+          <JamaahManasikKuis />
+        </TabsContent>
+      </Tabs>
 
       {/* Detail Dialog */}
       {selectedSchedule && (
@@ -259,6 +286,8 @@ export default function JamaahManasik() {
           </DialogContent>
         </Dialog>
       )}
+
+      <JamaahBottomNav />
     </div>
   );
 }

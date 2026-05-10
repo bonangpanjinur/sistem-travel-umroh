@@ -80,6 +80,9 @@ const JamaahChecklist = lazy(() => import("@/pages/jamaah/JamaahChecklist"));
 // Fase 15 — Manasik Digital
 const JamaahManasik = lazy(() => import("@/pages/jamaah/JamaahManasik"));
 
+// Fase 2 UX — Fitur Baru
+const JamaahKesehatan = lazy(() => import("@/pages/jamaah/JamaahKesehatan"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -171,6 +174,9 @@ export default function CustomerRoutes() {
 
       {/* Fase 15 — Manasik Digital */}
       <Route path="/jamaah/manasik" element={<CustomerRoute><JamaahManasik /></CustomerRoute>} />
+
+      {/* Fase 2 UX — Profil Kesehatan Jamaah */}
+      <Route path="/jamaah/kesehatan" element={<CustomerRoute><JamaahKesehatan /></CustomerRoute>} />
 
       {/* FITUR 01 — SOS Status Real-time Jamaah */}
       <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />

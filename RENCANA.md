@@ -1,5 +1,5 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
-> Terakhir diperbarui: Juni 2026 (Fase 1 selesai) | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
+> Terakhir diperbarui: Juni 2026 (Fase 1 & Fase 2 selesai) | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
 > **Ini adalah satu-satunya file rencana. Jangan buat file rencana lain.**
 
 ---
@@ -147,8 +147,9 @@ pnpm --filter @workspace/api-spec run codegen
 | Ringkasan AI | `/jamaah/ringkasan-ai` | ⚠️ Template lokal, bukan LLM sungguhan |
 | Pembayaran Mandiri | `/jamaah/payment` | ✅ |
 | Checklist | `/jamaah/checklist` | ✅ |
-| Manasik Digital | `/jamaah/manasik` | ✅ |
+| Manasik Digital + Kuis Mandiri | `/jamaah/manasik` | ✅ Fase 2 — tab Kuis 27 soal, 6 topik, skor localStorage |
 | SOS Status | `/jamaah/sos-status` | ✅ |
+| Profil Kesehatan Jamaah | `/jamaah/kesehatan` | ✅ Fase 2 — gol darah, alergi, obat, vaksin, kartu darurat |
 
 ### Portal Admin — `/admin/*`
 | Halaman | URL | Status |
@@ -373,6 +374,38 @@ Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 | ⚠️ P5 | Set SMTP credentials untuk kirim email | Opsional, untuk notifikasi email |
 | ⚠️ P6 | Set Midtrans keys untuk payment online | Opsional, untuk pembayaran digital |
 | ⚠️ P7 | Putuskan: AI Summary — pakai LLM sungguhan atau tetap kalkulasi statistik? | Saat ini: template lokal |
+
+---
+
+## BAGIAN 8B — FASE 2 UX JAMAAH PORTAL (Selesai)
+
+> Dikerjakan setelah Fase 1. Target: P5–P8 peningkatan pengalaman jamaah.
+
+### P5 — Kuis Manasik Interaktif ✅
+- **Komponen baru:** `src/components/jamaah/JamaahManasikKuis.tsx`
+- **Diintegrasikan di:** `src/pages/jamaah/JamaahManasik.tsx` — tab "Kuis Mandiri"
+- **Konten:** 27 soal pilihan ganda, 6 topik (Ihram, Tawaf, Sa'i, Wukuf, Jumrah, Tahallul)
+- **Fitur:** 3-screen flow (pilih topik → quiz → hasil), skor terbaik disimpan localStorage, penjelasan setiap jawaban, progress bar per topik
+
+### P6 — Widget Countdown Keberangkatan Real-time ✅
+- **Diubah di:** `src/pages/jamaah/JamaahPortal.tsx`
+- **Fitur baru:** Hitungan mundur Hari : Jam : Menit : Detik (update setiap 1 detik via setInterval)
+- **Tambahan:** Mini-checklist 3 item (Pembayaran, Dokumen, Kesehatan) sebagai shortcut di bawah countdown
+
+### P7 — Profil Kesehatan Jamaah ✅
+- **Halaman baru:** `src/pages/jamaah/JamaahKesehatan.tsx` → route `/jamaah/kesehatan`
+- **Fitur:** 4 tab — Profil (gol. darah, alergi, kondisi kronis, obat rutin), Kontak (kontak darurat, dokter, nomor darurat Saudi), Vaksin (7 vaksin + status checklist), Kartu (preview kartu darurat cetak/bagikan)
+- **Storage:** localStorage — data pribadi tidak dikirim ke server
+- **Sidebar:** ditambahkan ke grup Ibadah di `JamaahBottomNav.tsx`
+
+### P8 — SOS Emergency Upgrade ✅
+- **Diubah di:** `src/components/jamaah/SOSButton.tsx`
+- **Fitur baru:**
+  - Hold-to-Send: tekan & tahan 3 detik untuk kirim (cegah kirim tidak sengaja)
+  - Progress bar visual saat holding
+  - Vibration API saat tahan & saat SOS terkirim
+  - 4 nomor darurat Arab Saudi dengan tap-to-call (Ambulans 997, Polisi 999, KJRI Jeddah, KBRI Riyadh)
+  - UI baru: header merah, type selector lebih jelas, tombol quick-call & share lokasi terpisah
 
 ---
 
