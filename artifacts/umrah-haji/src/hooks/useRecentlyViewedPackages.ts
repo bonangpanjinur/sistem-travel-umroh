@@ -65,6 +65,9 @@ export function trackPackageView(pkg: {
 }
 
 async function syncToProfile(items: RecentlyViewedPackageItem[]) {
+  // Note: customer_accounts table sync is commented out as it may not exist in the schema
+  // Uncomment when the table is available in Supabase
+  /*
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -75,6 +78,7 @@ async function syncToProfile(items: RecentlyViewedPackageItem[]) {
     .from("customer_accounts")
     .update({ recently_viewed_packages: payload } as any)
     .eq("user_id", user.id);
+  */
 }
 
 export function useRecentlyViewedPackages() {

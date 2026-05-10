@@ -105,7 +105,7 @@ export default function PackageDetail() {
         package_type: pkg.package_type,
         duration_days: pkg.duration_days,
         price_quad: pkg.price_quad,
-        currency: pkg.currency,
+        currency: pkg.currency || 'IDR',
         featured_image: pkg.featured_image ?? null,
       });
     }
