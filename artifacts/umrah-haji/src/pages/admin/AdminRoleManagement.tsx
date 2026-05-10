@@ -22,9 +22,10 @@ import {
 } from '@/components/ui/breadcrumb';
 import {
   ShieldCheck, Menu, BarChart3, AlertCircle, KeyRound,
-  RefreshCw, Grid3X3, Users, Home, Settings, History,
+  RefreshCw, Grid3X3, Users, Home, Settings, History, UserCog,
 } from 'lucide-react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { RoleMenuMapper } from '@/components/admin/RoleMenuMapper';
 import { RolePermissionMatrix, MATRIX_ROLES } from '@/components/admin/RolePermissionMatrix';
 import { PermissionAuditLog } from '@/components/admin/PermissionAuditLog';
@@ -283,6 +284,15 @@ function SummaryTab() {
 export default function AdminRoleManagementEnhanced() {
   const { hasRole, isLoading: authLoading } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const VALID_TABS = ['matrix','permissions','menu-mapping','menu-sync','user-overrides','audit','summary','info'];
+  const requested = searchParams.get('tab') || 'matrix';
+  const activeTab = VALID_TABS.includes(requested) ? requested : 'matrix';
+  const onTabChange = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', v);
+    setSearchParams(next, { replace: true });
+  };
 
   if (authLoading) return <div className="p-6"><Skeleton className="h-32 w-full" /></div>;
   if (!isSuperAdmin) return <Navigate to="/access-denied" replace />;
@@ -335,7 +345,7 @@ export default function AdminRoleManagementEnhanced() {
       </div>
 
       {/* Main tabs */}
-      <Tabs defaultValue="matrix" className="w-full">
+      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
         <div className="border-b">
           <TabsList className="h-auto bg-transparent p-0 flex flex-wrap gap-0">
             {[
@@ -343,6 +353,7 @@ export default function AdminRoleManagementEnhanced() {
               { value: 'permissions',  icon: KeyRound,   label: 'Izin per Role',   desc: 'Edit role individual' },
               { value: 'menu-mapping', icon: Menu,       label: 'Pemetaan Menu',   desc: 'Tampilan sidebar' },
               { value: 'menu-sync',    icon: RefreshCw,  label: 'Sinkron Menu',    desc: 'Sync ke database' },
+              { value: 'user-overrides', icon: UserCog,  label: 'Override User',   desc: 'Permission per user' },
               { value: 'audit',        icon: History,    label: 'Audit Log',       desc: 'Riwayat perubahan' },
               { value: 'summary',      icon: BarChart3,  label: 'Ringkasan',       desc: 'Statistik & grafik' },
               { value: 'info',         icon: AlertCircle,label: 'Panduan',         desc: 'Cara penggunaan' },

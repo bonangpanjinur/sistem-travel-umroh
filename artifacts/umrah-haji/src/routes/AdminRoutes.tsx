@@ -238,7 +238,7 @@ export default function AdminRoutes() {
       {/* Support & Komunikasi */}
       <Route path="support" element={<P k={PERMISSIONS.SUPPORT}><AdminSupportTickets /></P>} />
       <Route path="whatsapp" element={<P k={PERMISSIONS.WHATSAPP}><AdminWhatsApp /></P>} />
-      <Route path="correspondence" element={<KorespondensiHubPage />} />
+      <Route path="correspondence" element={<P k={PERMISSIONS.WHATSAPP}><KorespondensiHubPage /></P>} />
       <Route path="marketing-materials" element={<P k={PERMISSIONS.MARKETING_MATERIALS}><AdminMarketingMaterials /></P>} />
 
       {/* Dokumen & Surat */}
@@ -268,7 +268,7 @@ export default function AdminRoutes() {
       <Route path="security-audit" element={<P k={PERMISSIONS.SECURITY_AUDIT}><AdminSecurityAudit /></P>} />
       <Route path="2fa" element={<P k={PERMISSIONS.TWO_FA}><Admin2FASettings /></P>} />
       <Route path="appearance" element={<P k={PERMISSIONS.APPEARANCE}><AdminAppearance /></P>} />
-      <Route path="pwa-settings" element={<AdminPWASettings />} />
+      <Route path="pwa-settings" element={<P k={PERMISSIONS.APPEARANCE}><AdminPWASettings /></P>} />
 
 
       <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />
