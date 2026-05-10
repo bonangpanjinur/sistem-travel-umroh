@@ -18,3 +18,9 @@ id = "NMulBKZTm8mbb8yT-h7z_"
 uri = "file://RENCANA.md"
 type = "text"
 title = "RENCANA.md — Progress & Status Pengembangan Vinstour"
+
+[[outputs]]
+id = "9tloO3jPXk4Wc7ZHtNghM"
+uri = "file://rencana/analisis-kesiapan-backend.md"
+type = "text"
+title = "Analisis Kesiapan Backend & Integrasi Fitur"
