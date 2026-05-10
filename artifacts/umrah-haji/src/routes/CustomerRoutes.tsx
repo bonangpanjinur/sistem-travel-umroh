@@ -82,6 +82,7 @@ const JamaahManasik = lazy(() => import("@/pages/jamaah/JamaahManasik"));
 
 // Fase 2 UX — Fitur Baru
 const JamaahKesehatan = lazy(() => import("@/pages/jamaah/JamaahKesehatan"));
+const JamaahTrackerIbadah = lazy(() => import("@/pages/jamaah/JamaahTrackerIbadah"));
 
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
@@ -175,8 +176,9 @@ export default function CustomerRoutes() {
       {/* Fase 15 — Manasik Digital */}
       <Route path="/jamaah/manasik" element={<CustomerRoute><JamaahManasik /></CustomerRoute>} />
 
-      {/* Fase 2 UX — Profil Kesehatan Jamaah */}
+      {/* Fase 2 UX — Profil Kesehatan & Tracker Ibadah */}
       <Route path="/jamaah/kesehatan" element={<CustomerRoute><JamaahKesehatan /></CustomerRoute>} />
+      <Route path="/jamaah/tracker-ibadah" element={<CustomerRoute><JamaahTrackerIbadah /></CustomerRoute>} />
 
       {/* FITUR 01 — SOS Status Real-time Jamaah */}
       <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />

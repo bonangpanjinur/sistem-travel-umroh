@@ -595,6 +595,12 @@ export default function JamaahPortal() {
                   <p className="text-xs">Doa</p>
                 </Card>
               </Link>
+              <Link to="/jamaah/tracker-ibadah">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <Star className="h-6 w-6 mx-auto mb-1 text-yellow-500" />
+                  <p className="text-xs">Tracker</p>
+                </Card>
+              </Link>
             </div>
           </div>
 

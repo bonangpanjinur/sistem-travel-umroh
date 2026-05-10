@@ -3,7 +3,7 @@ import {
   Home, QrCode, Shield, Bell, LayoutGrid, FileText, Luggage,
   LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard,
   MessageCircle, X, GraduationCap, CalendarDays, Users, Clock,
-  BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart
+  BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -59,6 +59,7 @@ const sidebarGroups = [
       { to: "/jamaah/panduan-ibadah", icon: BookOpen, label: "Panduan Ibadah" },
       { to: "/jamaah/waktu-sholat", icon: Clock, label: "Waktu Sholat" },
       { to: "/jamaah/doa-panduan", icon: BookMarked, label: "Doa & Dzikir" },
+      { to: "/jamaah/tracker-ibadah", icon: Star, label: "Tracker Ibadah" },
       { to: "/jamaah/kesehatan", icon: Heart, label: "Profil Kesehatan" },
     ],
   },

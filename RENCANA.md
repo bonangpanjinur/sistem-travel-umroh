@@ -150,6 +150,7 @@ pnpm --filter @workspace/api-spec run codegen
 | Manasik Digital + Kuis Mandiri | `/jamaah/manasik` | ✅ Fase 2 — tab Kuis 27 soal, 6 topik, skor localStorage |
 | SOS Status | `/jamaah/sos-status` | ✅ |
 | Profil Kesehatan Jamaah | `/jamaah/kesehatan` | ✅ Fase 2 — gol darah, alergi, obat, vaksin, kartu darurat |
+| Tracker Ibadah Harian | `/jamaah/tracker-ibadah` | ✅ Baru — shalat, tawaf, sa'i, zikir, Qur'an, grafik 7 hari, streak |
 
 ### Portal Admin — `/admin/*`
 | Halaman | URL | Status |
