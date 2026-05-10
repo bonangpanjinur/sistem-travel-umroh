@@ -66,7 +66,7 @@ export default function PantauJamaahPage() {
   // Check if sharing is enabled (we check via a simple convention)
   const sharingEnabled = localStorage.getItem("family-tracking-enabled") !== "false";
 
-  const statusInfo = booking ? STATUS_CONFIG[booking.booking_status] || STATUS_CONFIG.confirmed : null;
+  const statusInfo = booking ? STATUS_CONFIG[booking.booking_status ?? "confirmed"] || STATUS_CONFIG.confirmed : null;
   const customer = (booking as any)?.customer;
   const departure = (booking as any)?.departure;
   const muthawif = departure?.muthawif;

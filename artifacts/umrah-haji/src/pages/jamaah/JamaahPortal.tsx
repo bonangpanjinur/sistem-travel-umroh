@@ -27,6 +27,7 @@ import { formatCurrency } from "@/lib/format";
 import { SOSButton } from "@/components/jamaah/SOSButton";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useGeoNotification } from "@/hooks/useGeoNotification";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
 import {
@@ -45,6 +46,9 @@ export default function JamaahPortal() {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { getSetting } = useCompanySettings();
+
+  // Notifikasi Geolokasi: alert ketika mendekati lokasi suci
+  useGeoNotification(true);
   const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -79,25 +83,6 @@ export default function JamaahPortal() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
-
-  // P6: Live countdown timer (jam & menit)
-  useEffect(() => {
-    const tick = () => {
-      const departure = (booking as any)?.departure?.departure_date;
-      if (!departure) return;
-      const now = new Date();
-      const target = new Date(departure);
-      const totalSeconds = differenceInSeconds(target, now);
-      if (totalSeconds <= 0) return;
-      const h = Math.floor((totalSeconds % 86400) / 3600);
-      const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = totalSeconds % 60;
-      setLiveCountdown({ h, m, s });
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [(booking as any)?.departure?.departure_date]);
 
   const { data: customer } = useQuery({
     queryKey: ["jamaah-customer", user?.id],
@@ -141,6 +126,25 @@ export default function JamaahPortal() {
     },
     enabled: !!customer?.id,
   });
+
+  // P6: Live countdown timer (jam & menit)
+  useEffect(() => {
+    const tick = () => {
+      const departure = (booking as any)?.departure?.departure_date;
+      if (!departure) return;
+      const now = new Date();
+      const target = new Date(departure);
+      const totalSeconds = differenceInSeconds(target, now);
+      if (totalSeconds <= 0) return;
+      const h = Math.floor((totalSeconds % 86400) / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      setLiveCountdown({ h, m, s });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [(booking as any)?.departure?.departure_date]);
 
   const { data: announcements } = useQuery({
     queryKey: ["jamaah-announcements", user?.id],
@@ -575,6 +579,12 @@ export default function JamaahPortal() {
                 <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
                   <GraduationCap className="h-6 w-6 mx-auto mb-1 text-indigo-600" />
                   <p className="text-xs">Manasik</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/manasik-interaktif">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <Scroll className="h-6 w-6 mx-auto mb-1 text-purple-600" />
+                  <p className="text-xs">Panduan Interaktif</p>
                 </Card>
               </Link>
               <Link to="/jamaah/panduan-ibadah">

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { WebsiteSettings } from '@/hooks/useWebsiteSettings';
-import { Menu, X, User, ChevronDown, LogOut, LayoutDashboard, Wallet, Calendar, Moon, BookOpen, Compass, Cloud, Target, Calculator, Beaker, ShoppingBag } from 'lucide-react';
+import { Menu, X, User, ChevronDown, LogOut, LayoutDashboard, Wallet, Calendar, Moon, Sun, BookOpen, Compass, Cloud, Target, Calculator, Beaker, ShoppingBag } from 'lucide-react';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -53,6 +54,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const { user, profile, isAdmin, signOut } = useAuth();
   const { data: mainSettings } = useWebsiteSettings();
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const settings = tenantSettings || mainSettings;
   const navigate = useNavigate();
   const isRoyal = settings?.template === 'royal';
@@ -170,6 +172,18 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
             </DropdownMenu>
           </div>
 
+          {/* Dark Mode Toggle (Desktop) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleDark}
+            aria-label={isDark ? "Aktifkan mode terang" : "Aktifkan mode gelap"}
+            title={isDark ? "Mode Terang" : "Mode Gelap"}
+            className={`hidden lg:flex ${isRoyal ? 'text-gray-400 hover:text-amber-500 hover:bg-white/5' : ''}`}
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+
           {/* Desktop Auth (hidden on mobile) */}
           <div className="hidden lg:flex items-center gap-4">
             {user ? (
@@ -273,6 +287,15 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                   {item.label}
                 </Link>
               ))}
+
+              {/* Dark Mode Toggle (Mobile) */}
+              <button
+                onClick={toggleDark}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${isRoyal ? 'text-gray-400 hover:bg-white/5 hover:text-amber-500' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {isDark ? "Mode Terang" : "Mode Gelap"}
+              </button>
 
               <hr className={`my-2 ${isRoyal ? 'border-amber-500/20' : ''}`} />
 

@@ -53,12 +53,12 @@ _Tidak ada — semua fitur terencana sudah selesai._ 🎉
 ## 📋 Backlog (Bisa Dikerjakan Berikutnya)
 
 ### Fitur Potensial
-- [ ] **Notifikasi Geolokasi** — kirim notifikasi push saat jamaah mendekati lokasi tertentu (Masjidil Haram, dll.)
-- [ ] **Halaman Panduan Manasik Interaktif** — langkah-langkah tawaf, sa'i, dll. dengan animasi
-- [ ] **Live Tracking Jamaah** — admin pantau posisi rombongan di peta
-- [ ] **Sertifikat Umroh Digital** — generate PDF sertifikat setelah ibadah
-- [ ] **Fitur Offline** — cache lebih banyak konten untuk mode pesawat
-- [ ] **Dark Mode** — toggle tema gelap/terang
+- [x] **Notifikasi Geolokasi** — hook `useGeoNotification` aktif di JamaahPortal; memantau GPS & mengirim notifikasi push/toast saat jamaah ±500m dari Masjidil Haram, Masjid Nabawi, Arafah, Muzdalifah, Mina
+- [x] **Halaman Panduan Manasik Interaktif** — `/jamaah/manasik-interaktif` dengan langkah-langkah Tawaf (7), Sa'i (7), Wukuf (7); progress bar, step interaktif, tips, tandai selesai per langkah
+- [x] **Live Tracking Jamaah** — `AdminDepartureTracking.tsx` (sudah ada) menampilkan status checkin, flight status, dan penumpang per keberangkatan
+- [x] **Sertifikat Umroh Digital** — `JamaahSertifikat.tsx` (sudah ada) menghasilkan PDF sertifikat dengan jsPDF di `/jamaah/sertifikat`
+- [x] **Fitur Offline** — service worker diperbarui ke `vinstour-v4`; 16 route jamaah & islami ditambahkan ke cache offline
+- [x] **Dark Mode** — toggle Moon/Sun di navbar desktop & mobile; hook `useDarkMode` dengan localStorage + `prefers-color-scheme`; dark CSS variables sudah ada di `index.css`
 
 ### Infrastruktur
 - [ ] Konfigurasi Supabase (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)

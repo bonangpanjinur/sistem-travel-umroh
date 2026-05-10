@@ -79,6 +79,7 @@ const JamaahChecklist = lazy(() => import("@/pages/jamaah/JamaahChecklist"));
 
 // Fase 15 — Manasik Digital
 const JamaahManasik = lazy(() => import("@/pages/jamaah/JamaahManasik"));
+const JamaahManasikInteraktif = lazy(() => import("@/pages/jamaah/JamaahManasikInteraktif"));
 
 // Fase 2 UX — Fitur Baru
 const JamaahKesehatan = lazy(() => import("@/pages/jamaah/JamaahKesehatan"));
@@ -181,6 +182,7 @@ export default function CustomerRoutes() {
 
       {/* Fase 15 — Manasik Digital */}
       <Route path="/jamaah/manasik" element={<CustomerRoute><JamaahManasik /></CustomerRoute>} />
+      <Route path="/jamaah/manasik-interaktif" element={<CustomerRoute><JamaahManasikInteraktif /></CustomerRoute>} />
 
       {/* Fase 2 UX — Profil Kesehatan & Tracker Ibadah */}
       <Route path="/jamaah/kesehatan" element={<CustomerRoute><JamaahKesehatan /></CustomerRoute>} />

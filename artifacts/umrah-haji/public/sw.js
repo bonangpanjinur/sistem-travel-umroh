@@ -1,4 +1,4 @@
-const CACHE_VERSION = "vinstour-v3";
+const CACHE_VERSION = "vinstour-v4";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -17,6 +17,22 @@ const JAMAAH_ROUTES = [
   "/jamaah/checklist",
   "/jamaah/digital-id",
   "/jamaah/itinerary",
+  "/jamaah/manasik-interaktif",
+  "/jamaah/manasik",
+  "/jamaah/tracker-ibadah",
+  "/jamaah/doa-counter",
+  "/jamaah/badges",
+  "/jamaah/jurnal",
+  "/jamaah/target-ibadah",
+  "/jamaah/peta-lokasi",
+  "/jamaah/rombongan",
+  "/jamaah/sertifikat",
+  "/sholat",
+  "/alquran",
+  "/kiblat",
+  "/tracker-ibadah",
+  "/tasbih",
+  "/kalkulator-islami",
 ];
 
 self.addEventListener("install", (event) => {

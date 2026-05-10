@@ -53,7 +53,7 @@ interface DailyLog {
 
 const DEFAULT_LOG: DailyLog = {
   subuh: false, dzuhur: false, ashar: false, maghrib: false, isya: false,
-  tahajud: false, dhuha: false, rawatibQabli: false, rawatibBa_di: false,
+  tahajud: false, dhuha: false, rawatibQabli: false, rawatibBadi: false,
   tawafRounds: 0, saiTrips: 0,
   tasbih: 0, tahmid: 0, takbir: 0, istighfar: 0, shalawat: 0,
   quranPages: 0,
@@ -93,7 +93,7 @@ function scoreLog(log: DailyLog): number {
   if (log.tahajud) score += 4;
   if (log.dhuha) score += 3;
   if (log.rawatibQabli) score += 2;
-  if (log.rawatibBa_di) score += 2;
+  if (log.rawatibBadi) score += 2;
   // Tawaf & Sa'i (3 pts per completion)
   score += Math.floor(log.tawafRounds / 7) * 3;
   score += Math.floor(log.saiTrips / 7) * 3;
@@ -473,7 +473,7 @@ export default function JamaahTrackerIbadah() {
                   { field: "tahajud" as const, label: "Tahajud", emoji: "🌃", sub: "Min. 2 rakaat setelah tengah malam" },
                   { field: "dhuha" as const, label: "Dhuha", emoji: "🌞", sub: "2–12 rakaat pagi hari" },
                   { field: "rawatibQabli" as const, label: "Rawatib Qabli", emoji: "⬆️", sub: "Sebelum shalat fardhu" },
-                  { field: "rawatibBa_di" as const, label: "Rawatib Ba'di", emoji: "⬇️", sub: "Setelah shalat fardhu" },
+                  { field: "rawatibBadi" as const, label: "Rawatib Ba'di", emoji: "⬇️", sub: "Setelah shalat fardhu" },
                 ].map(({ field, label, emoji, sub }) => (
                   <CheckRow
                     key={field}
@@ -627,7 +627,7 @@ export default function JamaahTrackerIbadah() {
             <CardContent className="px-4 pb-4 space-y-3">
               {[
                 { label: "Shalat Fardhu", value: fardhuCount, max: 5, color: "bg-indigo-500" },
-                { label: "Shalat Sunnah", value: [log.tahajud, log.dhuha, log.rawatibQabli, log.rawatibBa_di].filter(Boolean).length, max: 4, color: "bg-amber-500" },
+                { label: "Shalat Sunnah", value: [log.tahajud, log.dhuha, log.rawatibQabli, log.rawatibBadi].filter(Boolean).length, max: 4, color: "bg-amber-500" },
                 { label: "Tawaf (putaran)", value: log.tawafRounds, max: 7, color: "bg-emerald-500" },
                 { label: "Al-Qur'an (halaman)", value: log.quranPages, max: 20, color: "bg-green-600" },
                 { label: "Zikir (set)", value: log.tasbih + log.tahmid + log.takbir + log.istighfar + log.shalawat, max: 10, color: "bg-purple-500" },
