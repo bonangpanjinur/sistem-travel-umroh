@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, RefreshCw, Clock, Bell, Moon, Sun, Sunrise, Sunset } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { PrayerNotificationCard } from "@/components/pwa/PrayerNotificationCard";
 
 interface PrayerTimes {
   Fajr: string; Dhuhr: string; Asr: string; Maghrib: string; Isha: string; Sunrise: string;
@@ -175,6 +176,11 @@ export default function JadwalSholat() {
             Metode: {data.meta.method.name} • {data.meta.timezone}
           </p>
         )}
+
+        {/* Prayer Notification Settings */}
+        <div className="px-4 mt-6 max-w-2xl mx-auto">
+          <PrayerNotificationCard />
+        </div>
       </div>
     </DynamicPublicLayout>
   );
