@@ -15,7 +15,7 @@ export interface MidtransSnapResult {
 export async function createMidtransPaymentToken(
   payload: MidtransPaymentPayload
 ): Promise<MidtransSnapResult> {
-  const response = await fetch('/api/payment/midtrans/create-token', {
+  const response = await fetch('/api/midtrans/create-transaction', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

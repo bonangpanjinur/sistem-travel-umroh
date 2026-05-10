@@ -325,15 +325,12 @@ export default function AdminPayments() {
             onClick={async () => {
               setIsSendingReminders(true);
               try {
-                const { data, error } = await supabase.functions.invoke('send-payment-reminder', {
-                  body: { reminder_type: 'all' }
+                const res = await fetch('/api/whatsapp/payment-reminder', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ reminder_type: 'all' }),
                 });
-                if (error) {
-                  toast.error('Edge function error', {
-                    description: error.message || 'Tidak dapat menjangkau server reminder',
-                  });
-                  return;
-                }
+                const data = await res.json();
                 if (!data?.success) {
                   toast.error('Reminder gagal dikirim', {
                     description: data?.error || data?.message || 'Periksa konfigurasi WhatsApp di pengaturan',

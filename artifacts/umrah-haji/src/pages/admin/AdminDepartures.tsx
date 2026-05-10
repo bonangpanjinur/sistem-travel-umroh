@@ -254,10 +254,12 @@ export default function AdminDepartures() {
 
   const sendNotificationMutation = useMutation({
     mutationFn: async ({ departureId, type }: { departureId: string; type: string }) => {
-      const { data, error } = await supabase.functions.invoke('send-whatsapp-notification', {
-        body: { type, departure_id: departureId }
+      const res = await fetch('/api/whatsapp/notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, departure_id: departureId }),
       });
-      if (error) throw error;
+      const data = await res.json();
       if (!data?.success) throw new Error(data?.error || 'Gagal mengirim notifikasi');
       return data;
     },

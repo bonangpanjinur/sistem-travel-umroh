@@ -868,10 +868,12 @@ export default function AdminBookings() {
                             onClick={async (e) => {
                               e.preventDefault();
                               try {
-                                const { data, error } = await supabase.functions.invoke('send-payment-reminder', {
-                                  body: { booking_id: booking.id }
+                                const res = await fetch('/api/whatsapp/payment-reminder', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ booking_id: booking.id }),
                                 });
-                                if (error) throw error;
+                                const data = await res.json();
                                 if (data?.success) {
                                   toast({ title: "Reminder terkirim", description: `WhatsApp tagihan dikirim ke ${customer?.full_name}` });
                                 } else {

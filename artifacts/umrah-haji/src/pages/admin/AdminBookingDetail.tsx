@@ -354,10 +354,12 @@ export default function AdminBookingDetail() {
   // Send WhatsApp notification
   const sendNotificationMutation = useMutation({
     mutationFn: async (type: string) => {
-      const { data, error } = await supabase.functions.invoke('send-whatsapp-notification', {
-        body: { type, booking_id: id }
+      const res = await fetch('/api/whatsapp/notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, booking_id: id }),
       });
-      if (error) throw error;
+      const data = await res.json();
       if (!data?.success) throw new Error(data?.error || 'Gagal mengirim notifikasi');
       return data;
     },

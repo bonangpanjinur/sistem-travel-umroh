@@ -275,20 +275,22 @@ export default function EmployeeAttendance() {
     setIsVerifying(true);
     setFaceVerification(null);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-face", {
-        body: {
+      const res = await fetch('/api/hr/verify-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           employee_id: activeEmployeeId,
           captured_image: photo,
           stored_photo_url: activeEmployee?.photo_url,
-        },
+        }),
       });
-      if (error) throw error;
+      const data = await res.json();
       setFaceVerification({
         verified: data.verified,
         confidence: data.confidence,
         reason: data.reason,
       });
-      if (data.verified) toast.success("Wajah terverifikasi!");
+      if (data.verified) toast.success(data.bypass ? "Verifikasi manual — lanjutkan absensi" : "Wajah terverifikasi!");
       else toast.warning(data.reason || "Wajah tidak terverifikasi");
     } catch {
       setFaceVerification({

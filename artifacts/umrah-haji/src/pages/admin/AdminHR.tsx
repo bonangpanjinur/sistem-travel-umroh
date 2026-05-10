@@ -236,14 +236,11 @@ export default function AdminHR() {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employee: Employee) => {
-      const { data, error } = await supabase.functions.invoke("delete-employee", {
-        body: {
-          employeeId: employee.id,
-        },
+      const res = await fetch(`/api/hr/employees/${employee.id}`, {
+        method: 'DELETE',
       });
-
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Gagal menghapus karyawan');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -323,10 +320,12 @@ export default function AdminHR() {
           if (!password) throw new Error("Password wajib diisi untuk karyawan baru");
           if (!email) throw new Error("Email wajib diisi untuk karyawan baru");
 
-          // Try to use Edge Function first, fallback to direct creation
+          // Try backend route first, fallback to direct creation
           try {
-            const { data, error } = await supabase.functions.invoke("create-employee", {
-              body: {
+            const res = await fetch('/api/hr/employees', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
                 fullName: employeeData.full_name,
                 email: email,
                 password: password,
@@ -336,12 +335,10 @@ export default function AdminHR() {
                 gender: employeeData.gender,
                 salary: employeeData.salary,
                 hireDate: employeeData.hire_date,
-                existingUserId: null,
-              },
+              }),
             });
-
-            if (error) throw error;
-            if (data.error) throw new Error(data.error);
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'Backend error');
           } catch (edgeFunctionError) {
             // Fallback: Create user directly via Supabase Auth
             console.warn("Edge Function failed, using fallback method:", edgeFunctionError);
