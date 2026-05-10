@@ -78,6 +78,12 @@ const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
 const AdminVisaManagement = lazy(() => import("@/pages/admin/AdminVisaManagement"));
 const AdminAirlines = lazy(() => import("@/pages/admin/AdminAirlines"));
 
+// Toko Online / E-Commerce
+const AdminStore           = lazy(() => import("@/pages/admin/AdminStore"));
+const AdminStoreProducts   = lazy(() => import("@/pages/admin/AdminStoreProducts"));
+const AdminStoreOrders     = lazy(() => import("@/pages/admin/AdminStoreOrders"));
+const AdminStoreCategories = lazy(() => import("@/pages/admin/AdminStoreCategories"));
+
 // Batch Fitur 01–10
 const AdminSISKOHAT        = lazy(() => import("@/pages/admin/AdminSISKOHAT"));
 const AdminApprovals       = lazy(() => import("@/pages/admin/AdminApprovals"));
@@ -310,6 +316,12 @@ export default function AdminRoutes() {
       <Route path="muthawifs/:id" element={<P k={PERMISSIONS.MUTHAWIFS}><AdminMuthawifDetail /></P>} />
       <Route path="bus-providers" element={<P k={PERMISSIONS.BUS_PROVIDERS}><AdminBusProviders /></P>} />
       <Route path="vendors" element={<P k={PERMISSIONS.VENDORS}><AdminVendors /></P>} />
+
+      {/* Toko Online / E-Commerce */}
+      <Route path="store"            element={<P k={PERMISSIONS.STORE}><LazyPage><AdminStore /></LazyPage></P>} />
+      <Route path="store/products"   element={<P k={PERMISSIONS.STORE_PRODUCTS}><LazyPage><AdminStoreProducts /></LazyPage></P>} />
+      <Route path="store/orders"     element={<P k={PERMISSIONS.STORE_ORDERS}><LazyPage><AdminStoreOrders /></LazyPage></P>} />
+      <Route path="store/categories" element={<P k={PERMISSIONS.STORE_CATEGORIES}><LazyPage><AdminStoreCategories /></LazyPage></P>} />
 
       {/* Batch Fitur 01–10 */}
       <Route path="siskohat"         element={<P k={PERMISSIONS.SISKOHAT}><LazyPage><AdminSISKOHAT /></LazyPage></P>} />

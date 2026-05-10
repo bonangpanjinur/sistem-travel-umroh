@@ -141,6 +141,12 @@ export const PERMISSIONS = {
   PEMBAYARAN_REMINDER: 'pembayaran-reminder',
   VIRTUAL_ACCOUNT: 'virtual-account',
 
+  // Toko Online / E-Commerce
+  STORE: 'store',
+  STORE_PRODUCTS: 'store-products',
+  STORE_ORDERS: 'store-orders',
+  STORE_CATEGORIES: 'store-categories',
+
   // Fase 10 — AI & Smart Analytics
   SENTIMEN_FEEDBACK: 'sentimen-feedback',
   PREDIKSI_SEAT: 'prediksi-seat',

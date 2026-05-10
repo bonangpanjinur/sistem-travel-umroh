@@ -94,6 +94,12 @@ const JamaahPantauKeluarga = lazy(() => import("@/pages/jamaah/JamaahPantauKelua
 // Wishlist Paket
 const JamaahWishlist = lazy(() => import("@/pages/jamaah/JamaahWishlist"));
 
+// Toko Online / E-Commerce
+const StorePage        = lazy(() => import("@/pages/customer/StorePage"));
+const StoreCheckout    = lazy(() => import("@/pages/customer/StoreCheckout"));
+const MyStoreOrders    = lazy(() => import("@/pages/customer/MyStoreOrders"));
+const StoreOrderDetail = lazy(() => import("@/pages/customer/StoreOrderDetail"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -175,6 +181,12 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/target-ibadah" element={<LazyPage><JamaahTargetIbadah /></LazyPage>} />
       <Route path="/jamaah/checklist" element={<LazyPage><JamaahChecklist /></LazyPage>} />
       <Route path="/jamaah/pengingat-ibadah" element={<LazyPage><JamaahPengingatIbadah /></LazyPage>} />
+
+      {/* Toko Online / E-Commerce */}
+      <Route path="/store"                   element={<LazyPage><StorePage /></LazyPage>} />
+      <Route path="/store/checkout"          element={<CustomerRoute><StoreCheckout /></CustomerRoute>} />
+      <Route path="/store/orders"            element={<CustomerRoute><MyStoreOrders /></CustomerRoute>} />
+      <Route path="/store/orders/:id"        element={<CustomerRoute><StoreOrderDetail /></CustomerRoute>} />
 
       {/* FITUR 04 — Status Pengajuan Refund/Pembatalan Customer */}
       <Route path="/customer/refund-status" element={<CustomerRoute><LazyPage><CustomerRefundStatus /></LazyPage></CustomerRoute>} />
