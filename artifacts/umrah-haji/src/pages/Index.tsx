@@ -19,6 +19,7 @@ import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
 import { NatureCTASection } from '@/components/home/NatureCTASection';
 import { RoyalCTASection } from '@/components/home/RoyalCTASection';
 import { QuickMenuGrid } from '@/components/home/QuickMenuGrid';
+import { JamaahTrackerWidget } from '@/components/home/JamaahTrackerWidget';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -75,6 +76,9 @@ const Index = () => {
       )}
       {/* Quick Menu Grid – always visible right after banner/hero */}
       <QuickMenuGrid settings={settings ?? undefined} />
+
+      {/* Jamaah Tracker – only visible for logged-in users */}
+      <JamaahTrackerWidget />
 
       {enabledSections.map((section: HomepageSection) => {
         if (section.id === 'hero') {
