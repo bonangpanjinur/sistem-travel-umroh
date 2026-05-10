@@ -31,7 +31,7 @@ interface DailyLog {
   tahajud: boolean;
   dhuha: boolean;
   rawatibQabli: boolean;
-  rawatibBa'di: boolean;
+  rawatibBadi: boolean;
   // Tawaf & Sa'i
   tawafRounds: number;   // jumlah putaran (per 7 = 1 tawaf)
   saiTrips: number;      // jumlah perjalanan (per 7 = 1 sa'i)

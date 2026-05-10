@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { WebsiteSettings } from '@/hooks/useWebsiteSettings';
-import { Menu, X, User, ChevronDown, LogOut, LayoutDashboard, Wallet, Calendar } from 'lucide-react';
+import { Menu, X, User, ChevronDown, LogOut, LayoutDashboard, Wallet, Calendar, Moon, BookOpen, Compass, Cloud, Target, Calculator, Beaker, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,11 +22,21 @@ const defaultNavLinks: NavLink[] = [
   { href: '/', label: 'Beranda' },
   { href: '/packages', label: 'Paket Umroh' },
   { href: '/departures', label: 'Jadwal' },
-  { href: '/fitur', label: 'Fitur Portal' },
-  { href: '/kurs', label: 'Kurs' },
   { href: '/savings', label: 'Tabungan' },
+  { href: '/toko', label: 'Toko' },
   { href: '/about', label: 'Tentang Kami' },
   { href: '/contact', label: 'Hubungi Kami' },
+];
+
+const ISLAMI_NAV = [
+  { href: '/sholat', label: 'Jadwal Sholat', icon: Moon, desc: 'Waktu sholat & arah kiblat' },
+  { href: '/alquran', label: 'Al-Quran', icon: BookOpen, desc: 'Baca & dengar murottal' },
+  { href: '/kiblat', label: 'Arah Kiblat', icon: Compass, desc: 'Kompas Ka\'bah GPS' },
+  { href: '/cuaca', label: 'Cuaca Mekah', icon: Cloud, desc: 'Prakiraan cuaca Tanah Suci' },
+  { href: '/tracker-ibadah', label: 'Tracker Ibadah', icon: Target, desc: 'Pantau amalan harian' },
+  { href: '/kalkulator-islami', label: 'Kalkulator Islami', icon: Beaker, desc: 'Zakat, fidyah, cicilan' },
+  { href: '/tasbih', label: 'Tasbih Digital', icon: Moon, desc: 'Dzikir & hitung tasbih' },
+  { href: '/toko', label: 'Toko Umroh', icon: ShoppingBag, desc: 'Perlengkapan ibadah' },
 ];
 
 export type HeaderDisplayMode = 'logo_only' | 'logo_name_tagline' | 'name_tagline_only';
@@ -135,6 +145,29 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                 {link.label}
               </Link>
             ))}
+            {/* Islami Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className={`flex items-center gap-1 text-sm font-medium transition-colors ${isRoyal ? 'text-gray-400 hover:text-amber-500' : 'text-muted-foreground hover:text-primary'}`}>
+                  <Moon className="h-4 w-4" />
+                  Islami
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-72 p-2 grid grid-cols-2 gap-1">
+                {ISLAMI_NAV.map(item => (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link to={item.href} className="flex items-start gap-2 p-2 rounded-lg hover:bg-accent">
+                      <item.icon className="h-4 w-4 mt-0.5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-semibold leading-tight">{item.label}</p>
+                        <p className="text-[10px] text-muted-foreground leading-tight">{item.desc}</p>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Desktop Auth (hidden on mobile) */}
@@ -222,6 +255,22 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                   onClick={() => setIsOpen(false)}
                 >
                   {link.label}
+                </Link>
+              ))}
+
+              {/* Islami section in mobile menu */}
+              <div className="px-4 pt-2 pb-1">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Fitur Islami</p>
+              </div>
+              {ISLAMI_NAV.map(item => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${isRoyal ? 'text-gray-400 hover:bg-white/5 hover:text-amber-500' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <item.icon className="h-4 w-4 text-emerald-600" />
+                  {item.label}
                 </Link>
               ))}
 

@@ -10,24 +10,30 @@ export interface BottomNavItem {
 }
 
 export const DEFAULT_BOTTOM_NAV: BottomNavItem[] = [
-  { id: "beranda",     label: "Beranda",     icon: "Home",       path: "/",           enabled: true,  order: 0 },
-  { id: "paket",       label: "Paket",       icon: "Package",    path: "/packages",   enabled: true,  order: 1 },
-  { id: "jadwal",      label: "Jadwal",      icon: "Calendar",   path: "/departures", enabled: true,  order: 2 },
-  { id: "kalkulator",  label: "Kalkulator",  icon: "Calculator", path: "/kalkulator", enabled: true,  order: 3 },
-  { id: "akun",        label: "Akun",        icon: "User",       path: "/auth/login", enabled: true,  order: 4 },
+  { id: "beranda",  label: "Beranda",  icon: "Home",       path: "/",           enabled: true,  order: 0 },
+  { id: "paket",    label: "Paket",    icon: "Package",    path: "/packages",   enabled: true,  order: 1 },
+  { id: "sholat",   label: "Sholat",   icon: "Moon",       path: "/sholat",     enabled: true,  order: 2 },
+  { id: "toko",     label: "Toko",     icon: "ShoppingBag", path: "/toko",      enabled: true,  order: 3 },
+  { id: "akun",     label: "Akun",     icon: "User",        path: "/auth/login", enabled: true,  order: 4 },
 ];
 
 export const ALL_NAV_OPTIONS: BottomNavItem[] = [
-  { id: "beranda",     label: "Beranda",     icon: "Home",       path: "/",              enabled: true,  order: 0 },
-  { id: "paket",       label: "Paket",       icon: "Package",    path: "/paket",         enabled: true,  order: 1 },
-  { id: "jadwal",      label: "Jadwal",      icon: "Calendar",   path: "/jadwal",        enabled: false, order: 2 },
-  { id: "kalkulator",  label: "Kalkulator",  icon: "Calculator", path: "/kalkulator",    enabled: true,  order: 2 },
-  { id: "kurs",        label: "Kurs",        icon: "DollarSign", path: "/kurs",          enabled: true,  order: 3 },
-  { id: "tabungan",    label: "Tabungan",    icon: "PiggyBank",  path: "/tabungan",      enabled: false, order: 5 },
-  { id: "blog",        label: "Artikel",     icon: "BookOpen",   path: "/blog",          enabled: false, order: 6 },
-  { id: "fitur",       label: "Fitur",       icon: "LayoutGrid", path: "/fitur",         enabled: false, order: 7 },
-  { id: "kontak",      label: "Kontak",      icon: "Phone",      path: "/kontak",        enabled: false, order: 8 },
-  { id: "akun",        label: "Akun",        icon: "User",       path: "/login",         enabled: true,  order: 4 },
+  { id: "beranda",      label: "Beranda",     icon: "Home",        path: "/",                 enabled: true,  order: 0 },
+  { id: "paket",        label: "Paket",       icon: "Package",     path: "/packages",         enabled: true,  order: 1 },
+  { id: "sholat",       label: "Sholat",      icon: "Moon",        path: "/sholat",           enabled: true,  order: 2 },
+  { id: "alquran",      label: "Al-Quran",    icon: "BookOpen",    path: "/alquran",          enabled: false, order: 3 },
+  { id: "kiblat",       label: "Kiblat",      icon: "Compass",     path: "/kiblat",           enabled: false, order: 4 },
+  { id: "cuaca",        label: "Cuaca",       icon: "Cloud",       path: "/cuaca",            enabled: false, order: 5 },
+  { id: "tracker",      label: "Tracker",     icon: "Target",      path: "/tracker-ibadah",   enabled: false, order: 6 },
+  { id: "kalkislami",   label: "Kalkulator",  icon: "Calculator",  path: "/kalkulator-islami", enabled: false, order: 7 },
+  { id: "tasbih",       label: "Tasbih",      icon: "LayoutGrid",  path: "/tasbih",           enabled: false, order: 8 },
+  { id: "toko",         label: "Toko",        icon: "ShoppingBag", path: "/toko",             enabled: true,  order: 9 },
+  { id: "jadwal",       label: "Jadwal",      icon: "Calendar",    path: "/departures",       enabled: false, order: 10 },
+  { id: "kalkulator",   label: "Biaya",       icon: "Calculator",  path: "/kalkulator",       enabled: false, order: 11 },
+  { id: "kurs",         label: "Kurs",        icon: "DollarSign",  path: "/kurs",             enabled: false, order: 12 },
+  { id: "tabungan",     label: "Tabungan",    icon: "PiggyBank",   path: "/savings",          enabled: false, order: 13 },
+  { id: "blog",         label: "Artikel",     icon: "BookOpen",    path: "/blog",             enabled: false, order: 14 },
+  { id: "akun",         label: "Akun",        icon: "User",        path: "/auth/login",       enabled: true,  order: 15 },
 ];
 
 const STORAGE_KEY = "pwa-bottom-nav-config";

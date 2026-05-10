@@ -1,14 +1,16 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Package, Calculator, DollarSign, User, Calendar,
-  PiggyBank, BookOpen, LayoutGrid, Phone
+  PiggyBank, BookOpen, LayoutGrid, Phone, Moon, Compass,
+  Cloud, Target, ShoppingBag, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePWAConfig } from "@/hooks/usePWAConfig";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Home, Package, Calculator, DollarSign, User, Calendar,
-  PiggyBank, BookOpen, LayoutGrid, Phone,
+  PiggyBank, BookOpen, LayoutGrid, Phone, Moon, Compass,
+  Cloud, Target, ShoppingBag, Star,
 };
 
 export function MobileBottomNav() {

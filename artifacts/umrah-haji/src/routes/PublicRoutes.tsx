@@ -35,6 +35,14 @@ const FiturPortalPage = lazy(() => import("@/pages/public/FiturPortalPage"));
 const KursPage = lazy(() => import("@/pages/public/KursPage"));
 const JamaahInfoPage = lazy(() => import("@/pages/public/JamaahInfoPage"));
 const PantauJamaahPage = lazy(() => import("@/pages/public/PantauJamaahPage"));
+const JadwalSholat = lazy(() => import("@/pages/public/JadwalSholat"));
+const AlQuran = lazy(() => import("@/pages/public/AlQuran"));
+const ArahKiblat = lazy(() => import("@/pages/public/ArahKiblat"));
+const CuacaMekkah = lazy(() => import("@/pages/public/CuacaMekkah"));
+const TrackerIbadah = lazy(() => import("@/pages/public/TrackerIbadah"));
+const KalkulatorIslami = lazy(() => import("@/pages/public/KalkulatorIslami"));
+const TasbihDigital = lazy(() => import("@/pages/public/TasbihDigital"));
+const TokoOnline = lazy(() => import("@/pages/public/TokoOnline"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -79,6 +87,14 @@ export default function PublicRoutes() {
       <Route path="/kurs" element={<LazyPage><KursPage /></LazyPage>} />
       <Route path="/jamaah-info" element={<LazyPage><JamaahInfoPage /></LazyPage>} />
       <Route path="/pantau/:token" element={<LazyPage><PantauJamaahPage /></LazyPage>} />
+      <Route path="/sholat" element={<LazyPage><JadwalSholat /></LazyPage>} />
+      <Route path="/alquran" element={<LazyPage><AlQuran /></LazyPage>} />
+      <Route path="/kiblat" element={<LazyPage><ArahKiblat /></LazyPage>} />
+      <Route path="/cuaca" element={<LazyPage><CuacaMekkah /></LazyPage>} />
+      <Route path="/tracker-ibadah" element={<LazyPage><TrackerIbadah /></LazyPage>} />
+      <Route path="/kalkulator-islami" element={<LazyPage><KalkulatorIslami /></LazyPage>} />
+      <Route path="/tasbih" element={<LazyPage><TasbihDigital /></LazyPage>} />
+      <Route path="/toko" element={<LazyPage><TokoOnline /></LazyPage>} />
       <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>

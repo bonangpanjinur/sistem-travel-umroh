@@ -3,7 +3,8 @@ import {
   Package, Calculator, DollarSign, Calendar, PiggyBank,
   BookOpen, Phone, Star, MapPin, Heart, FileText, Search,
   Plane, Clock, BookMarked, Users, Scroll, GraduationCap,
-  ChevronRight, Shield, HelpCircle
+  ChevronRight, Shield, HelpCircle, Moon, Compass, Cloud,
+  Target, ShoppingBag, Beaker
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -191,6 +192,17 @@ const JAMAAH_MENU: QuickMenuItem[] = [
   },
 ];
 
+const ISLAMI_MENU: QuickMenuItem[] = [
+  { id: 'sholat', label: 'Jadwal Sholat', sublabel: 'Waktu & kiblat', icon: Moon, to: '/sholat', color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+  { id: 'alquran', label: 'Al-Quran', sublabel: 'Baca & dengarkan', icon: BookMarked, to: '/alquran', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+  { id: 'kiblat', label: 'Arah Kiblat', sublabel: 'Kompas Ka\'bah', icon: Compass, to: '/kiblat', color: 'text-teal-700', bg: 'bg-teal-50', border: 'border-teal-100' },
+  { id: 'cuaca', label: 'Cuaca Mekah', sublabel: 'Prakiraan cuaca', icon: Cloud, to: '/cuaca', color: 'text-sky-700', bg: 'bg-sky-50', border: 'border-sky-100' },
+  { id: 'tracker', label: 'Tracker Ibadah', sublabel: 'Pantau amalan', icon: Target, to: '/tracker-ibadah', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-100' },
+  { id: 'kalkislami', label: 'Kalkulator', sublabel: 'Zakat, fidyah, dll', icon: Beaker, to: '/kalkulator-islami', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-100' },
+  { id: 'tasbih', label: 'Tasbih Digital', sublabel: 'Dzikir & hitung', icon: Scroll, to: '/tasbih', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-100' },
+  { id: 'toko', label: 'Toko Umroh', sublabel: 'Perlengkapan ibadah', icon: ShoppingBag, to: '/toko', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-100' },
+];
+
 const INFO_MENU: QuickMenuItem[] = [
   {
     id: 'tentang',
@@ -338,6 +350,26 @@ export function QuickMenuGrid({ settings }: QuickMenuGridProps) {
               </Link>
             </div>
           )}
+        </div>
+
+        {/* ── Fitur Islami ── */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className={cn('text-base font-bold', isRoyal ? 'text-white' : 'text-foreground')}>
+                Fitur Islami
+              </h2>
+              <p className="text-xs text-muted-foreground">Jadwal sholat, Al-Quran, kiblat & lebih banyak</p>
+            </div>
+            <Link to="/sholat" className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+              Jelajahi <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-2 sm:gap-3">
+            {ISLAMI_MENU.map((item) => (
+              <MenuCard key={item.id} item={item} />
+            ))}
+          </div>
         </div>
 
         {/* ── Informasi ── */}
