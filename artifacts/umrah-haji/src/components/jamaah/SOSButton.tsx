@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 interface SOSButtonProps {
   customerName: string;
   customerId?: string;
+  departureId?: string;
   muthawifPhone?: string;
   emergencyPhone?: string;
   bookingCode?: string;
@@ -47,7 +48,7 @@ const SAUDI_EMERGENCY = [
 
 const HOLD_DURATION = 3000; // 3 seconds hold to send
 
-export function SOSButton({ customerName, customerId, muthawifPhone, emergencyPhone, bookingCode }: SOSButtonProps) {
+export function SOSButton({ customerName, customerId, departureId, muthawifPhone, emergencyPhone, bookingCode }: SOSButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -137,17 +138,18 @@ export function SOSButton({ customerName, customerId, muthawifPhone, emergencyPh
   const logSOSToDatabase = async (emergencyType: EmergencyType) => {
     try {
       await supabase.from("sos_alerts" as any).insert({
-        customer_id: customerId || null,
-        booking_code: bookingCode || null,
+        customer_id:    customerId   || null,
+        departure_id:   departureId  || null,
+        booking_code:   bookingCode  || null,
         emergency_type: emergencyType,
-        message: formatEmergencyMessage(),
-        latitude: location?.latitude || null,
-        longitude: location?.longitude || null,
-        accuracy: location?.accuracy || null,
-        status: "active",
+        message:        formatEmergencyMessage(),
+        latitude:       location?.latitude  || null,
+        longitude:      location?.longitude || null,
+        accuracy:       location?.accuracy  || null,
+        status:         "active",
       } as any);
     } catch {
-      // graceful fail if table not yet created
+      // graceful fail if table not yet created or departure_id column not yet added
     }
   };
 

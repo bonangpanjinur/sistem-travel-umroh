@@ -25,6 +25,7 @@ import { id } from "date-fns/locale";
 import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/format";
 import { SOSButton } from "@/components/jamaah/SOSButton";
+import { TourLeaderSOSPanel } from "@/components/jamaah/TourLeaderSOSPanel";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useGeoNotification } from "@/hooks/useGeoNotification";
@@ -330,6 +331,7 @@ export default function JamaahPortal() {
             <SOSButton
               customerName={customer?.full_name || "Jamaah"}
               customerId={customer?.id}
+              departureId={(booking as any)?.departure_id}
               muthawifPhone={muthawifPhone}
               emergencyPhone={emergencyPhone}
               bookingCode={booking?.booking_code}
@@ -414,6 +416,14 @@ export default function JamaahPortal() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Tour Leader SOS Monitor — only for is_tour_leader customers */}
+        {customer?.id && (customer as any).is_tour_leader && (
+          <TourLeaderSOSPanel
+            customerId={customer.id}
+            isTourLeader={true}
+          />
         )}
 
         {/* Q5: Empty state saat belum ada booking */}
