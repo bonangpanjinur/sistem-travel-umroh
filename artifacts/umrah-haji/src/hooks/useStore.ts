@@ -382,6 +382,103 @@ export function useUploadStorePaymentProof() {
   });
 }
 
+// ─── Product Reviews ──────────────────────────────────────────────────────────
+
+export type StoreProductReview = {
+  id: string;
+  order_id: string;
+  product_id: string;
+  user_id: string;
+  customer_id: string | null;
+  rating: number;
+  comment: string | null;
+  is_published: boolean;
+  admin_reply: string | null;
+  admin_reply_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Ambil semua ulasan yang sudah dikirim untuk satu pesanan (milik user yang login) */
+export function useMyOrderReviews(orderId: string | undefined) {
+  return useQuery({
+    queryKey: ["my-order-reviews", orderId],
+    queryFn: async () => {
+      if (!orderId) return [];
+      const { data, error } = await supabase
+        .from("store_product_reviews")
+        .select("*")
+        .eq("order_id", orderId);
+      if (error) throw error;
+      return (data ?? []) as StoreProductReview[];
+    },
+    enabled: !!orderId,
+    staleTime: 1000 * 60,
+  });
+}
+
+/** Ambil semua ulasan publik untuk satu produk */
+export function useProductReviews(productId: string | undefined) {
+  return useQuery({
+    queryKey: ["product-reviews", productId],
+    queryFn: async () => {
+      if (!productId) return [];
+      const { data, error } = await supabase
+        .from("store_product_reviews")
+        .select("*")
+        .eq("product_id", productId)
+        .eq("is_published", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as StoreProductReview[];
+    },
+    enabled: !!productId,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/** Submit atau update ulasan produk */
+export function useSubmitProductReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      productId,
+      userId,
+      customerId,
+      rating,
+      comment,
+    }: {
+      orderId: string;
+      productId: string;
+      userId: string;
+      customerId?: string | null;
+      rating: number;
+      comment?: string;
+    }) => {
+      const payload = {
+        order_id: orderId,
+        product_id: productId,
+        user_id: userId,
+        customer_id: customerId ?? null,
+        rating,
+        comment: comment ?? null,
+        is_published: true,
+      };
+      const { error } = await supabase
+        .from("store_product_reviews")
+        .upsert([payload], { onConflict: "order_id,product_id,user_id" });
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      toast.success("Ulasan berhasil dikirim! Terima kasih.");
+      qc.invalidateQueries({ queryKey: ["my-order-reviews", vars.orderId] });
+      qc.invalidateQueries({ queryKey: ["product-reviews", vars.productId] });
+    },
+    onError: (e: any) => toast.error(e.message || "Gagal mengirim ulasan"),
+  });
+}
+
 // ─── Customer: Place Order ────────────────────────────────────────────────────
 
 export type CartItem = {
