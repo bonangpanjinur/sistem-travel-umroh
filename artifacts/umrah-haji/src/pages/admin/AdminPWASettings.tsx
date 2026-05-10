@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import {
-  Smartphone, GripVertical, RotateCcw, Save,
+  Smartphone, GripVertical, RotateCcw, Save, Loader2,
   Home, Package, Calculator, DollarSign, User, Calendar,
   PiggyBank, BookOpen, LayoutGrid, Phone, Info, Upload,
   ImageIcon, Moon, Compass, Cloud, Target, ShoppingBag, Star, X, CheckCircle2,
+  Database,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { usePWAConfig, ALL_NAV_OPTIONS, BottomNavItem } from "@/hooks/usePWAConfig";
+import {
+  usePWAConfig,
+  ALL_NAV_OPTIONS,
+  DEFAULT_ICON_CONFIG,
+  BottomNavItem,
+  PWAIconConfig,
+} from "@/hooks/usePWAConfig";
 import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -25,31 +32,13 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 const SPLASH_COLORS = [
-  { label: 'Hijau Islami', bg: '#15803d', text: '#ffffff' },
-  { label: 'Teal Elegan', bg: '#0f766e', text: '#ffffff' },
-  { label: 'Biru Langit', bg: '#1d4ed8', text: '#ffffff' },
-  { label: 'Ungu Royal', bg: '#7c3aed', text: '#ffffff' },
-  { label: 'Emas Mewah', bg: '#92400e', text: '#fbbf24' },
-  { label: 'Abu Gelap', bg: '#1e293b', text: '#ffffff' },
+  { label: "Hijau Islami", bg: "#15803d" },
+  { label: "Teal Elegan",  bg: "#0f766e" },
+  { label: "Biru Langit",  bg: "#1d4ed8" },
+  { label: "Ungu Royal",   bg: "#7c3aed" },
+  { label: "Emas Mewah",   bg: "#92400e" },
+  { label: "Abu Gelap",    bg: "#1e293b" },
 ];
-
-interface PWAIconConfig {
-  iconUrl: string | null;
-  appName: string;
-  shortName: string;
-  themeColor: string;
-  bgColor: string;
-}
-
-const DEFAULT_ICON_CONFIG: PWAIconConfig = {
-  iconUrl: null,
-  appName: 'Vinstour Travel',
-  shortName: 'Vinstour',
-  themeColor: '#15803d',
-  bgColor: '#15803d',
-};
-
-const ICON_STORAGE_KEY = 'pwa-icon-config';
 
 function NavItemRow({ item, index, onChange }: {
   item: BottomNavItem;
@@ -65,7 +54,7 @@ function NavItemRow({ item, index, onChange }: {
           {...provided.draggableProps}
           className={cn(
             "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-shadow",
-            snapshot.isDragging && "shadow-lg ring-1 ring-primary"
+            snapshot.isDragging && "shadow-lg ring-1 ring-primary",
           )}
         >
           <div {...provided.dragHandleProps} className="cursor-grab text-muted-foreground">
@@ -73,7 +62,7 @@ function NavItemRow({ item, index, onChange }: {
           </div>
           <div className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-            item.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+            item.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
           )}>
             <Icon className="h-4 w-4" />
           </div>
@@ -81,7 +70,10 @@ function NavItemRow({ item, index, onChange }: {
             <p className={cn("text-sm font-medium", !item.enabled && "text-muted-foreground")}>{item.label}</p>
             <p className="text-xs text-muted-foreground truncate">{item.path}</p>
           </div>
-          <Switch checked={item.enabled} onCheckedChange={(checked) => onChange({ ...item, enabled: checked })} />
+          <Switch
+            checked={item.enabled}
+            onCheckedChange={(checked) => onChange({ ...item, enabled: checked })}
+          />
         </div>
       )}
     </Draggable>
@@ -89,26 +81,31 @@ function NavItemRow({ item, index, onChange }: {
 }
 
 export default function AdminPWASettings() {
-  const { items, save, reset } = usePWAConfig();
+  const { items, iconConfig: serverIconConfig, save, saveIconConfig, reset, isSaving, isLoading } = usePWAConfig();
 
-  const [localItems, setLocalItems] = useState<BottomNavItem[]>(
-    ALL_NAV_OPTIONS.map((opt) => {
-      const saved = items.find((i) => i.id === opt.id);
-      return saved ?? opt;
-    }).sort((a, b) => a.order - b.order)
+  const [localItems, setLocalItems] = useState<BottomNavItem[]>(() =>
+    ALL_NAV_OPTIONS.slice().sort((a, b) => a.order - b.order),
   );
-
-  const [iconConfig, setIconConfig] = useState<PWAIconConfig>(() => {
-    try {
-      const stored = localStorage.getItem(ICON_STORAGE_KEY);
-      if (stored) return { ...DEFAULT_ICON_CONFIG, ...JSON.parse(stored) };
-    } catch {}
-    return DEFAULT_ICON_CONFIG;
-  });
-
-  const [iconPreview, setIconPreview] = useState<string | null>(iconConfig.iconUrl);
+  const [iconConfig, setIconConfig] = useState<PWAIconConfig>(DEFAULT_ICON_CONFIG);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync local state when server data loads (first time only)
+  useEffect(() => {
+    if (!isLoading && !initialized) {
+      setLocalItems(
+        ALL_NAV_OPTIONS.map((opt) => {
+          const saved = items.find((i) => i.id === opt.id);
+          return saved ?? opt;
+        }).sort((a, b) => a.order - b.order),
+      );
+      setIconConfig(serverIconConfig);
+      setIconPreview(serverIconConfig.iconUrl);
+      setInitialized(true);
+    }
+  }, [isLoading, initialized, items, serverIconConfig]);
 
   const activeCount = localItems.filter((i) => i.enabled).length;
   const previewItems = localItems.filter((i) => i.enabled).slice(0, 5);
@@ -126,22 +123,22 @@ export default function AdminPWASettings() {
   };
 
   const handleSave = () => {
-    const toSave = localItems.filter((i) => i.enabled).slice(0, 5);
-    if (toSave.length === 0) { toast.error("Aktifkan minimal 1 menu."); return; }
+    const enabled = localItems.filter((i) => i.enabled);
+    if (enabled.length === 0) { toast.error("Aktifkan minimal 1 menu."); return; }
     save(localItems);
-    toast.success("Pengaturan menu aplikasi disimpan!");
+    toast.success("Menu navigasi disimpan ke database!");
   };
 
   const handleReset = () => {
     reset();
-    setLocalItems(ALL_NAV_OPTIONS.sort((a, b) => a.order - b.order));
+    setLocalItems(ALL_NAV_OPTIONS.slice().sort((a, b) => a.order - b.order));
     toast.info("Menu dikembalikan ke default.");
   };
 
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error("File harus berupa gambar (PNG, JPG, SVG)."); return; }
+    if (!file.type.startsWith("image/")) { toast.error("File harus berupa gambar (PNG, JPG, SVG)."); return; }
     if (file.size > 2 * 1024 * 1024) { toast.error("Ukuran file maksimal 2MB."); return; }
 
     setUploading(true);
@@ -149,28 +146,32 @@ export default function AdminPWASettings() {
     reader.onload = (ev) => {
       const url = ev.target?.result as string;
       setIconPreview(url);
-      const updated = { ...iconConfig, iconUrl: url };
-      setIconConfig(updated);
-      try { localStorage.setItem(ICON_STORAGE_KEY, JSON.stringify(updated)); } catch {}
+      setIconConfig((prev) => ({ ...prev, iconUrl: url }));
       setUploading(false);
-      toast.success("Ikon berhasil diunggah! Ikon akan digunakan saat aplikasi dipasang.");
+      toast.info("Ikon siap — klik Simpan untuk menyimpan ke database.");
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemoveIcon = () => {
     setIconPreview(null);
-    const updated = { ...iconConfig, iconUrl: null };
-    setIconConfig(updated);
-    try { localStorage.setItem(ICON_STORAGE_KEY, JSON.stringify(updated)); } catch {}
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    toast.info("Ikon dihapus, kembali ke ikon default.");
+    setIconConfig((prev) => ({ ...prev, iconUrl: null }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSaveIconConfig = () => {
-    try { localStorage.setItem(ICON_STORAGE_KEY, JSON.stringify(iconConfig)); } catch {}
-    toast.success("Konfigurasi tampilan aplikasi disimpan!");
+    saveIconConfig(iconConfig);
+    toast.success("Konfigurasi tampilan aplikasi disimpan ke database!");
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Memuat pengaturan...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -184,14 +185,26 @@ export default function AdminPWASettings() {
         </p>
       </div>
 
+      {/* Info Banner */}
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-800 dark:text-emerald-300">
+        <Database className="h-5 w-5 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold mb-1">Tersimpan di Database</p>
+          <p>
+            Semua perubahan disimpan ke database dan langsung berlaku di semua perangkat pengguna —
+            bukan hanya di browser ini. Menu navigasi bawah dan tampilan ikon akan diperbarui secara real-time.
+          </p>
+        </div>
+      </div>
+
       <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-4 text-sm text-blue-800 dark:text-blue-300">
         <Info className="h-5 w-5 shrink-0 mt-0.5" />
         <div>
           <p className="font-semibold mb-1">Tentang Fitur Aplikasi (PWA)</p>
           <p>
-            Pengunjung dapat menekan tombol <strong>"Pasang Aplikasi"</strong> yang muncul otomatis.
-            Website akan tampil seperti aplikasi native — tanpa address bar, dengan menu bawah kustom,
-            dan bisa dibuka dari ikon di layar utama ponsel.
+            Saat dipasang di ponsel, website tampil seperti aplikasi native — tanpa address bar,
+            dengan menu bawah kustom, dan bisa dibuka dari ikon di layar utama. Pengunjung yang
+            membuka lewat browser biasa akan diarahkan ke halaman instalasi.
           </p>
         </div>
       </div>
@@ -199,7 +212,7 @@ export default function AdminPWASettings() {
       <Tabs defaultValue="menu">
         <TabsList className="mb-4">
           <TabsTrigger value="menu">Menu Navigasi</TabsTrigger>
-          <TabsTrigger value="icon">Ikon & Tampilan</TabsTrigger>
+          <TabsTrigger value="icon">Ikon &amp; Tampilan</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="panduan">Cara Pasang</TabsTrigger>
         </TabsList>
@@ -239,11 +252,12 @@ export default function AdminPWASettings() {
 
                 <Separator />
                 <div className="flex gap-2 pt-1">
-                  <Button variant="outline" size="sm" onClick={handleReset} className="flex-1">
+                  <Button variant="outline" size="sm" onClick={handleReset} disabled={isSaving} className="flex-1">
                     <RotateCcw className="h-4 w-4 mr-1.5" />Reset Default
                   </Button>
-                  <Button size="sm" onClick={handleSave} className="flex-1">
-                    <Save className="h-4 w-4 mr-1.5" />Simpan
+                  <Button size="sm" onClick={handleSave} disabled={isSaving} className="flex-1">
+                    {isSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                    Simpan
                   </Button>
                 </div>
               </CardContent>
@@ -314,7 +328,11 @@ export default function AdminPWASettings() {
                   {iconPreview ? (
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        <img src={iconPreview} alt="Ikon app" className="h-24 w-24 rounded-2xl object-cover border-2 border-border shadow-md" />
+                        <img
+                          src={iconPreview}
+                          alt="Ikon app"
+                          className="h-24 w-24 rounded-2xl object-cover border-2 border-border shadow-md"
+                        />
                         <button
                           onClick={handleRemoveIcon}
                           className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:bg-destructive/80"
@@ -326,7 +344,7 @@ export default function AdminPWASettings() {
                         <div className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400 mb-1">
                           <CheckCircle2 className="h-4 w-4" />Ikon terpasang
                         </div>
-                        <p className="text-xs text-muted-foreground">Ikon ini akan digunakan saat aplikasi dipasang di ponsel.</p>
+                        <p className="text-xs text-muted-foreground">Klik Simpan untuk menyimpan ke database.</p>
                         <Button variant="outline" size="sm" className="mt-2" onClick={() => fileInputRef.current?.click()}>
                           <Upload className="h-3.5 w-3.5 mr-1.5" />Ganti Ikon
                         </Button>
@@ -368,21 +386,21 @@ export default function AdminPWASettings() {
                     <Input
                       id="appName"
                       value={iconConfig.appName}
-                      onChange={(e) => setIconConfig(prev => ({ ...prev, appName: e.target.value }))}
+                      onChange={(e) => setIconConfig((prev) => ({ ...prev, appName: e.target.value }))}
                       placeholder="Vinstour Travel"
                     />
-                    <p className="text-xs text-muted-foreground">Tampil saat instalasi</p>
+                    <p className="text-xs text-muted-foreground">Tampil di halaman instalasi dan header PWA</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="shortName">Nama Singkat</Label>
                     <Input
                       id="shortName"
                       value={iconConfig.shortName}
-                      onChange={(e) => setIconConfig(prev => ({ ...prev, shortName: e.target.value }))}
+                      onChange={(e) => setIconConfig((prev) => ({ ...prev, shortName: e.target.value }))}
                       placeholder="Vinstour"
                       maxLength={12}
                     />
-                    <p className="text-xs text-muted-foreground">Maks 12 karakter — tampil di bawah ikon</p>
+                    <p className="text-xs text-muted-foreground">Maks 12 karakter — tampil di bawah ikon layar utama</p>
                   </div>
                 </CardContent>
               </Card>
@@ -391,17 +409,17 @@ export default function AdminPWASettings() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Warna Tema Aplikasi</CardTitle>
-                  <CardDescription>Warna splash screen & status bar saat app dibuka</CardDescription>
+                  <CardDescription>Warna header PWA, splash screen &amp; halaman instalasi</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-3 gap-2">
                     {SPLASH_COLORS.map((c) => (
                       <button
                         key={c.bg}
-                        onClick={() => setIconConfig(prev => ({ ...prev, themeColor: c.bg, bgColor: c.bg }))}
+                        onClick={() => setIconConfig((prev) => ({ ...prev, themeColor: c.bg, bgColor: c.bg }))}
                         className={cn(
                           "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
-                          iconConfig.themeColor === c.bg ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-muted-foreground"
+                          iconConfig.themeColor === c.bg ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-muted-foreground",
                         )}
                       >
                         <div className="h-8 w-8 rounded-xl shadow-md" style={{ backgroundColor: c.bg }} />
@@ -414,7 +432,7 @@ export default function AdminPWASettings() {
                     <input
                       type="color"
                       value={iconConfig.themeColor}
-                      onChange={(e) => setIconConfig(prev => ({ ...prev, themeColor: e.target.value, bgColor: e.target.value }))}
+                      onChange={(e) => setIconConfig((prev) => ({ ...prev, themeColor: e.target.value, bgColor: e.target.value }))}
                       className="h-9 w-16 rounded-lg border cursor-pointer"
                     />
                     <span className="text-xs text-muted-foreground font-mono">{iconConfig.themeColor}</span>
@@ -422,25 +440,27 @@ export default function AdminPWASettings() {
                 </CardContent>
               </Card>
 
-              <Button onClick={handleSaveIconConfig} className="w-full">
-                <Save className="h-4 w-4 mr-2" />Simpan Konfigurasi Tampilan
+              <Button onClick={handleSaveIconConfig} disabled={isSaving} className="w-full">
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Simpan Konfigurasi Tampilan
               </Button>
             </div>
 
             {/* Icon Preview */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Preview Ikon & Splash</CardTitle>
+                <CardTitle className="text-base">Preview Ikon &amp; Splash</CardTitle>
                 <CardDescription>Tampilan di layar utama ponsel</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Home screen preview */}
                 <div>
                   <p className="text-xs text-muted-foreground mb-3 font-medium">Layar Utama Android / iOS</p>
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-blue-400 to-purple-600">
                     <div className="flex flex-col items-center gap-1">
-                      <div className="h-16 w-16 rounded-[20px] overflow-hidden shadow-xl border-2 border-white/30"
-                        style={{ backgroundColor: iconConfig.themeColor }}>
+                      <div
+                        className="h-16 w-16 rounded-[20px] overflow-hidden shadow-xl border-2 border-white/30"
+                        style={{ backgroundColor: iconConfig.themeColor }}
+                      >
                         {iconPreview ? (
                           <img src={iconPreview} alt="icon" className="h-full w-full object-cover" />
                         ) : (
@@ -463,16 +483,20 @@ export default function AdminPWASettings() {
                   </div>
                 </div>
 
-                {/* Splash screen preview */}
                 <div>
                   <p className="text-xs text-muted-foreground mb-3 font-medium">Splash Screen saat Dibuka</p>
-                  <div className="relative w-full h-48 rounded-2xl overflow-hidden shadow-lg flex flex-col items-center justify-center gap-3"
-                    style={{ backgroundColor: iconConfig.bgColor }}>
+                  <div
+                    className="relative w-full h-48 rounded-2xl overflow-hidden shadow-lg flex flex-col items-center justify-center gap-3"
+                    style={{ backgroundColor: iconConfig.bgColor }}
+                  >
                     <div className="h-20 w-20 rounded-[24px] overflow-hidden shadow-2xl border-2 border-white/20">
                       {iconPreview ? (
                         <img src={iconPreview} alt="icon" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center text-white text-3xl font-bold" style={{ backgroundColor: iconConfig.themeColor }}>
+                        <div
+                          className="h-full w-full flex items-center justify-center text-white text-3xl font-bold"
+                          style={{ backgroundColor: iconConfig.themeColor }}
+                        >
                           {iconConfig.shortName.charAt(0)}
                         </div>
                       )}
@@ -482,6 +506,27 @@ export default function AdminPWASettings() {
                       <div className="h-1 w-8 bg-white/60 rounded-full" />
                       <div className="h-1 w-2 bg-white/30 rounded-full" />
                       <div className="h-1 w-2 bg-white/30 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-3 font-medium">Header Aplikasi (PWA Standalone)</p>
+                  <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+                    <div
+                      className="flex items-center justify-between px-4 py-2.5 text-white text-xs font-medium"
+                      style={{ backgroundColor: iconConfig.themeColor }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {iconPreview && (
+                          <img src={iconPreview} alt="icon" className="h-6 w-6 rounded object-cover" />
+                        )}
+                        <span className="font-bold">{iconConfig.appName}</span>
+                      </div>
+                      <span className="opacity-60">{iconConfig.shortName}</span>
+                    </div>
+                    <div className="bg-muted h-16 flex items-center justify-center text-xs text-muted-foreground">
+                      Konten halaman
                     </div>
                   </div>
                 </div>
@@ -497,13 +542,21 @@ export default function AdminPWASettings() {
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-foreground rounded-b-xl z-10" />
 
               {/* PWA compact header */}
-              <div className="flex items-center justify-between px-4 py-2.5 text-white text-xs font-medium" style={{ backgroundColor: iconConfig.themeColor }}>
-                <span className="font-bold">{iconConfig.shortName}</span>
-                <span className="opacity-70">9:41</span>
+              <div
+                className="flex items-center justify-between px-4 py-2.5 text-white text-xs font-medium"
+                style={{ backgroundColor: iconConfig.themeColor }}
+              >
+                <div className="flex items-center gap-1.5">
+                  {iconPreview && (
+                    <img src={iconPreview} alt="" className="h-5 w-5 rounded object-cover" />
+                  )}
+                  <span className="font-bold">{iconConfig.appName}</span>
+                </div>
+                <span className="opacity-60">9:41</span>
               </div>
 
               {/* Content */}
-              <div className="flex-1 bg-background p-3 space-y-2 overflow-hidden" style={{ height: 'calc(100% - 90px)' }}>
+              <div className="flex-1 bg-background p-3 space-y-2 overflow-hidden" style={{ height: "calc(100% - 90px)" }}>
                 <div className="h-2.5 w-2/3 bg-muted rounded-full" />
                 <div className="h-24 rounded-xl" style={{ background: `linear-gradient(135deg, ${iconConfig.bgColor}99, ${iconConfig.themeColor}99)` }} />
                 <div className="grid grid-cols-2 gap-2">
@@ -523,7 +576,10 @@ export default function AdminPWASettings() {
                   {previewItems.map((item, idx) => {
                     const Icon = ICON_MAP[item.icon] ?? Home;
                     return (
-                      <div key={item.id} className={cn("flex flex-col items-center justify-center gap-0.5", idx === 0 ? "text-primary" : "text-muted-foreground")}>
+                      <div
+                        key={item.id}
+                        className={cn("flex flex-col items-center justify-center gap-0.5", idx === 0 ? "text-primary" : "text-muted-foreground")}
+                      >
                         <Icon className="h-5 w-5" />
                         <span className="text-[9px] font-medium">{item.label}</span>
                       </div>
@@ -561,8 +617,7 @@ export default function AdminPWASettings() {
                 <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
                   <li>Buka website di Safari</li>
                   <li>Ketuk ikon Bagikan 🔗 di bawah layar</li>
-                  <li>Gulir ke bawah</li>
-                  <li>Pilih <em>"Tambahkan ke Layar Utama"</em></li>
+                  <li>Gulir ke bawah, pilih <em>"Tambahkan ke Layar Utama"</em></li>
                 </ol>
                 <p className="text-xs text-blue-600 font-medium">ℹ Safari di iPhone mendukung PWA sejak iOS 16.4</p>
               </CardContent>
@@ -573,8 +628,7 @@ export default function AdminPWASettings() {
                 <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
                   <li>Buka website di Chrome atau Edge</li>
                   <li>Lihat ikon install di address bar</li>
-                  <li>Klik ikon tersebut</li>
-                  <li>Klik <strong>Install</strong></li>
+                  <li>Klik ikon tersebut, lalu klik <strong>Install</strong></li>
                 </ol>
                 <p className="text-xs text-violet-600 font-medium">✓ Berjalan di jendela tersendiri tanpa browser</p>
               </CardContent>
