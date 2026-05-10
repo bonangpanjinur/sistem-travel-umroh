@@ -1,14 +1,22 @@
+import { useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useStoreOrder } from "@/hooks/useStore";
+import { useStoreOrder, useUploadStorePaymentProof } from "@/hooks/useStore";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, Truck, MapPin, CreditCard, CheckCircle, Clock, XCircle, ReceiptText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  ArrowLeft, Package, Truck, MapPin, CreditCard,
+  CheckCircle, Clock, XCircle, ReceiptText, Upload, Loader2, Image as ImageIcon,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 const ORDER_STATUS: Record<string, { label: string; color: string; icon: any; desc: string }> = {
   pending:    { label: "Menunggu Konfirmasi",  color: "bg-yellow-100 text-yellow-800",  icon: Clock,         desc: "Pesanan kamu sedang menunggu dikonfirmasi oleh tim kami." },
@@ -32,9 +40,41 @@ const SHIP_STEP_LABELS = [
   { key: "delivered",        label: "Terkirim",         icon: CheckCircle },
 ];
 
+function useProofPublicUrl(path: string | null | undefined) {
+  if (!path) return null;
+  try {
+    const { data } = (supabase as any).storage.from("payment-proofs").getPublicUrl(path);
+    return data?.publicUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function StoreOrderDetail() {
   const { id: orderId } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const { data: order, isLoading } = useStoreOrder(orderId!);
+  const upload = useUploadStorePaymentProof();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+
+  const proofPublicUrl = useProofPublicUrl(order?.payment_proof_url);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+  };
+
+  const handleUpload = async () => {
+    if (!file || !user || !orderId) return;
+    upload.mutate({ orderId, userId: user.id, file }, {
+      onSuccess: () => { setFile(null); setPreview(null); },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -61,8 +101,8 @@ export default function StoreOrderDetail() {
 
   const st = ORDER_STATUS[order.status] ?? ORDER_STATUS.pending;
   const StatusIcon = st.icon;
-
   const currentShipStep = order.shipment ? (SHIP_STEPS[order.shipment.status] ?? 0) : 0;
+  const canUploadProof = order.payment_status === "unpaid" && !["cancelled", "refunded"].includes(order.status);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -151,14 +191,14 @@ export default function StoreOrderDetail() {
           </Card>
         )}
 
-        {/* Payment status */}
+        {/* Payment status + Upload Proof */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-primary" />Status Pembayaran
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <Badge className={order.payment_status === "paid" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800 text-sm"}>
@@ -173,10 +213,128 @@ export default function StoreOrderDetail() {
               <p className="font-bold text-xl text-primary">{formatCurrency(order.total_amount)}</p>
             </div>
 
-            {order.payment_status === "unpaid" && (
-              <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-800">
-                <p className="font-semibold mb-2">📋 Cara Pembayaran</p>
-                <p>Transfer sejumlah <strong>{formatCurrency(order.total_amount)}</strong> ke rekening perusahaan, lalu hubungi admin untuk konfirmasi pembayaran.</p>
+            {/* Info cara bayar jika belum bayar */}
+            {canUploadProof && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-800">
+                <p className="font-semibold mb-1">📋 Cara Pembayaran</p>
+                <p>Transfer sejumlah <strong>{formatCurrency(order.total_amount)}</strong> ke rekening perusahaan, lalu upload bukti transfer di bawah agar admin bisa verifikasi segera.</p>
+              </div>
+            )}
+
+            {/* Bukti yang sudah diupload sebelumnya */}
+            {order.payment_proof_url && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                  <ImageIcon className="h-4 w-4" />Bukti Pembayaran yang Dikirim
+                </p>
+                {proofPublicUrl ? (
+                  <a href={proofPublicUrl} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={proofPublicUrl}
+                      alt="Bukti Pembayaran"
+                      className="max-h-48 rounded-lg border object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted rounded-lg p-3">
+                    <ImageIcon className="h-4 w-4" />
+                    <span>File bukti pembayaran tersimpan. Menunggu verifikasi admin.</span>
+                  </div>
+                )}
+                {order.payment_status === "unpaid" && (
+                  <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                    ⏳ Bukti sudah diterima. Admin sedang melakukan verifikasi dalam 1×24 jam.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Form upload bukti bayar */}
+            {canUploadProof && !order.payment_proof_url && (
+              <div className="space-y-3 pt-2 border-t">
+                <Label className="text-sm font-semibold flex items-center gap-1.5">
+                  <Upload className="h-4 w-4 text-primary" />Upload Bukti Transfer
+                </Label>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg,application/pdf"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+
+                {preview ? (
+                  <div className="space-y-3">
+                    <img
+                      src={preview}
+                      alt="Preview bukti"
+                      className="max-h-48 rounded-lg border object-contain w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">{file?.name}</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setFile(null); setPreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                        className="flex-1"
+                      >
+                        Ganti File
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleUpload}
+                        disabled={upload.isPending}
+                        className="flex-1"
+                      >
+                        {upload.isPending ? (
+                          <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Mengupload...</>
+                        ) : (
+                          <><Upload className="h-4 w-4 mr-1" />Kirim Bukti</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-primary/40 rounded-xl p-6 text-center hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer group"
+                  >
+                    <Upload className="h-8 w-8 text-primary/50 mx-auto mb-2 group-hover:text-primary transition-colors" />
+                    <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Klik untuk pilih foto bukti transfer</p>
+                    <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WebP, atau PDF · maks. 5 MB</p>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Jika sudah bayar tapi ada proof, tawarkan ganti */}
+            {canUploadProof && order.payment_proof_url && (
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Ingin mengganti bukti pembayaran?</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg,application/pdf"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                {preview ? (
+                  <div className="space-y-2">
+                    <img src={preview} alt="Preview" className="max-h-36 rounded-lg border object-contain" />
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => { setFile(null); setPreview(null); }} className="flex-1">Batal</Button>
+                      <Button size="sm" onClick={handleUpload} disabled={upload.isPending} className="flex-1">
+                        {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kirim Ulang"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-1.5" />Ganti Bukti Transfer
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>

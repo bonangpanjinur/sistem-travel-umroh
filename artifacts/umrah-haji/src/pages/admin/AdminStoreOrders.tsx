@@ -12,13 +12,40 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, ShoppingCart, Truck, CheckCircle, Eye, Package, ReceiptText } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { Search, ShoppingCart, Truck, CheckCircle, Eye, Package, ReceiptText, Image as ImageIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+
+function ProofImage({ path }: { path: string }) {
+  let url: string | null = null;
+  try {
+    const { data } = (supabase as any).storage.from("payment-proofs").getPublicUrl(path);
+    url = data?.publicUrl ?? null;
+  } catch { /* no-op */ }
+
+  if (!url) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted rounded-lg p-3">
+        <ImageIcon className="h-4 w-4" />
+        <span>File bukti tersimpan (tidak dapat ditampilkan preview).</span>
+      </div>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+      <img
+        src={url}
+        alt="Bukti Pembayaran"
+        className="max-h-56 rounded-lg border object-contain cursor-pointer hover:opacity-90 transition-opacity w-full"
+      />
+      <p className="text-xs text-primary mt-1 underline">Klik untuk buka gambar penuh</p>
+    </a>
+  );
+}
 
 const ORDER_STATUS: Record<string, { label: string; color: string }> = {
   pending:    { label: "Menunggu",      color: "bg-yellow-100 text-yellow-800" },
@@ -420,6 +447,24 @@ export default function AdminStoreOrders() {
                 )}
                 <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>{formatCurrency(selected.total_amount)}</span></div>
               </div>
+
+              {/* Bukti Pembayaran */}
+              {selected.payment_proof_url && (
+                <>
+                  <Separator />
+                  <div className="text-sm">
+                    <p className="font-semibold mb-2 flex items-center gap-1.5">
+                      <ImageIcon className="h-4 w-4 text-primary" />Bukti Pembayaran Jamaah
+                    </p>
+                    <ProofImage path={selected.payment_proof_url} />
+                    {selected.payment_status === "unpaid" && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                        ⚠️ Bukti sudah diterima. Klik "Konfirmasi Pembayaran" jika transfer sudah terverifikasi.
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
 
               {selected.shipment && (
                 <>

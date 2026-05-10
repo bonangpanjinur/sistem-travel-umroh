@@ -339,6 +339,49 @@ export function useMyStoreOrders(userId?: string) {
   });
 }
 
+// ─── Customer: Upload Payment Proof ──────────────────────────────────────────
+
+export function useUploadStorePaymentProof() {
+  const qc = useQueryClient();
+  const supabaseRaw: any = supabase;
+
+  return useMutation({
+    mutationFn: async ({ orderId, userId, file }: { orderId: string; userId: string; file: File }) => {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const filePath = `store-orders/${userId}/${fileName}`;
+
+      const { error: uploadError } = await supabaseRaw.storage
+        .from("payment-proofs")
+        .upload(filePath, file, { cacheControl: "3600", upsert: false });
+      if (uploadError) throw new Error(`Gagal mengunggah file: ${uploadError.message}`);
+
+      const { error: updateError } = await supabaseRaw
+        .from("store_orders")
+        .update({ payment_proof_url: filePath })
+        .eq("id", orderId);
+      if (updateError) throw new Error(`Gagal menyimpan bukti bayar: ${updateError.message}`);
+
+      // Kirim notifikasi ke admin
+      await supabaseRaw.from("notifications").insert({
+        title: "Bukti Pembayaran Toko Baru",
+        message: `Jamaah mengunggah bukti pembayaran untuk pesanan toko. Harap verifikasi segera.`,
+        type: "info",
+        target_role: "admin",
+        is_read: false,
+      }).maybeSingle();
+
+      return filePath;
+    },
+    onSuccess: (_data, vars) => {
+      toast.success("Bukti pembayaran berhasil diupload! Admin akan memverifikasi segera.");
+      qc.invalidateQueries({ queryKey: ["store-order", vars.orderId] });
+      qc.invalidateQueries({ queryKey: ["my-store-orders"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Gagal mengupload bukti pembayaran"),
+  });
+}
+
 // ─── Customer: Place Order ────────────────────────────────────────────────────
 
 export type CartItem = {

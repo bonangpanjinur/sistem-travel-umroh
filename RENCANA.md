@@ -116,7 +116,7 @@ pnpm --filter @workspace/api-spec run codegen
 | Tracker Ibadah Harian | `/tracker-ibadah` | ✅ |
 | Kalkulator Islami | `/kalkulator-islami` | ✅ |
 | Tasbih Digital | `/tasbih` | ✅ |
-| Toko Perlengkapan | `/toko` | ✅ |
+| Toko Perlengkapan (E-commerce) | `/store` | ✅ Redirect dari `/toko` |
 
 ### Portal Customer — `/customer/*`
 | Halaman | URL | Status |
@@ -130,6 +130,18 @@ pnpm --filter @workspace/api-spec run codegen
 | Support | `/customer/support` | ✅ |
 | Pengaturan | `/customer/settings` | ✅ |
 | Status Refund/Pembatalan | `/customer/refund-status` | ✅ |
+
+### Toko E-Commerce — `/store/*`
+| Halaman | URL | Status |
+|---------|-----|--------|
+| Toko (Listing Produk) | `/store` | ✅ |
+| Checkout | `/store/checkout` | ✅ |
+| Daftar Pesanan Jamaah | `/store/orders` | ✅ |
+| Detail Pesanan + Upload Bukti Bayar | `/store/orders/:id` | ✅ |
+| Admin — Manajemen Produk | `/admin/store/products` | ✅ |
+| Admin — Manajemen Pesanan + Resi | `/admin/store/orders` | ✅ |
+| Admin — Kategori Produk | `/admin/store/categories` | ✅ |
+| Admin — Dashboard Toko | `/admin/store` | ✅ |
 
 ### Portal Jamaah (Mobile PWA) — `/jamaah/*`
 | Halaman | URL | Status |
@@ -213,6 +225,24 @@ pnpm --filter @workspace/api-spec run codegen
 ---
 
 ## BAGIAN 5 — RIWAYAT PERUBAHAN TERKINI
+
+### Sesi Mei 2026 — E-Commerce Toko + Upload Bukti Bayar
+
+| # | Perubahan | File |
+|---|-----------|------|
+| 1 | SQL migration toko e-commerce lengkap (store_categories, store_products, store_orders, store_order_items, store_shipments) | `supabase/migrations/store_ecommerce.sql` |
+| 2 | Semua hooks store (useStore.ts) — CRUD produk, kategori, pesanan, pengiriman | `hooks/useStore.ts` |
+| 3 | Halaman admin: Dashboard Toko, Produk, Pesanan+Resi, Kategori | `pages/admin/AdminStore*.tsx` |
+| 4 | Halaman customer: Listing Toko, Checkout, Daftar Pesanan, Detail Pesanan | `pages/customer/Store*.tsx`, `pages/customer/MyStoreOrders.tsx` |
+| 5 | Upload bukti transfer dari halaman detail pesanan jamaah | `pages/customer/StoreOrderDetail.tsx` |
+| 6 | Admin dapat melihat foto bukti bayar langsung di dialog detail pesanan | `pages/admin/AdminStoreOrders.tsx` |
+| 7 | 4 template WA: order confirmed, shipped (dengan resi), delivered, awaiting payment | `lib/whatsapp-notifier.ts`, `hooks/useWhatsAppNotifier.ts` |
+| 8 | Link Toko di navbar Layanan → `/store`; Pesanan Toko di dropdown profil (desktop+mobile) | `DynamicNavbar.tsx` |
+| 9 | Quick Menu Grid homepage: Toko Umroh → `/store` | `QuickMenuGrid.tsx` |
+| 10 | Redirect `/toko` → `/store` | `PublicRoutes.tsx` |
+| 11 | Route admin `/admin/store/*` + permission STORE_* | `AdminRoutes.tsx`, `permissions.ts` |
+| 12 | Notifikasi admin otomatis saat jamaah upload bukti bayar | `hooks/useStore.ts` |
+| 13 | Hapus duplikat import `formatCurrency` di AdminStoreOrders | `AdminStoreOrders.tsx` |
 
 ### Sesi Juni 2026 — Enhancement Navigation + PWA
 
