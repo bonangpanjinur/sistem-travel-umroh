@@ -42,7 +42,7 @@ const LAYANAN_NAV = [
   { href: '/savings', label: 'Tabungan Umroh', icon: PiggyBank, desc: 'Cicil biaya perjalanan', color: 'text-pink-600', bg: 'bg-pink-50 dark:bg-pink-950/30' },
   { href: '/cek-booking', label: 'Cek Booking', icon: Search, desc: 'Status pemesanan Anda', color: 'text-sky-600', bg: 'bg-sky-50 dark:bg-sky-950/30' },
   { href: '/testimonials', label: 'Testimoni', icon: Star, desc: 'Ulasan alumni jamaah', color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
-  { href: '/toko', label: 'Toko Umroh', icon: ShoppingBag, desc: 'Perlengkapan ibadah', color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-950/30' },
+  { href: '/store', label: 'Toko Umroh', icon: ShoppingBag, desc: 'Perlengkapan ibadah', color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-950/30' },
 ];
 
 const JAMAAH_NAV = [
@@ -339,6 +339,11 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                       <Wallet className="h-4 w-4" />Tabungan Saya
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/store/orders" className="flex items-center gap-2.5 rounded-lg">
+                      <ShoppingBag className="h-4 w-4" />Pesanan Toko
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleSignOut}
@@ -495,9 +500,19 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
                 >
                   <LayoutDashboard className="h-4 w-4" />Dashboard
                 </Link>
+                <Link
+                  to="/store/orders"
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    'flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                    isRoyal ? 'bg-white/8 text-gray-200 hover:bg-white/12' : 'bg-accent text-foreground hover:bg-accent/80',
+                  )}
+                >
+                  <ShoppingBag className="h-4 w-4" />Pesanan Toko
+                </Link>
                 <button
                   onClick={() => { handleSignOut(); setIsOpen(false); }}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive bg-destructive/10 hover:bg-destructive/15 transition-colors"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive bg-destructive/10 hover:bg-destructive/15 transition-colors col-span-2"
                 >
                   <LogOut className="h-4 w-4" />Keluar
                 </button>

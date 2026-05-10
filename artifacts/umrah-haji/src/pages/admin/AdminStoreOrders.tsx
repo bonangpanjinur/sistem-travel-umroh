@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useStoreOrders, useStoreOrderMutations } from "@/hooks/useStore";
 import type { StoreOrder, StoreShipment } from "@/hooks/useStore";
+import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { formatCurrency } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +58,7 @@ export default function AdminStoreOrders() {
 
   const { data: orders = [], isLoading } = useStoreOrders(tab === "all" ? undefined : tab);
   const { updateStatus, confirmPayment, upsertShipment } = useStoreOrderMutations();
+  const wa = useWhatsAppNotifier();
 
   const filtered = search
     ? orders.filter((o) =>
@@ -75,12 +78,66 @@ export default function AdminStoreOrders() {
     setShipOpen(true);
   };
 
+  const handleConfirmPayment = (order: StoreOrder) => {
+    confirmPayment.mutate(order.id, {
+      onSuccess: () => {
+        // Send WA notification to customer
+        const phone = order.shipping_phone ?? order.customer?.phone;
+        if (phone) {
+          wa.sendStoreOrderConfirmed(phone, {
+            nama: order.shipping_name ?? order.customer?.full_name ?? "Jamaah",
+            no_pesanan: order.order_number,
+            total: formatCurrency(order.total_amount),
+            jumlah_item: order.items?.length ?? 0,
+          });
+        }
+      },
+    });
+  };
+
   const handleSaveShipment = () => {
     if (!selected) return;
     upsertShipment.mutate(
       { ...shipData, order_id: selected.id } as Partial<StoreShipment> & { order_id: string },
-      { onSuccess: () => setShipOpen(false) }
+      {
+        onSuccess: () => {
+          setShipOpen(false);
+          // Send WA notification if resi was provided
+          if (shipData.tracking_number) {
+            const phone = selected.shipping_phone ?? selected.customer?.phone;
+            if (phone) {
+              const estimasi = shipData.estimated_arrival
+                ? new Date(shipData.estimated_arrival).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+                : "Segera";
+              wa.sendStoreOrderShipped(phone, {
+                nama: selected.shipping_name ?? selected.customer?.full_name ?? "Jamaah",
+                no_pesanan: selected.order_number,
+                kurir: shipData.courier_name ?? "",
+                layanan: shipData.courier_service ?? "",
+                no_resi: shipData.tracking_number,
+                estimasi_tiba: estimasi,
+              });
+            }
+          }
+        },
+      }
     );
+  };
+
+  const handleUpdateStatus = (order: StoreOrder, status: string) => {
+    updateStatus.mutate({ id: order.id, status }, {
+      onSuccess: () => {
+        if (status === "delivered") {
+          const phone = order.shipping_phone ?? order.customer?.phone;
+          if (phone) {
+            wa.sendStoreOrderDelivered(phone, {
+              nama: order.shipping_name ?? order.customer?.full_name ?? "Jamaah",
+              no_pesanan: order.order_number,
+            });
+          }
+        }
+      },
+    });
   };
 
   return (
@@ -186,7 +243,7 @@ export default function AdminStoreOrders() {
                             <Button
                               size="sm" variant="outline"
                               className="text-green-600 border-green-200 hover:bg-green-50 text-xs"
-                              onClick={() => confirmPayment.mutate(order.id)}
+                              onClick={() => handleConfirmPayment(order)}
                               disabled={confirmPayment.isPending}
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />Konfirmasi
@@ -383,7 +440,7 @@ export default function AdminStoreOrders() {
 
               <div className="flex flex-wrap gap-2">
                 {selected.payment_status === "unpaid" && selected.status === "pending" && (
-                  <Button size="sm" className="gap-2" onClick={() => { confirmPayment.mutate(selected.id); setSelected(null); }}>
+                  <Button size="sm" className="gap-2" onClick={() => { handleConfirmPayment(selected); setSelected(null); }}>
                     <CheckCircle className="h-4 w-4" />Konfirmasi Pembayaran
                   </Button>
                 )}
@@ -392,7 +449,7 @@ export default function AdminStoreOrders() {
                 </Button>
                 {selected.status !== "cancelled" && selected.status !== "delivered" && (
                   <Select
-                    onValueChange={(v) => { updateStatus.mutate({ id: selected.id, status: v }); setSelected(null); }}
+                    onValueChange={(v) => { handleUpdateStatus(selected, v); setSelected(null); }}
                   >
                     <SelectTrigger className="w-40 h-9 text-sm">
                       <SelectValue placeholder="Ubah Status" />

@@ -228,6 +228,78 @@ Info: {nomor_cs} 🙏`,
     variables: ["nama", "isi_pesan", "nomor_cs"],
   },
 
+  STORE_ORDER_CONFIRMED: {
+    name: "Toko — Pesanan Dikonfirmasi",
+    template: `Assalamu'alaikum {nama} 🕌
+
+✅ *Pesanan Anda Dikonfirmasi!*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+💰 Total: *{total}*
+📦 Jumlah Item: {jumlah_item}
+
+Pesanan Anda sedang kami proses dan akan segera dikirimkan. Kami akan menginformasikan nomor resi pengiriman setelah barang dikirim.
+
+Terima kasih telah berbelanja di Toko Vinstour! 🙏
+
+Info: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "total", "jumlah_item", "nomor_cs"],
+  },
+
+  STORE_ORDER_SHIPPED: {
+    name: "Toko — Pesanan Dikirim",
+    template: `Assalamu'alaikum {nama} 🕌
+
+🚚 *Pesanan Anda Sudah Dikirim!*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+📦 Kurir: *{kurir}* {layanan}
+🔢 No. Resi: *{no_resi}*
+📅 Estimasi Tiba: {estimasi_tiba}
+
+Pantau pengiriman Anda dengan nomor resi di atas melalui website kurir.
+
+Semoga perlengkapan ibadah Anda segera sampai! 🙏
+
+Info: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "kurir", "layanan", "no_resi", "estimasi_tiba", "nomor_cs"],
+  },
+
+  STORE_ORDER_DELIVERED: {
+    name: "Toko — Pesanan Diterima",
+    template: `Assalamu'alaikum {nama} 🕌
+
+🎉 *Pesanan Anda Telah Diterima!*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+
+Alhamdulillah, pesanan Anda sudah sampai! Semoga perlengkapan ibadah Anda bermanfaat dan menjadi bekal perjalanan ke Tanah Suci yang mabrur. 🤲
+
+Jika ada pertanyaan atau kendala, silakan hubungi kami.
+
+Barakallahu fiikum 🕌
+
+Info: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "nomor_cs"],
+  },
+
+  STORE_PAYMENT_AWAITING: {
+    name: "Toko — Menunggu Pembayaran",
+    template: `Assalamu'alaikum {nama} 🕌
+
+⏳ *Pesanan Menunggu Pembayaran*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+💰 Total yang harus dibayar: *{total}*
+
+Silakan lakukan transfer dan konfirmasi pembayaran kepada admin kami agar pesanan segera diproses.
+
+Jangan lupa simpan bukti transfer Anda ya! 📋
+
+Info & konfirmasi: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "total", "nomor_cs"],
+  },
+
   SAVINGS_CICILAN_DITERIMA: {
     name: "Tabungan — Cicilan Diterima",
     template: `Assalamu'alaikum {nama} 🕌

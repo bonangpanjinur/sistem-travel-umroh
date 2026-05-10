@@ -200,7 +200,7 @@ const ISLAMI_MENU: QuickMenuItem[] = [
   { id: 'tracker', label: 'Tracker Ibadah', sublabel: 'Pantau amalan', icon: Target, to: '/tracker-ibadah', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-100' },
   { id: 'kalkislami', label: 'Kalkulator', sublabel: 'Zakat, fidyah, dll', icon: Beaker, to: '/kalkulator-islami', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-100' },
   { id: 'tasbih', label: 'Tasbih Digital', sublabel: 'Dzikir & hitung', icon: Scroll, to: '/tasbih', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-100' },
-  { id: 'toko', label: 'Toko Umroh', sublabel: 'Perlengkapan ibadah', icon: ShoppingBag, to: '/toko', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-100' },
+  { id: 'toko', label: 'Toko Umroh', sublabel: 'Perlengkapan ibadah', icon: ShoppingBag, to: '/store', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-100' },
 ];
 
 const INFO_MENU: QuickMenuItem[] = [

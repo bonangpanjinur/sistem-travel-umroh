@@ -195,6 +195,65 @@ export function useWhatsAppNotifier() {
     return send(phone, message, true);
   };
 
+  /** Store: order confirmed + payment received */
+  const sendStoreOrderConfirmed = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      total: string;
+      jumlah_item: string | number;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_ORDER_CONFIRMED", { nomor_cs: "", ...vars, jumlah_item: String(vars.jumlah_item) });
+    return send(phone, message, true);
+  };
+
+  /** Store: resi/tracking input — order shipped */
+  const sendStoreOrderShipped = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      kurir: string;
+      layanan: string;
+      no_resi: string;
+      estimasi_tiba: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_ORDER_SHIPPED", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Store: order marked as delivered */
+  const sendStoreOrderDelivered = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_ORDER_DELIVERED", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Store: new order placed — remind customer to pay */
+  const sendStorePaymentAwaiting = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      total: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_PAYMENT_AWAITING", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
   /** Savings: plan fully paid (lunas) */
   const sendSavingsLunas = async (
     phone: string,
@@ -224,5 +283,10 @@ export function useWhatsAppNotifier() {
     sendSavingsCicilanDitolak,
     sendSavingsReminder,
     sendSavingsLunas,
+    // Store / Toko
+    sendStoreOrderConfirmed,
+    sendStoreOrderShipped,
+    sendStoreOrderDelivered,
+    sendStorePaymentAwaiting,
   };
 }

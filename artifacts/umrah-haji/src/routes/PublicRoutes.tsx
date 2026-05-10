@@ -94,7 +94,8 @@ export default function PublicRoutes() {
       <Route path="/tracker-ibadah" element={<LazyPage><TrackerIbadah /></LazyPage>} />
       <Route path="/kalkulator-islami" element={<LazyPage><KalkulatorIslami /></LazyPage>} />
       <Route path="/tasbih" element={<LazyPage><TasbihDigital /></LazyPage>} />
-      <Route path="/toko" element={<LazyPage><TokoOnline /></LazyPage>} />
+      <Route path="/toko" element={<Navigate to="/store" replace />} />
+      <Route path="/toko/*" element={<Navigate to="/store" replace />} />
       <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />
       <Route path="/:slug" element={<LazyPage><StaticPage /></LazyPage>} />
     </>
