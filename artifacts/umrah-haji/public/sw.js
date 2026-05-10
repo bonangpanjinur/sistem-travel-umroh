@@ -103,6 +103,9 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+// Scheduled notification timers (persisted across soft navigations)
+const scheduledNotifTimers = new Map();
+
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 
@@ -111,6 +114,53 @@ self.addEventListener("message", (event) => {
     caches.open(CACHE_VERSION).then((cache) => {
       cache.addAll(JAMAAH_ROUTES).catch(() => {});
     });
+  }
+
+  // Schedule a local notification from the main thread
+  // Payload: { type: "SCHEDULE_NOTIF", id, title, body, fireAt (ISO string), icon, url, tag }
+  if (event.data?.type === "SCHEDULE_NOTIF") {
+    const { id, title, body, fireAt, icon, url, tag } = event.data;
+    const ms = new Date(fireAt).getTime() - Date.now();
+    if (ms <= 0 || ms > 24 * 60 * 60 * 1000) return;
+
+    // Clear any existing timer for this id
+    if (scheduledNotifTimers.has(id)) {
+      clearTimeout(scheduledNotifTimers.get(id));
+    }
+
+    const timer = setTimeout(() => {
+      self.registration.showNotification(title, {
+        body,
+        icon: icon || "/images/icon-192.png",
+        badge: "/images/icon-192.png",
+        vibrate: [200, 100, 200],
+        tag: tag || id,
+        renotify: true,
+        data: { url: url || "/jamaah/pengingat-ibadah" },
+        actions: [
+          { action: "open", title: "Buka" },
+          { action: "dismiss", title: "Tutup" },
+        ],
+      });
+      scheduledNotifTimers.delete(id);
+    }, ms);
+
+    scheduledNotifTimers.set(id, timer);
+  }
+
+  // Cancel a scheduled notification
+  if (event.data?.type === "CANCEL_NOTIF") {
+    const { id } = event.data;
+    if (scheduledNotifTimers.has(id)) {
+      clearTimeout(scheduledNotifTimers.get(id));
+      scheduledNotifTimers.delete(id);
+    }
+  }
+
+  // Cancel all scheduled notifications
+  if (event.data?.type === "CANCEL_ALL_NOTIFS") {
+    scheduledNotifTimers.forEach((t) => clearTimeout(t));
+    scheduledNotifTimers.clear();
   }
 });
 

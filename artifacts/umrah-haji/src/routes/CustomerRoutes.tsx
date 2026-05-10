@@ -84,6 +84,9 @@ const JamaahManasik = lazy(() => import("@/pages/jamaah/JamaahManasik"));
 const JamaahKesehatan = lazy(() => import("@/pages/jamaah/JamaahKesehatan"));
 const JamaahTrackerIbadah = lazy(() => import("@/pages/jamaah/JamaahTrackerIbadah"));
 
+// Pengingat Ibadah — push notification lokal
+const JamaahPengingatIbadah = lazy(() => import("@/pages/jamaah/JamaahPengingatIbadah"));
+
 /**
  * Role yang diizinkan mengakses portal jamaah/customer.
  * Staf admin internal (finance, sales, dll) tidak menggunakan portal ini —
@@ -179,6 +182,9 @@ export default function CustomerRoutes() {
       {/* Fase 2 UX — Profil Kesehatan & Tracker Ibadah */}
       <Route path="/jamaah/kesehatan" element={<CustomerRoute><JamaahKesehatan /></CustomerRoute>} />
       <Route path="/jamaah/tracker-ibadah" element={<CustomerRoute><JamaahTrackerIbadah /></CustomerRoute>} />
+
+      {/* Pengingat Ibadah — notifikasi otomatis shalat, zikir & manasik */}
+      <Route path="/jamaah/pengingat-ibadah" element={<CustomerRoute><JamaahPengingatIbadah /></CustomerRoute>} />
 
       {/* FITUR 01 — SOS Status Real-time Jamaah */}
       <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />

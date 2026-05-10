@@ -18,7 +18,7 @@ import {
   Star, Camera, Loader2, Package, ArrowRight,
   Clock, DollarSign, FileText, Megaphone,
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
-  MessageSquare, Image, Gift, Scale, Scroll, GraduationCap
+  MessageSquare, Image, Gift, Scale, Scroll, GraduationCap, BellRing
 } from "lucide-react";
 import { format, differenceInDays, differenceInSeconds } from "date-fns";
 import { id } from "date-fns/locale";
@@ -599,6 +599,12 @@ export default function JamaahPortal() {
                 <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
                   <Star className="h-6 w-6 mx-auto mb-1 text-yellow-500" />
                   <p className="text-xs">Tracker</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/pengingat-ibadah">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <BellRing className="h-6 w-6 mx-auto mb-1 text-emerald-500" />
+                  <p className="text-xs">Pengingat</p>
                 </Card>
               </Link>
             </div>

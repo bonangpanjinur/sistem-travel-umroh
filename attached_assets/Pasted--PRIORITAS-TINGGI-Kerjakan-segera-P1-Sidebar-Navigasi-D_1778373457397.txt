@@ -1,0 +1,67 @@
+🔴 PRIORITAS TINGGI (Kerjakan segera)
+P1 — Sidebar / Navigasi Desktop Portal Jamaah
+Jamaah di laptop tidak punya navigasi yang layak. Buat sidebar kiri kategori (Perjalanan, Keuangan, Ibadah, Komunitas, Darurat) yang muncul di layar ≥ 768px.
+
+P2 — Ikon PWA Lengkap
+Buat icon 192×192 dan 512×512 PNG untuk manifest. Saat ini install di HP hasilnya ikon buram/fallback.
+
+P3 — Offline Mode untuk Konten Kritis
+Cache di service worker: panduan doa, itinerary terakhir, dokumen yang sudah diunduh. Jamaah di Madinah sering sinyal buruk.
+
+P4 — Onboarding Flow Jamaah Baru
+Halaman /jamaah/welcome sudah ada tapi perlu diperkuat — tampilkan checklist langkah pertama: lengkapi profil → upload dokumen → cek itinerary → simpan ID Digital.
+
+🟡 PRIORITAS MENENGAH (1–2 bulan ke depan)
+P5 — Reorganisasi Menu "Lebih"
+Kelompokkan menu menjadi kartu kategori (bukan grid flat 12 item), dengan label kategori yang jelas.
+
+P6 — Push Notification Aktif
+Integrasi penuh push notification: konfirmasi booking, pengingat pembayaran, update visa, reminder manasik. Infrastruktur web-push sudah ada di API server.
+
+P7 — Waktu Sholat Berdasarkan GPS
+Integrasi API Aladhan.com (gratis) yang otomatis deteksi kota jamaah (Jakarta, Makkah, Madinah) — tampilkan countdown sholat berikutnya.
+
+P8 — App Shortcuts di PWA
+Tambahkan shortcuts di manifest.json: shortcut ke SOS, Waktu Sholat, Cek Booking, Panduan Doa — bisa diakses long-press ikon di HP.
+
+P9 — Halaman Publik Cek Booking Lebih Lengkap
+/cek-booking saat ini minimal — tambahkan tampilan status keberangkatan, nama muthawif, dan nomor kontak darurat agar bisa diakses keluarga tanpa login.
+
+🟢 PRIORITAS PENGEMBANGAN (3–6 bulan)
+P10 — Chat Rombongan Real-time
+Aktifkan Supabase Realtime di /jamaah/chat — grup chat otomatis dibuat per keberangkatan.
+
+P11 — Chatbot AI Fungsional
+Integrasikan LLM (misal OpenAI) di /jamaah/chatbot untuk menjawab pertanyaan umum: rukun umroh, jadwal, pembayaran, dokumen.
+
+P12 — Peta Interaktif Lokasi Suci
+Embed peta (Google Maps / Leaflet.js) di /jamaah/peta-lokasi dengan pin hotel, Masjidil Haram, Masjid Nabawi, dan titik kumpul.
+
+P13 — Mode Gelap (Dark Mode)
+Portal jamaah sering digunakan malam hari saat di sana. Tambahkan toggle dark/light mode yang persisten.
+
+P14 — Background Sync
+Saat offline, aksi jamaah (isi jurnal, upload dokumen) di-queue dan otomatis terkirim saat online kembali.
+
+P15 — Notifikasi Keluarga
+Fitur bagi tautan "pantau perjalanan" kepada keluarga di rumah — mereka bisa lihat jadwal & status jamaah tanpa harus login.
+
+📋 Ringkasan Prioritas
+FASE 1 (Sekarang)
+├── P1  Sidebar desktop portal jamaah
+├── P2  Ikon PWA beresolusi tinggi
+├── P3  Offline cache konten kritis
+└── P4  Onboarding jamaah baru
+FASE 2 (1-2 bulan)
+├── P5  Reorganisasi menu "Lebih"
+├── P6  Push notification aktif
+├── P7  Waktu sholat + GPS
+├── P8  App shortcuts manifest
+└── P9  Cek booking publik lebih lengkap
+FASE 3 (3-6 bulan)
+├── P10 Chat rombongan realtime
+├── P11 Chatbot AI fungsional
+├── P12 Peta interaktif
+├── P13 Dark mode
+├── P14 Background sync
+└── P15 Notifikasi keluarga

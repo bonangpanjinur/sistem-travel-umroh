@@ -3,7 +3,8 @@ import {
   Home, QrCode, Shield, Bell, LayoutGrid, FileText, Luggage,
   LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard,
   MessageCircle, X, GraduationCap, CalendarDays, Users, Clock,
-  BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart, Star
+  BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart, Star,
+  BellRing
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -27,6 +28,7 @@ const moreMenuItems = [
   { to: "/jamaah/doa-panduan", icon: BookOpen, label: "Doa & Panduan", color: "text-emerald-600 bg-emerald-50" },
   { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600 bg-amber-50" },
   { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600 bg-indigo-50" },
+  { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "text-emerald-600 bg-emerald-50" },
   { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600 bg-teal-50" },
   { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600 bg-gray-50" },
 ];
@@ -60,6 +62,7 @@ const sidebarGroups = [
       { to: "/jamaah/waktu-sholat", icon: Clock, label: "Waktu Sholat" },
       { to: "/jamaah/doa-panduan", icon: BookMarked, label: "Doa & Dzikir" },
       { to: "/jamaah/tracker-ibadah", icon: Star, label: "Tracker Ibadah" },
+      { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat Ibadah" },
       { to: "/jamaah/kesehatan", icon: Heart, label: "Profil Kesehatan" },
     ],
   },
