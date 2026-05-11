@@ -110,6 +110,7 @@ const AdminBranchCommissions = lazy(() => import("@/pages/admin/AdminBranchCommi
 const AdminAgentCommissionReport = lazy(() => import("@/pages/admin/AdminAgentCommissionReport"));
 const AdminEmailTemplates = lazy(() => import("@/pages/admin/AdminEmailTemplates"));
 const AdminPushNotifications = lazy(() => import("@/pages/admin/AdminPushNotifications"));
+const AdminPushOutbox = lazy(() => import("@/pages/admin/AdminPushOutbox"));
 const AdminDepartureTracking = lazy(() => import("@/pages/admin/AdminDepartureTracking"));
 const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
 const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
@@ -287,6 +288,7 @@ export default function AdminRoutes() {
       {/* Fase 5 — Notifikasi & Komunikasi */}
       <Route path="email-templates" element={<P k={PERMISSIONS.EMAIL_TEMPLATES}><AdminEmailTemplates /></P>} />
       <Route path="push-notifications" element={<P k={PERMISSIONS.PUSH_NOTIFICATIONS}><AdminPushNotifications /></P>} />
+      <Route path="push-outbox" element={<P k={PERMISSIONS.PUSH_NOTIFICATIONS}><AdminPushOutbox /></P>} />
 
       {/* Fase 6 — Operational Excellence */}
       <Route path="departure-tracking" element={<P k={PERMISSIONS.DEPARTURE_TRACKING}><AdminDepartureTracking /></P>} />
