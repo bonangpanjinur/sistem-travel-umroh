@@ -71,6 +71,8 @@ export interface WebsiteSettings {
   package_card_show_hotel: boolean | null;
   package_card_show_duration: boolean | null;
   package_card_show_departure: boolean | null;
+  layout_variant: Record<string, any> | null;
+  theme_overrides: Record<string, any> | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -158,6 +160,8 @@ const DEFAULT_SETTINGS: WebsiteSettings = {
   package_card_show_hotel: true,
   package_card_show_duration: true,
   package_card_show_departure: true,
+  layout_variant: null,
+  theme_overrides: null,
   created_at: null,
   updated_at: null,
 };
@@ -184,6 +188,8 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     package_card_show_duration: raw.package_card_show_duration !== false,
     package_card_show_departure: raw.package_card_show_departure !== false,
     hero_display_mode: raw.hero_display_mode ?? 'both',
+    layout_variant: (raw.layout_variant ?? null) as Record<string, any> | null,
+    theme_overrides: (raw.theme_overrides ?? null) as Record<string, any> | null,
   };
 };
 
