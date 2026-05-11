@@ -117,7 +117,7 @@ export function useStoreCategoryMutations() {
     mutationFn: async (values: Partial<StoreCategory>) => {
       const { error } = values.id
         ? await supabase.from("store_categories").update(values).eq("id", values.id)
-        : await supabase.from("store_categories").insert([values]);
+        : await supabase.from("store_categories").insert([values as any]);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Kategori berhasil disimpan"); inv(); },
@@ -185,7 +185,7 @@ export function useStoreProductMutations() {
       delete (payload as any).category;
       const { error } = values.id
         ? await supabase.from("store_products").update(payload).eq("id", values.id)
-        : await supabase.from("store_products").insert([payload]);
+        : await supabase.from("store_products").insert([payload as any]);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Produk berhasil disimpan"); inv(); },
