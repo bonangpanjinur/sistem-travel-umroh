@@ -9,14 +9,23 @@ import {
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { usePWAConfig } from "@/hooks/usePWAConfig";
 
-const mobileNavItems = [
+const DEFAULT_MOBILE_ITEMS = [
   { to: "/jamaah", icon: Home, label: "Beranda" },
   { to: "/jamaah/digital-id", icon: QrCode, label: "ID" },
   { to: "/jamaah/visa", icon: Shield, label: "Visa" },
   { to: "/jamaah/notifications", icon: Bell, label: "Notif", showBadge: true },
 ];
+
+// Map icon names from PWA config (string) → lucide icon component
+const ICON_MAP: Record<string, any> = {
+  Home, QrCode, Shield, Bell, LayoutGrid, FileText, Luggage, LogIn,
+  FileSignature, Camera, BookOpen, Wallet, CreditCard, MessageCircle,
+  GraduationCap, CalendarDays, Users, Clock, BookMarked, User, Plane,
+  Heart, Star, BellRing, Moon, Sun, UsersRound,
+};
 
 const moreMenuItems = [
   { to: "/jamaah/payment", icon: CreditCard, label: "Bayar Online", color: "text-primary bg-primary/10" },
@@ -93,6 +102,20 @@ export function JamaahBottomNav() {
   const { unreadCount } = useNotifications();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { activeItems: pwaActiveItems } = usePWAConfig();
+
+  // Resolve mobile bar from admin-configured PWA bottom nav.
+  // Fallback to defaults when no config exists.
+  const mobileNavItems = useMemo(() => {
+    if (!pwaActiveItems?.length) return DEFAULT_MOBILE_ITEMS;
+    return pwaActiveItems.slice(0, 4).map((it) => ({
+      to: it.path,
+      icon: ICON_MAP[it.icon] ?? Home,
+      label: it.label,
+      showBadge: it.path === "/jamaah/notifications",
+    }));
+  }, [pwaActiveItems]);
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
   });

@@ -1,6 +1,7 @@
 import { Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { StandaloneHomeGate } from "@/components/pwa/StandaloneHomeGate";
 
 const DashboardRedirect = lazy(() => import("@/pages/admin/DashboardRedirect"));
 
@@ -51,7 +52,7 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 export default function PublicRoutes() {
   return (
     <>
-      <Route path="/" element={<LazyPage><Index /></LazyPage>} />
+      <Route path="/" element={<LazyPage><StandaloneHomeGate><Index /></StandaloneHomeGate></LazyPage>} />
       <Route path="/login" element={<Navigate to="/auth/login" replace />} />
       <Route path="/register" element={<Navigate to="/auth/register" replace />} />
       <Route path="/dashboard" element={<LazyPage><DashboardRedirect /></LazyPage>} />

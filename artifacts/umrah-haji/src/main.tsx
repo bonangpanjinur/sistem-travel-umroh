@@ -3,15 +3,31 @@ import App from "./App.tsx";
 import "./index.css";
 
 // Register service worker for push notifications
+// Skip when running inside an iframe or on Lovable preview hosts
+// to avoid stale-cache and navigation issues in the editor.
+const isInIframe = (() => {
+  try { return window.self !== window.top; } catch { return true; }
+})();
+const isPreviewHost =
+  window.location.hostname.includes("id-preview--") ||
+  window.location.hostname.includes("lovableproject.com");
+
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
-      const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      console.log("SW registered:", registration.scope);
-    } catch (error) {
-      console.warn("SW registration failed:", error);
-    }
-  });
+  if (isInIframe || isPreviewHost) {
+    // Cleanup any previously-registered SW so the preview is never wedged
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => r.unregister().catch(() => {}));
+    }).catch(() => {});
+  } else {
+    window.addEventListener("load", async () => {
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        console.log("SW registered:", registration.scope);
+      } catch (error) {
+        console.warn("SW registration failed:", error);
+      }
+    });
+  }
 }
 
 // Handle chunk load errors (failed to fetch dynamically imported module)
