@@ -185,6 +185,8 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/target-ibadah" element={<LazyPage><JamaahTargetIbadah /></LazyPage>} />
       <Route path="/jamaah/checklist" element={<LazyPage><JamaahChecklist /></LazyPage>} />
       <Route path="/jamaah/pengingat-ibadah" element={<LazyPage><JamaahPengingatIbadah /></LazyPage>} />
+      <Route path="/jamaah/kiblat" element={<LazyPage><JamaahKiblat /></LazyPage>} />
+      <Route path="/jamaah/al-quran" element={<LazyPage><JamaahAlQuran /></LazyPage>} />
 
       {/* Toko Online / E-Commerce */}
       <Route path="/store"                   element={<LazyPage><StorePage /></LazyPage>} />
