@@ -103,6 +103,8 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
   return {
     ...data,
     google_console_verification: raw.google_console_verification ?? null,
+    layout_variant: (raw.layout_variant ?? null) as Record<string, any> | null,
+    theme_overrides: (raw.theme_overrides ?? null) as Record<string, any> | null,
     homepage_sections: data.homepage_sections as unknown as HomepageSection[] | null,
     custom_sections: data.custom_sections as unknown as CustomSection[] | null,
     nav_links: data.nav_links as unknown as WebsiteSettings['nav_links'],
