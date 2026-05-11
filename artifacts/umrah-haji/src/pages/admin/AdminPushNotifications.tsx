@@ -339,17 +339,19 @@ export default function AdminPushNotifications() {
                   if (!form.title || !form.message) { return; }
                   setIsSending(true);
                   try {
-                    const res = await fetch("/api/push/send", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ title: form.title, body: form.message, type: form.type }),
+                    const targets = getTargets();
+                    const customerIds = targets.map((c: any) => c.id);
+                    const { data, error } = await supabase.functions.invoke("send-push", {
+                      body: {
+                        title: form.title,
+                        body: form.message,
+                        type: form.type,
+                        customer_ids: recipientType === "all" ? undefined : customerIds,
+                        send_to_all: recipientType === "all",
+                      },
                     });
-                    const data = await res.json();
-                    if (res.ok) {
-                      toast.success(`Browser push terkirim ke ${data.sent} subscriber (${data.failed} gagal)`);
-                    } else {
-                      toast.error("Gagal kirim browser push: " + (data.error || "Unknown error"));
-                    }
+                    if (error) throw error;
+                    toast.success(`Browser push terkirim ke ${data?.sent ?? 0} subscriber (${data?.failed ?? 0} gagal, ${data?.cleaned ?? 0} expired dibersihkan)`);
                   } catch (e: any) {
                     toast.error("Gagal kirim browser push: " + e.message);
                   } finally {
