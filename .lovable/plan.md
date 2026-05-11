@@ -1,77 +1,99 @@
-## Analisis Error Vercel
+# Roadmap Vinstour Travel
 
-Build gagal di tahap `tsc --noEmit` artifact `umrah-haji`. **30 error** dikelompokkan jadi 3 akar masalah:
+## Status Fase Keseluruhan
 
-### Akar 1 — Schema database tidak sinkron dengan kode (~70% error)
-Kode memakai tabel/kolom yang **belum ada di database live** (cek via `information_schema` returns kosong):
-- Tabel `customer_mahrams` — dipakai di `EditCustomerDialog.tsx`, `MahramForm.tsx`, `RoomingListPage.tsx`, `DepartureRoomingTab.tsx`, `AdminBookingCreate.tsx`
-- Kolom `customers.district`, `customers.village` — dipakai di `EditCustomerDialog.tsx`
-- Tabel `store_product_reviews` — dipakai di `useStore.ts` (3 hook)
-
-Migrasi-nya ada di `.migration-backup/` (tidak ikut ter-apply saat migrasi ke Lovable Cloud) dan untuk `store_product_reviews` belum pernah ada migrasi sama sekali.
-
-### Akar 2 — Type cast yang harus eksplisit
-- `usePushSubscription.ts:63` — `urlBase64ToUint8Array()` mengembalikan `Uint8Array<ArrayBufferLike>`, tapi `pushManager.subscribe` butuh `BufferSource` (TS lib lebih ketat di TS 5.7+). Fix: cast `as BufferSource`.
-- `useStore.ts` — `Partial<StoreCategory>` / `Partial<StoreShipment>` dipakai untuk `.insert()` yang butuh field wajib (`name`, `courier_name`). Fix: pisahkan branch insert vs update, atau cast payload `as any` (sudah pola lama di file).
-- `useStore.ts` order/orderItems — bentuk join Supabase tidak match `StoreProduct` (cuma select `name, images`). Fix: ganti ke `as unknown as StoreOrder[]` (sesuai panduan TS).
-
-### Akar 3 — Kontrak fungsi
-- `AdminPushOutbox.tsx` 3 lokasi (line 93, 108, 119): pola `if (error) return toast.error(...)` → `toast.error` return `void`, sehingga branch lain tanpa return memicu TS7030. Fix: pecah jadi `if (err) { toast.error(...); return; }`.
-- `JamaahKiblat.tsx:81-82` — `webkitCompassHeading` properti vendor Safari, tidak ada di lib DOM. Fix: cast `(event as any).webkitCompassHeading`.
+| Fase | Judul | Status |
+|---|---|---|
+| 1 | Audit & dokumen perbaikan | ✅ Selesai |
+| 2 | Bug kritis & RBAC hardening (B1/B3/B4, agen C1/C2) | ✅ Selesai |
+| 3 | UI/UX jamaah refresh + bottom nav modern | ✅ Selesai |
+| 4 | Dual experience (PWA standalone gate + dynamic appearance) | ✅ Selesai |
+| 5 | Modul Ibadah (Kiblat, Quran, Zikir, Doa, Manasik, Tracker, Pengingat) | ✅ Selesai |
+| 6 | Storefront Toko Jamaah | ✅ Selesai |
+| 7 | PWA App Layout Configurator (admin) | ✅ Selesai |
+| 8 | Push Notification Infrastructure + auto triggers + admin outbox | ✅ Selesai |
+| 8.x | Build fix Vercel (schema sync `customer_mahrams` / `store_product_reviews` / district / village + type cast) | ✅ Selesai |
+| **9** | **Polish & Hardening** | **🟡 ~75%** |
 
 ---
 
-## Rencana Eksekusi
+## ✅ Sudah Selesai (ringkas per fase)
 
-### Tahap 1 — Migrasi DB (1 migration, fix ~22 error)
+- **Fase 1** — Dokumen audit `docs/AUDIT_DAN_RENCANA_PERBAIKAN.md`.
+- **Fase 2** — Multi-tenant scoping, role permissions, agent hierarchy AGT/SUB, server-side booking code RPC.
+- **Fase 3** — Bottom nav, refresh portal jamaah, accessibility WCAG 2.1.
+- **Fase 4** — PWA standalone gate, dynamic appearance per tenant.
+- **Fase 5** — Modul ibadah lengkap; semua page dipindah ke `src/pages/jamaah/ibadah/`.
+- **Fase 6** — Tabel `store_*`, RLS, integrasi portal jamaah, review produk.
+- **Fase 7** — `pwa_app_layout` JSONB di `website_settings` + `AdminPWAAppLayout` + `usePWAAppLayout` + `MobileBottomNav` dinamis.
+- **Fase 8** — VAPID keys, edge function `send-push` & `process-push-queue`, service worker handler, subscription per user, auto trigger (booking status, payment received, store shipped, H-1 keberangkatan), admin `AdminPushOutbox` (status/retry/error/resend manual), cron jobs aktif.
+- **Fase 8.x** — Migrasi schema sync + 6 patch type-cast → build Vercel hijau.
 
-Buat satu migrasi yang menambahkan:
+---
 
-1. **Tabel `customer_mahrams`** dengan kolom: `customer_id`, `mahram_name`, `mahram_relation` (CHECK enum: suami/istri/ayah/ibu/anak/saudara/paman/kakek/nenek/cucu), `mahram_customer_id`, `notes`. Index pada `customer_id` dan `mahram_customer_id`. RLS:
-   - SELECT/INSERT/UPDATE/DELETE: staf admin (`is_admin`, `operational`, `sales`, `branch_manager`) atau customer pemilik (`customer.user_id = auth.uid()`).
+## 🟡 Sisa Pekerjaan — Fase 9 Polish & Hardening
 
-2. **Kolom `customers.district`, `customers.village`** (TEXT nullable).
+| Sub-tugas | Status |
+|---|---|
+| 9.1 Audit Supabase linter warnings (108 → 40) | ✅ Selesai |
+| 9.2 Security scan + fix temuan kritis (referral_codes, referral_usages, ticket_responses, customer-documents/payment-proofs upload) | ✅ Selesai |
+| 9.3 Konsolidasi struktur kode (`pages/jamaah/ibadah/`) | ✅ Selesai |
+| 9.4 Lighthouse audit Landing/Jamaah/Admin | ⏳ Belum |
+| 9.5 E2E smoke test alur kritis (register → booking → upload doc → pay → portal) | ⏳ Belum |
+| 9.6 Refresh memory index & dokumentasi keputusan baru | ⏳ Belum |
 
-3. **Tabel `store_product_reviews`** dengan kolom: `order_id` (FK store_orders), `product_id` (FK store_products), `user_id` (FK auth.users), `customer_id` (nullable FK customers), `rating` (1-5 CHECK), `comment`, `is_published` (default true), `admin_reply`, `admin_reply_at`. Unique `(order_id, product_id, user_id)`. Index pada `product_id` dan `is_published`. Trigger `update_updated_at_column`. RLS:
-   - SELECT publik untuk `is_published = true`.
-   - SELECT pemilik untuk review sendiri (`auth.uid() = user_id`).
-   - INSERT/UPDATE pemilik (`auth.uid() = user_id`).
-   - UPDATE staf admin untuk `admin_reply`, `admin_reply_at`, `is_published`.
+### 9.4 Lighthouse Audit — Rencana
 
-Setelah migrasi sukses, `src/integrations/supabase/types.ts` ter-regenerate otomatis → semua error "Argument of type X is not assignable to parameter type" hilang.
+Pakai `browser--navigate_to_sandbox` + `browser--performance_profile` untuk 3 halaman:
 
-### Tahap 2 — Patch type-cast (8 error sisa)
+1. **Landing `/`** — fokus LCP (hero image), CLS (font Amiri), FCP, INP.
+2. **Jamaah Portal `/jamaah`** (perlu login) — fokus bundle size, lazy chunk modul ibadah, react-query refetch, service worker cache hit.
+3. **Admin Dashboard `/admin`** (perlu login) — fokus query parallelization, list virtualization, realtime overhead.
 
-| File | Lokasi | Patch |
-|---|---|---|
-| `usePushSubscription.ts` | line 63 | `applicationServerKey: urlBase64ToUint8Array(...) as BufferSource` |
-| `useStore.ts` | upsert kategori (117) | Cast `values as any` untuk `.insert([values])` branch |
-| `useStore.ts` | upsert produk (188) | Cast payload `as any` (pola sudah dipakai untuk `delete category`) |
-| `useStore.ts` | order list (234, 255, 335) | Ganti `as StoreOrder[]` → `as unknown as StoreOrder[]` |
-| `useStore.ts` | upsertShipment (303) | Cast `values as any` untuk `.insert([values])` branch |
-| `AdminPushOutbox.tsx` | line 93, 108, 119 | Pecah `return toast.error(...)` → `{ toast.error(...); return; }` |
-| `JamaahKiblat.tsx` | line 81-82 | `(event as any).webkitCompassHeading` |
+Output: tabel metrik per halaman + daftar bottleneck ranked by impact (LCP > CLS > INP > a11y > SEO), lalu sub-plan fix (preload font Amiri, lazy-load chart Recharts, split admin route, image `loading="lazy"`, dll.).
 
-### Tahap 3 — Verifikasi
+### 9.5 E2E Smoke Test — Alur Kritis
 
-Karena harness build otomatis menjalankan typecheck, akan terlihat kalau masih ada error. Saya tidak menjalankan `tsc` manual.
+Skenario manual via `browser--act` + `browser--observe`:
 
-### Tahap 4 — Lighthouse audit (setelah build hijau)
+1. Register customer baru → verifikasi NIK + passport.
+2. Buat booking dari paket aktif → cek `booking_code` format `TRA{Initials}{YYMMDD}{Random4}`.
+3. Upload KTP + Passport → cek status Pending → admin Verify.
+4. Bayar DP → upload proof → admin verifikasi → status `paid` (bukan `verified`).
+5. Login portal jamaah → cek dokumen, jadwal, push subscribe, store browse.
 
-Dengan tool `browser--navigate_to_sandbox` + `browser--performance_profile`, audit 3 halaman:
+Catat regresi & buat issue ringkas.
 
-1. **Landing** `/` — fokus LCP (hero image), CLS (font loading), FCP, INP.
-2. **Jamaah Portal** `/jamaah` (perlu login) — fokus bundle size, lazy loading, react-query refetch.
-3. **Admin Dashboard** `/admin` (perlu login) — fokus query parallelization, large lists, realtime overhead.
+### 9.6 Memory Index Refresh
 
-Output: tabel metrik per halaman + daftar bottleneck terurut dampak (LCP > CLS > INP > a11y > SEO). Lalu plan lanjutan untuk fix berdasarkan temuan (mis. preload font, lazy chunk hero, split admin route, dll.).
+Tambahkan entri memori baru ke `mem://index.md`:
+
+- Push notification system (queue, outbox, retry, VAPID, auto triggers).
+- Storage upload hardening (folder `customer_id` enforcement).
+- Referral codes/usages RLS scoping.
+- Ticket responses owner-only SELECT.
+- SECURITY DEFINER execute hardening (REVOKE PUBLIC/anon, GRANT authenticated).
 
 ---
 
 ## Risiko & Asumsi
 
-- **Asumsi**: migrasi `customer_mahrams` & `district/village` di `.migration-backup/` adalah definisi yang diinginkan (saya pakai versi RLS yang lebih ketat — versi backup pakai `USING (true)` permisif, akan saya perbaiki).
-- **Risiko**: kalau ada FK lain ke tabel ini di kode yang belum saya scan, bisa muncul error baru. Mitigasi: setelah migrasi saya re-scan import sebelum lanjut Tahap 2.
-- **Lighthouse**: butuh akun login untuk Jamaah & Admin. Kalau tidak punya akses test, audit hanya untuk Landing.
+- Lighthouse Jamaah/Admin butuh kredensial test login. Kalau tidak tersedia, audit hanya untuk Landing.
+- Service worker cache bisa skew metrik FCP — audit dalam mode incognito / clear cache dulu.
+- Beberapa SECURITY DEFINER function tetap callable oleh `authenticated` (digunakan di RLS) — bukan vulnerability, sudah didokumentasikan di `@security-memory`.
 
-Sekitar 5-7 menit total sebelum mulai Lighthouse.
+## Estimasi
+
+- 9.4: 10–15 menit (3 halaman × profile + analisis).
+- 9.5: 15–20 menit (manual click-through).
+- 9.6: 5 menit (tulis memori).
+
+---
+
+## Appendix — Build Fix Vercel (Fase 8.x, sudah selesai)
+
+Build gagal di `tsc --noEmit` (~30 error). 3 akar masalah & solusi yang sudah dieksekusi:
+
+1. **Schema mismatch** — migrasi tambah tabel `customer_mahrams`, kolom `customers.district`/`village`, tabel `store_product_reviews` (semua + RLS scoped owner/admin).
+2. **Type cast** — `usePushSubscription` cast `BufferSource`; `useStore` cast `values as any` + `as unknown as StoreOrder[]`; `JamaahKiblat` cast `(e as any).webkitCompassHeading`.
+3. **Kontrak fungsi** — `AdminPushOutbox` refactor `if (err) { toast.error(...); return; }` untuk semua branch.
