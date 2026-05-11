@@ -35,6 +35,10 @@ const JamaahInvoice = lazy(() => import("@/pages/jamaah/JamaahInvoice"));
 const JamaahKalkulatorKurs = lazy(() => import("@/pages/jamaah/JamaahKalkulatorKurs"));
 const JamaahWelcome = lazy(() => import("@/pages/jamaah/JamaahWelcome"));
 
+// Fase 4 — Modul Ibadah Baru
+const JamaahKiblat = lazy(() => import("@/pages/jamaah/JamaahKiblat"));
+const JamaahAlQuran = lazy(() => import("@/pages/jamaah/JamaahAlQuran"));
+
 // Fase 3 — Fitur Sosial & Komunitas
 const JamaahChat = lazy(() => import("@/pages/jamaah/JamaahChat"));
 const JamaahRombongan = lazy(() => import("@/pages/jamaah/JamaahRombongan"));
