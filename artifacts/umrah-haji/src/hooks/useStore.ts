@@ -184,7 +184,7 @@ export function useStoreProductMutations() {
       const payload = { ...values };
       delete (payload as any).category;
       const { error } = values.id
-        ? await supabase.from("store_products").update(payload).eq("id", values.id)
+        ? await supabase.from("store_products").update(payload as any).eq("id", values.id)
         : await supabase.from("store_products").insert([payload as any]);
       if (error) throw error;
     },
