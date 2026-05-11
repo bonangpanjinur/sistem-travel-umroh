@@ -117,7 +117,7 @@ export function useStoreCategoryMutations() {
     mutationFn: async (values: Partial<StoreCategory>) => {
       const { error } = values.id
         ? await supabase.from("store_categories").update(values).eq("id", values.id)
-        : await supabase.from("store_categories").insert([values]);
+        : await supabase.from("store_categories").insert([values as any]);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Kategori berhasil disimpan"); inv(); },
@@ -185,7 +185,7 @@ export function useStoreProductMutations() {
       delete (payload as any).category;
       const { error } = values.id
         ? await supabase.from("store_products").update(payload).eq("id", values.id)
-        : await supabase.from("store_products").insert([payload]);
+        : await supabase.from("store_products").insert([payload as any]);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Produk berhasil disimpan"); inv(); },
@@ -231,7 +231,7 @@ export function useStoreOrders(status?: string) {
       if (status && status !== "all") q = q.eq("status", status);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as StoreOrder[];
+      return (data ?? []) as unknown as StoreOrder[];
     },
     staleTime: 1000 * 60 * 2,
   });
@@ -252,7 +252,7 @@ export function useStoreOrder(id: string) {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as StoreOrder;
+      return data as unknown as StoreOrder;
     },
     enabled: !!id,
   });
@@ -300,7 +300,7 @@ export function useStoreOrderMutations() {
         const { error } = await supabase.from("store_shipments").update(values).eq("id", existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("store_shipments").insert([values]);
+        const { error } = await supabase.from("store_shipments").insert([values as any]);
         if (error) throw error;
       }
 
@@ -332,7 +332,7 @@ export function useMyStoreOrders(userId?: string) {
         .eq("user_id", userId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as StoreOrder[];
+      return (data ?? []) as unknown as StoreOrder[];
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 2,

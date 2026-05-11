@@ -100,7 +100,10 @@ export default function AdminPushOutbox() {
         scheduled_at: new Date().toISOString(),
       })
       .in("id", ids);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success(`${ids.length} notifikasi dijadwalkan ulang`);
     load();
   };
@@ -109,7 +112,10 @@ export default function AdminPushOutbox() {
     setDraining(true);
     const { data, error } = await supabase.functions.invoke("process-push-queue", { body: {} });
     setDraining(false);
-    if (error) return toast.error(error.message || "Gagal memproses antrian");
+    if (error) {
+      toast.error(error.message || "Gagal memproses antrian");
+      return;
+    }
     toast.success(
       `Diproses: ${(data as any)?.processed ?? 0} • Terkirim: ${(data as any)?.sent ?? 0} • Gagal: ${(data as any)?.failed ?? 0}`
     );
@@ -118,7 +124,10 @@ export default function AdminPushOutbox() {
 
   const deleteOne = async (id: string) => {
     const { error } = await supabase.from("push_outbox" as any).delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Dihapus");
     load();
   };

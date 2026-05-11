@@ -1,197 +1,77 @@
+## Analisis Error Vercel
 
-# Rencana Perbaikan Menyeluruh — Travel Umrah & Haji
+Build gagal di tahap `tsc --noEmit` artifact `umrah-haji`. **30 error** dikelompokkan jadi 3 akar masalah:
 
-Deliverable utama: satu file markdown rinci di `docs/AUDIT_DAN_RENCANA_PERBAIKAN.md` berisi seluruh temuan + roadmap. Plan ini juga sekaligus mengeksekusi perbaikan dalam fase berurutan.
+### Akar 1 — Schema database tidak sinkron dengan kode (~70% error)
+Kode memakai tabel/kolom yang **belum ada di database live** (cek via `information_schema` returns kosong):
+- Tabel `customer_mahrams` — dipakai di `EditCustomerDialog.tsx`, `MahramForm.tsx`, `RoomingListPage.tsx`, `DepartureRoomingTab.tsx`, `AdminBookingCreate.tsx`
+- Kolom `customers.district`, `customers.village` — dipakai di `EditCustomerDialog.tsx`
+- Tabel `store_product_reviews` — dipakai di `useStore.ts` (3 hook)
 
----
+Migrasi-nya ada di `.migration-backup/` (tidak ikut ter-apply saat migrasi ke Lovable Cloud) dan untuk `store_product_reviews` belum pernah ada migrasi sama sekali.
 
-## A. Ruang Lingkup Audit
+### Akar 2 — Type cast yang harus eksplisit
+- `usePushSubscription.ts:63` — `urlBase64ToUint8Array()` mengembalikan `Uint8Array<ArrayBufferLike>`, tapi `pushManager.subscribe` butuh `BufferSource` (TS lib lebih ketat di TS 5.7+). Fix: cast `as BufferSource`.
+- `useStore.ts` — `Partial<StoreCategory>` / `Partial<StoreShipment>` dipakai untuk `.insert()` yang butuh field wajib (`name`, `courier_name`). Fix: pisahkan branch insert vs update, atau cast payload `as any` (sudah pola lama di file).
+- `useStore.ts` order/orderItems — bentuk join Supabase tidak match `StoreProduct` (cuma select `name, images`). Fix: ganti ke `as unknown as StoreOrder[]` (sesuai panduan TS).
 
-Empat permintaan inti:
-1. Audit bug menyeluruh: panel **Admin (pusat)**, **Cabang (Branch)**, **Agen**, **Operasional**, **Jemaah**.
-2. Audit **UI/UX**, fokus utama portal **Jemaah**.
-3. Mode **dual-experience**: di browser = website, terinstal sebagai PWA = aplikasi modern. Tampilan aplikasi bisa diatur dinamis oleh **super_admin / owner**.
-4. Fitur **ibadah harian** + **toko produk travel** untuk jemaah.
-
----
-
-## B. Fase 1 — Audit & Dokumentasi (Deliverable: file markdown)
-
-Buat `docs/AUDIT_DAN_RENCANA_PERBAIKAN.md` dengan struktur:
-
-### B.1 Ringkasan Eksekutif
-Status, severity matrix (Critical / High / Medium / Low), estimasi effort.
-
-### B.2 Audit Bug per Panel
-
-Untuk setiap panel: daftar halaman → temuan → severity → akar masalah → rekomendasi fix.
-
-- **Admin (Pusat)** — `src/pages/admin/*` (~110 halaman). Fokus cek:
-  - RBAC route protection (banyak halaman belum dibungkus `PermissionRoute`)
-  - Sinkronisasi sidebar ↔ permission ↔ role
-  - Halaman Role Management terpisah (`AdminRoleManagement`, `AdminRBACTools`, `AdminRBACStatus`, `Admin2FASettings`) → konsolidasi
-  - Konsistensi pagination, search, export
-  - State loading/error/empty
-- **Cabang** — `src/pages/branch/*`. Cek branch-scoping (`branch_id` filter), KPI realtime.
-- **Agen** — `src/pages/agent/*`. Cek hierarki agent/sub_agent, komisi, referral link.
-- **Operasional** — `OperationalRoutes`, halaman muthawif, manifest, room assignment.
-- **Jemaah** — `src/pages/jamaah/*` (~40 halaman). Cek auth guard, offline state, broken links, halaman duplikat.
-
-### B.3 Audit UI/UX Jemaah
-- Konsistensi spacing, typography (Amiri untuk Arab), warna (emerald/gold tokens)
-- Touch target ≥44px, safe-area, gesture
-- Bottom nav vs side nav, hierarki informasi
-- Onboarding flow (`JamaahWelcome` → `JamaahPortal`)
-- Empty/loading/error states
-- Aksesibilitas (WCAG 2.1, prefers-reduced-motion)
-- Performance (lazy load, code splitting, image optimization)
-
-### B.4 Audit PWA & Dual Mode
-- Service worker (`/sw.js`) saat ini manual register, belum kill-switch aman
-- Manifest dinamis (sudah ada `usePWAConfig`) — perlu pengaturan layout per role
-- Deteksi `display-mode: standalone` (`usePWAMode`) sudah ada — perlu route khusus app-mode
-- Splash screen, app icons, theme color sinkron dengan branding
-
-### B.5 Gap Fitur Ibadah & Toko
-- Ibadah: kiblat compass, jadwal sholat realtime per kota, tasbih digital, doa harian, Al-Quran offline, zikir pagi-petang, pengingat sholat push notif
-- Toko: katalog produk (`AdminStore*` sudah ada di admin), keranjang, checkout, riwayat order untuk jemaah → belum ada storefront jemaah
-
-### B.6 Roadmap & Prioritas
-Tabel fase, dependency, estimasi.
+### Akar 3 — Kontrak fungsi
+- `AdminPushOutbox.tsx` 3 lokasi (line 93, 108, 119): pola `if (error) return toast.error(...)` → `toast.error` return `void`, sehingga branch lain tanpa return memicu TS7030. Fix: pecah jadi `if (err) { toast.error(...); return; }`.
+- `JamaahKiblat.tsx:81-82` — `webkitCompassHeading` properti vendor Safari, tidak ada di lib DOM. Fix: cast `(event as any).webkitCompassHeading`.
 
 ---
 
-## C. Fase 2 — Perbaikan Bug Kritis
+## Rencana Eksekusi
 
-Prioritas (Critical → High):
-1. **RBAC hardening**: bungkus semua route admin dengan `PermissionRoute`, sinkronkan key permission dengan sidebar, fix user-override permission.
-2. **Konsolidasi Role Management**: satu halaman `AdminRoleManagementUnified` dengan tab (Roles, Permissions, User Overrides, Audit, 2FA).
-3. **Branch scoping** verifikasi di semua query cabang.
-4. **Auth guard** halaman jemaah & agen yang masih bocor.
-5. **Console error sweep** & runtime error fixes.
+### Tahap 1 — Migrasi DB (1 migration, fix ~22 error)
 
----
+Buat satu migrasi yang menambahkan:
 
-## D. Fase 3 — UI/UX Jemaah Refresh
+1. **Tabel `customer_mahrams`** dengan kolom: `customer_id`, `mahram_name`, `mahram_relation` (CHECK enum: suami/istri/ayah/ibu/anak/saudara/paman/kakek/nenek/cucu), `mahram_customer_id`, `notes`. Index pada `customer_id` dan `mahram_customer_id`. RLS:
+   - SELECT/INSERT/UPDATE/DELETE: staf admin (`is_admin`, `operational`, `sales`, `branch_manager`) atau customer pemilik (`customer.user_id = auth.uid()`).
 
-- Komponen baru: `JamaahAppShell` (mode aplikasi), `JamaahWebShell` (mode browser)
-- Redesign `JamaahPortal` cards menggunakan design tokens
-- Bottom nav modern dengan active indicator + haptic-style animation
-- Skeleton loaders konsisten via `<LoadingState />`
-- Pull-to-refresh pada halaman utama (PWA)
+2. **Kolom `customers.district`, `customers.village`** (TEXT nullable).
 
----
+3. **Tabel `store_product_reviews`** dengan kolom: `order_id` (FK store_orders), `product_id` (FK store_products), `user_id` (FK auth.users), `customer_id` (nullable FK customers), `rating` (1-5 CHECK), `comment`, `is_published` (default true), `admin_reply`, `admin_reply_at`. Unique `(order_id, product_id, user_id)`. Index pada `product_id` dan `is_published`. Trigger `update_updated_at_column`. RLS:
+   - SELECT publik untuk `is_published = true`.
+   - SELECT pemilik untuk review sendiri (`auth.uid() = user_id`).
+   - INSERT/UPDATE pemilik (`auth.uid() = user_id`).
+   - UPDATE staf admin untuk `admin_reply`, `admin_reply_at`, `is_published`.
 
-## E. Fase 4 — Dual Experience (Website ↔ PWA App)
+Setelah migrasi sukses, `src/integrations/supabase/types.ts` ter-regenerate otomatis → semua error "Argument of type X is not assignable to parameter type" hilang.
 
-### E.1 Deteksi Mode
-Hook `usePWAMode` sudah ada → pakai sebagai single source of truth.
+### Tahap 2 — Patch type-cast (8 error sisa)
 
-### E.2 Routing Adaptif
-- `DynamicPublicLayout` sudah switch berdasarkan `isStandalone` — perluas ke seluruh app
-- Saat standalone & user adalah jemaah → auto redirect `/` → `/jamaah`
-- Saat browser → tampilkan landing page marketing seperti biasa
+| File | Lokasi | Patch |
+|---|---|---|
+| `usePushSubscription.ts` | line 63 | `applicationServerKey: urlBase64ToUint8Array(...) as BufferSource` |
+| `useStore.ts` | upsert kategori (117) | Cast `values as any` untuk `.insert([values])` branch |
+| `useStore.ts` | upsert produk (188) | Cast payload `as any` (pola sudah dipakai untuk `delete category`) |
+| `useStore.ts` | order list (234, 255, 335) | Ganti `as StoreOrder[]` → `as unknown as StoreOrder[]` |
+| `useStore.ts` | upsertShipment (303) | Cast `values as any` untuk `.insert([values])` branch |
+| `AdminPushOutbox.tsx` | line 93, 108, 119 | Pecah `return toast.error(...)` → `{ toast.error(...); return; }` |
+| `JamaahKiblat.tsx` | line 81-82 | `(event as any).webkitCompassHeading` |
 
-### E.3 Konfigurasi Dinamis App Mode
-Tabel baru `pwa_app_layout` (JSONB) yang bisa diedit `super_admin`/`owner` di `AdminPWASettings`:
-- Pilihan tema app (classic/modern/luxury/minimal)
-- Susunan menu bottom nav (drag & drop)
-- Quick actions di home aplikasi
-- Splash screen, warna, logo
-- Toggle modul (toko, ibadah, komunitas) on/off
+### Tahap 3 — Verifikasi
 
-### E.4 PWA Hardening
-Sesuai panduan: `NetworkFirst` untuk HTML, `navigateFallbackDenylist` untuk `/~oauth`, kill-switch SW siap, devOptions disabled.
+Karena harness build otomatis menjalankan typecheck, akan terlihat kalau masih ada error. Saya tidak menjalankan `tsc` manual.
 
----
+### Tahap 4 — Lighthouse audit (setelah build hijau)
 
-## F. Fase 5 — Modul Ibadah Harian (Jemaah App)
+Dengan tool `browser--navigate_to_sandbox` + `browser--performance_profile`, audit 3 halaman:
 
-Halaman/komponen baru di `src/pages/jamaah/ibadah/`:
-- `KiblatCompass.tsx` — DeviceOrientation API
-- `JadwalSholatLive.tsx` — pakai data `JamaahWaktuSholat` + push reminder
-- `TasbihDigital.tsx` — counter offline-first
-- `AlQuranOffline.tsx` — surah list + bookmark (cache via SW)
-- `DoaHarian.tsx` — kategori (pagi, petang, makan, tidur, dll)
-- `ZikirPagiPetang.tsx` — checklist harian dengan streak
-- `PengingatSholatPush.tsx` — integrasi `useNotifications` + service worker
+1. **Landing** `/` — fokus LCP (hero image), CLS (font loading), FCP, INP.
+2. **Jamaah Portal** `/jamaah` (perlu login) — fokus bundle size, lazy loading, react-query refetch.
+3. **Admin Dashboard** `/admin` (perlu login) — fokus query parallelization, large lists, realtime overhead.
 
-Semua offline-capable (sesuai memori `jamaah-offline-content-pwa`).
+Output: tabel metrik per halaman + daftar bottleneck terurut dampak (LCP > CLS > INP > a11y > SEO). Lalu plan lanjutan untuk fix berdasarkan temuan (mis. preload font, lazy chunk hero, split admin route, dll.).
 
 ---
 
-## G. Fase 6 — Toko Produk untuk Jemaah
+## Risiko & Asumsi
 
-Storefront jemaah memanfaatkan tabel admin yang sudah ada (`AdminStoreProducts`, `AdminStoreCategories`, `AdminStoreOrders`):
+- **Asumsi**: migrasi `customer_mahrams` & `district/village` di `.migration-backup/` adalah definisi yang diinginkan (saya pakai versi RLS yang lebih ketat — versi backup pakai `USING (true)` permisif, akan saya perbaiki).
+- **Risiko**: kalau ada FK lain ke tabel ini di kode yang belum saya scan, bisa muncul error baru. Mitigasi: setelah migrasi saya re-scan import sebelum lanjut Tahap 2.
+- **Lighthouse**: butuh akun login untuk Jamaah & Admin. Kalau tidak punya akses test, audit hanya untuk Landing.
 
-Halaman baru:
-- `JamaahStore.tsx` — katalog grid + filter kategori
-- `JamaahStoreProductDetail.tsx` — detail + add to cart
-- `JamaahStoreCart.tsx` — keranjang
-- `JamaahStoreCheckout.tsx` — alamat, metode bayar (Midtrans/VA, sudah ada)
-- `JamaahStoreOrders.tsx` — riwayat pesanan + tracking
-
-Hook: `useStoreCart` (localStorage + sync DB saat login), `useStoreProducts`.
-
-RLS: produk public read; orders user-scoped.
-
----
-
-## H. Detail Teknis
-
-### H.1 File baru
-- `docs/AUDIT_DAN_RENCANA_PERBAIKAN.md` (Fase 1)
-- `src/components/auth/PermissionRoute.tsx` (sudah ada di backup, perlu di-port)
-- `src/pages/admin/AdminRoleManagementUnified.tsx`
-- `src/pages/admin/AdminPWAAppLayout.tsx`
-- `src/components/layout/JamaahAppShell.tsx`
-- `src/pages/jamaah/ibadah/*` (7 halaman)
-- `src/pages/jamaah/store/*` (5 halaman)
-- `src/hooks/useStoreCart.ts`
-- `src/hooks/usePWAAppLayout.ts`
-
-### H.2 File diedit
-- `AdminRoutes.tsx` — bungkus dengan `PermissionRoute`, tambah route konsolidasi
-- `CustomerRoutes.tsx` — tambah route ibadah & toko
-- `App.tsx` — auto-redirect berbasis `isStandalone` + role
-- `useWebsiteSettings.ts` — tambah field `pwa_app_layout`
-- `MobileBottomNav.tsx` — render dari konfigurasi dinamis
-
-### H.3 Migrasi DB (Fase 4–6)
-- Tambah kolom `pwa_app_layout JSONB` di `website_settings`
-- Tabel `store_carts` (user_id, items JSONB, updated_at) + RLS user-scoped
-- Pastikan tabel `store_products`/`store_orders` punya RLS read public / write owner
-- Tabel `ibadah_progress` (user_id, type, count, date) untuk streak zikir/doa
-
-### H.4 Standar yang dipatuhi
-- Semua status pembayaran final = `'paid'` (bukan `'verified'`)
-- Tidak pakai class `dark:` Tailwind, gunakan HSL token + deteksi lightness
-- Radix Select pakai controlled `value`
-- Zod cast `as unknown as InsertType` untuk Supabase
-- Login terpusat `/auth/login`
-- Edge function `create-agent` untuk create user admin
-
----
-
-## I. Urutan Eksekusi yang Diusulkan
-
-1. **Sekarang**: tulis `docs/AUDIT_DAN_RENCANA_PERBAIKAN.md` lengkap (Fase 1 — deliverable utama yang Anda minta).
-2. Tunggu review Anda atas dokumen.
-3. Eksekusi Fase 2 (bug kritis + RBAC) — perlu approval terpisah.
-4. Eksekusi Fase 3 (UI/UX jemaah).
-5. Eksekusi Fase 4 (dual mode + PWA dinamis) + migrasi DB.
-6. Eksekusi Fase 5 (modul ibadah).
-7. Eksekusi Fase 6 (toko jemaah) + migrasi DB.
-
-Tiap fase di-deliver bertahap supaya bisa direview & tidak menumpuk konflik.
-
----
-
-## J. Risiko & Catatan
-
-- **Cakupan sangat besar** (~110 halaman admin + 40 halaman jemaah). Audit Fase 1 akan menyoroti area paling berisiko, bukan menyentuh setiap baris.
-- PWA di preview Lovable dibatasi (iframe). Fitur app mode hanya berfungsi penuh di domain published.
-- Push notification butuh konfigurasi VAPID + edge function — akan diusulkan di Fase 5.
-- Toko butuh kepastian aturan pajak/kirim; default: digital + pickup, ekspansi nanti.
-
-Setelah Anda setuju, saya mulai dari Fase 1 (menulis file markdown audit lengkap).
+Sekitar 5-7 menit total sebelum mulai Lighthouse.
