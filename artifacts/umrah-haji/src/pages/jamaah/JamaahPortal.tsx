@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { usePWAConfig } from "@/hooks/usePWAConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +61,6 @@ export default function JamaahPortal() {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { getSetting } = useCompanySettings();
-  const { appLayout } = usePWAConfig();
   const { items: recentlyViewed, clearAll: clearRecentlyViewed } = useRecentlyViewedPackages();
   const { ids: wishlistIds, packages: wishlistPackages, count: wishlistCount } = useWishlist();
 
@@ -877,22 +875,18 @@ export default function JamaahPortal() {
                   <p className="text-xs">FAQ</p>
                 </Card>
               </Link>
-              {appLayout.modules.toko && (
-                <>
-                  <Link to="/store">
-                    <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                      <ShoppingBag className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-                      <p className="text-xs">Toko</p>
-                    </Card>
-                  </Link>
-                  <Link to="/store/orders">
-                    <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                      <Receipt className="h-6 w-6 mx-auto mb-1 text-amber-600" />
-                      <p className="text-xs">Pesanan</p>
-                    </Card>
-                  </Link>
-                </>
-              )}
+              <Link to="/store">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <ShoppingBag className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+                  <p className="text-xs">Toko</p>
+                </Card>
+              </Link>
+              <Link to="/store/orders">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <Receipt className="h-6 w-6 mx-auto mb-1 text-amber-600" />
+                  <p className="text-xs">Pesanan</p>
+                </Card>
+              </Link>
             </div>
           </div>
 

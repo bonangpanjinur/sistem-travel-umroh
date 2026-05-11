@@ -26,32 +26,18 @@ export interface PWAIconConfig {
   bgColor: string;
 }
 
-export type AppThemePreset = "classic" | "modern" | "luxury" | "minimal";
-
-export interface AppModulesConfig {
-  toko: boolean;
-  ibadah: boolean;
-  komunitas: boolean;
-  manasik: boolean;
-  finansial: boolean;
-  dokumen: boolean;
+export interface PushVapidConfig {
+  publicKey: string;
+  privateKey: string;
+  subject: string; // mailto:admin@example.com
+  enabled: boolean;
 }
 
-export interface AppLayoutConfig {
-  theme: AppThemePreset;
-  modules: AppModulesConfig;
-}
-
-export const DEFAULT_APP_LAYOUT: AppLayoutConfig = {
-  theme: "modern",
-  modules: {
-    toko: true,
-    ibadah: true,
-    komunitas: true,
-    manasik: true,
-    finansial: true,
-    dokumen: true,
-  },
+export const DEFAULT_VAPID_CONFIG: PushVapidConfig = {
+  publicKey: "",
+  privateKey: "",
+  subject: "mailto:admin@vinstour.com",
+  enabled: false,
 };
 
 export const DEFAULT_ICON_CONFIG: PWAIconConfig = {
@@ -144,6 +130,11 @@ export function usePWAConfig() {
     };
   }, [customData, settings]);
 
+  const vapidConfig: PushVapidConfig = useMemo(() => {
+    const saved = customData?.push_vapid_config as Partial<PushVapidConfig> | undefined;
+    return { ...DEFAULT_VAPID_CONFIG, ...(saved || {}) };
+  }, [customData]);
+
   const save = useCallback((newItems: BottomNavItem[], newIconConfig?: PWAIconConfig) => {
     updateSettings.mutate({
       custom_sections: {
@@ -190,28 +181,11 @@ export function usePWAConfig() {
     });
   }, [customData, updateSettings]);
 
-  const appLayout: AppLayoutConfig = useMemo(() => {
-    const saved = customData?.pwa_app_layout as Partial<AppLayoutConfig> | undefined;
-    return {
-      theme: (saved?.theme as AppThemePreset) || DEFAULT_APP_LAYOUT.theme,
-      modules: { ...DEFAULT_APP_LAYOUT.modules, ...(saved?.modules || {}) },
-    };
-  }, [customData]);
-
-  const saveAppLayout = useCallback((newLayout: AppLayoutConfig) => {
+  const saveVapidConfig = useCallback((cfg: PushVapidConfig) => {
     updateSettings.mutate({
       custom_sections: {
         ...customData,
-        pwa_app_layout: newLayout,
-      } as any,
-    });
-  }, [customData, updateSettings]);
-
-  const resetAppLayout = useCallback(() => {
-    updateSettings.mutate({
-      custom_sections: {
-        ...customData,
-        pwa_app_layout: DEFAULT_APP_LAYOUT,
+        push_vapid_config: cfg,
       } as any,
     });
   }, [customData, updateSettings]);
@@ -237,14 +211,13 @@ export function usePWAConfig() {
     items,
     headerNavLinks,
     iconConfig,
-    appLayout,
+    vapidConfig,
     activeItems,
     activeHeaderLinks,
     save,
     saveIconConfig,
     saveHeaderNavLinks,
-    saveAppLayout,
-    resetAppLayout,
+    saveVapidConfig,
     reset,
     resetHeaderNav,
     isSaving: updateSettings.isPending,

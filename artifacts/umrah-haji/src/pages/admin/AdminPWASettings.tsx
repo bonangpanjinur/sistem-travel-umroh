@@ -5,7 +5,7 @@ import {
   Home, Package, Calculator, DollarSign, User, Calendar,
   PiggyBank, BookOpen, LayoutGrid, Phone, Info, Upload,
   ImageIcon, Moon, Compass, Cloud, Target, ShoppingBag, Star, X, CheckCircle2,
-  Database, Layers, Sparkles,
+  Database,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,12 +21,9 @@ import {
   ALL_NAV_OPTIONS,
   DEFAULT_HEADER_NAV,
   DEFAULT_ICON_CONFIG,
-  DEFAULT_APP_LAYOUT,
   BottomNavItem,
   HeaderNavLink,
   PWAIconConfig,
-  AppLayoutConfig,
-  AppThemePreset,
 } from "@/hooks/usePWAConfig";
 import { cn } from "@/lib/utils";
 
@@ -123,9 +120,7 @@ export default function AdminPWASettings() {
     items,
     headerNavLinks: serverHeaderNavLinks,
     iconConfig: serverIconConfig,
-    appLayout: serverAppLayout,
     save, saveIconConfig, saveHeaderNavLinks,
-    saveAppLayout, resetAppLayout,
     reset, resetHeaderNav,
     isSaving, isLoading,
   } = usePWAConfig();
@@ -135,7 +130,6 @@ export default function AdminPWASettings() {
   );
   const [localHeaderNav, setLocalHeaderNav] = useState<HeaderNavLink[]>(DEFAULT_HEADER_NAV);
   const [iconConfig, setIconConfig] = useState<PWAIconConfig>(DEFAULT_ICON_CONFIG);
-  const [appLayout, setAppLayout] = useState<AppLayoutConfig>(DEFAULT_APP_LAYOUT);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [initialized, setInitialized] = useState(false);
@@ -158,10 +152,9 @@ export default function AdminPWASettings() {
       setLocalHeaderNav(mergedHeader);
       setIconConfig(serverIconConfig);
       setIconPreview(serverIconConfig.iconUrl);
-      setAppLayout(serverAppLayout);
       setInitialized(true);
     }
-  }, [isLoading, initialized, items, serverHeaderNavLinks, serverIconConfig, serverAppLayout]);
+  }, [isLoading, initialized, items, serverHeaderNavLinks, serverIconConfig]);
 
   const activeCount = localItems.filter((i) => i.enabled).length;
   const previewItems = localItems.filter((i) => i.enabled).slice(0, 5);
@@ -295,7 +288,6 @@ export default function AdminPWASettings() {
           <TabsTrigger value="header">Navigasi Header</TabsTrigger>
           <TabsTrigger value="icon">Ikon &amp; Tampilan</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
-          <TabsTrigger value="layout">Modul &amp; Tema</TabsTrigger>
           <TabsTrigger value="panduan">Cara Pasang</TabsTrigger>
         </TabsList>
 
@@ -767,117 +759,6 @@ export default function AdminPWASettings() {
           <p className="text-center text-xs text-muted-foreground mt-4">
             Preview tampilan saat website dipasang sebagai aplikasi (PWA) di ponsel
           </p>
-        </TabsContent>
-
-        {/* ── TAB: MODUL & TEMA ── */}
-        <TabsContent value="layout">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Layers className="h-4 w-4" /> Modul Aplikasi Jamaah
-                </CardTitle>
-                <CardDescription>
-                  Aktifkan atau nonaktifkan kelompok fitur yang muncul di portal jamaah
-                  saat aplikasi dipasang. Perubahan langsung berlaku untuk semua pengguna.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {([
-                  { key: "toko",       label: "Toko Online",       desc: "Katalog produk, keranjang, pesanan" },
-                  { key: "ibadah",     label: "Modul Ibadah",      desc: "Kiblat, Al-Quran, Doa, Tasbih, Tracker" },
-                  { key: "manasik",    label: "Manasik Digital",   desc: "Panduan & manasik interaktif" },
-                  { key: "komunitas",  label: "Komunitas",         desc: "Chat, rombongan, galeri, referral" },
-                  { key: "finansial",  label: "Finansial",         desc: "Tabungan, kalkulator, kurs, zakat" },
-                  { key: "dokumen",    label: "Dokumen & ID",      desc: "Digital ID, dokumen, kontrak, sertifikat" },
-                ] as const).map((m) => (
-                  <div
-                    key={m.key}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{m.label}</p>
-                      <p className="text-xs text-muted-foreground">{m.desc}</p>
-                    </div>
-                    <Switch
-                      checked={appLayout.modules[m.key]}
-                      onCheckedChange={(checked) =>
-                        setAppLayout((prev) => ({
-                          ...prev,
-                          modules: { ...prev.modules, [m.key]: checked },
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" /> Tema Aplikasi
-                </CardTitle>
-                <CardDescription>
-                  Pilih gaya visual default untuk portal jamaah dalam mode aplikasi.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {([
-                  { key: "modern",  label: "Modern",  desc: "Bersih, banyak ruang, kartu lembut" },
-                  { key: "classic", label: "Classic", desc: "Hijau emerald, klasik & ramah" },
-                  { key: "luxury",  label: "Luxury",  desc: "Emas & gelap, kesan premium" },
-                  { key: "minimal", label: "Minimal", desc: "Monokrom, fokus konten" },
-                ] as const).map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setAppLayout((prev) => ({ ...prev, theme: t.key as AppThemePreset }))}
-                    className={cn(
-                      "w-full text-left rounded-lg border p-3 transition-colors",
-                      appLayout.theme === t.key
-                        ? "border-primary ring-2 ring-primary/30 bg-primary/5"
-                        : "hover:border-muted-foreground/40",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold">{t.label}</p>
-                      {appLayout.theme === t.key && (
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
-                  </button>
-                ))}
-
-                <Separator className="my-2" />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      saveAppLayout(appLayout);
-                      toast.success("Modul & tema aplikasi disimpan!");
-                    }}
-                    disabled={isSaving}
-                    className="flex-1"
-                  >
-                    {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                    Simpan
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      resetAppLayout();
-                      setAppLayout(DEFAULT_APP_LAYOUT);
-                      toast.info("Modul & tema dikembalikan ke default.");
-                    }}
-                  >
-                    <RotateCcw className="h-4 w-4 mr-1" />
-                    Reset
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
         {/* ── TAB: CARA PASANG ── */}
