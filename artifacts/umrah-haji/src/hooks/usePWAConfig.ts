@@ -26,6 +26,20 @@ export interface PWAIconConfig {
   bgColor: string;
 }
 
+export interface PushVapidConfig {
+  publicKey: string;
+  privateKey: string;
+  subject: string; // mailto:admin@example.com
+  enabled: boolean;
+}
+
+export const DEFAULT_VAPID_CONFIG: PushVapidConfig = {
+  publicKey: "",
+  privateKey: "",
+  subject: "mailto:admin@vinstour.com",
+  enabled: false,
+};
+
 export const DEFAULT_ICON_CONFIG: PWAIconConfig = {
   iconUrl: null,
   appName: "Vinstour Travel",
@@ -116,6 +130,11 @@ export function usePWAConfig() {
     };
   }, [customData, settings]);
 
+  const vapidConfig: PushVapidConfig = useMemo(() => {
+    const saved = customData?.push_vapid_config as Partial<PushVapidConfig> | undefined;
+    return { ...DEFAULT_VAPID_CONFIG, ...(saved || {}) };
+  }, [customData]);
+
   const save = useCallback((newItems: BottomNavItem[], newIconConfig?: PWAIconConfig) => {
     updateSettings.mutate({
       custom_sections: {
@@ -162,6 +181,15 @@ export function usePWAConfig() {
     });
   }, [customData, updateSettings]);
 
+  const saveVapidConfig = useCallback((cfg: PushVapidConfig) => {
+    updateSettings.mutate({
+      custom_sections: {
+        ...customData,
+        push_vapid_config: cfg,
+      } as any,
+    });
+  }, [customData, updateSettings]);
+
   const activeItems = useMemo(
     () =>
       items
@@ -183,11 +211,13 @@ export function usePWAConfig() {
     items,
     headerNavLinks,
     iconConfig,
+    vapidConfig,
     activeItems,
     activeHeaderLinks,
     save,
     saveIconConfig,
     saveHeaderNavLinks,
+    saveVapidConfig,
     reset,
     resetHeaderNav,
     isSaving: updateSettings.isPending,
