@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +41,7 @@ export default function AdminPushNotifications() {
   const [showPriv, setShowPriv] = useState(false);
 
   // Sync draft when config loads
-  useMemo(() => {
+  useEffect(() => {
     setVapidDraft(vapidConfig);
   }, [vapidConfig.publicKey, vapidConfig.privateKey, vapidConfig.subject, vapidConfig.enabled]);
 
