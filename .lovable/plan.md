@@ -106,3 +106,8 @@ Komponen polimorfik (hero/cta/cards/testimonials/...) baca registry
 **Risiko:** (a) breaking change di branch/agent tenant — perlu smoke test 3 rute (`/`, `/cabang/<slug>`, `/agen/<slug>`); (b) cache theme di `localStorage` perlu bump `CURRENT_THEME_VERSION` ke `'3'`; (c) `theme_overrides` kosong harus di-fallback ke registry, bukan ke `null`.
 
 **Yang TIDAK diubah:** logic booking, payment, RBAC, RLS, migrations sebelumnya, `types.ts`. Murni front-end + 1 migration tambahan.
+
+## Update — Fase 3 (selesai sebagian)
+- Dispatcher polimorfik `ThemedHeroSection` & `ThemedCTASection` dibuat di `src/components/home/`. Memilih varian Hero/CTA berdasarkan `useTheme().layout` (registry + `website_settings.layout_variant`).
+- Refaktor `Index.tsx`, `BranchWebsite.tsx`, `AgentWebsite.tsx`: ternary chain panjang dihapus, kini hanya memanggil dispatcher → konsistensi 7 tema.
+- Sisa pekerjaan (Fase 4-7): hapus `isRoyal` hardcode di Testimonials/WhyChooseUs/QuickMenuGrid/FeaturedPackages/BannerCarousel, integrasikan tokens registry ke `ThemeProvider` (CSS vars `--theme-accent-gold`, `--radius` dinamis, density), tambahkan komponen TenantPublicLayout yang hilang, dan UI Appearance tab "Tema" dengan live-preview + per-section layout editor.
