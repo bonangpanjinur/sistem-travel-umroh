@@ -408,6 +408,29 @@ export default function AdminRoleManagementEnhanced() {
           </Suspense>
         </TabsContent>
 
+        {/* ── Override per User ────────────────────────────────────────── */}
+        <TabsContent value="user-overrides" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <UserCog className="h-4 w-4" />
+                Override Permission per User
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Pengaturan permission khusus per user (di luar role default) dikelola
+                dari halaman <strong>Manajemen User</strong>. Pilih user lalu buka tab
+                "Permission Override" untuk menambah/menghapus akses spesifik.
+              </p>
+              <p>
+                Override yang aktif akan otomatis ter-resolve oleh sistem efektif
+                permission (RPC v2) dan menimpa permission default role.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* ── Audit Log ─────────────────────────────────────────────────── */}
         <TabsContent value="audit" className="mt-6">
           <div className="mb-4">
