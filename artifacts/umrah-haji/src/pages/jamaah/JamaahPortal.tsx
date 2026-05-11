@@ -368,6 +368,9 @@ export default function JamaahPortal() {
         </div>
       )}
 
+      <PushNotifBanner customerId={customer?.id} />
+
+
       <div className="p-4 space-y-4">
         {/* P6: Enhanced Departure Countdown Widget */}
         {daysUntilDeparture !== null && daysUntilDeparture > 0 && (
