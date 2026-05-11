@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTheme } from '@/lib/themes/useTheme';
 import { supabase } from '@/integrations/supabase/client';
 import { usePackages } from '@/hooks/usePackages';
 import { PackageCard } from '@/components/packages/PackageCard';
@@ -32,7 +33,7 @@ function getPackageMinPrice(pkg: any): number {
 
 export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
   const { data: packages = [], isLoading } = usePackages();
-  const isRoyal = settings?.template === 'royal';
+  const { isDark } = useTheme(settings); const isRoyal = isDark;
   const layout = settings?.package_card_layout || 'modern';
   const imageRatio = settings?.package_card_image_ratio || '16/10';
   const showAirline = settings?.package_card_show_airline ?? true;

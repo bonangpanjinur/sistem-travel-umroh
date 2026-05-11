@@ -10,6 +10,7 @@ import { PageBuilder } from "@/components/admin/appearance/PageBuilder";
 import { LivePreview } from "@/components/admin/appearance/LivePreview";
 import { CustomSectionEditor } from "@/components/admin/appearance/CustomSectionEditor";
 import { TemplateSelector } from "@/components/admin/appearance/TemplateSelector";
+import { LayoutVariantEditor } from "@/components/admin/appearance/LayoutVariantEditor";
 import { NavLinksEditor } from "@/components/admin/appearance/NavLinksEditor";
 import { AboutPageEditor } from "@/components/admin/appearance/AboutPageEditor";
 import { SavingsPageEditor } from "@/components/admin/appearance/SavingsPageEditor";
@@ -260,6 +261,7 @@ export default function AdminAppearance() {
         </TabsContent>
 
         <TabsContent value="layout">
+          {settings && <div className="mb-6"><LayoutVariantEditor settings={settings} /></div>}
           {settings && <PageBuilder settings={settings} />}
         </TabsContent>
 

@@ -1,4 +1,5 @@
 import { Star, Quote, Crown } from 'lucide-react';
+import { useTheme } from '@/lib/themes/useTheme';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { usePublicTestimonials } from '@/hooks/useTestimonials';
@@ -18,7 +19,7 @@ const fallbackTestimonials = [
 export function Testimonials({ settings }: TestimonialsProps) {
   const { data: dbTestimonials, isLoading } = usePublicTestimonials();
   const testimonials = dbTestimonials && dbTestimonials.length > 0 ? dbTestimonials : fallbackTestimonials;
-  const isRoyal = settings?.template === 'royal';
+  const { isDark } = useTheme(settings); const isRoyal = isDark;
 
   return (
     <section className={`py-20 transition-colors duration-500 ${isRoyal ? 'bg-[#050505] text-white' : 'bg-primary/5'}`}>

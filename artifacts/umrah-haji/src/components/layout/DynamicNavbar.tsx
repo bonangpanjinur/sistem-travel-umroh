@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '@/lib/themes/useTheme';
 import { Link, useNavigate } from 'react-router-dom';
 import { WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import {
@@ -177,7 +178,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const { isDark, toggle: toggleDark } = useDarkMode();
   const settings = tenantSettings || mainSettings;
   const navigate = useNavigate();
-  const isRoyal = settings?.template === 'royal';
+  const { isDark } = useTheme(settings); const isRoyal = isDark;
 
   const handleSignOut = async () => {
     await signOut();

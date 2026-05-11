@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
 import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
+import { getTheme, RADIUS_MAP, DENSITY_MAP } from '@/lib/themes/registry';
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -16,30 +17,32 @@ const PRELOADED_FONTS = new Set(['Inter', 'Plus Jakarta Sans']);
 function generateCSSVariables(settings: WebsiteSettings | null | undefined): Record<string, string> {
   if (!settings) return {};
 
+  const tokens = getTheme(settings.template);
+
   return {
-    '--primary': settings.primary_color || '142 70% 45%',
+    '--primary': settings.primary_color || tokens.colors.primary,
     '--primary-foreground': '0 0% 100%',
-    '--secondary': settings.secondary_color || '45 93% 47%',
+    '--secondary': settings.secondary_color || tokens.colors.secondary,
     '--secondary-foreground': '0 0% 0%',
-    '--accent': settings.accent_color || '142 60% 35%',
+    '--accent': settings.accent_color || tokens.colors.accent,
     '--accent-foreground': '0 0% 100%',
-    '--background': settings.background_color || '0 0% 100%',
-    '--foreground': settings.foreground_color || '142 20% 10%',
+    '--background': settings.background_color || tokens.colors.background,
+    '--foreground': settings.foreground_color || tokens.colors.foreground,
     '--muted': `${settings.background_color?.split(' ')[0] || '0'} 10% 94%`,
     '--muted-foreground': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 45%`,
-    '--card': settings.background_color || '0 0% 100%',
-    '--card-foreground': settings.foreground_color || '142 20% 10%',
-    '--popover': settings.background_color || '0 0% 100%',
-    '--popover-foreground': settings.foreground_color || '142 20% 10%',
+    '--card': tokens.colors.surface || settings.background_color || tokens.colors.background,
+    '--card-foreground': settings.foreground_color || tokens.colors.foreground,
+    '--popover': tokens.colors.surface || settings.background_color || tokens.colors.background,
+    '--popover-foreground': settings.foreground_color || tokens.colors.foreground,
     '--border': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 90%`,
     '--input': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 90%`,
-    '--ring': settings.primary_color || '142 70% 45%',
-    '--sidebar-primary': settings.primary_color || '142 70% 45%',
-    '--sidebar-accent': settings.accent_color || '142 60% 35%',
-    '--sidebar-background': settings.background_color || '0 0% 100%',
-    '--sidebar-foreground': settings.foreground_color || '142 20% 10%',
+    '--ring': settings.primary_color || tokens.colors.primary,
+    '--sidebar-primary': settings.primary_color || tokens.colors.primary,
+    '--sidebar-accent': settings.accent_color || tokens.colors.accent,
+    '--sidebar-background': settings.background_color || tokens.colors.background,
+    '--sidebar-foreground': settings.foreground_color || tokens.colors.foreground,
     '--sidebar-border': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 90%`,
-    '--sidebar-ring': settings.primary_color || '142 70% 45%',
+    '--sidebar-ring': settings.primary_color || tokens.colors.primary,
     '--success': '142 76% 36%',
     '--success-foreground': '0 0% 100%',
     '--warning': '38 92% 50%',
@@ -52,8 +55,13 @@ function generateCSSVariables(settings: WebsiteSettings | null | undefined): Rec
     '--destructive': '0 84% 60%',
     '--destructive-foreground': '0 0% 100%',
     '--destructive-muted': '0 84% 95%',
-    '--font-heading': settings.heading_font || 'Plus Jakarta Sans',
-    '--font-body': settings.body_font || 'Inter',
+    '--font-heading': settings.heading_font || tokens.fonts.heading,
+    '--font-body': settings.body_font || tokens.fonts.body,
+    // Registry-driven tokens (always synced to active theme).
+    '--radius': RADIUS_MAP[tokens.radius],
+    '--section-py': DENSITY_MAP[tokens.density],
+    '--theme-accent-gold': tokens.colors.accentGold || tokens.colors.accent,
+    '--theme-mood': tokens.mood,
   };
 }
 

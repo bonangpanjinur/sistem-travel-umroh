@@ -111,3 +111,9 @@ Komponen polimorfik (hero/cta/cards/testimonials/...) baca registry
 - Dispatcher polimorfik `ThemedHeroSection` & `ThemedCTASection` dibuat di `src/components/home/`. Memilih varian Hero/CTA berdasarkan `useTheme().layout` (registry + `website_settings.layout_variant`).
 - Refaktor `Index.tsx`, `BranchWebsite.tsx`, `AgentWebsite.tsx`: ternary chain panjang dihapus, kini hanya memanggil dispatcher → konsistensi 7 tema.
 - Sisa pekerjaan (Fase 4-7): hapus `isRoyal` hardcode di Testimonials/WhyChooseUs/QuickMenuGrid/FeaturedPackages/BannerCarousel, integrasikan tokens registry ke `ThemeProvider` (CSS vars `--theme-accent-gold`, `--radius` dinamis, density), tambahkan komponen TenantPublicLayout yang hilang, dan UI Appearance tab "Tema" dengan live-preview + per-section layout editor.
+
+## Update — Fase 4-7 (selesai)
+- **Fase 4**: `isRoyal` di Testimonials/WhyChooseUs/QuickMenuGrid/FeaturedPackages/DynamicNavbar/DynamicFooter sekarang derive dari `useTheme(settings).isDark` — tema dark (royal+futuristic) konsisten gelap.
+- **Fase 5**: ThemeProvider menyuntikkan token registry sebagai CSS vars (`--radius`, `--section-py`, `--theme-accent-gold`, `--theme-mood`) dan fallback warna/font kini mengambil dari `getTheme(template)`.
+- **Fase 6**: `LayoutVariantEditor` baru di tab Layout — admin bisa override hero/cta/packages/testimonials variant per tenant; tersimpan di `website_settings.layout_variant`.
+- **Fase 7**: `TenantPublicLayout` kini sejajar dengan `DynamicPublicLayout` (AnnouncementBar, MobileBottomNav, PWAInstallPrompt, WhatsAppWidget). Tipe `WebsiteSettings` di kedua hook ditambahkan `layout_variant` & `theme_overrides`.
