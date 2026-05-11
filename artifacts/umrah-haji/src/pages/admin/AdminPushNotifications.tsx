@@ -424,6 +424,101 @@ export default function AdminPushNotifications() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="vapid" className="space-y-4">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              VAPID Keys digunakan untuk Web Push Notifications. Generate sepasang key (public + private) lalu paste di bawah. Public key akan dipakai jamaah untuk subscribe, private key dipakai server untuk sign push.
+              <a href="https://vapidkeys.com/" target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 text-primary hover:underline">
+                Generator online <ExternalLink className="h-3 w-3" />
+              </a>
+              {" atau jalankan: "}
+              <code className="bg-muted px-1.5 py-0.5 rounded text-xs">npx web-push generate-vapid-keys</code>
+            </AlertDescription>
+          </Alert>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                VAPID Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                <div>
+                  <p className="text-sm font-semibold">Aktifkan Web Push</p>
+                  <p className="text-xs text-muted-foreground">Jika nonaktif, jamaah tidak bisa subscribe push notification</p>
+                </div>
+                <Checkbox
+                  checked={vapidDraft.enabled}
+                  onCheckedChange={(v) => setVapidDraft((d) => ({ ...d, enabled: !!v }))}
+                />
+              </div>
+
+              <div>
+                <Label>Subject (mailto)</Label>
+                <Input
+                  value={vapidDraft.subject}
+                  onChange={(e) => setVapidDraft((d) => ({ ...d, subject: e.target.value }))}
+                  placeholder="mailto:admin@vinstour.com"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Email kontak admin (wajib format mailto:)</p>
+              </div>
+
+              <div>
+                <Label>VAPID Public Key</Label>
+                <Textarea
+                  value={vapidDraft.publicKey}
+                  onChange={(e) => setVapidDraft((d) => ({ ...d, publicKey: e.target.value.trim() }))}
+                  rows={2}
+                  className="font-mono text-xs"
+                  placeholder="BKcM...IgGo"
+                />
+                <p className="text-xs text-muted-foreground mt-1">~87 karakter base64url. Aman untuk publik.</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label>VAPID Private Key</Label>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowPriv((s) => !s)}>
+                    {showPriv ? "Sembunyikan" : "Tampilkan"}
+                  </Button>
+                </div>
+                <Textarea
+                  value={showPriv ? vapidDraft.privateKey : (vapidDraft.privateKey ? "•".repeat(Math.min(vapidDraft.privateKey.length, 43)) : "")}
+                  onChange={(e) => setVapidDraft((d) => ({ ...d, privateKey: e.target.value.trim() }))}
+                  rows={2}
+                  className="font-mono text-xs"
+                  placeholder="abc123...XYZ"
+                  readOnly={!showPriv && !!vapidDraft.privateKey}
+                />
+                <p className="text-xs text-amber-600 mt-1">⚠ RAHASIA. Hanya admin yang boleh tahu. Disimpan di database.</p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button onClick={() => saveVapidConfig(vapidDraft)} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Simpan Konfigurasi
+                </Button>
+                <Button variant="outline" onClick={() => setVapidDraft(DEFAULT_VAPID_CONFIG)}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+              </div>
+
+              {vapidConfig.publicKey && (
+                <div className="mt-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                  <div className="flex items-center gap-2 text-sm font-medium text-emerald-900">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Status: {vapidConfig.enabled ? "Aktif & terkonfigurasi" : "Terkonfigurasi (belum aktif)"}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
