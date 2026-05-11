@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { Bell, Send, Users, CheckCircle2, XCircle, Clock, Search, Info, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
+import { usePWAConfig, DEFAULT_VAPID_CONFIG, type PushVapidConfig } from "@/hooks/usePWAConfig";
+import { Key, Save, RotateCcw, ShieldCheck, ExternalLink } from "lucide-react";
 
 const NOTIF_TYPES = [
   { value: "info", label: "Informasi", color: "bg-blue-100 text-blue-800" },
@@ -34,6 +36,15 @@ const RECIPIENT_TYPES = [
 
 export default function AdminPushNotifications() {
   const queryClient = useQueryClient();
+  const { vapidConfig, saveVapidConfig, isSaving } = usePWAConfig();
+  const [vapidDraft, setVapidDraft] = useState<PushVapidConfig>(DEFAULT_VAPID_CONFIG);
+  const [showPriv, setShowPriv] = useState(false);
+
+  // Sync draft when config loads
+  useMemo(() => {
+    setVapidDraft(vapidConfig);
+  }, [vapidConfig.publicKey, vapidConfig.privateKey, vapidConfig.subject, vapidConfig.enabled]);
+
   const [recipientType, setRecipientType] = useState("all");
   const [selectedDeparture, setSelectedDeparture] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
@@ -185,6 +196,7 @@ export default function AdminPushNotifications() {
         <TabsList>
           <TabsTrigger value="kirim" className="gap-1.5"><Send className="h-3.5 w-3.5" /> Kirim Notifikasi</TabsTrigger>
           <TabsTrigger value="riwayat" className="gap-1.5"><Clock className="h-3.5 w-3.5" /> Riwayat</TabsTrigger>
+          <TabsTrigger value="vapid" className="gap-1.5"><Key className="h-3.5 w-3.5" /> Konfigurasi VAPID</TabsTrigger>
         </TabsList>
 
         <TabsContent value="kirim" className="space-y-6">
