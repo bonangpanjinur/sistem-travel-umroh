@@ -26,6 +26,34 @@ export interface PWAIconConfig {
   bgColor: string;
 }
 
+export type AppThemePreset = "classic" | "modern" | "luxury" | "minimal";
+
+export interface AppModulesConfig {
+  toko: boolean;
+  ibadah: boolean;
+  komunitas: boolean;
+  manasik: boolean;
+  finansial: boolean;
+  dokumen: boolean;
+}
+
+export interface AppLayoutConfig {
+  theme: AppThemePreset;
+  modules: AppModulesConfig;
+}
+
+export const DEFAULT_APP_LAYOUT: AppLayoutConfig = {
+  theme: "modern",
+  modules: {
+    toko: true,
+    ibadah: true,
+    komunitas: true,
+    manasik: true,
+    finansial: true,
+    dokumen: true,
+  },
+};
+
 export const DEFAULT_ICON_CONFIG: PWAIconConfig = {
   iconUrl: null,
   appName: "Vinstour Travel",
@@ -162,6 +190,32 @@ export function usePWAConfig() {
     });
   }, [customData, updateSettings]);
 
+  const appLayout: AppLayoutConfig = useMemo(() => {
+    const saved = customData?.pwa_app_layout as Partial<AppLayoutConfig> | undefined;
+    return {
+      theme: (saved?.theme as AppThemePreset) || DEFAULT_APP_LAYOUT.theme,
+      modules: { ...DEFAULT_APP_LAYOUT.modules, ...(saved?.modules || {}) },
+    };
+  }, [customData]);
+
+  const saveAppLayout = useCallback((newLayout: AppLayoutConfig) => {
+    updateSettings.mutate({
+      custom_sections: {
+        ...customData,
+        pwa_app_layout: newLayout,
+      } as any,
+    });
+  }, [customData, updateSettings]);
+
+  const resetAppLayout = useCallback(() => {
+    updateSettings.mutate({
+      custom_sections: {
+        ...customData,
+        pwa_app_layout: DEFAULT_APP_LAYOUT,
+      } as any,
+    });
+  }, [customData, updateSettings]);
+
   const activeItems = useMemo(
     () =>
       items
@@ -183,11 +237,14 @@ export function usePWAConfig() {
     items,
     headerNavLinks,
     iconConfig,
+    appLayout,
     activeItems,
     activeHeaderLinks,
     save,
     saveIconConfig,
     saveHeaderNavLinks,
+    saveAppLayout,
+    resetAppLayout,
     reset,
     resetHeaderNav,
     isSaving: updateSettings.isPending,
