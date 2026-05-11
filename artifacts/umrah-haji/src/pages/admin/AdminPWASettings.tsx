@@ -5,7 +5,7 @@ import {
   Home, Package, Calculator, DollarSign, User, Calendar,
   PiggyBank, BookOpen, LayoutGrid, Phone, Info, Upload,
   ImageIcon, Moon, Compass, Cloud, Target, ShoppingBag, Star, X, CheckCircle2,
-  Database,
+  Database, Layers, Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,12 @@ import {
   ALL_NAV_OPTIONS,
   DEFAULT_HEADER_NAV,
   DEFAULT_ICON_CONFIG,
+  DEFAULT_APP_LAYOUT,
   BottomNavItem,
   HeaderNavLink,
   PWAIconConfig,
+  AppLayoutConfig,
+  AppThemePreset,
 } from "@/hooks/usePWAConfig";
 import { cn } from "@/lib/utils";
 
