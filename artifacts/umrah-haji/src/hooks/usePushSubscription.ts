@@ -60,7 +60,7 @@ export function usePushSubscription(customerId?: string) {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidConfig.publicKey),
+        applicationServerKey: urlBase64ToUint8Array(vapidConfig.publicKey) as BufferSource,
       });
       const json = sub.toJSON();
       const { error } = await supabase.functions.invoke("push-subscribe", {
