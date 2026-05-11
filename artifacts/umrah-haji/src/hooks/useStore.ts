@@ -548,6 +548,7 @@ export function usePlaceOrder() {
         product_image: (i.product.images?.[0] as string) ?? null,
         quantity: i.quantity,
         unit_price: i.product.price,
+        subtotal: i.product.price * i.quantity,
       }));
 
       const { error: iErr } = await supabase.from("store_order_items").insert(items);
