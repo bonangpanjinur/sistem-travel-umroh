@@ -769,6 +769,117 @@ export default function AdminPWASettings() {
           </p>
         </TabsContent>
 
+        {/* ── TAB: MODUL & TEMA ── */}
+        <TabsContent value="layout">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-4 w-4" /> Modul Aplikasi Jamaah
+                </CardTitle>
+                <CardDescription>
+                  Aktifkan atau nonaktifkan kelompok fitur yang muncul di portal jamaah
+                  saat aplikasi dipasang. Perubahan langsung berlaku untuk semua pengguna.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {([
+                  { key: "toko",       label: "Toko Online",       desc: "Katalog produk, keranjang, pesanan" },
+                  { key: "ibadah",     label: "Modul Ibadah",      desc: "Kiblat, Al-Quran, Doa, Tasbih, Tracker" },
+                  { key: "manasik",    label: "Manasik Digital",   desc: "Panduan & manasik interaktif" },
+                  { key: "komunitas",  label: "Komunitas",         desc: "Chat, rombongan, galeri, referral" },
+                  { key: "finansial",  label: "Finansial",         desc: "Tabungan, kalkulator, kurs, zakat" },
+                  { key: "dokumen",    label: "Dokumen & ID",      desc: "Digital ID, dokumen, kontrak, sertifikat" },
+                ] as const).map((m) => (
+                  <div
+                    key={m.key}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{m.label}</p>
+                      <p className="text-xs text-muted-foreground">{m.desc}</p>
+                    </div>
+                    <Switch
+                      checked={appLayout.modules[m.key]}
+                      onCheckedChange={(checked) =>
+                        setAppLayout((prev) => ({
+                          ...prev,
+                          modules: { ...prev.modules, [m.key]: checked },
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" /> Tema Aplikasi
+                </CardTitle>
+                <CardDescription>
+                  Pilih gaya visual default untuk portal jamaah dalam mode aplikasi.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {([
+                  { key: "modern",  label: "Modern",  desc: "Bersih, banyak ruang, kartu lembut" },
+                  { key: "classic", label: "Classic", desc: "Hijau emerald, klasik & ramah" },
+                  { key: "luxury",  label: "Luxury",  desc: "Emas & gelap, kesan premium" },
+                  { key: "minimal", label: "Minimal", desc: "Monokrom, fokus konten" },
+                ] as const).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setAppLayout((prev) => ({ ...prev, theme: t.key as AppThemePreset }))}
+                    className={cn(
+                      "w-full text-left rounded-lg border p-3 transition-colors",
+                      appLayout.theme === t.key
+                        ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                        : "hover:border-muted-foreground/40",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold">{t.label}</p>
+                      {appLayout.theme === t.key && (
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
+                  </button>
+                ))}
+
+                <Separator className="my-2" />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      saveAppLayout(appLayout);
+                      toast.success("Modul & tema aplikasi disimpan!");
+                    }}
+                    disabled={isSaving}
+                    className="flex-1"
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                    Simpan
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      resetAppLayout();
+                      setAppLayout(DEFAULT_APP_LAYOUT);
+                      toast.info("Modul & tema dikembalikan ke default.");
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    Reset
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         {/* ── TAB: CARA PASANG ── */}
         <TabsContent value="panduan">
           <div className="grid gap-4 sm:grid-cols-3">
