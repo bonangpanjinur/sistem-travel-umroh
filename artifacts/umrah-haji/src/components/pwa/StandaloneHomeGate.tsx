@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
  *  - PWA standalone + signed-out → /auth/login
  */
 export function StandaloneHomeGate({ children }: { children: ReactNode }) {
-  const { user, role, isLoading } = useAuth();
+  const { user, hasRole, isLoading } = useAuth() as any;
   const [isStandalone, setIsStandalone] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -36,7 +36,8 @@ export function StandaloneHomeGate({ children }: { children: ReactNode }) {
   // Standalone (installed PWA) — route into app
   if (!user) return <Navigate to="/auth/login" replace />;
 
-  const jamaahRoles = new Set(["customer", "jamaah", "user"]);
-  if (role && jamaahRoles.has(role)) return <Navigate to="/jamaah" replace />;
+  const isJamaah =
+    hasRole?.("customer") || hasRole?.("jamaah") || hasRole?.("user");
+  if (isJamaah) return <Navigate to="/jamaah" replace />;
   return <Navigate to="/dashboard" replace />;
 }
