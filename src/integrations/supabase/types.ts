@@ -5378,51 +5378,78 @@ export type Database = {
       theme_presets: {
         Row: {
           accent_color: string
+          accent_gold: string | null
           background_color: string
           body_font: string | null
+          card_style: string | null
           created_at: string | null
+          cta_variant: string | null
+          density: string | null
           description: string | null
           foreground_color: string
           heading_font: string | null
+          hero_variant: string | null
           id: string
           is_default: boolean | null
+          mood: string | null
           name: string
+          ornament: string | null
           preview_image_url: string | null
           primary_color: string
+          radius_style: string | null
           secondary_color: string
           slug: string
+          surface_color: string | null
         }
         Insert: {
           accent_color: string
+          accent_gold?: string | null
           background_color?: string
           body_font?: string | null
+          card_style?: string | null
           created_at?: string | null
+          cta_variant?: string | null
+          density?: string | null
           description?: string | null
           foreground_color?: string
           heading_font?: string | null
+          hero_variant?: string | null
           id?: string
           is_default?: boolean | null
+          mood?: string | null
           name: string
+          ornament?: string | null
           preview_image_url?: string | null
           primary_color: string
+          radius_style?: string | null
           secondary_color: string
           slug: string
+          surface_color?: string | null
         }
         Update: {
           accent_color?: string
+          accent_gold?: string | null
           background_color?: string
           body_font?: string | null
+          card_style?: string | null
           created_at?: string | null
+          cta_variant?: string | null
+          density?: string | null
           description?: string | null
           foreground_color?: string
           heading_font?: string | null
+          hero_variant?: string | null
           id?: string
           is_default?: boolean | null
+          mood?: string | null
           name?: string
+          ornament?: string | null
           preview_image_url?: string | null
           primary_color?: string
+          radius_style?: string | null
           secondary_color?: string
           slug?: string
+          surface_color?: string | null
         }
         Relationships: []
       }
@@ -5811,6 +5838,7 @@ export type Database = {
           hero_title: string | null
           homepage_sections: Json | null
           id: string
+          layout_variant: Json | null
           logo_url: string | null
           meta_description: string | null
           meta_title: string | null
@@ -5823,6 +5851,7 @@ export type Database = {
           social_youtube: string | null
           tagline: string | null
           template: string
+          theme_overrides: Json | null
           updated_at: string | null
         }
         Insert: {
@@ -5853,6 +5882,7 @@ export type Database = {
           hero_title?: string | null
           homepage_sections?: Json | null
           id?: string
+          layout_variant?: Json | null
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
@@ -5865,6 +5895,7 @@ export type Database = {
           social_youtube?: string | null
           tagline?: string | null
           template?: string
+          theme_overrides?: Json | null
           updated_at?: string | null
         }
         Update: {
@@ -5895,6 +5926,7 @@ export type Database = {
           hero_title?: string | null
           homepage_sections?: Json | null
           id?: string
+          layout_variant?: Json | null
           logo_url?: string | null
           meta_description?: string | null
           meta_title?: string | null
@@ -5907,6 +5939,7 @@ export type Database = {
           social_youtube?: string | null
           tagline?: string | null
           template?: string
+          theme_overrides?: Json | null
           updated_at?: string | null
         }
         Relationships: [
