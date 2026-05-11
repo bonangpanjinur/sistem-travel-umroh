@@ -47,6 +47,24 @@ import {
 
 const WELCOME_SEEN_KEY = "jamaah-welcome-seen";
 
+function PushNotifBanner({ customerId }: { customerId?: string }) {
+  const { canSubscribe, isSubscribed, isLoading, subscribe, permission } =
+    usePushSubscription(customerId);
+  if (!canSubscribe || isSubscribed || permission === "denied") return null;
+  return (
+    <div className="bg-amber-50 border-y border-amber-200 p-3 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <BellRing className="h-4 w-4 text-amber-600" />
+        <p className="text-sm text-amber-900">Aktifkan notifikasi untuk update penting</p>
+      </div>
+      <Button size="sm" variant="outline" onClick={subscribe} disabled={isLoading}
+        className="border-amber-400 text-amber-800 hover:bg-amber-100">
+        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aktifkan"}
+      </Button>
+    </div>
+  );
+}
+
 function getRoomTypeLabel(type?: string): string {
   const map: Record<string, string> = {
     quad: "Quad (4 orang)",
