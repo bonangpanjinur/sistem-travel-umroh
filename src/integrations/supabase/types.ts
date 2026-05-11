@@ -2446,6 +2446,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ibadah_progress: {
+        Row: {
+          completed: boolean
+          count: number
+          created_at: string
+          ibadah_date: string
+          ibadah_type: string
+          id: string
+          notes: string | null
+          target: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          count?: number
+          created_at?: string
+          ibadah_date?: string
+          ibadah_type: string
+          id?: string
+          notes?: string | null
+          target?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          count?: number
+          created_at?: string
+          ibadah_date?: string
+          ibadah_type?: string
+          id?: string
+          notes?: string | null
+          target?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       itinerary_templates: {
         Row: {
           created_at: string
