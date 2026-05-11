@@ -19,6 +19,7 @@ import {
   Clock, DollarSign, FileText, Megaphone,
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
   MessageSquare, Image, Gift, Scale, Scroll, GraduationCap, BellRing
+  , ShoppingBag, Receipt
 } from "lucide-react";
 import { format, differenceInDays, differenceInSeconds } from "date-fns";
 import { id } from "date-fns/locale";
