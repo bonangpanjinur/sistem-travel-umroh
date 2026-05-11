@@ -38,6 +38,7 @@ const JamaahWelcome = lazy(() => import("@/pages/jamaah/JamaahWelcome"));
 // Fase 4 — Modul Ibadah Baru
 const JamaahKiblat = lazy(() => import("@/pages/jamaah/JamaahKiblat"));
 const JamaahAlQuran = lazy(() => import("@/pages/jamaah/JamaahAlQuran"));
+const JamaahZikir = lazy(() => import("@/pages/jamaah/JamaahZikir"));
 
 // Fase 3 — Fitur Sosial & Komunitas
 const JamaahChat = lazy(() => import("@/pages/jamaah/JamaahChat"));
@@ -187,6 +188,7 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/pengingat-ibadah" element={<LazyPage><JamaahPengingatIbadah /></LazyPage>} />
       <Route path="/jamaah/kiblat" element={<LazyPage><JamaahKiblat /></LazyPage>} />
       <Route path="/jamaah/al-quran" element={<LazyPage><JamaahAlQuran /></LazyPage>} />
+      <Route path="/jamaah/zikir" element={<LazyPage><JamaahZikir /></LazyPage>} />
 
       {/* Toko Online / E-Commerce */}
       <Route path="/store"                   element={<LazyPage><StorePage /></LazyPage>} />
