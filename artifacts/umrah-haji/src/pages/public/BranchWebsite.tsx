@@ -16,7 +16,6 @@ export default function BranchWebsite() {
   const { branchSlug } = useParams<{ branchSlug: string }>();
   const { data: settings, isLoading, isError } = useTenantWebsiteSettings('branch', branchSlug);
   const { setTenant } = useTenant();
-  const template = settings?.template || 'classic';
 
   // Simpan referensi cabang ke localStorage agar booking auto-attribut ke cabang ini
   useSaveAgentRef({
