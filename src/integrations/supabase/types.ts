@@ -1207,6 +1207,54 @@ export type Database = {
           },
         ]
       }
+      customer_mahrams: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          mahram_customer_id: string | null
+          mahram_name: string
+          mahram_relation: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          mahram_customer_id?: string | null
+          mahram_name: string
+          mahram_relation: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          mahram_customer_id?: string | null
+          mahram_name?: string
+          mahram_relation?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_mahrams_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_mahrams_mahram_customer_id_fkey"
+            columns: ["mahram_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -1216,6 +1264,7 @@ export type Database = {
           branch_id: string | null
           city: string | null
           created_at: string | null
+          district: string | null
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -1238,6 +1287,7 @@ export type Database = {
           province: string | null
           updated_at: string | null
           user_id: string | null
+          village: string | null
         }
         Insert: {
           address?: string | null
@@ -1247,6 +1297,7 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          district?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1269,6 +1320,7 @@ export type Database = {
           province?: string | null
           updated_at?: string | null
           user_id?: string | null
+          village?: string | null
         }
         Update: {
           address?: string | null
@@ -1278,6 +1330,7 @@ export type Database = {
           branch_id?: string | null
           city?: string | null
           created_at?: string | null
+          district?: string | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -1300,6 +1353,7 @@ export type Database = {
           province?: string | null
           updated_at?: string | null
           user_id?: string | null
+          village?: string | null
         }
         Relationships: [
           {
@@ -5014,6 +5068,73 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_product_reviews: {
+        Row: {
+          admin_reply: string | null
+          admin_reply_at: string | null
+          comment: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          is_published: boolean
+          order_id: string
+          product_id: string
+          rating: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_reply?: string | null
+          admin_reply_at?: string | null
+          comment?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          is_published?: boolean
+          order_id: string
+          product_id: string
+          rating: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_reply?: string | null
+          admin_reply_at?: string | null
+          comment?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          is_published?: boolean
+          order_id?: string
+          product_id?: string
+          rating?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_product_reviews_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_product_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
             referencedColumns: ["id"]
           },
         ]
