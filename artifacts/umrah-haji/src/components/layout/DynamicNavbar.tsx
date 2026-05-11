@@ -178,7 +178,7 @@ export function DynamicNavbar({ tenantSettings }: DynamicNavbarProps = {}) {
   const { isDark, toggle: toggleDark } = useDarkMode();
   const settings = tenantSettings || mainSettings;
   const navigate = useNavigate();
-  const { isDark } = useTheme(settings); const isRoyal = isDark;
+  const { isDark: themeIsDark } = useTheme(settings); const isRoyal = themeIsDark;
 
   const handleSignOut = async () => {
     await signOut();
