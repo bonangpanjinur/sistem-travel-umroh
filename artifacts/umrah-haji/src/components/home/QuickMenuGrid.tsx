@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTheme } from '@/lib/themes/useTheme';
 import {
   Package, Calculator, DollarSign, Calendar, PiggyBank,
   BookOpen, Phone, Star, MapPin, Heart, FileText, Search,
@@ -277,7 +278,7 @@ interface QuickMenuGridProps {
 
 export function QuickMenuGrid({ settings }: QuickMenuGridProps) {
   const { user, isCustomer } = useAuth();
-  const isRoyal = settings?.template === 'royal';
+  const { isDark } = useTheme(settings); const isRoyal = isDark;
 
   return (
     <section className={cn('py-10', isRoyal ? 'bg-[#0a0a0a]' : 'bg-background')}>
