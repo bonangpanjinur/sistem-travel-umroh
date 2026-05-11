@@ -78,8 +78,9 @@ export default function JamaahKiblat() {
   useEffect(() => {
     const handleOrientation = (e: DeviceOrientationEvent) => {
       let angle = 0;
-      if (e.webkitCompassHeading !== undefined) {
-        angle = e.webkitCompassHeading as number;
+      const wk = (e as any).webkitCompassHeading;
+      if (wk !== undefined) {
+        angle = wk as number;
       } else if (e.alpha !== null) {
         angle = 360 - e.alpha;
       }
