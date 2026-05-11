@@ -19,6 +19,7 @@ import {
   Clock, DollarSign, FileText, Megaphone,
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
   MessageSquare, Image, Gift, Scale, Scroll, GraduationCap, BellRing
+  , ShoppingBag, Receipt
 } from "lucide-react";
 import { format, differenceInDays, differenceInSeconds } from "date-fns";
 import { id } from "date-fns/locale";
@@ -872,6 +873,18 @@ export default function JamaahPortal() {
                 <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
                   <HelpCircle className="h-6 w-6 mx-auto mb-1 text-blue-500" />
                   <p className="text-xs">FAQ</p>
+                </Card>
+              </Link>
+              <Link to="/store">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <ShoppingBag className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+                  <p className="text-xs">Toko</p>
+                </Card>
+              </Link>
+              <Link to="/store/orders">
+                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
+                  <Receipt className="h-6 w-6 mx-auto mb-1 text-amber-600" />
+                  <p className="text-xs">Pesanan</p>
                 </Card>
               </Link>
             </div>
