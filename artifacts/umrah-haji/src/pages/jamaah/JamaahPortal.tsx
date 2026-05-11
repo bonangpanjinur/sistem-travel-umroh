@@ -62,6 +62,7 @@ export default function JamaahPortal() {
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { getSetting } = useCompanySettings();
+  const { appLayout } = usePWAConfig();
   const { items: recentlyViewed, clearAll: clearRecentlyViewed } = useRecentlyViewedPackages();
   const { ids: wishlistIds, packages: wishlistPackages, count: wishlistCount } = useWishlist();
 
