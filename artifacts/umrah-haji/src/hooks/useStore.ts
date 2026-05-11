@@ -332,7 +332,7 @@ export function useMyStoreOrders(userId?: string) {
         .eq("user_id", userId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as StoreOrder[];
+      return (data ?? []) as unknown as StoreOrder[];
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 2,
