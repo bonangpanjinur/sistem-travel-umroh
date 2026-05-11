@@ -1,22 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
-import { ModernHeroSection } from '@/components/home/ModernHeroSection';
-import { LuxuryHeroSection } from '@/components/home/LuxuryHeroSection';
-import { IslamicHeroSection } from '@/components/home/IslamicHeroSection';
-import { FuturisticHeroSection } from '@/components/home/FuturisticHeroSection';
-import { NatureHeroSection } from '@/components/home/NatureHeroSection';
-import { RoyalHeroSection } from '@/components/home/RoyalHeroSection';
+import { ThemedHeroSection } from '@/components/home/ThemedHeroSection';
+import { ThemedCTASection } from '@/components/home/ThemedCTASection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
-import { DynamicCTASection } from '@/components/home/DynamicCTASection';
-import { ModernCTASection } from '@/components/home/ModernCTASection';
-import { LuxuryCTASection } from '@/components/home/LuxuryCTASection';
-import { IslamicCTASection } from '@/components/home/IslamicCTASection';
-import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
-import { NatureCTASection } from '@/components/home/NatureCTASection';
-import { RoyalCTASection } from '@/components/home/RoyalCTASection';
 import { useTenantWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
@@ -53,26 +41,12 @@ export default function BranchWebsite() {
    * All templates are now fully implemented
    */
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
-    hero: 
-      template === 'modern' ? ModernHeroSection : 
-      template === 'luxury' ? LuxuryHeroSection :
-      template === 'islamic' ? IslamicHeroSection :
-      template === 'futuristic' ? FuturisticHeroSection :
-      template === 'nature' ? NatureHeroSection :
-      template === 'royal' ? RoyalHeroSection :
-      DynamicHeroSection, // fallback for 'classic' and unknown templates
+    hero: ThemedHeroSection as any,
     featured_packages: FeaturedPackages as any,
     why_choose_us: WhyChooseUs as any,
     testimonials: Testimonials as any,
-    cta: 
-      template === 'modern' ? ModernCTASection : 
-      template === 'luxury' ? LuxuryCTASection :
-      template === 'islamic' ? IslamicCTASection :
-      template === 'futuristic' ? FuturisticCTASection :
-      template === 'nature' ? NatureCTASection :
-      template === 'royal' ? RoyalCTASection :
-      DynamicCTASection, // fallback for 'classic' and unknown templates
-  }), [template]);
+    cta: ThemedCTASection as any,
+  }), []);
 
   const enabledSections = useMemo(() => {
     if (!settings?.homepage_sections) {
