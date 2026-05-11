@@ -129,6 +129,31 @@ export function useApprovalAction() {
         .update(updates)
         .eq("id", payload.requestId);
       if (updateError) throw updateError;
+
+      // B3: Write audit trail entry for every approve/reject/escalate action
+      try {
+        await supabase.from("audit_logs").insert({
+          user_id: user?.id ?? null,
+          action: `approval.${payload.action}`,
+          action_type: "approval",
+          table_name: "approval_requests",
+          record_id: payload.requestId,
+          entity_name: "approval_requests",
+          entity_id: payload.requestId,
+          severity: payload.action === "rejected" ? "warn" : "info",
+          new_data: {
+            action: payload.action,
+            new_status: payload.newStatus,
+            level: payload.level,
+            actor_role: payload.actorRole,
+            notes: payload.notes ?? null,
+          },
+          metadata: { source: "approval_workflow" },
+        });
+      } catch (e) {
+        // Audit logging must never block the workflow
+        console.warn("audit_log insert failed", e);
+      }
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["approval-requests"] });
