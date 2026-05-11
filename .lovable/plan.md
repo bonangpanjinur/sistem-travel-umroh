@@ -1,99 +1,108 @@
-# Roadmap Vinstour Travel
+## Analisis Cepat
 
-## Status Fase Keseluruhan
+Repo punya **7 template** (`classic, modern, luxury, islamic, futuristic, nature, royal`) — tiap template hanya punya komponen Hero & CTA sendiri. Sisanya (FeaturedPackages, Testimonials, WhyChooseUs, QuickMenuGrid, BannerCarousel) cuma di-special-case untuk `royal`. Tabel `theme_presets` di database **kosong**, sehingga tab "Tema Preset" mati. Pemilih layout (PageBuilder) hanya mengatur urutan & visibilitas section, bukan struktur per-template.
 
-| Fase | Judul | Status |
-|---|---|---|
-| 1 | Audit & dokumen perbaikan | ✅ Selesai |
-| 2 | Bug kritis & RBAC hardening (B1/B3/B4, agen C1/C2) | ✅ Selesai |
-| 3 | UI/UX jamaah refresh + bottom nav modern | ✅ Selesai |
-| 4 | Dual experience (PWA standalone gate + dynamic appearance) | ✅ Selesai |
-| 5 | Modul Ibadah (Kiblat, Quran, Zikir, Doa, Manasik, Tracker, Pengingat) | ✅ Selesai |
-| 6 | Storefront Toko Jamaah | ✅ Selesai |
-| 7 | PWA App Layout Configurator (admin) | ✅ Selesai |
-| 8 | Push Notification Infrastructure + auto triggers + admin outbox | ✅ Selesai |
-| 8.x | Build fix Vercel (schema sync `customer_mahrams` / `store_product_reviews` / district / village + type cast) | ✅ Selesai |
-| **9** | **Polish & Hardening** | **🟡 ~75%** |
+### Bug Tema yang Ditemukan
+1. **`theme_presets` kosong** → tab "Tema Preset" tidak menampilkan apa-apa (`ThemeSelector` mengiterasi array kosong).
+2. **Apply template tidak ikut warna/font** → memilih "Royal Gold" tetap memakai palet hijau default; hanya field `template` yang berubah, `primary/secondary/accent/heading_font/body_font` tidak.
+3. **80% halaman publik tidak responsif terhadap template** → hanya Hero + CTA yang berganti; section lain hanya kenal `royal`. Akibatnya 5 dari 7 tema (Modern, Luxury, Islamic, Futuristic, Nature) tampil setengah-setengah.
+4. **Long ternary chain** di `Index.tsx` & `BranchWebsite.tsx` (`template === 'royal' ? ... : (template === 'luxury' ? ...))`) — fragile, duplikat di 2 tempat, tidak skalabel.
+5. **`AgentWebsite` tidak ikut switch template** (perlu verifikasi) → tenant agent selalu "classic".
+6. **`TenantPublicLayout` tidak punya `AnnouncementBar` / `MobileBottomNav` / `PWAInstallPrompt`** padahal `DynamicPublicLayout` punya — inkonsistensi tenant.
+7. **CSS var `--muted/--border` dihitung dari split string warna** di `ThemeProvider` — rapuh kalau format HSL tidak persis "H S L".
+8. **Preview di `ThemeSelector` & `TemplateSelector` statis** (kotak warna), bukan render asli template.
+9. **Layout per-template tidak bisa diatur** dari admin (jumlah kolom paket, density section, posisi search widget, dll. di-hard-code).
 
 ---
 
-## ✅ Sudah Selesai (ringkas per fase)
+## Rencana Perbaikan
 
-- **Fase 1** — Dokumen audit `docs/AUDIT_DAN_RENCANA_PERBAIKAN.md`.
-- **Fase 2** — Multi-tenant scoping, role permissions, agent hierarchy AGT/SUB, server-side booking code RPC.
-- **Fase 3** — Bottom nav, refresh portal jamaah, accessibility WCAG 2.1.
-- **Fase 4** — PWA standalone gate, dynamic appearance per tenant.
-- **Fase 5** — Modul ibadah lengkap; semua page dipindah ke `src/pages/jamaah/ibadah/`.
-- **Fase 6** — Tabel `store_*`, RLS, integrasi portal jamaah, review produk.
-- **Fase 7** — `pwa_app_layout` JSONB di `website_settings` + `AdminPWAAppLayout` + `usePWAAppLayout` + `MobileBottomNav` dinamis.
-- **Fase 8** — VAPID keys, edge function `send-push` & `process-push-queue`, service worker handler, subscription per user, auto trigger (booking status, payment received, store shipped, H-1 keberangkatan), admin `AdminPushOutbox` (status/retry/error/resend manual), cron jobs aktif.
-- **Fase 8.x** — Migrasi schema sync + 6 patch type-cast → build Vercel hijau.
+### Fase 1 — Pondasi: Theme Tokens & Registry (1 source of truth)
 
----
+Buat berkas baru `artifacts/umrah-haji/src/lib/themes/registry.ts` berisi 7 tema sebagai objek terstruktur:
 
-## 🟡 Sisa Pekerjaan — Fase 9 Polish & Hardening
+```ts
+type ThemeTokens = {
+  slug: 'classic'|'modern'|'luxury'|'islamic'|'futuristic'|'nature'|'royal';
+  name: string; description: string;
+  colors: { primary, secondary, accent, background, foreground, surface, accentGold? }; // semua HSL
+  fonts: { heading: string; body: string };
+  radius: 'sharp'|'soft'|'pill';
+  density: 'compact'|'comfortable'|'spacious';
+  mood: 'light'|'dark'|'sepia';
+  ornaments: { kind: 'none'|'islamic'|'neon'|'serif-divider'|'leaf'|'gold-foil'; intensity: 0|1|2 };
+  components: { hero: ComponentKey; cta: ComponentKey; cards: 'flat'|'glass'|'bordered'|'elevated' };
+};
+```
 
-| Sub-tugas | Status |
-|---|---|
-| 9.1 Audit Supabase linter warnings (108 → 40) | ✅ Selesai |
-| 9.2 Security scan + fix temuan kritis (referral_codes, referral_usages, ticket_responses, customer-documents/payment-proofs upload) | ✅ Selesai |
-| 9.3 Konsolidasi struktur kode (`pages/jamaah/ibadah/`) | ✅ Selesai |
-| 9.4 Lighthouse audit Landing/Jamaah/Admin | ⏳ Belum |
-| 9.5 E2E smoke test alur kritis (register → booking → upload doc → pay → portal) | ⏳ Belum |
-| 9.6 Refresh memory index & dokumentasi keputusan baru | ⏳ Belum |
+Buat `THEMES: Record<slug, ThemeTokens>` lengkap untuk 7 tema (palet baru yang lebih premium & tidak overlap).
 
-### 9.4 Lighthouse Audit — Rencana
+### Fase 2 — Migration Database: Seed `theme_presets` + kolom layout
 
-Pakai `browser--navigate_to_sandbox` + `browser--performance_profile` untuk 3 halaman:
+Migration baru:
+- `INSERT … ON CONFLICT (slug) DO UPDATE` 7 baris ke `theme_presets` (sinkron dgn registry).
+- Tambah kolom `website_settings.layout_variant jsonb` (per-section: `{ hero: 'split'|'fullscreen'|'asymmetric', packages: 'grid-3'|'grid-4'|'carousel', testimonials: 'grid'|'masonry'|'slider', density: '...' }`).
+- Tambah kolom `website_settings.theme_overrides jsonb` (kustomisasi per-tema tanpa kehilangan preset).
 
-1. **Landing `/`** — fokus LCP (hero image), CLS (font Amiri), FCP, INP.
-2. **Jamaah Portal `/jamaah`** (perlu login) — fokus bundle size, lazy chunk modul ibadah, react-query refetch, service worker cache hit.
-3. **Admin Dashboard `/admin`** (perlu login) — fokus query parallelization, list virtualization, realtime overhead.
+### Fase 3 — Redesain 7 Hero & CTA (refactor)
 
-Output: tabel metrik per halaman + daftar bottleneck ranked by impact (LCP > CLS > INP > a11y > SEO), lalu sub-plan fix (preload font Amiri, lazy-load chart Recharts, split admin route, image `loading="lazy"`, dll.).
+Ganti 14 komponen `<Theme>HeroSection.tsx` & `<Theme>CTASection.tsx` jadi **2 komponen polimorfik** + variant:
 
-### 9.5 E2E Smoke Test — Alur Kritis
+```
+src/components/home/hero/index.tsx        // dispatch by registry.components.hero
+src/components/home/hero/variants/{Split,Fullscreen,Asymmetric,Neon,Serene,Royal,Classic}.tsx
+src/components/home/cta/...                // sama
+```
 
-Skenario manual via `browser--act` + `browser--observe`:
+Tiap variant pakai semantic tokens (`bg-primary`, `text-foreground`, `border-border`) — **tidak ada warna hard-coded** lagi. Aksen khusus tema (emas royal/luxury, neon futuristic) dipindah ke CSS var tambahan: `--theme-accent-gold`, `--theme-glow`.
 
-1. Register customer baru → verifikasi NIK + passport.
-2. Buat booking dari paket aktif → cek `booking_code` format `TRA{Initials}{YYMMDD}{Random4}`.
-3. Upload KTP + Passport → cek status Pending → admin Verify.
-4. Bayar DP → upload proof → admin verifikasi → status `paid` (bukan `verified`).
-5. Login portal jamaah → cek dokumen, jadwal, push subscribe, store browse.
+### Fase 4 — Theming Universal di Section Lain
 
-Catat regresi & buat issue ringkas.
+Hapus semua `isRoyal` di `Testimonials, WhyChooseUs, QuickMenuGrid, FeaturedPackages, BannerCarousel`. Ganti dgn helper `useTheme()` yang baca registry + token. Setiap section dapat 2–3 varian yang dipilih oleh `layout_variant`.
 
-### 9.6 Memory Index Refresh
+### Fase 5 — `ThemeProvider` Anti-Bug
 
-Tambahkan entri memori baru ke `mem://index.md`:
+- Pakai `parseHsl()` yang aman (regex `\d+\s+\d+%\s+\d+%`) untuk turunan `--muted/--border`.
+- Saat user apply preset, **gabungkan** preset → `website_settings` (warna+font+template+layout default tema) dalam satu mutasi.
+- Tambahkan CSS var: `--radius-base`, `--density-y`, `--theme-accent-gold`, `--theme-glow`.
 
-- Push notification system (queue, outbox, retry, VAPID, auto triggers).
-- Storage upload hardening (folder `customer_id` enforcement).
-- Referral codes/usages RLS scoping.
-- Ticket responses owner-only SELECT.
-- SECURITY DEFINER execute hardening (REVOKE PUBLIC/anon, GRANT authenticated).
+### Fase 6 — UI Pengaturan Tampilan Baru
 
----
+Refactor tab "Template" + "Tema Preset" jadi **satu tab "Tema"** dengan 3 sub-section:
+1. **Pilih Tema** — 7 kartu dengan **mini live-preview asli** (render Hero variant dlm `<iframe srcDoc>` mini atau div skala 0.25).
+2. **Layout Halaman** — picker per-section: hero variant, kolom paket (3/4), gaya testimoni (grid/slider), density, radius (sharp/soft/pill), mood (light/dark/sepia).
+3. **Kustomisasi Lanjutan** — color pickers, font picker, ornament toggle (semua disimpan ke `theme_overrides`, tombol "Reset ke preset").
 
-## Risiko & Asumsi
+### Fase 7 — Konsistensi Tenant & Cleanup
 
-- Lighthouse Jamaah/Admin butuh kredensial test login. Kalau tidak tersedia, audit hanya untuk Landing.
-- Service worker cache bisa skew metrik FCP — audit dalam mode incognito / clear cache dulu.
-- Beberapa SECURITY DEFINER function tetap callable oleh `authenticated` (digunakan di RLS) — bukan vulnerability, sudah didokumentasikan di `@security-memory`.
-
-## Estimasi
-
-- 9.4: 10–15 menit (3 halaman × profile + analisis).
-- 9.5: 15–20 menit (manual click-through).
-- 9.6: 5 menit (tulis memori).
+- `TenantPublicLayout` dilengkapi `AnnouncementBar`, `MobileBottomNav`, `PWAInstallPrompt` (sama dgn `DynamicPublicLayout`).
+- `Index.tsx`, `BranchWebsite.tsx`, `AgentWebsite.tsx` semua memakai `useThemeDispatch()` baru — hapus ternary chain.
+- Hapus 14 file `<Theme>HeroSection.tsx`/`<Theme>CTASection.tsx` lama.
+- Memory: tambah catatan "Theme registry" di `mem://design/`.
 
 ---
 
-## Appendix — Build Fix Vercel (Fase 8.x, sudah selesai)
+## Detail Teknis Singkat
 
-Build gagal di `tsc --noEmit` (~30 error). 3 akar masalah & solusi yang sudah dieksekusi:
+```text
+Pengaturan Tampilan
+└── Tab "Tema"
+    ├── Pilih Tema (7 kartu live-preview)
+    ├── Layout Halaman (per-section variant + density/radius/mood)
+    └── Kustomisasi Lanjutan (warna/font/ornamen → theme_overrides)
+       │
+       ▼
+website_settings { template, primary_color, …, layout_variant, theme_overrides }
+       │
+       ▼
+ThemeProvider → CSS vars + theme registry merge
+       │
+       ▼
+Komponen polimorfik (hero/cta/cards/testimonials/...) baca registry
+```
 
-1. **Schema mismatch** — migrasi tambah tabel `customer_mahrams`, kolom `customers.district`/`village`, tabel `store_product_reviews` (semua + RLS scoped owner/admin).
-2. **Type cast** — `usePushSubscription` cast `BufferSource`; `useStore` cast `values as any` + `as unknown as StoreOrder[]`; `JamaahKiblat` cast `(e as any).webkitCompassHeading`.
-3. **Kontrak fungsi** — `AdminPushOutbox` refactor `if (err) { toast.error(...); return; }` untuk semua branch.
+**Perkiraan effort:** Fase 1–2: 30 menit. Fase 3: 60–90 menit (komponen terbanyak). Fase 4: 30 menit. Fase 5–7: 30 menit. Total ~3 jam kerja agent.
+
+**Risiko:** (a) breaking change di branch/agent tenant — perlu smoke test 3 rute (`/`, `/cabang/<slug>`, `/agen/<slug>`); (b) cache theme di `localStorage` perlu bump `CURRENT_THEME_VERSION` ke `'3'`; (c) `theme_overrides` kosong harus di-fallback ke registry, bukan ke `null`.
+
+**Yang TIDAK diubah:** logic booking, payment, RBAC, RLS, migrations sebelumnya, `types.ts`. Murni front-end + 1 migration tambahan.
