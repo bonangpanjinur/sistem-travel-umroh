@@ -231,7 +231,7 @@ export function useStoreOrders(status?: string) {
       if (status && status !== "all") q = q.eq("status", status);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as StoreOrder[];
+      return (data ?? []) as unknown as StoreOrder[];
     },
     staleTime: 1000 * 60 * 2,
   });
@@ -252,7 +252,7 @@ export function useStoreOrder(id: string) {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as StoreOrder;
+      return data as unknown as StoreOrder;
     },
     enabled: !!id,
   });
@@ -300,7 +300,7 @@ export function useStoreOrderMutations() {
         const { error } = await supabase.from("store_shipments").update(values).eq("id", existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("store_shipments").insert([values]);
+        const { error } = await supabase.from("store_shipments").insert([values as any]);
         if (error) throw error;
       }
 
