@@ -790,6 +790,18 @@ export default function JamaahPortal() {
                   <p className="text-xs">Pengingat</p>
                 </Card>
               </Link>
+              <Link to="/jamaah/kiblat">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <Map className="h-6 w-6 mx-auto mb-1 text-teal-600" />
+                  <p className="text-xs">Kiblat</p>
+                </Card>
+              </Link>
+              <Link to="/jamaah/al-quran">
+                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
+                  <BookOpen className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
+                  <p className="text-xs">Al-Qur'an</p>
+                </Card>
+              </Link>
             </div>
           </div>
 
