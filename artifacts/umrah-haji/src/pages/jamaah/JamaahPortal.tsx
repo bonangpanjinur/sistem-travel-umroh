@@ -1168,6 +1168,7 @@ export default function JamaahPortal() {
                 { to: "/jamaah/target-ibadah", icon: "🎯", label: "Target Harian" },
                 { to: "/jamaah/jurnal",        icon: "📖", label: "Jurnal Ibadah" },
                 { to: "/jamaah/doa-counter",   icon: "📿", label: "Doa Counter" },
+                { to: "/jamaah/zikir",         icon: "🌅", label: "Zikir Pagi-Petang" },
                 { to: "/jamaah/sertifikat",    icon: "🏆", label: "Sertifikat" },
                 { to: "/jamaah/galeri",        icon: "📸", label: "Galeri Rombongan" },
               ].map(item => (
