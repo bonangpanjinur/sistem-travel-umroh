@@ -17,14 +17,14 @@ const CustomerSettings = lazy(() => import("@/pages/customer/CustomerSettings"))
 const SavingsSuccess = lazy(() => import("@/pages/savings/SavingsSuccess"));
 const JamaahPortal = lazy(() => import("@/pages/jamaah/JamaahPortal"));
 const JamaahDigitalID = lazy(() => import("@/pages/jamaah/JamaahDigitalID"));
-const JamaahDoaPanduan = lazy(() => import("@/pages/jamaah/JamaahDoaPanduan"));
+const JamaahDoaPanduan = lazy(() => import("@/pages/jamaah/ibadah/JamaahDoaPanduan"));
 const JamaahItinerary = lazy(() => import("@/pages/jamaah/JamaahItinerary"));
 const JamaahDocuments = lazy(() => import("@/pages/jamaah/JamaahDocuments"));
 const JamaahPaymentHistory = lazy(() => import("@/pages/jamaah/JamaahPaymentHistory"));
 const JamaahFeedback = lazy(() => import("@/pages/jamaah/JamaahFeedback"));
 const JamaahNotifications = lazy(() => import("@/pages/jamaah/JamaahNotifications"));
 const JamaahVisaTracker = lazy(() => import("@/pages/jamaah/JamaahVisaTracker"));
-const JamaahPanduanIbadah = lazy(() => import("@/pages/jamaah/JamaahPanduanIbadah"));
+const JamaahPanduanIbadah = lazy(() => import("@/pages/jamaah/ibadah/JamaahPanduanIbadah"));
 const JamaahPetaLokasi = lazy(() => import("@/pages/jamaah/JamaahPetaLokasi"));
 const KalkulatorCicilan = lazy(() => import("@/pages/customer/KalkulatorCicilan"));
 const CustomerRefundStatus = lazy(() => import("@/pages/customer/CustomerRefundStatus"));
@@ -38,7 +38,7 @@ const JamaahWelcome = lazy(() => import("@/pages/jamaah/JamaahWelcome"));
 // Fase 4 — Modul Ibadah Baru
 const JamaahKiblat = lazy(() => import("@/pages/jamaah/JamaahKiblat"));
 const JamaahAlQuran = lazy(() => import("@/pages/jamaah/JamaahAlQuran"));
-const JamaahZikir = lazy(() => import("@/pages/jamaah/JamaahZikir"));
+const JamaahZikir = lazy(() => import("@/pages/jamaah/ibadah/JamaahZikir"));
 
 // Fase 3 — Fitur Sosial & Komunitas
 const JamaahChat = lazy(() => import("@/pages/jamaah/JamaahChat"));
@@ -66,9 +66,9 @@ const JamaahSOSStatus = lazy(() => import("@/pages/jamaah/JamaahSOSStatus"));
 
 // Fase 8 — Engagement & Gamifikasi Jamaah
 const JamaahBadges = lazy(() => import("@/pages/jamaah/JamaahBadges"));
-const JamaahTargetIbadah = lazy(() => import("@/pages/jamaah/JamaahTargetIbadah"));
+const JamaahTargetIbadah = lazy(() => import("@/pages/jamaah/ibadah/JamaahTargetIbadah"));
 const JamaahJurnal = lazy(() => import("@/pages/jamaah/JamaahJurnal"));
-const JamaahDoaCounter = lazy(() => import("@/pages/jamaah/JamaahDoaCounter"));
+const JamaahDoaCounter = lazy(() => import("@/pages/jamaah/ibadah/JamaahDoaCounter"));
 const JamaahSertifikat = lazy(() => import("@/pages/jamaah/JamaahSertifikat"));
 
 // Fase 9 — Integrasi & Otomasi
@@ -83,15 +83,15 @@ const JamaahPayment = lazy(() => import("@/pages/jamaah/JamaahPayment"));
 const JamaahChecklist = lazy(() => import("@/pages/jamaah/JamaahChecklist"));
 
 // Fase 15 — Manasik Digital
-const JamaahManasik = lazy(() => import("@/pages/jamaah/JamaahManasik"));
-const JamaahManasikInteraktif = lazy(() => import("@/pages/jamaah/JamaahManasikInteraktif"));
+const JamaahManasik = lazy(() => import("@/pages/jamaah/ibadah/JamaahManasik"));
+const JamaahManasikInteraktif = lazy(() => import("@/pages/jamaah/ibadah/JamaahManasikInteraktif"));
 
 // Fase 2 UX — Fitur Baru
 const JamaahKesehatan = lazy(() => import("@/pages/jamaah/JamaahKesehatan"));
-const JamaahTrackerIbadah = lazy(() => import("@/pages/jamaah/JamaahTrackerIbadah"));
+const JamaahTrackerIbadah = lazy(() => import("@/pages/jamaah/ibadah/JamaahTrackerIbadah"));
 
 // Pengingat Ibadah — push notification lokal
-const JamaahPengingatIbadah = lazy(() => import("@/pages/jamaah/JamaahPengingatIbadah"));
+const JamaahPengingatIbadah = lazy(() => import("@/pages/jamaah/ibadah/JamaahPengingatIbadah"));
 
 // P15 — Pantau Keluarga
 const JamaahPantauKeluarga = lazy(() => import("@/pages/jamaah/JamaahPantauKeluarga"));
