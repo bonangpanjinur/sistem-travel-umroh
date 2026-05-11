@@ -1,23 +1,11 @@
 import { useMemo } from 'react';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { BannerCarousel } from '@/components/home/BannerCarousel';
-import { DynamicHeroSection } from '@/components/home/DynamicHeroSection';
-import { ModernHeroSection } from '@/components/home/ModernHeroSection';
-import { LuxuryHeroSection } from '@/components/home/LuxuryHeroSection';
-import { IslamicHeroSection } from '@/components/home/IslamicHeroSection';
-import { FuturisticHeroSection } from '@/components/home/FuturisticHeroSection';
-import { NatureHeroSection } from '@/components/home/NatureHeroSection';
-import { RoyalHeroSection } from '@/components/home/RoyalHeroSection';
+import { ThemedHeroSection } from '@/components/home/ThemedHeroSection';
+import { ThemedCTASection } from '@/components/home/ThemedCTASection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
-import { DynamicCTASection } from '@/components/home/DynamicCTASection';
-import { ModernCTASection } from '@/components/home/ModernCTASection';
-import { LuxuryCTASection } from '@/components/home/LuxuryCTASection';
-import { IslamicCTASection } from '@/components/home/IslamicCTASection';
-import { FuturisticCTASection } from '@/components/home/FuturisticCTASection';
-import { NatureCTASection } from '@/components/home/NatureCTASection';
-import { RoyalCTASection } from '@/components/home/RoyalCTASection';
 import { JamaahTrackerWidget } from '@/components/home/JamaahTrackerWidget';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,12 +16,12 @@ const Index = () => {
   const heroMode = (settings as any)?.hero_display_mode || 'both';
 
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
-    hero: template === 'royal' ? RoyalHeroSection : (template === 'luxury' ? LuxuryHeroSection : (template === 'modern' ? ModernHeroSection : (template === 'islamic' ? IslamicHeroSection : (template === 'futuristic' ? FuturisticHeroSection : (template === 'nature' ? NatureHeroSection : DynamicHeroSection))))),
+    hero: ThemedHeroSection as any,
     featured_packages: FeaturedPackages as any,
     why_choose_us: WhyChooseUs as any,
     testimonials: Testimonials as any,
-    cta: template === 'royal' ? RoyalCTASection : (template === 'luxury' ? LuxuryCTASection : (template === 'modern' ? ModernCTASection : (template === 'islamic' ? IslamicCTASection : (template === 'futuristic' ? FuturisticCTASection : (template === 'nature' ? NatureCTASection : DynamicCTASection))))),
-  }), [template]);
+    cta: ThemedCTASection as any,
+  }), []);
 
   const enabledSections = useMemo(() => {
     if (!settings?.homepage_sections) {
