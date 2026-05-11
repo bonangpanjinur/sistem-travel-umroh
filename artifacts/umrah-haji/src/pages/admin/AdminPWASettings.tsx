@@ -123,7 +123,9 @@ export default function AdminPWASettings() {
     items,
     headerNavLinks: serverHeaderNavLinks,
     iconConfig: serverIconConfig,
+    appLayout: serverAppLayout,
     save, saveIconConfig, saveHeaderNavLinks,
+    saveAppLayout, resetAppLayout,
     reset, resetHeaderNav,
     isSaving, isLoading,
   } = usePWAConfig();
@@ -133,6 +135,7 @@ export default function AdminPWASettings() {
   );
   const [localHeaderNav, setLocalHeaderNav] = useState<HeaderNavLink[]>(DEFAULT_HEADER_NAV);
   const [iconConfig, setIconConfig] = useState<PWAIconConfig>(DEFAULT_ICON_CONFIG);
+  const [appLayout, setAppLayout] = useState<AppLayoutConfig>(DEFAULT_APP_LAYOUT);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [initialized, setInitialized] = useState(false);
@@ -155,9 +158,10 @@ export default function AdminPWASettings() {
       setLocalHeaderNav(mergedHeader);
       setIconConfig(serverIconConfig);
       setIconPreview(serverIconConfig.iconUrl);
+      setAppLayout(serverAppLayout);
       setInitialized(true);
     }
-  }, [isLoading, initialized, items, serverHeaderNavLinks, serverIconConfig]);
+  }, [isLoading, initialized, items, serverHeaderNavLinks, serverIconConfig, serverAppLayout]);
 
   const activeCount = localItems.filter((i) => i.enabled).length;
   const previewItems = localItems.filter((i) => i.enabled).slice(0, 5);
