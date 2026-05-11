@@ -3909,6 +3909,54 @@ export type Database = {
         }
         Relationships: []
       }
+      push_outbox: {
+        Row: {
+          attempts: number
+          body: string
+          created_at: string
+          customer_ids: string[]
+          id: string
+          last_error: string | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          title: string
+          type: string
+          url: string | null
+          user_ids: string[]
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          created_at?: string
+          customer_ids?: string[]
+          id?: string
+          last_error?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          title: string
+          type?: string
+          url?: string | null
+          user_ids?: string[]
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          created_at?: string
+          customer_ids?: string[]
+          id?: string
+          last_error?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          title?: string
+          type?: string
+          url?: string | null
+          user_ids?: string[]
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -6000,6 +6048,18 @@ export type Database = {
       decrement_equipment_stock: {
         Args: { amount?: number; item_id: string }
         Returns: undefined
+      }
+      enqueue_h_minus_one_push: { Args: never; Returns: number }
+      enqueue_push: {
+        Args: {
+          _body: string
+          _customer_ids?: string[]
+          _title: string
+          _type?: string
+          _url?: string
+          _user_ids: string[]
+        }
+        Returns: string
       }
       estimate_haji_departure_year: {
         Args: {
