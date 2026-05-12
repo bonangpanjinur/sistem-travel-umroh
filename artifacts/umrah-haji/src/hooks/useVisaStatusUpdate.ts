@@ -41,12 +41,53 @@ async function insertVisaLog(payload: VisaStatusUpdatePayload) {
 async function insertCustomerNotification(payload: VisaStatusUpdatePayload) {
   try {
     const newLabel = VISA_STATUS_LABELS[payload.newStatus] || payload.newStatus;
+
+    let title = "Status Visa Diperbarui";
+    let message = `Status visa Anda berubah menjadi: ${newLabel}.`;
+
+    if (payload.newStatus === "approved") {
+      title = "Visa Anda Telah Disetujui! ✅";
+      message = `Selamat! Permohonan visa Anda telah disetujui.`;
+      if (payload.visaNumber) message += ` Nomor visa: ${payload.visaNumber}.`;
+      if (payload.visaExpiry) {
+        const expDate = new Date(payload.visaExpiry);
+        const formatted = expDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+        message += ` Berlaku hingga: ${formatted}.`;
+      }
+      message += " Silakan simpan informasi ini dengan baik.";
+    } else if (payload.newStatus === "rejected") {
+      title = "Permohonan Visa Ditolak ❌";
+      message = "Mohon maaf, permohonan visa Anda ditolak oleh kedutaan.";
+      if (payload.rejectionReason) message += ` Alasan: ${payload.rejectionReason}.`;
+      message += " Silakan hubungi tim kami untuk informasi lebih lanjut.";
+    } else if (payload.newStatus === "submitted") {
+      title = "Visa Telah Diajukan ke Kedutaan 📋";
+      message = "Dokumen visa Anda telah kami ajukan ke kedutaan. Proses verifikasi membutuhkan waktu beberapa hari kerja. Kami akan memberikan update segera.";
+    } else if (payload.newStatus === "processing") {
+      title = "Visa Sedang Diproses Kedutaan ⏳";
+      message = "Permohonan visa Anda sedang dalam proses verifikasi di kedutaan. Mohon tunggu, kami akan segera memberikan kabar.";
+    } else if (payload.newStatus === "documents_collected") {
+      title = "Dokumen Visa Lengkap ✔️";
+      message = "Dokumen Anda telah kami terima dan dinyatakan lengkap. Tim kami akan segera mengajukan ke kedutaan.";
+    }
+
+    if (payload.notes && !["approved", "rejected"].includes(payload.newStatus)) {
+      message += ` Catatan: ${payload.notes}`;
+    }
+
     await supabase.from("customer_notifications").insert({
       customer_id: payload.customerId,
       type:        "visa_update",
-      title:       "Status Visa Diperbarui",
-      message:     `Status visa Anda berubah menjadi: ${newLabel}`,
+      title,
+      message,
       is_read:     false,
+      metadata: {
+        visa_status:      payload.newStatus,
+        old_status:       payload.oldStatus,
+        visa_number:      payload.visaNumber    || null,
+        visa_expiry:      payload.visaExpiry    || null,
+        rejection_reason: payload.rejectionReason || null,
+      },
     });
   } catch {
   }

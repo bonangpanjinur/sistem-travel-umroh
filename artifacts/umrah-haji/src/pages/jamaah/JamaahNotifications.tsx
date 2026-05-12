@@ -15,14 +15,14 @@ function getNotifActionUrl(notif: any): { url: string; label: string } | null {
   const message = (notif.message || "").toLowerCase();
   const type = notif.type || "info";
 
+  if (type === "visa_update" || title.includes("visa") || message.includes("visa")) {
+    return { url: "/jamaah/visa", label: "Cek Status Visa" };
+  }
   if (type === "refund" || title.includes("refund") || message.includes("refund") || title.includes("dana dikembalikan")) {
     return { url: "/jamaah/payment-history", label: "Lihat Riwayat Pembayaran" };
   }
   if (title.includes("pembayaran") || message.includes("pembayaran") || message.includes("bayar") || message.includes("lunas")) {
     return { url: "/jamaah/payment-history", label: "Lihat Pembayaran" };
-  }
-  if (title.includes("visa") || message.includes("visa")) {
-    return { url: "/jamaah/visa", label: "Cek Status Visa" };
   }
   if (title.includes("dokumen") || message.includes("dokumen") || message.includes("upload")) {
     return { url: "/jamaah/documents", label: "Lihat Dokumen" };
@@ -43,12 +43,13 @@ function getNotifActionUrl(notif: any): { url: string; label: string } | null {
 }
 
 const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
-  info: { icon: Info, color: "text-blue-600", bg: "bg-blue-50 border-blue-100" },
-  warning: { icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50 border-amber-100" },
-  success: { icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100" },
-  urgent: { icon: AlertCircle, color: "text-red-600", bg: "bg-red-50 border-red-100" },
-  refund: { icon: RotateCcw, color: "text-violet-600", bg: "bg-violet-50 border-violet-100" },
-  payment: { icon: CreditCard, color: "text-green-600", bg: "bg-green-50 border-green-100" },
+  info:        { icon: Info,         color: "text-blue-600",    bg: "bg-blue-50 border-blue-100" },
+  warning:     { icon: AlertCircle,  color: "text-amber-600",   bg: "bg-amber-50 border-amber-100" },
+  success:     { icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100" },
+  urgent:      { icon: AlertCircle,  color: "text-red-600",     bg: "bg-red-50 border-red-100" },
+  refund:      { icon: RotateCcw,    color: "text-violet-600",  bg: "bg-violet-50 border-violet-100" },
+  payment:     { icon: CreditCard,   color: "text-green-600",   bg: "bg-green-50 border-green-100" },
+  visa_update: { icon: FileText,     color: "text-sky-600",     bg: "bg-sky-50 border-sky-100" },
 };
 
 export default function JamaahNotifications() {
