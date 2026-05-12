@@ -116,6 +116,7 @@ const AdminPushNotifications = lazy(() => import("@/pages/admin/AdminPushNotific
 const AdminPushOutbox = lazy(() => import("@/pages/admin/AdminPushOutbox"));
 const AdminDepartureTracking = lazy(() => import("@/pages/admin/AdminDepartureTracking"));
 const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
+const AdminRefunds = lazy(() => import("@/pages/admin/AdminRefunds"));
 const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
 const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
 const AdminFinanceTerpadu = lazy(() => import("@/pages/admin/AdminFinanceTerpadu"));
@@ -220,6 +221,7 @@ export default function AdminRoutes() {
 
       {/* Keuangan & Akuntansi */}
       <Route path="payments" element={<P k={PERMISSIONS.PAYMENTS}><AdminPayments /></P>} />
+      <Route path="refunds" element={<P k={PERMISSIONS.REFUNDS}><AdminRefunds /></P>} />
       <Route path="finance-cash" element={<P k={PERMISSIONS.FINANCE_CASH}><AdminFinanceCash /></P>} />
       <Route path="finance/ar" element={<P k={PERMISSIONS.FINANCE_AR}><AdminFinanceAR /></P>} />
       <Route path="finance/ap" element={<P k={PERMISSIONS.FINANCE_AP}><AdminFinanceAP /></P>} />

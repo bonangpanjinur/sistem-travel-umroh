@@ -108,6 +108,7 @@ export const PERMISSIONS = {
   // Fase 6 — Operational Excellence
   DEPARTURE_TRACKING: 'departure-tracking',
   SOS_ALERTS: 'sos-alerts',
+  REFUNDS: 'refunds',
 
   // KPI Dashboard
   KPI_DASHBOARD: 'kpi-dashboard',

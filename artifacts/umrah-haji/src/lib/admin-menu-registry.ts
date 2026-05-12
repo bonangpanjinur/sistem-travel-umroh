@@ -63,6 +63,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   // ── Keuangan (500s) ───────────────────────────────────────────────────────
   { key: 'finance-terpadu',     label: 'Dashboard Keuangan',    path: '/admin/finance-terpadu',      icon: 'Layers',          group_name: 'Keuangan',           sort_order: 500, required_permission: PERMISSIONS.FINANCE_TERPADU },
   { key: 'payments',            label: 'Pembayaran',            path: '/admin/payments',             icon: 'CreditCard',      group_name: 'Keuangan',           sort_order: 501, required_permission: PERMISSIONS.PAYMENTS },
+  { key: 'refunds',             label: 'Monitor Refund',        path: '/admin/refunds',              icon: 'RotateCcw',       group_name: 'Keuangan',           sort_order: 502, required_permission: PERMISSIONS.REFUNDS },
   { key: 'finance-cash',        label: 'Kas & Bank',            path: '/admin/finance-cash',         icon: 'Coins',           group_name: 'Keuangan',           sort_order: 502, required_permission: PERMISSIONS.FINANCE_CASH },
   { key: 'finance-ar',          label: 'Piutang (AR)',          path: '/admin/finance/ar',           icon: 'ArrowDownToLine', group_name: 'Keuangan',           sort_order: 503, required_permission: PERMISSIONS.FINANCE_AR },
   { key: 'finance-ap',          label: 'Hutang (AP)',           path: '/admin/finance/ap',           icon: 'ArrowUpFromLine', group_name: 'Keuangan',           sort_order: 504, required_permission: PERMISSIONS.FINANCE_AP },

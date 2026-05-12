@@ -346,6 +346,12 @@ pnpm --filter @workspace/api-spec run codegen
 | D4 | Panel info agen di sidebar | Jika `agent_id` ada, tampilkan nama agen, kode, dan total komisi yang sudah dicatat | Tinggi | ✅ |
 | D5 | Milestone progress pelunasan | Progress bar ada, tapi tanpa milestone (misal "DP 30% sudah terpenuhi") | Rendah | 🔴 |
 
+### E — Halaman Admin Baru (Pasca D3)
+
+| # | Halaman | Detail | Status |
+|---|---------|--------|--------|
+| E1 | Monitor Refund `/admin/refunds` | Daftar semua pengajuan refund, filter status/metode, update status, catatan admin, export Excel | ✅ |
+
 ### Status yang sudah ada & berfungsi di Booking Detail
 - ✅ Update status booking + konfirmasi dialog + notifikasi jamaah otomatis
 - ✅ Edit data customer (EditCustomerDialog)
