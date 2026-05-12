@@ -85,8 +85,7 @@ export default function AgentWebsite() {
       <TenantChatBubble
         waNumber={settings.footer_whatsapp}
         siteName={settings.company_name}
-        gradientFrom="from-violet-600"
-        gradientTo="to-indigo-700"
+        colorPreset={(settings as any).chat_bubble_color || "violet"}
       />
     </TenantPublicLayout>
   );

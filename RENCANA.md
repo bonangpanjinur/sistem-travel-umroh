@@ -619,6 +619,7 @@ Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 | 16 | `supabase/migrations/fase17_remaining_tables.sql` | Vendor, training, media |
 | 17 | `supabase/migrations/fase18_core_settings.sql` | company_settings, bank_accounts |
 | 18 | `supabase/migrations/fase19_branch_kpi_targets.sql` | branch_monthly_targets |
+| 19* | `supabase/migrations/fase20_chat_bubble_color.sql` | Tambah kolom `chat_bubble_color` di website_settings |
 | 19 | `supabase/migrations/fase20_webhooks_push.sql` | webhooks, push subscriptions |
 | 20 | `supabase/migrations/store_ecommerce.sql` | toko e-commerce |
 | 21 | `supabase/migrations/store_product_reviews.sql` | review produk |

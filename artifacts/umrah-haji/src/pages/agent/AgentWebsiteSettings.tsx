@@ -14,10 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Globe, Save, ExternalLink, Copy, Eye, Share2, QrCode,
-  Image, MessageCircle, Instagram, Facebook, Youtube, BarChart2,
-  Star, Plus, Trash2, Link as LinkIcon
+  Globe, Save, ExternalLink, Copy, QrCode,
+  MessageCircle, Instagram, Facebook, Youtube, BarChart2,
+  Star, Plus, Trash2, Link as LinkIcon, MessageSquare, Check,
 } from "lucide-react";
+import { CHAT_COLOR_PRESETS, type ChatColorPreset } from "@/components/public/TenantChatBubble";
 
 const QR_API = (url: string) => `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
 
@@ -137,6 +138,7 @@ const DEFAULT_FORM = {
   footer_phone: "", footer_email: "", footer_whatsapp: "", footer_address: "",
   social_instagram: "", social_facebook: "", social_youtube: "", social_tiktok: "",
   seo_title: "", seo_description: "",
+  chat_bubble_color: "violet" as ChatColorPreset,
 };
 
 export default function AgentWebsiteSettings() {
@@ -184,6 +186,7 @@ export default function AgentWebsiteSettings() {
         social_tiktok: (settings as any).social_tiktok || "",
         seo_title: s.seo_title || "",
         seo_description: s.seo_description || "",
+        chat_bubble_color: (s.chat_bubble_color as ChatColorPreset) || "violet",
       });
       try {
         const t = (settings as any).testimonials;
@@ -204,6 +207,7 @@ export default function AgentWebsiteSettings() {
         ...form,
         testimonials: JSON.stringify(testimonials),
         gallery_urls: JSON.stringify(gallery),
+        chat_bubble_color: form.chat_bubble_color,
         updated_at: new Date().toISOString(),
       };
 
@@ -295,7 +299,7 @@ export default function AgentWebsiteSettings() {
         </TabsList>
 
         {/* Branding */}
-        <TabsContent value="branding" className="mt-4">
+        <TabsContent value="branding" className="mt-4 space-y-4">
           <Card><CardContent className="p-5 space-y-4">
             <div className="space-y-2"><Label>Nama Perusahaan / Agen</Label><Input value={form.company_name} onChange={f('company_name')} placeholder={agentData?.company_name} /></div>
             <div className="space-y-2"><Label>Tagline</Label><Input value={form.tagline} onChange={f('tagline')} placeholder="Agen Resmi Umroh & Haji Terpercaya" /></div>
@@ -313,6 +317,72 @@ export default function AgentWebsiteSettings() {
               </div>
             </div>
           </CardContent></Card>
+
+          {/* Chat Bubble Color */}
+          <Card>
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                <Label className="text-base font-semibold">Warna Chat Bubble</Label>
+              </div>
+              <p className="text-sm text-muted-foreground -mt-2">
+                Pilih warna aksen untuk bubble chat AI yang muncul di website Anda. Perubahan langsung tersimpan saat klik Simpan.
+              </p>
+
+              <div className="grid grid-cols-4 gap-3">
+                {(Object.entries(CHAT_COLOR_PRESETS) as [ChatColorPreset, typeof CHAT_COLOR_PRESETS[ChatColorPreset]][]).map(([key, preset]) => {
+                  const isSelected = form.chat_bubble_color === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setForm(p => ({ ...p, chat_bubble_color: key }))}
+                      className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-150 hover:scale-105 ${
+                        isSelected
+                          ? "border-gray-900 shadow-md"
+                          : "border-transparent hover:border-gray-300"
+                      }`}
+                    >
+                      {/* Color circle preview */}
+                      <div
+                        className="w-10 h-10 rounded-full shadow-sm"
+                        style={{ background: `linear-gradient(135deg, ${preset.hex}, ${preset.hex}cc)` }}
+                      />
+                      <span className="text-xs font-medium text-center leading-tight">{preset.label}</span>
+                      {isSelected && (
+                        <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center">
+                          <Check className="h-2.5 w-2.5 text-white" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Live preview */}
+              <div className="mt-2 p-4 bg-gray-50 rounded-xl border border-dashed">
+                <p className="text-xs text-muted-foreground mb-3 font-medium">Preview:</p>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-12 h-12 rounded-full shadow flex items-center justify-center"
+                    style={{ background: `linear-gradient(135deg, ${CHAT_COLOR_PRESETS[form.chat_bubble_color as ChatColorPreset]?.hex ?? "#7c3aed"}, ${CHAT_COLOR_PRESETS[form.chat_bubble_color as ChatColorPreset]?.hex ?? "#7c3aed"}aa)` }}
+                  >
+                    <MessageSquare className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Bubble warna {CHAT_COLOR_PRESETS[form.chat_bubble_color as ChatColorPreset]?.label ?? "Ungu"}</p>
+                    <p className="text-xs text-muted-foreground">Muncul di sudut kanan bawah website Anda</p>
+                  </div>
+                  <span
+                    className="ml-auto text-xs font-semibold px-3 py-1 rounded-full text-white"
+                    style={{ background: CHAT_COLOR_PRESETS[form.chat_bubble_color as ChatColorPreset]?.hex ?? "#7c3aed" }}
+                  >
+                    Aktif
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Hero */}
