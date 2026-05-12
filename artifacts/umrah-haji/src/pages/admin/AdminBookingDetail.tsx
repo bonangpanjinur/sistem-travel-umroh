@@ -41,7 +41,10 @@ import { formatCurrency, formatDate, getRoomTypeLabel, getBookingStatusLabel, ge
 import { 
   ArrowLeft, User, Calendar, Plane, CreditCard, FileText, 
   Users, Phone, Mail, MapPin, Printer, Send, CheckCircle, 
-  XCircle, Eye, AlertCircle, Loader2, Pencil, Trash 
+  XCircle, Eye, AlertCircle, Loader2, Pencil, Trash,
+  Copy, CheckCheck, MessageCircle, Building2, UserCheck,
+  Shield, ShieldAlert, ShieldCheck, ExternalLink, Clock3,
+  Stethoscope, Baby, BriefcaseMedical
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -94,6 +97,7 @@ export default function AdminBookingDetail() {
   
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   
   // Payment management state
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
@@ -103,6 +107,12 @@ export default function AdminBookingDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
   const [showRoomTypeAssignmentDialog, setShowRoomTypeAssignmentDialog] = useState(false);
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(booking?.booking_code || '');
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -137,7 +147,9 @@ export default function AdminBookingDetail() {
             package:packages(*),
             departure_airport:airports!departures_departure_airport_id_fkey(code, name, city),
             arrival_airport:airports!departures_arrival_airport_id_fkey(code, name, city)
-          )
+          ),
+          agent:agents(id, company_name, agent_code, slug),
+          branch:branches(id, name, code)
         `)
         .eq('id', id)
         .single();
@@ -178,6 +190,45 @@ export default function AdminBookingDetail() {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Fetch booking status history — real timeline data (B1, D1)
+  const { data: statusHistory } = useQuery({
+    queryKey: ['booking-status-history', id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('booking_status_history')
+        .select('*, changed_by_profile:profiles!booking_status_history_changed_by_fkey(id, full_name)')
+        .eq('booking_id', id)
+        .order('created_at', { ascending: true });
+      return (data || []) as Array<{
+        id: string;
+        booking_id: string;
+        from_status: string | null;
+        to_status: string;
+        changed_by: string | null;
+        notes: string | null;
+        created_at: string;
+        changed_by_profile?: { id: string; full_name: string } | null;
+      }>;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch customer documents for all passengers in this booking (C6)
+  const { data: passengerDocs } = useQuery({
+    queryKey: ['booking-passenger-docs', id],
+    queryFn: async () => {
+      if (!passengers || passengers.length === 0) return [];
+      const customerIds = passengers.map((p: any) => p.customer_id || p.customer?.id).filter(Boolean);
+      if (customerIds.length === 0) return [];
+      const { data } = await (supabase as any)
+        .from('customer_documents')
+        .select('id, customer_id, document_type, status, file_url')
+        .in('customer_id', customerIds);
+      return (data || []) as Array<{ id: string; customer_id: string; document_type: string; status: string; file_url?: string }>;
+    },
+    enabled: !!id && !!passengers && passengers.length > 0,
   });
 
   // Fetch bank accounts for invoice
@@ -698,6 +749,14 @@ export default function AdminBookingDetail() {
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight">{booking.booking_code}</h1>
+                <button
+                  onClick={handleCopyCode}
+                  title="Salin kode booking"
+                  className="inline-flex items-center gap-1 text-xs font-mono bg-muted hover:bg-muted/80 px-2 py-1 rounded-md border transition-colors"
+                >
+                  {codeCopied ? <CheckCheck className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <span className={codeCopied ? 'text-emerald-600' : 'text-muted-foreground'}>{codeCopied ? 'Disalin!' : 'Salin'}</span>
+                </button>
                 <Badge variant={getStatusBadgeVariant(booking.booking_status ?? '')} className="px-3 py-1 text-xs uppercase tracking-wider font-bold">
                   {getBookingStatusLabel(booking.booking_status ?? '')}
                 </Badge>
@@ -763,10 +822,24 @@ export default function AdminBookingDetail() {
                   </div>
                   <div className="group">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">No. WhatsApp</p>
-                    <p className="text-sm flex items-center gap-2 font-medium">
-                      <Phone className="h-3.5 w-3.5 text-primary/60" />
-                      {customer?.phone || '-'}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm flex items-center gap-2 font-medium">
+                        <Phone className="h-3.5 w-3.5 text-primary/60" />
+                        {customer?.phone || '-'}
+                      </p>
+                      {customer?.phone && (
+                        <a
+                          href={`https://wa.me/62${customer.phone.replace(/^0/, '').replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 transition-colors"
+                          title="Buka WhatsApp"
+                        >
+                          <MessageCircle className="h-3 w-3" />
+                          Chat WA
+                        </a>
+                      )}
+                    </div>
                   </div>
                   <div className="group">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Email</p>
@@ -927,6 +1000,19 @@ export default function AdminBookingDetail() {
             </CardContent>
           </Card>
 
+          {/* D2 — Warning if registered passengers < total_pax */}
+          {passengers !== undefined && (passengers?.length || 0) < (booking.total_pax || 1) && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+              <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Data Jamaah Belum Lengkap</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  Booking ini untuk <strong>{booking.total_pax} jamaah</strong>, namun baru <strong>{passengers?.length || 0} jamaah</strong> yang terdaftar. Segera lengkapi manifest.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Section: Passengers Manifest */}
           <Card className="overflow-hidden border-none shadow-md">
             <div className="bg-indigo-500/5 px-6 py-4 border-b flex items-center justify-between">
@@ -935,9 +1021,100 @@ export default function AdminBookingDetail() {
                 Daftar Jamaah (Manifest)
               </h2>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="font-bold">{passengers?.length || 0} Terdaftar</Badge>
+                <Badge variant="secondary" className="font-bold">{passengers?.length || 0}/{booking.total_pax || 1} Jamaah</Badge>
               </div>
             </div>
+
+            {/* A7, A10, C6 — Enhanced passenger detail table */}
+            {passengers && passengers.length > 0 && (
+              <div className="px-4 pt-4 pb-2">
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">#</th>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Nama</th>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Tipe</th>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Kamar</th>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Dok.</th>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Permintaan Khusus</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {passengers.map((p: any, idx: number) => {
+                        const passengerType = (p.passenger_type || 'adult') as string;
+                        const passengerTypeLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+                          adult:  { label: 'Dewasa', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300', icon: <UserCheck className="h-3 w-3" /> },
+                          child:  { label: 'Anak',   color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300', icon: <Users className="h-3 w-3" /> },
+                          infant: { label: 'Bayi',   color: 'bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300', icon: <Baby className="h-3 w-3" /> },
+                        };
+                        const typeInfo = passengerTypeLabels[passengerType] || passengerTypeLabels.adult;
+                        const rtColors: Record<string, string> = {
+                          quad: 'bg-purple-100 text-purple-800', triple: 'bg-blue-100 text-blue-800',
+                          double: 'bg-emerald-100 text-emerald-800', single: 'bg-amber-100 text-amber-800',
+                        };
+                        const roomType = p.room_preference || booking.room_type || 'quad';
+                        const customerId = p.customer_id || p.customer?.id;
+                        const docsForPassenger = (passengerDocs || []).filter((d: any) => d.customer_id === customerId);
+                        const hasKtp = docsForPassenger.some((d: any) => d.document_type === 'ktp' && d.status === 'approved');
+                        const hasPassport = docsForPassenger.some((d: any) => d.document_type === 'passport' && d.status === 'approved');
+                        const hasPhoto = docsForPassenger.some((d: any) => d.document_type === 'photo' && d.status === 'approved');
+                        const docScore = [hasKtp, hasPassport, hasPhoto].filter(Boolean).length;
+                        return (
+                          <tr key={p.id} className={cn("hover:bg-muted/20 transition-colors", p.is_main_passenger && "bg-primary/5")}>
+                            <td className="px-3 py-2.5 text-muted-foreground font-mono">
+                              {idx + 1}
+                              {p.is_main_passenger && <span className="ml-1 text-[9px] font-bold text-primary/70 bg-primary/10 px-1 rounded">PIC</span>}
+                            </td>
+                            <td className="px-3 py-2.5 font-semibold max-w-[140px]">
+                              <span className="truncate block">{p.full_name || p.customer?.full_name || '-'}</span>
+                              {p.room_number && (
+                                <span className="text-[10px] text-muted-foreground font-normal">Km. {p.room_number}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${typeInfo.color}`}>
+                                {typeInfo.icon}
+                                {typeInfo.label}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${rtColors[roomType] || 'bg-muted text-muted-foreground'}`}>
+                                {(roomType as string).charAt(0).toUpperCase() + (roomType as string).slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-1" title={`KTP: ${hasKtp?'✓':'—'} | Passport: ${hasPassport?'✓':'—'} | Foto: ${hasPhoto?'✓':'—'}`}>
+                                {docScore === 3
+                                  ? <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                                  : docScore === 0
+                                  ? <ShieldAlert className="h-4 w-4 text-red-400" />
+                                  : <Shield className="h-4 w-4 text-amber-500" />}
+                                <span className={`text-[10px] font-bold ${docScore === 3 ? 'text-emerald-700' : docScore === 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                                  {docScore}/3
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 max-w-[180px]">
+                              {p.special_requests ? (
+                                <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded px-1.5 py-0.5 inline-flex items-center gap-1">
+                                  <BriefcaseMedical className="h-3 w-3 shrink-0" />
+                                  <span className="truncate max-w-[140px]" title={p.special_requests}>{p.special_requests}</span>
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-[10px]">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5 px-1">Dok. = KTP / Passport / Foto terverifikasi. Export manifest lengkap di bawah.</p>
+              </div>
+            )}
+
             <CardContent className="p-0 pt-3">
               <BulkPassengerExport
                 passengers={passengers || []}
@@ -1253,6 +1430,66 @@ export default function AdminBookingDetail() {
             </CardContent>
           </Card>
 
+          {/* A1 + A3 + D4 — Agent & Branch Info Panel */}
+          {((booking as any).agent || (booking as any).branch) && (
+            <Card className="border-none shadow-md overflow-hidden">
+              <div className="bg-violet-500/5 px-5 py-3 border-b">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-violet-700 dark:text-violet-400 flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Info Agen & Cabang
+                </h3>
+              </div>
+              <CardContent className="p-4 space-y-3">
+                {(booking as any).agent && (
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Agen</p>
+                      <p className="text-sm font-bold text-foreground">{(booking as any).agent.company_name}</p>
+                      <p className="text-[11px] font-mono text-muted-foreground">{(booking as any).agent.agent_code}</p>
+                    </div>
+                    <Link
+                      to={`/admin/agents`}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/40 px-2 py-1 rounded border border-violet-200 dark:border-violet-800 transition-colors mt-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Lihat
+                    </Link>
+                  </div>
+                )}
+                {(booking as any).branch && (
+                  <div className="flex items-start justify-between gap-2 pt-2 border-t">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Cabang</p>
+                      <p className="text-sm font-bold text-foreground">{(booking as any).branch.name}</p>
+                      {(booking as any).branch.code && (
+                        <p className="text-[11px] font-mono text-muted-foreground">{(booking as any).branch.code}</p>
+                      )}
+                    </div>
+                    <Link
+                      to={`/admin/branches`}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 transition-colors mt-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Lihat
+                    </Link>
+                  </div>
+                )}
+                {/* Link ke komisi agen */}
+                {(booking as any).agent && (
+                  <div className="pt-2 border-t">
+                    <Link
+                      to={`/agent/commissions`}
+                      className="flex items-center justify-center gap-2 w-full text-[10px] font-bold text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800 rounded-lg py-2 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors"
+                    >
+                      <CreditCard className="h-3.5 w-3.5" />
+                      Lihat Komisi Agen
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Quick Actions Card */}
           <Card className="border-none shadow-md overflow-hidden">
             <div className="bg-muted/50 px-6 py-3 border-b">
@@ -1318,17 +1555,26 @@ export default function AdminBookingDetail() {
         </div>
       </div>
 
-      {/* Activity Timeline */}
+      {/* Activity Timeline — B1+D1: Real data from booking_status_history */}
       <div className="mt-2">
         <Card className="border-none shadow-md overflow-hidden">
-          <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 border-b flex items-center gap-2">
-            <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground">Timeline Aktivitas</h2>
+          <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 border-b flex items-center justify-between">
+            <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <Clock3 className="h-4 w-4" />
+              Timeline Aktivitas
+            </h2>
+            {statusHistory && statusHistory.length > 0 && (
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" />
+                Data nyata
+              </span>
+            )}
           </div>
           <CardContent className="p-6">
             <div className="relative">
               <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border" />
               <div className="space-y-5 ml-10">
-                {/* Booking Created */}
+                {/* Booking Created — always first */}
                 <div className="relative">
                   <div className="absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 border-2 border-primary/30">
                     <span className="text-[10px] font-bold text-primary">+</span>
@@ -1339,32 +1585,93 @@ export default function AdminBookingDetail() {
                     <p className="text-[11px] text-muted-foreground mt-0.5">Kode: <span className="font-mono font-semibold">{booking.booking_code}</span></p>
                   </div>
                 </div>
-                {/* Payment Events */}
-                {payments && payments.length > 0 && [...payments].reverse().map((pay: any) => (
-                  <div key={pay.id} className="relative">
-                    <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${pay.status === 'paid' || pay.status === 'verified' ? 'bg-green-100 border-green-400' : pay.status === 'pending' ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-100 border-gray-400'}`}>
-                      <span className="text-[10px] font-bold text-emerald-700">₫</span>
+
+                {/* Real status history entries (B1, D1) */}
+                {statusHistory && statusHistory.length > 0 ? (
+                  statusHistory.map((entry) => {
+                    const statusColors: Record<string, string> = {
+                      confirmed: 'bg-green-100 border-green-400 dark:bg-green-900/40',
+                      completed: 'bg-emerald-100 border-emerald-400 dark:bg-emerald-900/40',
+                      cancelled: 'bg-red-100 border-red-400 dark:bg-red-900/40',
+                      refunded:  'bg-orange-100 border-orange-400 dark:bg-orange-900/40',
+                      processing:'bg-blue-100 border-blue-400 dark:bg-blue-900/40',
+                      pending:   'bg-yellow-100 border-yellow-400 dark:bg-yellow-900/40',
+                    };
+                    const colorClass = statusColors[entry.to_status] || 'bg-muted border-border';
+                    return (
+                      <div key={entry.id} className="relative">
+                        <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${colorClass}`}>
+                          <span className="text-[10px] font-bold">→</span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">
+                            Status berubah → <span className="font-bold">{getBookingStatusLabel(entry.to_status)}</span>
+                            {entry.from_status && (
+                              <span className="font-normal text-muted-foreground"> (dari {getBookingStatusLabel(entry.from_status)})</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {entry.created_at ? formatDate(entry.created_at) : '-'}
+                            {entry.changed_by_profile?.full_name && (
+                              <> — oleh <span className="font-semibold">{entry.changed_by_profile.full_name}</span></>
+                            )}
+                          </p>
+                          {entry.notes && (
+                            <p className="text-[11px] text-muted-foreground italic mt-0.5 border-l-2 border-muted pl-2">
+                              {entry.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  /* Fallback to manual timeline if no status_history records yet */
+                  <>
+                    {payments && payments.length > 0 && [...payments].reverse().map((pay: any) => (
+                      <div key={pay.id} className="relative">
+                        <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${pay.status === 'paid' || pay.status === 'verified' ? 'bg-green-100 border-green-400' : pay.status === 'pending' ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-100 border-gray-400'}`}>
+                          <CreditCard className="h-3 w-3 text-emerald-700" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">
+                            Pembayaran {pay.status === 'paid' || pay.status === 'verified' ? 'Diverifikasi' : pay.status === 'pending' ? 'Menunggu Verifikasi' : 'Dibatalkan'}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">{pay.created_at ? formatDate(pay.created_at) : '-'}</p>
+                          <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">{pay.amount ? formatCurrency(pay.amount) : '-'} via {pay.payment_method || '-'}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="relative">
+                      <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${booking.booking_status === 'completed' ? 'bg-green-100 border-green-400' : booking.booking_status === 'cancelled' ? 'bg-red-100 border-red-400' : 'bg-blue-100 border-blue-400'}`}>
+                        <span className="text-[10px] font-bold text-blue-700">●</span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">Status Saat Ini</p>
+                        <p className="text-[11px] text-muted-foreground">{booking.updated_at ? formatDate(booking.updated_at) : '-'}</p>
+                        <p className="text-[11px] font-semibold mt-0.5">{getBookingStatusLabel(booking.booking_status ?? '')}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Pembayaran {pay.status === 'paid' || pay.status === 'verified' ? 'Diverifikasi' : pay.status === 'pending' ? 'Menunggu Verifikasi' : 'Dibatalkan'}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">{pay.created_at ? formatDate(pay.created_at) : '-'}</p>
-                      <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">{pay.amount ? formatCurrency(pay.amount) : '-'} via {pay.payment_method || '-'}</p>
+                  </>
+                )}
+
+                {/* Payment events interspersed if status_history is present */}
+                {statusHistory && statusHistory.length > 0 && payments && payments.length > 0 && (
+                  [...payments].reverse().map((pay: any) => (
+                    <div key={`pay-${pay.id}`} className="relative">
+                      <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${pay.status === 'paid' || pay.status === 'verified' ? 'bg-green-100 border-green-400' : pay.status === 'pending' ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-100 border-gray-400'}`}>
+                        <CreditCard className="h-3 w-3 text-emerald-700" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          Pembayaran {pay.status === 'paid' || pay.status === 'verified' ? 'Diverifikasi' : pay.status === 'pending' ? 'Menunggu Verifikasi' : 'Dibatalkan'}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">{pay.created_at ? formatDate(pay.created_at) : '-'}</p>
+                        <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">{pay.amount ? formatCurrency(pay.amount) : '-'} via {pay.payment_method || '-'}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {/* Current Status */}
-                <div className="relative">
-                  <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${booking.booking_status === 'completed' ? 'bg-green-100 border-green-400' : booking.booking_status === 'cancelled' ? 'bg-red-100 border-red-400' : 'bg-blue-100 border-blue-400'}`}>
-                    <span className="text-[10px] font-bold text-blue-700">●</span>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">Status Saat Ini</p>
-                    <p className="text-[11px] text-muted-foreground">{booking.updated_at ? formatDate(booking.updated_at) : '-'}</p>
-                    <p className="text-[11px] font-semibold mt-0.5">{getBookingStatusLabel(booking.booking_status ?? '')}</p>
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
             </div>
           </CardContent>
