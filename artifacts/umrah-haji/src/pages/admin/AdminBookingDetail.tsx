@@ -863,10 +863,42 @@ export default function AdminBookingDetail() {
                       <p className="text-lg font-black">{departure?.arrival_airport?.code || '-'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-sm font-medium">
-                    <Calendar className="h-4 w-4 text-amber-600" />
-                    <span>Berangkat: {departure?.departure_date ? formatDate(departure.departure_date) : '-'}</span>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-3 font-medium">
+                      <Calendar className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>Berangkat: <strong>{departure?.departure_date ? formatDate(departure.departure_date) : '-'}</strong></span>
+                    </div>
+                    {departure?.return_date && (
+                      <div className="flex items-center gap-3 font-medium">
+                        <Calendar className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>Kembali: <strong>{formatDate(departure.return_date)}</strong></span>
+                      </div>
+                    )}
+                    {pkg?.duration_days && (
+                      <div className="flex items-center gap-3 text-muted-foreground text-xs">
+                        <span className="text-lg">🕐</span>
+                        <span>Durasi: <strong>{pkg.duration_days} Hari</strong></span>
+                      </div>
+                    )}
                   </div>
+                  {/* Hotel info */}
+                  {(departure?.hotel_makkah || pkg?.hotel_makkah || departure?.hotel_madinah || pkg?.hotel_madinah) && (
+                    <div className="mt-3 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 space-y-1.5 text-xs">
+                      <p className="font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight text-[10px]">Info Hotel</p>
+                      {(departure?.hotel_makkah || pkg?.hotel_makkah) && (
+                        <p className="flex items-start gap-2 text-foreground">
+                          <span className="font-semibold text-muted-foreground shrink-0">Makkah:</span>
+                          <span>{departure?.hotel_makkah || pkg?.hotel_makkah}</span>
+                        </p>
+                      )}
+                      {(departure?.hotel_madinah || pkg?.hotel_madinah) && (
+                        <p className="flex items-start gap-2 text-foreground">
+                          <span className="font-semibold text-muted-foreground shrink-0">Madinah:</span>
+                          <span>{departure?.hotel_madinah || pkg?.hotel_madinah}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -987,55 +1019,175 @@ export default function AdminBookingDetail() {
 
         {/* Sidebar: Financial Summary & Quick Actions */}
         <div className="space-y-6">
-          {/* Payment Summary Card */}
+          {/* Payment Summary Card — Rinci */}
           <Card className="border-none shadow-lg overflow-hidden">
-            <div className="bg-slate-900 text-white p-6">
-              <h3 className="font-bold text-sm uppercase tracking-widest opacity-70 mb-4">Ringkasan Pembayaran</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="opacity-70">Harga Paket ({getRoomTypeLabel(booking.room_type)})</span>
-                  <span className="font-medium">{formatCurrency(derivedBasePrice)}</span>
-                </div>
+            {/* Header: Rincian Harga */}
+            <div className="bg-slate-900 text-white p-5">
+              <h3 className="font-bold text-xs uppercase tracking-widest opacity-60 mb-4">Rincian Tagihan</h3>
+              <div className="space-y-2.5">
+                {/* Per-pax price breakdown */}
+                {(() => {
+                  const rt = (booking.room_type || 'quad') as string;
+                  const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
+                  const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
+                  const pricePerPax = (fromDep || fromPkg) ?? (booking.base_price / (booking.total_pax || 1));
+                  const adultCount = (booking as any).adult_count || 0;
+                  const childCount = (booking as any).child_count || 0;
+                  const infantCount = (booking as any).infant_count || 0;
+                  const hasBreakdown = adultCount > 0 || childCount > 0 || infantCount > 0;
+                  return (
+                    <>
+                      <div className="flex justify-between text-xs opacity-70 pb-1">
+                        <span>Kamar {getRoomTypeLabel(booking.room_type)}</span>
+                        <span className="font-mono">{formatCurrency(pricePerPax)}/orang</span>
+                      </div>
+                      {hasBreakdown ? (
+                        <>
+                          {adultCount > 0 && (
+                            <div className="flex justify-between text-sm pl-3">
+                              <span className="opacity-80">{adultCount} Dewasa × {formatCurrency(pricePerPax)}</span>
+                              <span className="font-semibold">{formatCurrency(adultCount * pricePerPax)}</span>
+                            </div>
+                          )}
+                          {childCount > 0 && (
+                            <div className="flex justify-between text-sm pl-3">
+                              <span className="opacity-80">{childCount} Anak × {formatCurrency(pricePerPax)}</span>
+                              <span className="font-semibold">{formatCurrency(childCount * pricePerPax)}</span>
+                            </div>
+                          )}
+                          {infantCount > 0 && (
+                            <div className="flex justify-between text-sm pl-3">
+                              <span className="opacity-80">{infantCount} Bayi × {formatCurrency(pricePerPax)}</span>
+                              <span className="font-semibold">{formatCurrency(infantCount * pricePerPax)}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex justify-between text-sm pl-3">
+                          <span className="opacity-80">{booking.total_pax || 1} Pax × {formatCurrency(pricePerPax)}</span>
+                          <span className="font-semibold">{formatCurrency((booking.total_pax || 1) * pricePerPax)}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
+                {/* Add-ons */}
                 {(booking.addons_price || 0) > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="opacity-70">Tambahan</span>
-                    <span className="font-medium">{formatCurrency(booking.addons_price || 0)}</span>
+                    <span className="opacity-70">Biaya Tambahan</span>
+                    <span className="font-semibold">+{formatCurrency(booking.addons_price || 0)}</span>
                   </div>
                 )}
+
+                {/* Diskon */}
                 {(booking.discount_amount || 0) > 0 && (
                   <div className="flex justify-between text-sm text-emerald-400">
-                    <span>Diskon</span>
-                    <span className="font-medium">-{formatCurrency(booking.discount_amount || 0)}</span>
+                    <span>{(booking as any).discount_label || 'Diskon'}</span>
+                    <span className="font-semibold">−{formatCurrency(booking.discount_amount || 0)}</span>
                   </div>
                 )}
-                <div className="pt-3 border-t border-white/10 flex justify-between items-end">
+
+                {/* Total */}
+                <div className="pt-3 border-t border-white/15 flex justify-between items-end">
                   <span className="text-xs uppercase font-bold opacity-60">Total Tagihan</span>
                   <span className="text-xl font-black">{formatCurrency(booking.total_price)}</span>
                 </div>
               </div>
             </div>
-            <CardContent className="p-6 bg-white dark:bg-slate-900 space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground font-medium">Telah Dibayar</span>
-                <span className="text-emerald-600 font-bold">{formatCurrency(booking.paid_amount || 0)}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10 flex justify-between items-center">
-                <span className="text-xs font-bold text-destructive uppercase tracking-tighter">Sisa Tagihan</span>
-                <span className="text-lg font-black text-destructive">{formatCurrency(booking.remaining_amount || 0)}</span>
-              </div>
-              
-              {/* Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter">
-                  <span>Progress Pelunasan</span>
-                  <span>{Math.round(((booking.paid_amount || 0) / booking.total_price) * 100)}%</span>
+
+            {/* Body: Riwayat Pembayaran */}
+            <CardContent className="p-0">
+              {/* Deadline */}
+              {(booking as any).payment_deadline && (
+                <div className="px-5 py-3 bg-amber-50 dark:bg-amber-950/30 border-b flex justify-between items-center">
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight">Batas Bayar</span>
+                  <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    {dfFormat(new Date((booking as any).payment_deadline), 'd MMM yyyy', { locale: localeId })}
+                  </span>
                 </div>
-                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500 transition-all duration-500" 
-                    style={{ width: `${Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%` }}
-                  />
+              )}
+
+              {/* Payment records */}
+              {payments && payments.length > 0 ? (
+                <div className="px-5 py-4 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Riwayat Pembayaran</p>
+                  <div className="space-y-2">
+                    {[...payments].reverse().map((pay: any, idx: number) => (
+                      <div key={pay.id} className={`flex items-start justify-between gap-2 p-2.5 rounded-lg text-xs ${
+                        pay.status === 'paid' || pay.status === 'verified'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/30'
+                          : pay.status === 'pending'
+                            ? 'bg-amber-50/70 dark:bg-amber-950/20'
+                            : 'bg-muted/50'
+                      }`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="font-bold text-muted-foreground">#{idx + 1}</span>
+                            <span className={`font-semibold capitalize ${
+                              pay.status === 'paid' || pay.status === 'verified' ? 'text-emerald-700 dark:text-emerald-400'
+                              : pay.status === 'pending' ? 'text-amber-700 dark:text-amber-400'
+                              : 'text-muted-foreground'
+                            }`}>
+                              {pay.status === 'verified' ? 'Terverifikasi' : pay.status === 'paid' ? 'Lunas' : pay.status === 'pending' ? 'Menunggu' : pay.status}
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground truncate">
+                            {pay.payment_method?.toUpperCase() || '—'} · {pay.created_at ? dfFormat(new Date(pay.created_at), 'd MMM yyyy', { locale: localeId }) : '-'}
+                          </p>
+                          {pay.notes && <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 italic">{pay.notes}</p>}
+                        </div>
+                        <span className="font-bold text-right shrink-0">{formatCurrency(pay.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              ) : (
+                <div className="px-5 py-4">
+                  <p className="text-xs text-muted-foreground text-center italic">Belum ada pembayaran tercatat</p>
+                </div>
+              )}
+
+              {/* Summary: paid / remaining */}
+              <div className="px-5 pb-5 space-y-3">
+                <div className="flex justify-between text-sm border-t pt-3">
+                  <span className="text-muted-foreground font-medium">Total Dibayar</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{formatCurrency(booking.paid_amount || 0)}</span>
+                </div>
+                <div className={`p-3 rounded-lg flex justify-between items-center ${
+                  (booking.remaining_amount || 0) <= 0
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-destructive/5 border border-destructive/10'
+                }`}>
+                  <span className={`text-xs font-bold uppercase tracking-tighter ${(booking.remaining_amount || 0) <= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
+                    {(booking.remaining_amount || 0) <= 0 ? 'Lunas' : 'Sisa Tagihan'}
+                  </span>
+                  <span className={`text-lg font-black ${(booking.remaining_amount || 0) <= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
+                    {formatCurrency(booking.remaining_amount || 0)}
+                  </span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">
+                    <span>Progress Pelunasan</span>
+                    <span>{Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%</span>
+                  </div>
+                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                      style={{ width: `${Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick pay button */}
+                <button
+                  onClick={() => setShowManagePaymentModal(true)}
+                  className="w-full text-xs font-bold text-primary border border-primary/30 rounded-lg py-2 hover:bg-primary/5 transition-colors"
+                >
+                  + Tambah / Kelola Pembayaran
+                </button>
               </div>
             </CardContent>
           </Card>

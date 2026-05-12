@@ -264,6 +264,48 @@ Jalankan setelah fase20 di Supabase SQL Editor.
 | 12 | Notifikasi admin otomatis saat jamaah upload bukti bayar | `hooks/useStore.ts` |
 | 13 | Hapus duplikat import `formatCurrency` di AdminStoreOrders | `AdminStoreOrders.tsx` |
 
+### Sesi Mei 2026 — Fix Bug + Enhancement Booking Detail
+
+| # | Perubahan | File |
+|---|-----------|------|
+| 1 | Fix bug `remaining_amount` is generated column — hapus dari update di ChangeRoomTypeDialog | `ChangeRoomTypeDialog.tsx` |
+| 2 | Ringkasan Pembayaran sidebar diganti menjadi versi rinci: harga/pax × jumlah dewasa/anak/bayi, add-ons, diskon, riwayat tiap pembayaran (metode/tanggal/status), progress bar, tombol tambah pembayaran | `AdminBookingDetail.tsx` |
+| 3 | Section detail paket: tambah tanggal kembali, hotel Makkah & Madinah, durasi program | `AdminBookingDetail.tsx` |
+
+**Analisis Gap — Halaman Admin Booking Detail (`/admin/bookings/:id`)**
+
+Berikut item yang saat ini **sudah ada** vs **belum ada / kurang lengkap**:
+
+| # | Area | Status Saat Ini | Yang Perlu Ditambah | Prioritas |
+|---|------|----------------|---------------------|-----------|
+| 1 | Info Agen Referral | 🔴 Tidak ada | Tampilkan nama agen + kode agen + komisi yang digenerate | Tinggi |
+| 2 | Detail Paket — Tanggal Kembali | 🔴 Tidak ada | Tampilkan `departure.return_date` | Tinggi |
+| 3 | Detail Paket — Hotel | 🔴 Tidak ada | Tampilkan hotel Makkah dan hotel Madinah | Tinggi |
+| 4 | Detail Paket — Durasi Program | 🔴 Tidak ada | `package.duration_days` hari | Sedang |
+| 5 | Data Customer — NIK / Paspor | 🔴 Tidak ada | Paspor jamaah pemesan (bisa dari passenger pertama) | Sedang |
+| 6 | Status Dokumen Per Jamaah | ⚠️ Hanya tabel manifest | Checklist per jamaah: paspor ✓, KTP ✓, foto ✓, visa ✗ | Tinggi |
+| 7 | Batas Waktu Bayar (Deadline) | ⚠️ Tersembunyi di sidebar saja | Tampilkan di header/badge utama bila mendekati jatuh tempo | Sedang |
+| 8 | Info Komisi Agen di Sidebar | 🔴 Tidak ada | Mini card: status komisi, jumlah, tombol ke halaman komisi | Sedang |
+| 9 | Catatan Admin Editable Inline | ⚠️ Read-only | Klik langsung edit catatan tanpa dialog | Rendah |
+| 10 | Rincian Add-ons per Item | ⚠️ Hanya total | Bisa daftar per item add-on dengan harga masing-masing | Rendah |
+| 11 | Tombol Refund / Pembatalan | 🔴 Tidak ada | Quick action jika status = cancelled/refunded | Sedang |
+
+**Item yang sudah ada & berfungsi:**
+- ✅ Update status booking + konfirmasi dialog
+- ✅ Edit data customer (EditCustomerDialog)
+- ✅ Ubah tipe kamar (ChangeRoomTypeDialog) — sekarang fixed
+- ✅ Pindah paket (ChangePackageDialogV2)
+- ✅ Daftar jamaah + export PDF/Excel (BulkPassengerExport)
+- ✅ Riwayat pembayaran tabel + approve pending payment
+- ✅ Ringkasan pembayaran rinci (sidebar) — baru ditingkatkan
+- ✅ Cetak invoice + form transaksi PDF
+- ✅ Buat surat (BookingDocumentActions)
+- ✅ Notifikasi WA ke jamaah
+- ✅ Timeline aktivitas booking
+- ✅ Riwayat dokumen yang pernah dicetak
+
+---
+
 ### Sesi Juni 2026 — Enhancement Navigation + PWA
 
 | # | Perubahan | File |

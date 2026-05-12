@@ -96,15 +96,14 @@ export function ChangeRoomTypeDialog({
     mutationFn: async () => {
       if (!selectedRoomType) throw new Error("Pilih tipe kamar terlebih dahulu");
 
-      // 1. Update booking room_type, total_price and remaining_amount
-      const newRemainingAmount = Math.max(0, newTotalPrice - paidAmount);
+      // 1. Update booking room_type, total_price
+      // NOTE: remaining_amount is a generated column in DB, do NOT include it in update
       const { error: updateError } = await supabase
         .from("bookings")
         .update({
           room_type: selectedRoomType as "double" | "quad" | "single" | "triple",
           base_price: newTotalPrice,
           total_price: newTotalPrice,
-          remaining_amount: newRemainingAmount,
           updated_at: new Date().toISOString(),
         })
         .eq("id", bookingId);
