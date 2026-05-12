@@ -460,6 +460,33 @@ export async function generateTransactionForm(
     const sigW   = cw - termsW - 5;
     const sigX   = MARGIN + termsW + 5;
 
+    // Anchor signature boxes at the TOP-RIGHT of the KETERANGAN section so
+    // they sit beside the title (not floating at the bottom of the policy).
+    const sectionStartY = y;
+    if (template.showSignature) {
+      const halfSig = sigW / 2 - 2;
+      const boxH = 32;
+      const headerY = sectionStartY;
+      const boxY = headerY + 4;
+
+      doc.setFontSize(7.5);
+      doc.setFont(font, "bold");
+      doc.setTextColor(acc.r, acc.g, acc.b);
+      doc.text("DISETUJUI", sigX + halfSig / 2, headerY, { align: "center" });
+      doc.text("YANG MENYATAKAN", sigX + halfSig + 4 + halfSig / 2, headerY, { align: "center" });
+
+      doc.setDrawColor(160, 160, 160);
+      doc.setLineWidth(0.3);
+      doc.rect(sigX, boxY, halfSig, boxH);
+      doc.rect(sigX + halfSig + 4, boxY, halfSig, boxH);
+
+      doc.setFontSize(7);
+      doc.setFont(font, "normal");
+      doc.setTextColor(80, 80, 80);
+      doc.text(template.leftSignatureLabel, sigX + halfSig / 2, boxY + boxH + 4, { align: "center" });
+      doc.text(template.rightSignatureLabel, sigX + halfSig + 4 + halfSig / 2, boxY + boxH + 4, { align: "center" });
+    }
+
     if (template.cancellationPolicy || template.termsText) {
       doc.setFontSize(8.5);
       doc.setFont(font, "bold");
@@ -490,9 +517,13 @@ export async function generateTransactionForm(
           doc.setTextColor(30, 30, 30);
           for (const item of section.items) {
             y = ensureSpace(doc, y, 4);
-            const itemLines = doc.splitTextToSize(`      ${item}`, termsW - 4);
-            doc.text(itemLines, MARGIN, y);
-            y += itemLines.length * 3.5 + 1;
+            // Hanging-indent bullet so wrapped lines stay aligned under the text
+            const bulletX = MARGIN + 3;
+            const textX = MARGIN + 7;
+            const itemLines = doc.splitTextToSize(item, termsW - 10);
+            doc.text("•", bulletX, y);
+            doc.text(itemLines, textX, y);
+            y += itemLines.length * 3.5 + 1.2;
           }
           y += 2;
         }
@@ -505,33 +536,9 @@ export async function generateTransactionForm(
         doc.text(termLines, MARGIN, y);
         y += termLines.length * 3.5 + 8;
       }
-
-      if (template.showSignature) {
-        // Signature boxes at top-right of keterangan section
-        const sY = y - 5;
-        const boxH = 28;
-        const halfSig = sigW / 2 - 2;
-
-        // "DISETUJUI" + "YANG MENYATAKAN" header
-        doc.setFontSize(7.5);
-        doc.setFont(font, "bold");
-        doc.setTextColor(acc.r, acc.g, acc.b);
-        doc.text("DISETUJUI", sigX + halfSig / 2, sY, { align: "center" });
-        doc.text("YANG MENYATAKAN", sigX + halfSig + 2 + halfSig / 2, sY, { align: "center" });
-
-        // Left sig box
-        doc.setDrawColor(160, 160, 160);
-        doc.setLineWidth(0.3);
-        doc.rect(sigX, sY + 3, halfSig, boxH);
-        doc.setFontSize(7);
-        doc.setFont(font, "normal");
-        doc.setTextColor(80, 80, 80);
-        doc.text(template.leftSignatureLabel, sigX + halfSig / 2, sY + 3 + boxH + 4, { align: "center" });
-
-        // Right sig box
-        doc.rect(sigX + halfSig + 2, sY + 3, halfSig, boxH);
-        doc.text(template.rightSignatureLabel, sigX + halfSig + 2 + halfSig / 2, sY + 3 + boxH + 4, { align: "center" });
-      }
+      // Make sure y advances past the signature block too, so footer doesn't collide
+      const sigBottom = sectionStartY + 4 + 32 + 6;
+      if (y < sigBottom) y = sigBottom;
     } else if (template.showSignature) {
       // Signature only, full width split
       const halfSig = (cw / 2) - 2;
@@ -570,13 +577,20 @@ export async function generateTransactionForm(
     doc.setFont(font, "bold");
     doc.setTextColor(acc.r, acc.g, acc.b);
     doc.text("LAMPIRAN DAFTAR JAMAAH", cx, py, { align: "center" });
-    py += 8;
+    py += 6;
 
     // Sub-header: Transaction code + date
     doc.setFontSize(8);
     doc.setFont(font, "normal");
     doc.setTextColor(80, 80, 80);
     doc.text(`${data.transactionCode}  ·  ${fmtDate(data.transactionDate)}`, cx, py, { align: "center" });
+    py += 5;
+
+    // Customer name banner
+    doc.setFontSize(8.5);
+    doc.setFont(font, "bold");
+    doc.setTextColor(acc.r, acc.g, acc.b);
+    doc.text(`PEMESAN: ${data.customerName.toUpperCase()}`, cx, py, { align: "center" });
     py += 6;
 
     const passengerRows = data.passengers.map((p, i) => [
@@ -589,10 +603,16 @@ export async function generateTransactionForm(
       fmtIDR(p.totalBill),
     ]);
 
+    const grandTotal = data.passengers.reduce((s, p) => s + (p.totalBill || 0), 0);
+
     autoTable(doc, {
       startY: py,
       head: [["NO", "NAMA", "JENIS KAMAR", "HARGA PAKET", "BIAYA TAMBAHAN", "DISKON", "TOTAL TAGIHAN"]],
       body: passengerRows,
+      foot: [[
+        { content: `TOTAL (${data.passengers.length} JAMAAH)`, colSpan: 6, styles: { halign: "right", fontStyle: "bold", fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255] } },
+        { content: fmtIDR(grandTotal), styles: { halign: "right", fontStyle: "bold", fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255] } },
+      ]],
       styles: { fontSize: 7.5, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, font },
       headStyles: { fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7 },
       columnStyles: {
@@ -634,10 +654,10 @@ export async function generateTransactionForm(
     doc.setTextColor(140, 140, 140);
     doc.text(
       `Dicetak: ${format(new Date(), "d MMMM yyyy HH:mm", { locale: idLocale })}`,
-      MARGIN,
-      ph - 5
+      MARGIN + 1,
+      ph - 6
     );
-    doc.text(`Halaman ${p} dari ${totalPages}`, pw - MARGIN, ph - 5, { align: "right" });
+    doc.text(`Halaman ${p} dari ${totalPages}`, pw - MARGIN - 1, ph - 6, { align: "right" });
   }
 
   return doc;
