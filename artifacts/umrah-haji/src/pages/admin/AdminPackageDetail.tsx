@@ -44,6 +44,7 @@ import { MilestoneTrackerCard } from "@/components/admin/MilestoneTrackerCard";
 import { BreakEvenIndicatorCard } from "@/components/admin/BreakEvenIndicatorCard";
 import { EquipmentReadinessCard } from "@/components/admin/EquipmentReadinessCard";
 import { PackageCancellationPolicyCard } from "@/components/admin/PackageCancellationPolicyCard";
+import { PackageGalleryCard } from "@/components/admin/PackageGalleryCard";
 import { toast } from "sonner";
 
 const MONTHS = [
@@ -433,6 +434,9 @@ export default function AdminPackageDetail() {
 
       {/* Cancellation Policy */}
       <PackageCancellationPolicyCard packageId={id} packageName={packageData.name} />
+
+      {/* Photo Gallery */}
+      <PackageGalleryCard packageId={id} />
 
       {/* Departures with Jamaah List */}
       <Card>

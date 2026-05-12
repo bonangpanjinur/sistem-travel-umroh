@@ -16,13 +16,15 @@ import { PackageBookingFormSimple } from '@/components/packages/PackageBookingFo
 import { 
   Clock, MapPin, Plane, Building2, Users, 
   Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon,
-  ArrowRight, Info, ShieldCheck, Globe, FileText, ChevronRight
+  ArrowRight, Info, ShieldCheck, Globe, FileText, ChevronRight,
+  Image as ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function PackageDetail() {
   const [openDepartureId, setOpenDepartureId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [lightboxPhoto, setLightboxPhoto] = useState<any>(null);
   const { idSlug } = useParams<{ idSlug: string }>();
   const navigate = useNavigate();
   const id = extractIdFromSlug(idSlug || '');
@@ -74,6 +76,24 @@ export default function PackageDetail() {
         .limit(1)
         .maybeSingle();
       return globalPolicy ? { ...globalPolicy, isGlobal: true } : null;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch package gallery photos
+  const { data: galleryPhotos = [] } = useQuery({
+    queryKey: ['package-gallery-public', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await (supabase as any)
+        .from('media_gallery')
+        .select('id, title, media_url, order_index')
+        .eq('package_id', id)
+        .eq('type', 'package_gallery')
+        .eq('is_active', true)
+        .order('order_index', { ascending: true });
+      if (error && error.code !== '42P01') throw error;
+      return data || [];
     },
     enabled: !!id,
   });
@@ -239,6 +259,9 @@ export default function PackageDetail() {
                 <TabsTrigger value="hotels">Hotel</TabsTrigger>
                 <TabsTrigger value="flight">Penerbangan</TabsTrigger>
                 <TabsTrigger value="departures">Jadwal</TabsTrigger>
+                <TabsTrigger value="foto">
+                  Foto {galleryPhotos.length > 0 && <span className="ml-1 text-xs bg-primary/15 text-primary rounded-full px-1.5">{galleryPhotos.length}</span>}
+                </TabsTrigger>
                 <TabsTrigger value="syarat">Syarat & Ketentuan</TabsTrigger>
               </TabsList>
 
@@ -545,6 +568,106 @@ export default function PackageDetail() {
                     </Card>
                   )}
                 </div>
+              </TabsContent>
+
+              {/* Foto Galeri Tab */}
+              <TabsContent value="foto" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ImageIcon className="h-5 w-5 text-primary" />
+                      Galeri Foto
+                      {galleryPhotos.length > 0 && (
+                        <span className="text-sm font-normal text-muted-foreground">({galleryPhotos.length} foto)</span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {galleryPhotos.length === 0 ? (
+                      <div className="text-center py-10 space-y-2">
+                        <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground/20" />
+                        <p className="text-muted-foreground text-sm">Galeri foto paket ini belum tersedia.</p>
+                        <p className="text-xs text-muted-foreground">Foto akan ditambahkan segera.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="columns-2 sm:columns-3 gap-3 space-y-3">
+                          {galleryPhotos.map((photo: any, idx: number) => (
+                            <div
+                              key={photo.id}
+                              className="break-inside-avoid rounded-xl overflow-hidden cursor-pointer group relative"
+                              onClick={() => setLightboxPhoto(photo)}
+                            >
+                              <img
+                                src={photo.media_url}
+                                alt={photo.title || `Foto ${idx + 1}`}
+                                className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                              {photo.title && (
+                                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <p className="text-white text-xs font-medium line-clamp-1">{photo.title}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center mt-4">Klik foto untuk memperbesar</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Lightbox */}
+                {lightboxPhoto && (
+                  <div
+                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+                    onClick={() => setLightboxPhoto(null)}
+                  >
+                    <button
+                      className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                      onClick={() => setLightboxPhoto(null)}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                    {/* Prev / Next */}
+                    {galleryPhotos.length > 1 && (
+                      <>
+                        <button
+                          className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                          onClick={e => {
+                            e.stopPropagation();
+                            const idx = galleryPhotos.findIndex((p: any) => p.id === lightboxPhoto.id);
+                            setLightboxPhoto(galleryPhotos[(idx - 1 + galleryPhotos.length) % galleryPhotos.length]);
+                          }}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button
+                          className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                          onClick={e => {
+                            e.stopPropagation();
+                            const idx = galleryPhotos.findIndex((p: any) => p.id === lightboxPhoto.id);
+                            setLightboxPhoto(galleryPhotos[(idx + 1) % galleryPhotos.length]);
+                          }}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </>
+                    )}
+                    <img
+                      src={lightboxPhoto.media_url}
+                      alt={lightboxPhoto.title}
+                      className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain"
+                      onClick={e => e.stopPropagation()}
+                    />
+                    {lightboxPhoto.title && (
+                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full whitespace-nowrap">
+                        {lightboxPhoto.title} <span className="text-white/50 ml-2">({galleryPhotos.findIndex((p: any) => p.id === lightboxPhoto.id) + 1}/{galleryPhotos.length})</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </TabsContent>
 
               {/* Syarat & Ketentuan Tab */}
