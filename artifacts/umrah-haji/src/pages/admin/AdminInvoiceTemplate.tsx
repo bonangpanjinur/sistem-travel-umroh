@@ -160,7 +160,7 @@ function PaymentBlockEditor({
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AdminInvoiceTemplate() {
   const queryClient = useQueryClient();
-  const { companyInfo } = useCompanyInfo();
+  const { company: companyInfo } = useCompanyInfo();
 
   const [template, setTemplate] = useState<TransactionFormTemplate>(DEFAULT_TEMPLATE);
   const [dbId, setDbId] = useState<string | null>(null);

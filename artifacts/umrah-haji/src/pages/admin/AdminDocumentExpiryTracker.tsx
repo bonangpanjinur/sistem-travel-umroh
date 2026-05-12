@@ -22,7 +22,7 @@ import { id as localeId } from "date-fns/locale";
 
 type UrgencyLevel = "expired" | "critical" | "warning" | "upcoming" | "ok";
 type DocFilter = "all" | "passport" | "visa";
-type UrgencyFilter = "all" | "expired" | "critical" | "warning" | "upcoming";
+type UrgencyFilter = "all" | "expired" | "critical" | "warning" | "upcoming" | "ok";
 
 interface ExpiryRecord {
   customerId: string;
@@ -134,7 +134,7 @@ export default function AdminDocumentExpiryTracker() {
           departure_id,
           departures:departures(departure_date)
         `)
-        .in("booking_status", ["confirmed", "pending", "dp_paid", "lunas"])
+        .in("booking_status", ["confirmed", "pending", "processing", "completed"])
         .order("created_at", { ascending: false });
 
       if (bookErr) throw bookErr;
