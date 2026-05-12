@@ -40,7 +40,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  Plus, Pencil, Trash2, Globe, Package, ChevronDown, ChevronUp, X, GripVertical, Info, FileText, Loader2,
+  Plus, Pencil, Trash2, Globe, Package, ChevronDown, ChevronUp, X, GripVertical, Info, FileText, Loader2, Copy,
 } from "lucide-react";
 import {
   generateTransactionForm,
@@ -88,6 +88,30 @@ export default function AdminCancellationPolicies() {
   const [form, setForm] = useState<PolicyForm>(EMPTY_FORM);
   const [expandedPreview, setExpandedPreview] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  async function handleDuplicate(p: CancellationPolicy) {
+    setDuplicatingId(p.id);
+    try {
+      const { error } = await (supabase as any)
+        .from("cancellation_policies")
+        .insert({
+          name: `${p.name} (Salinan)`,
+          is_global: false,
+          package_id: p.package_id ?? null,
+          sections: p.sections,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      if (error) throw error;
+      toast.success(`Aturan berhasil diduplikat sebagai "${p.name} (Salinan)"`);
+      queryClient.invalidateQueries({ queryKey: ["cancellation-policies"] });
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal menduplikat aturan");
+    } finally {
+      setDuplicatingId(null);
+    }
+  }
 
   async function handlePreviewPDF(p: CancellationPolicy) {
     setPreviewingId(p.id);
@@ -395,6 +419,19 @@ export default function AdminCancellationPolicies() {
                             {previewingId === p.id
                               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               : <FileText className="h-3.5 w-3.5" />
+                            }
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-amber-600 hover:text-amber-700"
+                            title="Duplikat aturan"
+                            onClick={e => { e.stopPropagation(); handleDuplicate(p); }}
+                            disabled={duplicatingId === p.id}
+                          >
+                            {duplicatingId === p.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Copy className="h-3.5 w-3.5" />
                             }
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEdit(p); }}>
