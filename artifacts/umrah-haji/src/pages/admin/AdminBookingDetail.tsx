@@ -182,9 +182,10 @@ export default function AdminBookingDetail() {
     },
   });
 
-  const { data: booking, isLoading } = useQuery({
+  const { data: booking, isLoading, isError, error: bookingError } = useQuery({
     queryKey: ['admin-booking', id],
     queryFn: async () => {
+      // Try with airport FK column hints first
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -193,8 +194,8 @@ export default function AdminBookingDetail() {
           departure:departures(
             *,
             package:packages(*),
-            departure_airport:airports!departures_departure_airport_id_fkey(code, name, city),
-            arrival_airport:airports!departures_arrival_airport_id_fkey(code, name, city)
+            departure_airport:airports!departure_airport_id(code, name, city),
+            arrival_airport:airports!arrival_airport_id(code, name, city)
           ),
           agent:agents(id, company_name, agent_code, slug),
           branch:branches(id, name, code)
@@ -202,10 +203,29 @@ export default function AdminBookingDetail() {
         .eq('id', id)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (!error) return data;
+
+      // Fallback: fetch without airport join if FK hint fails
+      const { data: fallback, error: fallbackError } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:customers(*),
+          departure:departures(
+            *,
+            package:packages(*)
+          ),
+          agent:agents(id, company_name, agent_code, slug),
+          branch:branches(id, name, code)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (fallbackError) throw fallbackError;
+      return fallback;
     },
     enabled: !!id,
+    retry: false,
   });
 
   const { data: passengers } = useQuery({
@@ -983,11 +1003,30 @@ export default function AdminBookingDetail() {
     );
   }
 
+  if (isError) {
+    const errMsg = (bookingError as any)?.message || String(bookingError);
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3">
+        <AlertCircle className="h-12 w-12 text-destructive mb-2" />
+        <h2 className="text-xl font-semibold">Gagal memuat data booking</h2>
+        <p className="text-sm text-muted-foreground max-w-md text-center">{errMsg}</p>
+        <p className="text-xs text-muted-foreground">ID: {id}</p>
+        <div className="flex gap-2 mt-2">
+          <Button variant="outline" onClick={() => window.location.reload()}>Coba Lagi</Button>
+          <Button asChild>
+            <Link to="/admin/bookings">Kembali ke Daftar Booking</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!booking) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold">Booking tidak ditemukan</h2>
+        <p className="text-sm text-muted-foreground mt-1">ID booking <code className="bg-muted px-1 rounded text-xs">{id}</code> tidak ada di database.</p>
         <Button asChild className="mt-4">
           <Link to="/admin/bookings">Kembali ke Daftar Booking</Link>
         </Button>
