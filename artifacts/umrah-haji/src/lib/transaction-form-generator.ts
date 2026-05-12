@@ -9,6 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { drawPaymentWatermark } from "./pdf/watermark";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -94,6 +95,10 @@ export interface TransactionFormData {
   notes?: string;
 
   passengers: TransactionPassenger[];
+
+  /** Optional — when provided, stamps a status-aware watermark on every page. */
+  paymentStatus?: string | null;
+  showWatermark?: boolean;
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
