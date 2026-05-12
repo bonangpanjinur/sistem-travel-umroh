@@ -44,8 +44,13 @@ import {
   XCircle, Eye, AlertCircle, Loader2, Pencil, Trash,
   Copy, CheckCheck, MessageCircle, Building2, UserCheck,
   Shield, ShieldAlert, ShieldCheck, ExternalLink, Clock3,
-  Stethoscope, Baby, BriefcaseMedical
+  Stethoscope, Baby, BriefcaseMedical, RotateCcw, Wallet,
+  TriangleAlert
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -80,6 +85,28 @@ const BOOKING_STATUSES: { value: BookingStatus; label: string }[] = [
   { value: 'refunded', label: 'Dikembalikan' },
 ];
 
+const REFUND_METHODS = [
+  { value: 'transfer_bank',  label: 'Transfer Bank' },
+  { value: 'tunai',          label: 'Tunai (Cash)' },
+  { value: 'dana',           label: 'DANA' },
+  { value: 'gopay',          label: 'GoPay' },
+  { value: 'ovo',            label: 'OVO' },
+  { value: 'shopeepay',      label: 'ShopeePay' },
+  { value: 'kartu_kredit',   label: 'Kartu Kredit' },
+  { value: 'lainnya',        label: 'Lainnya' },
+];
+
+const CANCELLATION_REASONS = [
+  'Permintaan jamaah',
+  'Dokumen tidak lengkap',
+  'Pembayaran tidak dilunasi',
+  'Force majeure / keadaan darurat',
+  'Perubahan rencana keluarga',
+  'Masalah kesehatan',
+  'Alasan pekerjaan',
+  'Lainnya',
+];
+
 export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>() as { id: string };
   const navigate = useNavigate();
@@ -107,6 +134,14 @@ export default function AdminBookingDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
   const [showRoomTypeAssignmentDialog, setShowRoomTypeAssignmentDialog] = useState(false);
+
+  // Refund dialog state (D3)
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [refundMethod, setRefundMethod] = useState<string>('transfer_bank');
+  const [refundAccountInfo, setRefundAccountInfo] = useState<string>('');
+  const [cancellationReason, setCancellationReason] = useState<string>('');
+  const [processRefundNow, setProcessRefundNow] = useState<boolean>(true);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(booking?.booking_code || '');
@@ -662,7 +697,79 @@ export default function AdminBookingDetail() {
     }
   };
 
+  // Mutation: proses pembatalan + refund (D3)
+  const processRefundMutation = useMutation({
+    mutationFn: async ({ withRefund }: { withRefund: boolean }) => {
+      const targetStatus: BookingStatus = withRefund ? 'refunded' : 'cancelled';
+      const { error } = await supabase
+        .from('bookings')
+        .update({ booking_status: targetStatus })
+        .eq('id', id);
+      if (error) throw error;
+
+      if (withRefund && refundAmount > 0) {
+        await (supabase as any).from('refunds').insert({
+          booking_id: id,
+          customer_id: (booking as any)?.customer_id || (booking as any)?.customer?.id,
+          amount: refundAmount,
+          refund_method: refundMethod,
+          account_info: refundAccountInfo || null,
+          reason: cancellationReason || null,
+          status: 'pending',
+          created_by: user?.id,
+        });
+      }
+      return { withRefund, targetStatus };
+    },
+    onSuccess: async ({ withRefund, targetStatus }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
+      setShowRefundDialog(false);
+
+      if (withRefund) {
+        toast.success(`Booking dibatalkan — refund ${formatCurrency(refundAmount)} via ${REFUND_METHODS.find(m => m.value === refundMethod)?.label} sedang diproses`);
+      } else {
+        toast.success('Booking berhasil dibatalkan tanpa refund');
+      }
+
+      // Notifikasi in-app ke jamaah
+      const customerId = (booking as any)?.customer?.id ?? (booking as any)?.customer_id;
+      if (customerId) {
+        const refundMethodLabel = REFUND_METHODS.find(m => m.value === refundMethod)?.label || refundMethod;
+        const notifMsg = withRefund
+          ? `Booking Anda telah dibatalkan. Refund sebesar ${formatCurrency(refundAmount)} akan diproses melalui ${refundMethodLabel} dalam 3-7 hari kerja.${refundAccountInfo ? ` Detail: ${refundAccountInfo}` : ''}`
+          : `Booking Anda telah dibatalkan. ${cancellationReason ? `Alasan: ${cancellationReason}.` : ''} Hubungi kami untuk informasi lebih lanjut.`;
+        await (supabase as any).from('customer_notifications').insert({
+          customer_id: customerId,
+          type: 'booking',
+          title: withRefund ? 'Booking Dibatalkan — Refund Diproses 💰' : 'Booking Dibatalkan ❌',
+          message: notifMsg,
+          is_read: false,
+        });
+      }
+
+      // Reset form state
+      setRefundAmount(0);
+      setRefundMethod('transfer_bank');
+      setRefundAccountInfo('');
+      setCancellationReason('');
+      setProcessRefundNow(true);
+      setNewStatus(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Gagal memproses pembatalan');
+    },
+  });
+
   const handleStatusChange = (status: BookingStatus) => {
+    if (status === 'cancelled') {
+      // Intercept: tampilkan dialog refund
+      setRefundAmount((booking as any)?.paid_amount || 0);
+      setProcessRefundNow(((booking as any)?.paid_amount || 0) > 0);
+      setShowRefundDialog(true);
+      setNewStatus(status);
+      return;
+    }
     setNewStatus(status);
     setShowStatusConfirm(true);
   };
@@ -1699,6 +1806,173 @@ export default function AdminBookingDetail() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ========== REFUND DIALOG (D3) ========== */}
+      <Dialog open={showRefundDialog} onOpenChange={(open) => { if (!open) { setShowRefundDialog(false); setNewStatus(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <TriangleAlert className="h-5 w-5" />
+              Konfirmasi Pembatalan Booking
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 pt-1">
+            {/* Alert box */}
+            <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800 p-3 text-sm text-orange-800 dark:text-orange-300 flex gap-2">
+              <TriangleAlert className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <span>
+                Booking <strong>{booking?.booking_code}</strong> atas nama <strong>{customer?.full_name}</strong> akan dibatalkan. Tindakan ini tidak dapat dibatalkan.
+              </span>
+            </div>
+
+            {/* Jumlah terbayar */}
+            <div className="rounded-lg bg-muted/50 border p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Dana yang sudah masuk</span>
+              </div>
+              <span className="font-bold text-base">{formatCurrency((booking as any)?.paid_amount || 0)}</span>
+            </div>
+
+            {/* Alasan pembatalan */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Alasan Pembatalan</Label>
+              <Select value={cancellationReason} onValueChange={setCancellationReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih alasan pembatalan…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CANCELLATION_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Toggle: proses refund? */}
+            <div className={`rounded-lg border-2 p-4 space-y-4 transition-colors ${processRefundNow ? 'border-primary/30 bg-primary/5' : 'border-muted'}`}>
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="process-refund"
+                  checked={processRefundNow}
+                  onCheckedChange={(v) => setProcessRefundNow(!!v)}
+                />
+                <Label htmlFor="process-refund" className="font-semibold text-sm cursor-pointer flex items-center gap-2">
+                  <RotateCcw className="h-4 w-4 text-primary" />
+                  Proses refund kepada jamaah
+                </Label>
+              </div>
+
+              {processRefundNow && (
+                <div className="space-y-3 pl-7">
+                  {/* Jumlah refund */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Jumlah Refund (Rp)
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={(booking as any)?.paid_amount || 0}
+                      value={refundAmount}
+                      onChange={(e) => setRefundAmount(Number(e.target.value))}
+                      placeholder="0"
+                    />
+                    {refundAmount > ((booking as any)?.paid_amount || 0) && (
+                      <p className="text-xs text-destructive">Jumlah refund melebihi jumlah yang sudah dibayar</p>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      {[100, 75, 50, 25].map((pct) => {
+                        const amt = Math.round(((booking as any)?.paid_amount || 0) * pct / 100);
+                        return (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() => setRefundAmount(amt)}
+                            className="text-[11px] font-semibold px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                          >
+                            {pct}%
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Metode refund */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Metode Refund</Label>
+                    <Select value={refundMethod} onValueChange={setRefundMethod}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REFUND_METHODS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Nomor rekening / detail */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {refundMethod === 'transfer_bank' ? 'No. Rekening & Nama Bank' :
+                       refundMethod === 'tunai' ? 'Catatan (lokasi/waktu penyerahan)' :
+                       'No. Akun / Detail Refund'}
+                    </Label>
+                    <Textarea
+                      rows={2}
+                      value={refundAccountInfo}
+                      onChange={(e) => setRefundAccountInfo(e.target.value)}
+                      placeholder={
+                        refundMethod === 'transfer_bank' ? 'Contoh: BCA 1234567890 a.n. Budi Santoso' :
+                        refundMethod === 'tunai' ? 'Contoh: Di kantor cabang, Kamis 15 Mei 2025' :
+                        'Masukkan detail akun penerima refund…'
+                      }
+                    />
+                  </div>
+
+                  {/* Preview notifikasi */}
+                  {refundAmount > 0 && (
+                    <div className="text-xs rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 p-2.5 text-emerald-800 dark:text-emerald-300">
+                      <strong>Preview notifikasi ke jamaah:</strong><br />
+                      Booking Anda telah dibatalkan. Refund sebesar <strong>{formatCurrency(refundAmount)}</strong> akan diproses melalui <strong>{REFUND_METHODS.find(m => m.value === refundMethod)?.label}</strong> dalam 3–7 hari kerja.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 pt-2 border-t mt-2">
+            <Button
+              variant="outline"
+              onClick={() => { setShowRefundDialog(false); setNewStatus(null); }}
+              disabled={processRefundMutation.isPending}
+            >
+              Batalkan
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                processRefundMutation.isPending ||
+                !cancellationReason ||
+                (processRefundNow && refundAmount > ((booking as any)?.paid_amount || 0))
+              }
+              onClick={() => processRefundMutation.mutate({ withRefund: processRefundNow && refundAmount > 0 })}
+            >
+              {processRefundMutation.isPending
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Memproses…</>
+                : processRefundNow && refundAmount > 0
+                  ? <><RotateCcw className="h-4 w-4 mr-2" /> Batalkan & Proses Refund</>
+                  : <><XCircle className="h-4 w-4 mr-2" /> Batalkan Booking</>
+              }
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Proof Dialog */}
       <Dialog open={showProofDialog} onOpenChange={setShowProofDialog}>

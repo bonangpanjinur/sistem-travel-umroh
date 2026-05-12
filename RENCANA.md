@@ -342,7 +342,7 @@ pnpm --filter @workspace/api-spec run codegen
 |---|------|--------|-----------|--------|
 | D1 | Timeline pakai data nyata dari `booking_status_history` | Tampilkan siapa yang ubah, dari status apa, kapan, dan notes | Tinggi | ✅ |
 | D2 | Alert jika jumlah jamaah < `total_pax` | Misal total_pax = 5 tapi baru 3 jamaah terdaftar → warning banner | Sedang | ✅ |
-| D3 | Konfirmasi ke cancelled → tanya refund otomatis | Saat admin ubah status ke cancelled, munculkan pilihan: proses refund? | Sedang | 🔴 |
+| D3 | Konfirmasi ke cancelled → tanya refund otomatis | Saat admin ubah status ke cancelled, munculkan pilihan: proses refund? | Sedang | ✅ |
 | D4 | Panel info agen di sidebar | Jika `agent_id` ada, tampilkan nama agen, kode, dan total komisi yang sudah dicatat | Tinggi | ✅ |
 | D5 | Milestone progress pelunasan | Progress bar ada, tapi tanpa milestone (misal "DP 30% sudah terpenuhi") | Rendah | 🔴 |
 
@@ -369,6 +369,7 @@ pnpm --filter @workspace/api-spec run codegen
 - ✅ Panel info agen & cabang di sidebar (nama, kode, link ke halaman komisi)
 - ✅ Warning banner jika jumlah jamaah terdaftar < total_pax booking
 - ✅ Checklist dokumen per jamaah (KTP/Passport/Foto) dengan skor visual 0-3
+- ✅ Dialog konfirmasi refund saat status diubah ke "Cancelled" — pilih alasan, jumlah refund (shortcut %, 100/75/50/25), metode (Transfer Bank/DANA/GoPay/OVO/dll), detail rekening, notifikasi otomatis ke jamaah
 
 ---
 
