@@ -59,7 +59,8 @@ import { cn } from "@/lib/utils";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
-import { generateTransactionForm, DEFAULT_TEMPLATE, type PaymentInfoBlock, type CancellationPolicy } from "@/lib/transaction-form-generator";
+import { generateTransactionForm, previewTransactionForm, DEFAULT_TEMPLATE, type PaymentInfoBlock, type CancellationPolicy } from "@/lib/transaction-form-generator";
+import { DocumentPreviewModal } from "@/components/admin/DocumentPreviewModal";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
@@ -723,7 +724,9 @@ export default function AdminBookingDetail() {
     queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
   };
 
-  const handlePrintTransactionForm = async () => {
+  const [transactionFormPreviewUrl, setTransactionFormPreviewUrl] = useState<string | null>(null);
+
+  const handlePrintTransactionForm = async (mode: "download" | "preview" = "download") => {
     if (!booking || !booking.customer) return;
 
     const departure = booking.departure as any;
@@ -835,16 +838,23 @@ export default function AdminBookingDetail() {
     };
 
     try {
-      const doc = await generateTransactionForm(formData, company, tmpl);
-      doc.save(`FormTransaksi-${booking.booking_code}.pdf`);
-      toast.success("Form Transaksi berhasil di-download");
-      await logDocument({
-        bookingId: booking.id,
-        documentType: "invoice",
-        documentLabel: `Form Transaksi ${booking.booking_code}`,
-        jamaahName: booking.customer.full_name,
-      });
-      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
+      if (mode === "preview") {
+        // Revoke any previous URL to avoid memory leaks
+        if (transactionFormPreviewUrl) URL.revokeObjectURL(transactionFormPreviewUrl);
+        const url = await previewTransactionForm(formData, company, tmpl);
+        setTransactionFormPreviewUrl(url);
+      } else {
+        const doc = await generateTransactionForm(formData, company, tmpl);
+        doc.save(`FormTransaksi-${booking.booking_code}.pdf`);
+        toast.success("Form Transaksi berhasil di-download");
+        await logDocument({
+          bookingId: booking.id,
+          documentType: "invoice",
+          documentLabel: `Form Transaksi ${booking.booking_code}`,
+          jamaahName: booking.customer.full_name,
+        });
+        queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
+      }
     } catch (e: any) {
       toast.error("Gagal generate form transaksi: " + e.message);
     }
@@ -2050,10 +2060,21 @@ export default function AdminBookingDetail() {
                 <Printer className="h-4 w-4 mr-3 text-primary" />
                 CETAK INVOICE PDF
               </Button>
-              <Button className="w-full justify-start h-10 font-bold text-xs" variant="outline" onClick={handlePrintTransactionForm}>
-                <FileText className="h-4 w-4 mr-3 text-amber-600" />
-                FORM TRANSAKSI UMRAH
-              </Button>
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <Button className="justify-start h-10 font-bold text-xs" variant="outline" onClick={() => handlePrintTransactionForm("download")}>
+                  <FileText className="h-4 w-4 mr-3 text-amber-600" />
+                  FORM TRANSAKSI UMRAH
+                </Button>
+                <Button
+                  className="h-10 font-bold text-xs"
+                  variant="secondary"
+                  title="Pratinjau sebelum download"
+                  onClick={() => handlePrintTransactionForm("preview")}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Pratinjau
+                </Button>
+              </div>
               <Button 
                 className="w-full justify-start h-10 font-bold text-xs" 
                 variant="outline" 
@@ -2568,6 +2589,17 @@ export default function AdminBookingDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <DocumentPreviewModal
+        open={!!transactionFormPreviewUrl}
+        onOpenChange={(o) => {
+          if (!o && transactionFormPreviewUrl) {
+            URL.revokeObjectURL(transactionFormPreviewUrl);
+            setTransactionFormPreviewUrl(null);
+          }
+        }}
+        documentUrl={transactionFormPreviewUrl ?? ""}
+        documentName={`FormTransaksi-${booking?.booking_code ?? "preview"}.pdf`}
+      />
     </div>
   );
 }

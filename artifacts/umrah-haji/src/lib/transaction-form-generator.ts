@@ -125,6 +125,20 @@ function hexToRgb(hex: string) {
     : { r: 30, g: 58, b: 95 };
 }
 
+// ─── Layout constants (single source of truth) ───────────────────────────────
+const LAYOUT = {
+  MARGIN: 10,
+  FOOTER_RESERVE: 14, // mm reserved at bottom for page footer
+  FS_TITLE: 13,
+  FS_SECTION: 9,
+  FS_LABEL: 7.5,
+  FS_BODY: 7.5,
+  FS_SMALL: 7,
+  GAP_AFTER_TITLE: 5,
+  GAP_AFTER_SECTION: 4,
+  ROW_LEADING: 4.5,
+} as const;
+
 const fmtIDR = (n: number) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -150,9 +164,9 @@ function hr(doc: jsPDF, y: number, margin = 10) {
 }
 
 /** Ensure enough vertical space; add page if needed */
-function ensureSpace(doc: jsPDF, y: number, needed: number, margin = 10): number {
+function ensureSpace(doc: jsPDF, y: number, needed: number, margin = LAYOUT.MARGIN): number {
   const ph = doc.internal.pageSize.height;
-  if (y + needed > ph - 18) {
+  if (y + needed > ph - LAYOUT.FOOTER_RESERVE - 2) {
     doc.addPage();
     return margin + 5;
   }
@@ -454,7 +468,10 @@ export async function generateTransactionForm(
 
   // ── KETERANGAN + Signature ────────────────────────────────────────────────
   if (template.termsText || template.showSignature) {
-    y = ensureSpace(doc, y, 20);
+    // Reserve enough vertical space for signature header + boxes + labels so
+    // they never get split across pages or overlap the footer.
+    const SIG_BLOCK_H = 4 + 32 + 6; // header gap + box height + label
+    y = ensureSpace(doc, y, Math.max(SIG_BLOCK_H + 10, 50));
 
     const termsW = template.showSignature ? cw * 0.62 : cw;
     const sigW   = cw - termsW - 5;
@@ -516,14 +533,15 @@ export async function generateTransactionForm(
           doc.setFontSize(7);
           doc.setTextColor(30, 30, 30);
           for (const item of section.items) {
-            y = ensureSpace(doc, y, 4);
-            // Hanging-indent bullet so wrapped lines stay aligned under the text
             const bulletX = MARGIN + 3;
             const textX = MARGIN + 7;
             const itemLines = doc.splitTextToSize(item, termsW - 10);
+            const blockH = itemLines.length * 3.5 + 1.2;
+            // Keep bullet + all wrapped lines together (avoid splitting an item).
+            y = ensureSpace(doc, y, blockH);
             doc.text("•", bulletX, y);
             doc.text(itemLines, textX, y);
-            y += itemLines.length * 3.5 + 1.2;
+            y += blockH;
           }
           y += 2;
         }
@@ -533,8 +551,13 @@ export async function generateTransactionForm(
         doc.setFontSize(7);
         doc.setTextColor(30, 30, 30);
         const termLines = doc.splitTextToSize(template.termsText, termsW);
-        doc.text(termLines, MARGIN, y);
-        y += termLines.length * 3.5 + 8;
+        // Render line-by-line so paragraphs flow across pages safely.
+        for (const line of termLines) {
+          y = ensureSpace(doc, y, 4);
+          doc.text(line, MARGIN, y);
+          y += 3.5;
+        }
+        y += 6;
       }
       // Make sure y advances past the signature block too, so footer doesn't collide
       const sigBottom = sectionStartY + 4 + 32 + 6;
@@ -571,27 +594,28 @@ export async function generateTransactionForm(
   if (template.showPassengerList && data.passengers.length > 0) {
     doc.addPage();
     addPageBorder();
-    let py = MARGIN + 6;
+    const drawAppendixHeader = (py0: number) => {
+      let py = py0;
+      doc.setFontSize(11);
+      doc.setFont(font, "bold");
+      doc.setTextColor(acc.r, acc.g, acc.b);
+      doc.text("LAMPIRAN DAFTAR JAMAAH", cx, py, { align: "center" });
+      py += 6;
 
-    doc.setFontSize(11);
-    doc.setFont(font, "bold");
-    doc.setTextColor(acc.r, acc.g, acc.b);
-    doc.text("LAMPIRAN DAFTAR JAMAAH", cx, py, { align: "center" });
-    py += 6;
+      doc.setFontSize(8);
+      doc.setFont(font, "normal");
+      doc.setTextColor(80, 80, 80);
+      doc.text(`${data.transactionCode}  ·  ${fmtDate(data.transactionDate)}`, cx, py, { align: "center" });
+      py += 5;
 
-    // Sub-header: Transaction code + date
-    doc.setFontSize(8);
-    doc.setFont(font, "normal");
-    doc.setTextColor(80, 80, 80);
-    doc.text(`${data.transactionCode}  ·  ${fmtDate(data.transactionDate)}`, cx, py, { align: "center" });
-    py += 5;
-
-    // Customer name banner
-    doc.setFontSize(8.5);
-    doc.setFont(font, "bold");
-    doc.setTextColor(acc.r, acc.g, acc.b);
-    doc.text(`PEMESAN: ${data.customerName.toUpperCase()}`, cx, py, { align: "center" });
-    py += 6;
+      doc.setFontSize(8.5);
+      doc.setFont(font, "bold");
+      doc.setTextColor(acc.r, acc.g, acc.b);
+      doc.text(`PEMESAN: ${data.customerName.toUpperCase()}`, cx, py, { align: "center" });
+      py += 6;
+      return py;
+    };
+    let py = drawAppendixHeader(MARGIN + 6);
 
     const passengerRows = data.passengers.map((p, i) => [
       String(i + 1),
@@ -605,6 +629,7 @@ export async function generateTransactionForm(
 
     const grandTotal = data.passengers.reduce((s, p) => s + (p.totalBill || 0), 0);
 
+    let firstAppendixPage = true;
     autoTable(doc, {
       startY: py,
       head: [["NO", "NAMA", "JENIS KAMAR", "HARGA PAKET", "BIAYA TAMBAHAN", "DISKON", "TOTAL TAGIHAN"]],
@@ -613,11 +638,14 @@ export async function generateTransactionForm(
         { content: `TOTAL (${data.passengers.length} JAMAAH)`, colSpan: 6, styles: { halign: "right", fontStyle: "bold", fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255] } },
         { content: fmtIDR(grandTotal), styles: { halign: "right", fontStyle: "bold", fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255] } },
       ]],
-      styles: { fontSize: 7.5, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, font },
-      headStyles: { fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7 },
+      styles: { fontSize: 7.5, cellPadding: 2.6, lineColor: [200, 200, 200], lineWidth: 0.2, font, valign: "middle", overflow: "linebreak" },
+      headStyles: { fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7, halign: "center", valign: "middle" },
+      footStyles: { fontSize: 8 },
+      bodyStyles: { textColor: [25, 25, 25] },
+      rowPageBreak: "avoid",
       columnStyles: {
         0: { cellWidth: 8, halign: "center" },
-        1: { cellWidth: "auto" },
+        1: { cellWidth: "auto", halign: "left" },
         2: { cellWidth: 25, halign: "center" },
         3: { cellWidth: 32, halign: "right" },
         4: { cellWidth: 30, halign: "right" },
@@ -625,13 +653,25 @@ export async function generateTransactionForm(
         6: { cellWidth: 32, halign: "right" },
       },
       alternateRowStyles: { fillColor: [248, 250, 252] },
-      margin: { left: MARGIN, right: MARGIN },
+      margin: { left: MARGIN, right: MARGIN, bottom: LAYOUT.FOOTER_RESERVE + 4, top: MARGIN + 6 },
+      didDrawPage: (hookData) => {
+        if (firstAppendixPage) { firstAppendixPage = false; return; }
+        // Continuation page: draw page border + a compact appendix header
+        addPageBorder();
+        const py2 = MARGIN + 6;
+        doc.setFontSize(9);
+        doc.setFont(font, "bold");
+        doc.setTextColor(acc.r, acc.g, acc.b);
+        doc.text("LAMPIRAN DAFTAR JAMAAH (lanjutan)", cx, py2, { align: "center" });
+        // Push table cursor down for continuation pages
+        hookData.cursor && (hookData.cursor.y = MARGIN + 12);
+      },
     });
 
     // Footer page 2
     // @ts-ignore
     const finalY = doc.lastAutoTable.finalY + 6;
-    if (template.footerText) {
+    if (template.footerText && finalY < doc.internal.pageSize.height - LAYOUT.FOOTER_RESERVE - 4) {
       doc.setFontSize(7.5);
       doc.setFont(font, "italic");
       doc.setTextColor(120, 120, 120);
@@ -661,4 +701,19 @@ export async function generateTransactionForm(
   }
 
   return doc;
+}
+
+/**
+ * Generate the same form and return a Blob URL suitable for in-app preview
+ * (e.g. iframe in DocumentPreviewModal). Caller is responsible for
+ * URL.revokeObjectURL when done.
+ */
+export async function previewTransactionForm(
+  data: TransactionFormData,
+  company: TransactionFormCompany,
+  template: TransactionFormTemplate = DEFAULT_TEMPLATE
+): Promise<string> {
+  const doc = await generateTransactionForm(data, company, template);
+  const blob = doc.output("blob");
+  return URL.createObjectURL(blob);
 }
