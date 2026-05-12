@@ -70,6 +70,7 @@ import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
 import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
+import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -765,13 +766,14 @@ export default function AdminDepartureDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="info">Informasi</TabsTrigger>
           <TabsTrigger value="jamaah">Jemaah</TabsTrigger>
           <TabsTrigger value="kamar">Kamar</TabsTrigger>
           <TabsTrigger value="perlengkapan">Perlengkapan</TabsTrigger>
           <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
+          <TabsTrigger value="harga">Riwayat Harga</TabsTrigger>
           <TabsTrigger value="operasional">Operasional</TabsTrigger>
         </TabsList>
 
@@ -1384,6 +1386,20 @@ export default function AdminDepartureDetail() {
         {/* Tab: Budget vs Realisasi — FITUR 06 */}
         <TabsContent value="budget" className="space-y-4">
           <DepartureBudgetTab departureId={id || ""} />
+        </TabsContent>
+
+        {/* Tab: Riwayat Harga */}
+        <TabsContent value="harga" className="space-y-4">
+          <PriceHistoryCard
+            departureId={id || ""}
+            packageId={departure?.package?.id}
+            currentPrices={{
+              price_quad: departure?.price_quad || 0,
+              price_triple: departure?.price_triple || 0,
+              price_double: departure?.price_double || 0,
+              price_single: departure?.price_single || 0,
+            }}
+          />
         </TabsContent>
 
         {/* Tab: Operasional */}

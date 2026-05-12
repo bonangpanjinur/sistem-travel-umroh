@@ -263,10 +263,56 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         const { error } = await supabase.from("departures").update(payload as any).eq("id", departureData.id);
         if (error) throw error;
         departureId = departureData.id;
+
+        // Auto-record price history if prices changed
+        const oldPrices = {
+          price_quad: departureData.price_quad || 0,
+          price_triple: departureData.price_triple || 0,
+          price_double: departureData.price_double || 0,
+          price_single: departureData.price_single || 0,
+        };
+        const newPrices = {
+          price_quad: values.price_quad || 0,
+          price_triple: values.price_triple || 0,
+          price_double: values.price_double || 0,
+          price_single: values.price_single || 0,
+        };
+        const pricesChanged =
+          oldPrices.price_quad !== newPrices.price_quad ||
+          oldPrices.price_triple !== newPrices.price_triple ||
+          oldPrices.price_double !== newPrices.price_double ||
+          oldPrices.price_single !== newPrices.price_single;
+
+        if (pricesChanged) {
+          await (supabase as any).from("departure_price_history").insert({
+            departure_id: departureId,
+            package_id: values.package_id || null,
+            changed_at: new Date().toISOString(),
+            price_quad: newPrices.price_quad,
+            price_triple: newPrices.price_triple,
+            price_double: newPrices.price_double,
+            price_single: newPrices.price_single,
+            keterangan: "Diperbarui melalui form edit keberangkatan",
+          });
+        }
       } else {
         const { data, error } = await supabase.from("departures").insert(payload as any).select("id").single();
         if (error) throw error;
         departureId = (data as any).id;
+
+        // Record initial price on creation
+        if (values.price_quad || values.price_triple || values.price_double || values.price_single) {
+          await (supabase as any).from("departure_price_history").insert({
+            departure_id: departureId,
+            package_id: values.package_id || null,
+            changed_at: new Date().toISOString(),
+            price_quad: values.price_quad || 0,
+            price_triple: values.price_triple || 0,
+            price_double: values.price_double || 0,
+            price_single: values.price_single || 0,
+            keterangan: "Harga awal saat keberangkatan dibuat",
+          });
+        }
       }
 
       // Sync additional hotels (transit/umroh plus/haji): delete all then re-insert
