@@ -1,119 +1,113 @@
-## Analisis Cepat
+## Analisis Menu "Kelola Booking"
 
-Repo punya **7 template** (`classic, modern, luxury, islamic, futuristic, nature, royal`) — tiap template hanya punya komponen Hero & CTA sendiri. Sisanya (FeaturedPackages, Testimonials, WhyChooseUs, QuickMenuGrid, BannerCarousel) cuma di-special-case untuk `royal`. Tabel `theme_presets` di database **kosong**, sehingga tab "Tema Preset" mati. Pemilih layout (PageBuilder) hanya mengatur urutan & visibilitas section, bukan struktur per-template.
-
-### Bug Tema yang Ditemukan
-1. **`theme_presets` kosong** → tab "Tema Preset" tidak menampilkan apa-apa (`ThemeSelector` mengiterasi array kosong).
-2. **Apply template tidak ikut warna/font** → memilih "Royal Gold" tetap memakai palet hijau default; hanya field `template` yang berubah, `primary/secondary/accent/heading_font/body_font` tidak.
-3. **80% halaman publik tidak responsif terhadap template** → hanya Hero + CTA yang berganti; section lain hanya kenal `royal`. Akibatnya 5 dari 7 tema (Modern, Luxury, Islamic, Futuristic, Nature) tampil setengah-setengah.
-4. **Long ternary chain** di `Index.tsx` & `BranchWebsite.tsx` (`template === 'royal' ? ... : (template === 'luxury' ? ...))`) — fragile, duplikat di 2 tempat, tidak skalabel.
-5. **`AgentWebsite` tidak ikut switch template** (perlu verifikasi) → tenant agent selalu "classic".
-6. **`TenantPublicLayout` tidak punya `AnnouncementBar` / `MobileBottomNav` / `PWAInstallPrompt`** padahal `DynamicPublicLayout` punya — inkonsistensi tenant.
-7. **CSS var `--muted/--border` dihitung dari split string warna** di `ThemeProvider` — rapuh kalau format HSL tidak persis "H S L".
-8. **Preview di `ThemeSelector` & `TemplateSelector` statis** (kotak warna), bukan render asli template.
-9. **Layout per-template tidak bisa diatur** dari admin (jumlah kolom paket, density section, posisi search widget, dll. di-hard-code).
+### Cakupan analisis
+1. `pages/admin/AdminBookings.tsx` — daftar booking (955 baris)
+2. `pages/admin/AdminBookingCreate.tsx` — wizard pembuatan booking (1.115 baris)
+3. `pages/admin/AdminBookingDetail.tsx` — halaman detail (2.572 baris)
+4. `lib/document-generator.ts` (1.262), `document-generator-v2.ts` (976), `transaction-form-generator.ts` (634), `booking-pdf-exporter*.ts` — generator dokumen PDF
+5. Relasi data ke `bookings`, `booking_passengers`, `departures`, `customers`, `payments`, `agents`, `branches`, `invoice_templates`, `bank_accounts`
 
 ---
 
-## Rencana Perbaikan
+### Temuan utama
 
-### Fase 1 — Pondasi: Theme Tokens & Registry (1 source of truth)
+**A. Halaman Daftar (`AdminBookings.tsx`)**
+- Konfigurasi gaya Excel di-build inline 2x (sekitar 80 baris terduplikasi di tombol Export & tombol Unduh Statistik) — wajib diekstrak.
+- Filter `packageFilter` melakukan query tambahan ke `departures` untuk resolve ID — bekerja, tapi `filterOptions.packages` hanya dibangun dari halaman aktif (20 baris) sehingga dropdown filter tidak konsisten antar halaman.
+- Pencarian pakai `customer_id.in.(select id from customers ...)` lewat PostgREST — rapuh & tidak mendukung sanitasi penuh; lebih baik pakai RPC search atau view.
+- Statistik "halaman ini" (`stats.total/pending/confirmed`) menyesatkan: hanya menghitung 20 baris terlihat, bukan total filter.
+- Warna status hard-coded (`text-yellow-600`, `text-green-600`, dll.) — bukan token semantik.
+- Reminder WA via `fetch('/api/whatsapp/...')` di list — tidak ada loading state per-baris.
 
-Buat berkas baru `artifacts/umrah-haji/src/lib/themes/registry.ts` berisi 7 tema sebagai objek terstruktur:
+**B. Wizard Pembuatan (`AdminBookingCreate.tsx`)**
+- Step 4 (Jamaah) bekerja, tapi: harga ditaruh di `base_price = prices[dominantRoom]` — salah konsep saat kombinasi kamar campuran (Quad+Single). `total_price` benar (terjumlah), tapi `base_price` tidak merepresentasikan apapun.
+- `room_type` booking = "dominant" → kehilangan informasi alokasi sebenarnya. Semua passenger menerima `room_preference` benar, tapi field `bookings.room_type` jadi tidak akurat untuk laporan.
+- `useEffect` resync passenger dependency hanya `[roomAllocation]` → eslint-deps tidak dideklarasikan; bisa overwrite saat user sudah memilih jamaah lalu mengubah jumlah.
+- Pencarian customer pakai `.or(...)` raw string tanpa sanitasi — risiko broken query.
+- Tidak ada validasi NIK ganda di slot, hanya `customer_id` ganda.
+- PIC (pusat/cabang/agen) tidak menyimpan `sales_id` (siapa staf yang input) — padahal kolom tersedia.
+- Tidak ada konfirmasi pre-submit (review akhir) — langsung submit di step 4.
 
-```ts
-type ThemeTokens = {
-  slug: 'classic'|'modern'|'luxury'|'islamic'|'futuristic'|'nature'|'royal';
-  name: string; description: string;
-  colors: { primary, secondary, accent, background, foreground, surface, accentGold? }; // semua HSL
-  fonts: { heading: string; body: string };
-  radius: 'sharp'|'soft'|'pill';
-  density: 'compact'|'comfortable'|'spacious';
-  mood: 'light'|'dark'|'sepia';
-  ornaments: { kind: 'none'|'islamic'|'neon'|'serif-divider'|'leaf'|'gold-foil'; intensity: 0|1|2 };
-  components: { hero: ComponentKey; cta: ComponentKey; cards: 'flat'|'glass'|'bordered'|'elevated' };
-};
-```
+**C. Halaman Detail (`AdminBookingDetail.tsx`) — 2.572 baris, file paling kritis**
+- File monolitik: 7+ mutation, 10+ dialog, timeline, dokumen, refund, ganti paket, ganti kamar, kelola pembayaran. Wajib dipecah jadi sub-komponen: `BookingHeader`, `PassengersPanel`, `PaymentsPanel`, `BookingActionsSidebar`, `BookingTimeline`, `BookingDocumentsPanel`.
+- Banyak `(booking as any)` & `(p as any)` → tipe sudah lemah; tipe `Booking` di `types/database.ts` belum mencakup `payment_deadline`, `addons_price`, `discount_amount`, `discount_label`, `agent_name`, dll.
+- Inline color hard-coded di 50+ tempat (`bg-amber-50`, `text-emerald-600`, `text-violet-700`, `bg-blue-50`...). Tidak ikut design system.
+- Dua dokumen "Invoice" dan "Form Transaksi" memakai 2 generator berbeda dan template field berbeda — desain output tidak konsisten (font, header style, accent color).
 
-Buat `THEMES: Record<slug, ThemeTokens>` lengkap untuk 7 tema (palet baru yang lebih premium & tidak overlap).
+**D. Generator Dokumen — desain yang "acak-acakan"**
+- Ada 4 generator paralel: `document-generator.ts`, `document-generator-v2.ts`, `transaction-form-generator.ts`, `booking-pdf-exporter(.enhanced).ts`. Tidak ada sumber gaya tunggal.
+- `transaction-form-generator.ts` membangun layout manual lewat `doc.rect / doc.text` dengan koordinat magic-number → tidak responsif terhadap teks panjang (alamat panjang/nama paket panjang akan tabrakan).
+- `invoice_templates` menyimpan `accent_color`, `font_family`, `header_style`, `payment_info_blocks`, `terms_text`, `footer_text` — tapi hanya `transaction-form-generator` memakainya. Invoice (`generateInvoice`) **tidak** memakai template → keluaran beda gaya.
+- Tidak ada preview PDF di UI; admin harus download dulu untuk melihat hasil.
+- Tidak ada nomor dokumen sekuensial (sudah ada `get_next_document_number` RPC tapi tidak dipakai untuk invoice / form transaksi). Kode dokumen di-generate ad-hoc (`INV-${booking_code}`).
+- Tidak ada watermark "DRAFT/PAID/CANCELLED" sesuai status pembayaran.
 
-### Fase 2 — Migration Database: Seed `theme_presets` + kolom layout
-
-Migration baru:
-- `INSERT … ON CONFLICT (slug) DO UPDATE` 7 baris ke `theme_presets` (sinkron dgn registry).
-- Tambah kolom `website_settings.layout_variant jsonb` (per-section: `{ hero: 'split'|'fullscreen'|'asymmetric', packages: 'grid-3'|'grid-4'|'carousel', testimonials: 'grid'|'masonry'|'slider', density: '...' }`).
-- Tambah kolom `website_settings.theme_overrides jsonb` (kustomisasi per-tema tanpa kehilangan preset).
-
-### Fase 3 — Redesain 7 Hero & CTA (refactor)
-
-Ganti 14 komponen `<Theme>HeroSection.tsx` & `<Theme>CTASection.tsx` jadi **2 komponen polimorfik** + variant:
-
-```
-src/components/home/hero/index.tsx        // dispatch by registry.components.hero
-src/components/home/hero/variants/{Split,Fullscreen,Asymmetric,Neon,Serene,Royal,Classic}.tsx
-src/components/home/cta/...                // sama
-```
-
-Tiap variant pakai semantic tokens (`bg-primary`, `text-foreground`, `border-border`) — **tidak ada warna hard-coded** lagi. Aksen khusus tema (emas royal/luxury, neon futuristic) dipindah ke CSS var tambahan: `--theme-accent-gold`, `--theme-glow`.
-
-### Fase 4 — Theming Universal di Section Lain
-
-Hapus semua `isRoyal` di `Testimonials, WhyChooseUs, QuickMenuGrid, FeaturedPackages, BannerCarousel`. Ganti dgn helper `useTheme()` yang baca registry + token. Setiap section dapat 2–3 varian yang dipilih oleh `layout_variant`.
-
-### Fase 5 — `ThemeProvider` Anti-Bug
-
-- Pakai `parseHsl()` yang aman (regex `\d+\s+\d+%\s+\d+%`) untuk turunan `--muted/--border`.
-- Saat user apply preset, **gabungkan** preset → `website_settings` (warna+font+template+layout default tema) dalam satu mutasi.
-- Tambahkan CSS var: `--radius-base`, `--density-y`, `--theme-accent-gold`, `--theme-glow`.
-
-### Fase 6 — UI Pengaturan Tampilan Baru
-
-Refactor tab "Template" + "Tema Preset" jadi **satu tab "Tema"** dengan 3 sub-section:
-1. **Pilih Tema** — 7 kartu dengan **mini live-preview asli** (render Hero variant dlm `<iframe srcDoc>` mini atau div skala 0.25).
-2. **Layout Halaman** — picker per-section: hero variant, kolom paket (3/4), gaya testimoni (grid/slider), density, radius (sharp/soft/pill), mood (light/dark/sepia).
-3. **Kustomisasi Lanjutan** — color pickers, font picker, ornament toggle (semua disimpan ke `theme_overrides`, tombol "Reset ke preset").
-
-### Fase 7 — Konsistensi Tenant & Cleanup
-
-- `TenantPublicLayout` dilengkapi `AnnouncementBar`, `MobileBottomNav`, `PWAInstallPrompt` (sama dgn `DynamicPublicLayout`).
-- `Index.tsx`, `BranchWebsite.tsx`, `AgentWebsite.tsx` semua memakai `useThemeDispatch()` baru — hapus ternary chain.
-- Hapus 14 file `<Theme>HeroSection.tsx`/`<Theme>CTASection.tsx` lama.
-- Memory: tambah catatan "Theme registry" di `mem://design/`.
+**E. Relasi data**
+- `bookings.sales_id` ada di skema tapi tidak diisi saat create.
+- `booking_passengers.room_number` dipakai (C5), tapi tidak divalidasi terhadap kapasitas kamar.
+- `payment_status` di-update otomatis oleh trigger `update_booking_paid_amount` (bagus), tapi `AdminBookingDetail` di beberapa tempat menghitung ulang manual `paidAmount >= total_price ? 'paid' : ...` — sumber kebenaran ganda.
+- `departures.booked_count` disinkron trigger; tidak ada masalah.
+- `agents` ↔ `bookings`: detail menampilkan `bookingAgent` tapi link "Lihat Komisi Agen" mengarah ke `/agent/commissions` (route customer/agent), bukan halaman admin → salah konteks.
+- Tidak ada relasi `bookings ↔ documents` (history dokumen pakai `booking_document_logs` — sudah ada, tapi tidak ada storage path; hanya log nama).
 
 ---
 
-## Detail Teknis Singkat
+### Rencana perbaikan (bertahap)
 
-```text
-Pengaturan Tampilan
-└── Tab "Tema"
-    ├── Pilih Tema (7 kartu live-preview)
-    ├── Layout Halaman (per-section variant + density/radius/mood)
-    └── Kustomisasi Lanjutan (warna/font/ornamen → theme_overrides)
-       │
-       ▼
-website_settings { template, primary_color, …, layout_variant, theme_overrides }
-       │
-       ▼
-ThemeProvider → CSS vars + theme registry merge
-       │
-       ▼
-Komponen polimorfik (hero/cta/cards/testimonials/...) baca registry
-```
+**Fase 1 — Refaktor struktur (frontend, no-DB)**
+1. Pecah `AdminBookingDetail.tsx` menjadi:
+   - `components/admin/booking-detail/BookingHeader.tsx`
+   - `components/admin/booking-detail/BookingPassengersPanel.tsx`
+   - `components/admin/booking-detail/BookingPaymentsPanel.tsx`
+   - `components/admin/booking-detail/BookingTimeline.tsx`
+   - `components/admin/booking-detail/BookingActionsSidebar.tsx`
+   - `components/admin/booking-detail/BookingDocumentsPanel.tsx`
+   - `hooks/useBookingDetail.ts` (semua query/mutation)
+2. Ekstrak Excel style builder yang duplikat di `AdminBookings.tsx` ke `lib/excel-style-resolver.ts`.
+3. Perbaiki tipe `Booking` di `types/database.ts`: tambah `payment_deadline`, `addons_price`, `discount_amount`, `discount_label`, `sales_id`, dst. Hilangkan `(booking as any)` di file detail.
+4. Ganti seluruh warna hard-coded (`text-emerald-600`, `bg-amber-50`...) ke token semantik (`text-success`, `bg-warning/10`, `text-info`, dll.) — tambahkan token yang belum ada di `index.css` & `tailwind.config.ts`.
 
-**Perkiraan effort:** Fase 1–2: 30 menit. Fase 3: 60–90 menit (komponen terbanyak). Fase 4: 30 menit. Fase 5–7: 30 menit. Total ~3 jam kerja agent.
+**Fase 2 — Konsolidasi dokumen PDF**
+1. Buat `lib/pdf/` baru sebagai single source:
+   - `pdf/template-resolver.ts` (membaca `invoice_templates` + cancellation policy + bank accounts sekali)
+   - `pdf/layout-primitives.ts` (header, footer, signature block, watermark, table)
+   - `pdf/invoice.ts` — pakai template
+   - `pdf/transaction-form.ts` — pakai template yang sama (gaya seragam)
+   - `pdf/document-numbering.ts` — pakai RPC `get_next_document_number('invoice','INV')` & `('transaction_form','FRM')`
+2. Tambah watermark dinamis (`LUNAS / DP / BELUM BAYAR / BATAL`) berdasarkan status.
+3. Hapus / deprecate `document-generator-v2.ts` dan `booking-pdf-exporter.enhanced.ts` setelah migrasi (2 versi paralel membingungkan).
+4. Tambahkan dialog "Preview PDF" sebelum download di `BookingDocumentsPanel` (pakai `<iframe>` dari `doc.output('bloburl')`).
 
-**Risiko:** (a) breaking change di branch/agent tenant — perlu smoke test 3 rute (`/`, `/cabang/<slug>`, `/agen/<slug>`); (b) cache theme di `localStorage` perlu bump `CURRENT_THEME_VERSION` ke `'3'`; (c) `theme_overrides` kosong harus di-fallback ke registry, bukan ke `null`.
+**Fase 3 — Wizard pembuatan**
+1. `base_price` ditiadakan / dihitung sebagai harga rata-rata ter-weighted; simpan rincian `room_breakdown` di JSONB (kolom baru `bookings.room_breakdown`).
+2. Tambah Step 5 "Review & Konfirmasi" sebelum submit.
+3. Isi `sales_id = auth.uid()` saat PIC = pusat/cabang.
+4. Validasi NIK & passport ganda di slot passenger.
+5. Sanitasi `customerSearch` untuk PostgREST `.or()`.
+6. Hapus `room_type` "dominant" dari `bookings`; gantikan dengan field `primary_room_type` (eksplisit) atau biarkan dari `room_breakdown`.
 
-**Yang TIDAK diubah:** logic booking, payment, RBAC, RLS, migrations sebelumnya, `types.ts`. Murni front-end + 1 migration tambahan.
+**Fase 4 — Halaman daftar**
+1. Statistik header diganti memakai query agregat ke server (`select count, sum group by status`) — bukan dari halaman aktif.
+2. `filterOptions` (paket, keberangkatan, cabang) diambil via query terpisah, bukan dari hasil halaman.
+3. Sanitasi & RPC `search_bookings` untuk full-text search aman.
+4. Loading state per-baris untuk tombol reminder WA.
 
-## Update — Fase 3 (selesai sebagian)
-- Dispatcher polimorfik `ThemedHeroSection` & `ThemedCTASection` dibuat di `src/components/home/`. Memilih varian Hero/CTA berdasarkan `useTheme().layout` (registry + `website_settings.layout_variant`).
-- Refaktor `Index.tsx`, `BranchWebsite.tsx`, `AgentWebsite.tsx`: ternary chain panjang dihapus, kini hanya memanggil dispatcher → konsistensi 7 tema.
-- Sisa pekerjaan (Fase 4-7): hapus `isRoyal` hardcode di Testimonials/WhyChooseUs/QuickMenuGrid/FeaturedPackages/BannerCarousel, integrasikan tokens registry ke `ThemeProvider` (CSS vars `--theme-accent-gold`, `--radius` dinamis, density), tambahkan komponen TenantPublicLayout yang hilang, dan UI Appearance tab "Tema" dengan live-preview + per-section layout editor.
+**Fase 5 — Migrasi DB pendukung**
+- Tambah kolom `bookings.room_breakdown jsonb`, `bookings.primary_room_type` (opsional), backfill dari `booking_passengers`.
+- Tambah trigger validasi `payment_status` (sudah ada) — pastikan kode FE tidak menghitung ulang.
+- Pastikan `get_next_document_number` mendukung tipe `'invoice'` dan `'transaction_form'`.
 
-## Update — Fase 4-7 (selesai)
-- **Fase 4**: `isRoyal` di Testimonials/WhyChooseUs/QuickMenuGrid/FeaturedPackages/DynamicNavbar/DynamicFooter sekarang derive dari `useTheme(settings).isDark` — tema dark (royal+futuristic) konsisten gelap.
-- **Fase 5**: ThemeProvider menyuntikkan token registry sebagai CSS vars (`--radius`, `--section-py`, `--theme-accent-gold`, `--theme-mood`) dan fallback warna/font kini mengambil dari `getTheme(template)`.
-- **Fase 6**: `LayoutVariantEditor` baru di tab Layout — admin bisa override hero/cta/packages/testimonials variant per tenant; tersimpan di `website_settings.layout_variant`.
-- **Fase 7**: `TenantPublicLayout` kini sejajar dengan `DynamicPublicLayout` (AnnouncementBar, MobileBottomNav, PWAInstallPrompt, WhatsAppWidget). Tipe `WebsiteSettings` di kedua hook ditambahkan `layout_variant` & `theme_overrides`.
+---
+
+### Prioritas eksekusi yang direkomendasikan
+1. **Fase 1 (refaktor + tipe + token warna)** → fondasi, tidak menyentuh data.
+2. **Fase 2 (PDF konsolidasi)** → langsung menjawab keluhan "desain dokumen acak-acakan".
+3. **Fase 3 (wizard)** → memperbaiki kualitas data baru.
+4. **Fase 4 (daftar)** → akurasi statistik & filter.
+5. **Fase 5 (DB)** → finalisasi.
+
+Setiap fase bisa di-deliver terpisah & build lulus.
+
+---
+
+Setelah Anda setuju, saya akan mulai dari **Fase 1** kecuali Anda ingin urutan lain (misal langsung Fase 2 untuk PDF dulu).

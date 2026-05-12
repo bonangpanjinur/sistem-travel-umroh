@@ -25,7 +25,8 @@ import {
 import { formatCurrency, formatDate } from "@/lib/format";
 import { exportToExcel } from "@/lib/export-utils";
 import { exportBookingStatsToExcel } from "@/lib/booking-stats-exporter";
-import { exportDynamicBookingExcel, exportDynamicStatisticsExcel, DEFAULT_EXCEL_STYLE, ExcelStyleConfig } from "@/lib/dynamic-excel-exporter";
+import { exportDynamicBookingExcel, exportDynamicStatisticsExcel } from "@/lib/dynamic-excel-exporter";
+import { resolveExcelStyle } from "@/lib/excel-style-resolver";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useState, useMemo, useEffect } from "react";
@@ -338,37 +339,8 @@ export default function AdminBookings() {
           )}
           <Button variant="outline" onClick={() => {
             if (!paginatedBookings || paginatedBookings.length === 0) return;
-            
-            // Get style from settings or use default
-            const styleConfig: ExcelStyleConfig = {
-              title_bg_color: getSetting('excel_title_bg_color') || DEFAULT_EXCEL_STYLE.title_bg_color,
-              title_text_color: getSetting('excel_title_text_color') || DEFAULT_EXCEL_STYLE.title_text_color,
-              title_font_size: parseInt(getSetting('excel_title_font_size')) || DEFAULT_EXCEL_STYLE.title_font_size,
-              title_bold: getSetting('excel_title_bold') !== 'false',
 
-              header_bg_color: getSetting('excel_header_bg_color') || DEFAULT_EXCEL_STYLE.header_bg_color,
-              header_text_color: getSetting('excel_header_text_color') || DEFAULT_EXCEL_STYLE.header_text_color,
-              header_font_size: parseInt(getSetting('excel_header_font_size')) || DEFAULT_EXCEL_STYLE.header_font_size,
-              header_bold: getSetting('excel_header_bold') !== 'false',
-
-              section_bg_color: getSetting('excel_section_bg_color') || DEFAULT_EXCEL_STYLE.section_bg_color,
-              section_text_color: getSetting('excel_section_text_color') || DEFAULT_EXCEL_STYLE.section_text_color,
-              section_font_size: parseInt(getSetting('excel_section_font_size')) || DEFAULT_EXCEL_STYLE.section_font_size,
-              section_bold: getSetting('excel_section_bold') !== 'false',
-
-              summary_bg_color: getSetting('excel_summary_bg_color') || DEFAULT_EXCEL_STYLE.summary_bg_color,
-              summary_text_color: getSetting('excel_summary_text_color') || DEFAULT_EXCEL_STYLE.summary_text_color,
-
-              row_bg_color: getSetting('excel_row_bg_color') || DEFAULT_EXCEL_STYLE.row_bg_color,
-              row_text_color: getSetting('excel_row_text_color') || DEFAULT_EXCEL_STYLE.row_text_color,
-              alt_row_bg_color: getSetting('excel_alt_row_bg_color') || DEFAULT_EXCEL_STYLE.alt_row_bg_color,
-
-              border_color: getSetting('excel_border_color') || DEFAULT_EXCEL_STYLE.border_color,
-              border_style: (getSetting('excel_border_style') as 'thin' | 'medium' | 'thick') || DEFAULT_EXCEL_STYLE.border_style,
-
-              body_font_size: parseInt(getSetting('excel_body_font_size')) || DEFAULT_EXCEL_STYLE.body_font_size,
-              footer_font_size: parseInt(getSetting('excel_footer_font_size')) || DEFAULT_EXCEL_STYLE.footer_font_size,
-            };
+            const styleConfig = resolveExcelStyle(getSetting);
 
             const mappedData = paginatedBookings.map(b => ({
               booking_code: b.booking_code,
@@ -478,37 +450,8 @@ export default function AdminBookings() {
                 size="sm"
                 onClick={() => {
                   if (!periodStats || !periodRange) return;
-                  
-                  // Get style from settings or use default
-                  const styleConfig: ExcelStyleConfig = {
-                    title_bg_color: getSetting('excel_title_bg_color') || DEFAULT_EXCEL_STYLE.title_bg_color,
-                    title_text_color: getSetting('excel_title_text_color') || DEFAULT_EXCEL_STYLE.title_text_color,
-                    title_font_size: parseInt(getSetting('excel_title_font_size')) || DEFAULT_EXCEL_STYLE.title_font_size,
-                    title_bold: getSetting('excel_title_bold') !== 'false',
 
-                    header_bg_color: getSetting('excel_header_bg_color') || DEFAULT_EXCEL_STYLE.header_bg_color,
-                    header_text_color: getSetting('excel_header_text_color') || DEFAULT_EXCEL_STYLE.header_text_color,
-                    header_font_size: parseInt(getSetting('excel_header_font_size')) || DEFAULT_EXCEL_STYLE.header_font_size,
-                    header_bold: getSetting('excel_header_bold') !== 'false',
-
-                    section_bg_color: getSetting('excel_section_bg_color') || DEFAULT_EXCEL_STYLE.section_bg_color,
-                    section_text_color: getSetting('excel_section_text_color') || DEFAULT_EXCEL_STYLE.section_text_color,
-                    section_font_size: parseInt(getSetting('excel_section_font_size')) || DEFAULT_EXCEL_STYLE.section_font_size,
-                    section_bold: getSetting('excel_section_bold') !== 'false',
-
-                    summary_bg_color: getSetting('excel_summary_bg_color') || DEFAULT_EXCEL_STYLE.summary_bg_color,
-                    summary_text_color: getSetting('excel_summary_text_color') || DEFAULT_EXCEL_STYLE.summary_text_color,
-
-                    row_bg_color: getSetting('excel_row_bg_color') || DEFAULT_EXCEL_STYLE.row_bg_color,
-                    row_text_color: getSetting('excel_row_text_color') || DEFAULT_EXCEL_STYLE.row_text_color,
-                    alt_row_bg_color: getSetting('excel_alt_row_bg_color') || DEFAULT_EXCEL_STYLE.alt_row_bg_color,
-
-                    border_color: getSetting('excel_border_color') || DEFAULT_EXCEL_STYLE.border_color,
-                    border_style: (getSetting('excel_border_style') as 'thin' | 'medium' | 'thick') || DEFAULT_EXCEL_STYLE.border_style,
-
-                    body_font_size: parseInt(getSetting('excel_body_font_size')) || DEFAULT_EXCEL_STYLE.body_font_size,
-                    footer_font_size: parseInt(getSetting('excel_footer_font_size')) || DEFAULT_EXCEL_STYLE.footer_font_size,
-                  };
+                  const styleConfig = resolveExcelStyle(getSetting);
 
                   exportDynamicStatisticsExcel(
                     periodStats as any,
