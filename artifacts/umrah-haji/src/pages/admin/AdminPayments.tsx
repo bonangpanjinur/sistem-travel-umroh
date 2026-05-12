@@ -144,7 +144,16 @@ export default function AdminPayments() {
   });
 
   const verifyMutation = useMutation({
-    mutationFn: async ({ paymentId, status, notes }: { paymentId: string; status: 'paid' | 'failed'; notes?: string }) => {
+    mutationFn: async ({
+      paymentId, status, notes, customerId, bookingCode: bkCode, paymentAmount,
+    }: {
+      paymentId: string;
+      status: 'paid' | 'failed';
+      notes?: string;
+      customerId?: string;
+      bookingCode?: string;
+      paymentAmount?: number;
+    }) => {
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
         .update({
@@ -162,16 +171,45 @@ export default function AdminPayments() {
       // paid_amount & payment_status are automatically updated by the
       // database trigger `update_booking_paid_amount` — no manual update needed.
 
-      return payment;
+      return { payment, customerId, bookingCode: bkCode, paymentAmount, status };
     },
-    onSuccess: () => {
+    onSuccess: ({ customerId, bookingCode: bkCode, paymentAmount, status }, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
-      toast.success('Pembayaran berhasil diverifikasi');
+      toast.success(
+        status === 'paid'
+          ? 'Pembayaran dikonfirmasi — notifikasi terkirim ke jamaah'
+          : 'Pembayaran ditolak — notifikasi terkirim ke jamaah'
+      );
       setSelectedPayment(null);
       setShowRejectDialog(false);
       setShowProofDialog(false);
       setRejectReason("");
+
+      // ── Notifikasi in-app ke jamaah ────────────────────────────────────
+      if (customerId) {
+        const amountFmt = formatCurrency(paymentAmount || 0);
+        const bookingLabel = bkCode ? ` untuk booking ${bkCode}` : "";
+        const notifTitle = status === 'paid'
+          ? 'Pembayaran Dikonfirmasi ✅'
+          : 'Bukti Pembayaran Ditolak ❌';
+        const notifMessage = status === 'paid'
+          ? `Pembayaran Anda sebesar ${amountFmt}${bookingLabel} telah dikonfirmasi oleh admin. Terima kasih!`
+          : `Bukti pembayaran Anda sebesar ${amountFmt}${bookingLabel} ditolak.${variables.notes ? ` Alasan: ${variables.notes}.` : ""} Mohon upload ulang bukti yang valid melalui portal jamaah.`;
+        (supabase as any).from('customer_notifications').insert({
+          customer_id: customerId,
+          type: 'payment',
+          title: notifTitle,
+          message: notifMessage,
+          is_read: false,
+          metadata: {
+            payment_id: variables.paymentId,
+            booking_code: bkCode,
+            amount: paymentAmount,
+            payment_status: status,
+          },
+        });
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || 'Gagal memverifikasi pembayaran');
@@ -179,7 +217,14 @@ export default function AdminPayments() {
   });
 
   const handleApprove = (payment: Payment) => {
-    verifyMutation.mutate({ paymentId: payment.id, status: 'paid' });
+    const bkForApprove = (payment as any).booking;
+    verifyMutation.mutate({
+      paymentId: payment.id,
+      status: 'paid',
+      customerId: bkForApprove?.customer?.id,
+      bookingCode: bkForApprove?.booking_code,
+      paymentAmount: payment.amount,
+    });
     // Kirim email konfirmasi pembayaran
     const bkForEmail = (payment as any).booking;
     const customerEmail = bkForEmail?.customer?.email;
@@ -207,10 +252,14 @@ export default function AdminPayments() {
 
   const handleReject = () => {
     if (!selectedPayment) return;
+    const bkForReject = (selectedPayment as any).booking;
     verifyMutation.mutate({ 
       paymentId: selectedPayment.id, 
       status: 'failed',
-      notes: rejectReason 
+      notes: rejectReason,
+      customerId: bkForReject?.customer?.id,
+      bookingCode: bkForReject?.booking_code,
+      paymentAmount: (selectedPayment as any).amount,
     });
   };
 
