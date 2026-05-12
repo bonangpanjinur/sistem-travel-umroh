@@ -185,6 +185,7 @@ export default function AdminBookingDetail() {
   const { data: booking, isLoading, isError, error: bookingError } = useQuery({
     queryKey: ['admin-booking', id],
     queryFn: async () => {
+      // Note: agent_id exists in bookings but has no FK constraint → fetch agent separately below
       // Try with airport FK column hints first
       const { data, error } = await supabase
         .from('bookings')
@@ -197,7 +198,6 @@ export default function AdminBookingDetail() {
             departure_airport:airports!departure_airport_id(code, name, city),
             arrival_airport:airports!arrival_airport_id(code, name, city)
           ),
-          agent:agents(id, company_name, agent_code, slug),
           branch:branches(id, name, code)
         `)
         .eq('id', id)
@@ -215,7 +215,6 @@ export default function AdminBookingDetail() {
             *,
             package:packages(*)
           ),
-          agent:agents(id, company_name, agent_code, slug),
           branch:branches(id, name, code)
         `)
         .eq('id', id)
@@ -226,6 +225,22 @@ export default function AdminBookingDetail() {
     },
     enabled: !!id,
     retry: false,
+  });
+
+  // Fetch agent separately — no FK constraint from bookings→agents in schema
+  const { data: bookingAgent } = useQuery({
+    queryKey: ['booking-agent', (booking as any)?.agent_id],
+    queryFn: async () => {
+      const agentId = (booking as any)?.agent_id;
+      if (!agentId) return null;
+      const { data } = await (supabase as any)
+        .from('agents')
+        .select('id, company_name, agent_code, slug')
+        .eq('id', agentId)
+        .maybeSingle();
+      return data as { id: string; company_name: string; agent_code: string; slug: string } | null;
+    },
+    enabled: !!(booking as any)?.agent_id,
   });
 
   const { data: passengers } = useQuery({
@@ -776,7 +791,7 @@ export default function AdminBookingDetail() {
       transactionCode: booking.booking_code ?? `TRX-${booking.id.slice(0, 8).toUpperCase()}`,
       customerCode: (booking.customer as any)?.customer_code ?? "-",
       transactionDate: new Date(booking.created_at ?? new Date()),
-      referenceAgent: (booking as any).agent_name ?? (booking as any).agent?.full_name ?? undefined,
+      referenceAgent: (booking as any).agent_name ?? bookingAgent?.company_name ?? undefined,
       customerName: booking.customer.full_name ?? "-",
       customerAddress: [
         (booking.customer as any).address,
@@ -1965,7 +1980,7 @@ export default function AdminBookingDetail() {
           </Card>
 
           {/* A1 + A3 + D4 — Agent & Branch Info Panel */}
-          {((booking as any).agent || (booking as any).branch) && (
+          {(bookingAgent || (booking as any).branch) && (
             <Card className="border-none shadow-md overflow-hidden">
               <div className="bg-violet-500/5 px-5 py-3 border-b">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-violet-700 dark:text-violet-400 flex items-center gap-2">
@@ -1974,12 +1989,12 @@ export default function AdminBookingDetail() {
                 </h3>
               </div>
               <CardContent className="p-4 space-y-3">
-                {(booking as any).agent && (
+                {bookingAgent && (
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Agen</p>
-                      <p className="text-sm font-bold text-foreground">{(booking as any).agent.company_name}</p>
-                      <p className="text-[11px] font-mono text-muted-foreground">{(booking as any).agent.agent_code}</p>
+                      <p className="text-sm font-bold text-foreground">{bookingAgent.company_name}</p>
+                      <p className="text-[11px] font-mono text-muted-foreground">{bookingAgent.agent_code}</p>
                     </div>
                     <Link
                       to={`/admin/agents`}
@@ -2009,7 +2024,7 @@ export default function AdminBookingDetail() {
                   </div>
                 )}
                 {/* Link ke komisi agen */}
-                {(booking as any).agent && (
+                {bookingAgent && (
                   <div className="pt-2 border-t">
                     <Link
                       to={`/agent/commissions`}
