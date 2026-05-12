@@ -16,8 +16,8 @@ export interface PackageMarketingData {
   price_triple?: number;
   price_double?: number;
   price_single?: number;
-  hotel_makkah?: { name: string; star_rating?: number };
-  hotel_madinah?: { name: string; star_rating?: number };
+  hotel_makkah?: { name: string; star_rating?: number | null };
+  hotel_madinah?: { name: string; star_rating?: number | null };
   airline?: { name: string };
   departures?: Array<{
     departure_date: string;

@@ -26,8 +26,8 @@ interface AlumniBooking {
     departure_date: string;
     return_date: string;
     package: { name: string; type: string; duration_days: number } | null;
-    hotel_makkah?: { name: string; star_rating: number } | null;
-    hotel_madinah?: { name: string; star_rating: number } | null;
+    hotel_makkah?: { name: string; star_rating: number | null } | null;
+    hotel_madinah?: { name: string; star_rating: number | null } | null;
     airline?: { name: string } | null;
     muthawif?: { name: string } | null;
   } | null;

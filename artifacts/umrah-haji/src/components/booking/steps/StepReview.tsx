@@ -88,8 +88,8 @@ export function StepReview({ formData, packageId }: StepReviewProps) {
 
   // Type-safe access for joined data
   const airline = pkg?.airline as { name: string } | null;
-  const hotelMakkah = pkg?.hotel_makkah as { name: string; city: string; star_rating: number } | null;
-  const hotelMadinah = pkg?.hotel_madinah as { name: string; city: string; star_rating: number } | null;
+  const hotelMakkah = pkg?.hotel_makkah as { name: string; city: string; star_rating: number | null } | null;
+  const hotelMadinah = pkg?.hotel_madinah as { name: string; city: string; star_rating: number | null } | null;
 
   return (
     <div className="space-y-6">
