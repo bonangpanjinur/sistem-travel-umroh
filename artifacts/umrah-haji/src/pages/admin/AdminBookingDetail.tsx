@@ -710,28 +710,40 @@ export default function AdminBookingDetail() {
   // Mutation: proses pembatalan + refund (D3)
   const processRefundMutation = useMutation({
     mutationFn: async ({ withRefund }: { withRefund: boolean }) => {
+      const prevStatus = (booking as any)?.booking_status ?? 'unknown';
       const targetStatus: BookingStatus = withRefund ? 'refunded' : 'cancelled';
+
       const { error } = await supabase
         .from('bookings')
         .update({ booking_status: targetStatus })
         .eq('id', id);
       if (error) throw error;
 
+      // Buat record refund dan ambil ID-nya agar bisa dicatat di activity log
+      let refundId: string | null = null;
       if (withRefund && refundAmount > 0) {
-        await (supabase as any).from('refunds').insert({
-          booking_id: id,
-          customer_id: (booking as any)?.customer_id || (booking as any)?.customer?.id,
-          amount: refundAmount,
-          refund_method: refundMethod,
-          account_info: refundAccountInfo || null,
-          reason: cancellationReason || null,
-          status: 'pending',
-          created_by: user?.id,
-        });
+        const { data: refundData, error: refundError } = await (supabase as any)
+          .from('refunds')
+          .insert({
+            booking_id: id,
+            customer_id: (booking as any)?.customer_id || (booking as any)?.customer?.id,
+            amount: refundAmount,
+            refund_method: refundMethod,
+            account_info: refundAccountInfo || null,
+            reason: cancellationReason || null,
+            status: 'pending',
+            created_by: user?.id,
+          })
+          .select('id')
+          .single();
+        if (!refundError && refundData) {
+          refundId = refundData.id as string;
+        }
       }
-      return { withRefund, targetStatus };
+
+      return { withRefund, targetStatus, prevStatus, refundId };
     },
-    onSuccess: async ({ withRefund, targetStatus }) => {
+    onSuccess: async ({ withRefund, targetStatus, prevStatus, refundId }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       setShowRefundDialog(false);
@@ -740,6 +752,43 @@ export default function AdminBookingDetail() {
         toast.success(`Booking dibatalkan — refund ${formatCurrency(refundAmount)} via ${REFUND_METHODS.find(m => m.value === refundMethod)?.label} sedang diproses`);
       } else {
         toast.success('Booking berhasil dibatalkan tanpa refund');
+      }
+
+      // === Activity log — booking dibatalkan ===
+      logActivity({
+        entity_type: 'booking',
+        entity_id: id,
+        action: withRefund ? 'cancelled_with_refund' : 'cancelled_no_refund',
+        old_value: prevStatus,
+        new_value: targetStatus,
+        notes: cancellationReason || undefined,
+        metadata: {
+          booking_id: id,
+          booking_code: (booking as any)?.booking_code ?? null,
+          with_refund: withRefund,
+          refund_amount: withRefund ? refundAmount : 0,
+          refund_method: withRefund ? refundMethod : null,
+          refund_account_info: withRefund && refundAccountInfo ? refundAccountInfo : null,
+        },
+      });
+
+      // === Activity log — refund pertama kali dibuat ===
+      if (withRefund && refundId) {
+        logActivity({
+          entity_type: 'refund',
+          entity_id: refundId,
+          action: 'refund_created',
+          new_value: 'pending',
+          notes: cancellationReason || undefined,
+          metadata: {
+            booking_id: id,
+            booking_code: (booking as any)?.booking_code ?? null,
+            amount: refundAmount,
+            refund_method: refundMethod,
+            account_info: refundAccountInfo || null,
+            customer_id: (booking as any)?.customer?.id ?? (booking as any)?.customer_id ?? null,
+          },
+        });
       }
 
       // Notifikasi in-app ke jamaah

@@ -226,6 +226,25 @@ pnpm --filter @workspace/api-spec run codegen
 
 ## BAGIAN 5 — RIWAYAT PERUBAHAN TERKINI
 
+### Sesi Mei 2026 — Refund Activity Log + Perbaikan RBAC Sistem
+
+| # | Perubahan | File |
+|---|-----------|------|
+| 1 | **Log otomatis saat refund dibuat** — `mutationFn` kini mengambil ID record refund via `.select('id').single()` setelah insert, lalu `onSuccess` memanggil `logActivity` dua kali: sekali untuk booking (`cancelled_with_refund`/`cancelled_no_refund`, dengan `old_value` status sebelumnya) dan sekali untuk refund (`refund_created`, `entity_type: 'refund'`, dengan metadata lengkap: jumlah, metode, rekening, kode booking) | `AdminBookingDetail.tsx` |
+| 2 | **Tambah role `jamaah` ke `AppRole` type** — sebelumnya ada di `ROLE_LABELS` & `ROLE_PRIORITY` tapi tidak ada di type, menyebabkan ketidakkonsistenan TypeScript | `types/database.ts` |
+| 3 | **Perbaikan `isStaff()`** — agent/sub_agent sebelumnya masuk grup staf internal; sekarang hanya staf kantor (super_admin, owner, branch_manager, finance, sales, marketing, operational, equipment). Ditambah `isAgent()` dan `isCustomer()` sebagai helper terpisah | `hooks/useAuth.tsx` |
+| 4 | **Perbaikan `CustomerRoutes`** — celah keamanan: semua role bisa akses `/jamaah/*`. Sekarang dibatasi ke `customer`, `jamaah`, `super_admin` saja | `routes/CustomerRoutes.tsx` |
+| 5 | **Perbaikan `/absensi` route** — sebelumnya tanpa role check; sekarang hanya `super_admin`, `owner`, `branch_manager`, `operational`, `finance` | `routes/OperationalRoutes.tsx` |
+| 6 | **Granular permission AgentRoutes** — komisi & dompet hanya untuk `agent` (bukan `sub_agent`); manajemen jaringan & website hanya untuk `agent` | `routes/AgentRoutes.tsx` |
+| 7 | **Login redirect berbasis role** — sebelumnya hanya admin→`/admin` atau semua→`/my-bookings`; sekarang: admin staf→`/admin`, agent/sub_agent→`/agent`, customer/jamaah→`/jamaah` | `pages/auth/Login.tsx`, `hooks/useRoleHomeRoute.ts` |
+| 8 | **AccessDenied page kontekstual** — tampilkan nama role user + tombol "Ke Portal Saya" yang mengarah ke portal yang sesuai | `pages/AccessDenied.tsx` |
+| 9 | **Perbaikan ROLE_HIERARCHY** — `sales` tidak lagi mewarisi `agent`; `sub_agent` mewarisi `agent`; `jamaah` dan `customer` tidak ada dalam hierarki | `lib/permissions.ts` |
+| 10 | **Hook baru `useCanAccess`** — untuk cek permission di level komponen/UI (`can('payments')`, `isAgent()`, `isCustomer()`, dll) | `hooks/useCanAccess.ts` |
+| 11 | **Hook baru `useRoleHomeRoute`** — mengembalikan URL portal yang tepat untuk role aktif user | `hooks/useRoleHomeRoute.ts` |
+| 12 | **SQL migration RBAC** — tambah enum `jamaah`/`sub_agent`, update constraint `user_roles_role_check`, RLS policy sub_agent & absensi | `supabase-migrations/phase5-rbac-improvements.sql` |
+
+---
+
 ### Sesi Mei 2026 — Multi Tipe Kamar Per Jamaah + Enhancement Booking Detail
 
 **Perubahan yang diselesaikan:**
@@ -352,6 +371,7 @@ pnpm --filter @workspace/api-spec run codegen
 |---|---------|--------|--------|
 | E1 | Monitor Refund `/admin/refunds` | Daftar semua pengajuan refund, filter status/metode, update status, catatan admin, export Excel | ✅ |
 | E2 | Log Aktivitas Admin `/admin/activity-log` | Riwayat semua perubahan status booking & refund oleh admin, filter, export Excel, auto-logged via helper `logActivity` | ✅ |
+| E3 | Log siklus hidup refund lengkap | Saat refund dibuat dari dialog D3: (1) log `cancelled_with_refund` pada entity booking dengan `old_value` status sebelumnya, (2) log `refund_created` pada entity refund dengan metadata jumlah/metode/rekening/kode booking | ✅ |
 
 ### Status yang sudah ada & berfungsi di Booking Detail
 - ✅ Update status booking + konfirmasi dialog + notifikasi jamaah otomatis
@@ -377,6 +397,7 @@ pnpm --filter @workspace/api-spec run codegen
 - ✅ Warning banner jika jumlah jamaah terdaftar < total_pax booking
 - ✅ Checklist dokumen per jamaah (KTP/Passport/Foto) dengan skor visual 0-3
 - ✅ Dialog konfirmasi refund saat status diubah ke "Cancelled" — pilih alasan, jumlah refund (shortcut %, 100/75/50/25), metode (Transfer Bank/DANA/GoPay/OVO/dll), detail rekening, notifikasi otomatis ke jamaah
+- ✅ Activity log otomatis saat refund dibuat — log `cancelled_with_refund`/`cancelled_no_refund` pada booking (dengan status sebelumnya), log `refund_created` pada entitas refund (dengan ID refund nyata, jumlah, metode, rekening, kode booking) — siklus hidup refund kini tercatat penuh dari dibuat → diproses → dibatalkan
 
 ---
 
