@@ -823,6 +823,7 @@ export default function AdminBookingDetail() {
       totalPrice: booking.total_price,
       notes: booking.notes ?? undefined,
       passengers: passengerList,
+      paymentStatus: booking.payment_status ?? undefined,
     };
 
     const company = {
