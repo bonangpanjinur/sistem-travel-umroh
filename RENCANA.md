@@ -430,19 +430,36 @@ pnpm --filter @workspace/api-spec run codegen
 - Warning alerts: kuota menipis, paket aktif tanpa jadwal
 - Download manifest dari daftar
 - Analytics + statistik kapasitas + kalender
-- PackageDetail: link/unlink keberangkatan, MilestoneTrackerCard, BreakEvenIndicatorCard, EquipmentReadinessCard, CancellationPolicyCard
+- PackageDetail admin: link/unlink keberangkatan, MilestoneTrackerCard, BreakEvenIndicatorCard, EquipmentReadinessCard
+- **Aturan pembatalan (Syarat & Ketentuan)** — `cancellation_policies` tabel sudah ada, `PackageCancellationPolicyCard` di admin sudah mendukung per-paket + global fallback
+- **Itinerary per tanggal keberangkatan** — arsitektur sudah benar: `departure_itineraries` table, setiap departure punya itinerary sendiri via `LinkItineraryForm` di AdminDepartureDetail
+- **Tombol "Lihat di Website"** — ditambahkan di header AdminPackageDetail ✅
+- **Tombol Duplikat Paket** — ditambahkan di dropdown menu daftar paket ✅
 
-#### Yang Kurang & Perlu Ditambah
+#### Yang Baru Diselesaikan (Sesi Ini)
+
+| ID | Fitur | Status |
+|----|-------|--------|
+| F1 | **Syarat & Ketentuan di halaman publik** — tab baru di `/packages/:slug` yang query per-paket dulu, fallback ke global | ✅ Done |
+| F2 | **Itinerary tab dengan departure selector** — tab itinerary di frontend kini menampilkan picker tanggal keberangkatan & auto-load itinerary per departure | ✅ Done |
+| P3 | **Tombol "Lihat di Website"** di AdminPackageDetail header | ✅ Done |
+| P2 | **Duplikat Paket** — tombol di dropdown menu AdminPackages, copy semua field + " - Salinan" suffix | ✅ Done |
+
+#### Yang Masih Kurang
 
 | ID | Fitur | Dampak | Prioritas |
 |----|-------|--------|-----------|
-| P1 | **Upload foto/galeri paket** — tidak ada field gambar di form. Halaman publik kemungkinan placeholder | Tinggi | 🟠 |
-| P2 | **Tombol Duplikat Paket** — untuk salin paket lama ke yang baru (beda tanggal/harga) tanpa isi form ulang | Menengah | 🟡 |
-| P3 | **Tombol "Lihat di Website"** — link dari admin ke halaman publik paket (`/packages/:slug`) | Rendah | - |
+| P1 | **Upload foto/galeri paket** — form edit paket tidak ada field upload gambar. Featured image masih URL manual | Tinggi | 🟠 |
 | P4 | **Riwayat perubahan harga** — audit trail: siapa ubah harga, dari berapa ke berapa, kapan | Menengah | 🟡 |
-| P5 | **Total kapasitas aggregat** — total kursi terisi dari semua keberangkatan yang terhubung ke 1 paket, tampil di PackageDetail header | Sedang | 🟡 |
+| P5 | **Total kapasitas aggregat** — total kursi terisi dari semua keberangkatan di header PackageDetail admin | Sedang | 🟡 |
 | P6 | **Tag/label kustom** — selain `is_featured`, admin perlu label "Best Seller", "Early Bird", "Flash Sale" | Rendah | - |
 | P7 | **Salin itinerary antar paket** — copy template itinerary dari paket A ke paket B 1 klik | Rendah | - |
+
+#### Catatan Arsitektur Penting
+
+> **Itinerary**: Setiap paket TIDAK memiliki itinerary sendiri. Setiap **tanggal keberangkatan** (`departures`) punya itinerary-nya sendiri via tabel `departure_itineraries` yang merujuk ke `itinerary_templates`. Admin set itinerary per departure di `/admin/departures/:id` tab Itinerary.
+
+> **Syarat & Ketentuan**: Dikelola via tabel `cancellation_policies`. Setiap paket bisa punya aturan sendiri (`package_id`). Jika tidak ada, otomatis fallback ke policy `is_global = true`. Di frontend publik, tab "Syarat & Ketentuan" menampilkan ini secara otomatis.
 
 ---
 

@@ -9,7 +9,7 @@ import { formatCurrency, formatPackageType } from "@/lib/format";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
-  Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, 
+  Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, Copy,
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
   Power, PowerOff, ChevronDown, Layers, TrendingUp, DollarSign, Users, Zap,
   ArrowUpRight, ArrowDownRight, Download, FileSpreadsheet, FileText,
@@ -193,6 +193,43 @@ export default function AdminPackages() {
     },
     onError: (error: any) => {
       toast.error(error.message || "Gagal menghapus paket");
+    },
+  });
+
+  const duplicatePackageMutation = useMutation({
+    mutationFn: async (pkg: any) => {
+      const newCode = `${pkg.code}-COPY${Date.now().toString().slice(-4)}`;
+      const payload: any = {
+        name: `${pkg.name} - Salinan`,
+        code: newCode,
+        package_type: pkg.package_type,
+        package_type_id: pkg.package_type_id ?? null,
+        duration_days: pkg.duration_days,
+        description: pkg.description,
+        price_quad: pkg.price_quad,
+        price_triple: pkg.price_triple,
+        price_double: pkg.price_double,
+        price_single: pkg.price_single,
+        airline_id: pkg.airline_id ?? null,
+        hotel_makkah_id: pkg.hotel_makkah_id ?? null,
+        hotel_madinah_id: pkg.hotel_madinah_id ?? null,
+        muthawif_id: pkg.muthawif_id ?? null,
+        includes: pkg.includes ?? [],
+        excludes: pkg.excludes ?? [],
+        itinerary: pkg.itinerary ?? [],
+        featured_image: pkg.featured_image ?? null,
+        is_active: false,
+        is_featured: false,
+      };
+      const { error } = await supabase.from('packages').insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Paket berhasil diduplikasi (status nonaktif)");
+      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal menduplikasi paket");
     },
   });
 
@@ -991,6 +1028,13 @@ export default function AdminPackages() {
                                     Aktifkan Paket
                                   </>
                                 )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => duplicatePackageMutation.mutate(pkg)}
+                                disabled={duplicatePackageMutation.isPending}
+                              >
+                                <Copy className="h-4 w-4 text-blue-500" /> Duplikat Paket
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 

@@ -35,8 +35,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { formatCurrency, formatPackageType, formatDate } from "@/lib/format";
-import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box } from "lucide-react";
+import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { slugify } from "@/lib/slug";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
 import { PackageForm } from "@/components/admin/forms/PackageForm";
 import { MilestoneTrackerCard } from "@/components/admin/MilestoneTrackerCard";
@@ -285,10 +286,18 @@ export default function AdminPackageDetail() {
             <p className="text-muted-foreground">{packageData.code} • {packageData.package_type_ref?.name || formatPackageType(packageData.package_type)}</p>
           </div>
         </div>
-        <Button onClick={() => setIsPackageFormOpen(true)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Paket
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to={`/packages/${packageData.id}-${slugify(packageData.name)}`} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Lihat di Website
+            </Link>
+          </Button>
+          <Button onClick={() => setIsPackageFormOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Paket
+          </Button>
+        </div>
       </div>
 
       {/* Package Info */}

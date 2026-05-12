@@ -16,7 +16,7 @@ import { PackageBookingFormSimple } from '@/components/packages/PackageBookingFo
 import { 
   Clock, MapPin, Plane, Building2, Users, 
   Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon,
-  ArrowRight, Info
+  ArrowRight, Info, ShieldCheck, Globe, FileText, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +51,29 @@ export default function PackageDetail() {
 
       if (error) throw error;
       return data;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch cancellation policy (package-specific first, then global fallback)
+  const { data: cancellationPolicy } = useQuery({
+    queryKey: ['pkg-cancellation-policy-public', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data: ownPolicy } = await (supabase as any)
+        .from('cancellation_policies')
+        .select('id, name, is_global, sections')
+        .eq('package_id', id)
+        .maybeSingle();
+      if (ownPolicy) return { ...ownPolicy, isGlobal: false };
+      const { data: globalPolicy } = await (supabase as any)
+        .from('cancellation_policies')
+        .select('id, name, is_global, sections')
+        .eq('is_global', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return globalPolicy ? { ...globalPolicy, isGlobal: true } : null;
     },
     enabled: !!id,
   });
@@ -216,6 +239,7 @@ export default function PackageDetail() {
                 <TabsTrigger value="hotels">Hotel</TabsTrigger>
                 <TabsTrigger value="flight">Penerbangan</TabsTrigger>
                 <TabsTrigger value="departures">Jadwal</TabsTrigger>
+                <TabsTrigger value="syarat">Syarat & Ketentuan</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="mt-6 space-y-6">
@@ -274,7 +298,40 @@ export default function PackageDetail() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="itinerary" className="mt-6">
+              <TabsContent value="itinerary" className="mt-6 space-y-4">
+                {/* Departure selector */}
+                {upcomingDepartures.length > 1 && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">Pilih Tanggal:</span>
+                    {upcomingDepartures.map((dep: any) => (
+                      <button
+                        key={dep.id}
+                        onClick={() => setOpenDepartureId(dep.id)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-colors",
+                          openDepartureId === dep.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-muted/40 text-muted-foreground border-muted hover:border-primary/40"
+                        )}
+                      >
+                        {new Date(dep.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Show which departure is selected */}
+                {openDepartureId && upcomingDepartures.length > 0 && (() => {
+                  const selDep = upcomingDepartures.find((d: any) => d.id === openDepartureId);
+                  if (!selDep) return null;
+                  return (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                      <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                      <span>Itinerary untuk keberangkatan <span className="font-semibold text-primary">{new Date(selDep.departure_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></span>
+                    </div>
+                  );
+                })()}
+
                 <Card>
                   <CardHeader>
                     <CardTitle>Jadwal Perjalanan</CardTitle>
@@ -296,9 +353,14 @@ export default function PackageDetail() {
 
                       if (!days || days.length === 0) {
                         return (
-                          <p className="text-muted-foreground">
-                            Itinerary lengkap akan diberikan setelah pendaftaran.
-                          </p>
+                          <div className="text-center py-8 space-y-2">
+                            <CalendarIcon className="h-10 w-10 mx-auto text-muted-foreground/30" />
+                            <p className="text-muted-foreground text-sm">
+                              {openDepartureId
+                                ? "Itinerary untuk tanggal ini belum tersedia. Silakan hubungi kami untuk informasi lengkap."
+                                : "Pilih tanggal keberangkatan untuk melihat itinerary."}
+                            </p>
+                          </div>
                         );
                       }
 
@@ -315,9 +377,13 @@ export default function PackageDetail() {
                                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{day.description}</p>
                                 )}
                                 {Array.isArray(day.activities) && day.activities.length > 0 && (
-                                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-disc list-inside">
+                                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                                     {day.activities.map((act: any, ai: number) => (
-                                      <li key={ai}>{typeof act === 'string' ? act : act.title || act.name}</li>
+                                      <li key={ai} className="flex items-start gap-2">
+                                        {act.time && <span className="text-xs text-primary font-mono w-12 shrink-0 mt-0.5">{act.time}</span>}
+                                        <span>{typeof act === 'string' ? act : act.activity || act.title || act.name}</span>
+                                        {act.location && <span className="text-xs text-muted-foreground flex items-center gap-0.5 shrink-0"><MapPin className="h-2.5 w-2.5" />{act.location}</span>}
+                                      </li>
                                     ))}
                                   </ul>
                                 )}
@@ -479,6 +545,67 @@ export default function PackageDetail() {
                     </Card>
                   )}
                 </div>
+              </TabsContent>
+
+              {/* Syarat & Ketentuan Tab */}
+              <TabsContent value="syarat" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <ShieldCheck className="h-5 w-5 text-primary" />
+                          Syarat & Ketentuan
+                        </CardTitle>
+                        {cancellationPolicy && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {cancellationPolicy.isGlobal ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                                <Globe className="h-3 w-3" />
+                                Aturan Umum
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                                <ShieldCheck className="h-3 w-3" />
+                                Aturan Khusus Paket Ini
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {!cancellationPolicy ? (
+                      <div className="text-center py-10 space-y-2">
+                        <FileText className="h-10 w-10 mx-auto text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground">Informasi syarat & ketentuan akan segera tersedia.</p>
+                        <p className="text-xs text-muted-foreground">Silakan hubungi kami untuk keterangan lebih lanjut.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-5">
+                        {(cancellationPolicy.sections as any[]).map((section: any, si: number) => (
+                          <div key={si}>
+                            <h4 className="text-sm font-bold uppercase tracking-wide text-foreground mb-2 pb-1 border-b">
+                              {section.title}
+                            </h4>
+                            <ul className="space-y-1.5">
+                              {(section.items as string[]).filter((item: string) => item.trim()).map((item: string, ii: number) => (
+                                <li key={ii} className="flex items-start gap-2 text-sm text-muted-foreground">
+                                  <ChevronRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground italic border-t pt-3 mt-3">
+                          Dengan melakukan pendaftaran, Anda dianggap telah membaca, memahami, dan menyetujui seluruh syarat & ketentuan di atas.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="departures" className="mt-6">
