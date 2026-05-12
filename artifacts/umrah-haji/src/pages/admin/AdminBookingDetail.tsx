@@ -724,7 +724,9 @@ export default function AdminBookingDetail() {
     queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
   };
 
-  const [transactionFormPreviewUrl, setTransactionFormPreviewUrl] = useState<string | null>(null);
+  const [transactionFormPreview, setTransactionFormPreview] = useState<{ url: string; pageCount: number; warnings: string[] } | null>(null);
+  const [trxPaperSize, setTrxPaperSize] = useState<"a4" | "letter">("a4");
+  const [trxOrientation, setTrxOrientation] = useState<"portrait" | "landscape">("portrait");
 
   const handlePrintTransactionForm = async (mode: "download" | "preview" = "download") => {
     if (!booking || !booking.customer) return;
@@ -757,8 +759,10 @@ export default function AdminBookingDetail() {
           termsText: invoiceTemplate.terms_text ?? "",
           footerText: invoiceTemplate.footer_text ?? "",
           cancellationPolicy: activeCancellationPolicy,
+          paperSize: trxPaperSize,
+          orientation: trxOrientation,
         }
-      : { ...DEFAULT_TEMPLATE, cancellationPolicy: activeCancellationPolicy };
+      : { ...DEFAULT_TEMPLATE, cancellationPolicy: activeCancellationPolicy, paperSize: trxPaperSize, orientation: trxOrientation };
 
     // Build passenger list using derived room-type price
     const passengerList = (passengers ?? []).map((p: any) => {
@@ -839,10 +843,9 @@ export default function AdminBookingDetail() {
 
     try {
       if (mode === "preview") {
-        // Revoke any previous URL to avoid memory leaks
-        if (transactionFormPreviewUrl) URL.revokeObjectURL(transactionFormPreviewUrl);
-        const url = await previewTransactionForm(formData, company, tmpl);
-        setTransactionFormPreviewUrl(url);
+        if (transactionFormPreview) URL.revokeObjectURL(transactionFormPreview.url);
+        const result = await previewTransactionForm(formData, company, tmpl);
+        setTransactionFormPreview(result);
       } else {
         const doc = await generateTransactionForm(formData, company, tmpl);
         doc.save(`FormTransaksi-${booking.booking_code}.pdf`);
