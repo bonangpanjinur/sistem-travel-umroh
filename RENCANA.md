@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Juli 2026
+> **Terakhir diperbarui:** Mei 2026
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
@@ -417,6 +417,14 @@ pnpm --filter @workspace/api-spec run codegen
 - ✅ Solusi: fetch agent terpisah via `.from('agents').eq('id', agent_id).maybeSingle()`
 - ✅ Bug fix: airport FK hint syntax dari constraint name form → kolom name form
 
+### Sesi — Sprint 2 & 3: Paket + Keberangkatan Enhancement
+
+- ✅ **P1** — `PackageGalleryCard`: upload foto/galeri paket dengan drag-drop, multi-upload, preview fullscreen, urutan geser kiri/kanan, hapus + konfirmasi, caption editable. Storage bucket `trip-photos`, tabel `media_gallery`.
+- ✅ **P5** — Kartu "Kapasitas Aggregat" di `AdminPackageDetail`: total jamaah, total kuota, % terisi, breakdown jadwal buka/penuh/berangkat, progress bar.
+- ✅ **K5** — Post-trip summary card di `AdminDepartureDetail` (tab Info): muncul otomatis saat status `departed`. Menampilkan jamaah berangkat, tidak berangkat, % kehadiran, breakdown adult/child/infant, ringkasan naratif trip.
+- ✅ **K6** — "Kirim via Email" di dropdown Export manifest: dialog input email + nama penerima, build HTML table manifest on-the-fly, kirim via `POST /api/email/send` (custom template). Tidak perlu endpoint baru.
+- ✅ **K8** — Card "Notifikasi H-X Keberangkatan" di tab Info: menampilkan H- saat ini + jumlah jamaah ber-WA. Tombol "Kirim H-7/H-3/H-1 Blast" → loop per jamaah ke `POST /api/whatsapp/notification` dengan template `departure_reminder`.
+
 ---
 
 ## BAGIAN 6 — BACKLOG & RENCANA PENGEMBANGAN
@@ -435,23 +443,25 @@ pnpm --filter @workspace/api-spec run codegen
 - **Itinerary per tanggal keberangkatan** — arsitektur sudah benar: `departure_itineraries` table, setiap departure punya itinerary sendiri via `LinkItineraryForm` di AdminDepartureDetail
 - **Tombol "Lihat di Website"** — ditambahkan di header AdminPackageDetail ✅
 - **Tombol Duplikat Paket** — ditambahkan di dropdown menu daftar paket ✅
+- **Galeri foto paket (P1)** — `PackageGalleryCard`: drag-drop, multi-upload, preview fullscreen, urutan, hapus, caption ✅
+- **Kapasitas aggregat (P5)** — card di AdminPackageDetail: total jamaah, total kuota, % terisi, breakdown status ✅
 
-#### Yang Baru Diselesaikan (Sesi Ini)
+#### Yang Sudah Selesai (Semua Sesi)
 
 | ID | Fitur | Status |
 |----|-------|--------|
-| F1 | **Syarat & Ketentuan di halaman publik** — tab baru di `/packages/:slug` yang query per-paket dulu, fallback ke global | ✅ Done |
-| F2 | **Itinerary tab dengan departure selector** — tab itinerary di frontend kini menampilkan picker tanggal keberangkatan & auto-load itinerary per departure | ✅ Done |
-| P3 | **Tombol "Lihat di Website"** di AdminPackageDetail header | ✅ Done |
-| P2 | **Duplikat Paket** — tombol di dropdown menu AdminPackages, copy semua field + " - Salinan" suffix | ✅ Done |
+| F1 | **Syarat & Ketentuan di halaman publik** — tab baru di `/packages/:slug` yang query per-paket dulu, fallback ke global | ✅ |
+| F2 | **Itinerary tab dengan departure selector** — tab itinerary di frontend kini menampilkan picker tanggal keberangkatan & auto-load itinerary per departure | ✅ |
+| P2 | **Duplikat Paket** — tombol di dropdown menu AdminPackages, copy semua field + " - Salinan" suffix | ✅ |
+| P3 | **Tombol "Lihat di Website"** di AdminPackageDetail header | ✅ |
+| P1 | **Upload foto/galeri paket** — `PackageGalleryCard` dengan drag-drop, multi-upload, urutan, preview, hapus, caption | ✅ |
+| P5 | **Total kapasitas aggregat** — card di AdminPackageDetail: total jamaah, total kuota, % terisi, breakdown status keberangkatan + progress bar | ✅ |
 
-#### Yang Masih Kurang
+#### Yang Masih Kurang (Backlog)
 
 | ID | Fitur | Dampak | Prioritas |
 |----|-------|--------|-----------|
-| P1 | **Upload foto/galeri paket** — `PackageGalleryCard` dengan drag-drop, multi-upload, urutan, preview, hapus | Tinggi | ✅ Done |
 | P4 | **Riwayat perubahan harga** — audit trail: siapa ubah harga, dari berapa ke berapa, kapan | Menengah | 🟡 |
-| P5 | **Total kapasitas aggregat** — card di AdminPackageDetail: total jamaah, total kuota, % terisi, breakdown status keberangkatan | Sedang | ✅ Done |
 | P6 | **Tag/label kustom** — selain `is_featured`, admin perlu label "Best Seller", "Early Bird", "Flash Sale" | Rendah | - |
 | P7 | **Salin itinerary antar paket** — copy template itinerary dari paket A ke paket B 1 klik | Rendah | - |
 
@@ -479,19 +489,31 @@ pnpm --filter @workspace/api-spec run codegen
 - Departure Tracking page (live: boarding/departed/arrived/delayed)
 - WA Blast Keberangkatan
 - Laporan Keberangkatan (grouped by departure + export)
+- **Ringkasan status visa (K1)** — `DepartureVisaSummary` di tab Info ✅
+- **Pre-Departure Checklist (K2)** — tab Checklist operasional admin ✅
+- **Search jamaah (K3)** — kolom search nama/paspor/telepon/kode booking ✅
+- **Quick status change (K4)** — tombol `open→closed→full→departed` di header ✅
+- **Post-trip summary (K5)** — card ringkasan muncul otomatis saat `departed` ✅
+- **Kirim manifest via email (K6)** — dialog "Kirim via Email" di dropdown Export ✅
+- **Notifikasi H-X (K8)** — card blast H-7/H-3/H-1 ke seluruh jamaah via WA ✅
 
-#### Yang Kurang & Perlu Ditambah
+#### Yang Sudah Selesai (Semua Sesi)
+
+| ID | Fitur | Status |
+|----|-------|--------|
+| K1 | **Ringkasan status visa** — `DepartureVisaSummary` panel di tab Info | ✅ |
+| K2 | **Pre-Departure Checklist** — tab Checklist operasional lengkap | ✅ |
+| K3 | **Search jamaah** — search real-time nama/paspor/telepon/kode booking | ✅ |
+| K4 | **Quick status change** — tombol ubah status langsung di header | ✅ |
+| K5 | **Post-trip summary** — card kehadiran, % hadir, breakdown pax, naratif trip | ✅ |
+| K6 | **Kirim manifest ke email** — dialog email, HTML table manifest, kirim via API | ✅ |
+| K8 | **Notifikasi H-7/H-3/H-1** — card blast WA per jamaah, tampil H- saat ini | ✅ |
+
+#### Yang Masih Kurang (Backlog)
 
 | ID | Fitur | Dampak | Prioritas |
 |----|-------|--------|-----------|
-| K1 | **Ringkasan status visa per keberangkatan** — panel di DepartureDetail tab: berapa sudah visa issued, berapa proses, berapa belum. Data visa_tracker sudah ada di jamaah portal | Tinggi | ✅ |
-| K2 | **Pre-Departure Checklist** — checklist operasional admin sebelum keberangkatan: visa issued ✅, dokumen lengkap ✅, hotel confirmed ✅, bus siap ✅, tiket tercetak ✅ | Tinggi | ✅ |
-| K3 | **Search nama jamaah** di list penumpang DepartureDetail — filter status/tipe sudah ada tapi tidak ada kolom search by nama | Tinggi | ✅ |
-| K4 | **Quick status change button** di header DepartureDetail — tombol langsung ubah `open→closed→full→departed` tanpa buka form edit | Menengah | ✅ |
-| K5 | **Post-trip summary** — card muncul otomatis saat status `departed`: jamaah berangkat, tidak berangkat, % kehadiran, breakdown adult/child/infant | Menengah | ✅ Done |
-| K6 | **Kirim manifest ke email** — dialog "Kirim via Email" di Export dropdown: input email+nama penerima, build HTML table, kirim via `/api/email/send` | Menengah | ✅ Done |
 | K7 | **Generate sertifikat massal** — tombol 1 klik generate sertifikat untuk semua jamaah setelah trip completed | Rendah | - |
-| K8 | **Notifikasi H-X terjadwal** — card H-X di info tab: tampilkan H- saat ini, tombol "Kirim H-7/H-3/H-1 Blast" ke seluruh jamaah via WA | Menengah | ✅ Done |
 | K9 | **Ringkasan anggaran di header** — DepartureBudgetTab ada tapi tidak muncul di overview. Tampilkan total aktual vs anggaran di tab header | Rendah | - |
 
 ---
@@ -550,20 +572,20 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
 4. K4  → Quick status change button di header keberangkatan ✅
 ```
 
-### Sprint 2 — Kelola Paket (Konten & Data)
+### Sprint 2 — Kelola Paket (Konten & Data) ✅ SELESAI
 
 ```
-5. P1  → Upload foto/galeri paket
-6. P2  → Duplikat paket (1 klik salin paket)
-7. P5  → Total kapasitas aggregat di PackageDetail
+5. P1  → Upload foto/galeri paket ✅
+6. P2  → Duplikat paket (1 klik salin paket) ✅
+7. P5  → Total kapasitas aggregat di PackageDetail ✅
 ```
 
-### Sprint 3 — Laporan & Follow-up Keberangkatan
+### Sprint 3 — Laporan & Follow-up Keberangkatan ✅ SELESAI
 
 ```
-8.  K5  → Post-trip summary setelah departed
-9.  K6  → Kirim manifest ke email (muthawif/PIC)
-10. K8  → Notifikasi H-X terjadwal
+8.  K5  → Post-trip summary setelah departed ✅
+9.  K6  → Kirim manifest ke email (muthawif/PIC) ✅
+10. K8  → Notifikasi H-X terjadwal ✅
 ```
 
 ### Sprint 4 — Peningkatan Portal & Integrasi
