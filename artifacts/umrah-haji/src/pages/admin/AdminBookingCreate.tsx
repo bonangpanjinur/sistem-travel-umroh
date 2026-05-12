@@ -149,6 +149,7 @@ function PassengerCard({ passenger: p, idx, setPassengers }: {
 export default function AdminBookingCreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [activeStep, setActiveStep] = useState(1);
   const [packageId, setPackageId] = useState<string>("");
