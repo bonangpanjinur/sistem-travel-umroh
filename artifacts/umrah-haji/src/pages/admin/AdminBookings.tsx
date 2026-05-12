@@ -108,10 +108,25 @@ export default function AdminBookings() {
         `, { count: 'exact' });
 
       if (searchTerm) {
-        // Sanitize special characters that could break PostgREST queries
-        const sanitized = searchTerm.replace(/[%_()\\*?{}[\]]/g, '');
-        if (sanitized.trim()) {
-          query = query.or(`booking_code.ilike.%${sanitized}%,customer_id.in.(select id from customers where full_name.ilike.%${sanitized}% or phone.ilike.%${sanitized}%)`);
+        // Sanitize special characters that could break PostgREST queries.
+        // PostgREST does NOT support nested SQL subqueries inside `.or()`, jadi
+        // resolve dulu customer IDs yang cocok, lalu pakai `.in()` literal.
+        const sanitized = searchTerm.replace(/[%_()\\*?{}[\],:'"]/g, '').trim();
+        if (sanitized) {
+          const safeOr = sanitized.replace(/[,()]/g, ' ');
+          const { data: matchedCustomers } = await supabase
+            .from('customers')
+            .select('id')
+            .or(`full_name.ilike.%${safeOr}%,phone.ilike.%${safeOr}%`)
+            .limit(200);
+          const customerIds = (matchedCustomers || []).map((c: any) => c.id);
+          if (customerIds.length > 0) {
+            query = query.or(
+              `booking_code.ilike.%${sanitized}%,customer_id.in.(${customerIds.join(',')})`
+            );
+          } else {
+            query = query.ilike('booking_code', `%${sanitized}%`);
+          }
         }
       }
       if (statusFilter !== "all") query = query.eq('booking_status', statusFilter as any);
