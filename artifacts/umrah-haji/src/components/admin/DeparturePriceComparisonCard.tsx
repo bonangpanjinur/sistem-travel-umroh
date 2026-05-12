@@ -49,8 +49,8 @@ interface Departure {
   price_double: number | null;
   price_single: number | null;
   airline?: { code: string; name: string } | null;
-  hotel_makkah?: { name: string; star_rating: number } | null;
-  hotel_madinah?: { name: string; star_rating: number } | null;
+  hotel_makkah?: { name: string; star_rating: number | null } | null;
+  hotel_madinah?: { name: string; star_rating: number | null } | null;
   bookings?: any[];
 }
 
