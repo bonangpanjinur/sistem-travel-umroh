@@ -233,6 +233,7 @@ export interface Booking {
   base_price: number;
   addons_price: number;
   discount_amount: number;
+  discount_label?: string | null;
   total_price: number;
   paid_amount: number;
   remaining_amount: number;
@@ -240,6 +241,8 @@ export interface Booking {
   booking_status: BookingStatus;
   payment_status: PaymentStatus;
   notes: string | null;
+  payment_deadline?: string | null;
+  room_breakdown?: Record<string, number> | null;
   created_at: string;
   updated_at: string;
   // Relations
