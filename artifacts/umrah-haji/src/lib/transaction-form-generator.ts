@@ -594,27 +594,28 @@ export async function generateTransactionForm(
   if (template.showPassengerList && data.passengers.length > 0) {
     doc.addPage();
     addPageBorder();
-    let py = MARGIN + 6;
+    const drawAppendixHeader = (py0: number) => {
+      let py = py0;
+      doc.setFontSize(11);
+      doc.setFont(font, "bold");
+      doc.setTextColor(acc.r, acc.g, acc.b);
+      doc.text("LAMPIRAN DAFTAR JAMAAH", cx, py, { align: "center" });
+      py += 6;
 
-    doc.setFontSize(11);
-    doc.setFont(font, "bold");
-    doc.setTextColor(acc.r, acc.g, acc.b);
-    doc.text("LAMPIRAN DAFTAR JAMAAH", cx, py, { align: "center" });
-    py += 6;
+      doc.setFontSize(8);
+      doc.setFont(font, "normal");
+      doc.setTextColor(80, 80, 80);
+      doc.text(`${data.transactionCode}  ·  ${fmtDate(data.transactionDate)}`, cx, py, { align: "center" });
+      py += 5;
 
-    // Sub-header: Transaction code + date
-    doc.setFontSize(8);
-    doc.setFont(font, "normal");
-    doc.setTextColor(80, 80, 80);
-    doc.text(`${data.transactionCode}  ·  ${fmtDate(data.transactionDate)}`, cx, py, { align: "center" });
-    py += 5;
-
-    // Customer name banner
-    doc.setFontSize(8.5);
-    doc.setFont(font, "bold");
-    doc.setTextColor(acc.r, acc.g, acc.b);
-    doc.text(`PEMESAN: ${data.customerName.toUpperCase()}`, cx, py, { align: "center" });
-    py += 6;
+      doc.setFontSize(8.5);
+      doc.setFont(font, "bold");
+      doc.setTextColor(acc.r, acc.g, acc.b);
+      doc.text(`PEMESAN: ${data.customerName.toUpperCase()}`, cx, py, { align: "center" });
+      py += 6;
+      return py;
+    };
+    let py = drawAppendixHeader(MARGIN + 6);
 
     const passengerRows = data.passengers.map((p, i) => [
       String(i + 1),
@@ -628,6 +629,7 @@ export async function generateTransactionForm(
 
     const grandTotal = data.passengers.reduce((s, p) => s + (p.totalBill || 0), 0);
 
+    let firstAppendixPage = true;
     autoTable(doc, {
       startY: py,
       head: [["NO", "NAMA", "JENIS KAMAR", "HARGA PAKET", "BIAYA TAMBAHAN", "DISKON", "TOTAL TAGIHAN"]],
@@ -636,11 +638,14 @@ export async function generateTransactionForm(
         { content: `TOTAL (${data.passengers.length} JAMAAH)`, colSpan: 6, styles: { halign: "right", fontStyle: "bold", fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255] } },
         { content: fmtIDR(grandTotal), styles: { halign: "right", fontStyle: "bold", fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255] } },
       ]],
-      styles: { fontSize: 7.5, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.2, font },
-      headStyles: { fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7 },
+      styles: { fontSize: 7.5, cellPadding: 2.6, lineColor: [200, 200, 200], lineWidth: 0.2, font, valign: "middle", overflow: "linebreak" },
+      headStyles: { fillColor: [acc.r, acc.g, acc.b], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7, halign: "center", valign: "middle" },
+      footStyles: { fontSize: 8 },
+      bodyStyles: { textColor: [25, 25, 25] },
+      rowPageBreak: "avoid",
       columnStyles: {
         0: { cellWidth: 8, halign: "center" },
-        1: { cellWidth: "auto" },
+        1: { cellWidth: "auto", halign: "left" },
         2: { cellWidth: 25, halign: "center" },
         3: { cellWidth: 32, halign: "right" },
         4: { cellWidth: 30, halign: "right" },
@@ -648,13 +653,25 @@ export async function generateTransactionForm(
         6: { cellWidth: 32, halign: "right" },
       },
       alternateRowStyles: { fillColor: [248, 250, 252] },
-      margin: { left: MARGIN, right: MARGIN },
+      margin: { left: MARGIN, right: MARGIN, bottom: LAYOUT.FOOTER_RESERVE + 4, top: MARGIN + 6 },
+      didDrawPage: (hookData) => {
+        if (firstAppendixPage) { firstAppendixPage = false; return; }
+        // Continuation page: draw page border + a compact appendix header
+        addPageBorder();
+        const py2 = MARGIN + 6;
+        doc.setFontSize(9);
+        doc.setFont(font, "bold");
+        doc.setTextColor(acc.r, acc.g, acc.b);
+        doc.text("LAMPIRAN DAFTAR JAMAAH (lanjutan)", cx, py2, { align: "center" });
+        // Push table cursor down for continuation pages
+        hookData.cursor && (hookData.cursor.y = MARGIN + 12);
+      },
     });
 
     // Footer page 2
     // @ts-ignore
     const finalY = doc.lastAutoTable.finalY + 6;
-    if (template.footerText) {
+    if (template.footerText && finalY < doc.internal.pageSize.height - LAYOUT.FOOTER_RESERVE - 4) {
       doc.setFontSize(7.5);
       doc.setFont(font, "italic");
       doc.setTextColor(120, 120, 120);
@@ -684,4 +701,19 @@ export async function generateTransactionForm(
   }
 
   return doc;
+}
+
+/**
+ * Generate the same form and return a Blob URL suitable for in-app preview
+ * (e.g. iframe in DocumentPreviewModal). Caller is responsible for
+ * URL.revokeObjectURL when done.
+ */
+export async function previewTransactionForm(
+  data: TransactionFormData,
+  company: TransactionFormCompany,
+  template: TransactionFormTemplate = DEFAULT_TEMPLATE
+): Promise<string> {
+  const doc = await generateTransactionForm(data, company, template);
+  const blob = doc.output("blob");
+  return URL.createObjectURL(blob);
 }
