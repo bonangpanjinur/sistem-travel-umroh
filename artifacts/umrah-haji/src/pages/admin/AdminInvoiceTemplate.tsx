@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   FileText, Plus, Trash2, Save, Eye, ChevronUp, ChevronDown,
-  Palette, Settings, CreditCard, FileSignature, GripVertical, Info
+  Palette, Settings, CreditCard, FileSignature, GripVertical, Info,
+  Download, X, Loader2, ExternalLink, RefreshCw
 } from "lucide-react";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import {
@@ -163,6 +165,30 @@ export default function AdminInvoiceTemplate() {
   const [template, setTemplate] = useState<TransactionFormTemplate>(DEFAULT_TEMPLATE);
   const [dbId, setDbId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const prevUrlRef = useRef<string | null>(null);
+
+  // Cleanup blob URL when dialog closes or url changes
+  useEffect(() => {
+    return () => {
+      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+    };
+  }, []);
+
+  const closePreview = () => {
+    setShowPreviewDialog(false);
+    setIframeLoading(true);
+    // revoke after animation
+    setTimeout(() => {
+      if (prevUrlRef.current) {
+        URL.revokeObjectURL(prevUrlRef.current);
+        prevUrlRef.current = null;
+      }
+      setPreviewUrl(null);
+    }, 300);
+  };
 
   // ── Load from DB ────────────────────────────────────────────────────────────
   const { isLoading } = useQuery({
@@ -226,8 +252,8 @@ export default function AdminInvoiceTemplate() {
     onError: (e: Error) => toast.error("❌ " + e.message),
   });
 
-  // ── Preview ─────────────────────────────────────────────────────────────────
-  const handlePreview = async () => {
+  // ── Preview (embedded) ──────────────────────────────────────────────────────
+  const buildPreview = async () => {
     setPreviewing(true);
     try {
       const company = {
@@ -239,13 +265,31 @@ export default function AdminInvoiceTemplate() {
       };
       const doc = await generateTransactionForm(PREVIEW_DATA, company, template);
       const blob = doc.output("blob");
+
+      // Revoke previous URL
+      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      prevUrlRef.current = url;
+      setPreviewUrl(url);
+      setIframeLoading(true);
+      setShowPreviewDialog(true);
     } catch (e: any) {
       toast.error("Gagal generate preview: " + e.message);
     } finally {
       setPreviewing(false);
     }
+  };
+
+  const handleDownload = () => {
+    if (!previewUrl) return;
+    const a = document.createElement("a");
+    a.href = previewUrl;
+    a.download = "FormTransaksi-Pratinjau.pdf";
+    a.click();
+  };
+
+  const handleOpenNewTab = () => {
+    if (previewUrl) window.open(previewUrl, "_blank");
   };
 
   // ── Payment blocks helpers ──────────────────────────────────────────────────
@@ -287,8 +331,9 @@ export default function AdminInvoiceTemplate() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlePreview} disabled={previewing}>
-            <Eye className="h-4 w-4" /> {previewing ? "Memuat..." : "Pratinjau PDF"}
+          <Button variant="outline" className="gap-2" onClick={buildPreview} disabled={previewing}>
+            {previewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            {previewing ? "Memuat..." : "Pratinjau PDF"}
           </Button>
           <Button className="gap-2" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
             <Save className="h-4 w-4" /> {saveMutation.isPending ? "Menyimpan..." : "Simpan Template"}
@@ -600,6 +645,75 @@ export default function AdminInvoiceTemplate() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* ── Embedded PDF Preview Dialog ────────────────────────────────────── */}
+      <Dialog open={showPreviewDialog} onOpenChange={open => { if (!open) closePreview(); }}>
+        <DialogContent className="max-w-5xl w-full h-[92vh] flex flex-col p-0 gap-0">
+          {/* Header bar */}
+          <DialogHeader className="flex-row items-center justify-between px-4 py-3 border-b shrink-0 space-y-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-primary" />
+              Pratinjau — Form Transaksi Paket Umrah
+              <Badge variant="outline" className="text-xs font-normal ml-1">Data Sampel</Badge>
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
+                onClick={buildPreview} disabled={previewing}
+              >
+                {previewing
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <RefreshCw className="h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+              <Button
+                size="sm" variant="outline" className="gap-1.5 h-8 text-xs"
+                onClick={handleOpenNewTab}
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Tab Baru
+              </Button>
+              <Button
+                size="sm" className="gap-1.5 h-8 text-xs"
+                onClick={handleDownload}
+              >
+                <Download className="h-3.5 w-3.5" /> Download
+              </Button>
+              <Button
+                size="sm" variant="ghost" className="h-8 w-8 p-0 ml-1"
+                onClick={closePreview}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+
+          {/* PDF iframe */}
+          <div className="flex-1 relative bg-muted/30 min-h-0">
+            {iframeLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 bg-background/80 backdrop-blur-sm">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Memuat PDF...</p>
+              </div>
+            )}
+            {previewUrl && (
+              <iframe
+                key={previewUrl}
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title="Pratinjau Form Transaksi"
+                onLoad={() => setIframeLoading(false)}
+              />
+            )}
+          </div>
+
+          {/* Footer hint */}
+          <DialogFooter className="px-4 py-2 border-t bg-muted/30 shrink-0">
+            <p className="text-xs text-muted-foreground w-full text-center">
+              Pratinjau menggunakan data sampel. Klik <strong>Refresh</strong> setelah mengubah pengaturan untuk melihat perubahan terbaru.
+            </p>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
