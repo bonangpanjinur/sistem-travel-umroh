@@ -79,6 +79,7 @@ export default function AdminBookings() {
   const [dateTo, setDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
+  const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [periodPreset, setPeriodPreset] = useState<string>("all");
