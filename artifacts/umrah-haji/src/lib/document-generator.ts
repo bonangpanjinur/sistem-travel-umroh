@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { drawPaymentWatermark } from './pdf/watermark';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -477,21 +478,13 @@ export async function generateInvoice(
     doc.setTextColor(0, 0, 0);
   }
 
-  // ── LUNAS watermark stamp (when paid) ────────────────────────────────
-  if (data.paymentStatus === 'paid' && settings?.invoice_watermark_paid !== false) {
-    doc.saveGraphicsState();
-    // @ts-ignore
-    if (typeof doc.GState === 'function') {
-      // @ts-ignore
-      doc.setGState(new doc.GState({ opacity: 0.08 }));
-    }
-    doc.setFontSize(72);
-    doc.setFont(font, 'bold');
-    doc.setTextColor(22, 163, 74);
-    doc.text('LUNAS', pageWidth / 2, 180, { align: 'center', angle: 35 });
-    doc.restoreGraphicsState();
-    doc.setTextColor(0, 0, 0);
-  }
+  // ── Status-aware watermark (LUNAS / DP / BELUM BAYAR / DIBATALKAN) ───
+  drawPaymentWatermark(doc, {
+    status: data.paymentStatus,
+    enabled: settings?.invoice_watermark_paid !== false,
+    font,
+    y: 180,
+  });
 
   // ── Items Table ────────────────────────────────────────────────────
   const formatCurrency = (amount: number) => {
