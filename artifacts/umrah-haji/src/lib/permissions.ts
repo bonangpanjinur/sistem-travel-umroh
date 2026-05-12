@@ -64,6 +64,7 @@ export const PERMISSIONS = {
   DOCUMENT_VERIFICATION: 'document-verification',
   DOCUMENT_TYPES: 'document-types',
   DOCUMENTS_GENERATOR: 'documents-generator',
+  DOCUMENT_EXPIRY_TRACKER: 'document-expiry-tracker',
   OFFLINE_CONTENT: 'offline-content',
   SUPPORT: 'support',
 

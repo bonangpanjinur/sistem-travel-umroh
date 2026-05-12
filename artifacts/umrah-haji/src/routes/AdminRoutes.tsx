@@ -58,6 +58,7 @@ const AdminHajiManagement = lazy(() => import("@/pages/admin/AdminHajiManagement
 const AdminItineraryTemplates = lazy(() => import("@/pages/admin/AdminItineraryTemplates"));
 const AdminOfflineContent = lazy(() => import("@/pages/admin/AdminOfflineContent"));
 const AdminDocumentGenerator = lazy(() => import("@/pages/admin/AdminDocumentGenerator"));
+const AdminDocumentExpiryTracker = lazy(() => import("@/pages/admin/AdminDocumentExpiryTracker"));
 const AdminInvoiceTemplate = lazy(() => import("@/pages/admin/AdminInvoiceTemplate"));
 const AdminScheduledReports = lazy(() => import("@/pages/admin/AdminScheduledReports"));
 const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
@@ -247,6 +248,7 @@ export default function AdminRoutes() {
       <Route path="document-verification" element={<P k={PERMISSIONS.DOCUMENT_VERIFICATION}><AdminDocumentVerification /></P>} />
       <Route path="document-types" element={<P k={PERMISSIONS.DOCUMENT_TYPES}><AdminDocumentTypes /></P>} />
       <Route path="documents-generator" element={<P k={PERMISSIONS.DOCUMENTS_GENERATOR}><AdminDocumentGenerator /></P>} />
+      <Route path="document-expiry-tracker" element={<P k={PERMISSIONS.DOCUMENT_EXPIRY_TRACKER}><LazyPage><AdminDocumentExpiryTracker /></LazyPage></P>} />
       <Route path="offline-content" element={<P k={PERMISSIONS.OFFLINE_CONTENT}><AdminOfflineContent /></P>} />
 
       {/* Laporan */}

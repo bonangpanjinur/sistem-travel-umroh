@@ -115,7 +115,8 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'document-types',      label: 'Jenis Dokumen',        path: '/admin/document-types',        icon: 'FileCog',        group_name: 'Dokumen',            sort_order: 802, required_permission: PERMISSIONS.DOCUMENT_TYPES },
   { key: 'documents-generator', label: 'Generator Surat',      path: '/admin/documents-generator',  icon: 'FileText',        group_name: 'Dokumen',            sort_order: 803, required_permission: PERMISSIONS.DOCUMENTS_GENERATOR },
   { key: 'correspondence',      label: 'Hub Korespondensi',    path: '/admin/correspondence',        icon: 'MessagesSquare',  group_name: 'Dokumen',            sort_order: 804, required_permission: PERMISSIONS.WHATSAPP },
-  { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 805, required_permission: PERMISSIONS.OFFLINE_CONTENT },
+  { key: 'document-expiry-tracker', label: 'Tracker Dokumen Jamaah', path: '/admin/document-expiry-tracker', icon: 'ShieldAlert', group_name: 'Dokumen',            sort_order: 805, required_permission: PERMISSIONS.DOCUMENT_EXPIRY_TRACKER },
+  { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 806, required_permission: PERMISSIONS.OFFLINE_CONTENT },
   { key: 'support',             label: 'Tiket Support',        path: '/admin/support',               icon: 'LifeBuoy',       group_name: 'Dokumen',            sort_order: 806, required_permission: PERMISSIONS.SUPPORT },
   { key: 'office-assets',       label: 'Aset Kantor',          path: '/admin/office-assets',         icon: 'Briefcase',      group_name: 'Dokumen',            sort_order: 807, required_permission: PERMISSIONS.OFFICE_ASSETS },
 
@@ -222,7 +223,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'departures', 'departure-tracking', 'sos-alerts',
     'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik', 'itinerary-templates',
     'customers', 'bookings',
-    'document-verification', 'documents-generator',
+    'document-verification', 'documents-generator', 'document-expiry-tracker',
     'visa',
     'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
     'wa-otomatis', 'midtrans', 'cicilan-reminder', 'virtual-account',
