@@ -101,7 +101,7 @@ export interface Hotel {
   id: string;
   name: string;
   city: string;
-  star_rating: number;
+  star_rating: number | null;
   address: string | null;
   distance_to_masjid: string | null;
   facilities: string[] | null;
