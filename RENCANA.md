@@ -1,5 +1,5 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
-> Terakhir diperbarui: Juni 2026 | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
+> Terakhir diperbarui: Mei 2026 | Stack: React 19 + Vite 7 + TypeScript + Supabase + Express
 > **Ini adalah SATU-SATUNYA file rencana. Jangan buat file rencana lain.**
 
 ---
@@ -10,7 +10,7 @@
 |--------|---------|
 | ✅ | Selesai & berfungsi |
 | ⚠️ | Ada catatan penting / menunggu aksi |
-| 🔴 | Belum dibangun |
+| 🔴 | Belum dibangun / direncanakan |
 
 ---
 
@@ -196,7 +196,7 @@ pnpm --filter @workspace/api-spec run codegen
 | Cabang | `/admin/branches` | ✅ |
 | SDM / HR | `/admin/hr` | ✅ |
 | Tampilan & Tema | `/admin/appearance` | ✅ |
-| **PWA Settings + Upload Ikon** | `/admin/pwa-settings` | ✅ Upload ikon PWA |
+| PWA Settings + Upload Ikon | `/admin/pwa-settings` | ✅ Upload ikon PWA |
 | Pengaturan Umum | `/admin/settings` | ✅ |
 
 ### Portal Agen — `/agent/*`
@@ -226,13 +226,35 @@ pnpm --filter @workspace/api-spec run codegen
 
 ## BAGIAN 5 — RIWAYAT PERUBAHAN TERKINI
 
-### Sesi Mei 2026 — Integrasi Gap Fix (Analisis Menyeluruh)
+### Sesi Mei 2026 — Multi Tipe Kamar Per Jamaah + Enhancement Booking Detail
 
-**Gap yang ditemukan & diperbaiki:**
+**Perubahan yang diselesaikan:**
+
+| # | Perubahan | File |
+|---|-----------|------|
+| 1 | Fix bug `remaining_amount` adalah generated column — hapus dari UPDATE di ChangeRoomTypeDialog | `ChangeRoomTypeDialog.tsx` |
+| 2 | Ringkasan Pembayaran sidebar diganti versi rinci: harga/pax per tipe kamar × jumlah jamaah, add-ons, diskon, riwayat tiap pembayaran (metode/tanggal/status), progress bar, tombol tambah pembayaran | `AdminBookingDetail.tsx` |
+| 3 | Section detail paket: tambah tanggal kembali, hotel Makkah & Madinah, durasi program | `AdminBookingDetail.tsx` |
+| 4 | **Fitur baru: Alokasi Tipe Kamar Per Jamaah** — dialog `RoomTypeAssignmentDialog` dengan tabel harga referensi, selector per jamaah, tombol "Atur semua ke...", kalkulasi ulang total harga saat simpan, batch update `booking_passengers.room_preference` + update `bookings.total_price` | `RoomTypeAssignmentDialog.tsx` |
+| 5 | Tampilan Tipe Kamar di detail booking: badge berwarna per tipe (Double ×2 / Triple ×3 / Quad ×1) baca dari `room_preference` aktual tiap jamaah, bukan satu badge saja | `AdminBookingDetail.tsx` |
+| 6 | Payment summary sidebar membaca dari `room_preference` per jamaah — grup per tipe kamar, breakdown rinci jika tipe campur | `AdminBookingDetail.tsx` |
+| 7 | Kolom "Kamar" ditambahkan ke tabel manifest jamaah dengan badge berwarna per tipe | `BulkPassengerExport.tsx` |
+
+**Cara kerja RoomTypeAssignmentDialog:**
+- Fetch departure untuk ambil harga per tipe (price_quad/triple/double/single)
+- Tampilkan tabel referensi harga
+- Tiap jamaah punya selector Quad / Triple / Double / Single
+- Tombol "Atur semua ke X" untuk ubah sekaligus
+- Preview kalkulasi total: "Double: 2 × Rp 15jt = Rp 30jt", "Triple: 3 × Rp 12jt = Rp 36jt"
+- Saat Simpan: batch update `booking_passengers.room_preference`, hitung ulang total, update `bookings.total_price + base_price + room_type` (dominant)
+
+---
+
+### Sesi Mei 2026 — Integrasi Gap Fix (Analisis Menyeluruh)
 
 | # | Gap | Fix | File Utama |
 |---|-----|-----|------------|
-| 1 | `AdminSentimenFeedback` baca dari tabel `feedback` yang tidak ada | Ganti ke `testimonials` (yang diisi JamaahFeedback), field `content` → `comment` | `AdminSentimenFeedback.tsx` |
+| 1 | `AdminSentimenFeedback` baca dari tabel `feedback` yang tidak ada | Ganti ke `testimonials`, field `content` → `comment` | `AdminSentimenFeedback.tsx` |
 | 2 | Verifikasi dokumen tidak memberi tahu jamaah | Tambah insert `customer_notifications` saat verify/reject | `AdminDocumentVerification.tsx` |
 | 3 | Perubahan status booking tidak memberi tahu jamaah | Tambah insert `customer_notifications` untuk semua status | `AdminBookingDetail.tsx` |
 | 4 | `JamaahChecklist` hanya simpan ke localStorage | Upgrade ke Supabase-persistent (`jamaah_checklist` table) + localStorage fallback | `JamaahChecklist.tsx` |
@@ -242,7 +264,6 @@ pnpm --filter @workspace/api-spec run codegen
 | 8 | Kolom `booking_id` di `testimonials` dan `room_number` di `bookings` belum ada | ALTER TABLE via migration fase21 | `fase21_integration_fixes.sql` |
 
 **Migration baru: `supabase/migrations/fase21_integration_fixes.sql`**
-Jalankan setelah fase20 di Supabase SQL Editor.
 
 ---
 
@@ -253,56 +274,12 @@ Jalankan setelah fase20 di Supabase SQL Editor.
 | 1 | SQL migration toko e-commerce lengkap (store_categories, store_products, store_orders, store_order_items, store_shipments) | `supabase/migrations/store_ecommerce.sql` |
 | 2 | Semua hooks store (useStore.ts) — CRUD produk, kategori, pesanan, pengiriman | `hooks/useStore.ts` |
 | 3 | Halaman admin: Dashboard Toko, Produk, Pesanan+Resi, Kategori | `pages/admin/AdminStore*.tsx` |
-| 4 | Halaman customer: Listing Toko, Checkout, Daftar Pesanan, Detail Pesanan | `pages/customer/Store*.tsx`, `pages/customer/MyStoreOrders.tsx` |
+| 4 | Halaman customer: Listing Toko, Checkout, Daftar Pesanan, Detail Pesanan | `pages/customer/Store*.tsx` |
 | 5 | Upload bukti transfer dari halaman detail pesanan jamaah | `pages/customer/StoreOrderDetail.tsx` |
-| 6 | Admin dapat melihat foto bukti bayar langsung di dialog detail pesanan | `pages/admin/AdminStoreOrders.tsx` |
-| 7 | 4 template WA: order confirmed, shipped (dengan resi), delivered, awaiting payment | `lib/whatsapp-notifier.ts`, `hooks/useWhatsAppNotifier.ts` |
-| 8 | Link Toko di navbar Layanan → `/store`; Pesanan Toko di dropdown profil (desktop+mobile) | `DynamicNavbar.tsx` |
-| 9 | Quick Menu Grid homepage: Toko Umroh → `/store` | `QuickMenuGrid.tsx` |
-| 10 | Redirect `/toko` → `/store` | `PublicRoutes.tsx` |
-| 11 | Route admin `/admin/store/*` + permission STORE_* | `AdminRoutes.tsx`, `permissions.ts` |
-| 12 | Notifikasi admin otomatis saat jamaah upload bukti bayar | `hooks/useStore.ts` |
-| 13 | Hapus duplikat import `formatCurrency` di AdminStoreOrders | `AdminStoreOrders.tsx` |
-
-### Sesi Mei 2026 — Fix Bug + Enhancement Booking Detail
-
-| # | Perubahan | File |
-|---|-----------|------|
-| 1 | Fix bug `remaining_amount` is generated column — hapus dari update di ChangeRoomTypeDialog | `ChangeRoomTypeDialog.tsx` |
-| 2 | Ringkasan Pembayaran sidebar diganti menjadi versi rinci: harga/pax × jumlah dewasa/anak/bayi, add-ons, diskon, riwayat tiap pembayaran (metode/tanggal/status), progress bar, tombol tambah pembayaran | `AdminBookingDetail.tsx` |
-| 3 | Section detail paket: tambah tanggal kembali, hotel Makkah & Madinah, durasi program | `AdminBookingDetail.tsx` |
-
-**Analisis Gap — Halaman Admin Booking Detail (`/admin/bookings/:id`)**
-
-Berikut item yang saat ini **sudah ada** vs **belum ada / kurang lengkap**:
-
-| # | Area | Status Saat Ini | Yang Perlu Ditambah | Prioritas |
-|---|------|----------------|---------------------|-----------|
-| 1 | Info Agen Referral | 🔴 Tidak ada | Tampilkan nama agen + kode agen + komisi yang digenerate | Tinggi |
-| 2 | Detail Paket — Tanggal Kembali | 🔴 Tidak ada | Tampilkan `departure.return_date` | Tinggi |
-| 3 | Detail Paket — Hotel | 🔴 Tidak ada | Tampilkan hotel Makkah dan hotel Madinah | Tinggi |
-| 4 | Detail Paket — Durasi Program | 🔴 Tidak ada | `package.duration_days` hari | Sedang |
-| 5 | Data Customer — NIK / Paspor | 🔴 Tidak ada | Paspor jamaah pemesan (bisa dari passenger pertama) | Sedang |
-| 6 | Status Dokumen Per Jamaah | ⚠️ Hanya tabel manifest | Checklist per jamaah: paspor ✓, KTP ✓, foto ✓, visa ✗ | Tinggi |
-| 7 | Batas Waktu Bayar (Deadline) | ⚠️ Tersembunyi di sidebar saja | Tampilkan di header/badge utama bila mendekati jatuh tempo | Sedang |
-| 8 | Info Komisi Agen di Sidebar | 🔴 Tidak ada | Mini card: status komisi, jumlah, tombol ke halaman komisi | Sedang |
-| 9 | Catatan Admin Editable Inline | ⚠️ Read-only | Klik langsung edit catatan tanpa dialog | Rendah |
-| 10 | Rincian Add-ons per Item | ⚠️ Hanya total | Bisa daftar per item add-on dengan harga masing-masing | Rendah |
-| 11 | Tombol Refund / Pembatalan | 🔴 Tidak ada | Quick action jika status = cancelled/refunded | Sedang |
-
-**Item yang sudah ada & berfungsi:**
-- ✅ Update status booking + konfirmasi dialog
-- ✅ Edit data customer (EditCustomerDialog)
-- ✅ Ubah tipe kamar (ChangeRoomTypeDialog) — sekarang fixed
-- ✅ Pindah paket (ChangePackageDialogV2)
-- ✅ Daftar jamaah + export PDF/Excel (BulkPassengerExport)
-- ✅ Riwayat pembayaran tabel + approve pending payment
-- ✅ Ringkasan pembayaran rinci (sidebar) — baru ditingkatkan
-- ✅ Cetak invoice + form transaksi PDF
-- ✅ Buat surat (BookingDocumentActions)
-- ✅ Notifikasi WA ke jamaah
-- ✅ Timeline aktivitas booking
-- ✅ Riwayat dokumen yang pernah dicetak
+| 6 | Admin dapat melihat foto bukti bayar di dialog detail pesanan | `pages/admin/AdminStoreOrders.tsx` |
+| 7 | 4 template WA: order confirmed, shipped, delivered, awaiting payment | `lib/whatsapp-notifier.ts` |
+| 8 | Link Toko di navbar + Quick Menu Grid homepage | `DynamicNavbar.tsx`, `QuickMenuGrid.tsx` |
+| 9 | Notifikasi admin otomatis saat jamaah upload bukti bayar | `hooks/useStore.ts` |
 
 ---
 
@@ -317,20 +294,79 @@ Berikut item yang saat ini **sudah ada** vs **belum ada / kurang lengkap**:
 | 5 | Admin panel dapat mengatur tampilan PWA (warna, ikon, splash) secara dinamis | `AdminPWASettings.tsx` |
 | 6 | Fix workflows — pnpm install selesai, app berjalan | `.replit` |
 
-### Sesi Juni 2026 — Replit Migration + Enhancement sebelumnya
+---
 
-| # | Perubahan | File |
-|---|-----------|------|
-| 1 | Fix TS errors — kurs.ts, KursPage.tsx | `api-server/src/routes/v1/kurs.ts`, `KursPage.tsx` |
-| 2 | QuickMenuGrid — 4 seksi: Layanan Utama, Portal Jamaah, Fitur Islami, Informasi | `QuickMenuGrid.tsx` |
-| 3 | Buat halaman `/jamaah-info` | `JamaahInfoPage.tsx` |
-| 4 | Sidebar Desktop Portal Jamaah responsive | `JamaahBottomNav.tsx`, `index.css` |
-| 5 | Ikon PWA beresolusi tinggi (192×192, 512×512) | `favicon.svg`, `manifest.json` |
-| 6 | Offline Cache Service Worker vinstour-v4 | `sw.js` |
+## BAGIAN 6 — BACKLOG: PENINGKATAN HALAMAN BOOKING DETAIL
+
+> Analisis menyeluruh `AdminBookingDetail.tsx` (`/admin/bookings/:id`).
+> Diurutkan per kategori. Kerjakan sesuai prioritas.
+
+### A — Data Ada di DB, Belum Ditampilkan
+
+| # | Field | Tabel | Prioritas | Status |
+|---|-------|-------|-----------|--------|
+| A1 | `agent_id` → nama agen + kode agen + link ke halaman komisi | `bookings` → join `agents` | Tinggi | 🔴 |
+| A2 | `sales_id` → siapa staf yang input booking | `bookings` → join `profiles` | Sedang | 🔴 |
+| A3 | `branch_id` → cabang mana | `bookings` → join `branches` | Sedang | 🔴 |
+| A4 | `payment_status` enum (terpisah dari `booking_status`) | `bookings` | Sedang | 🔴 |
+| A5 | `adult_count / child_count / infant_count` sebagai breakdown pax eksplisit | `bookings` | Rendah | 🔴 |
+| A6 | `currency` mata uang booking (IDR/USD/SAR) | `bookings` | Rendah | 🔴 |
+| A7 | `passenger_type` (Dewasa/Anak/Bayi) per jamaah di tabel manifest | `booking_passengers` | Tinggi | 🔴 |
+| A8 | `room_number` nomor kamar hotel fisik per jamaah (beda dengan tipe kamar) | `booking_passengers` | Sedang | 🔴 |
+| A9 | `roommate_id` tampilkan pasangan sekamar per jamaah | `booking_passengers` | Rendah | 🔴 |
+| A10 | `special_requests` permintaan khusus per jamaah (kursi roda, diet, dll) | `booking_passengers` | Tinggi | 🔴 |
+| A11 | `is_main_passenger` tandai jamaah utama/pemesan di manifest | `booking_passengers` | Rendah | 🔴 |
+
+### B — Tabel Terkait yang Belum Dipakai
+
+| # | Tabel | Yang Bisa Ditampilkan | Prioritas | Status |
+|---|-------|----------------------|-----------|--------|
+| B1 | `booking_status_history` | Timeline aktivitas saat ini dibuat manual. Tabel ini menyimpan siapa yang ubah status, dari apa ke apa, kapan, dan notes — gunakan untuk timeline nyata | Tinggi | 🔴 |
+| B2 | `customer_mahrams` | Data mahram tiap jamaah (nama, relasi) — sangat relevan untuk booking umroh tapi tidak ditampilkan di manifest sama sekali | Sedang | 🔴 |
+
+### C — Fitur Interaktif yang Belum Ada
+
+| # | Fitur | Detail | Prioritas | Status |
+|---|-------|--------|-----------|--------|
+| C1 | Edit catatan booking inline | `booking.notes` tampil read-only; tambah tombol edit langsung tanpa buka dialog baru | Rendah | 🔴 |
+| C2 | Edit payment deadline | Batas bayar tampil di sidebar tapi tidak bisa diubah dari halaman ini | Sedang | 🔴 |
+| C3 | Klik WhatsApp langsung | Nomor HP customer tampil tapi tidak ada tombol "Chat WA" yang buka `wa.me/62xxx` | Tinggi | 🔴 |
+| C4 | Salin kode booking | Tidak ada tombol copy-to-clipboard di sebelah kode booking | Rendah | 🔴 |
+| C5 | Assign nomor kamar hotel | `room_number` ada di DB, belum ada UI untuk mengisinya per jamaah | Sedang | 🔴 |
+| C6 | Checklist kelengkapan dokumen | Belum ada indikator apakah passport/KTP/foto sudah dikumpulkan per jamaah | Tinggi | 🔴 |
+| C7 | Pelacakan refund | Jika status `refunded` — tidak ada info jumlah refund, metode, atau tanggal di halaman ini | Sedang | 🔴 |
+
+### D — UX & Tampilan yang Bisa Dioptimalkan
+
+| # | Item | Detail | Prioritas | Status |
+|---|------|--------|-----------|--------|
+| D1 | Timeline pakai data nyata dari `booking_status_history` | Tampilkan siapa yang ubah, dari status apa, kapan, dan notes | Tinggi | 🔴 |
+| D2 | Alert jika jumlah jamaah < `total_pax` | Misal total_pax = 5 tapi baru 3 jamaah terdaftar → warning banner | Sedang | 🔴 |
+| D3 | Konfirmasi ke cancelled → tanya refund otomatis | Saat admin ubah status ke cancelled, munculkan pilihan: proses refund? | Sedang | 🔴 |
+| D4 | Panel info agen di sidebar | Jika `agent_id` ada, tampilkan nama agen, kode, dan total komisi yang sudah dicatat | Tinggi | 🔴 |
+| D5 | Milestone progress pelunasan | Progress bar ada, tapi tanpa milestone (misal "DP 30% sudah terpenuhi") | Rendah | 🔴 |
+
+### Status yang sudah ada & berfungsi di Booking Detail
+- ✅ Update status booking + konfirmasi dialog + notifikasi jamaah otomatis
+- ✅ Edit data customer (EditCustomerDialog)
+- ✅ Alokasi tipe kamar per jamaah (RoomTypeAssignmentDialog) — baru dibangun
+- ✅ Ubah tipe kamar global (ChangeRoomTypeDialog) — sudah fixed
+- ✅ Pindah paket (ChangePackageDialogV2)
+- ✅ Manifest jamaah + badge tipe kamar per orang (BulkPassengerExport)
+- ✅ Riwayat pembayaran tabel + approve pending payment + lihat bukti
+- ✅ Ringkasan pembayaran rinci sidebar (per tipe kamar, progress bar, sisa tagihan)
+- ✅ Cetak invoice + form transaksi PDF
+- ✅ Buat surat (BookingDocumentActions)
+- ✅ Notifikasi WA ke jamaah (booking confirmed, reminder)
+- ✅ Email notifikasi otomatis (konfirmasi booking, verifikasi pembayaran)
+- ✅ Auto-kalkulasi komisi agen saat status → confirmed
+- ✅ Riwayat dokumen yang pernah dicetak (BookingDocumentHistory)
+- ✅ Timeline aktivitas booking (manual, belum dari booking_status_history)
+- ✅ Hotel Makkah/Madinah, tanggal kembali, durasi program di section paket
 
 ---
 
-## BAGIAN 6 — DATABASE MIGRATIONS (Urutan Eksekusi)
+## BAGIAN 7 — DATABASE MIGRATIONS (Urutan Eksekusi)
 
 Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 
@@ -353,11 +389,11 @@ Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 | 19 | `supabase/migrations/fase20_webhooks_push.sql` | webhooks, push subscriptions |
 | 20 | `supabase/migrations/store_ecommerce.sql` | toko e-commerce |
 | 21 | `supabase/migrations/store_product_reviews.sql` | review produk |
-| 22 | `supabase/migrations/fase21_integration_fixes.sql` | **customer_notifications, jamaah_checklist, attendance, feedback, visa_status_logs, room_occupants** + kolom baru |
+| 22 | `supabase/migrations/fase21_integration_fixes.sql` | customer_notifications, jamaah_checklist, attendance, feedback, visa_status_logs, room_occupants + kolom baru |
 
 ---
 
-## BAGIAN 7 — CATATAN TEKNIS PENTING
+## BAGIAN 8 — CATATAN TEKNIS PENTING
 
 - **Typecheck**: selalu `pnpm run typecheck:libs` dahulu sebelum typecheck api-server
 - **Tabel baru Supabase**: wajib aktifkan RLS + buat policy per role
@@ -368,23 +404,26 @@ Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 - **Mobile-responsive + dark mode + loading skeleton** wajib di setiap halaman baru
 - **Tailwind**: gunakan v3 via PostCSS — JANGAN gunakan `@tailwindcss/vite` plugin
 - **Quick Menu Grid**: link "Portal Jamaah" menuju `/jamaah-info`
+- **`remaining_amount`** di tabel `bookings` adalah generated column (= total_price - paid_amount). JANGAN masukkan ke INSERT atau UPDATE
+- **Multi-tipe kamar**: `booking_passengers.room_preference` adalah source of truth per jamaah. `bookings.room_type` hanya dominant/fallback
+- **RoomTypeAssignmentDialog props**: `isOpen, onClose, bookingId, passengers, departure`
 
 ---
 
-## BAGIAN 8 — AKSI YANG MASIH MENUNGGU USER
+## BAGIAN 9 — AKSI YANG MASIH MENUNGGU USER
 
 | Prioritas | Item | Catatan |
 |-----------|------|---------|
 | ⚠️ P1 | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` | Auth & data tidak aktif tanpa ini |
 | ⚠️ P2 | Set `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | API server butuh ini |
-| ⚠️ P3 | Jalankan SQL migrations (Bagian 6) ke Supabase | Manual di Supabase SQL Editor |
+| ⚠️ P3 | Jalankan SQL migrations (Bagian 7) ke Supabase | Manual di Supabase SQL Editor |
 | ⚠️ P4 | Generate VAPID keys: `npx web-push generate-vapid-keys` | Untuk browser push |
 | ⚠️ P5 | Set SMTP credentials | Opsional, untuk email |
 | ⚠️ P6 | Set Midtrans keys | Opsional, untuk pembayaran |
 
 ---
 
-## BAGIAN 9 — STRUKTUR FILE PENTING
+## BAGIAN 10 — STRUKTUR FILE PENTING
 
 ```
 artifacts/
@@ -395,6 +434,21 @@ artifacts/
       jamaah/         — portal jamaah mobile
       customer/       — portal customer
       agent/          — portal agen
+    components/
+      admin/
+        AdminBookingDetail.tsx       — halaman detail booking utama
+        RoomTypeAssignmentDialog.tsx — dialog alokasi tipe kamar per jamaah (BARU)
+        ChangeRoomTypeDialog.tsx     — dialog ubah tipe kamar global
+        ChangePackageDialogV2.tsx    — dialog pindah paket
+        BulkPassengerExport.tsx      — manifest + export PDF/Excel
+        ManagePaymentModal.tsx       — kelola pembayaran
+        BookingDocumentActions.tsx   — generate surat
+        BookingDocumentHistory.tsx   — riwayat dokumen dicetak
+      layout/
+        DynamicNavbar.tsx            — navbar dengan mega dropdown
+        DynamicPublicLayout.tsx      — layout publik, aware PWA mode
+      pwa/
+        MobileBottomNav.tsx          — bottom nav saat PWA standalone
     routes/
       AdminRoutes.tsx      — semua route /admin/*
       PublicRoutes.tsx     — semua route publik + /jamaah-info
@@ -402,24 +456,21 @@ artifacts/
     hooks/
       usePWAMode.ts            — deteksi standalone PWA mode
       useAdminNotifications.ts — real-time notif (singleton)
-      usePWAConfig.ts          — konfigurasi bottom nav PWA
-    components/
-      layout/
-        DynamicNavbar.tsx      — navbar dengan mega dropdown Layanan/Jamaah/Islami
-        DynamicPublicLayout.tsx — layout publik, aware PWA mode
-      pwa/
-        MobileBottomNav.tsx    — bottom nav saat PWA standalone
-        PWAInstallPrompt.tsx   — prompt pasang aplikasi
-      home/
-        QuickMenuGrid.tsx      — grid menu homepage 4 seksi
+      useAutoCommission.ts     — auto-hitung komisi saat booking confirmed
+      useWhatsAppNotifier.ts   — kirim WA otomatis
+      useEmailNotifier.ts      — kirim email otomatis
     lib/
-      admin-menu-registry.ts  — daftar menu + grup + permission
+      admin-menu-registry.ts   — daftar menu + grup + permission
+      document-generator.ts    — generate invoice PDF
+      transaction-form-generator.ts — generate form transaksi PDF
 
   api-server/src/
     routes/v1/         — kurs.ts, packages.ts, departures.ts, dll
 ```
 
-## BAGIAN 10 — API EKSTERNAL (Gratis, Tanpa API Key)
+---
+
+## BAGIAN 11 — API EKSTERNAL (Gratis, Tanpa API Key)
 
 | Layanan | Digunakan untuk |
 |---------|----------------|
