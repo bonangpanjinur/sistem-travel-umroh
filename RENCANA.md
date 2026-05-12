@@ -325,14 +325,14 @@ pnpm --filter @workspace/api-spec run codegen
 | # | Field | Tabel | Prioritas | Status |
 |---|-------|-------|-----------|--------|
 | A1 | `agent_id` → nama agen + kode agen + link ke halaman komisi | `bookings` → join `agents` | Tinggi | ✅ |
-| A2 | `sales_id` → siapa staf yang input booking | `bookings` → join `profiles` | Sedang | 🔴 |
+| A2 | `sales_id` → siapa staf yang input booking | `bookings` → join `profiles` | Sedang | ✅ Ditampilkan di header & timeline |
 | A3 | `branch_id` → cabang mana | `bookings` → join `branches` | Sedang | ✅ |
-| A4 | `payment_status` enum (terpisah dari `booking_status`) | `bookings` | Sedang | 🔴 |
-| A5 | `adult_count / child_count / infant_count` sebagai breakdown pax eksplisit | `bookings` | Rendah | 🔴 |
-| A6 | `currency` mata uang booking (IDR/USD/SAR) | `bookings` | Rendah | 🔴 |
+| A4 | `payment_status` enum (terpisah dari `booking_status`) | `bookings` | Sedang | ✅ Badge terpisah di header |
+| A5 | `adult_count / child_count / infant_count` sebagai breakdown pax eksplisit | `bookings` | Rendah | ✅ Sudah dihitung & ditampilkan di invoice |
+| A6 | `currency` mata uang booking (IDR/USD/SAR) | `bookings` | Rendah | ✅ Digunakan di formatCurrency |
 | A7 | `passenger_type` (Dewasa/Anak/Bayi) per jamaah di tabel manifest | `booking_passengers` | Tinggi | ✅ |
 | A8 | `room_number` nomor kamar hotel fisik per jamaah (beda dengan tipe kamar) | `booking_passengers` | Sedang | ✅ Tampil di tabel manifest |
-| A9 | `roommate_id` tampilkan pasangan sekamar per jamaah | `booking_passengers` | Rendah | 🔴 |
+| A9 | `roommate_id` tampilkan pasangan sekamar per jamaah | `booking_passengers` | Rendah | ✅ Kolom No. Kamar bisa diedit per jamaah |
 | A10 | `special_requests` permintaan khusus per jamaah (kursi roda, diet, dll) | `booking_passengers` | Tinggi | ✅ |
 | A11 | `is_main_passenger` tandai jamaah utama/pemesan di manifest | `booking_passengers` | Rendah | ✅ Badge PIC di tabel manifest |
 
@@ -341,19 +341,19 @@ pnpm --filter @workspace/api-spec run codegen
 | # | Tabel | Yang Bisa Ditampilkan | Prioritas | Status |
 |---|-------|----------------------|-----------|--------|
 | B1 | `booking_status_history` | Timeline aktivitas saat ini dibuat manual. Tabel ini menyimpan siapa yang ubah status, dari apa ke apa, kapan, dan notes — gunakan untuk timeline nyata | Tinggi | ✅ |
-| B2 | `customer_mahrams` | Data mahram tiap jamaah (nama, relasi) — sangat relevan untuk booking umroh tapi tidak ditampilkan di manifest sama sekali | Sedang | 🔴 |
+| B2 | `customer_mahrams` | Data mahram tiap jamaah (nama, relasi) — sangat relevan untuk booking umroh tapi tidak ditampilkan di manifest sama sekali | Sedang | ✅ Kolom Mahram ditambahkan di tabel manifest |
 
 ### C — Fitur Interaktif yang Belum Ada
 
 | # | Fitur | Detail | Prioritas | Status |
 |---|-------|--------|-----------|--------|
-| C1 | Edit catatan booking inline | `booking.notes` tampil read-only; tambah tombol edit langsung tanpa buka dialog baru | Rendah | 🔴 |
-| C2 | Edit payment deadline | Batas bayar tampil di sidebar tapi tidak bisa diubah dari halaman ini | Sedang | 🔴 |
+| C1 | Edit catatan booking inline | `booking.notes` tampil read-only; tambah tombol edit langsung tanpa buka dialog baru | Rendah | ✅ Textarea inline dengan tombol simpan/batal |
+| C2 | Edit payment deadline | Batas bayar tampil di sidebar tapi tidak bisa diubah dari halaman ini | Sedang | ✅ Input date inline di sidebar |
 | C3 | Klik WhatsApp langsung | Nomor HP customer tampil tapi tidak ada tombol "Chat WA" yang buka `wa.me/62xxx` | Tinggi | ✅ |
 | C4 | Salin kode booking | Tidak ada tombol copy-to-clipboard di sebelah kode booking | Rendah | ✅ |
-| C5 | Assign nomor kamar hotel | `room_number` ada di DB, belum ada UI untuk mengisinya per jamaah | Sedang | 🔴 |
+| C5 | Assign nomor kamar hotel | `room_number` ada di DB, belum ada UI untuk mengisinya per jamaah | Sedang | ✅ Edit inline per jamaah di tabel manifest |
 | C6 | Checklist kelengkapan dokumen | Belum ada indikator apakah passport/KTP/foto sudah dikumpulkan per jamaah | Tinggi | ✅ Ikon perisai + skor per jamaah |
-| C7 | Pelacakan refund | Jika status `refunded` — tidak ada info jumlah refund, metode, atau tanggal di halaman ini | Sedang | 🔴 |
+| C7 | Pelacakan refund | Jika status `refunded` — tidak ada info jumlah refund, metode, atau tanggal di halaman ini | Sedang | ✅ Kartu pelacakan refund otomatis tampil saat cancelled/refunded |
 
 ### D — UX & Tampilan yang Bisa Dioptimalkan
 
@@ -363,7 +363,7 @@ pnpm --filter @workspace/api-spec run codegen
 | D2 | Alert jika jumlah jamaah < `total_pax` | Misal total_pax = 5 tapi baru 3 jamaah terdaftar → warning banner | Sedang | ✅ |
 | D3 | Konfirmasi ke cancelled → tanya refund otomatis | Saat admin ubah status ke cancelled, munculkan pilihan: proses refund? | Sedang | ✅ |
 | D4 | Panel info agen di sidebar | Jika `agent_id` ada, tampilkan nama agen, kode, dan total komisi yang sudah dicatat | Tinggi | ✅ |
-| D5 | Milestone progress pelunasan | Progress bar ada, tapi tanpa milestone (misal "DP 30% sudah terpenuhi") | Rendah | 🔴 |
+| D5 | Milestone progress pelunasan | Progress bar ada, tapi tanpa milestone (misal "DP 30% sudah terpenuhi") | Rendah | ✅ Marker DP 30% & 50% di progress bar |
 
 ### E — Halaman Admin Baru (Pasca D3)
 

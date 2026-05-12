@@ -136,6 +136,18 @@ export default function AdminBookingDetail() {
   const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
   const [showRoomTypeAssignmentDialog, setShowRoomTypeAssignmentDialog] = useState(false);
 
+  // C1 — Edit notes inline
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState('');
+
+  // C2 — Edit payment deadline inline
+  const [editingDeadline, setEditingDeadline] = useState(false);
+  const [deadlineValue, setDeadlineValue] = useState('');
+
+  // C5 — Assign room number per passenger
+  const [editingRoomNumber, setEditingRoomNumber] = useState<string | null>(null); // passenger id
+  const [roomNumberValue, setRoomNumberValue] = useState('');
+
   // Refund dialog state (D3)
   const [showRefundDialog, setShowRefundDialog] = useState(false);
   const [refundAmount, setRefundAmount] = useState<number>(0);
@@ -185,7 +197,8 @@ export default function AdminBookingDetail() {
             arrival_airport:airports!departures_arrival_airport_id_fkey(code, name, city)
           ),
           agent:agents(id, company_name, agent_code, slug),
-          branch:branches(id, name, code)
+          branch:branches(id, name, code),
+          sales_profile:profiles!bookings_sales_id_fkey(id, full_name)
         `)
         .eq('id', id)
         .single();
@@ -265,6 +278,40 @@ export default function AdminBookingDetail() {
       return (data || []) as Array<{ id: string; customer_id: string; document_type: string; status: string; file_url?: string }>;
     },
     enabled: !!id && !!passengers && passengers.length > 0,
+  });
+
+  // B2 — Fetch mahrams for all passengers in this booking
+  const { data: passengerMahrams } = useQuery({
+    queryKey: ['booking-passenger-mahrams', id],
+    queryFn: async () => {
+      if (!passengers || passengers.length === 0) return [];
+      const customerIds = passengers.map((p: any) => p.customer_id || p.customer?.id).filter(Boolean);
+      if (customerIds.length === 0) return [];
+      const { data } = await (supabase as any)
+        .from('customer_mahrams')
+        .select('id, customer_id, name, relationship, phone')
+        .in('customer_id', customerIds);
+      return (data || []) as Array<{ id: string; customer_id: string; name: string; relationship: string; phone?: string }>;
+    },
+    enabled: !!id && !!passengers && passengers.length > 0,
+  });
+
+  // C7 — Fetch refunds for this booking
+  const { data: bookingRefunds } = useQuery({
+    queryKey: ['booking-refunds', id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('refunds')
+        .select('*')
+        .eq('booking_id', id)
+        .order('created_at', { ascending: false });
+      return (data || []) as Array<{
+        id: string; booking_id: string; amount: number; method: string;
+        status: string; account_info?: string; notes?: string;
+        reason?: string; created_at: string; processed_at?: string;
+      }>;
+    },
+    enabled: !!id,
   });
 
   // Fetch bank accounts for invoice
@@ -505,6 +552,52 @@ export default function AdminBookingDetail() {
     onError: (error: Error) => {
       toast.error("Gagal mengirim notifikasi: " + error.message);
     },
+  });
+
+  // C1 — Save notes inline
+  const updateNotesMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      const { error } = await supabase.from('bookings').update({ notes }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Catatan berhasil disimpan');
+      queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
+      setEditingNotes(false);
+    },
+    onError: (err: any) => toast.error(err.message || 'Gagal menyimpan catatan'),
+  });
+
+  // C2 — Update payment deadline
+  const updateDeadlineMutation = useMutation({
+    mutationFn: async (deadline: string) => {
+      const { error } = await supabase.from('bookings').update({ payment_deadline: deadline }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Batas bayar berhasil diperbarui');
+      queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
+      setEditingDeadline(false);
+    },
+    onError: (err: any) => toast.error(err.message || 'Gagal memperbarui batas bayar'),
+  });
+
+  // C5 — Assign room number per passenger
+  const updateRoomNumberMutation = useMutation({
+    mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
+      const { error } = await (supabase as any)
+        .from('booking_passengers')
+        .update({ room_number: roomNumber || null })
+        .eq('id', passengerId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Nomor kamar berhasil disimpan');
+      queryClient.invalidateQueries({ queryKey: ['booking-passengers', id] });
+      setEditingRoomNumber(null);
+      setRoomNumberValue('');
+    },
+    onError: (err: any) => toast.error(err.message || 'Gagal menyimpan nomor kamar'),
   });
 
   const handlePrintInvoice = async () => {
@@ -926,10 +1019,29 @@ export default function AdminBookingDetail() {
                 <Badge variant={getStatusBadgeVariant(booking.booking_status ?? '')} className="px-3 py-1 text-xs uppercase tracking-wider font-bold">
                   {getBookingStatusLabel(booking.booking_status ?? '')}
                 </Badge>
+                {/* A4 — payment_status badge terpisah */}
+                {(booking as any).payment_status && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
+                    (booking as any).payment_status === 'paid' || (booking as any).payment_status === 'verified'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800'
+                      : (booking as any).payment_status === 'partial'
+                      ? 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800'
+                      : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800'
+                  }`}>
+                    💳 {getPaymentStatusLabel((booking as any).payment_status)}
+                  </span>
+                )}
               </div>
               <p className="text-muted-foreground mt-1 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Dibuat pada {formatDate(booking.created_at ?? '')}
+                {/* A2 — nama staf yang menginput booking */}
+                {(booking as any).sales_profile?.full_name && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-primary/5 border border-primary/10 rounded-full px-2 py-0.5 text-primary/70">
+                    <UserCheck className="h-3 w-3" />
+                    Diinput: {(booking as any).sales_profile.full_name}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -1203,6 +1315,8 @@ export default function AdminBookingDetail() {
                         <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Tipe</th>
                         <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Kamar</th>
                         <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Dok.</th>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Mahram</th>
+                        <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">No. Kamar</th>
                         <th className="text-left px-3 py-2 font-bold uppercase tracking-wider text-muted-foreground">Permintaan Khusus</th>
                       </tr>
                     </thead>
@@ -1226,6 +1340,9 @@ export default function AdminBookingDetail() {
                         const hasPassport = docsForPassenger.some((d: any) => d.document_type === 'passport' && d.status === 'approved');
                         const hasPhoto = docsForPassenger.some((d: any) => d.document_type === 'photo' && d.status === 'approved');
                         const docScore = [hasKtp, hasPassport, hasPhoto].filter(Boolean).length;
+                        // B2 — mahrams for this passenger
+                        const mahramForPassenger = (passengerMahrams || []).filter((m: any) => m.customer_id === customerId);
+                        const isEditingRoom = editingRoomNumber === p.id;
                         return (
                           <tr key={p.id} className={cn("hover:bg-muted/20 transition-colors", p.is_main_passenger && "bg-primary/5")}>
                             <td className="px-3 py-2.5 text-muted-foreground font-mono">
@@ -1234,9 +1351,6 @@ export default function AdminBookingDetail() {
                             </td>
                             <td className="px-3 py-2.5 font-semibold max-w-[140px]">
                               <span className="truncate block">{p.full_name || p.customer?.full_name || '-'}</span>
-                              {p.room_number && (
-                                <span className="text-[10px] text-muted-foreground font-normal">Km. {p.room_number}</span>
-                              )}
                             </td>
                             <td className="px-3 py-2.5">
                               <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${typeInfo.color}`}>
@@ -1260,6 +1374,64 @@ export default function AdminBookingDetail() {
                                   {docScore}/3
                                 </span>
                               </div>
+                            </td>
+                            {/* B2 — Mahram column */}
+                            <td className="px-3 py-2.5 max-w-[120px]">
+                              {mahramForPassenger.length > 0 ? (
+                                <div className="space-y-0.5">
+                                  {mahramForPassenger.map((m: any) => (
+                                    <div key={m.id} className="text-[10px]">
+                                      <span className="font-semibold truncate block max-w-[100px]" title={m.name}>{m.name}</span>
+                                      <span className="text-muted-foreground capitalize">{m.relationship}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-[10px]">—</span>
+                              )}
+                            </td>
+                            {/* C5 — Room Number (editable) */}
+                            <td className="px-3 py-2.5">
+                              {isEditingRoom ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={roomNumberValue}
+                                    onChange={(e) => setRoomNumberValue(e.target.value)}
+                                    placeholder="cth: 201"
+                                    className="text-[10px] border rounded px-1.5 py-1 w-16 focus:outline-none focus:ring-1 focus:ring-primary bg-background"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') updateRoomNumberMutation.mutate({ passengerId: p.id, roomNumber: roomNumberValue });
+                                      if (e.key === 'Escape') { setEditingRoomNumber(null); setRoomNumberValue(''); }
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => updateRoomNumberMutation.mutate({ passengerId: p.id, roomNumber: roomNumberValue })}
+                                    disabled={updateRoomNumberMutation.isPending}
+                                    className="text-[9px] bg-emerald-600 text-white rounded px-1.5 py-1 hover:bg-emerald-700 disabled:opacity-50"
+                                  >✓</button>
+                                  <button
+                                    onClick={() => { setEditingRoomNumber(null); setRoomNumberValue(''); }}
+                                    className="text-[9px] text-muted-foreground hover:text-foreground"
+                                  >✕</button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span className={`text-[10px] font-mono ${p.room_number ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
+                                    {p.room_number || '—'}
+                                  </span>
+                                  {isAdmin() && (
+                                    <button
+                                      onClick={() => { setEditingRoomNumber(p.id); setRoomNumberValue(p.room_number || ''); }}
+                                      className="text-muted-foreground hover:text-primary transition-colors"
+                                      title="Atur nomor kamar"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="px-3 py-2.5 max-w-[180px]">
                               {p.special_requests ? (
@@ -1381,6 +1553,87 @@ export default function AdminBookingDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* C7 — Pelacakan Refund (tampil jika status cancelled/refunded) */}
+          {(['cancelled', 'refunded'].includes(booking.booking_status ?? '') || (bookingRefunds && bookingRefunds.length > 0)) && (
+            <Card className="overflow-hidden border-none shadow-md border-l-4 border-l-orange-400">
+              <div className="bg-orange-50 dark:bg-orange-950/20 px-6 py-4 border-b flex items-center justify-between">
+                <h2 className="font-bold flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                  <RotateCcw className="h-5 w-5" />
+                  Pelacakan Refund
+                </h2>
+                {bookingRefunds && bookingRefunds.length > 0 && (
+                  <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200">
+                    {bookingRefunds.length} Refund
+                  </Badge>
+                )}
+              </div>
+              <CardContent className="p-5">
+                {bookingRefunds && bookingRefunds.length > 0 ? (
+                  <div className="space-y-3">
+                    {bookingRefunds.map((refund) => {
+                      const statusColors: Record<string, string> = {
+                        pending: 'bg-amber-100 text-amber-800 border-amber-200',
+                        processing: 'bg-blue-100 text-blue-800 border-blue-200',
+                        completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                        rejected: 'bg-red-100 text-red-800 border-red-200',
+                      };
+                      const statusLabels: Record<string, string> = {
+                        pending: 'Menunggu', processing: 'Diproses',
+                        completed: 'Selesai', rejected: 'Ditolak',
+                      };
+                      return (
+                        <div key={refund.id} className="p-4 rounded-lg border bg-muted/20 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-base font-black text-orange-700 dark:text-orange-400">
+                              {formatCurrency(refund.amount)}
+                            </span>
+                            <span className={`text-[10px] font-bold border rounded-full px-2 py-0.5 ${statusColors[refund.status] || 'bg-muted text-muted-foreground border-border'}`}>
+                              {statusLabels[refund.status] || refund.status}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                              <span className="font-bold uppercase tracking-tight text-muted-foreground text-[9px]">Metode</span>
+                              <p className="font-medium capitalize">{refund.method?.replace(/_/g, ' ') || '-'}</p>
+                            </div>
+                            {refund.account_info && (
+                              <div>
+                                <span className="font-bold uppercase tracking-tight text-muted-foreground text-[9px]">Info Rekening</span>
+                                <p className="font-medium">{refund.account_info}</p>
+                              </div>
+                            )}
+                            {refund.reason && (
+                              <div className="col-span-2">
+                                <span className="font-bold uppercase tracking-tight text-muted-foreground text-[9px]">Alasan</span>
+                                <p className="font-medium">{refund.reason}</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1 border-t">
+                            <span>Dibuat: {dfFormat(new Date(refund.created_at), 'd MMM yyyy', { locale: localeId })}</span>
+                            {refund.processed_at && (
+                              <span>Diproses: {dfFormat(new Date(refund.processed_at), 'd MMM yyyy', { locale: localeId })}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <RotateCcw className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-muted-foreground">Belum ada refund tercatat</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">
+                      {booking.booking_status === 'cancelled' 
+                        ? `Booking dibatalkan. Jika ada pengembalian dana, proses melalui Kelola Pembayaran.`
+                        : 'Refund akan muncul di sini jika telah diproses.'}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar: Financial Summary & Quick Actions */}
@@ -1502,15 +1755,53 @@ export default function AdminBookingDetail() {
 
             {/* Body: Riwayat Pembayaran */}
             <CardContent className="p-0">
-              {/* Deadline */}
-              {(booking as any).payment_deadline && (
-                <div className="px-5 py-3 bg-amber-50 dark:bg-amber-950/30 border-b flex justify-between items-center">
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight">Batas Bayar</span>
-                  <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                    {dfFormat(new Date((booking as any).payment_deadline), 'd MMM yyyy', { locale: localeId })}
-                  </span>
-                </div>
-              )}
+              {/* C2 — Batas Bayar (editable) */}
+              <div className="px-5 py-3 bg-amber-50 dark:bg-amber-950/30 border-b flex justify-between items-center gap-2">
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight shrink-0">Batas Bayar</span>
+                {editingDeadline ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      value={deadlineValue}
+                      onChange={(e) => setDeadlineValue(e.target.value)}
+                      className="text-xs border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      onClick={() => updateDeadlineMutation.mutate(deadlineValue)}
+                      disabled={updateDeadlineMutation.isPending || !deadlineValue}
+                      className="text-[10px] font-bold bg-emerald-600 text-white rounded px-2 py-1 hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {updateDeadlineMutation.isPending ? '...' : 'Simpan'}
+                    </button>
+                    <button
+                      onClick={() => setEditingDeadline(false)}
+                      className="text-[10px] font-bold text-muted-foreground hover:text-foreground px-1"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      {(booking as any).payment_deadline
+                        ? dfFormat(new Date((booking as any).payment_deadline), 'd MMM yyyy', { locale: localeId })
+                        : <span className="text-muted-foreground italic">Belum diatur</span>}
+                    </span>
+                    {(isAdmin() || isFinance) && (
+                      <button
+                        onClick={() => {
+                          setDeadlineValue((booking as any).payment_deadline ? (booking as any).payment_deadline.slice(0, 10) : '');
+                          setEditingDeadline(true);
+                        }}
+                        className="text-amber-600 hover:text-amber-800 transition-colors"
+                        title="Edit batas bayar"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Payment records */}
               {payments && payments.length > 0 ? (
@@ -1571,17 +1862,41 @@ export default function AdminBookingDetail() {
                   </span>
                 </div>
 
-                {/* Progress Bar */}
+                {/* D5 — Progress Bar with milestones (DP 30%, Cicilan 50%, Lunas 100%) */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">
                     <span>Progress Pelunasan</span>
                     <span>{Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%</span>
                   </div>
-                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
-                      style={{ width: `${Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%` }}
-                    />
+                  <div className="relative">
+                    <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                        style={{ width: `${Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%` }}
+                      />
+                    </div>
+                    {/* Milestone markers */}
+                    {[
+                      { pct: 30, label: 'DP' },
+                      { pct: 50, label: '50%' },
+                    ].map(({ pct, label }) => {
+                      const paid = Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100));
+                      const reached = paid >= pct;
+                      return (
+                        <div
+                          key={pct}
+                          className="absolute top-0 -translate-x-1/2 flex flex-col items-center"
+                          style={{ left: `${pct}%` }}
+                        >
+                          <div className={`w-1 h-2.5 ${reached ? 'bg-emerald-700' : 'bg-muted-foreground/30'}`} />
+                          <span className={`text-[8px] font-bold mt-0.5 ${reached ? 'text-emerald-700' : 'text-muted-foreground/50'}`}>{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-between text-[9px] text-muted-foreground/70 font-medium">
+                    <span>DP 30% = {formatCurrency(booking.total_price * 0.3)}</span>
+                    <span>50% = {formatCurrency(booking.total_price * 0.5)}</span>
                   </div>
                 </div>
 
@@ -1705,19 +2020,60 @@ export default function AdminBookingDetail() {
           {/* Buat Surat — quick document generation from booking data */}
           <BookingDocumentActions booking={booking} companyInfo={companyInfo} passengers={passengers || []} />
 
-          {booking.notes && (
-            <Card className="border-none shadow-md bg-amber-50/50 dark:bg-amber-950/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-amber-700">
+          {/* C1 — Catatan Admin (inline editable) */}
+          <Card className="border-none shadow-md bg-amber-50/50 dark:bg-amber-950/10">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center justify-between gap-2 text-amber-700">
+                <span className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Catatan Admin
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                </span>
+                {!editingNotes && (isAdmin() || isFinance) && (
+                  <button
+                    onClick={() => { setNotesValue(booking.notes || ''); setEditingNotes(true); }}
+                    className="text-amber-600 hover:text-amber-800 transition-colors"
+                    title="Edit catatan"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {editingNotes ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={notesValue}
+                    onChange={(e) => setNotesValue(e.target.value)}
+                    placeholder="Tambahkan catatan untuk booking ini..."
+                    className="text-xs min-h-[80px] resize-none"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={() => setEditingNotes(false)}
+                      className="text-[10px] font-bold text-muted-foreground hover:text-foreground px-3 py-1.5 rounded border"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={() => updateNotesMutation.mutate(notesValue)}
+                      disabled={updateNotesMutation.isPending}
+                      className="text-[10px] font-bold bg-amber-600 text-white rounded px-3 py-1.5 hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {updateNotesMutation.isPending ? 'Menyimpan...' : 'Simpan Catatan'}
+                    </button>
+                  </div>
+                </div>
+              ) : booking.notes ? (
                 <p className="text-xs leading-relaxed italic text-muted-foreground">{booking.notes}</p>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-xs italic text-muted-foreground/50">
+                  Belum ada catatan.{(isAdmin() || isFinance) ? ' Klik ✏️ untuk menambahkan.' : ''}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -1747,7 +2103,13 @@ export default function AdminBookingDetail() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-foreground">Booking Dibuat</p>
-                    <p className="text-[11px] text-muted-foreground">{booking.created_at ? formatDate(booking.created_at) : '-'} — oleh sistem</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {booking.created_at ? formatDate(booking.created_at) : '-'}
+                      {/* A2 — staf yang menginput */}
+                      {(booking as any).sales_profile?.full_name
+                        ? ` — diinput oleh ${(booking as any).sales_profile.full_name}`
+                        : ' — oleh sistem'}
+                    </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">Kode: <span className="font-mono font-semibold">{booking.booking_code}</span></p>
                   </div>
                 </div>

@@ -1,0 +1,21 @@
+Failed to load resource: the server responded with a status of 404 ()Understand this error
+/admin/pwa-settings:1 Manifest fetch from https://www.vinstourtravel.com/api/manifest.json failed, code 404Understand this error
+core.js:297 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'payload')
+    at core.js:297:66041
+    at async Tx (core.js:297:65982)Understand this error
+index-osyQ0CWx.js:64 SW registered: https://www.vinstourtravel.com/
+manifest.json:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/admin/pwa-settings:1 Manifest fetch from https://www.vinstourtravel.com/api/manifest.json failed, code 404Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/invoice_templates?select=*&is_default=eq.true:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/booking_status_history?select=*%2Cchanged_by_profile%3Aprofiles%21booking_status_history_changed_by_fkey%28id%2Cfull_name%29&booking_id=eq.20c6f1cd-c370-4401-8100-35cb1310f2fa&order=created_at.asc:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/bookings?select=*%2Ccustomer%3Acustomers%28*%29%2Cdeparture%3Adepartures%28*%2Cpackage%3Apackages%28*%29%2Cdeparture_airport%3Aairports%21departures_departure_airport_id_fkey%28code%2Cname%2Ccity%29%2Carrival_airport%3Aairports%21departures_arrival_airport_id_fkey%28code%2Cname%2Ccity%29%29%2Cagent%3Aagents%28id%2Ccompany_name%2Cagent_code%2Cslug%29%2Cbranch%3Abranches%28id%2Cname%2Ccode%29&id=eq.20c6f1cd-c370-4401-8100-35cb1310f2fa:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/customer_documents?select=id%2Ccustomer_id%2Cdocument_type%2Cstatus%2Cfile_url&customer_id=in.%28216b7729-2eea-422a-b52d-041580c61b75%2C0201f939-29c4-4ca5-97b4-2fbf9747f946%2C3246b1d7-21a5-493b-8acb-f5bb06d6bc54%29:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/bookings?select=*%2Ccustomer%3Acustomers%28*%29%2Cdeparture%3Adepartures%28*%2Cpackage%3Apackages%28*%29%2Cdeparture_airport%3Aairports%21departures_departure_airport_id_fkey%28code%2Cname%2Ccity%29%2Carrival_airport%3Aairports%21departures_arrival_airport_id_fkey%28code%2Cname%2Ccity%29%29%2Cagent%3Aagents%28id%2Ccompany_name%2Cagent_code%2Cslug%29%2Cbranch%3Abranches%28id%2Cname%2Ccode%29&id=eq.20c6f1cd-c370-4401-8100-35cb1310f2fa:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/bookings?select=*%2Ccustomer%3Acustomers%28*%29%2Cdeparture%3Adepartures%28*%2Cpackage%3Apackages%28*%29%2Cdeparture_airport%3Aairports%21departures_departure_airport_id_fkey%28code%2Cname%2Ccity%29%2Carrival_airport%3Aairports%21departures_arrival_airport_id_fkey%28code%2Cname%2Ccity%29%29%2Cagent%3Aagents%28id%2Ccompany_name%2Cagent_code%2Cslug%29%2Cbranch%3Abranches%28id%2Cname%2Ccode%29&id=eq.20c6f1cd-c370-4401-8100-35cb1310f2fa:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/bookings?select=*%2Ccustomer%3Acustomers%28*%29%2Cdeparture%3Adepartures%28*%2Cpackage%3Apackages%28*%29%2Cdeparture_airport%3Aairports%21departures_departure_airport_id_fkey%28code%2Cname%2Ccity%29%2Carrival_airport%3Aairports%21departures_arrival_airport_id_fkey%28code%2Cname%2Ccity%29%29%2Cagent%3Aagents%28id%2Ccompany_name%2Cagent_code%2Cslug%29%2Cbranch%3Abranches%28id%2Cname%2Ccode%29&id=eq.20c6f1cd-c370-4401-8100-35cb1310f2fa:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+sw.js:115 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    at sw.js:115:75
+(anonymous) @ sw.js:115
+Promise.then
+(anonymous) @ sw.js:115Understand this error
+manifest.json:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
