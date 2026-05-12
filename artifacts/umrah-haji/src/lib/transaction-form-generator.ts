@@ -490,7 +490,7 @@ export async function generateTransactionForm(
     // Reserve enough vertical space for signature header + boxes + labels so
     // they never get split across pages or overlap the footer.
     const SIG_BLOCK_H = 4 + 32 + 6; // header gap + box height + label
-    y = ensureSpace(doc, y, Math.max(SIG_BLOCK_H + 10, 50));
+    y = wrappedEnsureSpace(y, Math.max(SIG_BLOCK_H + 10, 50), "Tanda Tangan / KETERANGAN");
 
     const termsW = template.showSignature ? cw * 0.62 : cw;
     const sigW   = cw - termsW - 5;
@@ -612,6 +612,9 @@ export async function generateTransactionForm(
   // ── LAMPIRAN DAFTAR JAMAAH ────────────────────────────────────────────────
   if (template.showPassengerList && data.passengers.length > 0) {
     doc.addPage();
+    if (data.passengers.length > 30) {
+      warnings.push(`Lampiran berisi ${data.passengers.length} jamaah — pastikan tabel terbagi rapi antar halaman.`);
+    }
     addPageBorder();
     const drawAppendixHeader = (py0: number) => {
       let py = py0;
