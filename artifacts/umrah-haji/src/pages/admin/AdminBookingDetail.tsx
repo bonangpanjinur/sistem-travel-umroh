@@ -197,8 +197,7 @@ export default function AdminBookingDetail() {
             arrival_airport:airports!departures_arrival_airport_id_fkey(code, name, city)
           ),
           agent:agents(id, company_name, agent_code, slug),
-          branch:branches(id, name, code),
-          sales_profile:profiles!bookings_sales_id_fkey(id, full_name)
+          branch:branches(id, name, code)
         `)
         .eq('id', id)
         .single();
@@ -241,13 +240,28 @@ export default function AdminBookingDetail() {
     enabled: !!id,
   });
 
+  // Separate query for sales profile (FK bookings_sales_id_fkey doesn't exist in schema)
+  const { data: salesProfile } = useQuery({
+    queryKey: ['booking-sales-profile', booking?.sales_id],
+    queryFn: async () => {
+      if (!(booking as any)?.sales_id) return null;
+      const { data } = await (supabase as any)
+        .from('profiles')
+        .select('id, full_name')
+        .eq('id', (booking as any).sales_id)
+        .maybeSingle();
+      return data as { id: string; full_name: string } | null;
+    },
+    enabled: !!(booking as any)?.sales_id,
+  });
+
   // Fetch booking status history — real timeline data (B1, D1)
   const { data: statusHistory } = useQuery({
     queryKey: ['booking-status-history', id],
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from('booking_status_history')
-        .select('*, changed_by_profile:profiles!booking_status_history_changed_by_fkey(id, full_name)')
+        .select('*, changed_by_profile:profiles(id, full_name)')
         .eq('booking_id', id)
         .order('created_at', { ascending: true });
       return (data || []) as Array<{
@@ -1036,10 +1050,10 @@ export default function AdminBookingDetail() {
                 <Calendar className="h-4 w-4" />
                 Dibuat pada {formatDate(booking.created_at ?? '')}
                 {/* A2 — nama staf yang menginput booking */}
-                {(booking as any).sales_profile?.full_name && (
+                {salesProfile?.full_name && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-primary/5 border border-primary/10 rounded-full px-2 py-0.5 text-primary/70">
                     <UserCheck className="h-3 w-3" />
-                    Diinput: {(booking as any).sales_profile.full_name}
+                    Diinput: {salesProfile.full_name}
                   </span>
                 )}
               </p>
@@ -2106,8 +2120,8 @@ export default function AdminBookingDetail() {
                     <p className="text-[11px] text-muted-foreground">
                       {booking.created_at ? formatDate(booking.created_at) : '-'}
                       {/* A2 — staf yang menginput */}
-                      {(booking as any).sales_profile?.full_name
-                        ? ` — diinput oleh ${(booking as any).sales_profile.full_name}`
+                      {salesProfile?.full_name
+                        ? ` — diinput oleh ${salesProfile.full_name}`
                         : ' — oleh sistem'}
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">Kode: <span className="font-mono font-semibold">{booking.booking_code}</span></p>
