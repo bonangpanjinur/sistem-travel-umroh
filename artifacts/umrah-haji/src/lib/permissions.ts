@@ -152,6 +152,7 @@ export const PERMISSIONS = {
   STORE_CATEGORIES: 'store-categories',
 
   // Fase 10 — AI & Smart Analytics
+  GEMINI_AI: 'gemini-ai',
   SENTIMEN_FEEDBACK: 'sentimen-feedback',
   PREDIKSI_SEAT: 'prediksi-seat',
   SMART_NOTIF: 'smart-notif',

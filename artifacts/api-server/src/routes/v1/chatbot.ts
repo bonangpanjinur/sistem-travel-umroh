@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 const router = Router();
 
-const SYSTEM_PROMPT = `Kamu adalah Asisten Virtual Vinstour Travel — perusahaan perjalanan Umroh dan Haji terpercaya di Indonesia.
+const DEFAULT_SYSTEM_PROMPT = `Kamu adalah Asisten Virtual Vinstour Travel — perusahaan perjalanan Umroh dan Haji terpercaya di Indonesia.
 Bantu jamaah dengan ramah, sopan, dan informatif dalam Bahasa Indonesia.
 Fokus pada: dokumen persyaratan, pembayaran, visa, info hotel, jadwal ibadah, panduan manasik, dan logistik perjalanan.
 Gunakan emoji secukupnya. Berikan jawaban ringkas (max 5 kalimat) namun lengkap.
@@ -11,35 +11,77 @@ Selalu akhiri dengan ajakan untuk bertanya lebih lanjut jika masih ada yang kura
 
 const FAQ_KNOWLEDGE: Record<string, string> = {
   dokumen: `📋 Dokumen yang diperlukan untuk Umroh:\n1. Paspor berlaku min. 6 bulan\n2. KTP & Kartu Keluarga\n3. Buku Nikah (jika suami/istri berangkat bersama)\n4. Akta Lahir (untuk anak di bawah umur)\n5. Pas foto 4×6 background putih, wajah 80%\n6. Sertifikat Vaksin Meningitis\n7. Bukti tabungan (min. Rp 5 juta)\n\nUpload semua dokumen di menu Dokumen → /jamaah/documents ✅`,
-  bayar: `💰 Cara Pembayaran:\n1. Transfer Bank ke rekening resmi Vinstour\n2. Virtual Account — nomor VA unik per jamaah\n3. Online via Midtrans (kartu kredit, GoPay, QRIS)\n4. Cicilan Tabungan bertahap\n\nSetelah transfer, upload bukti di menu Riwayat Pembayaran. Butuh bantuan? Chat langsung dengan pembimbing di /jamaah/chat`,
+  bayar: `💰 Cara Pembayaran:\n1. Transfer Bank ke rekening resmi Vinstour\n2. Virtual Account — nomor VA unik per jamaah\n3. Online via Midtrans (kartu kredit, GoPay, QRIS)\n4. Cicilan Tabungan bertahap\n\nSetelah transfer, upload bukti di menu Riwayat Pembayaran.`,
   visa: `🛂 Proses Visa Umroh:\n1. Submit dokumen lengkap ke admin (2-3 minggu sebelum berangkat)\n2. Admin proses ke kedubes Saudi Arabia\n3. Verifikasi biometrik (sidik jari & foto)\n4. Visa selesai dalam 5-10 hari kerja\n5. Notifikasi via WhatsApp & portal\n\nPantau status visa di Tracker Visa → /jamaah/visa`,
   hotel: `🏨 Info Hotel:\n- Makkah: Bintang 3-5, jarak 50m–1km ke Masjidil Haram sesuai paket\n- Madinah: Bintang 3-5, jarak 100m–500m ke Masjid Nabawi\n\nDetail hotel ada di Itinerary Anda → /jamaah/itinerary`,
   jadwal: `📅 Jadwal Ibadah:\nDurasi umroh 9-14 hari:\n- Makkah: 5-8 hari (Thawaf, Sa'i, dll)\n- Madinah: 3-5 hari (Ziarah, Arbain)\n\nCek itinerary lengkap di /jamaah/itinerary`,
-  bagasi: `🧳 Ketentuan Bagasi:\n- Kabin: 7 kg\n- Bagasi terdaftar: 20–32 kg (sesuai maskapai)\n- Tips: bawa pakaian ihram, obat pribadi, air zamzam max 5L di bagasi\n\nCek detail di /jamaah/bagasi`,
-  ibadah: `🕋 Rukun Umroh:\n1. Ihram dari miqat\n2. Thawaf 7x keliling Ka'bah\n3. Sa'i 7x antara Shafa-Marwah\n4. Tahallul (cukur rambut)\n\nPanduan lengkap di /jamaah/panduan-ibadah | Doa di /jamaah/doa-panduan`,
-  manasik: `🎓 Manasik Digital:\nIkuti jadwal manasik online dan offline yang tersedia di portal Anda → /jamaah/manasik\nAda kuis ibadah untuk menguji pemahaman Anda sebelum berangkat!`,
-  kesehatan: `🏥 Tips Kesehatan:\n- Vaksin meningitis (wajib) & influenza (dianjurkan)\n- Minum air 3-4 liter/hari, cuaca Saudi 40-50°C\n- Bawa payung, sunscreen, masker, obat pribadi\n\nLihat profil kesehatan di /jamaah/kesehatan`,
+  bagasi: `🧳 Ketentuan Bagasi:\n- Kabin: 7 kg\n- Bagasi terdaftar: 20–32 kg (sesuai maskapai)\n- Tips: bawa pakaian ihram, obat pribadi, air zamzam max 5L di bagasi`,
+  ibadah: `🕋 Rukun Umroh:\n1. Ihram dari miqat\n2. Thawaf 7x keliling Ka'bah\n3. Sa'i 7x antara Shafa-Marwah\n4. Tahallul (cukur rambut)\n\nPanduan lengkap di /jamaah/panduan-ibadah`,
+  manasik: `🎓 Manasik Digital:\nIkuti jadwal manasik online dan offline yang tersedia di portal Anda → /jamaah/manasik`,
+  kesehatan: `🏥 Tips Kesehatan:\n- Vaksin meningitis (wajib) & influenza (dianjurkan)\n- Minum air 3-4 liter/hari, cuaca Saudi 40-50°C\n- Bawa payung, sunscreen, masker, obat pribadi`,
   refund: `💳 Kebijakan Refund:\n- H-90 s.d H-60: refund 75%\n- H-60 s.d H-30: refund 50%\n- H-30 s.d H-7: refund 25%\n- < H-7: tidak ada refund\n\nHubungi admin via CS → /customer/support`,
-  shalat: `🕌 Waktu Shalat:\nCek jadwal shalat real-time untuk Makkah & Madinah di /jamaah/waktu-sholat\nAktifkan Pengingat Ibadah di /jamaah/pengingat-ibadah agar tidak terlewat!`,
-  zakat: `💝 Kalkulator Zakat tersedia di /jamaah/kalkulator-zakat\n- Zakat Fitrah: ~Rp 45.000/orang (setara 2,5 kg beras)\n- Zakat Maal: 2,5% dari harta jika telah mencapai nisab`,
+  shalat: `🕌 Waktu Shalat:\nCek jadwal shalat real-time untuk Makkah & Madinah di /jamaah/waktu-sholat`,
+  zakat: `💝 Kalkulator Zakat tersedia di /jamaah/kalkulator-zakat\n- Zakat Fitrah: ~Rp 45.000/orang\n- Zakat Maal: 2,5% dari harta jika telah mencapai nisab`,
 };
 
 function findFAQAnswer(question: string): string {
   const q = question.toLowerCase();
-
   for (const [key, answer] of Object.entries(FAQ_KNOWLEDGE)) {
     if (q.includes(key)) return answer;
   }
-
   if (q.includes('haji') || q.includes('porsi')) return 'Untuk haji, cek nomor porsi Anda di menu SISKOHAT → /jamaah/siskohat. Vinstour menyediakan layanan haji khusus dan plus dengan pembimbing berpengalaman.';
-  if (q.includes('halo') || q.includes('hi') || q.includes('assalamu') || q.includes('selamat')) return "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Asisten Virtual Vinstour Travel. Saya siap membantu dengan:\n• 📋 Dokumen & persyaratan\n• 💰 Pembayaran & cicilan\n• 🛂 Proses visa\n• 🏨 Info hotel & jadwal\n• 🕋 Panduan ibadah\n\nSilakan ajukan pertanyaan Anda!";
-  if (q.includes('terima kasih') || q.includes('makasih') || q.includes('jazak')) return "Wa iyyakum! Jazakallahu khairan 🤲\n\nJika ada pertanyaan lain, jangan ragu untuk bertanya. Semoga perjalanan ibadah Anda menjadi mabrur. Barakallahu fiikum!";
-  if (q.includes('chat') || q.includes('whatsapp') || q.includes('pembimbing')) return "Untuk chat langsung dengan pembimbing rombongan, gunakan menu Chat → /jamaah/chat. Tim kami siap membantu 24/7 InsyaAllah! 🤝";
+  if (q.includes('halo') || q.includes('hi') || q.includes('assalamu') || q.includes('selamat')) return "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Asisten Virtual Vinstour Travel. Saya siap membantu!\n\nSilakan ajukan pertanyaan Anda.";
+  if (q.includes('terima kasih') || q.includes('makasih') || q.includes('jazak')) return "Wa iyyakum! Jazakallahu khairan 🤲\n\nSemoga perjalanan ibadah Anda menjadi mabrur. Barakallahu fiikum!";
+  if (q.includes('chat') || q.includes('whatsapp') || q.includes('pembimbing')) return "Untuk chat langsung dengan pembimbing, gunakan menu Chat → /jamaah/chat. Tim kami siap membantu 24/7 InsyaAllah! 🤝";
   if (q.includes('sertifikat')) return "Sertifikat Umroh digital tersedia setelah perjalanan selesai → /jamaah/sertifikat 🎓";
-  if (q.includes('referral') || q.includes('promo') || q.includes('bonus')) return "Program referral tersedia di menu Referral → /jamaah/referral. Ajak keluarga & teman untuk ibadah bersama dan dapatkan poin bonus! 🎁";
-  if (q.includes('sos') || q.includes('darurat') || q.includes('emergency')) return "🆘 Dalam keadaan darurat, gunakan tombol SOS di portal jamaah Anda. Muthawif dan tim Vinstour akan merespons secepatnya. Nomor darurat juga tersedia di /jamaah/peta-lokasi";
+  if (q.includes('referral') || q.includes('promo') || q.includes('bonus')) return "Program referral tersedia di menu Referral → /jamaah/referral. Ajak keluarga & teman dan dapatkan poin bonus! 🎁";
+  if (q.includes('sos') || q.includes('darurat') || q.includes('emergency')) return "🆘 Dalam keadaan darurat, gunakan tombol SOS di portal jamaah Anda. Muthawif dan tim Vinstour akan merespons secepatnya.";
+  return `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum memiliki informasi spesifik tentang hal ini. Silakan:\n1. Chat langsung dengan pembimbing → /jamaah/chat\n2. Buat tiket dukungan → /customer/support\n\nTim kami siap membantu Anda!`;
+}
 
-  return `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum memiliki informasi spesifik tentang hal ini. Silakan:\n1. Coba tanyakan dengan kata kunci yang lebih spesifik\n2. Chat langsung dengan pembimbing → /jamaah/chat\n3. Buat tiket dukungan → /customer/support\n\nTim kami siap membantu Anda dengan lebih detail!`;
+async function callGemini(apiKey: string, systemPrompt: string, message: string, history: any[]): Promise<string> {
+  const contents = [
+    ...history.slice(-8).map((h: any) => ({
+      role: h.role === 'user' ? 'user' : 'model',
+      parts: [{ text: h.content }],
+    })),
+    { role: 'user', parts: [{ text: message }] },
+  ];
+
+  const body = {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents,
+    generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+  };
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+  );
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+  const data: any = await res.json();
+  const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!answer) throw new Error('Empty Gemini response');
+  return answer;
+}
+
+async function callOpenAI(apiKey: string, message: string, history: any[]): Promise<string> {
+  const messages = [
+    { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
+    ...history.slice(-8),
+    { role: 'user', content: message },
+  ];
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 600, temperature: 0.7 }),
+  });
+  if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
+  const data: any = await res.json();
+  const answer = data.choices?.[0]?.message?.content;
+  if (!answer) throw new Error('Empty OpenAI response');
+  return answer;
 }
 
 router.post('/', async (req: any, res: any) => {
@@ -50,46 +92,29 @@ router.post('/', async (req: any, res: any) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (apiKey) {
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey) {
       try {
-        const messages = [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...conversationHistory.slice(-8),
-          { role: 'user', content: message },
-        ];
+        const answer = await callGemini(geminiKey, DEFAULT_SYSTEM_PROMPT, message, conversationHistory);
+        return res.json({ answer, source: 'gemini' });
+      } catch {
+        // fall through to OpenAI
+      }
+    }
 
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages,
-            max_tokens: 600,
-            temperature: 0.7,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json() as any;
-          const answer = data.choices?.[0]?.message?.content;
-          if (answer) {
-            return res.json({ answer, source: 'ai' });
-          }
-        }
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (openaiKey) {
+      try {
+        const answer = await callOpenAI(openaiKey, message, conversationHistory);
+        return res.json({ answer, source: 'openai' });
       } catch {
         // fall through to FAQ
       }
     }
 
-    // Fallback: enhanced FAQ matching
     const answer = findFAQAnswer(message);
     res.json({ answer, source: 'faq' });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
 });

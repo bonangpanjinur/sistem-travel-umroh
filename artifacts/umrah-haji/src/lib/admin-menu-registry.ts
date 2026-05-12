@@ -93,6 +93,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'proposal-generator', label: 'Generator Proposal',    path: '/admin/proposal-generator', icon: 'FileOutput',   group_name: 'Dokumen',             sort_order: 809, required_permission: PERMISSIONS.PROPOSAL_GENERATOR },
 
   // ── Fase 10 — AI & Smart Analytics (560s) ────────────────────────────────
+  { key: 'gemini-ai',          label: 'Gemini AI Chatbot',      path: '/admin/gemini-ai',          icon: 'Sparkles',          group_name: 'AI & Analytics',      sort_order: 560, required_permission: PERMISSIONS.GEMINI_AI },
   { key: 'sentimen-feedback',  label: 'Analisis Sentimen',      path: '/admin/sentimen-feedback',  icon: 'Smile',             group_name: 'AI & Analytics',      sort_order: 561, required_permission: PERMISSIONS.SENTIMEN_FEEDBACK },
   { key: 'prediksi-seat',      label: 'Prediksi Seat',          path: '/admin/prediksi-seat',      icon: 'TrendingUp',        group_name: 'AI & Analytics',      sort_order: 562, required_permission: PERMISSIONS.PREDIKSI_SEAT },
   { key: 'smart-notif',        label: 'Smart Notifikasi',       path: '/admin/smart-notif',        icon: 'BrainCircuit',      group_name: 'AI & Analytics',      sort_order: 563, required_permission: PERMISSIONS.SMART_NOTIF },
@@ -194,7 +195,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'monitoring-tabungan',
     'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
     'wa-otomatis', 'midtrans', 'cicilan-reminder', 'virtual-account',
-    'sentimen-feedback', 'prediksi-seat', 'smart-notif', 'rekomendasi-paket',
+    'gemini-ai', 'sentimen-feedback', 'prediksi-seat', 'smart-notif', 'rekomendasi-paket',
   ],
 
   finance: [

@@ -150,6 +150,7 @@ const AdminCicilanGenerator  = lazy(() => import("@/pages/admin/AdminCicilanGene
 const AdminProposalGenerator = lazy(() => import("@/pages/admin/AdminProposalGenerator"));
 
 // Fase 10 — AI & Smart Analytics
+const AdminGeminiAI = lazy(() => import("@/pages/admin/AdminGeminiAI"));
 const AdminSentimenFeedback = lazy(() => import("@/pages/admin/AdminSentimenFeedback"));
 const AdminPrediksiSeat = lazy(() => import("@/pages/admin/AdminPrediksiSeat"));
 const AdminSmartNotif = lazy(() => import("@/pages/admin/AdminSmartNotif"));
@@ -365,6 +366,7 @@ export default function AdminRoutes() {
       <Route path="proposal-generator" element={<P k={PERMISSIONS.PROPOSAL_GENERATOR}><LazyPage><AdminProposalGenerator /></LazyPage></P>} />
 
       {/* Fase 10 — AI & Smart Analytics */}
+      <Route path="gemini-ai" element={<P k={PERMISSIONS.GEMINI_AI}><LazyPage><AdminGeminiAI /></LazyPage></P>} />
       <Route path="sentimen-feedback" element={<P k={PERMISSIONS.SENTIMEN_FEEDBACK}><AdminSentimenFeedback /></P>} />
       <Route path="prediksi-seat" element={<P k={PERMISSIONS.PREDIKSI_SEAT}><AdminPrediksiSeat /></P>} />
       <Route path="smart-notif" element={<P k={PERMISSIONS.SMART_NOTIF}><AdminSmartNotif /></P>} />
