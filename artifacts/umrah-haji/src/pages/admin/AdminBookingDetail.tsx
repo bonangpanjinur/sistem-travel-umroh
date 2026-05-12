@@ -2060,10 +2060,21 @@ export default function AdminBookingDetail() {
                 <Printer className="h-4 w-4 mr-3 text-primary" />
                 CETAK INVOICE PDF
               </Button>
-              <Button className="w-full justify-start h-10 font-bold text-xs" variant="outline" onClick={handlePrintTransactionForm}>
-                <FileText className="h-4 w-4 mr-3 text-amber-600" />
-                FORM TRANSAKSI UMRAH
-              </Button>
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <Button className="justify-start h-10 font-bold text-xs" variant="outline" onClick={() => handlePrintTransactionForm("download")}>
+                  <FileText className="h-4 w-4 mr-3 text-amber-600" />
+                  FORM TRANSAKSI UMRAH
+                </Button>
+                <Button
+                  className="h-10 font-bold text-xs"
+                  variant="secondary"
+                  title="Pratinjau sebelum download"
+                  onClick={() => handlePrintTransactionForm("preview")}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Pratinjau
+                </Button>
+              </div>
               <Button 
                 className="w-full justify-start h-10 font-bold text-xs" 
                 variant="outline" 
