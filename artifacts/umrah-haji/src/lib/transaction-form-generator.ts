@@ -42,6 +42,10 @@ export interface TransactionFormTemplate {
   termsText: string;
   footerText?: string;
   cancellationPolicy?: CancellationPolicy; // structured policy (overrides termsText rendering)
+  /** Paper size for the generated PDF. Default: "a4". */
+  paperSize?: "a4" | "letter";
+  /** Page orientation. Default: "portrait". */
+  orientation?: "portrait" | "landscape";
 }
 
 export interface RoomCombination {
@@ -206,10 +210,25 @@ export async function generateTransactionForm(
   const font = template.fontFamily;
   const acc = hexToRgb(template.accentColor);
   const MARGIN = 10;
-  const pw = 210; // A4 width mm
+
+  const paperSize = template.paperSize ?? "a4";
+  const orientation = template.orientation ?? "portrait";
+  const doc = new jsPDF({ orientation, unit: "mm", format: paperSize });
+  const pw = doc.internal.pageSize.width;
   const cw = pw - MARGIN * 2; // content width
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  // Collect non-fatal layout warnings to surface in the preview UI so the
+  // user can spot risky page-breaks / clipping before downloading.
+  const warnings: string[] = [];
+  const wrappedEnsureSpace = (y: number, needed: number, label?: string) => {
+    const ph = doc.internal.pageSize.height;
+    if (y + needed > ph - LAYOUT.FOOTER_RESERVE - 2 && label) {
+      warnings.push(`Konten "${label}" melewati page-break dan dipindah ke halaman berikutnya.`);
+    }
+    return ensureSpace(doc, y, needed);
+  };
+  // Stash warnings on the doc so callers can read them.
+  (doc as any).__warnings = warnings;
   doc.setFont(font);
   doc.setTextColor(0, 0, 0);
 
@@ -471,7 +490,7 @@ export async function generateTransactionForm(
     // Reserve enough vertical space for signature header + boxes + labels so
     // they never get split across pages or overlap the footer.
     const SIG_BLOCK_H = 4 + 32 + 6; // header gap + box height + label
-    y = ensureSpace(doc, y, Math.max(SIG_BLOCK_H + 10, 50));
+    y = wrappedEnsureSpace(y, Math.max(SIG_BLOCK_H + 10, 50), "Tanda Tangan / KETERANGAN");
 
     const termsW = template.showSignature ? cw * 0.62 : cw;
     const sigW   = cw - termsW - 5;
@@ -593,6 +612,9 @@ export async function generateTransactionForm(
   // ── LAMPIRAN DAFTAR JAMAAH ────────────────────────────────────────────────
   if (template.showPassengerList && data.passengers.length > 0) {
     doc.addPage();
+    if (data.passengers.length > 30) {
+      warnings.push(`Lampiran berisi ${data.passengers.length} jamaah — pastikan tabel terbagi rapi antar halaman.`);
+    }
     addPageBorder();
     const drawAppendixHeader = (py0: number) => {
       let py = py0;
@@ -703,17 +725,27 @@ export async function generateTransactionForm(
   return doc;
 }
 
+export interface TransactionFormPreview {
+  url: string;
+  pageCount: number;
+  warnings: string[];
+}
+
 /**
- * Generate the same form and return a Blob URL suitable for in-app preview
- * (e.g. iframe in DocumentPreviewModal). Caller is responsible for
+ * Generate the form and return a Blob URL plus metadata (page count + layout
+ * warnings) for in-app preview. Caller is responsible for
  * URL.revokeObjectURL when done.
  */
 export async function previewTransactionForm(
   data: TransactionFormData,
   company: TransactionFormCompany,
   template: TransactionFormTemplate = DEFAULT_TEMPLATE
-): Promise<string> {
+): Promise<TransactionFormPreview> {
   const doc = await generateTransactionForm(data, company, template);
   const blob = doc.output("blob");
-  return URL.createObjectURL(blob);
+  return {
+    url: URL.createObjectURL(blob),
+    pageCount: doc.getNumberOfPages(),
+    warnings: ((doc as any).__warnings as string[] | undefined) ?? [],
+  };
 }

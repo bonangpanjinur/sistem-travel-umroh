@@ -724,7 +724,9 @@ export default function AdminBookingDetail() {
     queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
   };
 
-  const [transactionFormPreviewUrl, setTransactionFormPreviewUrl] = useState<string | null>(null);
+  const [transactionFormPreview, setTransactionFormPreview] = useState<{ url: string; pageCount: number; warnings: string[] } | null>(null);
+  const [trxPaperSize, setTrxPaperSize] = useState<"a4" | "letter">("a4");
+  const [trxOrientation, setTrxOrientation] = useState<"portrait" | "landscape">("portrait");
 
   const handlePrintTransactionForm = async (mode: "download" | "preview" = "download") => {
     if (!booking || !booking.customer) return;
@@ -757,8 +759,10 @@ export default function AdminBookingDetail() {
           termsText: invoiceTemplate.terms_text ?? "",
           footerText: invoiceTemplate.footer_text ?? "",
           cancellationPolicy: activeCancellationPolicy,
+          paperSize: trxPaperSize,
+          orientation: trxOrientation,
         }
-      : { ...DEFAULT_TEMPLATE, cancellationPolicy: activeCancellationPolicy };
+      : { ...DEFAULT_TEMPLATE, cancellationPolicy: activeCancellationPolicy, paperSize: trxPaperSize, orientation: trxOrientation };
 
     // Build passenger list using derived room-type price
     const passengerList = (passengers ?? []).map((p: any) => {
@@ -839,10 +843,9 @@ export default function AdminBookingDetail() {
 
     try {
       if (mode === "preview") {
-        // Revoke any previous URL to avoid memory leaks
-        if (transactionFormPreviewUrl) URL.revokeObjectURL(transactionFormPreviewUrl);
-        const url = await previewTransactionForm(formData, company, tmpl);
-        setTransactionFormPreviewUrl(url);
+        if (transactionFormPreview) URL.revokeObjectURL(transactionFormPreview.url);
+        const result = await previewTransactionForm(formData, company, tmpl);
+        setTransactionFormPreview(result);
       } else {
         const doc = await generateTransactionForm(formData, company, tmpl);
         doc.save(`FormTransaksi-${booking.booking_code}.pdf`);
@@ -2075,6 +2078,26 @@ export default function AdminBookingDetail() {
                   Pratinjau
                 </Button>
               </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Select value={trxPaperSize} onValueChange={(v) => setTrxPaperSize(v as "a4" | "letter")}>
+                  <SelectTrigger className="h-8 text-[11px]">
+                    <SelectValue placeholder="Ukuran kertas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="a4">A4 (210 × 297 mm)</SelectItem>
+                    <SelectItem value="letter">Letter (8.5 × 11 in)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={trxOrientation} onValueChange={(v) => setTrxOrientation(v as "portrait" | "landscape")}>
+                  <SelectTrigger className="h-8 text-[11px]">
+                    <SelectValue placeholder="Orientasi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="portrait">Portrait</SelectItem>
+                    <SelectItem value="landscape">Landscape</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button 
                 className="w-full justify-start h-10 font-bold text-xs" 
                 variant="outline" 
@@ -2590,15 +2613,17 @@ export default function AdminBookingDetail() {
         </AlertDialogContent>
       </AlertDialog>
       <DocumentPreviewModal
-        open={!!transactionFormPreviewUrl}
+        open={!!transactionFormPreview}
         onOpenChange={(o) => {
-          if (!o && transactionFormPreviewUrl) {
-            URL.revokeObjectURL(transactionFormPreviewUrl);
-            setTransactionFormPreviewUrl(null);
+          if (!o && transactionFormPreview) {
+            URL.revokeObjectURL(transactionFormPreview.url);
+            setTransactionFormPreview(null);
           }
         }}
-        documentUrl={transactionFormPreviewUrl ?? ""}
+        documentUrl={transactionFormPreview?.url ?? ""}
         documentName={`FormTransaksi-${booking?.booking_code ?? "preview"}.pdf`}
+        pageCount={transactionFormPreview?.pageCount}
+        warnings={transactionFormPreview?.warnings}
       />
     </div>
   );
