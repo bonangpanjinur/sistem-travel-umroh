@@ -2613,15 +2613,17 @@ export default function AdminBookingDetail() {
         </AlertDialogContent>
       </AlertDialog>
       <DocumentPreviewModal
-        open={!!transactionFormPreviewUrl}
+        open={!!transactionFormPreview}
         onOpenChange={(o) => {
-          if (!o && transactionFormPreviewUrl) {
-            URL.revokeObjectURL(transactionFormPreviewUrl);
-            setTransactionFormPreviewUrl(null);
+          if (!o && transactionFormPreview) {
+            URL.revokeObjectURL(transactionFormPreview.url);
+            setTransactionFormPreview(null);
           }
         }}
-        documentUrl={transactionFormPreviewUrl ?? ""}
+        documentUrl={transactionFormPreview?.url ?? ""}
         documentName={`FormTransaksi-${booking?.booking_code ?? "preview"}.pdf`}
+        pageCount={transactionFormPreview?.pageCount}
+        warnings={transactionFormPreview?.warnings}
       />
     </div>
   );
