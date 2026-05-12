@@ -210,25 +210,31 @@ export default function AdminBookings() {
     },
   });
 
-  // Extract unique packages, departures, branches for filter options
-  const filterOptions = useMemo(() => {
-    if (!bookings) return { packages: [], departures: [], branches: [] };
-    const pkgMap = new Map<string, string>();
-    const depMap = new Map<string, string>();
-    const brMap = new Map<string, string>();
-    bookings.forEach(b => {
-      const dep = b.departure;
-      const branch = b.branch;
-      if (dep?.package?.id) pkgMap.set(dep.package.id, dep.package.name);
-      if (dep?.id) depMap.set(dep.id, `${formatDate(dep.departure_date)} - ${dep.package?.name || ''}`);
-      if (branch?.id) brMap.set(branch.id, branch.name);
-    });
-    return {
-      packages: Array.from(pkgMap, ([id, name]) => ({ id, name })),
-      departures: Array.from(depMap, ([id, name]) => ({ id, name })),
-      branches: Array.from(brMap, ([id, name]) => ({ id, name })),
-    };
-  }, [bookings]);
+  // Server-side filter options (lengkap, tidak terbatas halaman saat ini)
+  const { data: filterOptionsData } = useQuery({
+    queryKey: ['admin-bookings-filter-options'],
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      const [pkgs, deps, brs] = await Promise.all([
+        supabase.from('packages').select('id, name').order('name'),
+        supabase
+          .from('departures')
+          .select('id, departure_date, package:packages(name)')
+          .order('departure_date', { ascending: false })
+          .limit(200),
+        supabase.from('branches').select('id, name').order('name'),
+      ]);
+      return {
+        packages: (pkgs.data || []).map((p: any) => ({ id: p.id, name: p.name })),
+        departures: (deps.data || []).map((d: any) => ({
+          id: d.id,
+          name: `${formatDate(d.departure_date)} - ${d.package?.name || ''}`,
+        })),
+        branches: (brs.data || []).map((b: any) => ({ id: b.id, name: b.name })),
+      };
+    },
+  });
+  const filterOptions = filterOptionsData ?? { packages: [], departures: [], branches: [] };
 
   // Pagination
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
