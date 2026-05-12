@@ -7,6 +7,7 @@ import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { JamaahTrackerWidget } from '@/components/home/JamaahTrackerWidget';
+import { FloatingChatBubble } from '@/components/home/FloatingChatBubble';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -73,6 +74,9 @@ const Index = () => {
         if (!Component) return null;
         return <Component key={section.id} settings={settings ?? undefined} />;
       })}
+
+      {/* Floating AI Chat Bubble */}
+      <FloatingChatBubble />
     </DynamicPublicLayout>
   );
 };
