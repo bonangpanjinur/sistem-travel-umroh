@@ -866,8 +866,11 @@ export default function AdminBookings() {
                             variant="outline"
                             size="sm"
                             className="text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-950/30"
+                            disabled={sendingReminderId === booking.id}
                             onClick={async (e) => {
                               e.preventDefault();
+                              if (sendingReminderId) return;
+                              setSendingReminderId(booking.id);
                               try {
                                 const res = await fetch('/api/whatsapp/payment-reminder', {
                                   method: 'POST',
@@ -882,11 +885,13 @@ export default function AdminBookings() {
                                 }
                               } catch (err: any) {
                                 toast({ title: "Gagal", description: err.message || 'Tidak dapat mengirim reminder', variant: "destructive" });
+                              } finally {
+                                setSendingReminderId(null);
                               }
                             }}
                           >
                             <MessageSquare className="h-4 w-4 mr-1" />
-                            Tagih
+                            {sendingReminderId === booking.id ? 'Mengirim...' : 'Tagih'}
                           </Button>
                         )}
                       </div>
