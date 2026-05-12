@@ -17,6 +17,17 @@ export interface PaymentInfoBlock {
   items: string[];  // e.g. ["VIRTUAL ACCOUNT BNI : 988636...", "VIRTUAL ACCOUNT BSI : 435952..."]
 }
 
+export interface PolicySection {
+  title: string;   // e.g. "PEMBAYARAN"
+  items: string[]; // bullet items
+}
+
+export interface CancellationPolicy {
+  id?: string;
+  name: string;
+  sections: PolicySection[];
+}
+
 export interface TransactionFormTemplate {
   accentColor: string;                     // e.g. "#1e3a5f"
   fontFamily: "helvetica" | "times" | "courier";
@@ -29,6 +40,7 @@ export interface TransactionFormTemplate {
   paymentInfoBlocks: PaymentInfoBlock[];
   termsText: string;
   footerText?: string;
+  cancellationPolicy?: CancellationPolicy; // structured policy (overrides termsText rendering)
 }
 
 export interface RoomCombination {
@@ -443,18 +455,51 @@ export async function generateTransactionForm(
     const sigW   = cw - termsW - 5;
     const sigX   = MARGIN + termsW + 5;
 
-    if (template.termsText) {
+    if (template.cancellationPolicy || template.termsText) {
       doc.setFontSize(8.5);
       doc.setFont(font, "bold");
       doc.setTextColor(acc.r, acc.g, acc.b);
       doc.text("KETERANGAN", MARGIN, y);
       y += 5;
 
-      doc.setFont(font, "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(30, 30, 30);
-      const termLines = doc.splitTextToSize(template.termsText, termsW);
-      doc.text(termLines, MARGIN, y);
+      if (template.cancellationPolicy) {
+        // ── Structured cancellation policy rendering ──
+        const policy = template.cancellationPolicy;
+        doc.setFont(font, "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(acc.r, acc.g, acc.b);
+        const titleLine = doc.splitTextToSize(policy.name.toUpperCase(), termsW);
+        doc.text(titleLine, MARGIN, y);
+        y += titleLine.length * 4 + 3;
+
+        for (const section of policy.sections) {
+          y = ensureSpace(doc, y, 12);
+          doc.setFont(font, "bold");
+          doc.setFontSize(7.5);
+          doc.setTextColor(acc.r, acc.g, acc.b);
+          doc.text(section.title.toUpperCase() + ":", MARGIN, y);
+          y += 4;
+
+          doc.setFont(font, "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(30, 30, 30);
+          for (const item of section.items) {
+            y = ensureSpace(doc, y, 4);
+            const itemLines = doc.splitTextToSize(`      ${item}`, termsW - 4);
+            doc.text(itemLines, MARGIN, y);
+            y += itemLines.length * 3.5 + 1;
+          }
+          y += 2;
+        }
+      } else {
+        // ── Free-text terms rendering ──
+        doc.setFont(font, "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(30, 30, 30);
+        const termLines = doc.splitTextToSize(template.termsText, termsW);
+        doc.text(termLines, MARGIN, y);
+        y += termLines.length * 3.5 + 8;
+      }
 
       if (template.showSignature) {
         // Signature boxes at top-right of keterangan section
@@ -482,8 +527,6 @@ export async function generateTransactionForm(
         doc.rect(sigX + halfSig + 2, sY + 3, halfSig, boxH);
         doc.text(template.rightSignatureLabel, sigX + halfSig + 2 + halfSig / 2, sY + 3 + boxH + 4, { align: "center" });
       }
-
-      y += termLines.length * 3.5 + 8;
     } else if (template.showSignature) {
       // Signature only, full width split
       const halfSig = (cw / 2) - 2;

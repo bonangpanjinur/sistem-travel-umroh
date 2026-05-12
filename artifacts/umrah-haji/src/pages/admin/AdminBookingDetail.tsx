@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
-import { generateTransactionForm, DEFAULT_TEMPLATE, type PaymentInfoBlock } from "@/lib/transaction-form-generator";
+import { generateTransactionForm, DEFAULT_TEMPLATE, type PaymentInfoBlock, type CancellationPolicy } from "@/lib/transaction-form-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
@@ -204,6 +204,30 @@ export default function AdminBookingDetail() {
         .maybeSingle();
       return data;
     },
+  });
+
+  const { data: cancellationPolicy } = useQuery({
+    queryKey: ['cancellation-policy-for-booking', id],
+    queryFn: async () => {
+      const packageId = (booking?.departure as any)?.package?.id;
+      if (packageId) {
+        const { data: pkgPolicy } = await (supabase as any)
+          .from('cancellation_policies')
+          .select('*')
+          .eq('package_id', packageId)
+          .maybeSingle();
+        if (pkgPolicy) return pkgPolicy as { id: string; name: string; sections: { title: string; items: string[] }[] };
+      }
+      const { data: globalPolicy } = await (supabase as any)
+        .from('cancellation_policies')
+        .select('*')
+        .eq('is_global', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return globalPolicy as { id: string; name: string; sections: { title: string; items: string[] }[] } | null;
+    },
+    enabled: !!booking,
   });
 
   const updateStatusMutation = useMutation({
@@ -466,6 +490,16 @@ export default function AdminBookingDetail() {
     const pkg = departure?.package;
 
     // Build template: use saved template or default
+    // Derive correct per-pax price from departure/package room type pricing
+    const rt = (booking.room_type || 'quad') as string;
+    const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
+    const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
+    const derivedPricePerPax = (fromDep || fromPkg) ?? (booking.base_price / (booking.total_pax || 1));
+
+    const activeCancellationPolicy: CancellationPolicy | undefined = cancellationPolicy
+      ? { id: cancellationPolicy.id, name: cancellationPolicy.name, sections: cancellationPolicy.sections ?? [] }
+      : undefined;
+
     const tmpl = invoiceTemplate
       ? {
           accentColor: invoiceTemplate.accent_color ?? "#1e3a5f",
@@ -479,38 +513,37 @@ export default function AdminBookingDetail() {
           paymentInfoBlocks: (invoiceTemplate.payment_info_blocks as PaymentInfoBlock[]) ?? [],
           termsText: invoiceTemplate.terms_text ?? "",
           footerText: invoiceTemplate.footer_text ?? "",
+          cancellationPolicy: activeCancellationPolicy,
         }
-      : DEFAULT_TEMPLATE;
+      : { ...DEFAULT_TEMPLATE, cancellationPolicy: activeCancellationPolicy };
 
-    // Build passenger list from booking_passengers
+    // Build passenger list using derived room-type price
     const passengerList = (passengers ?? []).map((p: any) => {
-      const basePrice = booking.base_price / (booking.total_pax || 1);
       const discount = booking.discount_amount
         ? booking.discount_amount / (booking.total_pax || 1)
         : 0;
       return {
         name: p.customer?.full_name ?? p.full_name ?? "-",
         roomType: getRoomTypeLabel(booking.room_type),
-        basePrice,
+        basePrice: derivedPricePerPax,
         additionalCost: booking.addons_price
           ? booking.addons_price / (booking.total_pax || 1)
           : 0,
         discount,
-        totalBill: basePrice - discount + (booking.addons_price ? booking.addons_price / (booking.total_pax || 1) : 0),
+        totalBill: derivedPricePerPax - discount + (booking.addons_price ? booking.addons_price / (booking.total_pax || 1) : 0),
       };
     });
 
     // If no passengers recorded, add booking holder
     if (passengerList.length === 0) {
-      const basePrice = booking.base_price / (booking.total_pax || 1);
       const discount = booking.discount_amount ? booking.discount_amount / (booking.total_pax || 1) : 0;
       passengerList.push({
         name: booking.customer.full_name ?? "-",
         roomType: getRoomTypeLabel(booking.room_type),
-        basePrice,
+        basePrice: derivedPricePerPax,
         additionalCost: 0,
         discount,
-        totalBill: basePrice - discount,
+        totalBill: derivedPricePerPax - discount,
       });
     }
 
@@ -540,7 +573,7 @@ export default function AdminBookingDetail() {
         : undefined,
       roomCombinations: [{
         roomType: getRoomTypeLabel(booking.room_type),
-        pricePerPax: booking.base_price / (booking.total_pax || 1),
+        pricePerPax: derivedPricePerPax,
         paxCount: booking.total_pax ?? 1,
         roomCount: Math.ceil((booking.total_pax ?? 1) / 2),
       }],
@@ -639,6 +672,15 @@ export default function AdminBookingDetail() {
   const customer = booking.customer as any;
   const departure = booking.departure as any;
   const pkg = departure?.package;
+
+  // Derive correct base price from package room-type pricing
+  const derivedBasePrice = (() => {
+    const rt = (booking.room_type || 'quad') as string;
+    const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
+    const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
+    const pricePerPax = (fromDep || fromPkg) ?? (booking.base_price / (booking.total_pax || 1));
+    return pricePerPax * (booking.total_pax || 1);
+  })();
 
   return (
     <div className="space-y-6 pb-12">
@@ -951,8 +993,8 @@ export default function AdminBookingDetail() {
               <h3 className="font-bold text-sm uppercase tracking-widest opacity-70 mb-4">Ringkasan Pembayaran</h3>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="opacity-70">Harga Paket</span>
-                  <span className="font-medium">{formatCurrency(booking.base_price)}</span>
+                  <span className="opacity-70">Harga Paket ({getRoomTypeLabel(booking.room_type)})</span>
+                  <span className="font-medium">{formatCurrency(derivedBasePrice)}</span>
                 </div>
                 {(booking.addons_price || 0) > 0 && (
                   <div className="flex justify-between text-sm">

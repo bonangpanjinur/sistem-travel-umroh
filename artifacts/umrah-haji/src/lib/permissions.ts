@@ -67,6 +67,7 @@ export const PERMISSIONS = {
   DOCUMENT_EXPIRY_TRACKER: 'document-expiry-tracker',
   OFFLINE_CONTENT: 'offline-content',
   SUPPORT: 'support',
+  CANCELLATION_POLICIES: 'cancellation-policies',
 
   // Aset Kantor
   OFFICE_ASSETS: 'office-assets',

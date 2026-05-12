@@ -119,6 +119,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'offline-content',     label: 'Konten Offline',       path: '/admin/offline-content',       icon: 'WifiOff',        group_name: 'Dokumen',            sort_order: 806, required_permission: PERMISSIONS.OFFLINE_CONTENT },
   { key: 'support',             label: 'Tiket Support',        path: '/admin/support',               icon: 'LifeBuoy',       group_name: 'Dokumen',            sort_order: 806, required_permission: PERMISSIONS.SUPPORT },
   { key: 'office-assets',       label: 'Aset Kantor',          path: '/admin/office-assets',         icon: 'Briefcase',      group_name: 'Dokumen',            sort_order: 807, required_permission: PERMISSIONS.OFFICE_ASSETS },
+  { key: 'cancellation-policies', label: 'Aturan Pembatalan',  path: '/admin/cancellation-policies', icon: 'ClipboardList',  group_name: 'Dokumen',            sort_order: 808, required_permission: PERMISSIONS.CANCELLATION_POLICIES },
 
   // ── Master Data (900s) ────────────────────────────────────────────────────
   { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },
@@ -181,7 +182,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'payments', 'finance-cash', 'finance-terpadu', 'savings', 'reports',
     'customers', 'agents', 'branches', 'visa',
     'memberships', 'branch-commissions', 'agent-commission-report',
-    'document-verification', 'document-types',
+    'document-verification', 'document-types', 'cancellation-policies',
     'hotels', 'airlines', 'airports',
     'users', 'support',
     'push-notifications',
