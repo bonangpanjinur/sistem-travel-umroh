@@ -54,6 +54,14 @@ interface ChatWidgetProps {
   waNumber?: string;
 }
 
+const SUGGESTION_CHIPS = [
+  { label: "💰 Cek harga paket", text: "Berapa harga paket umroh?" },
+  { label: "🪑 Sisa kursi tersedia?", text: "Apakah masih ada kursi tersedia?" },
+  { label: "📝 Cara daftar?", text: "Bagaimana cara mendaftar?" },
+  { label: "📄 Dokumen apa saja?", text: "Dokumen apa saja yang diperlukan?" },
+  { label: "💳 Cara bayar?", text: "Bagaimana cara pembayarannya?" },
+];
+
 export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }: ChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [geminiConfig, setGeminiConfig] = useState<GeminiConfig | null>(null);
@@ -148,9 +156,15 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     return answer;
   }
 
-  const sendMessage = async () => {
-    if (!input.trim() || typing) return;
-    const userText = input.trim();
+  const sendChip = (text: string) => {
+    if (typing) return;
+    setInput(text);
+    setTimeout(() => {
+      sendMessageText(text);
+    }, 0);
+  };
+
+  const sendMessageText = async (userText: string) => {
     const userMsg: Message = { id: Date.now().toString(), role: "user", text: userText, ts: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
@@ -179,6 +193,11 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     if (geminiConfig?.enableLeadCapture && !leadCaptured && messages.length >= 3) {
       setShowLeadForm(true);
     }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || typing) return;
+    await sendMessageText(input.trim());
   };
 
   const saveLead = async () => {
@@ -299,6 +318,22 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
               </svg>
               Chat via WhatsApp
             </a>
+          )}
+
+          {/* Suggestion Chips */}
+          {messages.length <= 2 && !typing && (
+            <div className="px-3 pt-2 pb-1 flex flex-wrap gap-1.5">
+              {SUGGESTION_CHIPS.map((chip) => (
+                <button
+                  key={chip.text}
+                  onClick={() => sendChip(chip.text)}
+                  disabled={typing}
+                  className="text-[11px] px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-colors font-medium whitespace-nowrap disabled:opacity-50"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           )}
 
           {/* Input */}
