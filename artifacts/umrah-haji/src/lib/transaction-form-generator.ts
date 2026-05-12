@@ -624,6 +624,11 @@ export async function generateTransactionForm(
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
     const ph = doc.internal.pageSize.height;
+    drawPaymentWatermark(doc, {
+      status: data.paymentStatus,
+      enabled: data.showWatermark !== false,
+      font,
+    });
     doc.setFontSize(7);
     doc.setFont(font, "normal");
     doc.setTextColor(140, 140, 140);
