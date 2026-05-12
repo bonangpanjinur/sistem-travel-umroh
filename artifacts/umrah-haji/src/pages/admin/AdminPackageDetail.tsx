@@ -46,6 +46,7 @@ import { EquipmentReadinessCard } from "@/components/admin/EquipmentReadinessCar
 import { PackageCancellationPolicyCard } from "@/components/admin/PackageCancellationPolicyCard";
 import { PackageGalleryCard } from "@/components/admin/PackageGalleryCard";
 import { PackagePriceTrendCard } from "@/components/admin/PackagePriceTrendCard";
+import { DeparturePriceComparisonCard } from "@/components/admin/DeparturePriceComparisonCard";
 import { toast } from "sonner";
 
 const MONTHS = [
@@ -441,6 +442,11 @@ export default function AdminPackageDetail() {
 
       {/* Price Trend */}
       <PackagePriceTrendCard packageId={id} departures={departures || []} />
+
+      {/* Price Comparison */}
+      {departures && departures.length > 1 && (
+        <DeparturePriceComparisonCard departures={departures} />
+      )}
 
       {/* Departures with Jamaah List */}
       <Card>
