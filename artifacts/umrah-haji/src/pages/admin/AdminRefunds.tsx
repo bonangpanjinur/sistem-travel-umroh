@@ -91,8 +91,12 @@ export default function AdminRefunds() {
       if (error) throw error;
       return { id, status, notes };
     },
-    onSuccess: ({ id: refundId, status, notes }) => {
-      toast.success("Status refund berhasil diperbarui");
+    onSuccess: async ({ id: refundId, status, notes }) => {
+      toast.success(
+        status === "processed"
+          ? "Refund ditandai sudah diproses — notifikasi terkirim ke jamaah"
+          : "Refund dibatalkan — notifikasi terkirim ke jamaah"
+      );
       queryClient.invalidateQueries({ queryKey: ["admin-refunds"] });
       setShowDetailDialog(false);
       setProcessNote("");
@@ -110,6 +114,39 @@ export default function AdminRefunds() {
         new_value: status,
         notes: notes,
       });
+
+      // ── Notifikasi in-app ke jamaah ────────────────────────────────────
+      const customerId = selectedRefund?.customer_id ?? selectedRefund?.customer?.id;
+      if (customerId) {
+        const methodLabel = REFUND_METHODS[selectedRefund?.refund_method] || selectedRefund?.refund_method || "";
+        const amountFmt = formatCurrency(selectedRefund?.amount || 0);
+        const bookingCode = selectedRefund?.booking?.booking_code
+          ? ` (Booking ${selectedRefund.booking.booking_code})`
+          : "";
+
+        const notifTitle = status === "processed"
+          ? "Dana Refund Telah Dikembalikan ✅"
+          : "Pengajuan Refund Dibatalkan ❌";
+
+        const notifMessage = status === "processed"
+          ? `Dana refund Anda sebesar ${amountFmt} melalui ${methodLabel} telah berhasil dikembalikan ke rekening Anda${bookingCode}.${notes ? ` Catatan admin: ${notes}` : ""}`
+          : `Pengajuan refund Anda sebesar ${amountFmt}${bookingCode} telah dibatalkan oleh admin.${notes ? ` Alasan: ${notes}.` : ""} Hubungi kami untuk informasi lebih lanjut.`;
+
+        await (supabase as any).from("customer_notifications").insert({
+          customer_id: customerId,
+          type: "refund",
+          title: notifTitle,
+          message: notifMessage,
+          is_read: false,
+          metadata: {
+            refund_id: refundId,
+            booking_id: selectedRefund?.booking_id,
+            booking_code: selectedRefund?.booking?.booking_code ?? null,
+            amount: selectedRefund?.amount,
+            refund_status: status,
+          },
+        });
+      }
     },
     onError: (e: any) => toast.error(e.message || "Gagal memperbarui status"),
   });

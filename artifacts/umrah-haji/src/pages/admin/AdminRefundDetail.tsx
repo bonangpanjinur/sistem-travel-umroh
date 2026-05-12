@@ -112,7 +112,7 @@ export default function AdminRefundDetail() {
       if (error) throw error;
       return { status, notes };
     },
-    onSuccess: ({ status, notes }) => {
+    onSuccess: async ({ status, notes }) => {
       toast.success(
         status === "processed"
           ? "Refund berhasil ditandai sudah diproses"
@@ -141,6 +141,37 @@ export default function AdminRefundDetail() {
           refund_method: refund?.refund_method,
         },
       });
+
+      // ── Notifikasi in-app ke jamaah ────────────────────────────────────
+      const customerId = (refund as any)?.customer_id ?? refund?.customer?.id;
+      if (customerId) {
+        const methodLabel = REFUND_METHODS[refund?.refund_method ?? ""] || refund?.refund_method || "";
+        const amountFmt = formatCurrency(refund?.amount || 0);
+        const bookingCode = refund?.booking?.booking_code ? ` (Booking ${refund.booking.booking_code})` : "";
+
+        const notifTitle = status === "processed"
+          ? "Dana Refund Telah Dikembalikan ✅"
+          : "Pengajuan Refund Dibatalkan ❌";
+
+        const notifMessage = status === "processed"
+          ? `Dana refund Anda sebesar ${amountFmt} melalui ${methodLabel} telah berhasil dikembalikan ke rekening Anda${bookingCode}.${notes ? ` Catatan admin: ${notes}` : ""}`
+          : `Pengajuan refund Anda sebesar ${amountFmt}${bookingCode} telah dibatalkan oleh admin.${notes ? ` Alasan: ${notes}.` : ""} Hubungi kami untuk informasi lebih lanjut.`;
+
+        await (supabase as any).from("customer_notifications").insert({
+          customer_id: customerId,
+          type: "refund",
+          title: notifTitle,
+          message: notifMessage,
+          is_read: false,
+          metadata: {
+            refund_id: id,
+            booking_id: refund?.booking_id,
+            booking_code: refund?.booking?.booking_code ?? null,
+            amount: refund?.amount,
+            refund_status: status,
+          },
+        });
+      }
     },
     onError: (e: any) => toast.error(e.message || "Gagal memperbarui status"),
   });

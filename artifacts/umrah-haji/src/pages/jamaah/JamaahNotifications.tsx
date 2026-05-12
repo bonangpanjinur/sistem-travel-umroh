@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
-import { Bell, CheckCheck, Clock, AlertCircle, Info, CheckCircle2, ChevronLeft, ArrowRight, CreditCard, FileText, Plane, Map } from "lucide-react";
+import { Bell, CheckCheck, Clock, AlertCircle, Info, CheckCircle2, ChevronLeft, ArrowRight, CreditCard, FileText, Plane, Map, RotateCcw } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Link } from "react-router-dom";
@@ -15,6 +15,9 @@ function getNotifActionUrl(notif: any): { url: string; label: string } | null {
   const message = (notif.message || "").toLowerCase();
   const type = notif.type || "info";
 
+  if (type === "refund" || title.includes("refund") || message.includes("refund") || title.includes("dana dikembalikan")) {
+    return { url: "/jamaah/payment-history", label: "Lihat Riwayat Pembayaran" };
+  }
   if (title.includes("pembayaran") || message.includes("pembayaran") || message.includes("bayar") || message.includes("lunas")) {
     return { url: "/jamaah/payment-history", label: "Lihat Pembayaran" };
   }
@@ -44,6 +47,8 @@ const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
   warning: { icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50 border-amber-100" },
   success: { icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100" },
   urgent: { icon: AlertCircle, color: "text-red-600", bg: "bg-red-50 border-red-100" },
+  refund: { icon: RotateCcw, color: "text-violet-600", bg: "bg-violet-50 border-violet-100" },
+  payment: { icon: CreditCard, color: "text-green-600", bg: "bg-green-50 border-green-100" },
 };
 
 export default function JamaahNotifications() {
