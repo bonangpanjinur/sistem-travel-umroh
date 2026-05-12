@@ -19,7 +19,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,8 +40,12 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  Plus, Pencil, Trash2, Globe, Package, ChevronDown, ChevronUp, X, GripVertical, Info,
+  Plus, Pencil, Trash2, Globe, Package, ChevronDown, ChevronUp, X, GripVertical, Info, FileText, Loader2,
 } from "lucide-react";
+import {
+  generateTransactionForm,
+  DEFAULT_TEMPLATE,
+} from "@/lib/transaction-form-generator";
 
 interface PolicySection {
   title: string;
@@ -83,6 +87,71 @@ export default function AdminCancellationPolicies() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<PolicyForm>(EMPTY_FORM);
   const [expandedPreview, setExpandedPreview] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+
+  async function handlePreviewPDF(p: CancellationPolicy) {
+    setPreviewingId(p.id);
+    try {
+      const sampleDate = new Date();
+      const departureDate = new Date(sampleDate);
+      departureDate.setMonth(departureDate.getMonth() + 3);
+      const returnDate = new Date(departureDate);
+      returnDate.setDate(returnDate.getDate() + 9);
+
+      const doc = await generateTransactionForm(
+        {
+          transactionCode: "TRA-PREVIEW",
+          customerCode: "JMH-PREVIEW",
+          transactionDate: sampleDate,
+          customerName: "CONTOH JAMAAH",
+          customerAddress: "Jl. Contoh No. 1, Jakarta Selatan",
+          customerPhone: "08123456789",
+          packageName: "UMRAH REGULER 1448 H",
+          packageType: "UMRAH 9 HARI",
+          umrahSeason: "1448 H",
+          programDays: "9 HARI",
+          departureDate,
+          returnDate,
+          hotelMakkah: "Hotel Contoh Makkah ★★★★",
+          hotelMadinah: "Hotel Contoh Madinah ★★★★",
+          airline: "Maskapai Contoh",
+          airport: "Soekarno-Hatta (CGK)",
+          roomCombinations: [
+            { roomType: "Triple", pricePerPax: 29500000, paxCount: 1, roomCount: 1 },
+          ],
+          totalPrice: 29500000,
+          passengers: [
+            {
+              name: "CONTOH JAMAAH",
+              roomType: "Triple",
+              basePrice: 29500000,
+              discount: 0,
+              totalBill: 29500000,
+            },
+          ],
+        },
+        {
+          name: "VINSTOUR TRAVEL",
+          address: "Jl. Travel Islami No. 99, Jakarta",
+          phone: "(021) 99999999",
+          email: "info@vinstour.id",
+        },
+        {
+          ...DEFAULT_TEMPLATE,
+          cancellationPolicy: {
+            id: p.id,
+            name: p.name,
+            sections: p.sections,
+          },
+        }
+      );
+      doc.output("dataurlnewwindow");
+    } catch (err: any) {
+      toast.error("Gagal membuat pratinjau PDF: " + (err?.message ?? "error"));
+    } finally {
+      setPreviewingId(null);
+    }
+  }
 
   const { data: policies = [], isLoading } = useQuery<CancellationPolicy[]>({
     queryKey: ["cancellation-policies"],
@@ -315,6 +384,19 @@ export default function AdminCancellationPolicies() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                            title="Pratinjau PDF"
+                            onClick={e => { e.stopPropagation(); handlePreviewPDF(p); }}
+                            disabled={previewingId === p.id}
+                          >
+                            {previewingId === p.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <FileText className="h-3.5 w-3.5" />
+                            }
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEdit(p); }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
