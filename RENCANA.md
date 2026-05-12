@@ -372,6 +372,7 @@ pnpm --filter @workspace/api-spec run codegen
 | E1 | Monitor Refund `/admin/refunds` | Daftar semua pengajuan refund, filter status/metode, update status, catatan admin, export Excel | ✅ |
 | E2 | Log Aktivitas Admin `/admin/activity-log` | Riwayat semua perubahan status booking & refund oleh admin, filter, export Excel, auto-logged via helper `logActivity` | ✅ |
 | E3 | Log siklus hidup refund lengkap | Saat refund dibuat dari dialog D3: (1) log `cancelled_with_refund` pada entity booking dengan `old_value` status sebelumnya, (2) log `refund_created` pada entity refund dengan metadata jumlah/metode/rekening/kode booking | ✅ |
+| E4 | Halaman detail refund `/admin/refunds/:id` | Info lengkap jamaah + booking + rincian dana; panel aksi update status (proses/batalkan) dengan catatan admin; timeline aktivitas vertikal dari `admin_activity_log` untuk refund ini; link ke booking detail; link ke activity log global | ✅ |
 
 ### Status yang sudah ada & berfungsi di Booking Detail
 - ✅ Update status booking + konfirmasi dialog + notifikasi jamaah otomatis
@@ -398,6 +399,7 @@ pnpm --filter @workspace/api-spec run codegen
 - ✅ Checklist dokumen per jamaah (KTP/Passport/Foto) dengan skor visual 0-3
 - ✅ Dialog konfirmasi refund saat status diubah ke "Cancelled" — pilih alasan, jumlah refund (shortcut %, 100/75/50/25), metode (Transfer Bank/DANA/GoPay/OVO/dll), detail rekening, notifikasi otomatis ke jamaah
 - ✅ Activity log otomatis saat refund dibuat — log `cancelled_with_refund`/`cancelled_no_refund` pada booking (dengan status sebelumnya), log `refund_created` pada entitas refund (dengan ID refund nyata, jumlah, metode, rekening, kode booking) — siklus hidup refund kini tercatat penuh dari dibuat → diproses → dibatalkan
+- ✅ Halaman detail refund `/admin/refunds/:id` — data jamaah, booking, rincian dana, panel update status, timeline aktivitas vertikal; link langsung dari daftar refund (tombol "Detail") dan dari activity log
 
 ---
 

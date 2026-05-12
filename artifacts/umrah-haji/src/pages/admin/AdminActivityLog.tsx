@@ -43,13 +43,10 @@ const ENTITY_LABELS: Record<string, string> = {
   refund:  "Refund",
 };
 
-// Untuk refund, link ke halaman booking terkait (via metadata.booking_id)
-function entityPath(entityType: string, entityId: string, metadata?: any): string | null {
+// Refund entity → halaman detail refund; fallback ke list jika tidak ada ID
+function entityPath(entityType: string, entityId: string, _metadata?: any): string | null {
   if (entityType === "booking") return `/admin/bookings/${entityId}`;
-  if (entityType === "refund") {
-    const bookingId = metadata?.booking_id;
-    return bookingId ? `/admin/bookings/${bookingId}` : `/admin/refunds`;
-  }
+  if (entityType === "refund") return `/admin/refunds/${entityId}`;
   return null;
 }
 

@@ -337,14 +337,26 @@ export default function AdminRefunds() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => { e.stopPropagation(); openDetail(r); }}
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Aksi cepat"
+                              onClick={(e) => { e.stopPropagation(); openDetail(r); }}
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                            <Link
+                              to={`/admin/refunds/${r.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline whitespace-nowrap px-1"
+                              title="Buka halaman detail"
+                            >
+                              Detail
+                              <ExternalLink className="h-3 w-3" />
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
