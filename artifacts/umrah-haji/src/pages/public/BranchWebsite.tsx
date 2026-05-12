@@ -87,8 +87,7 @@ export default function BranchWebsite() {
       <TenantChatBubble
         waNumber={settings.footer_whatsapp}
         siteName={settings.company_name}
-        gradientFrom="from-emerald-600"
-        gradientTo="to-teal-700"
+        colorPreset={(settings as any).chat_bubble_color || "emerald"}
       />
     </TenantPublicLayout>
   );

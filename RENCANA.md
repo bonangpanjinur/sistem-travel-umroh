@@ -330,6 +330,7 @@ pnpm --filter @workspace/api-spec run codegen
 | Agen Binaan | `/cabang/agen` | ✅ |
 | Booking | `/cabang/bookings` | ✅ |
 | Target KPI Cabang | `/cabang/kpi-targets` | ✅ |
+| Website Cabang Settings | `/cabang/website` | ✅ |
 
 ### 4I — Portal Muthawif (`/muthawif/*`)
 

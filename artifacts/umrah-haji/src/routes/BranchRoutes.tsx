@@ -9,7 +9,8 @@ const BranchAgen = lazy(() => import("@/pages/branch/BranchAgen"));
 const BranchBookings = lazy(() => import("@/pages/branch/BranchBookings"));
 const BranchDiskon    = lazy(() => import("@/pages/branch/BranchDiskon"));
 const BranchApprovals   = lazy(() => import("@/pages/branch/BranchApprovals"));
-const BranchKPITargets  = lazy(() => import("@/pages/branch/BranchKPITargets"));
+const BranchKPITargets       = lazy(() => import("@/pages/branch/BranchKPITargets"));
+const BranchWebsiteSettings  = lazy(() => import("@/pages/branch/BranchWebsiteSettings"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -32,6 +33,7 @@ export default function BranchRoutes() {
       <Route path="diskon"    element={<LazyPage><BranchDiskon /></LazyPage>} />
       <Route path="approvals"   element={<LazyPage><BranchApprovals /></LazyPage>} />
       <Route path="kpi-targets" element={<LazyPage><BranchKPITargets /></LazyPage>} />
+      <Route path="website"     element={<LazyPage><BranchWebsiteSettings /></LazyPage>} />
     </Route>
   );
 }
