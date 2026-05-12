@@ -468,7 +468,10 @@ export async function generateTransactionForm(
 
   // ── KETERANGAN + Signature ────────────────────────────────────────────────
   if (template.termsText || template.showSignature) {
-    y = ensureSpace(doc, y, 20);
+    // Reserve enough vertical space for signature header + boxes + labels so
+    // they never get split across pages or overlap the footer.
+    const SIG_BLOCK_H = 4 + 32 + 6; // header gap + box height + label
+    y = ensureSpace(doc, y, Math.max(SIG_BLOCK_H + 10, 50));
 
     const termsW = template.showSignature ? cw * 0.62 : cw;
     const sigW   = cw - termsW - 5;
@@ -530,14 +533,15 @@ export async function generateTransactionForm(
           doc.setFontSize(7);
           doc.setTextColor(30, 30, 30);
           for (const item of section.items) {
-            y = ensureSpace(doc, y, 4);
-            // Hanging-indent bullet so wrapped lines stay aligned under the text
             const bulletX = MARGIN + 3;
             const textX = MARGIN + 7;
             const itemLines = doc.splitTextToSize(item, termsW - 10);
+            const blockH = itemLines.length * 3.5 + 1.2;
+            // Keep bullet + all wrapped lines together (avoid splitting an item).
+            y = ensureSpace(doc, y, blockH);
             doc.text("•", bulletX, y);
             doc.text(itemLines, textX, y);
-            y += itemLines.length * 3.5 + 1.2;
+            y += blockH;
           }
           y += 2;
         }
@@ -547,8 +551,13 @@ export async function generateTransactionForm(
         doc.setFontSize(7);
         doc.setTextColor(30, 30, 30);
         const termLines = doc.splitTextToSize(template.termsText, termsW);
-        doc.text(termLines, MARGIN, y);
-        y += termLines.length * 3.5 + 8;
+        // Render line-by-line so paragraphs flow across pages safely.
+        for (const line of termLines) {
+          y = ensureSpace(doc, y, 4);
+          doc.text(line, MARGIN, y);
+          y += 3.5;
+        }
+        y += 6;
       }
       // Make sure y advances past the signature block too, so footer doesn't collide
       const sigBottom = sectionStartY + 4 + 32 + 6;
