@@ -2078,6 +2078,26 @@ export default function AdminBookingDetail() {
                   Pratinjau
                 </Button>
               </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Select value={trxPaperSize} onValueChange={(v) => setTrxPaperSize(v as "a4" | "letter")}>
+                  <SelectTrigger className="h-8 text-[11px]">
+                    <SelectValue placeholder="Ukuran kertas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="a4">A4 (210 × 297 mm)</SelectItem>
+                    <SelectItem value="letter">Letter (8.5 × 11 in)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={trxOrientation} onValueChange={(v) => setTrxOrientation(v as "portrait" | "landscape")}>
+                  <SelectTrigger className="h-8 text-[11px]">
+                    <SelectValue placeholder="Orientasi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="portrait">Portrait</SelectItem>
+                    <SelectItem value="landscape">Landscape</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button 
                 className="w-full justify-start h-10 font-bold text-xs" 
                 variant="outline" 
