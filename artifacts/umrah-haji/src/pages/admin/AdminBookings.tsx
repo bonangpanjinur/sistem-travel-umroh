@@ -268,14 +268,50 @@ export default function AdminBookings() {
 
   const hasActiveFilters = !!searchTerm || activeFilterCount > 0;
 
-  const stats = {
-    total: bookings?.length || 0,
-    pending: bookings?.filter(b => b.booking_status === 'pending').length || 0,
-    confirmed: bookings?.filter(b => b.booking_status === 'confirmed').length || 0,
-    unpaid: bookings?.filter(b => b.payment_status === 'pending').length || 0,
-    totalRevenue: bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0,
-    totalPaid: bookings?.reduce((sum, b) => sum + (b.paid_amount || 0), 0) || 0,
-  };
+  // Server-side aggregate stats — mengikuti filter yang sama dengan list
+  // sehingga angka di kartu mencerminkan seluruh dataset (bukan halaman saat ini).
+  const { data: serverStats } = useQuery({
+    queryKey: ['admin-bookings-stats', searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo],
+    staleTime: 1000 * 60 * 2,
+    queryFn: async () => {
+      let q = supabase
+        .from('bookings')
+        .select('booking_status, payment_status, total_price, paid_amount, departure_id');
+
+      if (statusFilter !== 'all') q = q.eq('booking_status', statusFilter as any);
+      if (paymentFilter !== 'all') q = q.eq('payment_status', paymentFilter as any);
+      if (branchFilter !== 'all') q = q.eq('branch_id', branchFilter);
+      if (departureFilter !== 'all') {
+        q = q.eq('departure_id', departureFilter);
+      } else if (packageFilter !== 'all') {
+        const { data: deps } = await supabase
+          .from('departures').select('id').eq('package_id', packageFilter);
+        const ids = (deps || []).map(d => d.id);
+        if (ids.length === 0) return { total: 0, pending: 0, confirmed: 0, unpaid: 0, totalRevenue: 0, totalPaid: 0 };
+        q = q.in('departure_id', ids);
+      }
+      if (dateFrom) q = q.gte('created_at', dateFrom);
+      if (dateTo) q = q.lte('created_at', dateTo + 'T23:59:59');
+
+      const { data, error } = await q.limit(10000);
+      if (error) throw error;
+      const rows = (data || []) as Array<{
+        booking_status?: string | null;
+        payment_status?: string | null;
+        total_price?: number | null;
+        paid_amount?: number | null;
+      }>;
+      return {
+        total: rows.length,
+        pending: rows.filter(b => b.booking_status === 'pending').length,
+        confirmed: rows.filter(b => b.booking_status === 'confirmed').length,
+        unpaid: rows.filter(b => b.payment_status === 'pending').length,
+        totalRevenue: rows.reduce((s, b) => s + (b.total_price || 0), 0),
+        totalPaid: rows.reduce((s, b) => s + (b.paid_amount || 0), 0),
+      };
+    },
+  });
+  const stats = serverStats ?? { total: 0, pending: 0, confirmed: 0, unpaid: 0, totalRevenue: 0, totalPaid: 0 };
 
   const toggleAll = () => {
     if (selectedBookings.length === (paginatedBookings?.length || 0)) {
