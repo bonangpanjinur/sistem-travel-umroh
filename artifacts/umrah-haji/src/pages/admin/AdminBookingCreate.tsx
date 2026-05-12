@@ -228,10 +228,12 @@ export default function AdminBookingCreate() {
     queryKey: ['customer-search', customerSearch],
     queryFn: async () => {
       if (!customerSearch || customerSearch.length < 2) return [];
+      const safe = sanitizeOrSearch(customerSearch);
+      if (safe.length < 2) return [];
       const { data, error } = await supabase
         .from('customers')
         .select('id, full_name, phone, email, nik')
-        .or(`full_name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,nik.ilike.%${customerSearch}%`)
+        .or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%,nik.ilike.%${safe}%`)
         .limit(10);
       if (error) throw error;
       return data;
