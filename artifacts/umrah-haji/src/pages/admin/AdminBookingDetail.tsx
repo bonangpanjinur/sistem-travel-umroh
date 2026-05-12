@@ -2589,6 +2589,17 @@ export default function AdminBookingDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <DocumentPreviewModal
+        open={!!transactionFormPreviewUrl}
+        onOpenChange={(o) => {
+          if (!o && transactionFormPreviewUrl) {
+            URL.revokeObjectURL(transactionFormPreviewUrl);
+            setTransactionFormPreviewUrl(null);
+          }
+        }}
+        documentUrl={transactionFormPreviewUrl ?? ""}
+        documentName={`FormTransaksi-${booking?.booking_code ?? "preview"}.pdf`}
+      />
     </div>
   );
 }
