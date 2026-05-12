@@ -149,7 +149,7 @@ export default function AdminActivityLog() {
     toast.success("Export berhasil");
   };
 
-  const uniqueActions = [...new Set(logs.map((l: any) => l.action as string))].sort();
+  const uniqueActions: string[] = [...new Set(logs.map((l: any) => l.action as string))].sort();
   const refundEventCount = logs.filter((l: any) => l.entity_type === "refund").length;
   const cancelCount      = logs.filter((l: any) => ["cancelled_with_refund","cancelled_no_refund"].includes(l.action)).length;
 
