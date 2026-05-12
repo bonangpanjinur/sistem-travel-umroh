@@ -10,12 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   Bot, Key, CheckCircle2, AlertCircle, Eye, EyeOff,
   Loader2, ExternalLink, Send, RefreshCcw, Sparkles,
-  MessageSquare, Settings, Info, Zap
+  MessageSquare, Settings, Info, Zap, Package, Database
 } from "lucide-react";
+import { buildPackageContext } from "@/lib/packageContext";
 
 const DEFAULT_SYSTEM_PROMPT = `Kamu adalah Asisten Virtual yang ramah dan informatif untuk layanan perjalanan Umroh dan Haji.
 Bantu calon jamaah dengan pertanyaan seputar:
@@ -40,6 +42,26 @@ export default function AdminGeminiAI() {
   const [testInput, setTestInput] = useState("Apa saja paket umroh yang tersedia?");
   const [testResult, setTestResult] = useState<{ answer: string; source: string } | null>(null);
   const [configured, setConfigured] = useState(false);
+  const [packageContext, setPackageContext] = useState("");
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [packageCount, setPackageCount] = useState(0);
+
+  useEffect(() => {
+    loadPackageContext();
+  }, []);
+
+  async function loadPackageContext() {
+    setLoadingPackages(true);
+    try {
+      const ctx = await buildPackageContext();
+      setPackageContext(ctx);
+      const matches = ctx.match(/^📦/gm);
+      setPackageCount(matches?.length || 0);
+    } catch {
+      setPackageContext("");
+    }
+    setLoadingPackages(false);
+  }
 
   useEffect(() => {
     (async () => {
@@ -93,8 +115,11 @@ export default function AdminGeminiAI() {
     setTesting(true);
     setTestResult(null);
     try {
+      const enrichedPrompt = packageContext
+        ? `${systemPrompt}\n\n${packageContext}`
+        : systemPrompt;
       const body = {
-        system_instruction: { parts: [{ text: systemPrompt }] },
+        system_instruction: { parts: [{ text: enrichedPrompt }] },
         contents: [{ role: "user", parts: [{ text: testInput }] }],
         generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
       };
@@ -319,6 +344,55 @@ export default function AdminGeminiAI() {
         </Button>
       </div>
 
+      {/* Package Context Preview */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Database className="h-4 w-4 text-green-500" /> Konteks Paket Otomatis
+              </CardTitle>
+              <CardDescription>Data paket aktif yang otomatis diinjeksi ke Gemini setiap sesi chat</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {packageCount > 0 && (
+                <Badge className="bg-green-100 text-green-700 border-0 gap-1">
+                  <Package className="h-3 w-3" /> {packageCount} paket
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={loadPackageContext} disabled={loadingPackages}>
+                {loadingPackages ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingPackages ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+              <Loader2 className="h-4 w-4 animate-spin" /> Memuat data paket...
+            </div>
+          ) : packageContext ? (
+            <ScrollArea className="h-48 w-full">
+              <pre className="text-xs text-gray-700 font-mono whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-3">
+                {packageContext}
+              </pre>
+            </ScrollArea>
+          ) : (
+            <div className="py-6 text-center text-sm text-muted-foreground space-y-1">
+              <Package className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+              <p>Belum ada paket aktif di database.</p>
+              <p className="text-xs">Tambahkan paket di menu <strong>Paket Perjalanan</strong> untuk mengisi konteks chatbot.</p>
+            </div>
+          )}
+          {packageContext && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Data ini otomatis ditambahkan ke system prompt Gemini sehingga chatbot dapat menjawab pertanyaan tentang harga, jadwal, dan ketersediaan paket secara akurat.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Status Info */}
       <Card className="bg-gray-50 border-dashed">
         <CardContent className="p-4">
@@ -326,8 +400,8 @@ export default function AdminGeminiAI() {
           <div className="space-y-2">
             {[
               { icon: "1", text: "Pengunjung membuka chat widget di halaman publik" },
-              { icon: "2", text: "ChatBot membaca konfigurasi Gemini dari database" },
-              { icon: "3", text: "Pesan dikirim ke Gemini 2.0 Flash → jawaban cerdas kontekstual" },
+              { icon: "2", text: "Chatbot membaca konfigurasi Gemini + data paket aktif dari database" },
+              { icon: "3", text: "Data paket diinjeksi ke system prompt → Gemini menjawab dengan harga & jadwal real" },
               { icon: "4", text: "Jika API key tidak tersedia, bot menggunakan FAQ lokal sebagai fallback" },
             ].map(item => (
               <div key={item.icon} className="flex items-start gap-2.5 text-xs text-muted-foreground">

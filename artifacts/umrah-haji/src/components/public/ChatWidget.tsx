@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, X, Send, Bot, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { buildPackageContext } from "@/lib/packageContext";
 
 type Message = {
   id: string;
@@ -45,6 +46,7 @@ interface GeminiConfig {
   botName: string;
   greeting: string;
   enableLeadCapture: boolean;
+  packageContext?: string;
 }
 
 interface ChatWidgetProps {
@@ -83,26 +85,35 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   async function loadConfig() {
     try {
       const supabaseAny = supabase as any;
-      const { data } = await supabaseAny
-        .from("app_settings")
-        .select("key,value")
-        .in("key", ["gemini_api_key", "gemini_chatbot_config"]);
+      const [settingsResult, packageContext] = await Promise.all([
+        supabaseAny
+          .from("app_settings")
+          .select("key,value")
+          .in("key", ["gemini_api_key", "gemini_chatbot_config"]),
+        buildPackageContext(),
+      ]);
 
       let apiKey = "";
       let cfg: any = {};
-      if (data?.length) {
-        for (const row of data) {
+      if (settingsResult.data?.length) {
+        for (const row of settingsResult.data) {
           if (row.key === "gemini_api_key") apiKey = JSON.parse(row.value) || "";
           if (row.key === "gemini_chatbot_config") cfg = JSON.parse(row.value) || {};
         }
       }
 
+      const basePrompt = cfg.systemPrompt || `Kamu adalah asisten virtual ${tenantName} untuk perjalanan Umroh dan Haji. Bantu calon jamaah dengan ramah dalam Bahasa Indonesia. Jawab singkat dan informatif (max 4 kalimat).`;
+      const enrichedPrompt = packageContext
+        ? `${basePrompt}\n\n${packageContext}`
+        : basePrompt;
+
       const config: GeminiConfig = {
         apiKey,
-        systemPrompt: cfg.systemPrompt || `Kamu adalah asisten virtual ${tenantName} untuk perjalanan Umroh dan Haji. Bantu calon jamaah dengan ramah dalam Bahasa Indonesia. Jawab singkat dan informatif (max 4 kalimat).`,
+        systemPrompt: enrichedPrompt,
         botName: cfg.botName || tenantName,
         greeting: cfg.greeting || `Halo! Selamat datang di ${tenantName}. Ada yang bisa saya bantu? 😊`,
         enableLeadCapture: cfg.enableLeadCapture ?? true,
+        packageContext,
       };
       setGeminiConfig(config);
       setMessages([{ id: "1", role: "bot", text: config.greeting, ts: new Date() }]);
