@@ -125,6 +125,20 @@ function hexToRgb(hex: string) {
     : { r: 30, g: 58, b: 95 };
 }
 
+// ─── Layout constants (single source of truth) ───────────────────────────────
+const LAYOUT = {
+  MARGIN: 10,
+  FOOTER_RESERVE: 14, // mm reserved at bottom for page footer
+  FS_TITLE: 13,
+  FS_SECTION: 9,
+  FS_LABEL: 7.5,
+  FS_BODY: 7.5,
+  FS_SMALL: 7,
+  GAP_AFTER_TITLE: 5,
+  GAP_AFTER_SECTION: 4,
+  ROW_LEADING: 4.5,
+} as const;
+
 const fmtIDR = (n: number) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -150,9 +164,9 @@ function hr(doc: jsPDF, y: number, margin = 10) {
 }
 
 /** Ensure enough vertical space; add page if needed */
-function ensureSpace(doc: jsPDF, y: number, needed: number, margin = 10): number {
+function ensureSpace(doc: jsPDF, y: number, needed: number, margin = LAYOUT.MARGIN): number {
   const ph = doc.internal.pageSize.height;
-  if (y + needed > ph - 18) {
+  if (y + needed > ph - LAYOUT.FOOTER_RESERVE - 2) {
     doc.addPage();
     return margin + 5;
   }
