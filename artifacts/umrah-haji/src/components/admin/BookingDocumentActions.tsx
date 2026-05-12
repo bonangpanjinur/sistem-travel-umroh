@@ -10,9 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Loader2, Stamp, Award, Ticket, FileText, ClipboardSignature, Users } from "lucide-react";
+import { Loader2, Stamp, Award, Ticket, FileText, ClipboardSignature, Users, PackageCheck, Download } from "lucide-react";
 import {
   generatePassportLetter,
   generateJamaahLeaveLetter,
@@ -34,7 +36,9 @@ interface Props {
   passengers?: any[];
 }
 
-type DialogType = "cuti-jamaah" | "general-letter" | null;
+type DialogType = "cuti-jamaah" | "general-letter" | "bulk-print" | null;
+
+type BulkDocType = "passport" | "certificate" | "eticket";
 
 export function BookingDocumentActions({ booking, companyInfo, passengers = [] }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
@@ -76,6 +80,138 @@ export function BookingDocumentActions({ booking, companyInfo, passengers = [] }
     const found = jamaahOptions.find((o) => o.id === selectedJamaahId);
     return found?.customer ?? booking?.customer;
   }, [selectedJamaahId, jamaahOptions, booking]);
+
+  // ── Bulk print state ─────────────────────────────────────────────────────
+  const [bulkDocType, setBulkDocType] = useState<BulkDocType>("passport");
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkProgress, setBulkProgress] = useState<number>(0);
+  const [bulkTotal, setBulkTotal] = useState<number>(0);
+  const [bulkRunning, setBulkRunning] = useState(false);
+
+  const openBulkDialog = () => {
+    setBulkSelectedIds(new Set(jamaahOptions.map((o) => o.id)));
+    setBulkProgress(0);
+    setBulkTotal(0);
+    setOpenDialog("bulk-print");
+  };
+
+  const toggleBulkId = (id: string) => {
+    setBulkSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkGenerate = async () => {
+    if (bulkSelectedIds.size === 0) {
+      toast.error("Pilih minimal satu jamaah");
+      return;
+    }
+    setBulkRunning(true);
+    setBulkProgress(0);
+    const selected = jamaahOptions.filter((o) => bulkSelectedIds.has(o.id));
+    setBulkTotal(selected.length);
+
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const folder = zip.folder(booking.booking_code || "surat-massal")!;
+      const docLabels: Record<BulkDocType, string> = {
+        passport: "Surat Paspor",
+        certificate: "Sertifikat Umrah",
+        eticket: "E-Ticket",
+      };
+
+      for (let i = 0; i < selected.length; i++) {
+        const { customer: c } = selected[i];
+        const safeName = (c.full_name || "jamaah").replace(/\s+/g, "-");
+
+        let doc;
+        if (bulkDocType === "passport") {
+          doc = await generatePassportLetter(
+            {
+              customerName: c.full_name || "-",
+              nik: c.nik || "-",
+              birthPlace: c.birth_place || "-",
+              birthDate: c.birth_date ? new Date(c.birth_date) : new Date(),
+              address: [c.address, c.city, c.province].filter(Boolean).join(", ") || "-",
+              phone: c.phone || "-",
+              purpose: pkg?.package_type === "haji" ? "Ibadah Haji" : "Ibadah Umrah",
+              departureDate: departure?.departure_date ? new Date(departure.departure_date) : undefined,
+            },
+            `PASPOR/${new Date().getFullYear()}/${booking.booking_code}-${i + 1}`,
+            companyInfo
+          );
+          folder.file(`surat-paspor-${safeName}.pdf`, doc.output("arraybuffer"));
+        } else if (bulkDocType === "certificate") {
+          doc = await generateUmrahCertificate(
+            {
+              participantName: c.full_name || "-",
+              passportNumber: c.passport_number || "-",
+              birthPlace: c.birth_place || "-",
+              birthDate: c.birth_date ? new Date(c.birth_date) : new Date(),
+              packageName: pkg?.name || "-",
+              departureDate: departure?.departure_date ? new Date(departure.departure_date) : new Date(),
+              returnDate: departure?.return_date ? new Date(departure.return_date) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+              certificateNumber: `CERT/${new Date().getFullYear()}/${booking.booking_code}-${i + 1}`,
+            },
+            companyInfo
+          );
+          folder.file(`sertifikat-umrah-${safeName}.pdf`, doc.output("arraybuffer"));
+        } else if (bulkDocType === "eticket") {
+          doc = await generateETicket(
+            {
+              bookingCode: booking.booking_code || "-",
+              passengerName: c.full_name || "-",
+              passportNumber: c.passport_number || "-",
+              packageName: pkg?.name || "-",
+              departureDate: departure?.departure_date ? new Date(departure.departure_date) : new Date(),
+              returnDate: departure?.return_date ? new Date(departure.return_date) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+              departureAirport: departure?.departure_airport?.city || departure?.departure_airport?.code || "Jakarta",
+              arrivalAirport: departure?.arrival_airport?.city || departure?.arrival_airport?.code || "Jeddah",
+              flightNumber: departure?.flight_number || undefined,
+              airline: pkg?.airline?.name || undefined,
+              departureTime: departure?.departure_time || undefined,
+              hotelMakkah: departure?.hotel_makkah || pkg?.hotel_makkah || undefined,
+              hotelMadinah: departure?.hotel_madinah || pkg?.hotel_madinah || undefined,
+              roomType: booking.room_type || "quad",
+            },
+            companyInfo
+          );
+          folder.file(`eticket-${safeName}.pdf`, doc.output("arraybuffer"));
+        }
+
+        await logDocument({
+          bookingId: booking.id,
+          documentType: bulkDocType === "passport" ? "passport" : bulkDocType === "certificate" ? "certificate" : "eticket",
+          documentLabel: `${docLabels[bulkDocType]} (Bulk) — ${c.full_name}`,
+          jamaahName: c.full_name,
+        });
+
+        setBulkProgress(i + 1);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${docLabels[bulkDocType]}-${booking.booking_code}-semua.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
+      toast.success(`${selected.length} PDF berhasil dibundel dan diunduh`);
+      setOpenDialog(null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal membuat dokumen massal");
+    } finally {
+      setBulkRunning(false);
+      setBulkProgress(0);
+    }
+  };
 
   // ── Surat Paspor ──────────────────────────────────────────────────────────
   const handlePassportLetter = async () => {
@@ -411,6 +547,21 @@ export function BookingDocumentActions({ booking, companyInfo, passengers = [] }
             SURAT UMUM
           </Button>
           </div>
+
+          {/* Bulk print — hanya muncul jika ada lebih dari 1 jamaah */}
+          {jamaahOptions.length > 1 && (
+            <>
+              <Separator className="my-1" />
+              <Button
+                className="w-full justify-start h-10 font-bold text-xs bg-violet-600 hover:bg-violet-700 text-white border-0"
+                onClick={openBulkDialog}
+                disabled={!!loading}
+              >
+                <PackageCheck className="h-4 w-4 mr-3" />
+                CETAK SEMUA JAMAAH (ZIP)
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -621,6 +772,138 @@ export function BookingDocumentActions({ booking, companyInfo, passengers = [] }
             >
               {isLoading("general") && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Buat & Unduh PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Cetak Massal Semua Jamaah ────────────────────────────────── */}
+      <Dialog
+        open={openDialog === "bulk-print"}
+        onOpenChange={(o) => { if (!bulkRunning) { if (!o) setOpenDialog(null); } }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-violet-600" />
+              Cetak Massal — {booking?.booking_code}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Document type selector */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider">Jenis Dokumen</Label>
+              <Select value={bulkDocType} onValueChange={(v) => setBulkDocType(v as BulkDocType)} disabled={bulkRunning}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="passport">
+                    <span className="flex items-center gap-2"><Stamp className="h-3.5 w-3.5 text-violet-600" /> Surat Permohonan Paspor</span>
+                  </SelectItem>
+                  <SelectItem value="certificate">
+                    <span className="flex items-center gap-2"><Award className="h-3.5 w-3.5 text-emerald-600" /> Sertifikat Umrah</span>
+                  </SelectItem>
+                  <SelectItem value="eticket">
+                    <span className="flex items-center gap-2"><Ticket className="h-3.5 w-3.5 text-sky-600" /> E-Ticket</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Jamaah checklist */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Pilih Jamaah</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-[10px] text-violet-600 hover:underline font-medium"
+                    onClick={() => setBulkSelectedIds(new Set(jamaahOptions.map((o) => o.id)))}
+                    disabled={bulkRunning}
+                  >
+                    Pilih Semua
+                  </button>
+                  <span className="text-[10px] text-muted-foreground">·</span>
+                  <button
+                    type="button"
+                    className="text-[10px] text-muted-foreground hover:underline"
+                    onClick={() => setBulkSelectedIds(new Set())}
+                    disabled={bulkRunning}
+                  >
+                    Hapus Semua
+                  </button>
+                </div>
+              </div>
+              <div className="border rounded-lg overflow-hidden divide-y">
+                {jamaahOptions.map((opt, idx) => (
+                  <label
+                    key={opt.id}
+                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/40 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={bulkSelectedIds.has(opt.id)}
+                      onCheckedChange={() => toggleBulkId(opt.id)}
+                      disabled={bulkRunning}
+                      id={`bulk-jamaah-${opt.id}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold truncate">{opt.customer?.full_name || "-"}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        NIK: {opt.customer?.nik || "-"} · {idx === 0 ? "Pemesan Utama" : `Penumpang ${idx}`}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {bulkSelectedIds.size} dari {jamaahOptions.length} jamaah dipilih
+              </p>
+            </div>
+
+            {/* Progress */}
+            {bulkRunning && (
+              <div className="space-y-2 p-3 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200">
+                <div className="flex items-center justify-between text-xs font-semibold text-violet-700">
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Membuat dokumen...
+                  </span>
+                  <span>{bulkProgress} / {bulkTotal}</span>
+                </div>
+                <Progress value={bulkTotal > 0 ? (bulkProgress / bulkTotal) * 100 : 0} className="h-2" />
+              </div>
+            )}
+
+            {/* Info */}
+            {!bulkRunning && (
+              <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground flex items-start gap-2">
+                <Download className="h-3.5 w-3.5 mt-0.5 shrink-0 text-violet-500" />
+                <span>
+                  Semua PDF akan dibundel menjadi <strong>satu file ZIP</strong> dan diunduh otomatis. 
+                  Buka ZIP untuk mengakses masing-masing file per jamaah.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setOpenDialog(null)} disabled={bulkRunning}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleBulkGenerate}
+              disabled={bulkRunning || bulkSelectedIds.size === 0}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+            >
+              {bulkRunning ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memproses...</>
+              ) : (
+                <><Download className="h-4 w-4 mr-2" />Buat & Unduh ZIP ({bulkSelectedIds.size} PDF)</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
