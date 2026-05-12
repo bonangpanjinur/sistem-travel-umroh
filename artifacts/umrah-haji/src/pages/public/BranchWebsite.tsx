@@ -11,6 +11,7 @@ import { TenantPublicLayout } from '@/components/layout/TenantPublicLayout';
 import { NotFound } from './TenantNotFound';
 import { useTenant } from '@/contexts/TenantContext';
 import { useSaveAgentRef } from '@/hooks/useAgentRef';
+import { TenantChatBubble } from '@/components/public/TenantChatBubble';
 
 export default function BranchWebsite() {
   const { branchSlug } = useParams<{ branchSlug: string }>();
@@ -83,6 +84,12 @@ export default function BranchWebsite() {
         if (!Component) return null;
         return <Component key={section.id} settings={settings} />;
       })}
+      <TenantChatBubble
+        waNumber={settings.footer_whatsapp}
+        siteName={settings.company_name}
+        gradientFrom="from-emerald-600"
+        gradientTo="to-teal-700"
+      />
     </TenantPublicLayout>
   );
 }
