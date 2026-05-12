@@ -337,5 +337,39 @@ SELECT unnest(ARRAY['super_admin','owner','branch_manager','sales','marketing'])
 ON CONFLICT DO NOTHING;
 
 -- =============================================================================
+-- Pre-Departure Checklist (K2 Sprint 1)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS departure_checklists (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id uuid REFERENCES departures(id) ON DELETE CASCADE,
+  items       jsonb NOT NULL DEFAULT '{}',
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now(),
+  UNIQUE(departure_id)
+);
+
+ALTER TABLE departure_checklists ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "staff_manage_departure_checklists" ON departure_checklists;
+CREATE POLICY "staff_manage_departure_checklists"
+  ON departure_checklists FOR ALL
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'set_departure_checklists_updated_at'
+      AND tgrelid = 'departure_checklists'::regclass
+  ) THEN
+    CREATE TRIGGER set_departure_checklists_updated_at
+      BEFORE UPDATE ON departure_checklists
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END;
+$$;
+
+-- =============================================================================
 -- SELESAI — Jalankan di Supabase Dashboard → SQL Editor
 -- =============================================================================

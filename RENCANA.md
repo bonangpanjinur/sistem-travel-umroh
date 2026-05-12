@@ -484,10 +484,10 @@ pnpm --filter @workspace/api-spec run codegen
 
 | ID | Fitur | Dampak | Prioritas |
 |----|-------|--------|-----------|
-| K1 | **Ringkasan status visa per keberangkatan** — panel di DepartureDetail tab: berapa sudah visa issued, berapa proses, berapa belum. Data visa_tracker sudah ada di jamaah portal | Tinggi | 🟠 |
-| K2 | **Pre-Departure Checklist** — checklist operasional admin sebelum keberangkatan: visa issued ✅, dokumen lengkap ✅, hotel confirmed ✅, bus siap ✅, tiket tercetak ✅ | Tinggi | 🟠 |
-| K3 | **Search nama jamaah** di list penumpang DepartureDetail — filter status/tipe sudah ada tapi tidak ada kolom search by nama | Tinggi | 🟠 |
-| K4 | **Quick status change button** di header DepartureDetail — tombol langsung ubah `open→closed→full→departed` tanpa buka form edit | Menengah | 🟡 |
+| K1 | **Ringkasan status visa per keberangkatan** — panel di DepartureDetail tab: berapa sudah visa issued, berapa proses, berapa belum. Data visa_tracker sudah ada di jamaah portal | Tinggi | ✅ |
+| K2 | **Pre-Departure Checklist** — checklist operasional admin sebelum keberangkatan: visa issued ✅, dokumen lengkap ✅, hotel confirmed ✅, bus siap ✅, tiket tercetak ✅ | Tinggi | ✅ |
+| K3 | **Search nama jamaah** di list penumpang DepartureDetail — filter status/tipe sudah ada tapi tidak ada kolom search by nama | Tinggi | ✅ |
+| K4 | **Quick status change button** di header DepartureDetail — tombol langsung ubah `open→closed→full→departed` tanpa buka form edit | Menengah | ✅ |
 | K5 | **Post-trip summary** — setelah status `departed`, halaman ringkasan: berapa yang benar-benar berangkat, berapa absen, total pendapatan aktual vs target | Menengah | 🟡 |
 | K6 | **Kirim manifest ke email** — manifest PDF bisa download tapi belum bisa langsung email ke muthawif/PIC | Menengah | 🟡 |
 | K7 | **Generate sertifikat massal** — tombol 1 klik generate sertifikat untuk semua jamaah setelah trip completed | Rendah | - |
@@ -541,13 +541,13 @@ pnpm --filter @workspace/api-spec run codegen
 
 Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
 
-### Sprint 1 — Operasional Keberangkatan (Dampak Langsung Tinggi)
+### Sprint 1 — Operasional Keberangkatan (Dampak Langsung Tinggi) ✅ SELESAI
 
 ```
-1. K3  → Search nama jamaah di DepartureDetail
-2. K2  → Pre-Departure Checklist (checklist operasional admin)
-3. K1  → Ringkasan status visa per keberangkatan
-4. K4  → Quick status change button di header keberangkatan
+1. K3  → Search nama jamaah di DepartureDetail ✅
+2. K2  → Pre-Departure Checklist (checklist operasional admin) ✅
+3. K1  → Ringkasan status visa per keberangkatan ✅
+4. K4  → Quick status change button di header keberangkatan ✅
 ```
 
 ### Sprint 2 — Kelola Paket (Konten & Data)

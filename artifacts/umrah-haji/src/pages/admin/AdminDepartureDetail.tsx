@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -62,6 +63,10 @@ import {
   ExternalLink,
   CreditCard,
   ChevronDownIcon,
+  Search,
+  Zap,
+  ClipboardCheck,
+  ShieldCheck,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -71,6 +76,8 @@ import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
 import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
+import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
+import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -90,6 +97,7 @@ export default function AdminDepartureDetail() {
   const [activeTab, setActiveTab] = useState("info");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [debugOpen, setDebugOpen] = useState(false);
   const [editingPassenger, setEditingPassenger] = useState<any>(null);
 
@@ -317,7 +325,7 @@ export default function AdminDepartureDetail() {
     return m;
   }, [attendance]);
 
-  // Filtered passengers based on UI filters
+  // Filtered passengers based on UI filters + search (K3)
   const filteredPassengers = useMemo(() => {
     if (!passengers) return [];
     return passengers.filter((p: any) => {
@@ -328,9 +336,24 @@ export default function AdminDepartureDetail() {
       if (typeFilter !== "all") {
         if ((p.passenger_type || "adult") !== typeFilter) return false;
       }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const name = (p.customer?.full_name || "").toLowerCase();
+        const passport = (p.customer?.passport_number || "").toLowerCase();
+        const phone = (p.customer?.phone || "").toLowerCase();
+        const code = (p.booking?.booking_code || "").toLowerCase();
+        if (!name.includes(q) && !passport.includes(q) && !phone.includes(q) && !code.includes(q))
+          return false;
+      }
       return true;
     });
-  }, [passengers, statusFilter, typeFilter]);
+  }, [passengers, statusFilter, typeFilter, searchQuery]);
+
+  // Customer IDs for visa summary (K1)
+  const customerIds = useMemo(
+    () => (passengers || []).map((p: any) => p.customer?.id).filter(Boolean) as string[],
+    [passengers]
+  );
 
   const passengerStats = useMemo(() => {
     const stats = {
@@ -401,6 +424,29 @@ export default function AdminDepartureDetail() {
     },
     enabled: !!id,
   });
+
+  // K4 — Quick status change mutation
+  const statusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase
+        .from("departures")
+        .update({ status: newStatus })
+        .eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: (_, newStatus) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-departure-detail", id] });
+      toast.success(`Status diubah ke: ${newStatus}`);
+    },
+    onError: (err: any) => toast.error("Gagal ubah status: " + err.message),
+  });
+
+  const STATUS_FLOW: Record<string, { next: string; label: string; color: string }> = {
+    open:     { next: "closed",   label: "Tutup Pendaftaran",  color: "bg-yellow-500 hover:bg-yellow-600" },
+    closed:   { next: "full",     label: "Tandai Penuh",       color: "bg-orange-500 hover:bg-orange-600" },
+    full:     { next: "departed", label: "Tandai Berangkat",   color: "bg-blue-600 hover:bg-blue-700" },
+    departed: { next: "open",     label: "Buka Kembali",       color: "bg-green-600 hover:bg-green-700" },
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -758,23 +804,41 @@ export default function AdminDepartureDetail() {
             </p>
           </div>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* K4 — Quick status change */}
+          {departure?.status && STATUS_FLOW[departure.status] && (
+            <Button
+              size="sm"
+              className={STATUS_FLOW[departure.status].color + " text-white"}
+              onClick={() => statusMutation.mutate(STATUS_FLOW[departure.status].next)}
+              disabled={statusMutation.isPending}
+            >
+              <Zap className="h-3.5 w-3.5 mr-1.5" />
+              {STATUS_FLOW[departure.status].label}
+            </Button>
+          )}
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
-          <TabsTrigger value="info">Informasi</TabsTrigger>
-          <TabsTrigger value="jamaah">Jemaah</TabsTrigger>
-          <TabsTrigger value="kamar">Kamar</TabsTrigger>
-          <TabsTrigger value="perlengkapan">Perlengkapan</TabsTrigger>
-          <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
-          <TabsTrigger value="budget">Budget</TabsTrigger>
-          <TabsTrigger value="harga">Riwayat Harga</TabsTrigger>
-          <TabsTrigger value="operasional">Operasional</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto gap-0.5 h-auto flex-wrap">
+          <TabsTrigger value="info" className="text-xs">Informasi</TabsTrigger>
+          <TabsTrigger value="jamaah" className="text-xs">Jemaah</TabsTrigger>
+          <TabsTrigger value="checklist" className="text-xs flex items-center gap-1">
+            <ClipboardCheck className="h-3 w-3" />
+            Checklist
+          </TabsTrigger>
+          <TabsTrigger value="kamar" className="text-xs">Kamar</TabsTrigger>
+          <TabsTrigger value="perlengkapan" className="text-xs">Perlengkapan</TabsTrigger>
+          <TabsTrigger value="itinerary" className="text-xs">Itinerary</TabsTrigger>
+          <TabsTrigger value="budget" className="text-xs">Budget</TabsTrigger>
+          <TabsTrigger value="harga" className="text-xs">Riwayat Harga</TabsTrigger>
+          <TabsTrigger value="operasional" className="text-xs">Operasional</TabsTrigger>
         </TabsList>
 
         {/* Tab: Informasi */}
@@ -1002,6 +1066,11 @@ export default function AdminDepartureDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* K1 — Visa Status Summary */}
+          {customerIds.length > 0 && (
+            <DepartureVisaSummary departureId={id || ""} customerIds={customerIds} />
+          )}
         </TabsContent>
 
         {/* Tab: Jemaah */}
@@ -1092,6 +1161,16 @@ export default function AdminDepartureDetail() {
                   )
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* K3 — Search jamaah by name */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      className="h-9 pl-8 w-48 text-sm"
+                      placeholder="Cari nama, paspor..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="h-9 w-[140px]">
                       <SelectValue placeholder="Status" />
@@ -1381,6 +1460,16 @@ export default function AdminDepartureDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Pre-Departure Checklist — K2 */}
+        <TabsContent value="checklist" className="space-y-4">
+          <DeparturePreChecklist
+            departureId={id || ""}
+            departure={departure}
+            passengerStats={passengerStats}
+            passengers={passengers || []}
+          />
         </TabsContent>
 
         {/* Tab: Budget vs Realisasi — FITUR 06 */}
