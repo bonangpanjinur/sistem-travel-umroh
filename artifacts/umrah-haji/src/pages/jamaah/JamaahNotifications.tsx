@@ -24,8 +24,8 @@ function getNotifActionUrl(notif: any): { url: string; label: string } | null {
   if (title.includes("pembayaran") || message.includes("pembayaran") || message.includes("bayar") || message.includes("lunas")) {
     return { url: "/jamaah/payment-history", label: "Lihat Pembayaran" };
   }
-  if (title.includes("dokumen") || message.includes("dokumen") || message.includes("upload")) {
-    return { url: "/jamaah/documents", label: "Lihat Dokumen" };
+  if (type === "document" || title.includes("dokumen") || message.includes("dokumen") || message.includes("upload")) {
+    return { url: "/jamaah/documents", label: "Lihat Dokumen Saya" };
   }
   if (title.includes("booking") || title.includes("konfirmasi") || message.includes("booking")) {
     return { url: "/my-bookings", label: "Lihat Booking" };
@@ -50,6 +50,7 @@ const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
   refund:      { icon: RotateCcw,    color: "text-violet-600",  bg: "bg-violet-50 border-violet-100" },
   payment:     { icon: CreditCard,   color: "text-green-600",   bg: "bg-green-50 border-green-100" },
   visa_update: { icon: FileText,     color: "text-sky-600",     bg: "bg-sky-50 border-sky-100" },
+  document:    { icon: FileText,     color: "text-orange-600",  bg: "bg-orange-50 border-orange-100" },
 };
 
 export default function JamaahNotifications() {

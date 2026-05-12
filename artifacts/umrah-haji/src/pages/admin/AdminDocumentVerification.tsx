@@ -72,27 +72,39 @@ export default function AdminDocumentVerification() {
 
       if (error) throw error;
 
-      // Kirim notifikasi ke jamaah
+      // Kirim notifikasi in-app ke jamaah (fire-and-forget)
       const doc = documents?.find((d: any) => d.id === docId);
       if (doc?.customer?.id) {
         const docName = doc.document_type?.name || "Dokumen";
-        const title = status === 'verified'
+        const notifTitle = status === 'verified'
           ? `Dokumen ${docName} Terverifikasi ✅`
           : `Dokumen ${docName} Ditolak ❌`;
-        const message = status === 'verified'
-          ? `Dokumen ${docName} Anda telah diverifikasi oleh admin. Silakan cek status dokumen di portal jamaah.`
-          : `Dokumen ${docName} Anda ditolak. Alasan: ${notes || 'Hubungi admin untuk info lebih lanjut'}.`;
-        await (supabase as any).from('customer_notifications').insert({
+        const notifMessage = status === 'verified'
+          ? `Dokumen ${docName} Anda telah berhasil diverifikasi oleh admin. Dokumen Anda sudah lengkap dan valid.`
+          : `Dokumen ${docName} Anda ditolak oleh admin. Alasan: ${notes || 'Hubungi admin untuk info lebih lanjut'}. Mohon upload ulang dokumen yang sesuai.`;
+        (supabase as any).from('customer_notifications').insert({
           customer_id: doc.customer.id,
           type: 'document',
-          title,
-          message,
+          title: notifTitle,
+          message: notifMessage,
           is_read: false,
-        }).then(() => {});
+          metadata: {
+            doc_id: docId,
+            doc_status: status,
+            doc_name: docName,
+            rejection_reason: notes || null,
+          },
+        });
       }
+
+      return { status };
     },
-    onSuccess: () => {
-      toast.success("Dokumen berhasil diverifikasi");
+    onSuccess: ({ status }, { notes }) => {
+      toast.success(
+        status === 'verified'
+          ? "Dokumen terverifikasi — notifikasi terkirim ke jamaah"
+          : "Dokumen ditolak — notifikasi telah dikirim ke jamaah"
+      );
       queryClient.invalidateQueries({ queryKey: ['admin-documents'] });
       setSelectedDoc(null);
       setRejectReason("");

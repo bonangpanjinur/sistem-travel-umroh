@@ -206,13 +206,40 @@ export default function AdminCustomerDetail() {
         .eq('id', docId);
 
       if (error) throw error;
+
+      // Kirim notifikasi in-app ke jamaah (fire-and-forget)
+      if (customerId) {
+        const doc = documents?.find((d: any) => d.id === docId);
+        const docName = (doc as any)?.document_type?.name || "Dokumen";
+        const notifTitle = status === 'verified'
+          ? `Dokumen ${docName} Terverifikasi ✅`
+          : `Dokumen ${docName} Ditolak ❌`;
+        const notifMessage = status === 'verified'
+          ? `Dokumen ${docName} Anda telah berhasil diverifikasi oleh admin. Dokumen Anda sudah lengkap dan valid.`
+          : `Dokumen ${docName} Anda ditolak oleh admin.${notes ? ` Alasan: ${notes}.` : ""} Mohon upload ulang dokumen yang sesuai melalui portal jamaah.`;
+        (supabase as any).from('customer_notifications').insert({
+          customer_id: customerId,
+          type: 'document',
+          title: notifTitle,
+          message: notifMessage,
+          is_read: false,
+          metadata: {
+            doc_id: docId,
+            doc_status: status,
+            doc_name: docName,
+            rejection_reason: notes || null,
+          },
+        });
+      }
+
+      return { status };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: ({ status }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-customer-documents', customerId] });
       toast.success(
-        variables.status === 'verified' 
-          ? 'Dokumen berhasil diverifikasi' 
-          : 'Dokumen ditolak'
+        status === 'verified'
+          ? 'Dokumen terverifikasi — notifikasi terkirim ke jamaah'
+          : 'Dokumen ditolak — notifikasi telah dikirim ke jamaah'
       );
       setVerifyDialogOpen(false);
       setRejectDialogOpen(false);
@@ -538,39 +565,39 @@ export default function AdminCustomerDetail() {
                             <div className="flex items-center gap-2 shrink-0">
                               {existing && (
                                 <>
-	                                  <Button 
-	                                    variant="outline" 
-	                                    size="icon" 
-	                                    title="Lihat"
-	                                    onClick={() => setPreviewDoc(existing)}
-	                                  >
-	                                    <Eye className="h-4 w-4" />
-	                                  </Button>
-	                                  <Button 
-	                                    variant="outline" 
-	                                    size="icon" 
-	                                    title="Unduh"
-	                                    onClick={async () => {
-	                                      try {
-	                                        const url = getPublicUrl(existing.file_url);
-	                                        const response = await fetch(url);
-	                                        const blob = await response.blob();
-	                                        const blobUrl = window.URL.createObjectURL(blob);
-	                                        const link = document.createElement("a");
-	                                        link.href = blobUrl;
-	                                        link.download = `${dt.name}-${customer?.full_name || 'dokumen'}`.replace(/\s+/g, '_');
-	                                        document.body.appendChild(link);
-	                                        link.click();
-	                                        document.body.removeChild(link);
-	                                        window.URL.revokeObjectURL(blobUrl);
-	                                      } catch (error) {
-	                                        console.error("Download failed:", error);
-	                                        window.open(getPublicUrl(existing.file_url), "_blank");
-	                                      }
-	                                    }}
-	                                  >
-	                                    <Download className="h-4 w-4" />
-	                                  </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Lihat"
+                                            onClick={() => setPreviewDoc(existing)}
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Unduh"
+                                            onClick={async () => {
+                                              try {
+                                                const url = getPublicUrl(existing.file_url);
+                                                const response = await fetch(url);
+                                                const blob = await response.blob();
+                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                const link = document.createElement("a");
+                                                link.href = blobUrl;
+                                                link.download = `${dt.name}-${customer?.full_name || 'dokumen'}`.replace(/\s+/g, '_');
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                window.URL.revokeObjectURL(blobUrl);
+                                              } catch (error) {
+                                                console.error("Download failed:", error);
+                                                window.open(getPublicUrl(existing.file_url), "_blank");
+                                              }
+                                            }}
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="outline" size="icon" title="Verifikasi">
@@ -662,39 +689,39 @@ export default function AdminCustomerDetail() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-	                                  <Button 
-	                                    variant="outline" 
-	                                    size="icon" 
-	                                    title="Lihat File"
-	                                    onClick={() => setPreviewDoc(doc)}
-	                                  >
-	                                    <Eye className="h-4 w-4" />
-	                                  </Button>
-	                                  <Button 
-	                                    variant="outline" 
-	                                    size="icon" 
-	                                    title="Unduh File"
-	                                    onClick={async () => {
-	                                      try {
-	                                        const url = getPublicUrl(doc.file_url);
-	                                        const response = await fetch(url);
-	                                        const blob = await response.blob();
-	                                        const blobUrl = window.URL.createObjectURL(blob);
-	                                        const link = document.createElement("a");
-	                                        link.href = blobUrl;
-	                                        link.download = `${doc.document_type?.name || 'Dokumen'}-${customer?.full_name || 'jamaah'}`.replace(/\s+/g, '_');
-	                                        document.body.appendChild(link);
-	                                        link.click();
-	                                        document.body.removeChild(link);
-	                                        window.URL.revokeObjectURL(blobUrl);
-	                                      } catch (error) {
-	                                        console.error("Download failed:", error);
-	                                        window.open(getPublicUrl(doc.file_url), "_blank");
-	                                      }
-	                                    }}
-	                                  >
-	                                    <Download className="h-4 w-4" />
-	                                  </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Lihat File"
+                                            onClick={() => setPreviewDoc(doc)}
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Unduh File"
+                                            onClick={async () => {
+                                              try {
+                                                const url = getPublicUrl(doc.file_url);
+                                                const response = await fetch(url);
+                                                const blob = await response.blob();
+                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                const link = document.createElement("a");
+                                                link.href = blobUrl;
+                                                link.download = `${doc.document_type?.name || 'Dokumen'}-${customer?.full_name || 'jamaah'}`.replace(/\s+/g, '_');
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                window.URL.revokeObjectURL(blobUrl);
+                                              } catch (error) {
+                                                console.error("Download failed:", error);
+                                                window.open(getPublicUrl(doc.file_url), "_blank");
+                                              }
+                                            }}
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
