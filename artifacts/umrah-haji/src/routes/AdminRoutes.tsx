@@ -58,6 +58,7 @@ const AdminHajiManagement = lazy(() => import("@/pages/admin/AdminHajiManagement
 const AdminItineraryTemplates = lazy(() => import("@/pages/admin/AdminItineraryTemplates"));
 const AdminOfflineContent = lazy(() => import("@/pages/admin/AdminOfflineContent"));
 const AdminDocumentGenerator = lazy(() => import("@/pages/admin/AdminDocumentGenerator"));
+const AdminInvoiceTemplate = lazy(() => import("@/pages/admin/AdminInvoiceTemplate"));
 const AdminScheduledReports = lazy(() => import("@/pages/admin/AdminScheduledReports"));
 const AdminCoupons = lazy(() => import("@/pages/admin/AdminCoupons"));
 const AdminBanners = lazy(() => import("@/pages/admin/AdminBanners"));
@@ -274,6 +275,7 @@ export default function AdminRoutes() {
 
       <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />
       <Route path="settings" element={<P k={PERMISSIONS.SETTINGS}><AdminSettings /></P>} />
+      <Route path="invoice-template" element={<P k={PERMISSIONS.SETTINGS}><LazyPage><AdminInvoiceTemplate /></LazyPage></P>} />
       <Route path="announcements" element={<P k={PERMISSIONS.ANNOUNCEMENTS}><AdminAnnouncements /></P>} />
       <Route path="api-connect" element={<P k={PERMISSIONS.API_CONNECT}><AdminApiConnect /></P>} />
       <Route path="supabase-setup" element={<P k={PERMISSIONS.SUPABASE_SETUP}><AdminSupabaseSetup /></P>} />

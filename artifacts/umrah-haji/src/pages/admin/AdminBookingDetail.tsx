@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
+import { generateTransactionForm, DEFAULT_TEMPLATE, type PaymentInfoBlock } from "@/lib/transaction-form-generator";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
@@ -188,6 +189,19 @@ export default function AdminBookingDetail() {
         .order('is_primary', { ascending: false })
         .limit(1);
       if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch invoice template settings
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ['invoice-template-default'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('invoice_templates')
+        .select('*')
+        .eq('is_default', true)
+        .maybeSingle();
       return data;
     },
   });
@@ -443,6 +457,123 @@ export default function AdminBookingDetail() {
       jamaahName: booking.customer.full_name,
     });
     queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
+  };
+
+  const handlePrintTransactionForm = async () => {
+    if (!booking || !booking.customer) return;
+
+    const departure = booking.departure as any;
+    const pkg = departure?.package;
+
+    // Build template: use saved template or default
+    const tmpl = invoiceTemplate
+      ? {
+          accentColor: invoiceTemplate.accent_color ?? "#1e3a5f",
+          fontFamily: invoiceTemplate.font_family ?? "helvetica",
+          headerStyle: invoiceTemplate.header_style ?? "centered",
+          showLogo: invoiceTemplate.show_logo ?? true,
+          showPassengerList: invoiceTemplate.show_passenger_list ?? true,
+          showSignature: invoiceTemplate.show_signature ?? true,
+          leftSignatureLabel: invoiceTemplate.left_signature_label ?? "PETUGAS",
+          rightSignatureLabel: invoiceTemplate.right_signature_label ?? "PEMESAN",
+          paymentInfoBlocks: (invoiceTemplate.payment_info_blocks as PaymentInfoBlock[]) ?? [],
+          termsText: invoiceTemplate.terms_text ?? "",
+          footerText: invoiceTemplate.footer_text ?? "",
+        }
+      : DEFAULT_TEMPLATE;
+
+    // Build passenger list from booking_passengers
+    const passengerList = (passengers ?? []).map((p: any) => {
+      const basePrice = booking.base_price / (booking.total_pax || 1);
+      const discount = booking.discount_amount
+        ? booking.discount_amount / (booking.total_pax || 1)
+        : 0;
+      return {
+        name: p.customer?.full_name ?? p.full_name ?? "-",
+        roomType: getRoomTypeLabel(booking.room_type),
+        basePrice,
+        additionalCost: booking.addons_price
+          ? booking.addons_price / (booking.total_pax || 1)
+          : 0,
+        discount,
+        totalBill: basePrice - discount + (booking.addons_price ? booking.addons_price / (booking.total_pax || 1) : 0),
+      };
+    });
+
+    // If no passengers recorded, add booking holder
+    if (passengerList.length === 0) {
+      const basePrice = booking.base_price / (booking.total_pax || 1);
+      const discount = booking.discount_amount ? booking.discount_amount / (booking.total_pax || 1) : 0;
+      passengerList.push({
+        name: booking.customer.full_name ?? "-",
+        roomType: getRoomTypeLabel(booking.room_type),
+        basePrice,
+        additionalCost: 0,
+        discount,
+        totalBill: basePrice - discount,
+      });
+    }
+
+    const formData = {
+      transactionCode: booking.booking_code ?? `TRX-${booking.id.slice(0, 8).toUpperCase()}`,
+      customerCode: (booking.customer as any)?.customer_code ?? "-",
+      transactionDate: new Date(booking.created_at ?? new Date()),
+      referenceAgent: (booking as any).agent_name ?? (booking as any).agent?.full_name ?? undefined,
+      customerName: booking.customer.full_name ?? "-",
+      customerAddress: [
+        (booking.customer as any).address,
+        (booking.customer as any).city,
+        (booking.customer as any).province,
+      ].filter(Boolean).join(", ") || "-",
+      customerPhone: (booking.customer as any).phone ?? "-",
+      packageName: pkg?.name ?? "-",
+      packageType: pkg?.package_type ?? (pkg as any)?.type ?? "-",
+      umrahSeason: (departure as any)?.umrah_season ?? "-",
+      programDays: pkg?.duration_days ? `${pkg.duration_days} HARI` : "-",
+      departureDate: departure?.departure_date ? new Date(departure.departure_date) : undefined,
+      returnDate: departure?.return_date ? new Date(departure.return_date) : undefined,
+      hotelMakkah: (departure as any)?.hotel_makkah ?? pkg?.hotel_makkah ?? undefined,
+      hotelMadinah: (departure as any)?.hotel_madinah ?? pkg?.hotel_madinah ?? undefined,
+      airline: (departure as any)?.airline_name ?? (departure as any)?.airline?.name ?? undefined,
+      airport: departure?.departure_airport
+        ? `${departure.departure_airport.name} (${departure.departure_airport.code})`
+        : undefined,
+      roomCombinations: [{
+        roomType: getRoomTypeLabel(booking.room_type),
+        pricePerPax: booking.base_price / (booking.total_pax || 1),
+        paxCount: booking.total_pax ?? 1,
+        roomCount: Math.ceil((booking.total_pax ?? 1) / 2),
+      }],
+      discounts: booking.discount_amount
+        ? [{ label: (booking as any).discount_label ?? "DISKON", amount: booking.discount_amount }]
+        : undefined,
+      totalPrice: booking.total_price,
+      notes: booking.notes ?? undefined,
+      passengers: passengerList,
+    };
+
+    const company = {
+      name: companyInfo?.name ?? "PT. Umrah Haji Travel",
+      address: companyInfo?.address ?? "-",
+      phone: companyInfo?.phone ?? "-",
+      email: companyInfo?.email ?? "-",
+      logo: companyInfo?.logo ?? undefined,
+    };
+
+    try {
+      const doc = await generateTransactionForm(formData, company, tmpl);
+      doc.save(`FormTransaksi-${booking.booking_code}.pdf`);
+      toast.success("Form Transaksi berhasil di-download");
+      await logDocument({
+        bookingId: booking.id,
+        documentType: "invoice",
+        documentLabel: `Form Transaksi ${booking.booking_code}`,
+        jamaahName: booking.customer.full_name,
+      });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
+    } catch (e: any) {
+      toast.error("Gagal generate form transaksi: " + e.message);
+    }
   };
 
   const handleStatusChange = (status: BookingStatus) => {
@@ -876,6 +1007,10 @@ export default function AdminBookingDetail() {
               <Button className="w-full justify-start h-10 font-bold text-xs" variant="outline" onClick={handlePrintInvoice}>
                 <Printer className="h-4 w-4 mr-3 text-primary" />
                 CETAK INVOICE PDF
+              </Button>
+              <Button className="w-full justify-start h-10 font-bold text-xs" variant="outline" onClick={handlePrintTransactionForm}>
+                <FileText className="h-4 w-4 mr-3 text-amber-600" />
+                FORM TRANSAKSI UMRAH
               </Button>
               <Button 
                 className="w-full justify-start h-10 font-bold text-xs" 
