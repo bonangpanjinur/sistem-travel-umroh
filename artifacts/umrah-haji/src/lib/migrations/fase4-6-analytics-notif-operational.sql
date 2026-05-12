@@ -210,4 +210,64 @@ CREATE INDEX IF NOT EXISTS idx_sos_alerts_customer_id     ON sos_alerts(customer
 CREATE INDEX IF NOT EXISTS idx_visa_apps_customer_id      ON visa_applications(customer_id);
 CREATE INDEX IF NOT EXISTS idx_visa_apps_status           ON visa_applications(status);
 
+-- ─── Refunds table ────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS refunds (
+  id             uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id     uuid REFERENCES bookings(id) ON DELETE CASCADE,
+  customer_id    uuid REFERENCES customers(id) ON DELETE SET NULL,
+  amount         numeric NOT NULL DEFAULT 0,
+  refund_method  text,
+  account_info   text,
+  reason         text,
+  notes          text,
+  status         text NOT NULL DEFAULT 'pending',  -- pending, processed, cancelled
+  created_by     uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  processed_at   timestamptz,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- Jika tabel sudah ada, pastikan kolom notes ada
+ALTER TABLE refunds ADD COLUMN IF NOT EXISTS notes text;
+
+ALTER TABLE refunds ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "Admin full access refunds" ON refunds
+  FOR ALL USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_refunds_booking_id   ON refunds(booking_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_customer_id  ON refunds(customer_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_status       ON refunds(status);
+
+
+-- ─── Admin Activity Log ────────────────────────────────────────────────────
+-- Mencatat setiap perubahan status booking dan refund oleh admin
+
+CREATE TABLE IF NOT EXISTS admin_activity_log (
+  id           uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  actor_id     uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  actor_email  text,
+  entity_type  text NOT NULL,   -- 'booking' | 'refund'
+  entity_id    uuid NOT NULL,
+  action       text NOT NULL,   -- 'status_changed' | 'refund_processed' | 'refund_cancelled' | dll
+  old_value    text,
+  new_value    text,
+  notes        text,
+  metadata     jsonb DEFAULT '{}',
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE admin_activity_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "Staff read activity log" ON admin_activity_log
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY IF NOT EXISTS "Staff insert activity log" ON admin_activity_log
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_entity     ON admin_activity_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_actor      ON admin_activity_log(actor_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON admin_activity_log(created_at DESC);
+
+
 SELECT 'Fase 4-6 migration completed successfully' AS result;

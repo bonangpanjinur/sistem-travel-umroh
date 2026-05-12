@@ -27,6 +27,7 @@ import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { logActivity } from "@/lib/activityLogger";
 
 const REFUND_METHODS: Record<string, string> = {
   transfer_bank: "Transfer Bank",
@@ -88,12 +89,27 @@ export default function AdminRefunds() {
       if (notes) patch.notes = notes;
       const { error } = await (supabase as any).from("refunds").update(patch).eq("id", id);
       if (error) throw error;
+      return { id, status, notes };
     },
-    onSuccess: () => {
+    onSuccess: ({ id: refundId, status, notes }) => {
       toast.success("Status refund berhasil diperbarui");
       queryClient.invalidateQueries({ queryKey: ["admin-refunds"] });
       setShowDetailDialog(false);
       setProcessNote("");
+
+      // Catat ke activity log (fire-and-forget)
+      const actionMap: Record<string, string> = {
+        processed: "refund_processed",
+        cancelled: "refund_cancelled",
+      };
+      logActivity({
+        entity_type: "refund",
+        entity_id: refundId,
+        action: actionMap[status] ?? "refund_status_update",
+        old_value: selectedRefund?.status,
+        new_value: status,
+        notes: notes,
+      });
     },
     onError: (e: any) => toast.error(e.message || "Gagal memperbarui status"),
   });

@@ -109,6 +109,7 @@ export const PERMISSIONS = {
   DEPARTURE_TRACKING: 'departure-tracking',
   SOS_ALERTS: 'sos-alerts',
   REFUNDS: 'refunds',
+  ACTIVITY_LOG: 'activity-log',
 
   // KPI Dashboard
   KPI_DASHBOARD: 'kpi-dashboard',

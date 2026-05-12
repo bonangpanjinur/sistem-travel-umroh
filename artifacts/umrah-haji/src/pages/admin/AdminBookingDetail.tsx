@@ -1,5 +1,6 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { logActivity } from "@/lib/activityLogger";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -333,6 +334,15 @@ export default function AdminBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       setShowStatusConfirm(false);
       setNewStatus(null);
+
+      // Catat ke activity log (fire-and-forget)
+      logActivity({
+        entity_type: "booking",
+        entity_id: id,
+        action: "status_changed",
+        new_value: status,
+        metadata: { booking_id: id },
+      });
 
       // === Kirim notifikasi in-app ke jamaah berdasarkan status baru ===
       const notifMap: Record<string, { title: string; message: string }> = {

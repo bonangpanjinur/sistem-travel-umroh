@@ -117,6 +117,7 @@ const AdminPushOutbox = lazy(() => import("@/pages/admin/AdminPushOutbox"));
 const AdminDepartureTracking = lazy(() => import("@/pages/admin/AdminDepartureTracking"));
 const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
 const AdminRefunds = lazy(() => import("@/pages/admin/AdminRefunds"));
+const AdminActivityLog = lazy(() => import("@/pages/admin/AdminActivityLog"));
 const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
 const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
 const AdminFinanceTerpadu = lazy(() => import("@/pages/admin/AdminFinanceTerpadu"));
@@ -281,6 +282,7 @@ export default function AdminRoutes() {
 
       <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />
       <Route path="settings" element={<P k={PERMISSIONS.SETTINGS}><AdminSettings /></P>} />
+      <Route path="activity-log" element={<P k={PERMISSIONS.ACTIVITY_LOG}><AdminActivityLog /></P>} />
       <Route path="invoice-template" element={<P k={PERMISSIONS.SETTINGS}><LazyPage><AdminInvoiceTemplate /></LazyPage></P>} />
       <Route path="announcements" element={<P k={PERMISSIONS.ANNOUNCEMENTS}><AdminAnnouncements /></P>} />
       <Route path="api-connect" element={<P k={PERMISSIONS.API_CONNECT}><AdminApiConnect /></P>} />

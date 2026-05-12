@@ -351,6 +351,7 @@ pnpm --filter @workspace/api-spec run codegen
 | # | Halaman | Detail | Status |
 |---|---------|--------|--------|
 | E1 | Monitor Refund `/admin/refunds` | Daftar semua pengajuan refund, filter status/metode, update status, catatan admin, export Excel | ✅ |
+| E2 | Log Aktivitas Admin `/admin/activity-log` | Riwayat semua perubahan status booking & refund oleh admin, filter, export Excel, auto-logged via helper `logActivity` | ✅ |
 
 ### Status yang sudah ada & berfungsi di Booking Detail
 - ✅ Update status booking + konfirmasi dialog + notifikasi jamaah otomatis
