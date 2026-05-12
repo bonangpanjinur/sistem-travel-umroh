@@ -29,6 +29,7 @@ interface ChangeRoomTypeDialogProps {
   currentDepartureId: string;
   currentTotalPrice: number;
   totalPax: number;
+  paidAmount?: number;
 }
 
 const ROOM_TYPES = [
@@ -46,6 +47,7 @@ export function ChangeRoomTypeDialog({
   currentDepartureId,
   currentTotalPrice,
   totalPax,
+  paidAmount = 0,
 }: ChangeRoomTypeDialogProps) {
   const queryClient = useQueryClient();
   const [selectedRoomType, setSelectedRoomType] = useState<string>("");
@@ -94,12 +96,14 @@ export function ChangeRoomTypeDialog({
     mutationFn: async () => {
       if (!selectedRoomType) throw new Error("Pilih tipe kamar terlebih dahulu");
 
-      // 1. Update booking room_type and total_price
+      // 1. Update booking room_type, total_price and remaining_amount
+      const newRemainingAmount = Math.max(0, newTotalPrice - paidAmount);
       const { error: updateError } = await supabase
         .from("bookings")
         .update({
           room_type: selectedRoomType as "double" | "quad" | "single" | "triple",
           total_price: newTotalPrice,
+          remaining_amount: newRemainingAmount,
           updated_at: new Date().toISOString(),
         })
         .eq("id", bookingId);

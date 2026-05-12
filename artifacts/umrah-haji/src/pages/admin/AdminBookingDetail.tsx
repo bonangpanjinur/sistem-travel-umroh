@@ -1045,7 +1045,7 @@ export default function AdminBookingDetail() {
           </Card>
 
           {/* Buat Surat — quick document generation from booking data */}
-          <BookingDocumentActions booking={booking} companyInfo={companyInfo} />
+          <BookingDocumentActions booking={booking} companyInfo={companyInfo} passengers={passengers || []} />
 
           {booking.notes && (
             <Card className="border-none shadow-md bg-amber-50/50 dark:bg-amber-950/10">
@@ -1206,6 +1206,7 @@ export default function AdminBookingDetail() {
           currentDepartureId={booking?.departure_id || ""}
           currentTotalPrice={booking.total_price || 0}
           totalPax={booking.total_pax || 1}
+          paidAmount={booking.paid_amount || 0}
         />
       )}
 

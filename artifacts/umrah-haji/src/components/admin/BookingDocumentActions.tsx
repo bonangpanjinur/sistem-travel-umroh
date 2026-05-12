@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Stamp, Award, Ticket, FileText, ClipboardSignature } from "lucide-react";
+import { Loader2, Stamp, Award, Ticket, FileText, ClipboardSignature, Users } from "lucide-react";
 import {
   generatePassportLetter,
   generateJamaahLeaveLetter,
@@ -31,19 +31,51 @@ import { useQueryClient } from "@tanstack/react-query";
 interface Props {
   booking: any;
   companyInfo: CompanyInfo;
+  passengers?: any[];
 }
 
 type DialogType = "cuti-jamaah" | "general-letter" | null;
 
-export function BookingDocumentActions({ booking, companyInfo }: Props) {
+export function BookingDocumentActions({ booking, companyInfo, passengers = [] }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
+  const [selectedJamaahId, setSelectedJamaahId] = useState<string>("__booking_customer__");
   const { logDocument } = useDocumentLogger();
   const queryClient = useQueryClient();
 
-  const customer = booking?.customer as any;
   const departure = booking?.departure as any;
   const pkg = departure?.package;
+
+  // Build the list of selectable jamaah: main booker + all passengers
+  const jamaahOptions = useMemo(() => {
+    const mainCustomer = booking?.customer as any;
+    const options: { id: string; label: string; customer: any }[] = [];
+    if (mainCustomer) {
+      options.push({
+        id: "__booking_customer__",
+        label: `${mainCustomer.full_name || "Pemesan Utama"} (Pemesan)`,
+        customer: mainCustomer,
+      });
+    }
+    passengers.forEach((p: any) => {
+      const c = p.customer as any;
+      if (c && c.id !== mainCustomer?.id) {
+        options.push({
+          id: p.id,
+          label: c.full_name || `Jamaah ${p.seat_number || ""}`,
+          customer: c,
+        });
+      }
+    });
+    return options;
+  }, [booking, passengers]);
+
+  // Resolve the active customer based on selection
+  const customer: any = useMemo(() => {
+    if (selectedJamaahId === "__booking_customer__") return booking?.customer;
+    const found = jamaahOptions.find((o) => o.id === selectedJamaahId);
+    return found?.customer ?? booking?.customer;
+  }, [selectedJamaahId, jamaahOptions, booking]);
 
   // ── Surat Paspor ──────────────────────────────────────────────────────────
   const handlePassportLetter = async () => {
@@ -281,7 +313,35 @@ export function BookingDocumentActions({ booking, companyInfo }: Props) {
             Buat Surat
           </h3>
         </div>
-        <CardContent className="p-4 space-y-2">
+        <CardContent className="p-4 space-y-3">
+          {/* Jamaah selector — show only when there are multiple choices */}
+          {jamaahOptions.length > 1 && (
+            <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-violet-600">
+                <Users className="h-3 w-3" />
+                Jamaah yang Dituju
+              </div>
+              <Select value={selectedJamaahId} onValueChange={setSelectedJamaahId}>
+                <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-900 border-violet-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {jamaahOptions.map((opt) => (
+                    <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedJamaahId !== "__booking_customer__" && (
+                <p className="text-[10px] text-violet-500">
+                  Surat akan dibuat atas nama <strong>{customer?.full_name || "-"}</strong>
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
           {/* Surat Paspor — direct */}
           <Button
             className="w-full justify-start h-10 font-bold text-xs"
@@ -350,6 +410,7 @@ export function BookingDocumentActions({ booking, companyInfo }: Props) {
             <FileText className="h-4 w-4 mr-3 text-slate-500" />
             SURAT UMUM
           </Button>
+          </div>
         </CardContent>
       </Card>
 
