@@ -42,6 +42,10 @@ export interface TransactionFormTemplate {
   termsText: string;
   footerText?: string;
   cancellationPolicy?: CancellationPolicy; // structured policy (overrides termsText rendering)
+  /** Paper size for the generated PDF. Default: "a4". */
+  paperSize?: "a4" | "letter";
+  /** Page orientation. Default: "portrait". */
+  orientation?: "portrait" | "landscape";
 }
 
 export interface RoomCombination {
@@ -206,10 +210,25 @@ export async function generateTransactionForm(
   const font = template.fontFamily;
   const acc = hexToRgb(template.accentColor);
   const MARGIN = 10;
-  const pw = 210; // A4 width mm
+
+  const paperSize = template.paperSize ?? "a4";
+  const orientation = template.orientation ?? "portrait";
+  const doc = new jsPDF({ orientation, unit: "mm", format: paperSize });
+  const pw = doc.internal.pageSize.width;
   const cw = pw - MARGIN * 2; // content width
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  // Collect non-fatal layout warnings to surface in the preview UI so the
+  // user can spot risky page-breaks / clipping before downloading.
+  const warnings: string[] = [];
+  const wrappedEnsureSpace = (y: number, needed: number, label?: string) => {
+    const ph = doc.internal.pageSize.height;
+    if (y + needed > ph - LAYOUT.FOOTER_RESERVE - 2 && label) {
+      warnings.push(`Konten "${label}" melewati page-break dan dipindah ke halaman berikutnya.`);
+    }
+    return ensureSpace(doc, y, needed);
+  };
+  // Stash warnings on the doc so callers can read them.
+  (doc as any).__warnings = warnings;
   doc.setFont(font);
   doc.setTextColor(0, 0, 0);
 
