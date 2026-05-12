@@ -79,6 +79,7 @@ export default function AdminBookings() {
   const [dateTo, setDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
+  const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [periodPreset, setPeriodPreset] = useState<string>("all");
@@ -108,10 +109,25 @@ export default function AdminBookings() {
         `, { count: 'exact' });
 
       if (searchTerm) {
-        // Sanitize special characters that could break PostgREST queries
-        const sanitized = searchTerm.replace(/[%_()\\*?{}[\]]/g, '');
-        if (sanitized.trim()) {
-          query = query.or(`booking_code.ilike.%${sanitized}%,customer_id.in.(select id from customers where full_name.ilike.%${sanitized}% or phone.ilike.%${sanitized}%)`);
+        // Sanitize special characters that could break PostgREST queries.
+        // PostgREST does NOT support nested SQL subqueries inside `.or()`, jadi
+        // resolve dulu customer IDs yang cocok, lalu pakai `.in()` literal.
+        const sanitized = searchTerm.replace(/[%_()\\*?{}[\],:'"]/g, '').trim();
+        if (sanitized) {
+          const safeOr = sanitized.replace(/[,()]/g, ' ');
+          const { data: matchedCustomers } = await supabase
+            .from('customers')
+            .select('id')
+            .or(`full_name.ilike.%${safeOr}%,phone.ilike.%${safeOr}%`)
+            .limit(200);
+          const customerIds = (matchedCustomers || []).map((c: any) => c.id);
+          if (customerIds.length > 0) {
+            query = query.or(
+              `booking_code.ilike.%${sanitized}%,customer_id.in.(${customerIds.join(',')})`
+            );
+          } else {
+            query = query.ilike('booking_code', `%${sanitized}%`);
+          }
         }
       }
       if (statusFilter !== "all") query = query.eq('booking_status', statusFilter as any);
@@ -195,25 +211,31 @@ export default function AdminBookings() {
     },
   });
 
-  // Extract unique packages, departures, branches for filter options
-  const filterOptions = useMemo(() => {
-    if (!bookings) return { packages: [], departures: [], branches: [] };
-    const pkgMap = new Map<string, string>();
-    const depMap = new Map<string, string>();
-    const brMap = new Map<string, string>();
-    bookings.forEach(b => {
-      const dep = b.departure;
-      const branch = b.branch;
-      if (dep?.package?.id) pkgMap.set(dep.package.id, dep.package.name);
-      if (dep?.id) depMap.set(dep.id, `${formatDate(dep.departure_date)} - ${dep.package?.name || ''}`);
-      if (branch?.id) brMap.set(branch.id, branch.name);
-    });
-    return {
-      packages: Array.from(pkgMap, ([id, name]) => ({ id, name })),
-      departures: Array.from(depMap, ([id, name]) => ({ id, name })),
-      branches: Array.from(brMap, ([id, name]) => ({ id, name })),
-    };
-  }, [bookings]);
+  // Server-side filter options (lengkap, tidak terbatas halaman saat ini)
+  const { data: filterOptionsData } = useQuery({
+    queryKey: ['admin-bookings-filter-options'],
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      const [pkgs, deps, brs] = await Promise.all([
+        supabase.from('packages').select('id, name').order('name'),
+        supabase
+          .from('departures')
+          .select('id, departure_date, package:packages(name)')
+          .order('departure_date', { ascending: false })
+          .limit(200),
+        supabase.from('branches').select('id, name').order('name'),
+      ]);
+      return {
+        packages: (pkgs.data || []).map((p: any) => ({ id: p.id, name: p.name })),
+        departures: (deps.data || []).map((d: any) => ({
+          id: d.id,
+          name: `${formatDate(d.departure_date)} - ${d.package?.name || ''}`,
+        })),
+        branches: (brs.data || []).map((b: any) => ({ id: b.id, name: b.name })),
+      };
+    },
+  });
+  const filterOptions = filterOptionsData ?? { packages: [], departures: [], branches: [] };
 
   // Pagination
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -247,14 +269,50 @@ export default function AdminBookings() {
 
   const hasActiveFilters = !!searchTerm || activeFilterCount > 0;
 
-  const stats = {
-    total: bookings?.length || 0,
-    pending: bookings?.filter(b => b.booking_status === 'pending').length || 0,
-    confirmed: bookings?.filter(b => b.booking_status === 'confirmed').length || 0,
-    unpaid: bookings?.filter(b => b.payment_status === 'pending').length || 0,
-    totalRevenue: bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0,
-    totalPaid: bookings?.reduce((sum, b) => sum + (b.paid_amount || 0), 0) || 0,
-  };
+  // Server-side aggregate stats — mengikuti filter yang sama dengan list
+  // sehingga angka di kartu mencerminkan seluruh dataset (bukan halaman saat ini).
+  const { data: serverStats } = useQuery({
+    queryKey: ['admin-bookings-stats', searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo],
+    staleTime: 1000 * 60 * 2,
+    queryFn: async () => {
+      let q = supabase
+        .from('bookings')
+        .select('booking_status, payment_status, total_price, paid_amount, departure_id');
+
+      if (statusFilter !== 'all') q = q.eq('booking_status', statusFilter as any);
+      if (paymentFilter !== 'all') q = q.eq('payment_status', paymentFilter as any);
+      if (branchFilter !== 'all') q = q.eq('branch_id', branchFilter);
+      if (departureFilter !== 'all') {
+        q = q.eq('departure_id', departureFilter);
+      } else if (packageFilter !== 'all') {
+        const { data: deps } = await supabase
+          .from('departures').select('id').eq('package_id', packageFilter);
+        const ids = (deps || []).map(d => d.id);
+        if (ids.length === 0) return { total: 0, pending: 0, confirmed: 0, unpaid: 0, totalRevenue: 0, totalPaid: 0 };
+        q = q.in('departure_id', ids);
+      }
+      if (dateFrom) q = q.gte('created_at', dateFrom);
+      if (dateTo) q = q.lte('created_at', dateTo + 'T23:59:59');
+
+      const { data, error } = await q.limit(10000);
+      if (error) throw error;
+      const rows = (data || []) as Array<{
+        booking_status?: string | null;
+        payment_status?: string | null;
+        total_price?: number | null;
+        paid_amount?: number | null;
+      }>;
+      return {
+        total: rows.length,
+        pending: rows.filter(b => b.booking_status === 'pending').length,
+        confirmed: rows.filter(b => b.booking_status === 'confirmed').length,
+        unpaid: rows.filter(b => b.payment_status === 'pending').length,
+        totalRevenue: rows.reduce((s, b) => s + (b.total_price || 0), 0),
+        totalPaid: rows.reduce((s, b) => s + (b.paid_amount || 0), 0),
+      };
+    },
+  });
+  const stats = serverStats ?? { total: 0, pending: 0, confirmed: 0, unpaid: 0, totalRevenue: 0, totalPaid: 0 };
 
   const toggleAll = () => {
     if (selectedBookings.length === (paginatedBookings?.length || 0)) {
@@ -808,8 +866,11 @@ export default function AdminBookings() {
                             variant="outline"
                             size="sm"
                             className="text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-950/30"
+                            disabled={sendingReminderId === booking.id}
                             onClick={async (e) => {
                               e.preventDefault();
+                              if (sendingReminderId) return;
+                              setSendingReminderId(booking.id);
                               try {
                                 const res = await fetch('/api/whatsapp/payment-reminder', {
                                   method: 'POST',
@@ -824,11 +885,13 @@ export default function AdminBookings() {
                                 }
                               } catch (err: any) {
                                 toast({ title: "Gagal", description: err.message || 'Tidak dapat mengirim reminder', variant: "destructive" });
+                              } finally {
+                                setSendingReminderId(null);
                               }
                             }}
                           >
                             <MessageSquare className="h-4 w-4 mr-1" />
-                            Tagih
+                            {sendingReminderId === booking.id ? 'Mengirim...' : 'Tagih'}
                           </Button>
                         )}
                       </div>
