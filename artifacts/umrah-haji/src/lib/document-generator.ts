@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { drawPaymentWatermark } from './pdf/watermark';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
