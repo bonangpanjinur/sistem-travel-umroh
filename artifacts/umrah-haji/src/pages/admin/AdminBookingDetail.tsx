@@ -55,6 +55,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
 import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
+import { RoomTypeAssignmentDialog } from "@/components/admin/RoomTypeAssignmentDialog";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
@@ -101,6 +102,7 @@ export default function AdminBookingDetail() {
   const [showChangePackageDialog, setShowChangePackageDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
+  const [showRoomTypeAssignmentDialog, setShowRoomTypeAssignmentDialog] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -827,16 +829,37 @@ export default function AdminBookingDetail() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Tipe Kamar</p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-semibold">{getRoomTypeLabel(booking.room_type)}</Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {/* Show all unique room types from passengers if available */}
+                        {passengers && passengers.length > 0 ? (() => {
+                          const rtColors: Record<string, string> = {
+                            quad:   "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+                            triple: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                            double: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+                            single: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+                          };
+                          const rtLabels: Record<string, string> = { quad: "Quad", triple: "Triple", double: "Double", single: "Single" };
+                          const counts: Record<string, number> = {};
+                          passengers.forEach((p: any) => {
+                            const rt = p.room_preference || booking.room_type || "quad";
+                            counts[rt] = (counts[rt] || 0) + 1;
+                          });
+                          return Object.entries(counts).map(([rt, count]) => (
+                            <Badge key={rt} className={`text-[10px] font-bold ${rtColors[rt] || ""}`}>
+                              {rtLabels[rt] || rt} ×{count}
+                            </Badge>
+                          ));
+                        })() : (
+                          <Badge variant="outline" className="font-semibold">{getRoomTypeLabel(booking.room_type)}</Badge>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="sm" 
                           className="h-6 px-2 text-[10px] gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={() => setShowChangeRoomTypeDialog(true)}
+                          onClick={() => setShowRoomTypeAssignmentDialog(true)}
                         >
                           <Pencil className="h-3 w-3" />
-                          Ubah
+                          Atur Per Jamaah
                         </Button>
                       </div>
                     </div>
@@ -1025,20 +1048,58 @@ export default function AdminBookingDetail() {
             <div className="bg-slate-900 text-white p-5">
               <h3 className="font-bold text-xs uppercase tracking-widest opacity-60 mb-4">Rincian Tagihan</h3>
               <div className="space-y-2.5">
-                {/* Per-pax price breakdown */}
+                {/* Per-room-type breakdown — reads from actual passenger room_preference */}
                 {(() => {
+                  const getPrice = (rt: string): number => {
+                    const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
+                    const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
+                    return fromDep || fromPkg || 0;
+                  };
+
+                  const rtLabels: Record<string, string> = { quad: "Quad", triple: "Triple", double: "Double", single: "Single" };
+
+                  // If passengers are loaded with room_preference, group by room type
+                  if (passengers && passengers.length > 0) {
+                    const groups: Record<string, { count: number; price: number }> = {};
+                    passengers.forEach((p: any) => {
+                      const rt = (p.room_preference || booking.room_type || 'quad') as string;
+                      if (!groups[rt]) groups[rt] = { count: 0, price: getPrice(rt) };
+                      groups[rt].count += 1;
+                    });
+
+                    const hasMixedTypes = Object.keys(groups).length > 1;
+
+                    return (
+                      <>
+                        {hasMixedTypes && (
+                          <div className="text-xs opacity-60 pb-1 border-b border-white/10 mb-1">
+                            Rincian per tipe kamar
+                          </div>
+                        )}
+                        {Object.entries(groups).map(([rt, { count, price }]) => (
+                          <div key={rt} className="flex justify-between text-sm">
+                            <span className="opacity-80">
+                              {rtLabels[rt] || rt}: {count} jamaah × {formatCurrency(price)}
+                            </span>
+                            <span className="font-semibold">{formatCurrency(count * price)}</span>
+                          </div>
+                        ))}
+                      </>
+                    );
+                  }
+
+                  // Fallback: use booking-level data
                   const rt = (booking.room_type || 'quad') as string;
-                  const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
-                  const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
-                  const pricePerPax = (fromDep || fromPkg) ?? (booking.base_price / (booking.total_pax || 1));
+                  const pricePerPax = getPrice(rt) || (booking.base_price / (booking.total_pax || 1));
                   const adultCount = (booking as any).adult_count || 0;
                   const childCount = (booking as any).child_count || 0;
                   const infantCount = (booking as any).infant_count || 0;
                   const hasBreakdown = adultCount > 0 || childCount > 0 || infantCount > 0;
+
                   return (
                     <>
                       <div className="flex justify-between text-xs opacity-70 pb-1">
-                        <span>Kamar {getRoomTypeLabel(booking.room_type)}</span>
+                        <span>Kamar {rtLabels[rt] || rt}</span>
                         <span className="font-mono">{formatCurrency(pricePerPax)}/orang</span>
                       </div>
                       {hasBreakdown ? (
@@ -1401,6 +1462,17 @@ export default function AdminBookingDetail() {
           currentTotalPrice={booking.total_price || 0}
           totalPax={booking.total_pax || 1}
           paidAmount={booking.paid_amount || 0}
+        />
+      )}
+
+      {/* Per-passenger room type assignment */}
+      {booking && passengers && (
+        <RoomTypeAssignmentDialog
+          isOpen={showRoomTypeAssignmentDialog}
+          onClose={() => setShowRoomTypeAssignmentDialog(false)}
+          bookingId={id || ""}
+          passengers={passengers}
+          departure={departure}
         />
       )}
 

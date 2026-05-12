@@ -281,6 +281,7 @@ export function BulkPassengerExport({ passengers, booking, companyInfo, bookingI
                 </TableHead>
                 <TableHead className="font-bold text-xs uppercase tracking-wider">Nama Lengkap</TableHead>
                 <TableHead className="font-bold text-xs uppercase tracking-wider">Hubungan</TableHead>
+                <TableHead className="font-bold text-xs uppercase tracking-wider">Kamar</TableHead>
                 <TableHead className="font-bold text-xs uppercase tracking-wider">No. Paspor</TableHead>
                 <TableHead className="font-bold text-xs uppercase tracking-wider text-right">Aksi</TableHead>
               </TableRow>
@@ -315,6 +316,21 @@ export function BulkPassengerExport({ passengers, booking, companyInfo, bookingI
                       <Badge variant="outline" className="capitalize text-[10px] font-bold bg-muted/50">
                         {(p as any).relationship || "Diri Sendiri"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const rt = (p as any).room_preference as string | undefined;
+                        const colors: Record<string, string> = {
+                          quad:   "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+                          triple: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                          double: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+                          single: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+                        };
+                        const labels: Record<string, string> = { quad: "Quad", triple: "Triple", double: "Double", single: "Single" };
+                        return rt ? (
+                          <Badge className={`text-[10px] font-bold ${colors[rt] || ""}`}>{labels[rt] || rt}</Badge>
+                        ) : <span className="text-muted-foreground text-xs">-</span>;
+                      })()}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {p.customer?.passport_number || "-"}
