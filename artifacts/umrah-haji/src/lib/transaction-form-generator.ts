@@ -725,17 +725,27 @@ export async function generateTransactionForm(
   return doc;
 }
 
+export interface TransactionFormPreview {
+  url: string;
+  pageCount: number;
+  warnings: string[];
+}
+
 /**
- * Generate the same form and return a Blob URL suitable for in-app preview
- * (e.g. iframe in DocumentPreviewModal). Caller is responsible for
+ * Generate the form and return a Blob URL plus metadata (page count + layout
+ * warnings) for in-app preview. Caller is responsible for
  * URL.revokeObjectURL when done.
  */
 export async function previewTransactionForm(
   data: TransactionFormData,
   company: TransactionFormCompany,
   template: TransactionFormTemplate = DEFAULT_TEMPLATE
-): Promise<string> {
+): Promise<TransactionFormPreview> {
   const doc = await generateTransactionForm(data, company, template);
   const blob = doc.output("blob");
-  return URL.createObjectURL(blob);
+  return {
+    url: URL.createObjectURL(blob),
+    pageCount: doc.getNumberOfPages(),
+    warnings: ((doc as any).__warnings as string[] | undefined) ?? [],
+  };
 }
