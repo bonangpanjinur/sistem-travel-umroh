@@ -946,15 +946,15 @@ export default function AdminDepartureDetail() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* K4 — Quick status change */}
-          {departure?.status && STATUS_FLOW[departure.status] && (
+          {departure?.status && STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW] && (
             <Button
               size="sm"
-              className={STATUS_FLOW[departure.status].color + " text-white"}
-              onClick={() => statusMutation.mutate(STATUS_FLOW[departure.status].next)}
+              className={STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW].color + " text-white"}
+              onClick={() => statusMutation.mutate(STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW].next)}
               disabled={statusMutation.isPending}
             >
               <Zap className="h-3.5 w-3.5 mr-1.5" />
-              {STATUS_FLOW[departure.status].label}
+              {STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW].label}
             </Button>
           )}
           <Button onClick={() => setIsFormOpen(true)}>
