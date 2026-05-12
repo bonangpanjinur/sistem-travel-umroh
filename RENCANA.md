@@ -449,9 +449,9 @@ pnpm --filter @workspace/api-spec run codegen
 
 | ID | Fitur | Dampak | Prioritas |
 |----|-------|--------|-----------|
-| P1 | **Upload foto/galeri paket** — form edit paket tidak ada field upload gambar. Featured image masih URL manual | Tinggi | 🟠 |
+| P1 | **Upload foto/galeri paket** — `PackageGalleryCard` dengan drag-drop, multi-upload, urutan, preview, hapus | Tinggi | ✅ Done |
 | P4 | **Riwayat perubahan harga** — audit trail: siapa ubah harga, dari berapa ke berapa, kapan | Menengah | 🟡 |
-| P5 | **Total kapasitas aggregat** — total kursi terisi dari semua keberangkatan di header PackageDetail admin | Sedang | 🟡 |
+| P5 | **Total kapasitas aggregat** — card di AdminPackageDetail: total jamaah, total kuota, % terisi, breakdown status keberangkatan | Sedang | ✅ Done |
 | P6 | **Tag/label kustom** — selain `is_featured`, admin perlu label "Best Seller", "Early Bird", "Flash Sale" | Rendah | - |
 | P7 | **Salin itinerary antar paket** — copy template itinerary dari paket A ke paket B 1 klik | Rendah | - |
 
@@ -488,10 +488,10 @@ pnpm --filter @workspace/api-spec run codegen
 | K2 | **Pre-Departure Checklist** — checklist operasional admin sebelum keberangkatan: visa issued ✅, dokumen lengkap ✅, hotel confirmed ✅, bus siap ✅, tiket tercetak ✅ | Tinggi | ✅ |
 | K3 | **Search nama jamaah** di list penumpang DepartureDetail — filter status/tipe sudah ada tapi tidak ada kolom search by nama | Tinggi | ✅ |
 | K4 | **Quick status change button** di header DepartureDetail — tombol langsung ubah `open→closed→full→departed` tanpa buka form edit | Menengah | ✅ |
-| K5 | **Post-trip summary** — setelah status `departed`, halaman ringkasan: berapa yang benar-benar berangkat, berapa absen, total pendapatan aktual vs target | Menengah | 🟡 |
-| K6 | **Kirim manifest ke email** — manifest PDF bisa download tapi belum bisa langsung email ke muthawif/PIC | Menengah | 🟡 |
+| K5 | **Post-trip summary** — card muncul otomatis saat status `departed`: jamaah berangkat, tidak berangkat, % kehadiran, breakdown adult/child/infant | Menengah | ✅ Done |
+| K6 | **Kirim manifest ke email** — dialog "Kirim via Email" di Export dropdown: input email+nama penerima, build HTML table, kirim via `/api/email/send` | Menengah | ✅ Done |
 | K7 | **Generate sertifikat massal** — tombol 1 klik generate sertifikat untuk semua jamaah setelah trip completed | Rendah | - |
-| K8 | **Notifikasi H-X terjadwal** — trigger otomatis H-7, H-3, H-1 sebelum keberangkatan (WA blast terjadwal) | Menengah | 🟡 |
+| K8 | **Notifikasi H-X terjadwal** — card H-X di info tab: tampilkan H- saat ini, tombol "Kirim H-7/H-3/H-1 Blast" ke seluruh jamaah via WA | Menengah | ✅ Done |
 | K9 | **Ringkasan anggaran di header** — DepartureBudgetTab ada tapi tidak muncul di overview. Tampilkan total aktual vs anggaran di tab header | Rendah | - |
 
 ---

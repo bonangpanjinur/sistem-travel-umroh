@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/collapsible";
 import { formatCurrency, formatPackageType, formatDate } from "@/lib/format";
 import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { slugify } from "@/lib/slug";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
 import { PackageForm } from "@/components/admin/forms/PackageForm";
@@ -178,6 +178,17 @@ export default function AdminPackageDetail() {
   };
 
   const dynamicData = getDynamicData();
+
+  const aggregateCapacity = useMemo(() => {
+    if (!departures || departures.length === 0) return null;
+    const totalQuota = departures.reduce((sum, d) => sum + (d.quota || 0), 0);
+    const totalBooked = departures.reduce((sum, d) => sum + ((d as any).booked_count || 0), 0);
+    const openCount = departures.filter(d => d.status === 'open').length;
+    const departedCount = departures.filter(d => d.status === 'departed').length;
+    const fullCount = departures.filter(d => d.status === 'full').length;
+    const fillPct = totalQuota > 0 ? Math.round((totalBooked / totalQuota) * 100) : 0;
+    return { totalQuota, totalBooked, openCount, departedCount, fullCount, fillPct, total: departures.length };
+  }, [departures]);
 
   const getMilestoneStatus = (deadline: string | null) => {
     if (!deadline) return { label: "Belum diatur", color: "text-muted-foreground", icon: Clock };
@@ -433,6 +444,58 @@ export default function AdminPackageDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* P5 — Aggregate Capacity across all departures */}
+      {aggregateCapacity && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Kapasitas Aggregat — Semua Keberangkatan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="rounded-lg bg-muted/50 p-4 text-center">
+                <p className="text-2xl font-bold">{aggregateCapacity.totalBooked}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Jamaah</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-4 text-center">
+                <p className="text-2xl font-bold">{aggregateCapacity.totalQuota}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Kuota</p>
+              </div>
+              <div className="rounded-lg bg-primary/10 p-4 text-center">
+                <p className="text-2xl font-bold text-primary">{aggregateCapacity.fillPct}%</p>
+                <p className="text-xs text-muted-foreground mt-1">Terisi</p>
+              </div>
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">{aggregateCapacity.openCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">Jadwal Buka</p>
+              </div>
+              <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 p-4 text-center">
+                <p className="text-2xl font-bold text-orange-500">{aggregateCapacity.fullCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">Jadwal Penuh</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-4 text-center">
+                <p className="text-2xl font-bold text-muted-foreground">{aggregateCapacity.departedCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">Sudah Berangkat</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>{aggregateCapacity.totalBooked} jamaah terdaftar</span>
+                <span>dari {aggregateCapacity.totalQuota} kuota total ({aggregateCapacity.total} keberangkatan)</span>
+              </div>
+              <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-primary h-full transition-all"
+                  style={{ width: `${Math.min(100, aggregateCapacity.fillPct)}%` }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cancellation Policy */}
       <PackageCancellationPolicyCard packageId={id} packageName={packageData.name} />

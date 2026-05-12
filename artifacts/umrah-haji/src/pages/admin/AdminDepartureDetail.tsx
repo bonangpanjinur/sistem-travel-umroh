@@ -67,6 +67,12 @@ import {
   Zap,
   ClipboardCheck,
   ShieldCheck,
+  Mail,
+  Bell,
+  TrendingUp,
+  UserCheck,
+  UserX,
+  Send,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -100,6 +106,15 @@ export default function AdminDepartureDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debugOpen, setDebugOpen] = useState(false);
   const [editingPassenger, setEditingPassenger] = useState<any>(null);
+
+  // K6 — Email manifest state
+  const [isEmailManifestOpen, setIsEmailManifestOpen] = useState(false);
+  const [manifestEmail, setManifestEmail] = useState("");
+  const [manifestEmailName, setManifestEmailName] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  // K8 — H-X notification state
+  const [sendingHX, setSendingHX] = useState<number | null>(null);
 
   // If no id, show error
   if (!id) {
@@ -440,6 +455,131 @@ export default function AdminDepartureDetail() {
     },
     onError: (err: any) => toast.error("Gagal ubah status: " + err.message),
   });
+
+  // K6 — Send manifest via email
+  const sendManifestEmail = async () => {
+    if (!manifestEmail.trim()) {
+      toast.error("Masukkan alamat email tujuan");
+      return;
+    }
+    if (!departure || !passengers || passengers.length === 0) {
+      toast.error("Tidak ada data jamaah untuk dikirim");
+      return;
+    }
+    setIsSendingEmail(true);
+    try {
+      const pkgName = departure.package?.name || "Manifest";
+      const depDate = departure.departure_date
+        ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId })
+        : "-";
+      const rows = (filteredPassengers.length > 0 ? filteredPassengers : passengers)
+        .map((p: any, i: number) => `
+          <tr style="background:${i % 2 === 0 ? "#f9fafb" : "#fff"}">
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${i + 1}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.full_name || "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.gender === "male" ? "L" : "P"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.passport_number || "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.passport_expiry ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy") : "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${(p.booking?.room_type || "-").toUpperCase()}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.room_number || "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.phone || "-"}</td>
+          </tr>`)
+        .join("");
+      const body = `
+        <div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto">
+          <h2 style="color:#1e40af">✈️ Manifest Jamaah — ${pkgName}</h2>
+          <p><strong>Tanggal Berangkat:</strong> ${depDate}</p>
+          <p><strong>No. Flight:</strong> ${departure.flight_number || "-"} &nbsp;|&nbsp; <strong>Total Jamaah:</strong> ${passengers.length} orang</p>
+          <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:13px">
+            <thead>
+              <tr style="background:#1e40af;color:#fff">
+                <th style="padding:8px;border:1px solid #1e40af">No</th>
+                <th style="padding:8px;border:1px solid #1e40af">Nama Lengkap</th>
+                <th style="padding:8px;border:1px solid #1e40af">L/P</th>
+                <th style="padding:8px;border:1px solid #1e40af">No. Paspor</th>
+                <th style="padding:8px;border:1px solid #1e40af">Exp. Paspor</th>
+                <th style="padding:8px;border:1px solid #1e40af">Tipe Kamar</th>
+                <th style="padding:8px;border:1px solid #1e40af">No. Kamar</th>
+                <th style="padding:8px;border:1px solid #1e40af">Telepon</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p style="margin-top:16px;color:#6b7280;font-size:12px">Dikirim oleh sistem Vinstour Travel • ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: localeId })}</p>
+        </div>`;
+      const resp = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: manifestEmail.trim(),
+          toName: manifestEmailName.trim() || undefined,
+          template: "custom",
+          subject: `Manifest Jamaah — ${pkgName} (${depDate})`,
+          body,
+        }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.success) throw new Error(result.error || "Gagal mengirim email");
+      toast.success("Manifest berhasil dikirim ke " + manifestEmail);
+      setIsEmailManifestOpen(false);
+      setManifestEmail("");
+      setManifestEmailName("");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengirim email manifest");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  // K8 — Send H-X WA blast to all passengers with phone
+  const sendHXNotification = async (daysAhead: number) => {
+    if (!departure || !passengers || passengers.length === 0) {
+      toast.error("Tidak ada jamaah untuk dinotifikasi");
+      return;
+    }
+    const targets = passengers.filter((p: any) => p.customer?.phone);
+    if (targets.length === 0) {
+      toast.error("Tidak ada nomor WA yang tersedia");
+      return;
+    }
+    setSendingHX(daysAhead);
+    let successCount = 0;
+    let failCount = 0;
+    const pkgName = departure.package?.name || "Paket";
+    const depDate = departure.departure_date
+      ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId })
+      : "-";
+    const depAirport = departure.departure_airport?.code || "-";
+
+    for (const p of targets) {
+      try {
+        const resp = await fetch("/api/whatsapp/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: p.customer.phone,
+            name: p.customer.full_name,
+            type: "departure_reminder",
+            data: {
+              customerName: p.customer.full_name,
+              packageName: pkgName,
+              departureDate: depDate,
+              departureAirport: depAirport,
+              daysUntilDeparture: daysAhead,
+              flightNumber: departure.flight_number || "-",
+            },
+          }),
+        });
+        if (resp.ok) successCount++;
+        else failCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setSendingHX(null);
+    if (successCount > 0) toast.success(`H-${daysAhead} blast terkirim ke ${successCount} jamaah`);
+    if (failCount > 0) toast.error(`${failCount} pesan gagal terkirim`);
+  };
 
   const STATUS_FLOW: Record<string, { next: string; label: string; color: string }> = {
     open:     { next: "closed",   label: "Tutup Pendaftaran",  color: "bg-yellow-500 hover:bg-yellow-600" },
@@ -1067,6 +1207,133 @@ export default function AdminDepartureDetail() {
             </Card>
           </div>
 
+          {/* K8 — H-X Scheduled WA Notification */}
+          {departure.departure_date && departure.status !== 'departed' && (() => {
+            const daysLeft = Math.ceil(
+              (new Date(departure.departure_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+            );
+            const passengerCount = passengers?.filter((p: any) => p.customer?.phone).length || 0;
+            const hxOptions = [7, 3, 1];
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-amber-500" />
+                    Notifikasi H-X Keberangkatan
+                    <span className="text-sm font-normal text-muted-foreground ml-2">
+                      (H-{daysLeft > 0 ? daysLeft : 0} saat ini • {passengerCount} jamaah punya WA)
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Kirim WA blast pengingat keberangkatan ke seluruh jamaah yang memiliki nomor WhatsApp.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {hxOptions.map((day) => (
+                      <Button
+                        key={day}
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                        onClick={() => sendHXNotification(day)}
+                        disabled={sendingHX !== null || passengerCount === 0}
+                      >
+                        {sendingHX === day ? (
+                          <span className="animate-pulse">Mengirim...</span>
+                        ) : (
+                          <>
+                            <Bell className="h-3.5 w-3.5 mr-1.5" />
+                            Kirim H-{day} Blast
+                          </>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+                  {passengerCount === 0 && (
+                    <p className="text-xs text-destructive mt-2">Tidak ada nomor WA tersedia pada data jamaah.</p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* K5 — Post-trip summary (only when departed) */}
+          {departure.status === 'departed' && (
+            <Card className="border-blue-200 dark:border-blue-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                  <TrendingUp className="h-5 w-5" />
+                  Ringkasan Post-Trip
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-4 text-center">
+                    <UserCheck className="h-6 w-6 mx-auto text-emerald-600 mb-1" />
+                    <p className="text-2xl font-bold text-emerald-700">{passengerStats.checkedIn}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Jamaah Berangkat</p>
+                  </div>
+                  <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-4 text-center">
+                    <UserX className="h-6 w-6 mx-auto text-red-500 mb-1" />
+                    <p className="text-2xl font-bold text-red-600">{passengerStats.total - passengerStats.checkedIn}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Tidak Berangkat</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 text-center">
+                    <Users className="h-6 w-6 mx-auto text-blue-600 mb-1" />
+                    <p className="text-2xl font-bold text-blue-700">{passengerStats.total}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total Jamaah</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/10 p-4 text-center">
+                    <TrendingUp className="h-6 w-6 mx-auto text-primary mb-1" />
+                    <p className="text-2xl font-bold text-primary">
+                      {passengerStats.total > 0
+                        ? Math.round((passengerStats.checkedIn / passengerStats.total) * 100)
+                        : 0}%
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Tingkat Kehadiran</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Kehadiran</span>
+                    <span className="font-medium">{passengerStats.checkedIn}/{passengerStats.total} jamaah</span>
+                  </div>
+                  <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full transition-all"
+                      style={{
+                        width: `${passengerStats.total > 0 ? Math.min(100, (passengerStats.checkedIn / passengerStats.total) * 100) : 0}%`
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <div className="rounded bg-muted/50 p-2 text-center">
+                    <p className="text-xs text-muted-foreground">Adult</p>
+                    <p className="font-semibold">{passengerStats.adult}</p>
+                  </div>
+                  <div className="rounded bg-muted/50 p-2 text-center">
+                    <p className="text-xs text-muted-foreground">Child</p>
+                    <p className="font-semibold">{passengerStats.child}</p>
+                  </div>
+                  <div className="rounded bg-muted/50 p-2 text-center">
+                    <p className="text-xs text-muted-foreground">Infant</p>
+                    <p className="font-semibold">{passengerStats.infant}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">Catatan Trip</p>
+                  <p>Keberangkatan <strong>{departure.package?.name}</strong> pada {departure.departure_date ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId }) : "-"} telah selesai. 
+                  Jamaah yang check-in: <strong>{passengerStats.checkedIn}</strong> dari <strong>{passengerStats.total}</strong> terdaftar ({passengerStats.total > 0 ? Math.round((passengerStats.checkedIn / passengerStats.total) * 100) : 0}% kehadiran).</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* K1 — Visa Status Summary */}
           {customerIds.length > 0 && (
             <DepartureVisaSummary departureId={id || ""} customerIds={customerIds} />
@@ -1225,6 +1492,10 @@ export default function AdminDepartureDetail() {
                       <DropdownMenuItem onClick={exportManifestExcel}>
                         <FileDown className="h-4 w-4 mr-2 text-green-600" />
                         Manifest Excel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setIsEmailManifestOpen(true)}>
+                        <Mail className="h-4 w-4 mr-2 text-purple-600" />
+                        Kirim via Email
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Kamar &amp; Keuangan</DropdownMenuLabel>
@@ -1572,6 +1843,63 @@ export default function AdminDepartureDetail() {
           }}
         />
       )}
+
+      {/* K6 — Email Manifest Dialog */}
+      <Dialog open={isEmailManifestOpen} onOpenChange={setIsEmailManifestOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-purple-600" />
+              Kirim Manifest via Email
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Manifest {passengers?.length || 0} jamaah akan dikirim sebagai tabel HTML ke alamat email di bawah.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Email Tujuan <span className="text-destructive">*</span></label>
+                <Input
+                  type="email"
+                  placeholder="muthawif@example.com"
+                  value={manifestEmail}
+                  onChange={e => setManifestEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && sendManifestEmail()}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Nama Penerima (opsional)</label>
+                <Input
+                  type="text"
+                  placeholder="Ustadz Muthawif / PIC"
+                  value={manifestEmailName}
+                  onChange={e => setManifestEmailName(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                className="flex-1"
+                onClick={sendManifestEmail}
+                disabled={isSendingEmail || !manifestEmail.trim()}
+              >
+                {isSendingEmail ? (
+                  <span className="animate-pulse">Mengirim...</span>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Kirim Manifest
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" onClick={() => setIsEmailManifestOpen(false)} disabled={isSendingEmail}>
+                Batal
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
