@@ -29,6 +29,17 @@ import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
+import { useAuth } from "@/hooks/useAuth";
+
+/**
+ * Sanitize input for PostgREST `.or()` filter values.
+ * Removes characters that would break the filter syntax or enable
+ * injection of additional predicates: comma, parentheses, asterisk,
+ * percent, colon, single quotes.
+ */
+function sanitizeOrSearch(input: string): string {
+  return input.replace(/[,()*%:'"\\]/g, " ").replace(/\s+/g, " ").trim();
+}
 
 interface PackageData {
   id: string;
