@@ -672,6 +672,13 @@ export type Database = {
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "booking_status_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bookings: {
@@ -784,6 +791,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_financial_summary"
             referencedColumns: ["departure_id"]
+          },
+          {
+            foreignKeyName: "bookings_sales_id_fkey"
+            columns: ["sales_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
