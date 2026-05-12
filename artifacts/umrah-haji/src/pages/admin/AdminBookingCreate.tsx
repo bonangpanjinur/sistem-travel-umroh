@@ -29,6 +29,17 @@ import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
+import { useAuth } from "@/hooks/useAuth";
+
+/**
+ * Sanitize input for PostgREST `.or()` filter values.
+ * Removes characters that would break the filter syntax or enable
+ * injection of additional predicates: comma, parentheses, asterisk,
+ * percent, colon, single quotes.
+ */
+function sanitizeOrSearch(input: string): string {
+  return input.replace(/[,()*%:'"\\]/g, " ").replace(/\s+/g, " ").trim();
+}
 
 interface PackageData {
   id: string;
@@ -138,6 +149,7 @@ function PassengerCard({ passenger: p, idx, setPassengers }: {
 export default function AdminBookingCreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [activeStep, setActiveStep] = useState(1);
   const [packageId, setPackageId] = useState<string>("");
@@ -217,10 +229,12 @@ export default function AdminBookingCreate() {
     queryKey: ['customer-search', customerSearch],
     queryFn: async () => {
       if (!customerSearch || customerSearch.length < 2) return [];
+      const safe = sanitizeOrSearch(customerSearch);
+      if (safe.length < 2) return [];
       const { data, error } = await supabase
         .from('customers')
         .select('id, full_name, phone, email, nik')
-        .or(`full_name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,nik.ilike.%${customerSearch}%`)
+        .or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%,nik.ilike.%${safe}%`)
         .limit(10);
       if (error) throw error;
       return data;
@@ -369,11 +383,35 @@ export default function AdminBookingCreate() {
       if (!departureId || passengers.some(p => !p.customer_id)) throw new Error("Data jamaah belum lengkap");
       if (doubleValidationError) throw new Error("Tipe Double harus kelipatan 2 orang");
 
+      // ── Validasi: cegah jamaah duplikat dalam satu booking ──────────────
+      const passengerIds = passengers.map(p => p.customer_id).filter(Boolean) as string[];
+      const dupSet = new Set<string>();
+      for (const id of passengerIds) {
+        if (dupSet.has(id)) throw new Error("Terdapat jamaah duplikat dalam daftar penumpang");
+        dupSet.add(id);
+      }
+
+      // ── Validasi: cegah jamaah sudah punya booking aktif di departure ini ─
+      const { data: existing, error: existingError } = await supabase
+        .from('booking_passengers')
+        .select('customer_id, booking:bookings!inner(id, departure_id, booking_status)')
+        .in('customer_id', passengerIds)
+        .eq('booking.departure_id', departureId);
+      if (existingError) throw existingError;
+      const conflict = (existing || []).find((row: any) =>
+        row?.booking?.booking_status && !['cancelled', 'refunded'].includes(row.booking.booking_status)
+      );
+      if (conflict) {
+        throw new Error("Salah satu jamaah sudah terdaftar di booking aktif untuk departure ini");
+      }
+
       const { data: bookingCode, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: selectedPackage?.code || '', _departure_date: selectedDeparture?.departure_date || new Date().toISOString().split('T')[0] });
       if (bookingCodeError) throw bookingCodeError;
       const mainCustomerId = passengers[0].customer_id;
       const dominantRoom = getDominantRoomType();
-      const basePrice = prices[dominantRoom];
+      // Weighted-average base price agar mencerminkan kombinasi tipe kamar,
+      // bukan hanya tipe dominan (mengurangi diskrepansi total vs base_price * pax).
+      const basePrice = passengers.length > 0 ? Math.round(totalPrice / passengers.length) : 0;
 
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
@@ -393,6 +431,8 @@ export default function AdminBookingCreate() {
           notes: notes || null,
           branch_id: picType === 'cabang' && picBranchId ? picBranchId : null,
           agent_id: picType === 'agen' && picAgentId ? picAgentId : null,
+          // Catat staff internal (pusat/cabang) yang menginput booking sebagai sales PIC.
+          sales_id: picType !== 'agen' ? user?.id ?? null : null,
         })
         .select()
         .single();
