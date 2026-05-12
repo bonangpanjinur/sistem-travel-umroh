@@ -194,6 +194,10 @@ export const PERMISSIONS = {
 
   // FITUR 10 — Kalkulator Bagasi
   BAGGAGE_CALCULATOR: 'baggage-calculator',
+
+  // Sprint 4
+  CICILAN_GENERATOR: 'cicilan-generator',
+  PROPOSAL_GENERATOR: 'proposal-generator',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

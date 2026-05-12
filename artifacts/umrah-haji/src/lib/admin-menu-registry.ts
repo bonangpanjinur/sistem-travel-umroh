@@ -87,8 +87,10 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   // ── Fase 9 — Integrasi & Otomasi (550s) ──────────────────────────────────
   { key: 'wa-otomatis',      label: 'WA Otomatis',           path: '/admin/wa-otomatis',      icon: 'MessageSquareDot',  group_name: 'Integrasi & Otomasi', sort_order: 551, required_permission: PERMISSIONS.WA_OTOMATIS },
   { key: 'midtrans',         label: 'Midtrans Payment',      path: '/admin/midtrans',         icon: 'CreditCard',        group_name: 'Integrasi & Otomasi', sort_order: 552, required_permission: PERMISSIONS.MIDTRANS },
-  { key: 'cicilan-reminder', label: 'Reminder Cicilan',      path: '/admin/cicilan-reminder', icon: 'BellRing',          group_name: 'Integrasi & Otomasi', sort_order: 553, required_permission: PERMISSIONS.CICILAN_REMINDER },
-  { key: 'virtual-account',  label: 'Virtual Account',       path: '/admin/virtual-account',  icon: 'Landmark',          group_name: 'Integrasi & Otomasi', sort_order: 554, required_permission: PERMISSIONS.VIRTUAL_ACCOUNT },
+  { key: 'cicilan-reminder',   label: 'Reminder Cicilan',      path: '/admin/cicilan-reminder',   icon: 'BellRing',     group_name: 'Integrasi & Otomasi', sort_order: 553, required_permission: PERMISSIONS.CICILAN_REMINDER },
+  { key: 'cicilan-generator',  label: 'Generator Cicilan',     path: '/admin/cicilan-generator',  icon: 'CalendarRange', group_name: 'Integrasi & Otomasi', sort_order: 554, required_permission: PERMISSIONS.CICILAN_GENERATOR },
+  { key: 'virtual-account',    label: 'Virtual Account',       path: '/admin/virtual-account',    icon: 'Landmark',     group_name: 'Integrasi & Otomasi', sort_order: 555, required_permission: PERMISSIONS.VIRTUAL_ACCOUNT },
+  { key: 'proposal-generator', label: 'Generator Proposal',    path: '/admin/proposal-generator', icon: 'FileOutput',   group_name: 'Dokumen',             sort_order: 809, required_permission: PERMISSIONS.PROPOSAL_GENERATOR },
 
   // ── Fase 10 — AI & Smart Analytics (560s) ────────────────────────────────
   { key: 'sentimen-feedback',  label: 'Analisis Sentimen',      path: '/admin/sentimen-feedback',  icon: 'Smile',             group_name: 'AI & Analytics',      sort_order: 561, required_permission: PERMISSIONS.SENTIMEN_FEEDBACK },

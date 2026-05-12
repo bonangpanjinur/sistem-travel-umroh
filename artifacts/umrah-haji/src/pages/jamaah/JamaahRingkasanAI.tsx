@@ -5,59 +5,112 @@ const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import {
   Sparkles, Home, ChevronRight, Download, Share2, Star,
-  MapPin, Clock, Camera, BookOpen, Heart, Award, RefreshCcw,
-  Calendar, Plane, Moon, Sun, CheckCircle2
+  Camera, BookOpen, Heart, Award, RefreshCcw,
+  Calendar, Plane, CheckCircle2, Users, CreditCard,
+  MapPin, Moon, Footprints
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/format";
 import jsPDF from "jspdf";
 
-function generateRingkasan(booking: any, photos: number, badges: number): string {
+function buildRingkasan(booking: any, photos: number, badges: number, attendance: any, checklist: any, passengers: any[]): string {
   const nama = booking?.customer?.full_name || "Jamaah";
   const paket = booking?.departure?.package?.name || "Umroh";
-  const tglBerangkat = booking?.departure?.departure_date ? format(parseISO(booking.departure.departure_date), "d MMMM yyyy", { locale: idLocale }) : "—";
-  const tglKembali = booking?.departure?.return_date ? format(parseISO(booking.departure.return_date), "d MMMM yyyy", { locale: idLocale }) : "—";
+  const tglBerangkat = booking?.departure?.departure_date
+    ? format(parseISO(booking.departure.departure_date), "d MMMM yyyy", { locale: idLocale }) : "—";
+  const tglKembali = booking?.departure?.return_date
+    ? format(parseISO(booking.departure.return_date), "d MMMM yyyy", { locale: idLocale }) : "—";
   const lama = booking?.departure?.departure_date && booking?.departure?.return_date
-    ? differenceInDays(new Date(booking.departure.return_date), new Date(booking.departure.departure_date))
-    : 10;
-  const hotel = booking?.departure?.hotel_name || "Hotel Bintang 4 di Makkah & Madinah";
-  const maskapai = booking?.departure?.flight_number || "Saudi Airlines";
-  const ibadahEstimasi = Math.round(lama * 5);
-  const kmEstimasi = Math.round(lama * 8.5);
+    ? differenceInDays(new Date(booking.departure.return_date), new Date(booking.departure.departure_date)) : 10;
+  const hotel = booking?.departure?.hotel_makkah?.name || booking?.departure?.hotel_name || "Hotel Bintang 4";
+  const maskapai = booking?.departure?.airline?.name || booking?.departure?.flight_number || "Saudi Airlines";
+  const totalPax = passengers.length || booking?.total_pax || 1;
+  const paidAmount = booking?.paid_amount || 0;
+  const totalPrice = booking?.total_price || 0;
+  const paidPct = totalPrice > 0 ? Math.round((paidAmount / totalPrice) * 100) : 100;
 
-  return `Alhamdulillah, perjalanan suci Anda telah selesai. Berikut adalah ringkasan perjalanan ibadah ${nama}:
+  const hadir = attendance?.hadir ?? null;
+  const totalAbsen = attendance?.total ?? null;
+  const attendancePct = hadir !== null && totalAbsen > 0 ? Math.round((hadir / totalAbsen) * 100) : null;
 
-🕋 PERJALANAN ${paket.toUpperCase()}
-Tanggal Berangkat: ${tglBerangkat}
-Tanggal Kembali: ${tglKembali}  
-Durasi: ${lama} hari ${lama} malam
+  const checklistDone = checklist?.done ?? null;
+  const checklistTotal = checklist?.total ?? null;
+  const checklistPct = checklistDone !== null && checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : null;
 
-✈️ PERJALANAN
-Maskapai: ${maskapai}
-Akomodasi: ${hotel}
-Jarak tempuh estimasi: ±${kmEstimasi} km
+  const ibadahEstimasi = lama * 5;
+  const thawafPerkiraan = Math.max(7, Math.round(lama / 2));
 
-🕌 IBADAH (Estimasi)
-Total sholat berjamaah: ~${ibadahEstimasi} sholat
-Thawaf: 7 putaran × beberapa kali
-Sa'i: 7 kali antara Shafa–Marwa
-Doa & dzikir: ${Math.round(lama * 150)}+ kali
+  let lines: string[] = [
+    `Alhamdulillah, perjalanan suci ${nama} telah selesai. Berikut ringkasan perjalanan ibadah yang tercatat dalam sistem Vinstour Travel:`,
+    "",
+    `🕋 PERJALANAN ${paket.toUpperCase()}`,
+    `Tanggal Berangkat  : ${tglBerangkat}`,
+    `Tanggal Kembali    : ${tglKembali}`,
+    `Durasi             : ${lama} hari ${lama} malam`,
+    `Total Jamaah       : ${totalPax} orang`,
+    "",
+    `✈️ TRANSPORTASI & AKOMODASI`,
+    `Maskapai           : ${maskapai}`,
+    `Hotel Makkah       : ${hotel}`,
+  ];
+  if (booking?.departure?.hotel_madinah?.name) {
+    lines.push(`Hotel Madinah      : ${booking.departure.hotel_madinah.name}`);
+  }
+  lines.push("");
 
-📸 KENANGAN
-Foto yang diupload: ${photos} foto
-Badge pencapaian: ${badges} badge
-Jurnal perjalanan: ${lama} entri
+  if (attendancePct !== null) {
+    lines.push(`✅ KEHADIRAN PROGRAM`);
+    lines.push(`Hadir              : ${hadir} dari ${totalAbsen} sesi (${attendancePct}%)`);
+    if (attendancePct >= 90) lines.push(`Kehadiran Anda sangat baik — Alhamdulillah! 🎉`);
+    else if (attendancePct >= 70) lines.push(`Kehadiran Anda cukup baik.`);
+    else lines.push(`Ada beberapa sesi yang terlewatkan — semoga Allah tetap menerima ibadah Anda.`);
+    lines.push("");
+  }
 
-🌟 PENCAPAIAN SPIRITUAL
-Anda telah menyelesaikan perjalanan ibadah yang luar biasa. Semoga setiap langkah, setiap doa, dan setiap air mata keharuan menjadi amalan yang diterima Allah SWT.
+  if (checklistPct !== null) {
+    lines.push(`📋 CHECKLIST PERSIAPAN`);
+    lines.push(`Selesai            : ${checklistDone} dari ${checklistTotal} item (${checklistPct}%)`);
+    lines.push("");
+  }
 
-Semoga menjadi haji/umroh yang mabrur. Barakallahu fiikum 🤲`;
+  lines.push(`🕌 IBADAH (Estimasi)`);
+  lines.push(`Sholat berjamaah   : ~${ibadahEstimasi} sholat`);
+  lines.push(`Thawaf             : ${thawafPerkiraan} × 7 putaran`);
+  lines.push(`Sa'i               : di antara Shafa–Marwa`);
+  lines.push(`Doa & dzikir       : ${lama * 150}+ kali`);
+  lines.push("");
+
+  lines.push(`📸 KENANGAN DIGITAL`);
+  lines.push(`Foto diupload      : ${photos} foto`);
+  lines.push(`Badge pencapaian   : ${badges} badge`);
+  lines.push("");
+
+  if (paidPct >= 100) {
+    lines.push(`💳 PEMBAYARAN`);
+    lines.push(`Status             : ✅ Lunas (${formatCurrency(paidAmount)})`);
+    lines.push("");
+  } else if (paidPct > 0) {
+    lines.push(`💳 PEMBAYARAN`);
+    lines.push(`Terbayar           : ${formatCurrency(paidAmount)} (${paidPct}%)`);
+    lines.push("");
+  }
+
+  lines.push(`🌟 PENUTUP`);
+  lines.push(`Semoga setiap langkah, setiap doa, dan setiap tetes air mata keharuan di Tanah Suci`);
+  lines.push(`menjadi amalan yang diterima Allah SWT. Semoga menjadi haji/umroh yang mabrur.`);
+  lines.push("");
+  lines.push(`Barakallahu fiikum 🤲`);
+  lines.push(`— Tim Vinstour Travel`);
+
+  return lines.join("\n");
 }
 
 export default function JamaahRingkasanAI() {
@@ -74,9 +127,14 @@ export default function JamaahRingkasanAI() {
       const { data } = await supabase
         .from("bookings")
         .select(`
-          id, booking_code, booking_status,
-          departure:departures(departure_date, return_date, flight_number, hotel_name,
-            package:packages(name, package_type:package_types(name))),
+          id, booking_code, booking_status, total_price, paid_amount, remaining_amount, total_pax,
+          departure:departures(
+            departure_date, return_date, flight_number, hotel_name,
+            hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name, star_rating),
+            hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, star_rating),
+            airline:airlines(name),
+            package:packages(name, package_type:package_types(name))
+          ),
           customer:profiles(full_name)
         `)
         .eq("customer_id", user!.id)
@@ -106,14 +164,65 @@ export default function JamaahRingkasanAI() {
 
   const selected = (bookings as any[]).find(b => b.id === selectedBooking);
 
+  const { data: attendanceSummary } = useQuery({
+    queryKey: ["ringkasan-attendance", selected?.departure?.id],
+    enabled: !!selected?.departure?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("attendance")
+        .select("status")
+        .eq("user_id", user!.id);
+      if (!data) return null;
+      const hadir = data.filter((a: any) => a.status === "hadir").length;
+      return { hadir, total: data.length };
+    },
+  });
+
+  const { data: checklistSummary } = useQuery({
+    queryKey: ["ringkasan-checklist", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("jamaah_checklist")
+        .select("is_done")
+        .eq("user_id", user!.id);
+      if (!data) return null;
+      const done = data.filter((c: any) => c.is_done).length;
+      return { done, total: data.length };
+    },
+  });
+
+  const { data: passengers = [] } = useQuery({
+    queryKey: ["ringkasan-passengers", selectedBooking],
+    enabled: !!selectedBooking,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("booking_passengers")
+        .select("id, passenger_type")
+        .eq("booking_id", selectedBooking);
+      return data || [];
+    },
+  });
+
+  const lama = selected?.departure?.departure_date && selected?.departure?.return_date
+    ? differenceInDays(new Date(selected.departure.return_date), new Date(selected.departure.departure_date))
+    : 0;
+
   async function generateRingkasanAI() {
     if (!selected) return;
     setGenerating(true);
-    await new Promise(r => setTimeout(r, 1200));
-    const text = generateRingkasan(selected, (photos as any[]).length, (badges as any[]).length);
+    await new Promise(r => setTimeout(r, 800));
+    const text = buildRingkasan(
+      selected,
+      (photos as any[]).length,
+      (badges as any[]).length,
+      attendanceSummary,
+      checklistSummary,
+      passengers as any[],
+    );
     setRingkasan(text);
     setGenerating(false);
-    toast.success("Ringkasan perjalanan AI berhasil dibuat!");
+    toast.success("Ringkasan perjalanan berhasil dibuat dari data aktual Anda!");
   }
 
   async function downloadPDF() {
@@ -125,37 +234,46 @@ export default function JamaahRingkasanAI() {
       const lineWidth = W - margin * 2;
 
       doc.setFillColor(30, 58, 138);
-      doc.rect(0, 0, W, 45, "F");
+      doc.rect(0, 0, W, 48, "F");
       doc.setFillColor(212, 175, 55);
-      doc.rect(0, 42, W, 2, "F");
+      doc.rect(0, 45, W, 2.5, "F");
 
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
-      doc.setFont("helvetica", "bold");
-      doc.text("RINGKASAN PERJALANAN", W / 2, 20, { align: "center" });
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${selected.departure?.package?.name || "Umroh"} — ${selected.customer?.full_name || ""}`, W / 2, 32, { align: "center" });
+      doc.setFontSize(20); doc.setFont("helvetica", "bold");
+      doc.text("RINGKASAN PERJALANAN", W / 2, 18, { align: "center" });
+      doc.setFontSize(13); doc.setFont("helvetica", "normal");
+      doc.text(`${selected.departure?.package?.name || "Umroh"} — ${selected.customer?.full_name || ""}`, W / 2, 30, { align: "center" });
+      doc.setFontSize(9);
+      doc.text(selected.booking_code || "", W / 2, 39, { align: "center" });
 
       doc.setTextColor(30, 30, 30);
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
       const lines = doc.splitTextToSize(ringkasan, lineWidth);
       let y = 55;
       for (const line of lines) {
-        if (y > 270) { doc.addPage(); y = 20; }
+        if (y > 272) { doc.addPage(); y = 20; }
+        const isBold = line.match(/^[🕋✈️🕌📸💳✅📋🌟]/u) || line.startsWith("PERJALANAN") || line.startsWith("TRANSPORTASI") || line.startsWith("KEHADIRAN") || line.startsWith("CHECKLIST") || line.startsWith("IBADAH") || line.startsWith("KENANGAN") || line.startsWith("PEMBAYARAN") || line.startsWith("PENUTUP");
+        if (isBold) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10.5);
+        } else {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+        }
         doc.text(line, margin, y);
-        y += 6;
+        y += isBold ? 6.5 : 5.5;
       }
 
-      doc.setFillColor(212, 175, 55);
-      doc.rect(0, doc.internal.pageSize.height - 15, W, 15, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(9);
-      doc.text(`Vinstour Travel — ${format(new Date(), "MMMM yyyy", { locale: idLocale })}`, W / 2, doc.internal.pageSize.height - 5, { align: "center" });
+      const pages = doc.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFillColor(212, 175, 55);
+        doc.rect(0, 284, W, 13, "F");
+        doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont("helvetica", "normal");
+        doc.text(`Vinstour Travel — ${format(new Date(), "MMMM yyyy", { locale: idLocale })}`, W / 2, 291.5, { align: "center" });
+      }
 
-      doc.save(`Ringkasan_Perjalanan_${selected.customer?.full_name?.replace(/\s+/g, "_") || "Jamaah"}.pdf`);
+      doc.save(`Ringkasan_${selected.customer?.full_name?.replace(/\s+/g, "_") || "Jamaah"}.pdf`);
       toast.success("PDF berhasil diunduh");
     } catch (e: any) {
       toast.error("Gagal generate PDF: " + e.message);
@@ -168,10 +286,7 @@ export default function JamaahRingkasanAI() {
     if (!ringkasan) return;
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: "Ringkasan Perjalanan Umroh — Vinstour",
-          text: ringkasan.slice(0, 500) + "...",
-        });
+        await navigator.share({ title: "Ringkasan Perjalanan Umroh — Vinstour", text: ringkasan.slice(0, 500) + "..." });
       } else {
         await navigator.clipboard.writeText(ringkasan);
         toast.success("Ringkasan disalin ke clipboard");
@@ -179,17 +294,13 @@ export default function JamaahRingkasanAI() {
     } catch {}
   }
 
-  const lama = selected?.departure?.departure_date && selected?.departure?.return_date
-    ? differenceInDays(new Date(selected.departure.return_date), new Date(selected.departure.departure_date))
-    : 0;
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="flex items-center gap-3 px-4 py-3">
           <Link to="/jamaah"><Home className="h-5 w-5 text-muted-foreground" /></Link>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          <span className="font-semibold text-sm">Ringkasan Perjalanan AI</span>
+          <span className="font-semibold text-sm">Ringkasan Perjalanan</span>
         </div>
       </div>
 
@@ -198,8 +309,8 @@ export default function JamaahRingkasanAI() {
           <div className="flex items-start gap-3">
             <div className="p-2 bg-white/20 rounded-xl"><Sparkles className="h-6 w-6" /></div>
             <div>
-              <h1 className="text-lg font-bold">Ringkasan Perjalanan AI</h1>
-              <p className="text-sm text-indigo-100 mt-0.5">AI merangkum perjalanan ibadah Anda secara personal</p>
+              <h1 className="text-lg font-bold">Ringkasan Perjalanan</h1>
+              <p className="text-sm text-indigo-100 mt-0.5">Dibuat dari data aktual perjalanan ibadah Anda</p>
             </div>
           </div>
         </div>
@@ -211,7 +322,7 @@ export default function JamaahRingkasanAI() {
             <CardContent className="p-6 text-center space-y-3">
               <Plane className="h-12 w-12 mx-auto text-muted-foreground opacity-30" />
               <p className="text-muted-foreground">Belum ada perjalanan yang selesai</p>
-              <p className="text-xs text-muted-foreground">Ringkasan AI hanya tersedia setelah perjalanan ibadah Anda selesai</p>
+              <p className="text-xs text-muted-foreground">Ringkasan hanya tersedia setelah perjalanan ibadah Anda selesai</p>
             </CardContent>
           </Card>
         ) : (
@@ -219,7 +330,7 @@ export default function JamaahRingkasanAI() {
             <Card>
               <CardContent className="p-4 space-y-3">
                 <label className="text-sm font-medium">Pilih Perjalanan</label>
-                <Select value={selectedBooking} onValueChange={setSelectedBooking}>
+                <Select value={selectedBooking} onValueChange={v => { setSelectedBooking(v); setRingkasan(""); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih booking untuk dirangkum..." />
                   </SelectTrigger>
@@ -236,17 +347,21 @@ export default function JamaahRingkasanAI() {
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {[
                       { icon: Calendar, label: "Berangkat", value: selected.departure?.departure_date ? format(parseISO(selected.departure.departure_date), "dd MMM yyyy", { locale: idLocale }) : "—" },
-                      { icon: Clock, label: "Durasi", value: lama + " hari" },
+                      { icon: Moon, label: "Durasi", value: lama > 0 ? lama + " hari" : "—" },
                       { icon: Camera, label: "Foto", value: (photos as any[]).length + " foto" },
                       { icon: Award, label: "Badge", value: (badges as any[]).length + " badge" },
+                      { icon: Users, label: "Penumpang", value: (passengers as any[]).length > 0 ? (passengers as any[]).length + " orang" : (selected.total_pax || "—") + " pax" },
+                      { icon: CreditCard, label: "Pembayaran", value: selected.total_price > 0 ? Math.min(100, Math.round(((selected.paid_amount || 0) / selected.total_price) * 100)) + "% lunas" : "—" },
+                      ...(attendanceSummary ? [{ icon: CheckCircle2, label: "Kehadiran", value: `${attendanceSummary.hadir}/${attendanceSummary.total} sesi` }] : []),
+                      ...(checklistSummary ? [{ icon: Footprints, label: "Checklist", value: `${checklistSummary.done}/${checklistSummary.total} item` }] : []),
                     ].map((item, i) => {
                       const Icon = item.icon;
                       return (
                         <div key={i} className="bg-muted/50 rounded-lg p-2.5 flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-indigo-500" />
-                          <div>
+                          <Icon className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                          <div className="min-w-0">
                             <p className="text-xs text-muted-foreground">{item.label}</p>
-                            <p className="text-sm font-medium">{item.value}</p>
+                            <p className="text-sm font-medium truncate">{item.value}</p>
                           </div>
                         </div>
                       );
@@ -260,9 +375,9 @@ export default function JamaahRingkasanAI() {
                   disabled={!selectedBooking || generating}
                 >
                   {generating ? (
-                    <><RefreshCcw className="h-4 w-4 mr-2 animate-spin" />AI sedang merangkum perjalanan...</>
+                    <><RefreshCcw className="h-4 w-4 mr-2 animate-spin" />Menyusun ringkasan dari data Anda...</>
                   ) : (
-                    <><Sparkles className="h-4 w-4 mr-2" />Generate Ringkasan AI</>
+                    <><Sparkles className="h-4 w-4 mr-2" />Buat Ringkasan Perjalanan</>
                   )}
                 </Button>
               </CardContent>

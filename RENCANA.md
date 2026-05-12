@@ -588,13 +588,13 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
 10. K8  → Notifikasi H-X terjadwal ✅
 ```
 
-### Sprint 4 — Peningkatan Portal & Integrasi
+### Sprint 4 — Peningkatan Portal & Integrasi ✅
 
 ```
-11. J1  → Ringkasan AI berbasis data aktual (bukan template)
-12. F2  → Generator jadwal cicilan otomatis
-13. N6  → Rate card & proposal PDF otomatis
-14. N2  → Integrasi SISKOHAT Kemenag
+11. J1  → Ringkasan AI berbasis data aktual (bukan template) ✅
+12. F2  → Generator jadwal cicilan otomatis ✅
+13. N6  → Rate card & proposal PDF otomatis ✅
+14. N2  → Integrasi SISKOHAT Kemenag — Import CSV + Print Kartu ✅
 ```
 
 ---

@@ -145,6 +145,10 @@ const AdminCicilanReminder = lazy(() => import("@/pages/admin/AdminCicilanRemind
 const AdminPembayaranReminder = lazy(() => import("@/pages/admin/AdminPembayaranReminder"));
 const AdminVirtualAccount = lazy(() => import("@/pages/admin/AdminVirtualAccount"));
 
+// Sprint 4
+const AdminCicilanGenerator  = lazy(() => import("@/pages/admin/AdminCicilanGenerator"));
+const AdminProposalGenerator = lazy(() => import("@/pages/admin/AdminProposalGenerator"));
+
 // Fase 10 — AI & Smart Analytics
 const AdminSentimenFeedback = lazy(() => import("@/pages/admin/AdminSentimenFeedback"));
 const AdminPrediksiSeat = lazy(() => import("@/pages/admin/AdminPrediksiSeat"));
@@ -355,6 +359,10 @@ export default function AdminRoutes() {
       <Route path="cicilan-reminder" element={<P k={PERMISSIONS.CICILAN_REMINDER}><AdminCicilanReminder /></P>} />
       <Route path="pembayaran-reminder" element={<P k={PERMISSIONS.PEMBAYARAN_REMINDER}><AdminPembayaranReminder /></P>} />
       <Route path="virtual-account" element={<P k={PERMISSIONS.VIRTUAL_ACCOUNT}><AdminVirtualAccount /></P>} />
+
+      {/* Sprint 4 */}
+      <Route path="cicilan-generator"  element={<P k={PERMISSIONS.CICILAN_GENERATOR}><LazyPage><AdminCicilanGenerator /></LazyPage></P>} />
+      <Route path="proposal-generator" element={<P k={PERMISSIONS.PROPOSAL_GENERATOR}><LazyPage><AdminProposalGenerator /></LazyPage></P>} />
 
       {/* Fase 10 — AI & Smart Analytics */}
       <Route path="sentimen-feedback" element={<P k={PERMISSIONS.SENTIMEN_FEEDBACK}><AdminSentimenFeedback /></P>} />
