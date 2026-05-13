@@ -175,10 +175,10 @@ export function useBookingWizardDynamic(
 
       if (!customerId) throw new Error('Gagal memproses data pelanggan');
 
-      // 2. Get departure info
+      // 2. Get departure info (incl. package currency for multi-currency snapshot)
       const { data: departure, error: departureError } = await supabase
         .from('departures')
-        .select('id, departure_date, price_quad, price_triple, price_double, price_single, package:packages(code)')
+        .select('id, departure_date, price_quad, price_triple, price_double, price_single, package:packages(code, currency, booking_mode)')
         .eq('id', formData.departureId)
         .single();
 
@@ -207,6 +207,19 @@ export function useBookingWizardDynamic(
       
       const mainRoomType = (Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'quad') as RoomType;
       const basePrice = priceMap[mainRoomType];
+
+      // 3.1 Multi-currency snapshot (BOOK-FIX1 / CUR-7)
+      const pkgCurrency: string = (departure as any).package?.currency || 'IDR';
+      let exchangeRate = 1;
+      if (pkgCurrency.toUpperCase() !== 'IDR') {
+        const { data: rateRes } = await supabase.rpc('get_active_exchange_rate' as any, {
+          _currency_from: pkgCurrency,
+          _currency_to: 'IDR',
+        });
+        exchangeRate = Number(rateRes) || 1;
+      }
+      const totalPriceOriginal = totalPrice;
+      const totalPriceIdr = totalPrice * exchangeRate;
 
       // 4. Determine PIC (branch_id, agent_id) from picState with strict validation
       const { data: validation, error: validationError } = await supabase.rpc('validate_registration_context' as any, {
@@ -242,6 +255,10 @@ export function useBookingWizardDynamic(
           infant_count: infantCount,
           base_price: basePrice,
           total_price: totalPrice,
+          currency: pkgCurrency,
+          exchange_rate: exchangeRate,
+          total_price_original: totalPriceOriginal,
+          total_price_idr: totalPriceIdr,
           notes: formData.notes,
           branch_id: branchId,
           agent_id: agentId,

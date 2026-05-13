@@ -1,113 +1,112 @@
-## Analisis Menu "Kelola Booking"
 
-### Cakupan analisis
-1. `pages/admin/AdminBookings.tsx` — daftar booking (955 baris)
-2. `pages/admin/AdminBookingCreate.tsx` — wizard pembuatan booking (1.115 baris)
-3. `pages/admin/AdminBookingDetail.tsx` — halaman detail (2.572 baris)
-4. `lib/document-generator.ts` (1.262), `document-generator-v2.ts` (976), `transaction-form-generator.ts` (634), `booking-pdf-exporter*.ts` — generator dokumen PDF
-5. Relasi data ke `bookings`, `booking_passengers`, `departures`, `customers`, `payments`, `agents`, `branches`, `invoice_templates`, `bank_accounts`
+# Analisis Ulang RENCANA.md — Sisa Pekerjaan yang Sebenarnya
+
+Maaf, analisis sebelumnya keliru — saya membaca heading lama (`#### 🔴 PAK-F1 …`) tanpa melihat anotasi `— DONE` yang ditambahkan di akhir judul. Setelah cross-check ulang dengan tabel ringkasan + database + source code, berikut status yang **akurat**.
 
 ---
 
-### Temuan utama
+## A. Yang Saya Salah Sebut "Belum" — Padahal SUDAH Selesai ✅
 
-**A. Halaman Daftar (`AdminBookings.tsx`)**
-- Konfigurasi gaya Excel di-build inline 2x (sekitar 80 baris terduplikasi di tombol Export & tombol Unduh Statistik) — wajib diekstrak.
-- Filter `packageFilter` melakukan query tambahan ke `departures` untuk resolve ID — bekerja, tapi `filterOptions.packages` hanya dibangun dari halaman aktif (20 baris) sehingga dropdown filter tidak konsisten antar halaman.
-- Pencarian pakai `customer_id.in.(select id from customers ...)` lewat PostgREST — rapuh & tidak mendukung sanitasi penuh; lebih baik pakai RPC search atau view.
-- Statistik "halaman ini" (`stats.total/pending/confirmed`) menyesatkan: hanya menghitung 20 baris terlihat, bukan total filter.
-- Warna status hard-coded (`text-yellow-600`, `text-green-600`, dll.) — bukan token semantik.
-- Reminder WA via `fetch('/api/whatsapp/...')` di list — tidak ada loading state per-baris.
-
-**B. Wizard Pembuatan (`AdminBookingCreate.tsx`)**
-- Step 4 (Jamaah) bekerja, tapi: harga ditaruh di `base_price = prices[dominantRoom]` — salah konsep saat kombinasi kamar campuran (Quad+Single). `total_price` benar (terjumlah), tapi `base_price` tidak merepresentasikan apapun.
-- `room_type` booking = "dominant" → kehilangan informasi alokasi sebenarnya. Semua passenger menerima `room_preference` benar, tapi field `bookings.room_type` jadi tidak akurat untuk laporan.
-- `useEffect` resync passenger dependency hanya `[roomAllocation]` → eslint-deps tidak dideklarasikan; bisa overwrite saat user sudah memilih jamaah lalu mengubah jumlah.
-- Pencarian customer pakai `.or(...)` raw string tanpa sanitasi — risiko broken query.
-- Tidak ada validasi NIK ganda di slot, hanya `customer_id` ganda.
-- PIC (pusat/cabang/agen) tidak menyimpan `sales_id` (siapa staf yang input) — padahal kolom tersedia.
-- Tidak ada konfirmasi pre-submit (review akhir) — langsung submit di step 4.
-
-**C. Halaman Detail (`AdminBookingDetail.tsx`) — 2.572 baris, file paling kritis**
-- File monolitik: 7+ mutation, 10+ dialog, timeline, dokumen, refund, ganti paket, ganti kamar, kelola pembayaran. Wajib dipecah jadi sub-komponen: `BookingHeader`, `PassengersPanel`, `PaymentsPanel`, `BookingActionsSidebar`, `BookingTimeline`, `BookingDocumentsPanel`.
-- Banyak `(booking as any)` & `(p as any)` → tipe sudah lemah; tipe `Booking` di `types/database.ts` belum mencakup `payment_deadline`, `addons_price`, `discount_amount`, `discount_label`, `agent_name`, dll.
-- Inline color hard-coded di 50+ tempat (`bg-amber-50`, `text-emerald-600`, `text-violet-700`, `bg-blue-50`...). Tidak ikut design system.
-- Dua dokumen "Invoice" dan "Form Transaksi" memakai 2 generator berbeda dan template field berbeda — desain output tidak konsisten (font, header style, accent color).
-
-**D. Generator Dokumen — desain yang "acak-acakan"**
-- Ada 4 generator paralel: `document-generator.ts`, `document-generator-v2.ts`, `transaction-form-generator.ts`, `booking-pdf-exporter(.enhanced).ts`. Tidak ada sumber gaya tunggal.
-- `transaction-form-generator.ts` membangun layout manual lewat `doc.rect / doc.text` dengan koordinat magic-number → tidak responsif terhadap teks panjang (alamat panjang/nama paket panjang akan tabrakan).
-- `invoice_templates` menyimpan `accent_color`, `font_family`, `header_style`, `payment_info_blocks`, `terms_text`, `footer_text` — tapi hanya `transaction-form-generator` memakainya. Invoice (`generateInvoice`) **tidak** memakai template → keluaran beda gaya.
-- Tidak ada preview PDF di UI; admin harus download dulu untuk melihat hasil.
-- Tidak ada nomor dokumen sekuensial (sudah ada `get_next_document_number` RPC tapi tidak dipakai untuk invoice / form transaksi). Kode dokumen di-generate ad-hoc (`INV-${booking_code}`).
-- Tidak ada watermark "DRAFT/PAID/CANCELLED" sesuai status pembayaran.
-
-**E. Relasi data**
-- `bookings.sales_id` ada di skema tapi tidak diisi saat create.
-- `booking_passengers.room_number` dipakai (C5), tapi tidak divalidasi terhadap kapasitas kamar.
-- `payment_status` di-update otomatis oleh trigger `update_booking_paid_amount` (bagus), tapi `AdminBookingDetail` di beberapa tempat menghitung ulang manual `paidAmount >= total_price ? 'paid' : ...` — sumber kebenaran ganda.
-- `departures.booked_count` disinkron trigger; tidak ada masalah.
-- `agents` ↔ `bookings`: detail menampilkan `bookingAgent` tapi link "Lihat Komisi Agen" mengarah ke `/agent/commissions` (route customer/agent), bukan halaman admin → salah konteks.
-- Tidak ada relasi `bookings ↔ documents` (history dokumen pakai `booking_document_logs` — sudah ada, tapi tidak ada storage path; hanya log nama).
+| Item | Bukti |
+|---|---|
+| **Multi-currency PAK-F1/F2/F3** | `formatCurrency` locale-aware, field currency di `RegularPackageForm` (IDR/USD/SAR/EUR/MYR), departure mewarisi dari package |
+| **TAB-FIX1 Konversi tabungan → booking** | RPC `convert_savings_to_booking` + dialog UI |
+| **TAB-FIX2 Harga terkunci** | Kolom `locked_price` + price-protection saat konversi |
+| **TAB-FIX3 Jadwal cicilan otomatis** | Tabel `savings_schedules` + auto-generate (terverifikasi di DB) |
+| **AdminWebhooks** | Tabel `webhook_configs` + `webhook_logs`, tombol Test memanggil `/api/v1/webhook-test` (lampiran "fitur palsu" sudah usang) |
+| **Endpoint `POST /api/push/send`** | Sudah ada di `artifacts/api-server/src/routes/push.ts:228` |
+| **`scheduled_reports` table & `v_financial_summary` view** | Keduanya ada di DB (cek `information_schema`) |
+| **PAK-F7 Bandingkan paket** | `/packages/compare` aktif di PublicRoutes |
+| **Loyalty F1/F2 + Badge + Reminder tabungan + Reminder dokumen** | Trigger DB + edge functions + pg_cron (sprint 9) |
 
 ---
 
-### Rencana perbaikan (bertahap)
+## B. Yang BENAR-BENAR Masih Pending
 
-**Fase 1 — Refaktor struktur (frontend, no-DB)**
-1. Pecah `AdminBookingDetail.tsx` menjadi:
-   - `components/admin/booking-detail/BookingHeader.tsx`
-   - `components/admin/booking-detail/BookingPassengersPanel.tsx`
-   - `components/admin/booking-detail/BookingPaymentsPanel.tsx`
-   - `components/admin/booking-detail/BookingTimeline.tsx`
-   - `components/admin/booking-detail/BookingActionsSidebar.tsx`
-   - `components/admin/booking-detail/BookingDocumentsPanel.tsx`
-   - `hooks/useBookingDetail.ts` (semua query/mutation)
-2. Ekstrak Excel style builder yang duplikat di `AdminBookings.tsx` ke `lib/excel-style-resolver.ts`.
-3. Perbaiki tipe `Booking` di `types/database.ts`: tambah `payment_deadline`, `addons_price`, `discount_amount`, `discount_label`, `sales_id`, dst. Hilangkan `(booking as any)` di file detail.
-4. Ganti seluruh warna hard-coded (`text-emerald-600`, `bg-amber-50`...) ke token semantik (`text-success`, `bg-warning/10`, `text-info`, dll.) — tambahkan token yang belum ada di `index.css` & `tailwind.config.ts`.
+### B1. 🔴 Kritis Bisnis (Booking Wizard)
+| ID | Item | Catatan |
+|---|---|---|
+| **BOOK-FIX1** | Multi-currency di **wizard booking**: tambah `bookings.exchange_rate`, `total_price_original`, `total_price_idr`; lock kurs saat submit | DB `bookings.currency` sudah ada, tapi `exchange_rate`/`total_price_idr` belum |
+| **BOOK-FIX2** | Wizard adaptif tipe paket: `packages.booking_mode` (umroh/haji/wisata) → Haji skip alokasi kamar, ganti step "Mahram & Kebutuhan Khusus" |
+| **PAK-F4** | Tabel `exchange_rates` + halaman admin manajemen kurs harian | Tabel belum ada |
+| **PAK-F6** | Booking wizard pakai `price_adult/child/infant` untuk Haji (saat ini tetap pakai price_quad/triple/etc) |
 
-**Fase 2 — Konsolidasi dokumen PDF**
-1. Buat `lib/pdf/` baru sebagai single source:
-   - `pdf/template-resolver.ts` (membaca `invoice_templates` + cancellation policy + bank accounts sekali)
-   - `pdf/layout-primitives.ts` (header, footer, signature block, watermark, table)
-   - `pdf/invoice.ts` — pakai template
-   - `pdf/transaction-form.ts` — pakai template yang sama (gaya seragam)
-   - `pdf/document-numbering.ts` — pakai RPC `get_next_document_number('invoice','INV')` & `('transaction_form','FRM')`
-2. Tambah watermark dinamis (`LUNAS / DP / BELUM BAYAR / BATAL`) berdasarkan status.
-3. Hapus / deprecate `document-generator-v2.ts` dan `booking-pdf-exporter.enhanced.ts` setelah migrasi (2 versi paralel membingungkan).
-4. Tambahkan dialog "Preview PDF" sebelum download di `BookingDocumentsPanel` (pakai `<iframe>` dari `doc.output('bloburl')`).
+### B2. 🟠 Penting (Booking & Tabungan & Cabang)
+| ID | Item |
+|---|---|
+| **BOOK-FIX3** | Seat hold (lock 15 menit) cegah overbooking — tabel `seat_locks` + countdown UI |
+| **BOOK-FIX4** | Pilih DP / Full / Tabungan langsung di Step 4 wizard (kurangi drop-off) |
+| **BOOK-FIX6** | Webhook Midtrans auto-confirm + trigger WA notif |
+| **BOOK-FIX7** | Guest checkout recovery via email/WA link unik |
+| **TAB-FIX4** | Flow pembatalan tabungan + kebijakan refund |
+| **TAB-FIX5** | Sertifikat/surat bukti tabungan PDF downloadable |
+| **PAK-F5** | Tipe paket dinamis dari `package_types` (saat ini wisata di-hardcode di enum) |
+| **KEP-F1** | Validasi flight number — minimal link ke Flightradar24 + notif jika berubah |
 
-**Fase 3 — Wizard pembuatan**
-1. `base_price` ditiadakan / dihitung sebagai harga rata-rata ter-weighted; simpan rincian `room_breakdown` di JSONB (kolom baru `bookings.room_breakdown`).
-2. Tambah Step 5 "Review & Konfirmasi" sebelum submit.
-3. Isi `sales_id = auth.uid()` saat PIC = pusat/cabang.
-4. Validasi NIK & passport ganda di slot passenger.
-5. Sanitasi `customerSearch` untuk PostgREST `.or()`.
-6. Hapus `room_type` "dominant" dari `bookings`; gantikan dengan field `primary_room_type` (eksplisit) atau biarkan dari `room_breakdown`.
+### B3. 🟡 Sedang
+| ID | Item |
+|---|---|
+| **PAK-F8** | Filter currency di listing `/packages` |
+| **TAB-FIX6** | Tabungan fleksibel (tidak terikat 1 paket) |
+| **TAB-FIX7** | DP tabungan via Midtrans (bukan hanya manual) |
+| **TAB-FIX8** | Mini-kalkulator tenor di listing tabungan |
+| **AGEN-F8** | CRM Leads auto-link ke booking |
+| **GAP-RBAC-04/05/06/07** | Audit trail permission, sync code↔DB tool, branch-scoped permission, granular agen |
 
-**Fase 4 — Halaman daftar**
-1. Statistik header diganti memakai query agregat ke server (`select count, sum group by status`) — bukan dari halaman aktif.
-2. `filterOptions` (paket, keberangkatan, cabang) diambil via query terpisah, bukan dari hasil halaman.
-3. Sanitasi & RPC `search_bookings` untuk full-text search aman.
-4. Loading state per-baris untuk tombol reminder WA.
+### B4. 🟢 Jangka Panjang (perlu diskusi arsitektur)
+- **N8** i18n Arab/Inggris (200+ file)
+- **AGEN-ADD7** SSR/SEO website agen (butuh Next/Remix)
+- **AGEN-F1** Withdrawal saldo agen via payment gateway
+- **HR Face-verify nyata** + geo-fencing
+- **SISKOHAT** Kemenag (butuh akun PPIU resmi)
+- **GAP-RBAC-01** Permission granular Read/Write/Delete (breaking change)
+- **2FA TOTP** enforcement (saat ini toggle UI sudah, backend OTP belum)
+- **AdminSmartNotif / JamaahRingkasanAI / AdminAISummary** — opsional ganti template lokal ke Lovable AI Gateway, atau biarkan + relabel "Statistik"
 
-**Fase 5 — Migrasi DB pendukung**
-- Tambah kolom `bookings.room_breakdown jsonb`, `bookings.primary_room_type` (opsional), backfill dari `booking_passengers`.
-- Tambah trigger validasi `payment_status` (sudah ada) — pastikan kode FE tidak menghitung ulang.
-- Pastikan `get_next_document_number` mendukung tipe `'invoice'` dan `'transaction_form'`.
-
----
-
-### Prioritas eksekusi yang direkomendasikan
-1. **Fase 1 (refaktor + tipe + token warna)** → fondasi, tidak menyentuh data.
-2. **Fase 2 (PDF konsolidasi)** → langsung menjawab keluhan "desain dokumen acak-acakan".
-3. **Fase 3 (wizard)** → memperbaiki kualitas data baru.
-4. **Fase 4 (daftar)** → akurasi statistik & filter.
-5. **Fase 5 (DB)** → finalisasi.
-
-Setiap fase bisa di-deliver terpisah & build lulus.
+### B5. ⚙️ Konfigurasi (bukan kode)
+Set di Replit Secrets: `MIDTRANS_*`, `SMTP_*`, `VAPID_*`, `VITE_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ---
 
-Setelah Anda setuju, saya akan mulai dari **Fase 1** kecuali Anda ingin urutan lain (misal langsung Fase 2 untuk PDF dulu).
+## C. Rencana Eksekusi (3 Sprint, ringkas)
+
+### Sprint 10 — "Wizard Multi-Currency & Adaptif" (≈4 hari) — KRITIS
+1. **Migrasi DB:**
+   ```sql
+   ALTER TABLE bookings 
+     ADD COLUMN exchange_rate numeric DEFAULT 1,
+     ADD COLUMN total_price_original numeric,
+     ADD COLUMN total_price_idr numeric;
+   ALTER TABLE packages ADD COLUMN booking_mode text DEFAULT 'umroh';
+   CREATE TABLE exchange_rates (
+     id uuid PK, currency_from text, currency_to text DEFAULT 'IDR',
+     rate numeric, source text DEFAULT 'manual',
+     fetched_at timestamptz DEFAULT now(), is_active bool DEFAULT true
+   );
+   ```
+2. Halaman `/admin/exchange-rates` — admin input kurs harian.
+3. `useBookingWizardDynamic`: baca `package.currency` + kurs aktif → snapshot saat submit.
+4. `BookingWizard`: deteksi `booking_mode='haji'` → skip alokasi kamar, render `StepMahramHaji`.
+5. Update `PriceBadge`/`format.ts` agar pass currency dari context.
+
+### Sprint 11 — "Anti Overbooking & Smooth Checkout" (≈3 hari)
+1. **BOOK-FIX3** Tabel `seat_locks` (TTL 15 menit) + `SeatHoldCountdown.tsx` + cron release.
+2. **BOOK-FIX4** Step 4 wizard: radio "Bayar full / DP / Pakai tabungan".
+3. **BOOK-FIX6** Edge function `midtrans-webhook` → auto-update `payment_status='paid'` + enqueue WA via `whatsapp_logs`.
+4. **BOOK-FIX7** Generate `bookings.access_token` + email/WA link `/cek-booking?token=…`.
+
+### Sprint 12 — "Polish Tabungan & Operasional" (≈3 hari)
+1. **TAB-FIX4/5** Flow pembatalan tabungan + sertifikat PDF (`jspdf`).
+2. **PAK-F5** Ganti enum hardcoded → fetch `package_types` dinamis.
+3. **PAK-F6** `BookingWizard` Haji pakai `price_adult/child/infant`.
+4. **PAK-F8** Filter currency di `/packages`.
+5. **KEP-F1** Link Flightradar24 + notif perubahan flight number.
+
+### Backlog (perlu diskusi terpisah)
+i18n, SSR website agen, withdrawal otomatis, 2FA TOTP, face-verify nyata, SISKOHAT, RBAC granular RWD.
+
+---
+
+## D. Rekomendasi
+
+Mulai **Sprint 10** karena memblokir penjualan paket Haji USD secara akurat. Setujui plan ini, atau pilih sprint mana yang mau dikerjakan duluan, atau pilih item spesifik (mis. cuma BOOK-FIX2 + BOOK-FIX3) untuk batch yang lebih kecil.

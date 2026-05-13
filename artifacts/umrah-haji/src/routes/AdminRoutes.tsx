@@ -47,6 +47,7 @@ const AdminCommissionCalculator = lazy(() => import("@/pages/admin/AdminCommissi
 const AdminBaggagePolicies = lazy(() => import("@/pages/admin/AdminBaggagePolicies"));
 const AdminPostDepartureSurvey = lazy(() => import("@/pages/admin/AdminPostDepartureSurvey"));
 const AdminBookingTransfers = lazy(() => import("@/pages/admin/AdminBookingTransfers"));
+const AdminExchangeRates = lazy(() => import("@/pages/admin/AdminExchangeRates"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
 const AdminBranchComparison = lazy(() => import("@/pages/admin/AdminBranchComparison"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
@@ -308,6 +309,7 @@ export default function AdminRoutes() {
       <Route path="baggage-policies" element={<P k={PERMISSIONS.AIRLINES}><LazyPage><AdminBaggagePolicies /></LazyPage></P>} />
       <Route path="post-departure-survey" element={<P k={PERMISSIONS.DEPARTURE_TRACKING}><LazyPage><AdminPostDepartureSurvey /></LazyPage></P>} />
       <Route path="booking-transfers" element={<P k={PERMISSIONS.BOOKINGS}><LazyPage><AdminBookingTransfers /></LazyPage></P>} />
+      <Route path="exchange-rates" element={<P k={PERMISSIONS.EXCHANGE_RATES}><LazyPage><AdminExchangeRates /></LazyPage></P>} />
 
 
       <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />

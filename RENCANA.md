@@ -93,6 +93,26 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 |------|-------|---------|
 | AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA Vite tanpa migrasi ke Next/Remix — ditunda |
 
+### ✅ Tambahan Selesai (Sprint 10 — sebagian Multi-Currency)
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| CUR-1 | Tabel `exchange_rates` + RLS (read all, write admin) | Migrasi 13 Mei 2026 + seed default USD/SAR/EUR/MYR |
+| CUR-2 | Kolom `bookings.exchange_rate / total_price_original / total_price_idr` | Backfill IDR 1:1 untuk booking lama |
+| CUR-2b | Kolom `packages.booking_mode` (umroh/haji/wisata) | Backfill otomatis dari `package_type` |
+| CUR-3 | Halaman `/admin/exchange-rates` | Admin input kurs harian, auto-deactivate kurs lama, riwayat lengkap |
+| CUR-3b | Permission `exchange-rates` + entry menu_items + role super_admin/owner/branch_manager/finance |
+| CUR-3c | Field `booking_mode` di `RegularPackageForm` |
+| CUR-7 | Wizard snapshot kurs saat submit | `useBookingWizardDynamic` panggil RPC `get_active_exchange_rate` & simpan ke booking |
+
+### 🟠 Sisa Sprint 10 (lanjutan)
+
+| Kode | Fitur |
+|------|-------|
+| BOOK-FIX2 | Wizard branching: skip alokasi kamar untuk Haji, render `StepMahramHaji` |
+| CUR-5 | Tampilkan harga + konversi IDR di `BookingWizard` (`PriceBadge`, Step Review) |
+| CUR-8 | Filter currency di listing `/packages` |
+
 > Detail lengkap setiap item ada di section masing-masing di bawah.
 
 ---
