@@ -744,7 +744,7 @@ supabase/
 
 ### Rencana Perbaikan Chatbot (Berurutan Prioritas)
 
-#### P1 — FAQ Manager di Admin Panel 🟠
+#### P1 — FAQ Manager di Admin Panel ✅ Selesai
 
 Buat halaman admin baru `AdminFAQManager` — CRUD FAQ dari UI, simpan ke tabel `faq_knowledge_base` di Supabase. Backend dan widget keduanya baca dari sumber yang sama.
 
@@ -762,13 +762,13 @@ CREATE TABLE faq_knowledge_base (
 
 File: buat `AdminFAQManager.tsx` · ubah `chatbot.ts` · ubah `FloatingChatBubble.tsx`
 
-#### P2 — Log Viewer Percakapan di Admin Panel 🟠
+#### P2 — Log Viewer Percakapan di Admin Panel ✅ Selesai
 
 Tab baru "Log Percakapan" — tabel `chatbot_logs` dengan filter channel/source/rating/tanggal, search full-text, expand row jawaban lengkap, realtime subscription.
 
 File: buat `AdminChatLogs.tsx`
 
-#### P3 — Perbaiki Data Source Top Questions 🟡
+#### P3 — Perbaiki Data Source Top Questions ✅ Selesai
 
 Ganti query `chat_leads.message` → `chatbot_logs.message` dengan `GROUP BY` per kata kunci.
 
@@ -808,9 +808,9 @@ File: ubah `AdminChatbotStats.tsx`
 
 | # | Perbaikan | Dampak | Kompleksitas | Status |
 |---|---|---|---|---|
-| 1 | FAQ Manager admin | Tinggi | Sedang | 🔴 Belum |
-| 2 | Log Viewer percakapan | Tinggi | Sedang | 🔴 Belum |
-| 3 | Perbaiki Top Questions | Sedang | Rendah | 🔴 Belum |
+| 1 | FAQ Manager admin | Tinggi | Sedang | ✅ Selesai |
+| 2 | Log Viewer percakapan | Tinggi | Sedang | ✅ Selesai |
+| 3 | Perbaiki Top Questions | Sedang | Rendah | ✅ Selesai |
 | 4 | Rating di widget publik | Sedang | Rendah | 🔴 Belum |
 | 5 | Riwayat dari server | Tinggi | Sedang | 🔴 Belum |
 | 6 | Deteksi unanswered | Sedang | Rendah | 🔴 Belum |
@@ -835,7 +835,7 @@ File: ubah `AdminChatbotStats.tsx`
 
 ## BAGIAN 14 — RENCANA FITUR: SISTEM ATURAN PEMBATALAN LENGKAP
 
-> **Status:** 🟠 Direncanakan — Fondasi sudah ada, 4 gap tersisa
+> **Status:** 🟡 Sebagian selesai — GAP 1 & GAP 2 selesai, GAP 3 & GAP 4 masih tersisa
 > **Referensi:** N9 di Backlog 6E
 
 ---
@@ -866,7 +866,7 @@ Paket punya aturan sendiri?
 
 ### 14B — Gap yang Perlu Dibangun
 
-#### GAP 1 — Tampil di Modal Saat Booking (Prioritas Tinggi)
+#### GAP 1 — Tampil di Modal Saat Booking ✅ Selesai
 
 **Deskripsi:** Saat calon jamaah/customer di langkah terakhir BookingWizard (StepReview), tampilkan aturan pembatalan paket yang dipilih sebagai collapsible section. Ada checkbox "Saya telah membaca dan menyetujui syarat & ketentuan pembatalan" yang **wajib dicentang** sebelum tombol "Konfirmasi Booking" bisa diklik.
 
@@ -902,7 +902,7 @@ Paket punya aturan sendiri?
 
 ---
 
-#### GAP 2 — Pilih Aturan Saat Membuat/Edit Paket (Prioritas Tinggi)
+#### GAP 2 — Pilih Aturan Saat Membuat/Edit Paket ✅ Selesai
 
 **Deskripsi:** Pada form pembuatan paket (`RegularPackageForm`, `SavingsPackageForm`), tambahkan field "Aturan Pembatalan" berupa dropdown/select. Admin bisa langsung memilih aturan yang akan dikaitkan ke paket ini saat membuat paket — tidak perlu buka AdminPackageDetail terpisah setelah paket dibuat.
 

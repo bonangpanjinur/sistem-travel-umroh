@@ -76,6 +76,7 @@ export function useBookingWizardDynamic(
   const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
   const [picValidation, setPicValidation] = useState<{ isValid: boolean; errorMessage?: string; resolvedBranchId?: string; resolvedAgentId?: string; resolvedReferralId?: string; metadata?: any }>({ isValid: true });
   const [isValidatingPIC, setIsValidatingPIC] = useState(false);
+  const [cancellationAgreed, setCancellationAgreed] = useState<boolean | null>(null);
 
   // Effect for real-time validation
   useMemo(() => {
@@ -393,6 +394,8 @@ export function useBookingWizardDynamic(
     picState,
     setPicState,
     picValidation,
-    isValidatingPIC
+    isValidatingPIC,
+    cancellationAgreed,
+    setCancellationAgreed,
   };
 }

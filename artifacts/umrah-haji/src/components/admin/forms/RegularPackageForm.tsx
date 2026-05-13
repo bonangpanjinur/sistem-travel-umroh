@@ -91,6 +91,23 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
     },
   });
 
+  const { data: cancellationPolicies } = useQuery({
+    queryKey: ["admin-cancellation-policies-global"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cancellation_policies")
+        .select("id, name, description")
+        .eq("is_global", true)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string>(
+    (packageData as any)?.cancellation_policy_id || ""
+  );
+
   const form = useForm<RegularPackageFormValues>({
     resolver: zodResolver(regularPackageSchema),
     defaultValues: {
@@ -170,10 +187,8 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       const payload: any = {
         ...rest,
         code: isEditing ? rest.code : generatePackageCode(typeCode),
-        // package_type: typeCode, // Removed legacy field to support dynamic types like 'tour'
         includes: rest.includes ? rest.includes.split("\n").filter(Boolean) : [],
         excludes: rest.excludes ? rest.excludes.split("\n").filter(Boolean) : [],
-        // Set price/hotel/airline to null - these are managed on departures
         price_quad: 0,
         price_triple: 0,
         price_double: 0,
@@ -182,21 +197,31 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
         hotel_madinah_id: null,
         airline_id: null,
         muthawif_id: null,
-        // Add PIC fee fields
         fee_branch,
         fee_agent,
         fee_sub_agent,
         fee_referral,
       };
 
+      let packageId: string | undefined;
+
       if (isEditing && packageData) {
         const updatePayload: PackageUpdate = payload;
         const { error } = await supabase.from("packages").update(updatePayload).eq("id", packageData.id);
         if (error) throw error;
+        packageId = packageData.id;
       } else {
         const insertPayload: PackageInsert = payload;
-        const { error } = await supabase.from("packages").insert(insertPayload);
+        const { data: inserted, error } = await supabase.from("packages").insert(insertPayload).select("id").single();
         if (error) throw error;
+        packageId = inserted?.id;
+      }
+
+      if (selectedPolicyId && packageId) {
+        await supabase
+          .from("cancellation_policies")
+          .update({ package_id: packageId })
+          .eq("id", selectedPolicyId);
       }
     },
     onSuccess: () => {
@@ -351,6 +376,33 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                 </FormItem>
               )}
             />
+          </div>
+        </div>
+
+        {/* Kebijakan Pembatalan */}
+        <div className="space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <h4 className="text-sm font-semibold text-amber-900 uppercase tracking-wide">Kebijakan Pembatalan</h4>
+          <p className="text-xs text-amber-800">Pilih kebijakan pembatalan global yang berlaku untuk paket ini (opsional)</p>
+          <div className="space-y-1">
+            <Label className="text-sm">Kebijakan Pembatalan</Label>
+            <Select value={selectedPolicyId} onValueChange={setSelectedPolicyId}>
+              <SelectTrigger>
+                <SelectValue placeholder="— Tidak ada / Pilih kebijakan —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">— Tidak ada kebijakan —</SelectItem>
+                {(cancellationPolicies || []).map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedPolicyId && cancellationPolicies?.find((p: any) => p.id === selectedPolicyId)?.description && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {cancellationPolicies.find((p: any) => p.id === selectedPolicyId)?.description}
+              </p>
+            )}
           </div>
         </div>
 

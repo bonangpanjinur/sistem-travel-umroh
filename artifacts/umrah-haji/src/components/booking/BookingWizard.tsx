@@ -107,7 +107,8 @@ export function BookingWizard() {
 
   const {
     currentStep, setCurrentStep, formData, updateFormData, isSubmitting, submitBooking,
-    updateRoomAllocation, picState, setPicState, picValidation, isValidatingPIC
+    updateRoomAllocation, picState, setPicState, picValidation, isValidatingPIC,
+    cancellationAgreed, setCancellationAgreed,
   } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
@@ -255,6 +256,8 @@ export function BookingWizard() {
               } : undefined}
               onCouponApplied={(discount, code) => updateFormData({ notes: `coupon:${code}` })}
               onUpdatePassengers={(passengers) => updateFormData({ passengers })}
+              cancellationAgreed={cancellationAgreed}
+              onCancellationAgreedChange={setCancellationAgreed}
             />
           )}
         </CardContent>
@@ -263,7 +266,7 @@ export function BookingWizard() {
       <div className="flex justify-between">
         <Button variant="outline" onClick={handlePrev} disabled={currentStepIndex === 0}>Sebelumnya</Button>
         {currentStep === 'review' ? (
-          <Button onClick={handleSubmit} disabled={isSubmitting || !picValidation.isValid}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !picValidation.isValid || cancellationAgreed === false}>
             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses...</> : 'Konfirmasi Booking'}
           </Button>
         ) : (

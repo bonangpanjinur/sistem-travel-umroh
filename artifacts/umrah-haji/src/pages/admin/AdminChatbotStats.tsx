@@ -142,8 +142,12 @@ export default function AdminChatbotStats() {
       const byDay: DayStat[] = Object.entries(dayMap).map(([date, count]) => ({ date, count }));
       const avgPerDay = byDay.length > 0 ? +(byDay.reduce((s, d) => s + d.count, 0) / byDay.length).toFixed(1) : 0;
 
+      const [logsFullRes] = await Promise.all([
+        supabase.from("chatbot_logs").select("id,message").order("created_at", { ascending: false }).limit(500),
+      ]);
+      const logsForQ: any[] = logsFullRes.data || [];
       const qMap: Record<string, number> = {};
-      leads.forEach(l => {
+      logsForQ.forEach(l => {
         if (l.message) {
           const key = l.message.slice(0, 60).trim();
           qMap[key] = (qMap[key] || 0) + 1;
@@ -493,9 +497,9 @@ export default function AdminChatbotStats() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-purple-500" /> Pertanyaan Lead Terbanyak
+              <MessageSquare className="h-4 w-4 text-purple-500" /> Pertanyaan Terbanyak ke Chatbot
             </CardTitle>
-            <CardDescription>Pesan pertama yang paling sering dikirim pengunjung saat mengisi form lead</CardDescription>
+            <CardDescription>Pesan yang paling sering ditanyakan pengunjung ke chatbot AI</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2.5">

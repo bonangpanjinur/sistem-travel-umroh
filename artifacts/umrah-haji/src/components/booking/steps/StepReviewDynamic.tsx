@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DynamicBookingFormData } from "@/hooks/useBookingWizardDynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,17 +6,20 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Calendar, Users, BedDouble, Plane, User, Tag, Share2, Loader2, CheckCircle, XCircle, Mail, Phone } from "lucide-react";
+import { Calendar, Users, BedDouble, Plane, User, Tag, Share2, Loader2, CheckCircle, XCircle, Mail, Phone, ShieldAlert, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoomType } from "@/types/database";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface StepReviewDynamicProps {
   formData: DynamicBookingFormData;
   packageInfo: {
+    id?: string;
     name: string;
     duration_days: number;
     package_type: string;
@@ -42,6 +45,8 @@ interface StepReviewDynamicProps {
   onCouponApplied?: (discount: number, code: string) => void;
   onReferralApplied?: (code: string) => void;
   onUpdatePassengers?: (passengers: any[]) => void;
+  cancellationAgreed?: boolean;
+  onCancellationAgreedChange?: (agreed: boolean) => void;
 }
 
 const ROOM_LABELS: Record<RoomType, string> = {
@@ -51,11 +56,43 @@ const ROOM_LABELS: Record<RoomType, string> = {
   single: 'Single',
 };
 
-export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied, onUpdatePassengers }: StepReviewDynamicProps) {
+export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied, onUpdatePassengers, cancellationAgreed, onCancellationAgreedChange }: StepReviewDynamicProps) {
   const { user } = useAuth();
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponResult, setCouponResult] = useState<{ valid: boolean; discount: number; name: string } | null>(null);
+  const [policyExpanded, setPolicyExpanded] = useState(false);
+
+  const { data: cancellationPolicy } = useQuery({
+    queryKey: ["cancellation-policy", packageInfo.id],
+    queryFn: async () => {
+      if (packageInfo.id) {
+        const { data } = await supabase
+          .from("cancellation_policies")
+          .select("id, name, description, terms")
+          .eq("package_id", packageInfo.id)
+          .limit(1)
+          .maybeSingle();
+        if (data) return data;
+      }
+      const { data } = await supabase
+        .from("cancellation_policies")
+        .select("id, name, description, terms")
+        .eq("is_global", true)
+        .limit(1)
+        .maybeSingle();
+      return data ?? null;
+    },
+    enabled: true,
+    staleTime: 60_000,
+  });
+
+  // When a policy loads, signal to parent that agreement is required
+  useEffect(() => {
+    if (cancellationPolicy && cancellationAgreed === null) {
+      onCancellationAgreedChange?.(false);
+    }
+  }, [cancellationPolicy]);
 
   // Use departure prices (if available), fallback to package prices
   const priceSource = departurePrices || packageInfo;
@@ -323,6 +360,51 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
           </div>
         </CardContent>
       </Card>
+
+      {/* Cancellation Policy */}
+      {cancellationPolicy && (
+        <Card className={cancellationAgreed === false ? "border-amber-300" : ""}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-amber-500" />
+              Kebijakan Pembatalan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm font-medium">{cancellationPolicy.name}</p>
+            {cancellationPolicy.description && (
+              <p className="text-sm text-muted-foreground">{cancellationPolicy.description}</p>
+            )}
+            {cancellationPolicy.terms && (
+              <div>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  onClick={() => setPolicyExpanded((v) => !v)}
+                >
+                  {policyExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {policyExpanded ? "Sembunyikan detail" : "Lihat detail syarat & ketentuan"}
+                </button>
+                {policyExpanded && (
+                  <div className="mt-2 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground whitespace-pre-wrap border">
+                    {cancellationPolicy.terms}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-start gap-3 pt-2 border-t">
+              <Checkbox
+                id="cancellation-agree"
+                checked={!!cancellationAgreed}
+                onCheckedChange={(v) => onCancellationAgreedChange?.(!!v)}
+              />
+              <Label htmlFor="cancellation-agree" className="text-sm leading-snug cursor-pointer">
+                Saya telah membaca dan menyetujui kebijakan pembatalan yang berlaku untuk paket ini.
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Price Summary */}
       <Card className="bg-primary/5 border-primary/20">
