@@ -56,6 +56,7 @@ export default function AdminLoyalty() {
     description: "",
     points_required: "",
     stock_quantity: "",
+    image_url: "",
   });
   const [pointFormData, setPointFormData] = useState({
     transaction_type: "EARN",
@@ -113,6 +114,7 @@ export default function AdminLoyalty() {
         description: data.description || null,
         points_required: parseInt(data.points_required),
         stock_quantity: parseInt(data.stock_quantity) || 0,
+        image_url: data.image_url?.trim() || null,
       };
       
       if (data.id) {
@@ -205,10 +207,11 @@ export default function AdminLoyalty() {
         description: reward.description || "",
         points_required: reward.points_required.toString(),
         stock_quantity: reward.stock_quantity.toString(),
+        image_url: reward.image_url || "",
       });
     } else {
       setEditingReward(null);
-      setRewardFormData({ name: "", description: "", points_required: "", stock_quantity: "" });
+      setRewardFormData({ name: "", description: "", points_required: "", stock_quantity: "", image_url: "" });
     }
     setRewardDialogOpen(true);
   };
