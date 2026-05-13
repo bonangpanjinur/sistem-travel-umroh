@@ -382,7 +382,7 @@ export default function JamaahPayment() {
       if (!user?.id) return null;
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, email, phone")
+        .select("full_name, phone")
         .eq("id", user.id)
         .maybeSingle();
       return data;
@@ -424,7 +424,7 @@ export default function JamaahPayment() {
         bookingCode:   (booking as any).booking_code,
         amount:        amountNum,
         customerName:  profile?.full_name || "Jamaah",
-        customerEmail: profile?.email    || user?.email || undefined,
+        customerEmail: user?.email || undefined,
         customerPhone: profile?.phone    || undefined,
       });
       setQrisData(result);
