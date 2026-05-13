@@ -14,6 +14,15 @@ export function useDashboardAlerts() {
       const tomorrowStr = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 
       const supabaseRaw: any = supabase;
+      const safeCount = async (p: any) => {
+        try {
+          const res = await p;
+          if (res?.error) return { count: 0 };
+          return res;
+        } catch {
+          return { count: 0 };
+        }
+      };
       const [
         { data: stockData },
         { count: pendingCount },
@@ -35,23 +44,23 @@ export function useDashboardAlerts() {
           .order('created_at', { ascending: false })
           .limit(5),
         // Reminders dengan deadline hari ini
-        supabaseRaw
+        safeCount(supabaseRaw
           .from('payment_deadline_reminders')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'pending')
-          .eq('payment_deadline', todayStr),
+          .eq('payment_deadline', todayStr)),
         // Reminders jatuh tempo besok
-        supabaseRaw
+        safeCount(supabaseRaw
           .from('payment_deadline_reminders')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'pending')
-          .eq('payment_deadline', tomorrowStr),
+          .eq('payment_deadline', tomorrowStr)),
         // Reminders overdue (deadline sudah lewat, belum terkirim)
-        supabaseRaw
+        safeCount(supabaseRaw
           .from('payment_deadline_reminders')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'pending')
-          .lt('payment_deadline', todayStr),
+          .lt('payment_deadline', todayStr)),
       ]);
 
       const items = stockData || [];
