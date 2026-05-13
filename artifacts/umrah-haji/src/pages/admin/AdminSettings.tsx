@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import {
   Building2, CreditCard, Bell, FileText, User, ShieldAlert,
   Palette, Menu, Lock, Key,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
 import { SidebarManager } from "@/components/admin/SidebarManager";
@@ -10,15 +11,17 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { SectionHead } from "@/components/admin/settings/SectionHead";
 import { SettingsNav } from "@/components/admin/settings/SettingsNav";
-import { CompanySection } from "@/components/admin/settings/CompanySection";
-import { BankSection } from "@/components/admin/settings/BankSection";
-import { DocumentsSection } from "@/components/admin/settings/DocumentsSection";
-import { NotificationsSection } from "@/components/admin/settings/NotificationsSection";
-import { AppearanceSection } from "@/components/admin/settings/AppearanceSection";
-import { SecuritySection } from "@/components/admin/settings/SecuritySection";
-import { ApiKeysSection } from "@/components/admin/settings/ApiKeysSection";
-import { DangerSection } from "@/components/admin/settings/DangerSection";
 import type { NavItem, SettingsSection } from "@/components/admin/settings/types";
+
+// Lazy-loaded section components — loaded only when their tab is activated.
+const CompanySection       = lazy(() => import("@/components/admin/settings/CompanySection").then(m => ({ default: m.CompanySection })));
+const BankSection          = lazy(() => import("@/components/admin/settings/BankSection").then(m => ({ default: m.BankSection })));
+const DocumentsSection     = lazy(() => import("@/components/admin/settings/DocumentsSection").then(m => ({ default: m.DocumentsSection })));
+const NotificationsSection = lazy(() => import("@/components/admin/settings/NotificationsSection").then(m => ({ default: m.NotificationsSection })));
+const AppearanceSection    = lazy(() => import("@/components/admin/settings/AppearanceSection").then(m => ({ default: m.AppearanceSection })));
+const SecuritySection      = lazy(() => import("@/components/admin/settings/SecuritySection").then(m => ({ default: m.SecuritySection })));
+const ApiKeysSection       = lazy(() => import("@/components/admin/settings/ApiKeysSection").then(m => ({ default: m.ApiKeysSection })));
+const DangerSection        = lazy(() => import("@/components/admin/settings/DangerSection").then(m => ({ default: m.DangerSection })));
 
 const NAV_ITEMS: NavItem[] = [
   { id: "profile",       label: "Profil & Akun",        icon: User,        description: "Data pribadi & password" },
@@ -46,6 +49,11 @@ export default function AdminSettings() {
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className={`space-y-6 ${isWide ? "max-w-4xl" : "max-w-2xl"}`}>
+          <Suspense fallback={
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Memuat...
+            </div>
+          }>
           {activeSection === "profile" && (
             <>
               <SectionHead icon={User} title="Profil & Akun" desc="Kelola data pribadi dan keamanan akun Anda" />
@@ -67,6 +75,7 @@ export default function AdminSettings() {
           {activeSection === "security"               && <SecuritySection />}
           {activeSection === "apikeys" && isSuperAdmin() && <ApiKeysSection />}
           {activeSection === "danger"  && isSuperAdmin() && <DangerSection />}
+          </Suspense>
         </div>
       </main>
     </div>
