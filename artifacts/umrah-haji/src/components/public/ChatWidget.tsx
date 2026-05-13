@@ -147,9 +147,8 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   }, [messages, typing]);
 
   useEffect(() => {
-    if (!open && messages.length > 1) setUnread(messages.filter(m => m.role === "bot").length - 1);
     if (open) setUnread(0);
-  }, [open, messages]);
+  }, [open]);
 
   useEffect(() => {
     if (!configLoaded) loadConfig();
@@ -255,6 +254,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     setMessages(prev => [...prev, botMsg]);
     setTyping(false);
     playChime();
+    setOpen(prev => { if (!prev) setUnread(u => u + 1); return prev; });
 
     if (geminiConfig?.enableLeadCapture && !leadCaptured && messages.length >= 3) {
       setShowLeadForm(true);
@@ -532,8 +532,13 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
       >
         {open ? <X className="h-6 w-6 text-white" /> : <MessageCircle className="h-6 w-6 text-white" />}
         {!open && unread > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-            {unread}
+          <span className="absolute -top-1.5 -right-1.5">
+            {/* Pulsing ring */}
+            <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75" />
+            {/* Solid badge */}
+            <span className="relative flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-md">
+              {unread > 9 ? "9+" : unread}
+            </span>
           </span>
         )}
       </button>
