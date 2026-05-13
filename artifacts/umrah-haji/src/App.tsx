@@ -11,6 +11,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { EnvDiagnostic } from "@/components/EnvDiagnostic";
 import { PWAUpdateNotifier } from "@/components/pwa/PWAUpdateNotifier";
+import { usePWAInstallTracker } from "@/hooks/usePWAInstallTracker";
 import NotFound from "./pages/NotFound";
 
 // Route modules
@@ -31,6 +32,8 @@ const queryClient = new QueryClient({
   },
 });
 
+const InstallTracker = () => { usePWAInstallTracker(); return null; };
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -42,6 +45,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <PWAUpdateNotifier />
+              <InstallTracker />
               <BrowserRouter basename={import.meta.env.BASE_URL}>
                 <ScrollToTop />
                 <EnvDiagnostic />
