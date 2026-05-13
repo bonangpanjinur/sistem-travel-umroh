@@ -74,8 +74,17 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [savingLead, setSavingLead] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [reactions, setReactions] = useState<Record<string, string>>({});
+  const [pickerOpen, setPickerOpen] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<{ role: string; text: string }[]>([]);
+
+  const REACTION_EMOJIS = ["👍", "🙏", "❤️", "😊", "🤔"];
+
+  const pickReaction = (msgId: string, emoji: string) => {
+    setReactions(prev => prev[msgId] === emoji ? (({ [msgId]: _, ...rest }) => rest)(prev) : { ...prev, [msgId]: emoji });
+    setPickerOpen(null);
+  };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -263,21 +272,63 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                       <Bot className="h-3 w-3 text-white" />
                     </div>
                   )}
-                  <div className={cn(
-                    "max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
-                    m.role === "user" ? "bg-primary text-white rounded-br-sm" : "bg-white border rounded-bl-sm"
-                  )}>
-                    <p>{m.text}</p>
-                    <div className={cn("flex items-center gap-0.5 mt-0.5", m.role === "user" ? "justify-end" : "justify-start")}>
-                      <span className={cn("text-[9px]", m.role === "user" ? "text-white/60" : "text-muted-foreground")}>
-                        {format(m.ts, "h:mm aa")}
-                      </span>
-                      {m.role === "user" && (
-                        <span className={cn("text-[10px] leading-none", isRead ? "text-white" : "text-white/40")} title={isRead ? "Dibaca" : "Terkirim"}>
-                          {isRead ? "✓✓" : "✓"}
+                  <div className="relative group">
+                    <div className={cn(
+                      "max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
+                      m.role === "user" ? "bg-primary text-white rounded-br-sm" : "bg-white border rounded-bl-sm"
+                    )}>
+                      <p>{m.text}</p>
+                      <div className={cn("flex items-center gap-0.5 mt-0.5", m.role === "user" ? "justify-end" : "justify-start")}>
+                        <span className={cn("text-[9px]", m.role === "user" ? "text-white/60" : "text-muted-foreground")}>
+                          {format(m.ts, "h:mm aa")}
                         </span>
-                      )}
+                        {m.role === "user" && (
+                          <span className={cn("text-[10px] leading-none", isRead ? "text-white" : "text-white/40")} title={isRead ? "Dibaca" : "Terkirim"}>
+                            {isRead ? "✓✓" : "✓"}
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Reaction button — only on bot messages */}
+                    {m.role === "bot" && (
+                      <div className="absolute -bottom-2 right-1 flex items-center gap-1">
+                        {/* Selected reaction badge */}
+                        {reactions[m.id] && (
+                          <button
+                            onClick={() => pickReaction(m.id, reactions[m.id])}
+                            className="text-[13px] bg-white border rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+                            title="Klik untuk hapus reaksi"
+                          >
+                            {reactions[m.id]}
+                          </button>
+                        )}
+                        {/* Smiley trigger */}
+                        {!reactions[m.id] && (
+                          <button
+                            onClick={() => setPickerOpen(pickerOpen === m.id ? null : m.id)}
+                            className="text-[11px] bg-white border rounded-full w-5 h-5 items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-all hover:scale-110 flex"
+                            title="Tambah reaksi"
+                          >
+                            🙂
+                          </button>
+                        )}
+                        {/* Emoji picker popup */}
+                        {pickerOpen === m.id && (
+                          <div className="absolute bottom-6 left-0 bg-white border rounded-2xl shadow-lg px-2 py-1.5 flex gap-1.5 z-10">
+                            {REACTION_EMOJIS.map(e => (
+                              <button
+                                key={e}
+                                onClick={() => pickReaction(m.id, e)}
+                                className="text-[18px] hover:scale-125 transition-transform"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
