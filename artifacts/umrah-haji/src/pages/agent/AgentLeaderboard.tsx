@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -68,6 +69,10 @@ export default function AgentLeaderboard() {
   const { user } = useAuth();
 
   const periodDates = getPeriodDates(period);
+
+  // AGEN-ADD8 — realtime auto-refresh saat ada perubahan booking/komisi
+  useRealtimeSubscription("bookings", [["agent-leaderboard"]]);
+  useRealtimeSubscription("agent_commissions", [["agent-leaderboard"]]);
 
   const { data: agentData } = useQuery({
     queryKey: ['my-agent-id', user?.id],

@@ -41,6 +41,12 @@ const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocument
 const AdminDocumentTypes = lazy(() => import("@/pages/admin/AdminDocumentTypes"));
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
 const AdminPWASettings = lazy(() => import("@/pages/admin/AdminPWASettings"));
+const AdminPWAInstallStats = lazy(() => import("@/pages/admin/AdminPWAInstallStats"));
+const AdminAccessSimulator = lazy(() => import("@/pages/admin/AdminAccessSimulator"));
+const AdminCommissionCalculator = lazy(() => import("@/pages/admin/AdminCommissionCalculator"));
+const AdminBaggagePolicies = lazy(() => import("@/pages/admin/AdminBaggagePolicies"));
+const AdminPostDepartureSurvey = lazy(() => import("@/pages/admin/AdminPostDepartureSurvey"));
+const AdminBookingTransfers = lazy(() => import("@/pages/admin/AdminBookingTransfers"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
 const AdminBranchComparison = lazy(() => import("@/pages/admin/AdminBranchComparison"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
@@ -295,7 +301,13 @@ export default function AdminRoutes() {
       <Route path="security-audit" element={<P k={PERMISSIONS.SECURITY_AUDIT}><AdminSecurityAudit /></P>} />
       <Route path="2fa" element={<P k={PERMISSIONS.TWO_FA}><Admin2FASettings /></P>} />
       <Route path="appearance" element={<P k={PERMISSIONS.APPEARANCE}><AdminAppearance /></P>} />
-      <Route path="pwa-settings" element={<P k={PERMISSIONS.APPEARANCE}><AdminPWASettings /></P>} />
+      <Route path="pwa-settings" element={<P k={PERMISSIONS.PWA_SETTINGS}><AdminPWASettings /></P>} />
+      <Route path="pwa-install-stats" element={<P k={PERMISSIONS.PWA_SETTINGS}><LazyPage><AdminPWAInstallStats /></LazyPage></P>} />
+      <Route path="access-simulator" element={<P k={PERMISSIONS.RBAC_STATUS}><LazyPage><AdminAccessSimulator /></LazyPage></P>} />
+      <Route path="commission-calculator" element={<P k={PERMISSIONS.AGENT_COMMISSION_REPORT}><LazyPage><AdminCommissionCalculator /></LazyPage></P>} />
+      <Route path="baggage-policies" element={<P k={PERMISSIONS.AIRLINES}><LazyPage><AdminBaggagePolicies /></LazyPage></P>} />
+      <Route path="post-departure-survey" element={<P k={PERMISSIONS.DEPARTURE_TRACKING}><LazyPage><AdminPostDepartureSurvey /></LazyPage></P>} />
+      <Route path="booking-transfers" element={<P k={PERMISSIONS.BOOKINGS}><LazyPage><AdminBookingTransfers /></LazyPage></P>} />
 
 
       <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />

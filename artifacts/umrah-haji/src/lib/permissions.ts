@@ -90,6 +90,7 @@ export const PERMISSIONS = {
   SECURITY_AUDIT: 'security-audit',
   TWO_FA: '2fa',
   APPEARANCE: 'appearance',
+  PWA_SETTINGS: 'pwa-settings',
   SETTINGS: 'settings',
   API_CONNECT: 'api-connect',
   SUPABASE_SETUP: 'supabase-setup',
