@@ -77,13 +77,26 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const [reactions, setReactions] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<{ role: string; text: string }[]>([]);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const REACTION_EMOJIS = ["👍", "🙏", "❤️", "😊", "🤔"];
 
   const pickReaction = (msgId: string, emoji: string) => {
     setReactions(prev => prev[msgId] === emoji ? (({ [msgId]: _, ...rest }) => rest)(prev) : { ...prev, [msgId]: emoji });
     setPickerOpen(null);
+  };
+
+  const scrollToBottom = () => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distFromBottom > 80);
   };
 
   useEffect(() => {
@@ -260,7 +273,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
+          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 relative">
             {messages.map((m, idx) => {
               const hasBotReplyAfter = messages.slice(idx + 1).some(n => n.role === "bot");
               const isRead = hasBotReplyAfter;
@@ -373,6 +386,19 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
               </div>
             )}
             <div ref={endRef} />
+
+            {/* Scroll to bottom button */}
+            {showScrollBtn && (
+              <button
+                onClick={scrollToBottom}
+                className="sticky bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-primary text-white text-[11px] font-medium px-3 py-1 rounded-full shadow-lg hover:bg-primary/90 transition-all animate-in fade-in slide-in-from-bottom-2 duration-200 z-10"
+              >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12l7 7 7-7" />
+                </svg>
+                Pesan terbaru
+              </button>
+            )}
           </div>
 
           {/* WA CTA */}
