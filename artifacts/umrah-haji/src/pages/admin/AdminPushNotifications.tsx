@@ -38,7 +38,6 @@ export default function AdminPushNotifications() {
   const queryClient = useQueryClient();
   const { vapidConfig, saveVapidConfig, isSaving } = usePWAConfig();
   const [vapidDraft, setVapidDraft] = useState<PushVapidConfig>(DEFAULT_VAPID_CONFIG);
-  const [showPriv, setShowPriv] = useState(false);
 
   // Sync draft when config loads
   useEffect(() => {
