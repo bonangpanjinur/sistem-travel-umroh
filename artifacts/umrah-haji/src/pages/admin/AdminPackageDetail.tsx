@@ -380,25 +380,25 @@ export default function AdminPackageDetail() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Quad (4 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.quad || packageData.price_quad)}
+                {formatCurrency(dynamicData?.lowestPrices.quad || packageData.price_quad, packageData.currency)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Triple (3 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.triple || packageData.price_triple)}
+                {formatCurrency(dynamicData?.lowestPrices.triple || packageData.price_triple, packageData.currency)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Double (2 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.double || packageData.price_double)}
+                {formatCurrency(dynamicData?.lowestPrices.double || packageData.price_double, packageData.currency)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Single (1 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.single || packageData.price_single)}
+                {formatCurrency(dynamicData?.lowestPrices.single || packageData.price_single, packageData.currency)}
               </span>
             </div>
             {dynamicData && (
