@@ -242,6 +242,11 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
   useEffect(() => {
     if (!settings) return;
     applyCSSVariables(cssVariables, settings);
+    // CSS-FIX-1: notify the boot loader that theme is ready so it can fade out
+    // only AFTER the user-defined colors are applied (no flash of default theme).
+    try {
+      window.dispatchEvent(new CustomEvent('theme-ready'));
+    } catch { /* ignore */ }
   }, [cssVariables, settings]);
 
   // Effect 2: Fonts — re-apply only when font names change.
