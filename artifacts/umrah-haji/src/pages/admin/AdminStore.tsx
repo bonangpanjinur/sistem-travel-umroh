@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { ShoppingBag, Package, ShoppingCart, Tag, TrendingUp, Clock, CheckCircle, Truck } from "lucide-react";
+import { ShoppingBag, Package, ShoppingCart, Tag, TrendingUp, Clock, CheckCircle, Truck, FileText, ArrowDownUp, BarChart3 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -127,6 +127,10 @@ export default function AdminStore() {
               { href: "/admin/store/products", icon: Package, label: "Kelola Produk", desc: `${activeProducts} produk aktif` },
               { href: "/admin/store/orders", icon: ShoppingCart, label: "Kelola Pesanan", desc: `${orders.length} total pesanan` },
               { href: "/admin/store/categories", icon: Tag, label: "Kategori Produk", desc: `${categories.length} kategori` },
+              { href: "/admin/store/suppliers", icon: Truck, label: "Supplier", desc: "Daftar supplier procurement" },
+              { href: "/admin/store/purchase-orders", icon: FileText, label: "Purchase Order", desc: "Pembelian / restock barang" },
+              { href: "/admin/store/sales-report", icon: BarChart3, label: "Laporan Penjualan", desc: "Pendapatan, HPP, laba kotor" },
+              { href: "/admin/store/stock-movements", icon: ArrowDownUp, label: "Mutasi Stok", desc: "Riwayat pergerakan stok" },
             ].map((item) => (
               <Link key={item.href} to={item.href}>
                 <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group">

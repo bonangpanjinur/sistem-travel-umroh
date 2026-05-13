@@ -97,6 +97,10 @@ const AdminStore           = lazy(() => import("@/pages/admin/AdminStore"));
 const AdminStoreProducts   = lazy(() => import("@/pages/admin/AdminStoreProducts"));
 const AdminStoreOrders     = lazy(() => import("@/pages/admin/AdminStoreOrders"));
 const AdminStoreCategories = lazy(() => import("@/pages/admin/AdminStoreCategories"));
+const AdminSuppliers          = lazy(() => import("@/pages/admin/AdminSuppliers"));
+const AdminPurchaseOrders     = lazy(() => import("@/pages/admin/AdminPurchaseOrders"));
+const AdminStoreSalesReport   = lazy(() => import("@/pages/admin/AdminStoreSalesReport"));
+const AdminStoreStockMovements = lazy(() => import("@/pages/admin/AdminStoreStockMovements"));
 
 // Batch Fitur 01–10
 const AdminSISKOHAT        = lazy(() => import("@/pages/admin/AdminSISKOHAT"));
@@ -369,6 +373,10 @@ export default function AdminRoutes() {
       <Route path="store/products"   element={<P k={PERMISSIONS.STORE_PRODUCTS}><LazyPage><AdminStoreProducts /></LazyPage></P>} />
       <Route path="store/orders"     element={<P k={PERMISSIONS.STORE_ORDERS}><LazyPage><AdminStoreOrders /></LazyPage></P>} />
       <Route path="store/categories" element={<P k={PERMISSIONS.STORE_CATEGORIES}><LazyPage><AdminStoreCategories /></LazyPage></P>} />
+      <Route path="store/suppliers"        element={<P k={PERMISSIONS.STORE_SUPPLIERS}><LazyPage><AdminSuppliers /></LazyPage></P>} />
+      <Route path="store/purchase-orders"  element={<P k={PERMISSIONS.STORE_PURCHASE_ORDERS}><LazyPage><AdminPurchaseOrders /></LazyPage></P>} />
+      <Route path="store/sales-report"     element={<P k={PERMISSIONS.STORE_SALES_REPORT}><LazyPage><AdminStoreSalesReport /></LazyPage></P>} />
+      <Route path="store/stock-movements"  element={<P k={PERMISSIONS.STORE_STOCK_MOVEMENTS}><LazyPage><AdminStoreStockMovements /></LazyPage></P>} />
 
       {/* Batch Fitur 01–10 */}
       <Route path="siskohat"         element={<P k={PERMISSIONS.SISKOHAT}><LazyPage><AdminSISKOHAT /></LazyPage></P>} />

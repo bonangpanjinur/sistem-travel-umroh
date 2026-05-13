@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { ArrowLeft, BookOpen, Search, Heart, Share2, Play, Pause, RotateCcw } from "lucide-react";
-import { Link } from "react-router-dom";
-import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import { BookOpen, Search, Heart, Play, Pause } from "lucide-react";
+import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
+import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 
 // Data surah pendek yang populer (hardcoded untuk offline support)
 const SURAH_LIST = [
@@ -120,47 +120,32 @@ export default function JamaahAlQuran() {
 
   if (selectedSurah) {
     return (
-      <div className="min-h-screen bg-background pb-20">
-        {/* Surah Header */}
-        <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="text-primary-foreground" onClick={() => setSelectedSurah(null)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="font-semibold">{surah?.name}</h1>
-                <p className="text-xs opacity-80">{surah?.arabic} · {surah?.verses} ayat</p>
-              </div>
-            </div>
+      <JamaahAppShell>
+        <JamaahPageHeader
+          title={surah?.name ?? "Surah"}
+          arabic={surah?.arabic}
+          subtitle={`${surah?.verses ?? "-"} ayat`}
+          back={false}
+          right={
             <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary-foreground"
-                onClick={() => toggleFavorite(selectedSurah)}
-              >
+              <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-white/10" onClick={() => setSelectedSurah(null)}>
+                <Search className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-white/10" onClick={() => toggleFavorite(selectedSurah)}>
                 <Heart className={`h-5 w-5 ${favorites.includes(selectedSurah) ? "fill-current text-red-400" : ""}`} />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary-foreground"
-                onClick={() => {
-                  if (isPlaying) stopSpeech();
-                  else if (verses.length) speak(verses.map((v) => v.arabic).join(". "));
-                }}
-              >
+              <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-white/10"
+                onClick={() => { if (isPlaying) stopSpeech(); else if (verses.length) speak(verses.map((v) => v.arabic).join(". ")); }}>
                 {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
               </Button>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* Bismillah */}
         {selectedSurah !== 9 && (
           <div className="text-center py-6 px-4">
-            <p className="text-2xl font-serif leading-loose text-primary">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
+            <p className="font-arabic text-2xl leading-loose text-primary" dir="rtl">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
           </div>
         )}
 
@@ -197,31 +182,13 @@ export default function JamaahAlQuran() {
             ))
           )}
         </div>
-
-        <JamaahBottomNav />
-      </div>
+      </JamaahAppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/jamaah">
-              <Button variant="ghost" size="icon" className="text-primary-foreground">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="font-semibold">Al-Qur'an</h1>
-              <p className="text-xs opacity-80">Bacaan offline untuk ibadah</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <JamaahAppShell>
+      <JamaahPageHeader title="Al-Qur'an" arabic="ٱلْقُرْآن" subtitle="Bacaan offline untuk ibadah" />
       <div className="p-4 space-y-4">
         {/* Search */}
         <div className="relative">
@@ -288,9 +255,7 @@ export default function JamaahAlQuran() {
           </div>
         )}
       </div>
-
-      <JamaahBottomNav />
-    </div>
+    </JamaahAppShell>
   );
 }
 

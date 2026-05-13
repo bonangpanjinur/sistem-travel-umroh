@@ -155,6 +155,10 @@ export const PERMISSIONS = {
   STORE_PRODUCTS: 'store-products',
   STORE_ORDERS: 'store-orders',
   STORE_CATEGORIES: 'store-categories',
+  STORE_SUPPLIERS: 'store-suppliers',
+  STORE_PURCHASE_ORDERS: 'store-purchase-orders',
+  STORE_SALES_REPORT: 'store-sales-report',
+  STORE_STOCK_MOVEMENTS: 'store-stock-movements',
 
   // Fase 10 — AI & Smart Analytics
   GEMINI_AI: 'gemini-ai',
