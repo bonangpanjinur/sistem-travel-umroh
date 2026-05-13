@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   MessageSquare, Search, RefreshCcw, Loader2, ChevronDown,
   ChevronUp, Bot, ThumbsUp, ThumbsDown, Minus, Calendar,
-  Filter, Download, AlertCircle, HelpCircle,
+  Filter, Download, AlertCircle, HelpCircle, FileSpreadsheet,
+  FileText, ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -27,6 +34,7 @@ interface ChatLog {
   session_id?: string;
   message?: string;
   response?: string;
+  answer?: string;
   source?: string;
   rating?: number | null;
   is_unanswered?: boolean;
@@ -69,6 +77,7 @@ function RatingBadge({ rating }: { rating?: number | null }) {
 
 function LogRow({ log }: { log: ChatLog }) {
   const [expanded, setExpanded] = useState(false);
+  const answerText = log.response || log.answer || "";
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -130,13 +139,13 @@ function LogRow({ log }: { log: ChatLog }) {
               {log.message || <span className="italic text-muted-foreground">Kosong</span>}
             </p>
           </div>
-          {log.response && (
+          {answerText && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
                 <Bot className="h-3 w-3" /> Jawaban AI
               </p>
               <p className="text-sm whitespace-pre-wrap bg-background border rounded p-3">
-                {log.response}
+                {answerText}
               </p>
             </div>
           )}
@@ -162,12 +171,220 @@ function LogRow({ log }: { log: ChatLog }) {
   );
 }
 
+// ─── Build export query matching active filters ────────────────────────────────
+async function fetchAllLogsForExport(params: {
+  sourceFilter: string;
+  ratingFilter: string;
+  unansweredOnly: boolean;
+  search: string;
+}): Promise<ChatLog[]> {
+  const BATCH = 1000;
+  const MAX_ROWS = 5000;
+  let allRows: ChatLog[] = [];
+  let from = 0;
+
+  while (from < MAX_ROWS) {
+    let q = supabase
+      .from("chatbot_logs")
+      .select("id, session_id, message, response, answer, source, rating, is_unanswered, channel, created_at")
+      .order("created_at", { ascending: false })
+      .range(from, from + BATCH - 1);
+
+    if (params.sourceFilter !== "all") q = q.eq("source", params.sourceFilter);
+    if (params.ratingFilter === "positive") q = q.eq("rating", 1);
+    else if (params.ratingFilter === "negative") q = q.eq("rating", -1);
+    else if (params.ratingFilter === "unrated") q = q.is("rating", null);
+    if (params.unansweredOnly) q = q.eq("is_unanswered", true);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    let batch = data as ChatLog[];
+
+    // Apply text search client-side (mirrors the UI behaviour)
+    if (params.search.trim()) {
+      const term = params.search.toLowerCase();
+      batch = batch.filter(
+        (l) =>
+          l.message?.toLowerCase().includes(term) ||
+          (l.response || l.answer || "").toLowerCase().includes(term) ||
+          l.session_id?.toLowerCase().includes(term),
+      );
+    }
+
+    allRows = allRows.concat(batch);
+    if (data.length < BATCH) break;
+    from += BATCH;
+  }
+
+  return allRows;
+}
+
+// ─── CSV export ───────────────────────────────────────────────────────────────
+function exportCSV(rows: ChatLog[], filename: string) {
+  const headers = ["Waktu", "Channel", "Sumber", "Pertanyaan", "Jawaban", "Rating", "Tak Terjawab", "Session ID", "ID"];
+  const escape = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+
+  const lines = [
+    headers.map(escape).join(","),
+    ...rows.map((l) =>
+      [
+        format(new Date(l.created_at), "yyyy-MM-dd HH:mm:ss"),
+        l.channel || "jamaah",
+        SOURCE_LABELS[l.source || ""] || l.source || "",
+        l.message || "",
+        l.response || l.answer || "",
+        l.rating === 1 ? "Positif" : l.rating === -1 ? "Negatif" : "Belum dinilai",
+        l.is_unanswered ? "Ya" : "Tidak",
+        l.session_id || "",
+        l.id,
+      ]
+        .map(escape)
+        .join(","),
+    ),
+  ];
+
+  const bom = "\uFEFF"; // UTF-8 BOM so Excel opens with correct encoding
+  const blob = new Blob([bom + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  triggerDownload(blob, filename + ".csv");
+}
+
+// ─── Excel export via xlsx-js-style ──────────────────────────────────────────
+async function exportExcel(rows: ChatLog[], filename: string, filterSummary: string) {
+  const XLSXStyle = (await import("xlsx-js-style")).default;
+
+  const HEADER_STYLE = {
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+    fill: { fgColor: { rgb: "7C3AED" } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      bottom: { style: "thin", color: { rgb: "5B21B6" } },
+    },
+  };
+
+  const CELL_STYLE = {
+    alignment: { vertical: "top", wrapText: true },
+    font: { sz: 10 },
+  };
+
+  const ALT_ROW_STYLE = {
+    ...CELL_STYLE,
+    fill: { fgColor: { rgb: "F5F3FF" } },
+  };
+
+  const UNANSWERED_STYLE = {
+    ...CELL_STYLE,
+    fill: { fgColor: { rgb: "FEF3C7" } },
+    font: { sz: 10, color: { rgb: "92400E" } },
+  };
+
+  const RATING_POS = { ...CELL_STYLE, font: { sz: 10, color: { rgb: "15803D" }, bold: true } };
+  const RATING_NEG = { ...CELL_STYLE, font: { sz: 10, color: { rgb: "B91C1C" }, bold: true } };
+
+  const headers = ["Waktu", "Channel", "Sumber", "Pertanyaan", "Jawaban AI", "Rating", "Tak Terjawab", "Session ID"];
+
+  // Build worksheet data
+  const wsData: any[][] = [];
+
+  // Row 1: filter summary
+  wsData.push([{ v: filterSummary, s: { font: { italic: true, sz: 9, color: { rgb: "6B7280" } } } }]);
+  // Row 2: blank spacer
+  wsData.push([""]);
+  // Row 3: headers
+  wsData.push(headers.map((h) => ({ v: h, s: HEADER_STYLE })));
+
+  // Data rows
+  rows.forEach((l, i) => {
+    const isAlt = i % 2 === 1;
+    const isUnanswered = !!l.is_unanswered;
+    const base = isUnanswered ? UNANSWERED_STYLE : isAlt ? ALT_ROW_STYLE : CELL_STYLE;
+
+    const ratingLabel = l.rating === 1 ? "👍 Positif" : l.rating === -1 ? "👎 Negatif" : "—";
+    const ratingStyle = l.rating === 1 ? RATING_POS : l.rating === -1 ? RATING_NEG : CELL_STYLE;
+
+    wsData.push([
+      { v: format(new Date(l.created_at), "d MMM yyyy HH:mm"), s: base },
+      { v: l.channel || "jamaah", s: base },
+      { v: SOURCE_LABELS[l.source || ""] || l.source || "", s: base },
+      { v: l.message || "", s: base },
+      { v: l.response || l.answer || "", s: base },
+      { v: ratingLabel, s: ratingStyle },
+      { v: isUnanswered ? "Ya" : "Tidak", s: base },
+      { v: l.session_id || "", s: { ...base, font: { sz: 9, color: { rgb: "6B7280" } } } },
+    ]);
+  });
+
+  const ws = XLSXStyle.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws["!cols"] = [
+    { wch: 18 }, // Waktu
+    { wch: 10 }, // Channel
+    { wch: 12 }, // Sumber
+    { wch: 50 }, // Pertanyaan
+    { wch: 60 }, // Jawaban
+    { wch: 14 }, // Rating
+    { wch: 14 }, // Tak Terjawab
+    { wch: 28 }, // Session ID
+  ];
+
+  // Freeze header rows (row 3 = index 2 after 0-based, but we have 2 meta rows + 1 header)
+  ws["!freeze"] = { xSplit: 0, ySplit: 3 };
+
+  // Merge filter summary across all columns
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
+
+  const wb = XLSXStyle.utils.book_new();
+  XLSXStyle.utils.book_append_sheet(wb, ws, "Chat Logs");
+
+  // Summary sheet
+  const summaryData = [
+    ["Laporan Chatbot Vinstour Travel"],
+    ["Diekspor pada", format(new Date(), "d MMMM yyyy HH:mm", { locale: idLocale })],
+    ["Total baris", rows.length],
+    ["Filter aktif", filterSummary],
+    [],
+    ["Ringkasan Rating"],
+    ["👍 Positif", rows.filter((r) => r.rating === 1).length],
+    ["👎 Negatif", rows.filter((r) => r.rating === -1).length],
+    ["— Belum dinilai", rows.filter((r) => r.rating == null).length],
+    [],
+    ["Ringkasan Sumber"],
+    ["Gemini AI", rows.filter((r) => r.source === "gemini").length],
+    ["OpenAI", rows.filter((r) => r.source === "openai").length],
+    ["FAQ Lokal", rows.filter((r) => r.source === "faq").length],
+    [],
+    ["Pertanyaan Tak Terjawab", rows.filter((r) => r.is_unanswered).length],
+  ];
+  const wsSummary = XLSXStyle.utils.aoa_to_sheet(summaryData);
+  wsSummary["!cols"] = [{ wch: 28 }, { wch: 20 }];
+  XLSXStyle.utils.book_append_sheet(wb, wsSummary, "Ringkasan");
+
+  const buf = XLSXStyle.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  triggerDownload(blob, filename + ".xlsx");
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function AdminChatLogs() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
   const [unansweredOnly, setUnansweredOnly] = useState(false);
   const [page, setPage] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const PAGE_SIZE = 30;
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
@@ -175,7 +392,7 @@ export default function AdminChatLogs() {
     queryFn: async () => {
       let q = supabase
         .from("chatbot_logs")
-        .select("id, session_id, message, response, source, rating, is_unanswered, channel, created_at, metadata", { count: "exact" })
+        .select("id, session_id, message, response, answer, source, rating, is_unanswered, channel, created_at, metadata", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -200,36 +417,56 @@ export default function AdminChatLogs() {
     ? logs.filter(
         (l) =>
           l.message?.toLowerCase().includes(search.toLowerCase()) ||
-          l.response?.toLowerCase().includes(search.toLowerCase()) ||
-          l.session_id?.toLowerCase().includes(search.toLowerCase())
+          (l.response || l.answer || "").toLowerCase().includes(search.toLowerCase()) ||
+          l.session_id?.toLowerCase().includes(search.toLowerCase()),
       )
     : logs;
 
-  const handleExportCSV = () => {
-    const rows = [
-      ["ID", "Session ID", "Sumber", "Pertanyaan", "Jawaban", "Rating", "Waktu"],
-      ...logs.map((l) => [
-        l.id,
-        l.session_id || "",
-        l.source || "",
-        (l.message || "").replace(/"/g, '""'),
-        (l.response || "").replace(/"/g, '""'),
-        l.rating === 1 ? "positif" : l.rating === -1 ? "negatif" : "",
-        l.created_at,
-      ]),
-    ];
-    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `chatbot-logs-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Build a human-readable filter summary for the export file
+  function buildFilterSummary() {
+    const parts: string[] = [];
+    if (sourceFilter !== "all") parts.push(`Sumber: ${SOURCE_LABELS[sourceFilter] || sourceFilter}`);
+    if (ratingFilter === "positive") parts.push("Rating: Positif");
+    else if (ratingFilter === "negative") parts.push("Rating: Negatif");
+    else if (ratingFilter === "unrated") parts.push("Rating: Belum dinilai");
+    if (unansweredOnly) parts.push("Tak Terjawab: Ya");
+    if (search.trim()) parts.push(`Kata kunci: "${search.trim()}"`);
+    return parts.length > 0 ? parts.join(" · ") : "Semua log (tidak ada filter aktif)";
+  }
+
+  function buildFilename(ext: "csv" | "xlsx") {
+    const dateStr = format(new Date(), "yyyy-MM-dd");
+    const suffix = [
+      sourceFilter !== "all" ? sourceFilter : "",
+      ratingFilter !== "all" ? ratingFilter : "",
+      unansweredOnly ? "unanswered" : "",
+    ]
+      .filter(Boolean)
+      .join("-");
+    return `chatbot-logs-${dateStr}${suffix ? `-${suffix}` : ""}`;
+  }
+
+  async function handleExport(type: "csv" | "xlsx") {
+    setExporting(true);
+    try {
+      const rows = await fetchAllLogsForExport({ sourceFilter, ratingFilter, unansweredOnly, search });
+      const summary = buildFilterSummary();
+      const filename = buildFilename(type);
+      if (type === "csv") {
+        exportCSV(rows, filename);
+      } else {
+        await exportExcel(rows, filename, summary);
+      }
+    } catch (err) {
+      console.error("Export gagal:", err);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
+      {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -241,15 +478,62 @@ export default function AdminChatLogs() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={logs.length === 0}>
-            <Download className="h-3.5 w-3.5 mr-1.5" /> Ekspor CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCcw className={`h-3.5 w-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} /> Refresh
+          {/* Export dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={exporting || total === 0} className="gap-1.5">
+                {exporting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                {exporting ? "Mengekspor…" : "Ekspor"}
+                {!exporting && <ChevronRight className="h-3 w-3 rotate-90 opacity-50" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Format ekspor
+                </p>
+                {total > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Semua {total.toLocaleString("id")} log (filter aktif)
+                  </p>
+                )}
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleExport("xlsx")}
+                className="gap-2 cursor-pointer"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium">Excel (.xlsx)</p>
+                  <p className="text-[11px] text-muted-foreground">Berformat, dengan ringkasan statistik</p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExport("csv")}
+                className="gap-2 cursor-pointer"
+              >
+                <FileText className="h-4 w-4 text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium">CSV (.csv)</p>
+                  <p className="text-[11px] text-muted-foreground">Kompatibel dengan semua spreadsheet</p>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
+            <RefreshCcw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            Refresh
           </Button>
         </div>
       </div>
 
+      {/* Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-3 items-center">
@@ -286,7 +570,6 @@ export default function AdminChatLogs() {
                   <SelectItem value="unrated">Belum Dinilai</SelectItem>
                 </SelectContent>
               </Select>
-              {/* P6: Filter unanswered */}
               <button
                 onClick={() => { setUnansweredOnly(v => !v); setPage(0); }}
                 className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
@@ -300,9 +583,43 @@ export default function AdminChatLogs() {
               </button>
             </div>
           </div>
+
+          {/* Active filter summary bar */}
+          {(sourceFilter !== "all" || ratingFilter !== "all" || unansweredOnly || search.trim()) && (
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium">Filter aktif:</span>
+              {sourceFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  Sumber: {SOURCE_LABELS[sourceFilter] || sourceFilter}
+                </Badge>
+              )}
+              {ratingFilter !== "all" && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  Rating: {ratingFilter === "positive" ? "Positif" : ratingFilter === "negative" ? "Negatif" : "Belum dinilai"}
+                </Badge>
+              )}
+              {unansweredOnly && (
+                <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                  Tak Terjawab saja
+                </Badge>
+              )}
+              {search.trim() && (
+                <Badge variant="secondary" className="text-xs">
+                  Kata kunci: "{search.trim()}"
+                </Badge>
+              )}
+              <button
+                onClick={() => { setSourceFilter("all"); setRatingFilter("all"); setUnansweredOnly(false); setSearch(""); setPage(0); }}
+                className="text-xs text-muted-foreground underline hover:text-foreground ml-auto"
+              >
+                Reset semua filter
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Log list */}
       {isLoading ? (
         <div className="flex items-center justify-center h-48">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -326,7 +643,7 @@ export default function AdminChatLogs() {
         <>
           <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
             <span>
-              Menampilkan {filtered.length} dari {total} log
+              Menampilkan {filtered.length} dari {total.toLocaleString("id")} log
               {search && ` (filter: "${search}")`}
             </span>
             <span>Halaman {page + 1} / {totalPages || 1}</span>
