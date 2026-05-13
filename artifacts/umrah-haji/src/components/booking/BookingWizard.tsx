@@ -36,8 +36,15 @@ const MONTHS = [
 
 export type BookingStep = 'rooms' | 'passengers' | 'pic' | 'review';
 
-const STEPS: { id: BookingStep; label: string }[] = [
+const STEPS_DEFAULT: { id: BookingStep; label: string }[] = [
   { id: 'rooms', label: 'Pilih Kamar' },
+  { id: 'passengers', label: 'Data Jamaah' },
+  { id: 'pic', label: 'Sumber Pendaftaran' },
+  { id: 'review', label: 'Review & Bayar' },
+];
+
+// Haji: skip alokasi kamar (harga per usia, akomodasi diatur operator)
+const STEPS_HAJI: { id: BookingStep; label: string }[] = [
   { id: 'passengers', label: 'Data Jamaah' },
   { id: 'pic', label: 'Sumber Pendaftaran' },
   { id: 'review', label: 'Review & Bayar' },
@@ -69,9 +76,9 @@ export function BookingWizard() {
   const { data: packageInfo } = useQuery({
     queryKey: ['package-info', packageId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('packages').select('id, name, code, duration_days, package_type').eq('id', packageId!).single();
+      const { data, error } = await supabase.from('packages').select('id, name, code, duration_days, package_type, booking_mode, currency').eq('id', packageId!).single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!packageId,
   });
@@ -79,7 +86,7 @@ export function BookingWizard() {
   const { data: departureInfo } = useQuery({
     queryKey: ['departure-info', initialDepartureId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single').eq('id', initialDepartureId).single();
+      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, currency').eq('id', initialDepartureId).single();
       if (error) throw error;
       return data as any;
     },
@@ -110,6 +117,17 @@ export function BookingWizard() {
     updateRoomAllocation, picState, setPicState, picValidation, isValidatingPIC,
     cancellationAgreed, setCancellationAgreed,
   } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
+
+  const bookingMode = (packageInfo as any)?.booking_mode || 'umroh';
+  const isHaji = bookingMode === 'haji';
+  const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
+
+  // Saat mode haji & step aktif adalah 'rooms' (state awal), pindahkan ke 'passengers'
+  useEffect(() => {
+    if (isHaji && currentStep === 'rooms') {
+      setCurrentStep('passengers');
+    }
+  }, [isHaji, currentStep, setCurrentStep]);
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const totalPassengers = formData.passengers.length;
@@ -187,11 +205,20 @@ export function BookingWizard() {
               <span className="text-muted-foreground">Jamaah:</span>
               <span className="font-medium">{totalPassengers} orang</span>
             </div>
-            <div className="flex items-center gap-2">
-              <BedDouble className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Kamar:</span>
-              <span className="font-medium">{roomSummary.join(', ')}</span>
-            </div>
+            {!isHaji && (
+              <div className="flex items-center gap-2">
+                <BedDouble className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Kamar:</span>
+                <span className="font-medium">{roomSummary.join(', ') || '-'}</span>
+              </div>
+            )}
+            {isHaji && (
+              <div className="flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Mode:</span>
+                <Badge variant="outline" className="text-xs">Haji</Badge>
+              </div>
+            )}
             {picLabel && (
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />

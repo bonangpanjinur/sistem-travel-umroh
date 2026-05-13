@@ -109,9 +109,11 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 
 | Kode | Fitur |
 |------|-------|
-| BOOK-FIX2 | Wizard branching: skip alokasi kamar untuk Haji, render `StepMahramHaji` |
-| CUR-5 | Tampilkan harga + konversi IDR di `BookingWizard` (`PriceBadge`, Step Review) |
-| CUR-8 | Filter currency di listing `/packages` |
+| ✅ BOOK-FIX2 | Wizard branching: skip alokasi kamar untuk Haji (STEPS_HAJI di `BookingWizard`) |
+| ✅ CUR-4 | Kolom `departures.price_adult/child/infant` ditambahkan (migrasi 13 Mei 2026) |
+| ✅ CUR-5 | Helper `lib/currency.ts` (`getExchangeRate`, `formatPriceWithIDR`) |
+| CUR-6 | (lanjut Sprint 11) Tampilkan badge IDR ekuivalen di Step Review |
+| CUR-8 | (lanjut Sprint 11) Filter currency di listing `/packages` |
 
 > Detail lengkap setiap item ada di section masing-masing di bawah.
 
