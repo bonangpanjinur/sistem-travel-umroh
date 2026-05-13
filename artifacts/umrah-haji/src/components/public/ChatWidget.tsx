@@ -537,17 +537,41 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
           )}
 
           {/* Input */}
-          <div className="p-3 border-t flex gap-2">
-            <input
-              className="flex-1 text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Ketik pesan..."
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && sendMessage()}
-            />
-            <Button size="icon" className="h-9 w-9 rounded-xl shrink-0" onClick={sendMessage} disabled={!input.trim() || typing}>
-              <Send className="h-4 w-4" />
-            </Button>
+          <div className="px-3 pt-2 pb-3 border-t flex flex-col gap-1.5">
+            <div className="flex gap-2">
+              <input
+                className={cn(
+                  "flex-1 text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 transition-colors",
+                  input.length >= 280
+                    ? "border-red-400 focus:ring-red-300"
+                    : "focus:ring-primary/30"
+                )}
+                placeholder="Ketik pesan..."
+                value={input}
+                maxLength={300}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
+              />
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-xl shrink-0"
+                onClick={sendMessage}
+                disabled={!input.trim() || typing || input.length > 300}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+            {input.length > 0 && (
+              <p className={cn(
+                "text-[10px] text-right pr-1 transition-colors",
+                input.length >= 300 ? "text-red-500 font-semibold" :
+                input.length >= 280 ? "text-orange-400 font-medium" :
+                "text-muted-foreground"
+              )}>
+                {input.length}/300
+                {input.length >= 300 && " — batas karakter tercapai"}
+              </p>
+            )}
           </div>
         </div>
       )}
