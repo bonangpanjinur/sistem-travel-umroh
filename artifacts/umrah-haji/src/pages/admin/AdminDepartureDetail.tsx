@@ -82,6 +82,7 @@ import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
 import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
 import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/hooks/useDepartureBudget";
+import { DepartureCertificateGenerator } from "@/components/departure/DepartureCertificateGenerator";
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
@@ -1352,6 +1353,14 @@ export default function AdminDepartureDetail() {
           {/* K1 — Visa Status Summary */}
           {customerIds.length > 0 && (
             <DepartureVisaSummary departureId={id || ""} customerIds={customerIds} />
+          )}
+
+          {/* K7 — Sertifikat massal (hanya saat status = departed) */}
+          {departure.status === 'departed' && (passengers?.length || 0) > 0 && (
+            <DepartureCertificateGenerator
+              departure={departure as any}
+              passengers={passengers as any}
+            />
           )}
         </TabsContent>
 
