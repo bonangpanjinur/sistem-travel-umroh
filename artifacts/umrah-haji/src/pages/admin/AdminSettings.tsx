@@ -335,7 +335,9 @@ export default function AdminSettings() {
       await resetDatabase(resetConfirm);
       setIsResetDialogOpen(false);
       setResetConfirm("");
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal mereset database");
+    }
     finally { setIsResetting(false); }
   };
 
