@@ -52,6 +52,7 @@ interface StepReviewDynamicProps {
   paymentMode?: PaymentMode;
   dpAmount?: number;
   savingsPlanId?: string;
+  onPaymentValidityChange?: (valid: boolean) => void;
 }
 
 const ROOM_LABELS: Record<RoomType, string> = {
@@ -66,6 +67,7 @@ export function StepReviewDynamic({
   onCouponApplied, onReferralApplied, onUpdatePassengers,
   cancellationAgreed, onCancellationAgreedChange,
   onPaymentModeChange, paymentMode = 'full', dpAmount = 0, savingsPlanId,
+  onPaymentValidityChange,
 }: StepReviewDynamicProps) {
   const { user } = useAuth();
   const [couponCode, setCouponCode] = useState("");
@@ -156,6 +158,19 @@ export function StepReviewDynamic({
   const subtotal = formData.passengers.reduce((sum, p) => sum + getPassengerPrice(p), 0);
   const discountAmount = couponResult?.valid ? couponResult.discount : 0;
   const totalPrice = Math.max(0, subtotal - discountAmount);
+
+  // Validasi mode pembayaran berbasis totalPrice
+  useEffect(() => {
+    let valid = true;
+    if (paymentMode === 'full') valid = totalPrice > 0;
+    else if (paymentMode === 'dp') {
+      const minDp = Math.ceil(totalPrice * 0.3);
+      valid = dpAmount >= minDp && dpAmount <= totalPrice;
+    } else if (paymentMode === 'savings') {
+      valid = !!savingsPlanId;
+    }
+    onPaymentValidityChange?.(valid);
+  }, [paymentMode, dpAmount, savingsPlanId, totalPrice]);
 
   // Group passengers by room type for display
   const groupedPassengers = formData.passengers.reduce((acc, passenger) => {

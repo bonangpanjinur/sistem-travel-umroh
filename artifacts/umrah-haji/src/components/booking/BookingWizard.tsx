@@ -118,6 +118,8 @@ export function BookingWizard() {
     cancellationAgreed, setCancellationAgreed,
   } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
 
+  const [paymentStepValid, setPaymentStepValid] = useState(true);
+
   const bookingMode = (packageInfo as any)?.booking_mode || 'umroh';
   const isHaji = bookingMode === 'haji';
   const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
@@ -131,6 +133,9 @@ export function BookingWizard() {
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const totalPassengers = formData.passengers.length;
+
+  // Validasi mode pembayaran (Step 4) — dihitung penuh di StepReviewDynamic dengan totalPrice
+  const paymentValid = paymentStepValid;
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
@@ -291,6 +296,7 @@ export function BookingWizard() {
               onPaymentModeChange={(mode, dp, savingsId) =>
                 updateFormData({ paymentMode: mode, dpAmount: dp, savingsPlanId: savingsId })
               }
+              onPaymentValidityChange={setPaymentStepValid}
             />
           )}
         </CardContent>
@@ -305,7 +311,7 @@ export function BookingWizard() {
               isSubmitting ||
               !picValidation.isValid ||
               cancellationAgreed === false ||
-              (formData.paymentMode === 'savings' && !formData.savingsPlanId)
+              !paymentValid
             }
           >
             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses...</> : 'Konfirmasi Booking'}

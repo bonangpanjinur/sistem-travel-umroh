@@ -44,14 +44,22 @@ export function PaymentModeSelector({
   }, [mode, minDp]);
 
   const { data: savingsPlans } = useQuery({
-    queryKey: ["user-active-savings", user?.id],
+    queryKey: ["user-active-savings-plans", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+      // savings_plans uses customer_id, not user_id
+      const { data: customer } = await (supabase as any)
+        .from("customers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!customer?.id) return [];
       const { data } = await (supabase as any)
         .from("savings_plans")
-        .select("id, plan_code, target_amount, current_balance, status")
-        .eq("user_id", user.id)
-        .eq("status", "active");
+        .select("id, target_amount, paid_amount, remaining_amount, status, converted_booking_id")
+        .eq("customer_id", customer.id)
+        .eq("status", "active")
+        .is("converted_booking_id", null);
       return data || [];
     },
     enabled: !!user?.id && mode === "savings",
@@ -107,6 +115,11 @@ export function PaymentModeSelector({
                   <span className="text-xs text-muted-foreground">IDR</span>
                 </div>
               )}
+              {mode === "dp" && dpAmount > 0 && dpAmount < minDp && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <Info className="h-3 w-3" /> DP minimal {formatCurrency(minDp)} (30%).
+                </p>
+              )}
             </div>
           </Label>
 
@@ -140,7 +153,7 @@ export function PaymentModeSelector({
                       <SelectContent>
                         {savingsPlans.map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.plan_code} — saldo {formatCurrency(p.current_balance || 0)}
+                            Saldo {formatCurrency(p.paid_amount || 0)} / target {formatCurrency(p.target_amount || 0)}
                           </SelectItem>
                         ))}
                       </SelectContent>
