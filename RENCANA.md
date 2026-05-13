@@ -557,6 +557,7 @@ pnpm --filter @workspace/api-spec run codegen
 | N6 | **Rate card & proposal otomatis** — admin bisa generate PDF proposal harga per paket untuk calon jamaah | Admin | 🟡 |
 | N7 | **Integrasi Qris** — pembayaran via Qris langsung dari halaman booking | Pembayaran | 🔴 |
 | N8 | **Multi-bahasa (i18n)** — halaman publik + jamaah portal dalam Bahasa Arab & Inggris | Public | 🔴 |
+| N9 | **Sistem Aturan Pembatalan Lengkap** — lihat BAGIAN 14 untuk rencana detail | Admin/Booking/Dokumen | 🟠 |
 
 ---
 
@@ -829,3 +830,275 @@ File: ubah `AdminChatbotStats.tsx`
 | booking_status_history timeline dibuat manual (hardcoded) | Sekarang baca dari tabel nyata `booking_status_history` | AdminBookingDetail.tsx |
 | CustomerRoutes tidak ada role check — semua role bisa akses `/jamaah/*` | Batasi ke `customer`, `jamaah`, `super_admin` saja | CustomerRoutes.tsx |
 | `sales` mewarisi `agent` di ROLE_HIERARCHY | Hapus inheritance — agent bukan staf internal | permissions.ts |
+
+---
+
+## BAGIAN 14 — RENCANA FITUR: SISTEM ATURAN PEMBATALAN LENGKAP
+
+> **Status:** 🟠 Direncanakan — Fondasi sudah ada, 4 gap tersisa
+> **Referensi:** N9 di Backlog 6E
+
+---
+
+### 14A — Kondisi Saat Ini (Yang Sudah Ada)
+
+Fondasi sistem aturan pembatalan sudah kuat. Jangan rebuild dari nol.
+
+| Komponen | File | Status | Keterangan |
+|----------|------|--------|------------|
+| Tabel `cancellation_policies` | Supabase SQL | ✅ Ada | `id, name, is_global, package_id, sections (JSONB), created_at, updated_at` |
+| Halaman master aturan | `AdminCancellationPolicies.tsx` | ✅ Ada | CRUD lengkap: buat, edit, hapus, duplikat, pratinjau PDF |
+| Card per-paket | `PackageCancellationPolicyCard.tsx` | ✅ Ada | Assign/buat/edit/lepas aturan per paket di AdminPackageDetail |
+| Tampilan di detail paket publik | `PackageDetail.tsx` | ✅ Ada | Section "Syarat & Ketentuan" dengan badge Global/Khusus |
+| PDF form transaksi | `transaction-form-generator.ts` | ✅ Ada | Support `cancellationPolicy` di template, cetak di PDF |
+| PDF di booking detail admin | `AdminBookingDetail.tsx` | ✅ Ada | Fetch kebijakan paket/global, inject ke PDF |
+| PDF proposal | `AdminProposalGenerator.tsx` | ✅ Ada | Fetch & inject ke proposal PDF |
+
+**Logika fallback yang sudah berjalan:**
+```
+Paket punya aturan sendiri?
+  YES → pakai aturan paket (package_id = paket ini)
+  NO  → pakai aturan global (is_global = true, urut created_at DESC, limit 1)
+  NONE → bagian aturan tidak tampil di PDF
+```
+
+---
+
+### 14B — Gap yang Perlu Dibangun
+
+#### GAP 1 — Tampil di Modal Saat Booking (Prioritas Tinggi)
+
+**Deskripsi:** Saat calon jamaah/customer di langkah terakhir BookingWizard (StepReview), tampilkan aturan pembatalan paket yang dipilih sebagai collapsible section. Ada checkbox "Saya telah membaca dan menyetujui syarat & ketentuan pembatalan" yang **wajib dicentang** sebelum tombol "Konfirmasi Booking" bisa diklik.
+
+**File yang dimodifikasi:**
+- `src/components/booking/steps/StepReviewDynamic.tsx` — tambah fetch policy + UI display + checkbox
+- `src/hooks/useBookingWizardDynamic.ts` — tambah state `cancellationAgreed: boolean`
+- `src/components/booking/BookingWizard.tsx` — pass `packageId` ke StepReview, block submit jika belum agree
+
+**UI yang dibutuhkan:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ 📋 Syarat & Ketentuan Pembatalan                   [▼] │
+│ ─────────────────────────────────────────────────────── │
+│ PEMBATALAN:                                             │
+│ • Pembatalan 30 hari sebelum → refund 100%             │
+│ • Pembatalan 14-29 hari sebelum → refund 50%           │
+│ • Pembatalan < 14 hari → tidak ada refund              │
+│                                                         │
+│ PINDAH PAKET / TANGGAL:                                 │
+│ • Pindah paket dikenakan biaya administrasi Rp 250.000 │
+│ ─────────────────────────────────────────────────────── │
+│ ☐ Saya telah membaca dan menyetujui syarat &            │
+│   ketentuan pembatalan di atas                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Catatan implementasi:**
+- Fetch query key: `['cancellation-policy-for-booking', packageId]`
+- Query: cari `package_id = packageId` dulu, fallback ke `is_global = true`
+- Jika tidak ada policy sama sekali → tidak tampilkan section, izinkan booking tanpa checkbox
+- Simpan `cancellationAgreed` di state wizard, cek sebelum submit booking
+- Teks "Aturan Global" / "Aturan Khusus Paket Ini" badge sama seperti di PackageDetail
+
+---
+
+#### GAP 2 — Pilih Aturan Saat Membuat/Edit Paket (Prioritas Tinggi)
+
+**Deskripsi:** Pada form pembuatan paket (`RegularPackageForm`, `SavingsPackageForm`), tambahkan field "Aturan Pembatalan" berupa dropdown/select. Admin bisa langsung memilih aturan yang akan dikaitkan ke paket ini saat membuat paket — tidak perlu buka AdminPackageDetail terpisah setelah paket dibuat.
+
+**Alur saat ini (bermasalah):**
+```
+Buat paket → Simpan → Buka AdminPackageDetail → Scroll ke bawah → 
+PackageCancellationPolicyCard → Pilih aturan/Buat baru
+(2 langkah terpisah, admin sering lupa)
+```
+
+**Alur yang diinginkan:**
+```
+Buat paket → Isi form → Di bagian bawah form ada "Aturan Pembatalan" → 
+Pilih dari dropdown / buat cepat → Simpan (semua sekaligus)
+```
+
+**File yang dimodifikasi:**
+- `src/components/admin/forms/RegularPackageForm.tsx` — tambah field `cancellationPolicyId` di bagian bawah form "Pengaturan Lanjutan"
+- `src/components/admin/forms/SavingsPackageForm.tsx` — sama
+
+**Detail implementasi:**
+```tsx
+// Di bagian bawah form, setelah field harga/fasilitas:
+<div>
+  <Label>Aturan Pembatalan</Label>
+  <Select value={form.cancellationPolicyId} onValueChange={...}>
+    <SelectTrigger>
+      <SelectValue placeholder="Pilih aturan atau gunakan aturan global..." />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="">Gunakan aturan global (otomatis)</SelectItem>
+      {allPolicies.map(p => (
+        <SelectItem key={p.id} value={p.id}>
+          {p.name} {p.is_global ? "(Global)" : ""}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  <p className="text-xs text-muted-foreground mt-1">
+    Jika tidak dipilih, paket akan menggunakan aturan global yang berlaku.
+  </p>
+</div>
+```
+
+**Saat simpan paket:** setelah INSERT packages berhasil, jalankan UPDATE cancellation_policies SET package_id = newPackageId WHERE id = selectedPolicyId (jika dipilih). Query key: `cancellation-policies`.
+
+---
+
+#### GAP 3 — Pengaturan Dokumen Dinamis (Prioritas Sedang)
+
+**Deskripsi:** Admin bisa mengatur di dokumen mana saja aturan pembatalan muncul. Saat ini aturan selalu dimasukkan ke form transaksi PDF jika ada data policy, tapi tidak ada toggle UI untuk mematikan/menyalakan per-dokumen.
+
+**Dokumen yang perlu dikontrol:**
+| Dokumen | Variable Setting | Default |
+|---------|-----------------|---------|
+| Form Transaksi / Booking (`generateTransactionForm`) | `doc_show_cancellation_form_transaksi` | ✅ Ya |
+| Invoice pembayaran (`generateInvoice`) | `doc_show_cancellation_invoice` | ❌ Tidak |
+| Proposal penawaran (`AdminProposalGenerator`) | `doc_show_cancellation_proposal` | ✅ Ya |
+| Surat perjanjian / kontrak | `doc_show_cancellation_kontrak` | ✅ Ya |
+| Sertifikat keberangkatan | `doc_show_cancellation_sertifikat` | ❌ Tidak |
+
+**Penyimpanan:** Setting ini simpan ke tabel `app_settings` (Supabase) dengan key `doc_cancellation_display_settings` berupa JSON:
+```json
+{
+  "form_transaksi": true,
+  "invoice": false,
+  "proposal": true,
+  "kontrak": true,
+  "sertifikat": false
+}
+```
+
+**File yang dimodifikasi:**
+- `src/components/admin/appearance/DocumentLayoutEditor.tsx` — tambah tab/section "Aturan Pembatalan" dengan toggle per-dokumen
+- `src/lib/transaction-form-generator.ts` — terima parameter `showCancellationPolicy: boolean`
+- `src/pages/admin/AdminBookingDetail.tsx` — fetch setting sebelum generate PDF, pass ke template
+- `src/pages/admin/AdminProposalGenerator.tsx` — sama
+
+**UI yang dibutuhkan (di DocumentLayoutEditor):**
+```
+Tab baru: "Aturan Pembatalan"
+
+Pengaturan tampilan aturan pembatalan pada dokumen:
+
+[✅] Form Transaksi — tampilkan di halaman terakhir
+[  ] Invoice Pembayaran  
+[✅] Proposal Penawaran
+[✅] Surat Kontrak / Perjanjian
+[  ] Sertifikat Keberangkatan
+
+[Simpan Pengaturan]
+```
+
+---
+
+#### GAP 4 — Tipe Tier Persentase (Prioritas Rendah / Enhancement)
+
+**Deskripsi:** Saat ini struktur `sections` di `cancellation_policies` adalah teks bebas (array of `{title, items[]}`). Ini sangat fleksibel tapi tidak terstruktur untuk kalkulasi otomatis. Enhancement opsional: tambah field `refund_tiers` berupa array tier dengan persentase.
+
+**Struktur `refund_tiers` (JSONB, opsional):**
+```json
+[
+  { "days_before_departure": 90, "refund_percentage": 100, "description": "Pembatalan > 90 hari" },
+  { "days_before_departure": 60, "refund_percentage": 75, "description": "Pembatalan 60–89 hari" },
+  { "days_before_departure": 30, "refund_percentage": 50, "description": "Pembatalan 30–59 hari" },
+  { "days_before_departure": 14, "refund_percentage": 25, "description": "Pembatalan 14–29 hari" },
+  { "days_before_departure": 0,  "refund_percentage": 0,  "description": "Pembatalan < 14 hari" }
+]
+```
+
+**Jika diimplementasikan:**
+- Di modal booking: tampilkan tabel tier yang lebih visual (hari → persentase)
+- Di `AdminCancellationPolicies`: tab "Tier Persentase" di samping "Bagian Teks"
+- Di `JamaahPayment` / `CustomerRefundStatus`: hitung otomatis estimasi refund berdasarkan tanggal keberangkatan
+
+**Catatan:** Field ini opsional — `sections` teks tetap sebagai fallback dan untuk narasi detail. Implementasi tier hanya untuk visual yang lebih informatif.
+
+---
+
+### 14C — Perubahan Database (Migration SQL)
+
+Jalankan di Supabase SQL Editor jika belum ada:
+
+```sql
+-- 1. Pastikan tabel cancellation_policies sudah ada (sesuai AdminCancellationPolicies.tsx)
+CREATE TABLE IF NOT EXISTS cancellation_policies (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text NOT NULL,
+  is_global   boolean NOT NULL DEFAULT false,
+  package_id  uuid REFERENCES packages(id) ON DELETE SET NULL,
+  sections    jsonb NOT NULL DEFAULT '[]',
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE cancellation_policies ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "staff_all" ON cancellation_policies 
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 2. Kolom refund_tiers (opsional, GAP 4)
+ALTER TABLE cancellation_policies 
+  ADD COLUMN IF NOT EXISTS refund_tiers jsonb DEFAULT '[]';
+
+-- 3. Setting dokumen di app_settings (GAP 3)
+-- Tidak butuh migration — disimpan di app_settings yang sudah ada
+-- key: 'doc_cancellation_display_settings', value: JSON object
+```
+
+**Catatan FK penting:**
+- `package_id` → `packages(id) ON DELETE SET NULL` sudah benar
+- Jika sebuah paket dihapus, aturan pembatalan tetap ada (tidak ikut terhapus), `package_id` jadi NULL
+- Aturan yang `package_id = NULL` dan `is_global = false` = "aturan yatim" → tampilkan warning di AdminCancellationPolicies
+
+---
+
+### 14D — Urutan Implementasi yang Direkomendasikan
+
+```
+Langkah 1 (GAP 1) — Booking modal: paling high-impact untuk customer/jamaah
+  → Modifikasi: StepReviewDynamic.tsx + BookingWizard.tsx
+  → Estimasi: ~2 jam pengerjaan
+
+Langkah 2 (GAP 2) — Package form: mengurangi friction untuk admin
+  → Modifikasi: RegularPackageForm.tsx + SavingsPackageForm.tsx
+  → Estimasi: ~1 jam pengerjaan
+
+Langkah 3 (GAP 3) — Document settings: kontrol dokumen mana yang mencetak aturan
+  → Modifikasi: DocumentLayoutEditor.tsx + AdminBookingDetail.tsx + AdminProposalGenerator.tsx
+  → Estimasi: ~2 jam pengerjaan
+
+Langkah 4 (GAP 4) — Tier persentase: enhancement visual
+  → Modifikasi: AdminCancellationPolicies.tsx + PackageCancellationPolicyCard.tsx
+  → Estimasi: ~3 jam pengerjaan
+```
+
+---
+
+### 14E — Ringkasan Titik Tampil Aturan Pembatalan
+
+| Titik Tampil | Status | Gap | Siapa yang Melihat |
+|--------------|--------|-----|-------------------|
+| Halaman detail paket publik (`/packages/:id`) | ✅ Ada | — | Calon jamaah/customer |
+| Modal konfirmasi saat booking (StepReview) | ❌ Belum | GAP 1 | Calon jamaah/customer |
+| Form pembuatan/edit paket (admin) | ❌ Belum | GAP 2 | Admin |
+| Halaman detail paket admin (AdminPackageDetail) | ✅ Ada | — | Admin |
+| Halaman master aturan (AdminCancellationPolicies) | ✅ Ada | — | Admin |
+| PDF Form Transaksi | ✅ Ada | — | Admin + dicetak ke jamaah |
+| PDF Invoice | ❌ Belum secara terkontrol | GAP 3 | Admin + dicetak ke jamaah |
+| PDF Proposal | ✅ Ada | — | Admin + calon jamaah |
+| Pengaturan per-dokumen (DocumentLayoutEditor) | ❌ Belum | GAP 3 | Admin |
+
+---
+
+### 14F — Komponen yang Tidak Perlu Diubah
+
+- `AdminCancellationPolicies.tsx` → sudah lengkap, tidak perlu modifikasi
+- `PackageCancellationPolicyCard.tsx` → sudah lengkap di AdminPackageDetail
+- `transaction-form-generator.ts` → hanya tambah parameter boolean untuk GAP 3
+- `PackageDetail.tsx` (publik) → sudah tampil dengan baik
+- Tabel `cancellation_policies` → tidak perlu schema change untuk GAP 1-3
