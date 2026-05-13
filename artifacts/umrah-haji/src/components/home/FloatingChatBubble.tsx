@@ -1,14 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useWebsiteSettings } from "@/hooks/useWebsiteSettingsOptimized";
 import { usePackages } from "@/hooks/usePackages";
 import { ChatPackageCard, extractPackageIds } from "@/components/chat/ChatPackageCard";
-import { useFaqSuggestions, getCategories, CATEGORY_EMOJI } from "@/hooks/useFaqSuggestions";
+import { useFaqSuggestions, getCategories, CATEGORY_EMOJI, type FaqSuggestion } from "@/hooks/useFaqSuggestions";
 import {
   Bot, Send, X, MessageCircle, RefreshCcw,
-  Phone, ChevronDown, Sparkles, User,
+  Phone, ChevronDown, Sparkles, User, Search,
 } from "lucide-react";
 
 interface Message {
@@ -113,6 +113,63 @@ export function FloatingChatBubble() {
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // ── Autocomplete state ──────────────────────────────────────────────────
+  const [autoIdx, setAutoIdx] = useState(-1);
+  const [showAuto, setShowAuto] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autoDropRef = useRef<HTMLDivElement>(null);
+
+  const STATIC_AUTOCOMPLETE: FaqSuggestion[] = [
+    { id: "s1", question: "Berapa harga paket umroh?", answer: "", category: "Paket" },
+    { id: "s2", question: "Dokumen apa saja yang diperlukan untuk umroh?", answer: "", category: "Dokumen" },
+    { id: "s3", question: "Bagaimana cara mendaftar paket umroh?", answer: "", category: "Pendaftaran" },
+    { id: "s4", question: "Proses visa umroh berapa lama?", answer: "", category: "Visa" },
+    { id: "s5", question: "Apakah tersedia cicilan atau tabungan?", answer: "", category: "Pembayaran" },
+    { id: "s6", question: "Apa saja yang termasuk dalam paket?", answer: "", category: "Paket" },
+    { id: "s7", question: "Apakah masih ada kursi tersedia?", answer: "", category: "Umum" },
+    { id: "s8", question: "Bagaimana cara pembayaran DP?", answer: "", category: "Pembayaran" },
+    { id: "s9", question: "Hotel berapa bintang dan jaraknya ke Masjidil Haram?", answer: "", category: "Paket" },
+    { id: "s10", question: "Bagaimana kebijakan pembatalan dan refund?", answer: "", category: "Pembatalan" },
+  ];
+
+  const faqPool: FaqSuggestion[] = faqSuggestions.length > 0 ? faqSuggestions : STATIC_AUTOCOMPLETE;
+
+  const autoResults = useMemo((): FaqSuggestion[] => {
+    const q = input.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const words = q.split(/\s+/).filter(w => w.length >= 2);
+    if (words.length === 0) return [];
+    return faqPool
+      .filter(faq => {
+        const haystack = faq.question.toLowerCase();
+        return words.some(w => haystack.includes(w));
+      })
+      .sort((a, b) => {
+        const aStarts = a.question.toLowerCase().startsWith(q) ? -1 : 0;
+        const bStarts = b.question.toLowerCase().startsWith(q) ? 1 : 0;
+        return aStarts + bStarts;
+      })
+      .slice(0, 6);
+  }, [input, faqPool]);
+
+  useEffect(() => {
+    setShowAuto(autoResults.length > 0);
+    setAutoIdx(-1);
+  }, [autoResults]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        autoDropRef.current && !autoDropRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowAuto(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
@@ -126,6 +183,8 @@ export function FloatingChatBubble() {
     const msg = (text || input).trim();
     if (!msg || loading) return;
     setInput("");
+    setShowAuto(false);
+    setAutoIdx(-1);
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: msg, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
@@ -142,6 +201,40 @@ export function FloatingChatBubble() {
     }]);
     setLoading(false);
   }
+
+  // Select an autocomplete suggestion → send directly
+  const selectAutoResult = (faq: FaqSuggestion) => {
+    setShowAuto(false);
+    setAutoIdx(-1);
+    sendMessage(faq.question);
+  };
+
+  // Keyboard navigation for autocomplete
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showAuto && autoResults.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setAutoIdx(i => Math.min(i + 1, autoResults.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setAutoIdx(i => Math.max(i - 1, -1));
+        return;
+      }
+      if (e.key === "Enter" && autoIdx >= 0) {
+        e.preventDefault();
+        selectAutoResult(autoResults[autoIdx]);
+        return;
+      }
+      if (e.key === "Escape") {
+        setShowAuto(false);
+        setAutoIdx(-1);
+        return;
+      }
+    }
+    if (e.key === "Enter" && !loading) sendMessage();
+  };
 
   function openWA() {
     const num = waNumber || "6281234567890";
@@ -329,22 +422,67 @@ export function FloatingChatBubble() {
 
               {/* Input */}
               <div className="px-3 pb-3 pt-2 bg-white space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Ketik pertanyaan Anda..."
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && !loading && sendMessage()}
-                    className="flex-1 text-sm border border-gray-200 rounded-full px-4 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all bg-gray-50"
-                  />
-                  <button
-                    onClick={() => sendMessage()}
-                    disabled={loading || !input.trim()}
-                    className="w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 flex items-center justify-center shrink-0 transition-colors"
-                  >
-                    {loading ? <RefreshCcw className="h-4 w-4 text-white animate-spin" /> : <Send className="h-4 w-4 text-white" />}
-                  </button>
+                <div className="relative">
+                  {/* Autocomplete dropdown */}
+                  {showAuto && autoResults.length > 0 && (
+                    <div
+                      ref={autoDropRef}
+                      className="absolute bottom-full left-0 right-0 mb-1.5 bg-white border border-indigo-100 rounded-2xl shadow-xl overflow-hidden z-50"
+                      style={{ animation: "fadeIn 0.12s ease-out" }}
+                    >
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-indigo-50 bg-indigo-50/60">
+                        <Search className="h-3 w-3 text-indigo-400 shrink-0" />
+                        <span className="text-[10px] text-indigo-600 font-semibold">Saran dari FAQ</span>
+                        <span className="ml-auto text-[9px] text-indigo-300">↑↓ · Esc</span>
+                      </div>
+                      {autoResults.map((faq, idx) => (
+                        <button
+                          key={faq.id}
+                          onMouseDown={e => { e.preventDefault(); selectAutoResult(faq); }}
+                          onMouseEnter={() => setAutoIdx(idx)}
+                          className={`w-full text-left px-3 py-2 flex items-start gap-2 transition-colors ${
+                            idx === autoIdx ? "bg-indigo-50" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="text-[11px] mt-0.5 shrink-0">
+                            {CATEGORY_EMOJI[faq.category] ?? "💬"}
+                          </span>
+                          <span className={`text-[12px] leading-snug line-clamp-2 ${
+                            idx === autoIdx ? "text-indigo-700" : "text-gray-700"
+                          }`}>{faq.question}</span>
+                          {faq.category && (
+                            <span className={`ml-auto shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                              idx === autoIdx
+                                ? "bg-indigo-100 text-indigo-600"
+                                : "bg-gray-100 text-gray-400"
+                            }`}>
+                              {faq.category}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      placeholder="Ketik pertanyaan Anda..."
+                      value={input}
+                      onChange={e => setInput(e.target.value)}
+                      onKeyDown={handleInputKeyDown}
+                      onFocus={() => autoResults.length > 0 && setShowAuto(true)}
+                      autoComplete="off"
+                      className="flex-1 text-sm border border-gray-200 rounded-full px-4 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all bg-gray-50"
+                    />
+                    <button
+                      onClick={() => sendMessage()}
+                      disabled={loading || !input.trim()}
+                      className="w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 flex items-center justify-center shrink-0 transition-colors"
+                    >
+                      {loading ? <RefreshCcw className="h-4 w-4 text-white animate-spin" /> : <Send className="h-4 w-4 text-white" />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* WA Button */}
