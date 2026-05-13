@@ -185,6 +185,23 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
     }
     appleIcon.href = iconUrl;
   }
+
+  // ── Persist brand for dynamic splash on next boot (read by index.html script)
+  try {
+    const splashLogo = pwa.iconUrl || settings.logo_url || null;
+    const primary = settings.primary_color ? `hsl(${settings.primary_color})` : null;
+    const brand = {
+      name: pwa.shortName || settings.company_name || null,
+      logo: splashLogo,
+      color: primary,
+      gradient: primary
+        ? `linear-gradient(135deg, ${primary} 0%, hsl(0,0%,6%) 100%)`
+        : null,
+    };
+    if (brand.name || brand.logo || brand.color) {
+      localStorage.setItem('tenant-brand', JSON.stringify(brand));
+    }
+  } catch { /* ignore */ }
 }
 
 function generateSettingsHash(settings: WebsiteSettings | null | undefined): string {
