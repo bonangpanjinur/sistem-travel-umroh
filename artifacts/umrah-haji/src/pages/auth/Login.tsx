@@ -69,17 +69,19 @@ export default function Login() {
 
       // Wajib 2FA — kirim OTP
       setTwoFAStep('pending');
-      const { data: otpData, error: otpErr } = await supabase.functions.invoke('request-2fa-otp', {
+      const { data: otpData, error: otpErr } = await supabase.functions.invoke<
+        { ok?: boolean; destination?: string; error?: string }
+      >('request-2fa-otp', {
         body: { purpose: 'login', method: data.method, phone: data.phone_number ?? undefined },
       });
-      if (otpErr || (otpData as any)?.error) {
+      if (otpErr || otpData?.error) {
         toast({
           title: 'Gagal kirim OTP',
-          description: (otpErr?.message ?? (otpData as any)?.error) || 'Coba lagi',
+          description: (otpErr?.message ?? otpData?.error) || 'Coba lagi',
           variant: 'destructive',
         });
       } else {
-        setOtpDestination((otpData as any)?.destination ?? '');
+        setOtpDestination(otpData?.destination ?? '');
       }
     })();
   }, [user, authLoading, roles, navigate, redirectTo, twoFAStep, toast]);
@@ -92,11 +94,13 @@ export default function Login() {
     }
     setOtpLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('verify-2fa-otp', {
+      const { data, error } = await supabase.functions.invoke<
+        { ok?: boolean; error?: string }
+      >('verify-2fa-otp', {
         body: { purpose: 'login', code: otpCode },
       });
       if (error) throw new Error(error.message);
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if (data?.error) throw new Error(data.error);
       sessionStorage.setItem(sessionVerifiedKey(user.id), '1');
       setTwoFAStep('idle');
       toast({ title: 'Verifikasi sukses', description: 'Selamat datang!' });
