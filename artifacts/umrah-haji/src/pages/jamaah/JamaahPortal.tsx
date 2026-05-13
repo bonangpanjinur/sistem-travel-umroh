@@ -30,6 +30,7 @@ import { TourLeaderSOSPanel } from "@/components/jamaah/TourLeaderSOSPanel";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useGeoNotification } from "@/hooks/useGeoNotification";
+import { restorePendingFollowup } from "@/hooks/useChatbotFollowup";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
@@ -86,6 +87,11 @@ export default function JamaahPortal() {
   // Notifikasi Geolokasi: alert ketika mendekati lokasi suci
   useGeoNotification(true);
   const queryClient = useQueryClient();
+
+  // Restore any pending chatbot follow-up reminder on portal load
+  useEffect(() => {
+    restorePendingFollowup().catch(() => {});
+  }, []);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);

@@ -9,11 +9,13 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
+import { useChatbotFollowup, loadFollowupData, extractActionItems } from "@/hooks/useChatbotFollowup";
 import { Link } from "react-router-dom";
 import {
   Bot, Send, User, RefreshCcw, Home, ChevronRight,
   Sparkles, ThumbsUp, ThumbsDown, Copy,
-  FileText, Share2, Download, Loader2, X, CheckCheck
+  FileText, Share2, Download, Loader2, X, CheckCheck,
+  Bell, BellOff, Clock, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -315,6 +317,8 @@ function stripMarkdown(text: string): string {
     .trim();
 }
 
+const FOLLOWUP_DISMISSED_KEY = "vinstour-followup-card-dismissed";
+
 export default function JamaahChatbot() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>(loadChatbotHistory);
@@ -327,6 +331,18 @@ export default function JamaahChatbot() {
   const [aiSummaryText, setAiSummaryText] = useState<string | null>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Follow-up reminder card state
+  const [followupCardDismissed, setFollowupCardDismissed] = useState(
+    () => sessionStorage.getItem(FOLLOWUP_DISMISSED_KEY) === "1"
+  );
+  const [schedulingFollowup, setSchedulingFollowup] = useState(false);
+
+  const messageFeed = messages.map(m => ({ role: m.role, content: m.content }));
+  const { scheduleFollowup, cancelFollowup, isScheduled } = useChatbotFollowup({
+    messages: messageFeed,
+    enabled: true,
+  });
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -381,7 +397,21 @@ export default function JamaahChatbot() {
     setMessages(fresh);
     setSummaryData(null);
     setAiSummaryText(null);
+    setFollowupCardDismissed(false);
+    sessionStorage.removeItem(FOLLOWUP_DISMISSED_KEY);
     try { localStorage.setItem(CHATBOT_STORAGE_KEY, JSON.stringify(fresh)); } catch {}
+  }
+
+  function dismissFollowupCard() {
+    setFollowupCardDismissed(true);
+    sessionStorage.setItem(FOLLOWUP_DISMISSED_KEY, "1");
+  }
+
+  async function handleScheduleFollowup() {
+    setSchedulingFollowup(true);
+    await scheduleFollowup(messageFeed);
+    setSchedulingFollowup(false);
+    dismissFollowupCard();
   }
 
   async function openSummary() {
@@ -586,6 +616,20 @@ export default function JamaahChatbot() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {/* Active reminder badge */}
+            {isScheduled && (
+              <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">
+                <Clock className="h-3 w-3 text-emerald-600" />
+                <span className="text-[10px] text-emerald-700 font-medium">Pengingat aktif</span>
+                <button
+                  onClick={cancelFollowup}
+                  className="text-emerald-500 hover:text-emerald-700 ml-0.5"
+                  title="Batalkan pengingat"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
             {userMsgCount >= 1 && (
               <Button
                 size="sm"
@@ -631,6 +675,61 @@ export default function JamaahChatbot() {
             </div>
           </div>
         ))}
+
+        {/* 24-hour follow-up reminder opt-in card */}
+        {userMsgCount >= 3 && !followupCardDismissed && !isScheduled && (
+          <div className="mx-auto max-w-sm w-full">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                  <Bell className="h-4 w-4 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-900">Pengingat Tindak Lanjut</p>
+                  <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                    Kami akan mengingatkan Anda 24 jam lagi untuk menyelesaikan item penting dari konsultasi ini.
+                  </p>
+                  {(() => {
+                    const items = extractActionItems(messageFeed);
+                    if (items.length === 0) return null;
+                    return (
+                      <ul className="mt-2 space-y-1">
+                        {items.slice(0, 2).map((item, i) => (
+                          <li key={i} className="flex items-center gap-1.5 text-xs text-amber-800">
+                            <ArrowRight className="h-3 w-3 shrink-0 text-amber-500" />
+                            {item.label}
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      className="h-7 px-3 text-xs bg-amber-500 hover:bg-amber-600 text-white gap-1.5"
+                      onClick={handleScheduleFollowup}
+                      disabled={schedulingFollowup}
+                    >
+                      {schedulingFollowup
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <Bell className="h-3 w-3" />
+                      }
+                      Aktifkan Pengingat
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs text-amber-600 hover:text-amber-800 hover:bg-amber-100"
+                      onClick={dismissFollowupCard}
+                    >
+                      Tidak, terima kasih
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="flex gap-2">
