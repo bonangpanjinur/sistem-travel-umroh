@@ -31,7 +31,7 @@ type Message = {
   ts: Date;
 };
 
-const FAQ_REPLIES: Record<string, string> = {
+const FAQ_REPLIES_HARDCODED: Record<string, string> = {
   default: "Terima kasih sudah menghubungi kami! Tim kami akan segera membantu Anda. Silakan tinggalkan nama dan nomor HP.",
   umroh: "Kami memiliki berbagai paket Umroh mulai dari reguler, plus, hingga VIP. Durasi 9–15 hari. Mau info paket tertentu?",
   haji: "Kami melayani Haji Reguler dan Haji Plus (ONH Plus). Untuk info lebih lanjut, tim kami siap membantu!",
@@ -42,20 +42,48 @@ const FAQ_REPLIES: Record<string, string> = {
   bayar: "Pembayaran bisa via Transfer Bank, Virtual Account, atau cicilan. Setelah transfer, upload bukti di portal jamaah.",
 };
 
-function getFaqReply(text: string): string {
+interface LiveFAQ { question: string; answer: string; }
+
+/**
+ * Try to find the best matching FAQ from the database FAQs first,
+ * then fall back to the hardcoded keyword map.
+ */
+function getFaqReply(text: string, liveFaqs: LiveFAQ[] = []): string {
   const t = text.toLowerCase();
-  if (t.includes("umroh") || t.includes("umrah")) return FAQ_REPLIES.umroh;
-  if (t.includes("haji")) return FAQ_REPLIES.haji;
-  if (t.includes("harga") || t.includes("biaya") || t.includes("berapa")) return FAQ_REPLIES.harga;
-  if (t.includes("visa")) return FAQ_REPLIES.visa;
-  if (t.includes("daftar") || t.includes("booking") || t.includes("pesan")) return FAQ_REPLIES.daftar;
-  if (t.includes("dokumen") || t.includes("paspor") || t.includes("syarat")) return FAQ_REPLIES.dokumen;
-  if (t.includes("bayar") || t.includes("cicil") || t.includes("transfer")) return FAQ_REPLIES.bayar;
+
+  // 1. Search live FAQs from Supabase — find best keyword match
+  if (liveFaqs.length > 0) {
+    // Build a score for each FAQ (count how many words from the user query appear in question+answer)
+    const words = t.split(/\s+/).filter(w => w.length > 2);
+    let bestScore = 0;
+    let bestFaq: LiveFAQ | null = null;
+    for (const faq of liveFaqs) {
+      const haystack = (faq.question + " " + faq.answer).toLowerCase();
+      const score = words.reduce((s, w) => s + (haystack.includes(w) ? 1 : 0), 0);
+      if (score > bestScore) { bestScore = score; bestFaq = faq; }
+    }
+    if (bestFaq && bestScore >= 1) {
+      return bestFaq.answer.length > 300
+        ? bestFaq.answer.slice(0, 297) + "..."
+        : bestFaq.answer;
+    }
+  }
+
+  // 2. Greetings & thanks (always hardcoded)
   if (t.includes("halo") || t.includes("hi") || t.includes("assalamu") || t.includes("selamat"))
     return "Wa'alaikumsalam! 🌙 Selamat datang. Saya siap membantu informasi Umroh & Haji. Silakan ketik pertanyaan Anda!";
   if (t.includes("terima kasih") || t.includes("makasih"))
     return "Wa iyyakum! Jazakallahu khairan 🤲 Semoga perjalanan ibadah Anda menjadi mabrur!";
-  return FAQ_REPLIES.default;
+
+  // 3. Hardcoded keyword map as final fallback
+  if (t.includes("umroh") || t.includes("umrah")) return FAQ_REPLIES_HARDCODED.umroh;
+  if (t.includes("haji")) return FAQ_REPLIES_HARDCODED.haji;
+  if (t.includes("harga") || t.includes("biaya") || t.includes("berapa")) return FAQ_REPLIES_HARDCODED.harga;
+  if (t.includes("visa")) return FAQ_REPLIES_HARDCODED.visa;
+  if (t.includes("daftar") || t.includes("booking") || t.includes("pesan")) return FAQ_REPLIES_HARDCODED.daftar;
+  if (t.includes("dokumen") || t.includes("paspor") || t.includes("syarat")) return FAQ_REPLIES_HARDCODED.dokumen;
+  if (t.includes("bayar") || t.includes("cicil") || t.includes("transfer")) return FAQ_REPLIES_HARDCODED.bayar;
+  return FAQ_REPLIES_HARDCODED.default;
 }
 
 // API base — proxied via Vite to port 8080 in dev, relative path works in prod
@@ -114,6 +142,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<{ role: string; text: string }[]>([]);
+  const liveFaqsRef = useRef<LiveFAQ[]>([]);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -224,13 +253,21 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   async function loadConfig() {
     try {
       const supabaseAny = supabase as any;
-      const [settingsResult, packageContext] = await Promise.all([
+      const [settingsResult, packageContext, faqsResult] = await Promise.all([
         supabaseAny
           .from("app_settings")
           .select("key,value")
           .in("key", ["gemini_chatbot_config"]),
         buildPackageContext(),
+        supabaseAny
+          .from("faqs")
+          .select("question,answer")
+          .eq("is_published", true)
+          .order("sort_order", { ascending: true }),
       ]);
+      if (faqsResult.data?.length) {
+        liveFaqsRef.current = faqsResult.data as LiveFAQ[];
+      }
 
       let cfg: any = {};
       if (settingsResult.data?.length) {
@@ -304,9 +341,9 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
       // Always route through the API server — Gemini key stays secure server-side
       replyText = await callAPIServer(userText, geminiConfig);
     } catch {
-      // Fallback to local FAQ if API is unreachable
+      // Fallback to local FAQ if API is unreachable — use live DB FAQs first
       await new Promise(r => setTimeout(r, 400 + Math.random() * 400));
-      replyText = getFaqReply(userText);
+      replyText = getFaqReply(userText, liveFaqsRef.current);
     }
 
     historyRef.current.push({ role: "bot", text: replyText });
