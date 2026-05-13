@@ -285,6 +285,12 @@ export function BookingWizard() {
               onUpdatePassengers={(passengers) => updateFormData({ passengers })}
               cancellationAgreed={cancellationAgreed ?? undefined}
               onCancellationAgreedChange={setCancellationAgreed}
+              paymentMode={formData.paymentMode || 'full'}
+              dpAmount={formData.dpAmount || 0}
+              savingsPlanId={formData.savingsPlanId}
+              onPaymentModeChange={(mode, dp, savingsId) =>
+                updateFormData({ paymentMode: mode, dpAmount: dp, savingsPlanId: savingsId })
+              }
             />
           )}
         </CardContent>
