@@ -2,6 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   VINSTOUR ISLAMIC UI KIT — scoped tokens for Jamaah PWA
+   Activated on any subtree via [data-portal="jamaah"]
+   Inspired by Muslim Pro / Athan / Quran.com
+   ============================================================ */
+@layer base {
+  [data-portal="jamaah"] {
+    /* Palette */
+    --emerald-deep: 158 56% 12%;
+    --emerald: 158 60% 28%;
+    --emerald-soft: 158 35% 45%;
+    --emerald-mist: 150 30% 95%;
+    --gold: 39 45% 60%;
+    --gold-soft: 39 60% 78%;
+    --gold-deep: 36 45% 38%;
+    --sand: 40 38% 95%;
+    --ink: 158 30% 8%;
+
+    /* Map shadcn tokens to Islamic palette */
+    --background: var(--sand);
+    --foreground: var(--ink);
+    --card: 0 0% 100%;
+    --card-foreground: var(--ink);
+    --primary: var(--emerald);
+    --primary-foreground: 40 38% 97%;
+    --secondary: var(--emerald-mist);
+    --secondary-foreground: var(--emerald-deep);
+    --muted: 40 25% 92%;
+    --muted-foreground: 158 12% 38%;
+    --accent: var(--gold);
+    --accent-foreground: var(--ink);
+    --border: 40 22% 86%;
+    --input: 40 22% 86%;
+    --ring: var(--emerald);
+    --radius: 1.25rem;
+
+    /* Gradients */
+    --gradient-mihrab: linear-gradient(180deg, hsl(var(--emerald-deep)) 0%, hsl(var(--emerald)) 60%, hsl(var(--emerald-soft)) 100%);
+    --gradient-night-sky: linear-gradient(180deg, hsl(220 50% 12%) 0%, hsl(var(--emerald-deep)) 100%);
+    --gradient-dawn: linear-gradient(180deg, hsl(28 70% 75%) 0%, hsl(45 80% 80%) 50%, hsl(var(--emerald-mist)) 100%);
+    --gradient-noon: linear-gradient(180deg, hsl(200 75% 70%) 0%, hsl(45 90% 75%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(var(--gold-soft)) 0%, hsl(var(--gold)) 50%, hsl(var(--gold-deep)) 100%);
+
+    /* Shadows */
+    --shadow-mihrab: 0 24px 48px -16px hsl(var(--emerald) / 0.45);
+    --shadow-card: 0 8px 24px -12px hsl(var(--emerald-deep) / 0.18);
+    --shadow-gold: 0 4px 18px -6px hsl(var(--gold) / 0.45);
+
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Arabic / Display fonts */
+  .font-arabic   { font-family: 'Amiri', 'Scheherazade New', 'Noto Naskh Arabic', serif; }
+  .font-display  { font-family: 'Reem Kufi', 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.01em; }
+
+  /* Reusable surfaces */
+  [data-portal="jamaah"] .islamic-card {
+    @apply bg-card text-card-foreground rounded-3xl border;
+    border-color: hsl(var(--gold) / 0.22);
+    box-shadow: var(--shadow-card);
+  }
+  [data-portal="jamaah"] .islamic-surface-mihrab {
+    background: var(--gradient-mihrab);
+    color: hsl(40 38% 97%);
+    position: relative;
+    overflow: hidden;
+  }
+  [data-portal="jamaah"] .islamic-surface-mihrab::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 10%, hsl(var(--gold) / 0.12), transparent 40%),
+      radial-gradient(circle at 80% 90%, hsl(var(--gold) / 0.08), transparent 40%);
+    pointer-events: none;
+  }
+  [data-portal="jamaah"] .gold-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--gold) / 0.6), transparent);
+  }
+  [data-portal="jamaah"] .text-gold { color: hsl(var(--gold)); }
+  [data-portal="jamaah"] .text-gold-deep { color: hsl(var(--gold-deep)); }
+  [data-portal="jamaah"] .bg-emerald-deep { background-color: hsl(var(--emerald-deep)); }
+
+  /* Geometric pattern overlay (CSS only) */
+  [data-portal="jamaah"] .pattern-geometric {
+    background-image:
+      linear-gradient(60deg, hsl(var(--gold) / 0.06) 25%, transparent 25.5%, transparent 75%, hsl(var(--gold) / 0.06) 75%),
+      linear-gradient(120deg, hsl(var(--gold) / 0.06) 25%, transparent 25.5%, transparent 75%, hsl(var(--gold) / 0.06) 75%);
+    background-size: 28px 48px;
+  }
+
+  /* Safe-area helpers for PWA */
+  [data-portal="jamaah"] .safe-top    { padding-top: max(env(safe-area-inset-top), 0px); }
+  [data-portal="jamaah"] .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+}
+
 /* 
   SISTEM MANAJEMEN UMROH & HAJI
   Islamic-themed Design System with Emerald Green & Gold Accents

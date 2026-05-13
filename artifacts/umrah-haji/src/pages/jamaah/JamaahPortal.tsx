@@ -33,6 +33,7 @@ import { useGeoNotification } from "@/hooks/useGeoNotification";
 import { restorePendingFollowup } from "@/hooks/useChatbotFollowup";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
+import { IslamicHomeSections } from "@/components/jamaah/home/IslamicHomeSections";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useRecentlyViewedPackages } from "@/hooks/useRecentlyViewedPackages";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -396,6 +397,9 @@ export default function JamaahPortal() {
 
 
       <div className="p-4 space-y-4">
+        {/* Islamic Home Sections — hero mihrab, ibadah, paket, toko, tabungan & referral */}
+        <IslamicHomeSections customerName={customer?.full_name} customerId={customer?.id} />
+
         {/* P6: Enhanced Departure Countdown Widget */}
         {daysUntilDeparture !== null && daysUntilDeparture > 0 && (
           <Card className="bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground overflow-hidden">

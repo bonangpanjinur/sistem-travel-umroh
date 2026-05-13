@@ -5774,6 +5774,21 @@ export type Database = {
           },
         ]
       }
+      store_po_counters: {
+        Row: {
+          bucket: string
+          last_seq: number
+        }
+        Insert: {
+          bucket: string
+          last_seq?: number
+        }
+        Update: {
+          bucket?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
       store_product_reviews: {
         Row: {
           admin_reply: string | null
@@ -5843,14 +5858,17 @@ export type Database = {
       }
       store_products: {
         Row: {
+          avg_cost: number
           branch_id: string | null
           category_id: string | null
           created_at: string
+          current_stock: number
           description: string | null
           id: string
           images: Json
           is_active: boolean
           is_featured: boolean
+          min_stock: number
           name: string
           original_price: number | null
           price: number
@@ -5862,14 +5880,17 @@ export type Database = {
           weight_gram: number
         }
         Insert: {
+          avg_cost?: number
           branch_id?: string | null
           category_id?: string | null
           created_at?: string
+          current_stock?: number
           description?: string | null
           id?: string
           images?: Json
           is_active?: boolean
           is_featured?: boolean
+          min_stock?: number
           name: string
           original_price?: number | null
           price?: number
@@ -5881,14 +5902,17 @@ export type Database = {
           weight_gram?: number
         }
         Update: {
+          avg_cost?: number
           branch_id?: string | null
           category_id?: string | null
           created_at?: string
+          current_stock?: number
           description?: string | null
           id?: string
           images?: Json
           is_active?: boolean
           is_featured?: boolean
+          min_stock?: number
           name?: string
           original_price?: number | null
           price?: number
@@ -5912,6 +5936,119 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "store_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_purchase_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          po_id: string
+          product_id: string
+          qty_ordered: number
+          qty_received: number
+          subtotal: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          po_id: string
+          product_id: string
+          qty_ordered: number
+          qty_received?: number
+          subtotal?: number
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          po_id?: string
+          product_id?: string
+          qty_ordered?: number
+          qty_received?: number
+          subtotal?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_purchase_order_items_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "store_purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expected_date: string | null
+          id: string
+          notes: string | null
+          order_date: string
+          po_number: string
+          received_date: string | null
+          shipping_cost: number
+          status: Database["public"]["Enums"]["po_status"]
+          subtotal: number
+          supplier_id: string
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expected_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number: string
+          received_date?: string | null
+          shipping_cost?: number
+          status?: Database["public"]["Enums"]["po_status"]
+          subtotal?: number
+          supplier_id: string
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expected_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number?: string
+          received_date?: string | null
+          shipping_cost?: number
+          status?: Database["public"]["Enums"]["po_status"]
+          subtotal?: number
+          supplier_id?: string
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "store_suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -5968,6 +6105,101 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      store_stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          qty: number
+          ref_id: string | null
+          ref_table: string | null
+          type: Database["public"]["Enums"]["stock_movement_type"]
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          qty: number
+          ref_id?: string | null
+          ref_table?: string | null
+          type: Database["public"]["Enums"]["stock_movement_type"]
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          qty?: number
+          ref_id?: string | null
+          ref_table?: string | null
+          type?: Database["public"]["Enums"]["stock_movement_type"]
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_suppliers: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          npwp: string | null
+          payment_terms: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          npwp?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          npwp?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       support_tickets: {
         Row: {
@@ -7067,6 +7299,7 @@ export type Database = {
       }
       generate_employee_code: { Args: never; Returns: string }
       generate_payment_code: { Args: never; Returns: string }
+      generate_po_number: { Args: never; Returns: string }
       generate_savings_payment_code: { Args: never; Returns: string }
       generate_store_order_number: { Args: never; Returns: string }
       generate_ticket_code: { Args: never; Returns: string }
@@ -7136,6 +7369,7 @@ export type Database = {
       is_account_locked: { Args: { _email: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_branch_manager_only: { Args: { _user_id: string }; Returns: boolean }
+      is_store_admin: { Args: { _uid: string }; Returns: boolean }
       list_users_with_emails: {
         Args: never
         Returns: {
@@ -7180,6 +7414,10 @@ export type Database = {
       }
       recalculate_departure_booked_count: {
         Args: { p_departure_id?: string }
+        Returns: undefined
+      }
+      receive_purchase_order: {
+        Args: { _items: Json; _po_id: string }
         Returns: undefined
       }
       redeem_booking_access_token: { Args: { _token: string }; Returns: Json }
@@ -7264,7 +7502,15 @@ export type Database = {
         | "lost"
       package_type: "umroh" | "haji" | "haji_plus" | "umroh_plus" | "tabungan"
       payment_status: "pending" | "partial" | "paid" | "refunded" | "failed"
+      po_status: "draft" | "ordered" | "partial" | "received" | "cancelled"
       room_type: "quad" | "triple" | "double" | "single"
+      stock_movement_type:
+        | "purchase_in"
+        | "sale_out"
+        | "adjustment"
+        | "return_in"
+        | "return_out"
+        | "opname"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7432,7 +7678,16 @@ export const Constants = {
       ],
       package_type: ["umroh", "haji", "haji_plus", "umroh_plus", "tabungan"],
       payment_status: ["pending", "partial", "paid", "refunded", "failed"],
+      po_status: ["draft", "ordered", "partial", "received", "cancelled"],
       room_type: ["quad", "triple", "double", "single"],
+      stock_movement_type: [
+        "purchase_in",
+        "sale_out",
+        "adjustment",
+        "return_in",
+        "return_out",
+        "opname",
+      ],
     },
   },
 } as const
