@@ -70,6 +70,10 @@ export default function AgentLeaderboard() {
 
   const periodDates = getPeriodDates(period);
 
+  // AGEN-ADD8 — realtime auto-refresh saat ada perubahan booking/komisi
+  useRealtimeSubscription("bookings", [["agent-leaderboard"]]);
+  useRealtimeSubscription("agent_commissions", [["agent-leaderboard"]]);
+
   const { data: agentData } = useQuery({
     queryKey: ['my-agent-id', user?.id],
     enabled: !!user?.id,
