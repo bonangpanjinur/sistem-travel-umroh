@@ -47,6 +47,7 @@ export const PERMISSIONS = {
   REPORTS: 'reports',
   ADVANCED_REPORTS: 'advanced-reports',
   SCHEDULED_REPORTS: 'scheduled-reports',
+  EXCHANGE_RATES: 'exchange-rates',
 
   // Jamaah & Agen
   CUSTOMERS: 'customers',
