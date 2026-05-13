@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Mei 2026 (sesi terbaru: audit status semua backlog — F3 & P7 ternyata sudah selesai, prioritas Sprint 8 ditetapkan)
+> **Terakhir diperbarui:** Mei 2026 (Sprint 8 SELESAI: K9 + J3 + K7 + P6 — tag/label kustom paket pakai tabel relasional `package_labels` & `package_label_assignments`)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
