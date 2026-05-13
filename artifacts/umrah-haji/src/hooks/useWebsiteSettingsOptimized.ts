@@ -97,7 +97,8 @@ export interface ThemePreset {
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 const SETTINGS_CACHE_KEY = "website-settings-cache";
 const SETTINGS_CACHE_TIME_KEY = "website-settings-cache-time";
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+// CSS-FIX-4: turunkan cache ke 5 menit agar perubahan admin cepat berlaku
+const CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
 
 type WebsiteSettingsRow = Database['public']['Tables']['website_settings']['Row'];
 
