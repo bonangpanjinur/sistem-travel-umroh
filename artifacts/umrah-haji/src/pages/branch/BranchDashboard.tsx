@@ -1,14 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
 import {
   Users, DollarSign, Package, TrendingUp, Building2,
-  ArrowRight, CheckCircle2, Clock, AlertCircle, BarChart3
+  ArrowRight, CheckCircle2, Clock, AlertCircle, BarChart3, CalendarRange
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -20,6 +23,9 @@ import { cn } from "@/lib/utils";
 
 export default function BranchDashboard() {
   const { user, branchId } = useAuth();
+  const today = new Date();
+  const [dateFrom, setDateFrom] = useState<string>(format(startOfMonth(today), "yyyy-MM-dd"));
+  const [dateTo, setDateTo] = useState<string>(format(endOfMonth(today), "yyyy-MM-dd"));
 
   const { data: branchData } = useQuery({
     queryKey: ["branch-data", user?.id],
@@ -37,12 +43,11 @@ export default function BranchDashboard() {
   const bId = branchData?.id || branchId;
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["branch-stats", bId],
+    queryKey: ["branch-stats", bId, dateFrom, dateTo],
     enabled: !!bId,
     queryFn: async () => {
-      const now = new Date();
-      const startMonth = startOfMonth(now).toISOString();
-      const endMonth = endOfMonth(now).toISOString();
+      const startMonth = new Date(`${dateFrom}T00:00:00`).toISOString();
+      const endMonth = new Date(`${dateTo}T23:59:59`).toISOString();
 
       const [bookingsRes, agentsRes, customersRes, revenueRes, pendingDiskon] = await Promise.all([
         supabase.from("bookings").select("id, status, total_price, created_at", { count: "exact" })
@@ -111,8 +116,8 @@ export default function BranchDashboard() {
   };
 
   const KPI = [
-    { label: "Booking Bulan Ini", value: stats?.bookings ?? 0, sub: `${stats?.confirmed ?? 0} konfirmasi`, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Revenue Bulan Ini", value: formatCurrency(stats?.revenue ?? 0), sub: "Booking confirmed", icon: DollarSign, color: "text-green-600", bg: "bg-green-50", isCurrency: true },
+    { label: "Booking Periode", value: stats?.bookings ?? 0, sub: `${stats?.confirmed ?? 0} konfirmasi`, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Revenue Periode", value: formatCurrency(stats?.revenue ?? 0), sub: "Booking confirmed", icon: DollarSign, color: "text-green-600", bg: "bg-green-50", isCurrency: true },
     { label: "Agen Aktif", value: stats?.agents ?? 0, sub: "di cabang ini", icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
     { label: "Total Jamaah", value: stats?.customers ?? 0, sub: "terdaftar", icon: TrendingUp, color: "text-amber-600", bg: "bg-amber-50" },
   ];
@@ -137,6 +142,40 @@ export default function BranchDashboard() {
           </Link>
         )}
       </div>
+
+      {/* Date Range Filter */}
+      <Card>
+        <CardContent className="p-3 flex flex-wrap items-end gap-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <CalendarRange className="h-4 w-4 text-primary" /> Periode:
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="from" className="text-xs">Dari</Label>
+            <Input id="from" type="date" value={dateFrom} max={dateTo}
+              onChange={(e) => setDateFrom(e.target.value)} className="h-8 w-40" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="to" className="text-xs">Sampai</Label>
+            <Input id="to" type="date" value={dateTo} min={dateFrom}
+              onChange={(e) => setDateTo(e.target.value)} className="h-8 w-40" />
+          </div>
+          <div className="flex gap-1 ml-auto">
+            <Button variant="outline" size="sm" onClick={() => {
+              setDateFrom(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+              setDateTo(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+            }}>Bulan Ini</Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              const last = subMonths(new Date(), 1);
+              setDateFrom(format(startOfMonth(last), "yyyy-MM-dd"));
+              setDateTo(format(endOfMonth(last), "yyyy-MM-dd"));
+            }}>Bulan Lalu</Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              setDateFrom(format(subMonths(new Date(), 2), "yyyy-MM-dd"));
+              setDateTo(format(new Date(), "yyyy-MM-dd"));
+            }}>3 Bulan</Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
