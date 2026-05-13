@@ -15,9 +15,11 @@ import { toast } from "sonner";
 import {
   Bot, Key, CheckCircle2, AlertCircle, Eye, EyeOff,
   Loader2, ExternalLink, Send, RefreshCcw, Sparkles,
-  MessageSquare, Settings, Info, Zap, Package, Database
+  MessageSquare, Settings, Info, Zap, Package, Database,
+  HelpCircle, BookOpen, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { buildPackageContext } from "@/lib/packageContext";
+import { buildFAQContext } from "@/lib/faqContext";
 
 const DEFAULT_SYSTEM_PROMPT = `Kamu adalah Asisten Virtual yang ramah dan informatif untuk layanan perjalanan Umroh dan Haji.
 Bantu calon jamaah dengan pertanyaan seputar:
@@ -89,8 +91,14 @@ export default function AdminGeminiAI() {
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [packageCount, setPackageCount] = useState(0);
 
+  const [enableFAQContext, setEnableFAQContext] = useState(true);
+  const [faqContext, setFaqContext] = useState("");
+  const [loadingFAQs, setLoadingFAQs] = useState(false);
+  const [faqCount, setFaqCount] = useState(0);
+
   useEffect(() => {
     loadPackageContext();
+    loadFAQContext();
   }, []);
 
   async function loadPackageContext() {
@@ -104,6 +112,26 @@ export default function AdminGeminiAI() {
       setPackageContext("");
     }
     setLoadingPackages(false);
+  }
+
+  async function loadFAQContext() {
+    setLoadingFAQs(true);
+    try {
+      const ctx = await buildFAQContext();
+      setFaqContext(ctx);
+      // Count FAQ entries by counting "T:" occurrences
+      const matches = ctx.match(/^T:/gm);
+      setFaqCount(matches?.length || 0);
+    } catch {
+      setFaqContext("");
+    }
+    setLoadingFAQs(false);
+  }
+
+  async function invalidateFAQCache() {
+    try {
+      await fetch("/api/v1/chatbot/invalidate-faq", { method: "POST" });
+    } catch {}
   }
 
   useEffect(() => {
@@ -126,6 +154,7 @@ export default function AdminGeminiAI() {
               if (cfg.botName) setBotName(cfg.botName);
               if (cfg.greeting) setGreeting(cfg.greeting);
               if (typeof cfg.enableLeadCapture === "boolean") setEnableLeadCapture(cfg.enableLeadCapture);
+              if (typeof cfg.enableFAQContext === "boolean") setEnableFAQContext(cfg.enableFAQContext);
             }
           }
         }
@@ -142,7 +171,7 @@ export default function AdminGeminiAI() {
         { key: "gemini_api_key", value: JSON.stringify(apiKey.trim()), updated_at: new Date().toISOString() },
         {
           key: "gemini_chatbot_config",
-          value: JSON.stringify({ model, systemPrompt, botName, greeting, enableLeadCapture }),
+          value: JSON.stringify({ model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext }),
           updated_at: new Date().toISOString(),
         },
       ], { onConflict: "key" });
@@ -430,6 +459,96 @@ export default function AdminGeminiAI() {
         </Button>
       </div>
 
+      {/* ── FAQ Knowledge Base ────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-blue-500" /> FAQ Knowledge Base
+              </CardTitle>
+              <CardDescription>
+                FAQ yang dipublikasikan otomatis menjadi konteks tambahan AI — chatbot menjawab lebih akurat berdasarkan data Anda
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {faqCount > 0 && (
+                <Badge className="bg-blue-100 text-blue-700 border-0 gap-1">
+                  <HelpCircle className="h-3 w-3" /> {faqCount} FAQ
+                </Badge>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={async () => { await loadFAQContext(); await invalidateFAQCache(); toast.success("FAQ cache diperbarui!"); }}
+                disabled={loadingFAQs}
+              >
+                {loadingFAQs ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Toggle aktif/nonaktif */}
+          <div className="flex items-center justify-between rounded-xl border p-3 bg-muted/30">
+            <div className="flex items-center gap-3">
+              {enableFAQContext
+                ? <ToggleRight className="h-5 w-5 text-blue-500" />
+                : <ToggleLeft className="h-5 w-5 text-muted-foreground" />
+              }
+              <div>
+                <p className="text-sm font-medium">
+                  {enableFAQContext ? "FAQ aktif sebagai knowledge base" : "FAQ dinonaktifkan"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {enableFAQContext
+                    ? "Semua FAQ yang dipublikasikan dikirim ke Gemini setiap sesi chat"
+                    : "Gemini hanya menggunakan system prompt tanpa data FAQ"}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={enableFAQContext}
+              onCheckedChange={setEnableFAQContext}
+            />
+          </div>
+
+          {/* Preview konten FAQ */}
+          {enableFAQContext && (
+            <>
+              {loadingFAQs ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Memuat FAQ dari database...
+                </div>
+              ) : faqContext ? (
+                <>
+                  <ScrollArea className="h-48 w-full">
+                    <pre className="text-xs text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap leading-relaxed bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                      {faqContext}
+                    </pre>
+                  </ScrollArea>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>{faqCount} FAQ</strong> aktif akan otomatis diinjeksi ke konteks Gemini.
+                    Untuk menambah atau mengedit FAQ, buka menu <strong>FAQ Manager</strong>.
+                    Cache diperbarui setiap 60 detik secara otomatis.
+                  </p>
+                </>
+              ) : (
+                <div className="py-6 text-center text-sm text-muted-foreground space-y-1">
+                  <HelpCircle className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                  <p>Belum ada FAQ yang dipublikasikan.</p>
+                  <p className="text-xs">
+                    Tambahkan FAQ di menu <strong>FAQ Manager</strong> dan aktifkan statusnya agar chatbot dapat menjawab lebih akurat.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Package Context Preview */}
       <Card>
         <CardHeader className="pb-3">
@@ -486,9 +605,10 @@ export default function AdminGeminiAI() {
           <div className="space-y-2">
             {[
               { icon: "1", text: "Pengunjung membuka chat widget di halaman publik" },
-              { icon: "2", text: "Chatbot membaca konfigurasi Gemini + data paket aktif dari database" },
-              { icon: "3", text: "Data paket diinjeksi ke system prompt → Gemini menjawab dengan harga & jadwal real" },
-              { icon: "4", text: "Jika API key tidak tersedia, bot menggunakan FAQ lokal sebagai fallback" },
+              { icon: "2", text: "API server mengambil konfigurasi Gemini, data paket aktif, dan FAQ yang dipublikasikan — secara paralel dari database" },
+              { icon: "3", text: "FAQ Knowledge Base + data paket diinjeksi ke system prompt → Gemini menjawab berdasarkan konten riil Anda" },
+              { icon: "4", text: "Setiap FAQ baru yang dipublikasikan di FAQ Manager langsung tersedia untuk AI dalam ≤60 detik (auto-refresh cache)" },
+              { icon: "5", text: "Jika API key tidak tersedia, bot menggunakan FAQ lokal bawaan sebagai fallback" },
             ].map(item => (
               <div key={item.icon} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                 <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0 text-[10px]">

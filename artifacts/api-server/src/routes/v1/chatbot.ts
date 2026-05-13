@@ -117,14 +117,29 @@ async function callOpenAI(apiKey: string, systemPrompt: string, message: string,
 }
 
 // ─── Fetch admin-configured system prompt from Supabase (cached 60s) ──────────
-let cachedAdminConfig: { systemPrompt: string; model: string; ts: number } | null = null;
+let cachedAdminConfig: {
+  systemPrompt: string;
+  model: string;
+  enableFAQContext: boolean;
+  ts: number;
+} | null = null;
 
-async function getAdminConfig(): Promise<{ systemPrompt: string; model: string }> {
+async function getAdminConfig(): Promise<{
+  systemPrompt: string;
+  model: string;
+  enableFAQContext: boolean;
+}> {
   const now = Date.now();
   if (cachedAdminConfig && now - cachedAdminConfig.ts < 60_000) {
-    return { systemPrompt: cachedAdminConfig.systemPrompt, model: cachedAdminConfig.model };
+    return {
+      systemPrompt: cachedAdminConfig.systemPrompt,
+      model: cachedAdminConfig.model,
+      enableFAQContext: cachedAdminConfig.enableFAQContext,
+    };
   }
-  if (!isSupabaseConfigured()) return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash' };
+  if (!isSupabaseConfigured()) {
+    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true };
+  }
 
   try {
     const rows: any[] = await supabaseFetch(
@@ -132,20 +147,83 @@ async function getAdminConfig(): Promise<{ systemPrompt: string; model: string }
     );
     let systemPrompt = DEFAULT_SYSTEM_PROMPT;
     let model = 'gemini-2.0-flash';
+    let enableFAQContext = true;
     for (const row of rows || []) {
       if (row.key === 'gemini_chatbot_config') {
         try {
           const cfg = JSON.parse(row.value);
           if (cfg.systemPrompt) systemPrompt = cfg.systemPrompt;
           if (cfg.model && ALLOWED_GEMINI_MODELS.has(cfg.model)) model = cfg.model;
+          if (typeof cfg.enableFAQContext === 'boolean') enableFAQContext = cfg.enableFAQContext;
         } catch {}
       }
     }
-    cachedAdminConfig = { systemPrompt, model, ts: now };
-    return { systemPrompt, model };
+    cachedAdminConfig = { systemPrompt, model, enableFAQContext, ts: now };
+    return { systemPrompt, model, enableFAQContext };
   } catch {
-    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash' };
+    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true };
   }
+}
+
+// ─── Fetch published FAQs as knowledge-base context (cached 60s) ──────────────
+let cachedFAQContext: { text: string; count: number; ts: number } | null = null;
+
+async function getFAQContext(): Promise<{ text: string; count: number }> {
+  const now = Date.now();
+  if (cachedFAQContext && now - cachedFAQContext.ts < 60_000) {
+    return { text: cachedFAQContext.text, count: cachedFAQContext.count };
+  }
+  if (!isSupabaseConfigured()) return { text: '', count: 0 };
+
+  try {
+    const faqs: any[] = await supabaseFetch(
+      `/faqs?is_published=eq.true&select=question,answer,category&order=sort_order.asc&limit=60`,
+    );
+
+    if (!faqs?.length) {
+      cachedFAQContext = { text: '', count: 0, ts: now };
+      return { text: '', count: 0 };
+    }
+
+    // Group by category
+    const byCategory: Record<string, Array<{ question: string; answer: string }>> = {};
+    for (const faq of faqs) {
+      const cat = (faq.category as string) || 'Umum';
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push({ question: faq.question, answer: faq.answer });
+    }
+
+    const lines: string[] = ['=== FAQ & KNOWLEDGE BASE ==='];
+    for (const [category, items] of Object.entries(byCategory)) {
+      lines.push(`\n[${category}]`);
+      for (const { question, answer } of items) {
+        // Strip HTML tags and collapse whitespace
+        const cleanAnswer = answer
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        lines.push(`T: ${question}`);
+        lines.push(`J: ${cleanAnswer}`);
+      }
+    }
+    lines.push('\n=== AKHIR FAQ ===');
+    lines.push(
+      'Gunakan FAQ di atas sebagai referensi utama. ' +
+      'Jika pertanyaan sesuai FAQ, jawab berdasarkan data tersebut. ' +
+      'Jika tidak ada dalam FAQ, gunakan pengetahuan umum tentang umroh/haji.',
+    );
+
+    const text = lines.join('\n');
+    cachedFAQContext = { text, count: faqs.length, ts: now };
+    return { text, count: faqs.length };
+  } catch {
+    return { text: '', count: 0 };
+  }
+}
+
+// ─── Invalidate FAQ cache (called after admin saves FAQ) ─────────────────────
+function invalidateFAQCache() {
+  cachedFAQContext = null;
 }
 
 // ─── Log message pair to chatbot_logs (fire-and-forget) ──────────────────────
@@ -198,12 +276,24 @@ router.post('/', async (req: any, res: any) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Fetch admin-configured system prompt (cached)
-    const adminConfig = await getAdminConfig();
+    // Fetch admin config and FAQ context concurrently
+    const [adminConfig, faqCtx] = await Promise.all([
+      getAdminConfig(),
+      getFAQContext(),
+    ]);
 
     // Client-provided system prompt takes priority (allows per-widget customisation)
-    const systemPrompt = clientSystemPrompt || adminConfig.systemPrompt;
-    const model        = (clientModel && ALLOWED_GEMINI_MODELS.has(clientModel)) ? clientModel : adminConfig.model;
+    const baseSystemPrompt = clientSystemPrompt || adminConfig.systemPrompt;
+    const model = (clientModel && ALLOWED_GEMINI_MODELS.has(clientModel)) ? clientModel : adminConfig.model;
+
+    // ── Build enriched system prompt: base + FAQ knowledge base ──────────────
+    const promptParts: string[] = [baseSystemPrompt];
+
+    if (adminConfig.enableFAQContext && faqCtx.text) {
+      promptParts.push(faqCtx.text);
+    }
+
+    const systemPrompt = promptParts.join('\n\n');
 
     let answer = '';
     let source = 'faq';
@@ -237,7 +327,7 @@ router.post('/', async (req: any, res: any) => {
     // Log to DB (fire-and-forget — don't block the response) ─────────────────
     const logId = await logToDB({ sessionId, message, answer, source, userId, customerId, channel });
 
-    return res.json({ answer, source, logId });
+    return res.json({ answer, source, logId, faqCount: faqCtx.count });
   } catch {
     return res.status(500).json({ error: 'Internal server error' });
   }
@@ -264,6 +354,24 @@ router.patch('/rate', async (req: any, res: any) => {
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
+});
+
+// ─── POST /api/v1/chatbot/invalidate-faq ─────────────────────────────────────
+// Called by admin after saving FAQ to immediately refresh the cache
+router.post('/invalidate-faq', async (_req: any, res: any) => {
+  invalidateFAQCache();
+  return res.json({ success: true, message: 'FAQ cache invalidated' });
+});
+
+// ─── GET /api/v1/chatbot/faq-status ──────────────────────────────────────────
+// Returns current FAQ cache status
+router.get('/faq-status', async (_req: any, res: any) => {
+  const faqCtx = await getFAQContext();
+  return res.json({
+    faqCount: faqCtx.count,
+    hasContext: faqCtx.text.length > 0,
+    cachedAt: cachedFAQContext?.ts ? new Date(cachedFAQContext.ts).toISOString() : null,
+  });
 });
 
 export default router;
