@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, ShieldX } from "lucide-react";
+import { getInheritedRoles } from "@/lib/permissions";
+import type { AppRole } from "@/types/database";
 
 /** GAP-RBAC-08 — Simulasi Akses User */
 export default function AdminAccessSimulator() {
@@ -24,8 +26,29 @@ export default function AdminAccessSimulator() {
     queryKey: ["sim-perms", selectedId],
     enabled: !!selectedId,
     queryFn: async () => {
-      const { data } = await supabase.rpc("get_user_effective_permissions", { _user_id: selectedId });
-      return (data || []).map((r: any) => r.permission_key);
+      // Ambil roles user terlebih dahulu lalu ekspansi via hierarchy
+      // (mirror dari useEffectivePermissions agar hasil simulasi konsisten dgn runtime)
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", selectedId);
+      const baseRoles = (roleRows || []).map((r: any) => r.role as AppRole);
+      const expanded: AppRole[] = [...baseRoles];
+      baseRoles.forEach((r) => expanded.push(...getInheritedRoles(r)));
+      const uniqueRoles = Array.from(new Set(expanded));
+
+      // Coba RPC v2 dulu (sesuai produksi), fallback ke legacy bila belum migrasi
+      const v2 = await supabase.rpc("get_user_effective_permissions_v2", {
+        _user_id: selectedId,
+        _roles: uniqueRoles,
+      });
+      if (!v2.error && v2.data) {
+        return (v2.data as any[]).map((r) => r.permission_key);
+      }
+      const legacy = await supabase.rpc("get_user_effective_permissions", {
+        _user_id: selectedId,
+      });
+      return ((legacy.data || []) as any[]).map((r) => r.permission_key);
     },
   });
 
