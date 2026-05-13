@@ -42,6 +42,7 @@ export async function buildPackageContext(): Promise<string> {
 
       const parts: string[] = [];
       parts.push(`📦 ${pkg.name}`);
+      parts.push(`   URL Paket: /packages/${pkg.id}`);
       parts.push(`   Tipe: ${pkg.package_type || "Umroh"} | Durasi: ${pkg.duration_days || "?"} hari`);
 
       if (pkg.hotel_makkah?.name) {

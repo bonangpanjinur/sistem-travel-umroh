@@ -17,14 +17,14 @@ interface Message {
 
 const FAQ_KNOWLEDGE_BASE: Record<string, string> = {
   "dokumen": "📋 *Dokumen yang diperlukan untuk Umroh:*\n\n1. **Paspor** — berlaku minimal 6 bulan\n2. **KTP** & **Kartu Keluarga**\n3. **Buku Nikah** (jika berangkat bersama pasangan)\n4. **Pas foto** 4×6 background putih\n5. **Sertifikat Vaksin Meningitis**\n\nUpload dokumen di portal jamaah setelah mendaftar ✅",
-  "harga": "💰 Harga paket Umroh & Haji bervariasi tergantung fasilitas dan musim. Lihat **daftar paket lengkap** di halaman Paket kami atau hubungi agen terdekat untuk penawaran terbaik.",
+  "harga": "💰 Harga paket Umroh & Haji bervariasi tergantung fasilitas dan musim. Lihat [daftar paket lengkap](/packages) di halaman Paket kami atau hubungi agen terdekat untuk penawaran terbaik.",
   "cicilan": "💳 *Pembayaran dapat dilakukan via:*\n\n1. Transfer Bank\n2. Virtual Account\n3. Cicilan Tabungan bulanan\n4. Online (GoPay, QRIS, Kartu Kredit)\n\nHubungi agen kami untuk skema cicilan yang sesuai!",
-  "visa": "🛂 *Proses Visa Umroh biasanya:*\n\n• Submit dokumen → 2-3 minggu sebelum berangkat\n• Proses visa: **5-10 hari kerja**\n• Notifikasi dikirim via WhatsApp & portal\n\nPantau status visa di portal jamaah.",
-  "hotel": "🏨 *Hotel tersedia di Makkah & Madinah:*\n\n• **Makkah**: 50m–1km dari Masjidil Haram\n• **Madinah**: 100m–500m dari Masjid Nabawi\n• Bintang 3–5 sesuai paket yang dipilih\n\nDetail hotel ada di deskripsi masing-masing paket.",
-  "jadwal": "📅 Durasi umroh biasanya **9–14 hari** mencakup:\n• Makkah: 5–8 hari\n• Madinah: 3–5 hari\n\nJadwal keberangkatan tersedia di halaman Paket.",
+  "visa": "🛂 *Proses Visa Umroh biasanya:*\n\n• Submit dokumen → 2-3 minggu sebelum berangkat\n• Proses visa: **5-10 hari kerja**\n• Notifikasi dikirim via WhatsApp & portal\n\nPantau status visa di [portal jamaah](/jamaah).",
+  "hotel": "🏨 *Hotel tersedia di Makkah & Madinah:*\n\n• **Makkah**: 50m–1km dari Masjidil Haram\n• **Madinah**: 100m–500m dari Masjid Nabawi\n• Bintang 3–5 sesuai paket yang dipilih\n\nDetail hotel ada di [deskripsi masing-masing paket](/packages).",
+  "jadwal": "📅 Durasi umroh biasanya **9–14 hari** mencakup:\n• Makkah: 5–8 hari\n• Madinah: 3–5 hari\n\nJadwal keberangkatan tersedia di [halaman Paket](/packages).",
   "bagasi": "🧳 Ketentuan umum bagasi:\n• **Kabin**: 7 kg\n• **Terdaftar**: 20–32 kg (sesuai maskapai & paket)\n\nAir zam-zam boleh dibawa max 5 liter di bagasi.",
-  "daftar": "✍️ *Cara mendaftar Umroh/Haji:*\n\n1. Pilih paket yang sesuai\n2. Hubungi agen atau klik **Daftar Sekarang**\n3. Isi formulir pendaftaran\n4. Bayar uang muka/DP\n5. Upload dokumen di portal\n\nProses selesai! Tim kami akan menghubungi Anda.",
-  "ibadah": "🕋 *Rukun Umroh:*\n1. Ihram dari miqat\n2. Thawaf 7x putaran Ka'bah\n3. Sa'i 7x antara Shafa–Marwa\n4. Tahallul (cukur rambut)\n\nPanduan lengkap tersedia di portal jamaah.",
+  "daftar": "✍️ *Cara mendaftar Umroh/Haji:*\n\n1. Pilih paket yang sesuai di [halaman Paket](/packages)\n2. Hubungi agen atau klik **Daftar Sekarang**\n3. Isi formulir pendaftaran\n4. Bayar uang muka/DP\n5. Upload dokumen di portal\n\nProses selesai! Tim kami akan menghubungi Anda.",
+  "ibadah": "🕋 *Rukun Umroh:*\n1. Ihram dari miqat\n2. Thawaf 7x putaran Ka'bah\n3. Sa'i 7x antara Shafa–Marwa\n4. Tahallul (cukur rambut)\n\nPanduan lengkap tersedia di [portal jamaah](/jamaah).",
   "refund": "💳 *Kebijakan pembatalan:*\n• H-90 s.d H-60: Refund 75%\n• H-60 s.d H-30: Refund 50%\n• H-30 s.d H-7: Refund 25%\n• < H-7: Tidak ada refund\n\nHubungi tim kami segera jika perlu membatalkan.",
 };
 
@@ -73,6 +73,14 @@ function formatContent(text: string) {
   return text
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(
+      /\[([^\]]+)\]\((\/[^)]*)\)/g,
+      '<a href="$2" onclick="event.stopPropagation()" style="color:#6d28d9;text-decoration:underline;font-weight:500;cursor:pointer;" onclick="window.location.href=\'$2\'">$1</a>'
+    )
+    .replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)]*)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#6d28d9;text-decoration:underline;font-weight:500;">$1</a>'
+    )
     .split("\n")
     .join("<br/>");
 }
@@ -211,6 +219,15 @@ export function FloatingChatBubble() {
                       <div
                         dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
                         className="whitespace-pre-wrap text-[13px]"
+                        onClick={(e) => {
+                          const target = e.target as HTMLElement;
+                          if (target.tagName === "A") {
+                            e.preventDefault();
+                            const href = target.getAttribute("href") || "";
+                            if (href.startsWith("/")) window.location.href = href;
+                            else if (href.startsWith("http")) window.open(href, "_blank", "noopener,noreferrer");
+                          }
+                        }}
                       />
                     </div>
                   </div>

@@ -27,7 +27,18 @@ Bantu calon jamaah dengan pertanyaan seputar:
 - Jadwal keberangkatan dan hotel
 - Panduan ibadah dan manasik
 Gunakan Bahasa Indonesia yang sopan dan hangat. Jawab singkat tapi lengkap (max 5 kalimat).
-Selalu ajak calon jamaah untuk mendaftar atau menghubungi tim jika butuh info lebih lanjut.`;
+Selalu ajak calon jamaah untuk mendaftar atau menghubungi tim jika butuh info lebih lanjut.
+
+STRUKTUR URL WEBSITE (gunakan format Markdown untuk link yang bisa diklik):
+- Daftar semua paket: [Lihat Semua Paket](/packages)
+- Detail paket spesifik: [Nama Paket](/packages/ID_PAKET)
+- Cek status booking: [Cek Booking](/cek-booking)
+- Portal jamaah: [Portal Jamaah](/jamaah)
+- Hubungi kami: [Kontak Kami](/hubungi-kami)
+- Jadwal sholat: [Jadwal Sholat](/sholat)
+
+Jika menyebut paket atau halaman, selalu sertakan link Markdown agar pengguna bisa langsung klik. Contoh: "Lihat [daftar paket lengkap](/packages) kami."
+Format link: [teks yang ditampilkan](/path)`;
 
 export default function AdminGeminiAI() {
   const [apiKey, setApiKey] = useState("");

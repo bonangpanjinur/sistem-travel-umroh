@@ -6,6 +6,22 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { buildPackageContext } from "@/lib/packageContext";
 
+function formatBotMessage(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(
+      /\[([^\]]+)\]\((\/[^)]*)\)/g,
+      '<a href="$2" style="color:#059669;text-decoration:underline;font-weight:600;cursor:pointer;">$1</a>'
+    )
+    .replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)]*)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#059669;text-decoration:underline;font-weight:600;">$1</a>'
+    )
+    .split("\n")
+    .join("<br/>");
+}
+
 type Message = {
   id: string;
   role: "user" | "bot";
@@ -400,7 +416,23 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                       "max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
                       m.role === "user" ? "bg-primary text-white rounded-br-sm" : "bg-white border rounded-bl-sm"
                     )}>
-                      <p>{m.text}</p>
+                      {m.role === "bot" ? (
+                        <div
+                          className="text-[13px] leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: formatBotMessage(m.text) }}
+                          onClick={(e) => {
+                            const target = e.target as HTMLElement;
+                            if (target.tagName === "A") {
+                              e.preventDefault();
+                              const href = target.getAttribute("href") || "";
+                              if (href.startsWith("/")) window.location.href = href;
+                              else if (href.startsWith("http")) window.open(href, "_blank", "noopener,noreferrer");
+                            }
+                          }}
+                        />
+                      ) : (
+                        <p>{m.text}</p>
+                      )}
                       <div className={cn("flex items-center gap-0.5 mt-0.5", m.role === "user" ? "justify-end" : "justify-start")}>
                         <span className={cn("text-[9px]", m.role === "user" ? "text-white/60" : "text-muted-foreground")}>
                           {format(m.ts, "h:mm aa")}
