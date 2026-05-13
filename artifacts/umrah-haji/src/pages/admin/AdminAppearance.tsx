@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu, Wallet, MessageCircle, Users, Search, MessageSquare, HelpCircle, Bell, Settings, FileText, MessageCircleMore, Package, CreditCard, Building2 } from "lucide-react";
 import { ThemeSelector } from "@/components/admin/appearance/ThemeSelector";
 import { ColorSettings } from "@/components/admin/appearance/ColorSettings";
@@ -96,7 +97,10 @@ export default function AdminAppearance() {
         footer_address: data.company_address,
       });
     } catch (error) {
-      console.error("Sync to website settings failed:", error);
+      toast.error(
+        "Sync ke pengaturan website gagal: " +
+          (error instanceof Error ? error.message : "unknown")
+      );
     }
   };
 
