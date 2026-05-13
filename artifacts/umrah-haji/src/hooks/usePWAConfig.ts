@@ -28,14 +28,12 @@ export interface PWAIconConfig {
 
 export interface PushVapidConfig {
   publicKey: string;
-  privateKey: string;
   subject: string; // mailto:admin@example.com
   enabled: boolean;
 }
 
 export const DEFAULT_VAPID_CONFIG: PushVapidConfig = {
   publicKey: "",
-  privateKey: "",
   subject: "mailto:admin@vinstour.com",
   enabled: false,
 };
@@ -132,7 +130,9 @@ export function usePWAConfig() {
 
   const vapidConfig: PushVapidConfig = useMemo(() => {
     const saved = customData?.push_vapid_config as Partial<PushVapidConfig> | undefined;
-    return { ...DEFAULT_VAPID_CONFIG, ...(saved || {}) };
+    // RBAC-F2: never expose privateKey to the client; strip it if present in legacy data.
+    const { privateKey: _drop, ...rest } = (saved || {}) as any;
+    return { ...DEFAULT_VAPID_CONFIG, ...rest };
   }, [customData]);
 
   const save = useCallback((newItems: BottomNavItem[], newIconConfig?: PWAIconConfig) => {
@@ -182,10 +182,12 @@ export function usePWAConfig() {
   }, [customData, updateSettings]);
 
   const saveVapidConfig = useCallback((cfg: PushVapidConfig) => {
+    // Strip privateKey defensively in case caller passes it in.
+    const { privateKey: _drop, ...safe } = cfg as any;
     updateSettings.mutate({
       custom_sections: {
         ...customData,
-        push_vapid_config: cfg,
+        push_vapid_config: safe,
       } as any,
     });
   }, [customData, updateSettings]);
