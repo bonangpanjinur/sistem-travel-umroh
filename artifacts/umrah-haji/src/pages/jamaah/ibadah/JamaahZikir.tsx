@@ -1,14 +1,15 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sun, Moon, Plus, Minus, RotateCcw, CheckCircle2, BookOpen } from "lucide-react";
+import { Sun, Moon, Plus, Minus, RotateCcw, CheckCircle2 } from "lucide-react";
 import { ZIKIR_PAGI, ZIKIR_PETANG, type ZikirItem } from "@/data/zikirData";
 import { useIbadahProgress } from "@/hooks/useIbadahProgress";
 import { cn } from "@/lib/utils";
+import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
+import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 
 function ZikirCard({ item, sessionType }: { item: ZikirItem; sessionType: "pagi" | "petang" }) {
   const ibadahKey = `zikir-${sessionType}-${item.id}`;
@@ -99,26 +100,12 @@ export default function JamaahZikir() {
   }, [list, progress, tab]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 to-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
-        <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/jamaah">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <div className="flex-1">
-            <h1 className="font-bold text-lg flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-emerald-600" />
-              Zikir Pagi & Petang
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Selesai hari ini: {stats.completed}/{stats.total}
-            </p>
-          </div>
-        </div>
-      </header>
-
+    <JamaahAppShell>
+      <JamaahPageHeader
+        title="Zikir Pagi & Petang"
+        arabic="ٱلْأَذْكَار"
+        subtitle={`Selesai hari ini: ${stats.completed}/${stats.total}`}
+      />
       <div className="p-4 space-y-4">
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <TabsList className="grid grid-cols-2 w-full">
@@ -153,6 +140,6 @@ export default function JamaahZikir() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </JamaahAppShell>
   );
 }
