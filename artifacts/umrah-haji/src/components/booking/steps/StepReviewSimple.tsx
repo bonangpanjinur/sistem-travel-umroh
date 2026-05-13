@@ -84,7 +84,9 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
 
   const basePrice = priceMap[formData.roomType];
   const totalPax = formData.passengers.length;
-  const totalPrice = basePrice * totalPax;
+  const subtotal = basePrice * totalPax;
+  const tierDiscount = loyalty?.discountAmount(subtotal) ?? 0;
+  const totalPrice = subtotal - tierDiscount;
 
   return (
     <div className="space-y-6">
@@ -175,6 +177,15 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
               <span>Jumlah jamaah</span>
               <span>× {totalPax}</span>
             </div>
+            {loyalty && tierDiscount > 0 && (
+              <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Diskon Loyalitas {TIER_LABELS[loyalty.tier]} ({loyalty.discountPercent}%)
+                </span>
+                <span>− {formatCurrency(tierDiscount, packageData?.currency)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
