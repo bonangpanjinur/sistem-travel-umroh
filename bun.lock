@@ -114,6 +114,7 @@
         "@supabase/supabase-js": "^2.105.1",
         "@types/jszip": "^3.4.1",
         "@types/qrcode": "^1.5.5",
+        "html2canvas": "^1.4.1",
         "html5-qrcode": "^2.3.8",
         "jspdf": "^4.2.1",
         "jspdf-autotable": "^5.0.7",
