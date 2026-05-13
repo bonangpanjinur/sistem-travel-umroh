@@ -2487,3 +2487,720 @@ Gunakan checklist ini untuk validasi setelah perbaikan:
 ---
 
 *Analisis PWA dan Hak Akses ini dibuat Mei 2026 berdasarkan pembacaan kode mendalam seluruh sistem. Temuan di atas adalah prioritas teknis yang harus diselesaikan sebelum go-live dengan multi-tenant sesungguhnya.*
+
+---
+
+## BAGIAN 18 — ANALISIS CSS/JS LOADING & FOUC (Flash of Unstyled Content)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `index.html`, `index.css`, `main.tsx`, `ThemeProvider.tsx`, `useWebsiteSettingsOptimized.ts` secara menyeluruh.
+> **Masalah:** Website suka "stuck" ke tampilan default (hijau standar) saat loading pertama — baru berubah ke tema custom setelah beberapa detik.
+
+---
+
+### 18A — Akar Masalah FOUC (Flash of Unstyled Content)
+
+Masalah ini terjadi karena ada **3 lapisan tema** yang bekerja secara berurutan dengan jeda waktu, dan ketiganya tidak selaras:
+
+```
+URUTAN RENDER:
+  t=0ms   → Browser parse index.html
+  t=1ms   → index.css dieksekusi → CSS variables "hijau default" terpasang
+  t=5ms   → Script restoration di index.html dijalankan
+              (baca localStorage 'website-theme-cache', override CSS variables)
+  t=200ms → React mount selesai
+  t=300ms → ThemeProvider mount → fetch 'website-settings' dari Supabase/cache
+  t=800ms → Data Supabase datang → CSS variables diupdate lagi
+  t=850ms → Font custom diinject via <link> baru → font swap visible
+
+Akibat: User bisa melihat 2-3 "flash" perubahan tampilan
+```
+
+---
+
+### 18B — GAP KRITIS: Penyebab Flash Satu Per Satu
+
+#### 🔴 CSS-F1: `index.css` Nilai Default Tidak Sinkron dengan `DEFAULT_SETTINGS`
+
+**Masalah:**
+- `index.css` baris 24: `--primary: 160 84% 25%` → hijau gelap islamik
+- `DEFAULT_SETTINGS` di `useWebsiteSettingsOptimized.ts` baris 115: `primary_color: '160 84% 25%'` → sama ✅
+
+Tapi masalahnya: nilai di `index.css` ini tampil **sebelum** script restoration jalan. Jika localStorage kosong (kunjungan pertama, incognito, cache dibersihkan) → tema default `index.css` tampil dulu sampai Supabase selesai fetch.
+
+**Kondisi yang memicu flash:**
+1. Kunjungan pertama (localStorage kosong) → `index.css` → Supabase data → dua flash
+2. Admin ubah tema → cache lama di localStorage masih 1 jam → tampil tema lama dulu
+3. Supabase lambat (> 1 detik) → index.css default tampil lama sebelum tema custom muncul
+
+---
+
+#### 🔴 CSS-F2: Script Restoration di `index.html` Hanya Restore CSS Variables — Tidak Semua State Tema
+
+**Masalah:** Script restoration di `index.html` baris 43-69 hanya baca `website-theme-cache` dari localStorage dan set CSS variables. Yang **tidak** di-restore:
+
+- `theme-mood` (light/dark/sepia) → komponen yang bergantung `.dark` class tidak mendapat class ini
+- `layout-variant` → beberapa komponen baca ini untuk kondisional render
+- Font yang custom → font masih pakai fallback sampai React mount dan ThemeProvider inject `<link>` Google Fonts
+
+Akibat: Bahkan saat localStorage ada cache, tampilan masih belum sempurna sampai React selesai mount.
+
+---
+
+#### 🔴 CSS-F3: Initial Loader Disembunyikan SEBELUM ThemeProvider Selesai Fetch
+
+**Masalah Kritis di `main.tsx` baris 106-116:**
+```javascript
+const root = createRoot(document.getElementById("root")!);
+root.render(<App />);
+
+// Hide loader setelah React render — tapi ThemeProvider belum selesai fetch!
+requestAnimationFrame(hideInitialLoader);
+```
+
+`requestAnimationFrame` dipanggil segera setelah `root.render()`. Ini berarti initial loader disembunyikan saat **React baru saja mulai render** — ThemeProvider belum mount, belum fetch settings, belum apply tema.
+
+Akibat: User melihat sekilas tampilan "default index.css" sebelum ThemeProvider selesai apply tema custom. Inilah penyebab utama flash.
+
+**Solusi:** Loader baru disembunyikan setelah ThemeProvider konfirmasi tema sudah diapply:
+```typescript
+// ThemeProvider.tsx — emit event saat tema siap
+useEffect(() => {
+  if (settings) {
+    applyCSSVariables(cssVariables, settings);
+    window.dispatchEvent(new Event('theme-ready'));
+  }
+}, [cssVariables]);
+
+// main.tsx — sembunyikan loader saat tema siap
+window.addEventListener('theme-ready', hideInitialLoader, { once: true });
+// Fallback: sembunyikan setelah 2 detik walau tema belum siap
+setTimeout(hideInitialLoader, 2000);
+```
+
+---
+
+#### 🟠 CSS-F4: Cache Settings 1 Jam — Tema Lama Bisa Tampil Lama Setelah Admin Ubah
+
+**Masalah:** `useWebsiteSettingsOptimized.ts` baris 100: `CACHE_DURATION = 1000 * 60 * 60` (1 jam). Saat admin ubah tema, user yang sudah punya cache masih lihat tema lama sampai 1 jam.
+
+Ditambah `staleTime: Infinity` di useQuery → tidak pernah refetch dari network selama sesi browser yang sama.
+
+**Solusi:**
+- Kurangi cache ke 10-15 menit, atau
+- Tambahkan Supabase Realtime pada tabel `website_settings` → invalidate query saat ada perubahan
+- Atau: tampilkan banner "Tema diperbarui, refresh untuk melihat" saat ThemeProvider deteksi versi baru
+
+---
+
+#### 🟠 CSS-F5: Font Swap Setelah React Mount — Visible Text Reflow
+
+**Masalah:** `ThemeProvider.tsx` baris 83-108 inject `<link>` Google Fonts SETELAH React mount. Urutan:
+1. Browser render text dengan font fallback (`-apple-system`, Arial)
+2. React mount → ThemeProvider inject Google Fonts link
+3. Font download selesai → teks reflow ke font custom
+
+User melihat teks "bergeser" atau berubah gaya tiba-tiba.
+
+**Solusi:**
+- Preload font custom yang paling umum dipakai di `index.html`
+- Atau: tambahkan `font-display: optional` agar browser tidak reflow jika font terlambat
+- Atau: simpan nama font di localStorage dan preload dari script restoration
+
+---
+
+#### 🟡 CSS-F6: Dua Versi Hook Settings — `useWebsiteSettings` vs `useWebsiteSettingsOptimized`
+
+**Masalah:** Ada dua hook dengan nama berbeda:
+- `useWebsiteSettings.ts` — versi lama
+- `useWebsiteSettingsOptimized.ts` — versi baru dengan cache localStorage
+
+Beberapa komponen mungkin masih import dari versi lama → dua query ke Supabase untuk data yang sama → redundan dan bisa menyebabkan race condition.
+
+**Solusi:** Audit seluruh import, hapus versi lama, pastikan semua pakai yang optimized.
+
+---
+
+### 18C — Rencana Perbaikan Loading Performance
+
+| ID | Solusi | File | Estimasi | Dampak |
+|----|--------|------|----------|--------|
+| CSS-FIX-1 | **Sembunyikan loader saat tema siap** — event `theme-ready` dari ThemeProvider | `main.tsx` + `ThemeProvider.tsx` | 2 jam | 🔴 Hilangkan flash utama |
+| CSS-FIX-2 | **Simpan nama font di localStorage** — restore font sebelum React mount via script di index.html | `index.html` + `ThemeProvider.tsx` | 3 jam | 🟠 Hilangkan font swap |
+| CSS-FIX-3 | **Realtime invalidation tema** — Supabase realtime pada `website_settings` → clear cache | `useWebsiteSettingsOptimized.ts` | 4 jam | 🟠 Tema admin langsung berlaku |
+| CSS-FIX-4 | **Kurangi cache ke 5 menit** + staleTime 2 menit | `useWebsiteSettingsOptimized.ts` | 0.5 jam | 🟡 Perubahan admin cepat berlaku |
+| CSS-FIX-5 | **Audit dan hapus `useWebsiteSettings.ts` lama** — semua pakai yang optimized | Seluruh codebase | 1 jam | 🟡 Hapus redundan |
+| CSS-FIX-6 | **Critical CSS inline di `<head>`** — untuk warna utama yang diambil dari localStorage, inject `<style>` tag langsung dari script restoration | `index.html` | 3 jam | 🟠 Eliminasi flash index.css |
+
+---
+
+### 18D — Diagram: Alur Loading yang Ideal Setelah Perbaikan
+
+```
+t=0ms    HTML parse dimulai
+t=1ms    Script restoration berjalan:
+           - Baca CSS vars dari localStorage → apply ke :root
+           - Baca font-name dari localStorage → inject <link> preload
+           - Baca warna utama → inject <style> inline untuk loader color
+t=5ms    index.css dieksekusi (vars sudah dioverride, tidak ada flash)
+t=10ms   React script download dimulai (non-blocking)
+t=200ms  React mount dimulai
+t=250ms  ThemeProvider mount:
+           - Jika cache valid → apply langsung, emit 'theme-ready'
+           - Jika cache expired → apply cache dulu, fetch Supabase background
+t=260ms  'theme-ready' event → loader disembunyikan (tema sudah benar)
+t=800ms  (background) Supabase data datang → update cache, apply jika berbeda
+```
+
+---
+
+## BAGIAN 19 — ANALISIS SISTEM AGEN (MITRA)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `AgentRoutes`, semua halaman `src/pages/agent/`, hooks agen, dan sistem komisi.
+
+---
+
+### 19A — Yang Sudah Ada di Portal Agen
+
+| Fitur | File/Halaman | Status | Keterangan |
+|-------|-------------|--------|------------|
+| Dashboard agen | `AgentDashboard.tsx` | ✅ | KPI, chart komisi, booking terbaru |
+| Manajemen komisi | `AgentCommissions.tsx` | ✅ | Riwayat, status, export Excel/PDF |
+| Dompet (wallet) | `AgentWallet.tsx` | ✅ | Saldo, transaksi, tarik saldo |
+| CRM Leads | `AgentLeads.tsx` | ✅ | Kanban pipeline: Baru→Booking |
+| Jaringan sub-agen | `AgentNetwork.tsx` | ✅ | MLM hingga 4 level, royalty |
+| Website agen | `AgentWebsiteSettings.tsx` | ✅ | Subdomain, branding, testimonial |
+| Link unik & QR | `AgentUniqueLink.tsx` | ✅ | Referral link + QR code generator |
+| Pelatihan | `AgentTraining.tsx` | ⚠️ | Video/PDF + kuis — tabel mungkin belum ada |
+| Leaderboard | `AgentLeaderboard.tsx` | ✅ | Ranking agen + title (Diamond, Master) |
+| Keanggotaan | `AgentMembership.tsx` | ✅ | Plan + approval admin |
+| Daftar Jamaah | `AgentJamaahEnhanced.tsx` | ✅ | Jamaah yang dirujuk agen |
+| Broadcast WA | `AgentBroadcast.tsx` | ✅ | Blast pesan ke jamaah referral |
+| Digital Kit | `AgentDigitalKit.tsx` | ✅ | Materi marketing siap pakai |
+| Laporan bulanan | `AgentLaporan.tsx` | ✅ | Resume performa per bulan |
+| Daftar paket | `AgentPackages.tsx` | ✅ | Lihat paket yang bisa dijual |
+| Target penjualan | `AgentTargets.tsx` | ✅ | Set dan pantau target |
+| Referral grup | `AgentRegisterGroup.tsx` | ✅ | Daftar grup jamaah sekaligus |
+| Auto komisi | `useAutoCommission.ts` | ✅ | Hitung otomatis saat booking |
+
+---
+
+### 19B — GAP DAN KEKURANGAN SISTEM AGEN
+
+#### 🔴 AGEN-F1: Tarik Saldo (Withdrawal) Belum Terintegrasi dengan Sistem Pembayaran
+
+**Masalah:** `AgentWallet.tsx` punya form input withdrawal dan tombol "Ajukan Penarikan", tapi:
+- Tidak ada integrasi dengan payment gateway (transfer bank otomatis)
+- Admin harus proses manual → konfirmasi via UI admin
+- Tidak ada validasi rekening bank yang disimpan di profil agen
+- Tidak ada fee/biaya penarikan yang bisa dikonfigurasi
+
+**Dampak:** Proses penarikan menjadi manual dan rawan error. Agen harus menunggu konfirmasi manual admin.
+
+**Solusi:**
+- Tambahkan field `bank_name`, `bank_account_number`, `bank_account_name` di tabel `agents`
+- Buat halaman "Rekening Bank" di pengaturan agen
+- Admin bisa konfirmasi + input bukti transfer dari panel admin
+- Notifikasi otomatis ke agen saat withdrawal diproses
+
+---
+
+#### 🔴 AGEN-F2: Tabel `agent_trainings` Mungkin Tidak Ada di Semua Environment
+
+**Masalah:** `AgentTraining.tsx` ada error handler untuk `42P01` (table does not exist). Artinya halaman ini pernah error di beberapa environment karena tabel `agent_trainings`, `training_quizzes`, `agent_quiz_results` belum di-migrate.
+
+**Dampak:** Agen membuka halaman Pelatihan → tampil error atau halaman kosong → kesan profesional menurun.
+
+**Solusi:**
+- Pastikan migration tabel training ada di `sql/migrations/`
+- Tambahkan seed data: minimal 1 video pelatihan default
+- Graceful error state: "Konten pelatihan sedang dipersiapkan" bukan error mentah
+
+---
+
+#### 🟠 AGEN-F3: Website Agen Tidak Terindeks SEO Secara Efektif
+
+**Masalah:** `AgentWebsiteSettings.tsx` memungkinkan agen punya halaman personal (`/agent-site/:slug`). Tapi:
+- Halaman ini di-render client-side (SPA) → Google sulit index
+- Meta tag diupdate via JavaScript → tidak terlihat crawler
+- Tidak ada sitemap yang memasukkan halaman agen
+
+**Solusi:**
+- Buat endpoint di Express: `GET /s/:slug` yang serve HTML dengan meta tag dari DB (SSR minimal)
+- Atau: tambahkan `<noscript>` tag dengan konten dasar untuk crawler
+
+---
+
+#### 🟠 AGEN-F4: Sub-Agen Tidak Bisa Lihat Referral Mereka Sendiri
+
+**Masalah:** Berdasarkan eksplorasi, `sub_agent` di-exclude dari modul komisi dan wallet. Tapi sub-agen juga punya jamaah yang mereka rujuk — mereka tidak bisa lihat siapa saja jamaah mereka.
+
+**Solusi:**
+- Buat halaman "Jamaah Saya" yang accessible oleh `sub_agent` (filter hanya milik mereka)
+- Berikan summary komisi sub-agen (meski dibayar via parent agent)
+
+---
+
+#### 🟠 AGEN-F5: Tidak Ada Notifikasi Real-time ke Agen
+
+**Masalah:** Agen tidak mendapat notifikasi saat:
+- Booking dari referral mereka berubah status
+- Komisi diapprove/ditolak admin
+- Ada lead baru masuk dari link referral mereka
+
+Agen harus buka portal dan refresh manual.
+
+**Solusi:**
+- Push notification via PWA saat booking/komisi update
+- In-app notification bell di `AgentLayoutEnhanced`
+- Email notifikasi otomatis
+
+---
+
+#### 🟡 AGEN-F6: Leaderboard Tidak Real-time
+
+**Masalah:** `AgentLeaderboard.tsx` menampilkan ranking agen berdasarkan data dari query biasa — tidak ada Supabase Realtime. Ranking bisa "basi" sampai user refresh.
+
+**Solusi:** Tambahkan Supabase Realtime pada query leaderboard, atau auto-refresh setiap 5 menit.
+
+---
+
+#### 🟡 AGEN-F7: Tidak Ada Tool Simulasi Komisi
+
+**Masalah:** Agen tidak bisa menghitung berapa komisi yang akan mereka dapat jika berhasil booking paket X. Harus tunggu booking aktual.
+
+**Solusi:**
+- Tambahkan "Kalkulator Komisi" di dashboard agen
+- Input: pilih paket, jumlah orang → output: estimasi komisi + royalty jika ada sub-agen
+
+---
+
+#### 🟡 AGEN-F8: CRM Leads Tidak Terhubung ke Booking Otomatis
+
+**Masalah:** Saat lead di Kanban berpindah ke stage "Booking", tidak ada link langsung ke form booking admin. Agen harus minta admin buka booking manual.
+
+**Solusi:**
+- Dari card lead "Booking" → bisa generate link booking publik yang otomatis isi data customer
+- Atau: agen bisa submit booking draft langsung dari portal agen (perlu approval admin)
+
+---
+
+### 19C — Fitur Agen yang Harus Ditambahkan
+
+| ID | Fitur | Prioritas | Estimasi |
+|----|-------|-----------|----------|
+| AGEN-ADD1 | **Manajemen rekening bank** — form simpan info bank untuk withdrawal | 🔴 Segera | 1 hari |
+| AGEN-ADD2 | **Fix tabel training** — pastikan migration + seed data ada | 🔴 Segera | 0.5 hari |
+| AGEN-ADD3 | **Notifikasi real-time agen** — push notification + in-app bell | 🟠 Penting | 2 hari |
+| AGEN-ADD4 | **Halaman Jamaah untuk sub-agen** — filter data milik sub-agen | 🟠 Penting | 1 hari |
+| AGEN-ADD5 | **Kalkulator komisi** — estimasi sebelum booking | 🟡 Sedang | 1 hari |
+| AGEN-ADD6 | **Link booking dari lead CRM** — langsung generate link dari lead | 🟡 Sedang | 1 hari |
+| AGEN-ADD7 | **SSR/meta tag untuk website agen** — SEO friendly | 🟡 Sedang | 2 hari |
+| AGEN-ADD8 | **Leaderboard real-time** — auto-refresh atau Supabase Realtime | 🟢 Rendah | 0.5 hari |
+
+---
+
+## BAGIAN 20 — ANALISIS SISTEM CABANG (MULTI-BRANCH)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `BranchRoutes`, `BranchDashboard`, `BranchLayout`, semua halaman branch, hooks `useBranchCommissions`, dan penggunaan `branch_id` di seluruh codebase.
+
+---
+
+### 20A — Yang Sudah Ada di Sistem Cabang
+
+| Komponen | File | Status | Keterangan |
+|----------|------|--------|------------|
+| Portal Branch Manager | `/cabang/*` | ✅ | Dashboard, booking, agen, laporan, diskon |
+| Dashboard KPI cabang | `BranchDashboard.tsx` | ✅ | Revenue, booking, agen, jamaah bulanan |
+| Booking per cabang | `BranchBookings.tsx` | ✅ | Filter `branch_id` |
+| Manajemen agen cabang | `BranchAgen.tsx` | ✅ | Performa agen per cabang |
+| Laporan keuangan cabang | `BranchLaporan.tsx` | ✅ | Revenue reporting per cabang |
+| Approval diskon | `BranchDiskon.tsx` | ✅ | Workflow approval discount request |
+| Website cabang | `BranchWebsiteSettings.tsx` | ✅ | Mikrosait per cabang dengan slug |
+| Website publik cabang | `BranchWebsite.tsx` (/b/:slug) | ✅ | Landing page publik per cabang |
+| Manajemen cabang (admin) | `AdminBranches.tsx` | ✅ | CRUD cabang oleh super_admin |
+| Komisi cabang | `useBranchCommissions.ts` | ✅ | Auto-hitung komisi cabang per booking |
+| `branch_id` di bookings | DB | ✅ | Setiap booking terhubung ke cabang |
+| `branch_id` di agents | DB | ✅ | Agen terhubung ke cabang |
+| `branch_id` di customers | DB | ✅ | Customer terhubung ke cabang |
+| `branch_id` di user_roles | DB | ✅ | Role dibatasi per cabang |
+| `branch_id` di website_settings | DB | ✅ | Branding per cabang |
+
+---
+
+### 20B — GAP KRITIS SISTEM CABANG
+
+#### 🔴 CAB-F1: Isolasi Data Antar Cabang Bergantung pada Query Filter, Bukan RLS
+
+**Masalah Serius:** Seluruh isolasi data antar cabang dilakukan di level **query filter** di frontend/backend:
+```typescript
+// BranchDashboard.tsx baris 48
+supabase.from("bookings").select(...)
+  .eq("branch_id", bId)  // ← filter manual, bukan RLS
+```
+
+Ini berarti:
+- Jika ada bug di kode dan filter `branch_id` terlewat → data lintas cabang bisa bocor
+- Jika ada query langsung ke Supabase tanpa filter → semua data dari semua cabang keluar
+- Tidak ada jaminan di level database bahwa branch manager hanya bisa akses data cabangnya
+
+**Solusi yang Benar:** Row Level Security (RLS) di Supabase:
+```sql
+-- Policy untuk branch_manager
+CREATE POLICY "Branch manager can only see own branch bookings"
+ON bookings FOR ALL
+USING (
+  branch_id = (
+    SELECT branch_id FROM user_roles 
+    WHERE user_id = auth.uid() AND role = 'branch_manager'
+    LIMIT 1
+  )
+  OR auth.uid() IN (SELECT user_id FROM user_roles WHERE role IN ('super_admin', 'owner'))
+);
+```
+
+---
+
+#### 🔴 CAB-F2: Branch Manager Tidak Bisa Kelola Staff Sendiri
+
+**Masalah:** Branch manager hanya bisa lihat agen di cabangnya. Tapi tidak bisa:
+- Tambah/hapus staff cabang (operational, sales, marketing) di cabangnya
+- Assign role ke user baru di cabangnya sendiri
+- Lihat dan kelola permission staff cabangnya
+
+Semua manajemen staff/role harus minta super_admin.
+
+**Solusi:**
+- Tambahkan halaman "Staff Cabang" di portal `/cabang`
+- Branch manager bisa invite user dengan role `operational/sales/marketing` yang scope-nya ke cabangnya
+- Super_admin set batas: role apa yang bisa diberikan branch manager
+
+---
+
+#### 🔴 CAB-F3: Tidak Ada Perbandingan Performa Antar Cabang
+
+**Masalah:** Super_admin dan owner tidak punya tampilan yang membandingkan performa semua cabang sekaligus. Harus buka satu per satu di `AdminBranches`.
+
+**Dampak:** Tidak bisa dengan cepat melihat cabang mana yang underperform atau overperform.
+
+**Solusi:**
+- Tambahkan halaman "Perbandingan Cabang" di admin panel
+- Tampilkan: revenue, booking, agen aktif, jamaah per cabang dalam satu tabel/chart
+- Filter: periode bulan/tahun
+
+---
+
+#### 🟠 CAB-F4: Website Cabang Tidak Ada Preview Mode di Admin
+
+**Masalah:** `BranchWebsiteSettings.tsx` memungkinkan branch manager ubah tampilan website cabang mereka. Tapi tidak ada preview real-time sebelum simpan.
+
+**Solusi:** Tambahkan iframe preview `/b/:slug?preview=true` di halaman settings.
+
+---
+
+#### 🟠 CAB-F5: Laporan Cabang Tidak Bisa Di-export
+
+**Masalah:** `BranchLaporan.tsx` menampilkan data keuangan cabang, tapi tidak ada tombol export ke Excel/PDF.
+
+**Solusi:** Tambahkan export menggunakan library yang sudah dipakai di admin (xlsx, pdf-lib).
+
+---
+
+#### 🟠 CAB-F6: Tidak Ada Notifikasi ke Branch Manager
+
+**Masalah:** Branch manager tidak mendapat notifikasi saat:
+- Ada booking baru di cabangnya
+- Ada request diskon yang perlu diapprove
+- Revenue bulanan mencapai/melewati target
+
+**Solusi:**
+- Push notification PWA untuk branch manager
+- Daily summary email per cabang
+
+---
+
+#### 🟡 CAB-F7: `BranchDashboard` Hanya Tampilkan Data Bulan Ini
+
+**Masalah:** Dashboard cabang hanya menampilkan data bulan berjalan (`startOfMonth` → `endOfMonth`). Tidak ada filter periode atau perbandingan dengan bulan lalu.
+
+**Solusi:** Tambahkan date range picker dan perbandingan MoM (Month over Month).
+
+---
+
+#### 🟡 CAB-F8: Tidak Ada Sistem Transfer Data/Booking Antar Cabang
+
+**Masalah:** Jika jamaah ingin pindah ke cabang lain, tidak ada mekanisme resmi. Admin harus edit `branch_id` di database secara manual.
+
+**Solusi:** Buat fitur "Transfer Booking ke Cabang Lain" di admin panel dengan approval flow.
+
+---
+
+### 20C — Fitur Cabang yang Harus Ditambahkan
+
+| ID | Fitur | Prioritas | Estimasi |
+|----|-------|-----------|----------|
+| CAB-ADD1 | **RLS per cabang** — policy Supabase agar isolasi data dijamin di DB level | 🔴 Kritis | 2 hari |
+| CAB-ADD2 | **Manajemen staff cabang** — branch manager bisa kelola staff sendiri | 🔴 Penting | 2 hari |
+| CAB-ADD3 | **Dashboard perbandingan cabang** — semua cabang dalam satu view | 🟠 Penting | 1.5 hari |
+| CAB-ADD4 | **Export laporan cabang** — Excel/PDF dari BranchLaporan | 🟠 Penting | 0.5 hari |
+| CAB-ADD5 | **Notifikasi branch manager** — booking baru + approval request | 🟠 Penting | 1 hari |
+| CAB-ADD6 | **Preview website cabang** — iframe preview sebelum simpan | 🟡 Sedang | 0.5 hari |
+| CAB-ADD7 | **Date range di dashboard cabang** — filter periode custom | 🟡 Sedang | 0.5 hari |
+| CAB-ADD8 | **Transfer booking antar cabang** — dengan approval flow | 🟡 Sedang | 1 hari |
+
+---
+
+## BAGIAN 21 — ANALISIS KEANGGOTAAN & LOYALITAS
+
+> **Tanggal analisis:** Mei 2026 — membaca `MyLoyalty.tsx`, `JamaahBadges.tsx`, `AgentMembership.tsx`, `useMemberships.ts`, `useLoyalty.ts`, `MySavings.tsx`, `JamaahDigitalID.tsx`.
+
+---
+
+### 21A — Ekosistem Loyalitas dan Keanggotaan (Yang Sudah Ada)
+
+**Tiga Lapisan Sistem:**
+
+```
+LAPISAN 1: LOYALITAS JAMAAH (Customer)
+  • Poin Loyalitas: 1 poin per Rp 100.000 pembayaran
+  • Tier: Silver (0-999) → Gold (1000-4999) → Platinum (5000+)
+  • Redeem: Tukar poin dengan reward dari katalog
+  • Gamifikasi: Badge + XP (Musafir → Haji Mabrur Lv4)
+  • Digital ID: QR code + info perjalanan
+  • Jurnal Ibadah, Tracker, Badges
+
+LAPISAN 2: KEANGGOTAAN AGEN (B2B)
+  • Membership Plan: unlock fitur + komisi lebih tinggi
+  • Approval admin untuk membership agen
+  • Leaderboard dengan title (Diamond, Master Seller)
+  • Royalty sub-agen (multi-level)
+
+LAPISAN 3: TABUNGAN (Savings)
+  • Program tabungan untuk calon jamaah
+  • Target jumlah + tenor cicilan
+  • Tracking progress bayar
+  • Admin monitor semua tabungan aktif
+```
+
+---
+
+### 21B — GAP KRITIS SISTEM LOYALITAS
+
+#### 🔴 LOY-F1: Poin Loyalitas Tidak Dihitung Secara Otomatis
+
+**Masalah:** `MyLoyalty.tsx` menampilkan data dari tabel `loyalty_points` dan `loyalty_transactions`, tapi tidak ada hook atau trigger yang otomatis menambah poin saat jamaah melakukan pembayaran.
+
+Tidak ditemukan `useAutoLoyalty.ts` atau trigger Supabase yang terhubung ke tabel `payments`/`bookings`.
+
+**Dampak:** Poin harus ditambah manual oleh admin → tidak scalable → sistem loyalitas tidak berjalan secara nyata.
+
+**Solusi:**
+- Buat Supabase trigger: `AFTER INSERT ON payments WHERE status = 'confirmed'` → hitung poin (total_amount / 100000) → insert ke `loyalty_transactions`
+- Atau: di backend Express, setelah konfirmasi pembayaran → otomatis hitung dan kredit poin
+- Tambahkan hook `useAutoLoyaltyCredit` yang dipanggil dari payment confirmation flow
+
+---
+
+#### 🔴 LOY-F2: Benefit Tier Tidak Nyata — Tidak Ada Implementasi
+
+**Masalah:** Tier Silver/Gold/Platinum ada di `TIER_CONFIG`, tapi tidak ada implementasi benefit nyata:
+- Silver/Gold/Platinum mendapat diskon berapa? → tidak terdefinisi di kode
+- Apakah Platinum mendapat priority support? → tidak ada implementasi
+- Apakah tier mempengaruhi komisi agen? → tidak ada koneksi
+- Apakah ada akses fitur eksklusif per tier? → tidak ada
+
+**Dampak:** Tier hanya label — tidak ada incentif nyata untuk jamaah naik tier.
+
+**Solusi:**
+- Definisikan benefit tier di DB: `loyalty_tier_benefits` table
+- Contoh benefit: `gold → diskon 2% untuk booking berikutnya`, `platinum → gratis biaya administrasi`
+- Terapkan benefit saat booking: baca tier customer → hitung diskon otomatis
+
+---
+
+#### 🔴 LOY-F3: Badge Gamifikasi Tidak Terhubung ke Aktivitas Nyata
+
+**Masalah:** `JamaahBadges.tsx` tampilkan badge dan XP, tapi tidak ada trigger otomatis yang memberikan badge saat jamaah benar-benar melakukan aktivitas:
+- Badge "Thawaf Perdana" → tidak ada sistem yang verifikasi jamaah sudah thawaf
+- Badge "Jamaah Digital" → tidak ada trigger saat jamaah download Digital ID
+- Badge "Lunas Pelunasan" → tidak ada koneksi ke tabel `payments`
+
+Badge tampaknya diberikan manual atau sepenuhnya fiksi.
+
+**Solusi:**
+- Definisikan trigger per badge: event → grant badge
+- Contoh yang bisa diimplementasi: "Jamaah Digital" saat buka `/jamaah/digital-id` pertama kali
+- "Lunas Pembayaran" saat payment status jadi `paid` pertama kali
+- "Pengguna Setia" setelah 30 hari aktif di portal
+
+---
+
+#### 🟠 LOY-F4: Tidak Ada Expiry untuk Poin Loyalitas
+
+**Masalah:** Tidak ada mekanisme poin kedaluwarsa. Poin terakumulasi selamanya tanpa batas waktu.
+
+**Dampak:** Jangka panjang, liability besar jika semua poin di-redeem sekaligus.
+
+**Solusi:**
+- Tambahkan `expires_at` di `loyalty_transactions`
+- Poin kedaluwarsa setelah 1 tahun tidak aktif
+- Notifikasi 30 hari sebelum poin kedaluwarsa
+
+---
+
+#### 🟠 LOY-F5: Keanggotaan Agen Tidak Otomatis Naik Tier
+
+**Masalah:** `AgentMembership.tsx` — agen harus daftar manual ke plan membership dan tunggu approval admin. Tidak ada sistem yang otomatis naik tier berdasarkan performa (misalnya: setelah 10 booking → otomatis Gold).
+
+**Solusi:**
+- Buat aturan auto-upgrade: jika total booking agen bulan ini > X → otomatis naik ke plan Y
+- Notifikasi ke agen: "Selamat! Anda naik ke status Gold Agent"
+
+---
+
+#### 🟠 LOY-F6: Tabungan (Savings) Tidak Ada Reminder Pembayaran
+
+**Masalah:** `MySavings.tsx` menampilkan progress tabungan, tapi tidak ada sistem yang mengingatkan calon jamaah untuk bayar cicilan tepat waktu.
+
+**Solusi:**
+- Buat job scheduler di backend yang cek tabungan jatuh tempo
+- Kirim notifikasi push + WhatsApp 3 hari sebelum tanggal cicilan
+- Tampilkan "cicilan jatuh tempo X hari lagi" di dashboard jamaah
+
+---
+
+#### 🟡 LOY-F7: Reward Katalog Tidak Ada Gambar Default
+
+**Masalah:** Reward di `loyalty_rewards` table punya `image_url` tapi bisa null. Tampilan reward tanpa gambar tidak menarik.
+
+**Solusi:** Tambahkan default gambar per kategori reward, atau placeholder menarik.
+
+---
+
+#### 🟡 LOY-F8: Digital ID Belum Bisa Di-download sebagai Gambar
+
+**Masalah:** `JamaahDigitalID.tsx` menampilkan kartu digital yang bagus, tapi tidak ada tombol "Download sebagai PNG/PDF" untuk disimpan di galeri.
+
+**Solusi:** Gunakan library `html-to-image` atau `canvas` untuk export kartu sebagai gambar yang bisa di-save.
+
+---
+
+### 21C — Rencana Perbaikan Loyalitas
+
+| ID | Fitur | Prioritas | Estimasi |
+|----|-------|-----------|----------|
+| LOY-FIX1 | **Auto-hitung poin** — trigger DB atau backend hook setelah payment confirmed | 🔴 Kritis | 1 hari |
+| LOY-FIX2 | **Implementasi benefit tier nyata** — diskon/keistimewaan yang berlaku di booking | 🔴 Penting | 2 hari |
+| LOY-FIX3 | **Trigger badge otomatis** — minimal 5 badge yang bisa diraih dari aktivitas nyata | 🟠 Penting | 1.5 hari |
+| LOY-FIX4 | **Reminder tabungan** — notifikasi cicilan jatuh tempo via push + WhatsApp | 🟠 Penting | 1.5 hari |
+| LOY-FIX5 | **Auto-upgrade keanggotaan agen** — berdasarkan performa booking | 🟡 Sedang | 1 hari |
+| LOY-FIX6 | **Download Digital ID** — export kartu sebagai gambar | 🟡 Sedang | 0.5 hari |
+| LOY-FIX7 | **Expiry poin loyalitas** — poin kedaluwarsa + notifikasi | 🟡 Sedang | 1 hari |
+| LOY-FIX8 | **Gambar reward katalog** — default image + upload UI | 🟢 Rendah | 0.5 hari |
+
+---
+
+## BAGIAN 22 — FITUR PENTING YANG HARUS DITAMBAHKAN
+
+> Berdasarkan analisis menyeluruh seluruh sistem (PWA, RBAC, CSS Loading, Agen, Cabang, Loyalitas), berikut adalah fitur-fitur yang paling kritis untuk ditambahkan agar sistem berjalan sebagaimana mestinya.
+
+---
+
+### 22A — FITUR KEAMANAN (Harus Sebelum Go-Live)
+
+| # | Fitur | Alasan Kritis |
+|---|-------|---------------|
+| 1 | **RLS per cabang di Supabase** | Saat ini isolasi data antar cabang hanya di query filter — bisa bocor jika ada bug |
+| 2 | **Hapus VAPID private key dari frontend** | Security vulnerability — hacker bisa kirim push notification palsu |
+| 3 | **Manifest.json dinamis** (`/api/manifest.json`) | Tanpa ini, multi-tenant tidak berjalan — semua cabang punya nama/ikon sama |
+| 4 | **Audit trail perubahan permission** | Tidak ada akuntabilitas siapa mengubah hak akses siapa |
+| 5 | **Fallback permission minimal** (bukan full access) saat DB offline | Keamanan: jangan beri full access saat sistem error |
+
+---
+
+### 22B — FITUR OPERASIONAL (Sprint Berikutnya)
+
+| # | Fitur | Dampak Bisnis |
+|---|-------|---------------|
+| 6 | **Auto-hitung poin loyalitas** | Sistem loyalitas tidak berjalan tanpa ini — poin tidak bertambah otomatis |
+| 7 | **Benefit tier nyata** (diskon/keistimewaan) | Tier hanya label saat ini — tidak ada insentif naik tier |
+| 8 | **Manajemen rekening bank agen** | Proses penarikan komisi masih manual 100% |
+| 9 | **Notifikasi real-time** (agen, branch manager, jamaah) | Semua pihak harus refresh manual untuk tahu ada perubahan |
+| 10 | **Reminder cicilan tabungan** | Jamaah lupa bayar → program tabungan gagal |
+
+---
+
+### 22C — FITUR UX (Meningkatkan Pengalaman Pengguna)
+
+| # | Fitur | Dampak UX |
+|---|-------|-----------|
+| 11 | **Fix FOUC** — sembunyikan loader setelah tema siap | Website terlihat profesional — tidak ada flash tampilan default |
+| 12 | **Download Digital ID sebagai gambar** | Jamaah bisa share di sosmed, meningkatkan brand awareness |
+| 13 | **Dashboard perbandingan cabang** | Owner/owner bisa monitor semua cabang dalam 1 layar |
+| 14 | **Preview website cabang sebelum simpan** | Hindari salah publish tampilan |
+| 15 | **Export laporan cabang** (Excel/PDF) | Branch manager butuh laporan untuk rapat |
+
+---
+
+### 22D — FITUR JANGKA MENENGAH (1-3 Bulan)
+
+| # | Fitur | Nilai Tambah |
+|---|-------|--------------|
+| 16 | **Kalkulator komisi agen** | Agen bisa estimasi pendapatan sebelum target |
+| 17 | **Trigger badge gamifikasi otomatis** | Gamifikasi jadi nyata, bukan dekorasi |
+| 18 | **Auto-upgrade tier keanggotaan agen** | Reward performa otomatis → motivasi agen |
+| 19 | **Simulasi akses "sebagai user X"** di admin RBAC | Admin bisa debug permission tanpa trial-error |
+| 20 | **Tool sync permission kode ↔ DB** | Hindari permission baru yang lupa di-seed ke DB |
+
+---
+
+### 22E — FITUR JANGKA PANJANG (3-6 Bulan, Arsitektur Ulang)
+
+| # | Fitur | Catatan |
+|---|-------|---------|
+| 21 | **Permission granular read/write/delete** | Breaking change — butuh migrasi data besar |
+| 22 | **SSR/SSG untuk website agen dan cabang** | Untuk SEO yang proper |
+| 23 | **Integrasi pembayaran otomatis untuk withdrawal agen** | Perlu integrasi bank/payment gateway |
+| 24 | **SISKOHAT Kemenag integration** (sudah ada permission, belum ada UI) | Butuh kerjasama dengan API Kemenag |
+| 25 | **AI Chatbot untuk jamaah** — tanya jawab ibadah umroh/haji | Implementasi Gemini AI yang sudah ada permission-nya |
+
+---
+
+### 22F — RINGKASAN PRIORITAS KESELURUHAN
+
+```
+🔴 KRITIS (Harus sebelum go-live produksi):
+   • RLS per cabang di Supabase
+   • Hapus VAPID private key dari frontend  
+   • Manifest.json dinamis
+   • Fix FOUC (sembunyikan loader setelah tema siap)
+   • Auto-hitung poin loyalitas
+
+🟠 PENTING (Sprint berikutnya, 2-4 minggu):
+   • Benefit tier loyalitas yang nyata
+   • Manajemen rekening bank agen
+   • Notifikasi real-time (agen + branch manager)
+   • Reminder cicilan tabungan
+   • Audit trail permission
+   • Branch manager kelola staff sendiri
+   • Dashboard perbandingan cabang
+   • Fix sumber roles di useDynamicMenus
+
+🟡 SEDANG (1-2 bulan):
+   • Download Digital ID sebagai gambar
+   • Trigger badge otomatis
+   • Export laporan cabang
+   • Kalkulator komisi agen
+   • Auto-upgrade tier agen
+   • Preview website cabang/agen sebelum simpan
+
+🟢 RENDAH (Roadmap 3+ bulan):
+   • Permission granular read/write/delete
+   • SSR untuk website agen/cabang
+   • SISKOHAT Kemenag
+   • AI Chatbot jamaah
+   • Integrasi withdrawal otomatis
+```
+
+---
+
+*Analisis Bagian 18-22 selesai Mei 2026. Total gap teridentifikasi: 50+ item di 5 area sistem. Prioritas kritis berjumlah 5 item yang harus diselesaikan sebelum go-live produksi.*
