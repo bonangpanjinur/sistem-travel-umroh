@@ -12,7 +12,7 @@ export async function getExchangeRate(from: string, to: string = "IDR"): Promise
   const cached = _ratesCache[key];
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.rate;
   try {
-    const { data, error } = await supabase.rpc("get_active_exchange_rate", {
+    const { data, error } = await (supabase.rpc as any)("get_active_exchange_rate", {
       from_currency: from.toUpperCase(),
       to_currency: to.toUpperCase(),
     });
