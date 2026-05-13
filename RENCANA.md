@@ -2969,8 +2969,8 @@ Semua manajemen staff/role harus minta super_admin.
 |----|-------|-----------|----------|
 | CAB-ADD1 | **RLS per cabang** — policy Supabase agar isolasi data dijamin di DB level | 🔴 Kritis | 2 hari |
 | CAB-ADD2 | ✅ **Manajemen staff cabang** — `/cabang/staff` page, assign role staff existing user via email (DONE) | ✅ Done | 2 hari |
-| CAB-ADD3 | **Dashboard perbandingan cabang** — semua cabang dalam satu view | 🟠 Penting | 1.5 hari |
-| CAB-ADD4 | **Export laporan cabang** — Excel/PDF dari BranchLaporan | 🟠 Penting | 0.5 hari |
+| CAB-ADD3 | ✅ **Dashboard perbandingan cabang** — `/admin/branches/comparison` (KPI, bar chart, ranking) (DONE) | ✅ Done | 1.5 hari |
+| CAB-ADD4 | ✅ **Export laporan cabang** — sudah tersedia di BranchLaporan (xlsx + jsPDF autoTable) (DONE) | ✅ Done | 0.5 hari |
 | CAB-ADD5 | **Notifikasi branch manager** — booking baru + approval request | 🟠 Penting | 1 hari |
 | CAB-ADD6 | **Preview website cabang** — iframe preview sebelum simpan | 🟡 Sedang | 0.5 hari |
 | CAB-ADD7 | **Date range di dashboard cabang** — filter periode custom | 🟡 Sedang | 0.5 hari |
@@ -3120,7 +3120,7 @@ Badge tampaknya diberikan manual atau sepenuhnya fiksi.
 | LOY-FIX1 | **Auto-hitung poin** — trigger DB atau backend hook setelah payment confirmed | 🔴 Kritis | 1 hari |
 | LOY-FIX2 | **Implementasi benefit tier nyata** — diskon/keistimewaan yang berlaku di booking | 🔴 Penting | 2 hari |
 | LOY-FIX3 | ✅ **Trigger badge otomatis** — tabel jamaah_badges + 5 trigger DB (first payment, tier gold/platinum, savings, booking confirmed, dokumen lengkap) (DONE) | ✅ Done | 1.5 hari |
-| LOY-FIX4 | **Reminder tabungan** — notifikasi cicilan jatuh tempo via push + WhatsApp | 🟠 Penting | 1.5 hari |
+| LOY-FIX4 | ✅ **Reminder tabungan** — edge function `check-savings-reminders` + pg_cron harian (H-3 + overdue, push + WA outbox) (DONE) | ✅ Done | 1.5 hari |
 | LOY-FIX5 | **Auto-upgrade keanggotaan agen** — berdasarkan performa booking | 🟡 Sedang | 1 hari |
 | LOY-FIX6 | **Download Digital ID** — export kartu sebagai gambar | 🟡 Sedang | 0.5 hari |
 | LOY-FIX7 | **Expiry poin loyalitas** — poin kedaluwarsa + notifikasi | 🟡 Sedang | 1 hari |
