@@ -2,17 +2,16 @@
 // Receives POST from Midtrans, verifies signature_key, updates payments/bookings.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { createHash } from "https://deno.land/std@0.224.0/hash/mod.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const MIDTRANS_SERVER_KEY = Deno.env.get("MIDTRANS_SERVER_KEY") ?? "";
 
-function sha512Hex(s: string): string {
-  // deno std createHash deprecated but still functional; fallback to subtle
-  const h = createHash("sha512");
-  h.update(s);
-  return h.toString();
+async function sha512Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-512", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 Deno.serve(async (req) => {
@@ -48,7 +47,7 @@ Deno.serve(async (req) => {
   // Verify signature: SHA512(order_id + status_code + gross_amount + server_key)
   let signatureValid = false;
   if (MIDTRANS_SERVER_KEY && order_id && status_code && gross_amount && signature_key) {
-    const expected = sha512Hex(`${order_id}${status_code}${gross_amount}${MIDTRANS_SERVER_KEY}`);
+    const expected = await sha512Hex(`${order_id}${status_code}${gross_amount}${MIDTRANS_SERVER_KEY}`);
     signatureValid = expected === signature_key;
   }
 
