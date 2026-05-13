@@ -2471,7 +2471,7 @@ Dari `useAuth.tsx`: `isCustomer()` cek `customer || jamaah`. Dari `CustomerRoute
 
 | ID | Tugas | File | Estimasi | Prioritas |
 |----|-------|------|----------|-----------|
-| RBAC-F1 | **Fix sumber roles** — `useDynamicMenus` baca dari `useAuth().roles`, bukan `(user as any).roles` | `useDynamicMenus.ts` | 0.25 hari | 🔴 Segera |
+| RBAC-F1 | ✅ **Fix sumber roles** — `useDynamicMenus` baca dari `useAuth().roles` (DONE) | `useDynamicMenus.ts` | 0.25 hari | ✅ Done |
 | RBAC-F2 | **Fix security: VAPID private key** (duplikat dengan PWA-F2, satu perbaikan menyelesaikan keduanya) | `usePWAConfig.ts` | 0.5 hari | 🔴 Segera |
 | RBAC-F3 | **Fix fallback permission** — jika DB offline, fallback ke localStorage cache, bukan full access | `useDynamicMenus.ts` | 0.5 hari | 🔴 Segera |
 | RBAC-F4 | **Realtime invalidation permission** — Supabase realtime pada `user_permissions` + `user_roles` invalidate React Query cache | `useDynamicMenus.ts` | 1 hari | 🟠 Penting |
