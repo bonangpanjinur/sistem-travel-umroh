@@ -3518,6 +3518,95 @@ export type Database = {
           },
         ]
       }
+      package_label_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          label_id: string
+          package_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          label_id: string
+          package_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          label_id?: string
+          package_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_label_assignments_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "package_labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_label_assignments_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      package_labels: {
+        Row: {
+          branch_id: string | null
+          color: string
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          color?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          color?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_labels_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       package_types: {
         Row: {
           code: string
