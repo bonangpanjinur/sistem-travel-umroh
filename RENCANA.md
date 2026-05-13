@@ -1223,3 +1223,494 @@ Langkah 4 (GAP 4) — Tier persentase: enhancement visual
 - `transaction-form-generator.ts` → hanya tambah parameter boolean untuk GAP 3
 - `PackageDetail.tsx` (publik) → sudah tampil dengan baik
 - Tabel `cancellation_policies` → tidak perlu schema change untuk GAP 1-3
+
+---
+
+## BAGIAN 15 — AUDIT MENYELURUH PANEL ADMIN (Analisis Kode Lengkap)
+
+> Bagian ini adalah hasil audit mendalam terhadap **semua halaman admin** — membaca kode satu per satu, memeriksa tabel Supabase, route API, logika bisnis, dan kekurangan nyata.
+> Tanggal audit: Mei 2026
+
+---
+
+### 15A — TEMUAN KRITIS (Harus Diperbaiki)
+
+| ID | Masalah | Halaman | Dampak Nyata | Solusi |
+|----|---------|---------|--------------|--------|
+| **K-01** | **Virtual Account: mockup, bukan integrasi bank nyata** | `AdminVirtualAccount` | Nomor VA tidak valid, tidak bisa menerima transfer | Integrasikan Midtrans VA API (POST `/api/midtrans/create-va`) |
+| **K-02** | **`/api/hr/verify-face` selalu return `verified: true`** | `AdminAbsensiDigital` | Absensi bisa dimanipulasi siapapun | Implementasi face-api.js atau AWS Rekognition |
+| **K-03** | **Scheduled Reports tidak ada backend worker** | `AdminScheduledReports` | Laporan terjadwal tidak pernah terkirim | Tambah cron job di api-server (node-cron) |
+| **K-04** | **Reminder pembayaran & follow-up harus diklik manual** | `AdminFollowUpReminder`, `AdminPembayaranReminder`, `AdminCicilanReminder` | Jika admin lupa buka halaman, tidak ada yang dikirimi | Buat auto-cron di api-server yang jalan setiap pagi |
+| **K-05** | **View `v_financial_summary` mungkin belum dibuat** | `AdminAdvancedReports` | Halaman Advanced Reports crash/kosong | Buat SQL view di Supabase |
+| **K-06** | **Tabel `approval_requests` mungkin belum ada** | `AdminApprovals` | Fitur persetujuan tidak berfungsi | Jalankan migration SQL tabel ini |
+| **K-07** | **`booking_installment_schedules` mungkin belum ada** | `AdminCicilanGenerator` | Generator jadwal cicilan error | Tambah migration SQL tabel ini |
+| **K-08** | **Setting reminder disimpan di `localStorage`** | `AdminCicilanReminder` | Setting tidak persisten lintas perangkat/browser | Pindah ke kolom di tabel `app_settings` |
+| **K-09** | **DB trigger `update_booking_paid_amount` tidak ada di Drizzle** | `AdminPayments` | Jika trigger hilang, total booking tidak sinkron | Tambahkan trigger check di migration |
+| **K-10** | **2FA hanya UI, tidak ada backend TOTP** | `Admin2FASettings` | 2FA tidak benar-benar melindungi akun | Implementasi speakeasy/otplib di api-server |
+
+---
+
+### 15B — AUDIT MODUL BOOKING & PEMBAYARAN
+
+#### AdminBookings
+- **Tabel:** `bookings`, `customers`, `departures`, `packages`, `branches`
+- **Kekurangan:**
+  - Filter by nama paket butuh 2 query terpisah → lambat di data besar (alternatif: gunakan join view di Supabase)
+  - Bulk action terbatas: hanya update status, belum ada bulk kirim reminder / bulk cetak
+- **Relasi:** Hub utama → Finance, CRM, Operasional
+- **Status:** ⚠️ Fungsional tapi perlu optimasi query
+
+#### AdminBookingCreate
+- **Tabel:** `packages`, `branches`, `agents`, `departures`, `customers`, `booking_passengers`
+- **RPC:** `generate_booking_code`
+- **Kekurangan:**
+  - Validasi slot di client → race condition bisa terjadi saat dua admin booking bersamaan di slot terakhir
+  - Room type terbatas: hanya Quad/Triple/Double/Single — konfigurasi custom belum ada
+- **Status:** ⚠️ Fungsional, perlu server-side lock untuk slot
+
+#### AdminBookingDetail
+- **Tabel:** `bookings`, `customers`, `departures`, `packages`, `airports`, `branches`, `agents`, `profiles`, `booking_passengers`, `payments`, `booking_status_history`, `customer_documents`, `customer_mahrams`, `refunds`, `bank_accounts`, `invoice_templates`, `cancellation_policies`
+- **Kekurangan:**
+  - Fetch agent dilakukan terpisah (tidak ada FK) → lihat Bagian 13
+  - Join airports menggunakan hint kolom, bukan FK name → rawan salah jika kolom berganti nama
+- **Status:** ✅ Paling lengkap, sudah punya fix di Bagian 13
+
+#### AdminPayments
+- **Tabel:** `payments`, `bookings`, `customers`, `savings_payments`, `customer_notifications`
+- **API:** `POST /api/whatsapp/payment-reminder` ✅
+- **Kekurangan:** Bergantung pada DB trigger `update_booking_paid_amount` — jika trigger hilang saat migration, total booking tidak sinkron
+- **Status:** ⚠️ Fungsional, tapi ada dependency DB trigger yang rawan
+
+#### AdminRefunds & AdminRefundDetail
+- **Tabel:** `refunds`, `bookings`, `customers`, `customer_notifications`, `admin_activity_log`
+- **Kekurangan:**
+  - Ada pengecekan `42P01` (tabel tidak ada) di kode → tabel `refunds` mungkin belum ada di beberapa environment
+  - Tidak ada integrasi ke bank/payment gateway — hanya marking administratif
+- **Status:** ⚠️ Fungsional, perlu dipastikan tabel ada
+
+#### AdminApprovals ⚠️ KRITIS
+- **Tabel:** `approval_requests`
+- **Kekurangan:** Tabel mungkin belum dibuat; Supabase Realtime digunakan — perlu dipastikan subscription aktif
+- **Status:** 🔴 Bergantung migration SQL yang perlu dijalankan
+
+#### AdminVirtualAccount ⚠️ KRITIS
+- **Kekurangan:** Generasi VA adalah client-side hash + localStorage — bukan bank nyata
+- **Status:** 🔴 Perlu integrasi Midtrans VA API
+
+#### AdminCicilanGenerator
+- **Tabel:** `bookings`, `booking_installment_schedules`
+- **Kekurangan:** Tabel `booking_installment_schedules` mungkin belum ada; jadwal tidak terhubung ke sistem pembayaran
+- **Status:** ⚠️ Perlu migration tabel
+
+#### AdminCicilanReminder
+- **Tabel:** `savings_plans`, `savings_payments`, `whatsapp_config`
+- **Kekurangan:** Setting disimpan di localStorage (tidak persisten); harus diklik manual
+- **Status:** ⚠️ Perlu pindah ke DB + cron otomatis
+
+---
+
+### 15C — AUDIT MODUL KEUANGAN & LAPORAN
+
+| Halaman | Tabel Utama | Gap Kritis | Prioritas |
+|---------|-------------|------------|-----------|
+| AdminFinanceAP | `vendor_costs`, `vendors` | Tidak ada jurnal otomatis saat bayar vendor | 🟡 |
+| AdminFinanceAR | `bookings`, `customers` | Integrasi reminder WA/Email parsial | 🟡 |
+| AdminFinanceCash | `cash_transactions`, `salary_payments`, `employees` | Disbursement gaji ke bank belum ada | 🟡 |
+| AdminFinancePL | `departures`, `packages`, `bookings`, `vendor_costs` | Overhead umum tidak dialokasikan ke P&L per departure | 🟡 |
+| AdminFinanceTerpadu | `payments`, `cash_transactions`, `bookings` | Proyeksi pakai 1.05x rata-rata — tidak mempertimbangkan seasonalitas | 🟢 |
+| AdminLaporanKeuangan | `bookings`, `savings_plans`, `payments` | Format export Odoo/SAP belum ada | 🟢 |
+| AdminLaporanAgen | `agents`, `bookings`, `agent_commissions` | Komisi bertingkat by volume belum diotomasi | 🟡 |
+| AdminLaporanKeberangkatan | `bookings`, `departures`, `customer_documents` | Tidak ada auto-warning dokumen tidak lengkap sebelum cut-off | 🟡 |
+| AdminReports | `bookings`, `customers`, `departures`, `payments` | ✅ Sudah lengkap dengan export | 🟢 |
+| **AdminAdvancedReports** | `v_financial_summary` (VIEW) | **View mungkin belum dibuat di DB** | 🔴 |
+| **AdminScheduledReports** | `scheduled_reports`, `scheduled_report_logs` | **Tidak ada backend worker** | 🔴 |
+| AdminAgentCommissionReport | `agent_commissions`, `agents`, `bookings` | Payout langsung via payment gateway belum ada | 🟡 |
+| AdminBranchCommissions | `branch_commissions`, `branches` | Settlement antara cabang dan pusat belum ada di DB | 🟡 |
+
+**Masalah Arsitektural Keuangan:**
+- Kalkulasi P&L, AR Aging, Proyeksi dilakukan di frontend JS → lambat untuk dataset besar
+- Solusi: Pindahkan ke Supabase RPC atau materialized view
+- Audit log untuk edit data keuangan (ubah vendor cost, dll) belum ada
+
+---
+
+### 15D — AUDIT MODUL PELANGGAN & JAMAAH
+
+#### AdminCustomers & AdminCustomerDetail
+- **Tabel:** `customers`, `bookings`, `customer_documents`, `customer_mahrams`, `visa_applications`, `customer_notifications`, `savings_accounts`
+- **Gap:** Filter by paket/departure menggunakan subquery terpisah → lambat untuk 10rb+ customer
+- **Status:** ✅ Relatif lengkap
+
+#### AdminUsers & AdminRoleManagement
+- **Tabel:** `profiles`, `user_roles`, `branches`, `employees`, `permissions_list`, `role_permissions`
+- **RPC:** `list_users_with_emails`, `delete_user_by_admin`, `reset_user_password_by_admin`, `set_user_password_by_admin`, `get_menu_access_summary`
+- **Gap:** "Menu Sync" harus ditrigger manual untuk sinkronkan roles DB dengan kode menu
+- **Status:** ✅ Fungsional, tapi RPC bergantung pada setup Supabase yang benar
+
+#### AdminMuthawifs & AdminMuthawifDetail
+- **Tabel:** `muthawifs`
+- **Gap:** Penugasan ke departure dilakukan dari halaman departure, bukan dari sini
+- **Status:** ✅ CRUD sederhana, fungsional
+
+#### AdminManifestJamaah & AdminRoomAssignments
+- **Tabel:** `booking_passengers`, `bookings`, `departures`, `customer_documents`, `customer_mahrams`
+- **Gap:**
+  - Ada fallback query jika join utama gagal → schema tidak stabil
+  - Export PDF/Excel manifest besar bisa crash browser (client-side)
+- **Status:** ⚠️ Perlu server-side export untuk manifest besar
+
+#### Document Management (Verification, Expiry, Generator, Types)
+- **Tabel:** `customer_documents`, `document_types`, `customers`, `bookings`
+- **Gap:**
+  - `AdminDocumentGenerator.tsx` adalah 1300+ baris — perlu dipecah jadi komponen modular
+  - Expiry tracker bergantung `passport_expiry` harus terisi di tabel customers
+- **Status:** ⚠️ Fungsional tapi file terlalu besar
+
+#### AdminVisaManagement & AdminSISKOHAT
+- **Tabel:** `visa_applications`, `visa_status_logs`, `siskohat_sync_logs`
+- **Gap:**
+  - Tabel log mungkin belum ada → ada pengecekan kode error di frontend
+  - SISKOHAT: manual CSV, tidak ada integrasi API Kemenag
+- **Status:** ⚠️ Fungsional untuk input manual
+
+#### AdminSOSAlerts
+- **Tabel:** `sos_alerts`
+- **API:** `POST /api/push/sos` ✅ sudah terimplementasi di backend dengan fanout ke muthawif
+- **Gap:** Tabel `sos_alerts` mungkin belum ada (perlu migration)
+- **Status:** ⚠️ Backend siap, tabel mungkin belum ada
+
+---
+
+### 15E — AUDIT MODUL PAKET & KEBERANGKATAN
+
+| Halaman | Status | Gap |
+|---------|--------|-----|
+| AdminPackages | ✅ Sangat lengkap | Tag/label kustom (P6 di Sprint 8) |
+| AdminPackageDetail | ✅ Lengkap | — |
+| AdminDepartures | ✅ Sangat lengkap | — |
+| AdminDepartureDetail | ✅ Sangat lengkap | K9: ringkasan budget di tab header |
+| AdminDepartureTracking | ✅ Fungsional | — |
+| AdminHajiManagement | ⚠️ Fungsional | Tidak ada integrasi API Kemenag |
+| AdminManasik | ✅ Fungsional | — |
+| AdminRekomendasiPaket | ⚠️ Eksperimental | Heuristik hardcoded, bukan ML |
+| AdminPrediksiSeat | ⚠️ Eksperimental | `historicalAvg = 78` hardcoded |
+| AdminCancellationPolicies | ✅ Lengkap | — |
+| AdminPackageTypes | ✅ Lengkap | — |
+| AdminItineraryTemplates | ✅ Lengkap | Duplikasi sudah ada |
+
+---
+
+### 15F — AUDIT MODUL KOMUNIKASI & MARKETING
+
+#### WhatsApp
+- **Integrasi:** Fonnte API (bukan WhatsApp Business API resmi Meta)
+- **Tabel:** `whatsapp_config`, `whatsapp_logs`
+- **API Backend:** `POST /api/whatsapp/send`, `/notification`, `/payment-reminder` ✅
+- **Gap:**
+  - Tidak ada delivery tracking real-time (hanya success/fail saat kirim)
+  - Fonnte bukan official WABA → risiko akun diblokir WhatsApp
+  - WA Otomatis dan Blast Keberangkatan harus diklik manual
+- **Solusi Jangka Panjang:** Migrasi ke Meta WhatsApp Business API atau Twilio
+
+#### Push Notifications
+- **Integrasi:** VAPID + Web Push
+- **API Backend:** `/api/push/*` ✅ Semua route sudah ada dan lengkap
+- **Tabel:** `customer_notifications`, `push_subscriptions` (ada di Drizzle ✅)
+- **Gap:** Deep-linking mobile app belum sepenuhnya dipetakan ke route spesifik
+- **Status:** ✅ Relatif lengkap
+
+#### Email
+- **Integrasi:** SMTP via Nodemailer
+- **API Backend:** `POST /api/email/send` ✅
+- **Gap:** Tidak ada tracking bounce/open email (send-and-forget)
+- **Solusi:** Ganti ke Resend atau SendGrid untuk tracking
+
+#### Chatbot & Leads
+- **Status:** ✅ Sudah diaudit lengkap di Bagian 12 (semua 8 perbaikan selesai)
+
+#### Reminder Otomasi ⚠️ KRITIS
+- `AdminFollowUpReminder`: monitor `leads.follow_up_date` → harus diklik manual
+- `AdminPembayaranReminder`: query `payment_deadline_reminders` → harus diklik manual
+- `AdminCicilanReminder`: Fonnte + savings → harus diklik manual
+- **Solusi:** Buat endpoint `POST /api/reminders/run` + cron job setiap pagi jam 08:00
+
+#### Marketing & Konten
+| Halaman | Status | Gap |
+|---------|--------|-----|
+| AdminMarketingMaterials | ⚠️ | Upload file hanya input URL teks, tidak ada upload ke storage |
+| AdminBlog | ✅ | — |
+| AdminBanners | ✅ | Supabase Storage terintegrasi |
+| AdminFAQManager | ✅ | Terhubung ke chatbot |
+| AdminAnnouncements | ✅ | — |
+| AdminLandingPages + Editor | ✅ | — |
+
+---
+
+### 15G — AUDIT MODUL SISTEM & PENGATURAN
+
+| Halaman | Status | Gap Kritis |
+|---------|--------|------------|
+| AdminSettings | ✅ | — |
+| AdminAppearance | ✅ | — |
+| AdminGeminiAI | ⚠️ | API key Gemini disimpan di DB → pindah ke env var server-side |
+| AdminAISummary | ✅ | Demo mode jika data kosong |
+| AdminKPIDashboard | ✅ | — |
+| AdminAnalytics | ✅ | Export Excel/PDF tersedia |
+| AdminRBACStatus & Tools | ⚠️ | Bergantung migration SQL RBAC dari AdminSupabaseSetup |
+| AdminSecurityAudit | ⚠️ | Bergantung tabel `activity_logs`, `audit_logs` |
+| **Admin2FASettings** | 🔴 | Hanya UI, tidak ada backend TOTP implementasi |
+| AdminActivityLog | ✅ | — |
+| AdminApiConnect | ✅ | Tabel `api_keys` ada di Drizzle ✅ |
+| AdminWebhooks | ✅ | — |
+| AdminMidtrans | ✅ | Route backend sudah ada |
+| AdminPWASettings | ✅ | — |
+| AdminSupabaseSetup | ⚠️ | SQL scripts harus dijalankan manual |
+| DashboardAccessManager | ✅ | Audit trail ada |
+| AdminSentimenFeedback | ✅ | Demo mode fallback jika data kosong |
+
+---
+
+### 15H — AUDIT MODUL HR, OPERASIONAL, AGEN & TOKO
+
+#### HR
+
+| Halaman | Gap Kritis | Prioritas |
+|---------|------------|-----------|
+| AdminHR | Integrasi payroll eksternal manual | 🟡 |
+| AdminPayroll | PPH21 & BPJS otomatis belum ada; slip gaji belum bisa di-generate PDF | 🟡 |
+| **AdminAbsensiDigital** | **Face verify adalah stub K-02; geo-fencing belum ada** | 🔴 |
+| AdminTraining | Assessment/quiz module belum ada; sertifikat belum ada | 🟡 |
+
+#### Equipment
+
+| Halaman | Gap |
+|---------|-----|
+| AdminEquipmentMaster | Barcode/QR per item belum ada; depreciation tracking belum ada |
+| AdminEquipmentSettings | Alert threshold per tipe equipment belum granular |
+| AdminStockOpname | Laporan selisih & auto-adjust inventory belum ada |
+
+#### Toko Online
+
+| Halaman | Gap |
+|---------|-----|
+| AdminStore | Grafik trend penjualan statis/kosong |
+| AdminStoreProducts | Bulk CSV import/export belum ada |
+| AdminStoreCategories | Sub-kategori bersarang belum didukung |
+| AdminStoreOrders | RajaOngkir ongkir real-time belum ada; tracking pengiriman otomatis belum ada |
+
+#### Agen & Komisi
+- **API:** `POST /api/agents/create` ✅ sudah ada
+- **Gap:** Komisi bertingkat by volume belum diotomasi; dashboard performa agen per periode belum ada
+- **Status:** ⚠️ CRUD fungsional
+
+#### Loyalitas, Referral, Membership, Kupon
+
+| Halaman | Gap Utama |
+|---------|-----------|
+| AdminLoyalty | Logika expire poin belum ada; tier benefit belum ada |
+| AdminReferrals | Deteksi fraud self-referral belum ada; payout otomatis belum ada |
+| AdminMemberships | Renewal billing otomatis via Midtrans Subscription belum ada |
+| AdminCoupons | Limit penggunaan per user belum ada; pembatasan per tipe paket belum ada |
+
+#### Tabungan
+- **Gap:** Virtual Account per tujuan tabungan belum ada; auto-debit belum ada; trigger WA reminder dari halaman monitor belum langsung
+- **Status:** ⚠️ Fungsional untuk monitoring manual
+
+#### Master Data (Vendor, Branch, Hotel, Airline, Airport, Bus)
+- **Status:** ✅ CRUD standar, fungsional
+- **Gap Umum:**
+  - Sinkronisasi live data dari API vendor/airline belum ada
+  - Rating vendor belum ada
+  - E-signature kontrak belum ada
+  - Alert perpanjangan kontrak otomatis belum ada
+
+---
+
+### 15I — AUDIT API SERVER (BACKEND)
+
+#### Status Route
+
+| Route | Method | Status | Catatan |
+|-------|--------|--------|---------|
+| `/api/v1/packages` | GET | ✅ | Demo fallback ada |
+| `/api/v1/packages/:id` | GET | ✅ | — |
+| `/api/v1/departures` | GET | ✅ | Join packages |
+| `/api/v1/leads` | POST | ✅ | Rate limited |
+| `/api/midtrans/create-transaction` | POST | ✅ | Snap proxy |
+| `/api/midtrans/create-qris` | POST | ✅ | Core API |
+| `/api/midtrans/qris-status/:id` | GET | ✅ | — |
+| `/api/whatsapp/send` | POST | ✅ | Fonnte proxy |
+| `/api/whatsapp/notification` | POST | ✅ | Template based |
+| `/api/whatsapp/payment-reminder` | POST | ✅ | Bulk reminders |
+| `/api/email/send` | POST | ✅ | SMTP Nodemailer |
+| `/api/push/vapid-public-key` | GET | ✅ | — |
+| `/api/push/subscribe` | POST | ✅ | Drizzle ORM |
+| `/api/push/sos` | POST | ✅ | Fan-out muthawif |
+| `/api/push/send` | POST | ✅ | Broadcast |
+| `/api/v1/chatbot` | POST | ✅ | Gemini + FAQ |
+| `/api/v1/chatbot/rate` | PATCH | ✅ | — |
+| `/api/agents/create` | POST | ✅ | Supabase Auth + record |
+| `/api/hr/employees` | POST | ✅ | — |
+| **`/api/hr/verify-face`** | POST | **🔴 STUB** | Selalu `verified: true` |
+| `/api/health` | GET | ✅ | — |
+
+#### Route yang BELUM ADA tapi Dibutuhkan
+
+| Route | Kebutuhan |
+|-------|-----------|
+| `POST /api/midtrans/create-va` | Virtual Account real |
+| `POST /api/reminders/payment/auto` | Cron reminder pembayaran |
+| `POST /api/reminders/followup/auto` | Cron reminder follow-up lead |
+| `POST /api/reports/scheduled/run` | Eksekusi laporan terjadwal |
+| `GET /api/analytics/kpi-summary` | Data KPI untuk AdminAdvancedReports |
+
+#### Gap Schema Drizzle vs Supabase
+
+Drizzle hanya mendefinisikan **8 tabel**. Frontend menggunakan **60+ tabel** langsung via Supabase client. Tabel penting yang TIDAK ada di Drizzle:
+
+```
+Operasional:   room_assignments, customer_mahrams, attendance_records,
+               visa_status_logs, customer_notifications, sos_alerts,
+               trip_timeline, luggage, manifests, equipment_distributions
+
+Commerce:      store_categories, store_products, store_orders,
+               store_order_items, store_shipments
+
+Management:    agents, branches, branch_monthly_targets, agent_commissions,
+               profiles, user_roles, faqs, chatbot_logs, app_settings,
+               permissions_list, role_permissions
+
+Finance:       vendor_costs, vendor_contracts, cash_transactions,
+               payroll_records, salary_payments, savings_plans,
+               savings_payments, booking_passengers, customer_documents
+
+Marketing:     banners, blog_articles, marketing_materials, testimonials,
+               announcement_records, landing_pages
+
+HR:            employees, attendance, training_modules, training_progress,
+               muthawifs, muthawif_jamaah_evaluations
+```
+
+---
+
+### 15J — DIAGRAM RELASI ANTAR MODUL
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                    MASTER DATA                               ║
+║  Branches → Packages → Departures                            ║
+║  Airlines ↗    PackageTypes ↗   ↓ BookingPassengers          ║
+║  Hotels   ↗    CancellationPolicies   ↓                      ║
+║  Airports ↗    ItineraryTemplates     ↓                      ║
+║  Muthawifs ─────────────────────→ [departure_itineraries]    ║
+╚══════════════════════════════════════════════════════════════╝
+                           ↓
+╔══════════════════════════════════════════════════════════════╗
+║                    BOOKING CORE                              ║
+║  Customers ← Bookings → Payments → FinanceAR                 ║
+║      ↓           ↓                                           ║
+║  Documents   BookingPassengers                               ║
+║  MahRams         ↓                                           ║
+║  VisaApps    RoomAssignments → ManifestJamaah                ║
+║  Savings         ↓                                           ║
+║              Attendance → AbsensiDigital                     ║
+╚══════════════════════════════════════════════════════════════╝
+                           ↓
+╔══════════════════════════════════════════════════════════════╗
+║                    KEUANGAN                                  ║
+║  Bookings → Payments ────────────────→ FinancePL             ║
+║  VendorCosts → FinanceAP                    ↓                ║
+║  Employees → Payroll → FinanceCash → FinanceTerpadu          ║
+║  All → Reports → ScheduledReports (worker belum ada!)        ║
+╚══════════════════════════════════════════════════════════════╝
+                           ↓
+╔══════════════════════════════════════════════════════════════╗
+║                    KOMUNIKASI                                ║
+║  Bookings → WA/Email/Push Notifications                      ║
+║  Leads → FollowUpReminder (manual!)                          ║
+║  Payments → PembayaranReminder (manual!)                     ║
+║  Departures → WABlastKeberangkatan (manual!)                 ║
+║  ChatLeads → Chatbot → FAQ → Admin                           ║
+╚══════════════════════════════════════════════════════════════╝
+                           ↓
+╔══════════════════════════════════════════════════════════════╗
+║                    CRM & AGEN                                ║
+║  Customers → Loyalty → Referrals → Agents                    ║
+║  Agents → Commissions → AgentReport                          ║
+║  Branches → BranchCommissions                                ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+---
+
+### 15K — RENCANA PERBAIKAN TERURUT (SPRINT BARU)
+
+#### FASE KRITIS — Lakukan Segera
+
+| ID | Tugas | File/Route | Estimasi |
+|----|-------|------------|----------|
+| F1 | Buat route `POST /api/midtrans/create-va` (Midtrans VA real) | `api-server/src/routes/midtrans.ts` | 1 hari |
+| F2 | Ganti stub `/api/hr/verify-face` dengan face-api.js | `api-server/src/routes/hr.ts` | 1-2 hari |
+| F3 | Buat cron job `POST /api/reminders/run` + node-cron scheduler | Route baru + `index.ts` | 1 hari |
+| F4 | Buat SQL view `v_financial_summary` di Supabase | Supabase SQL Editor | 0.5 hari |
+| F5 | Pindahkan setting reminder dari localStorage ke `app_settings` | `AdminCicilanReminder.tsx` | 0.5 hari |
+| F6 | Migration SQL: `approval_requests`, `booking_installment_schedules` | File migration baru | 0.5 hari |
+| F7 | Implementasi TOTP 2FA di backend (speakeasy) | Route baru + `Admin2FASettings.tsx` | 2 hari |
+
+#### FASE PENTING — Sprint Berikutnya
+
+| ID | Tugas | Estimasi |
+|----|-------|----------|
+| P1 | Pindahkan Gemini API key dari DB ke env var server-side | 0.5 hari |
+| P2 | Server-side export manifest (hindari crash browser) | 1 hari |
+| P3 | Tambah email bounce tracking (ganti SMTP dengan Resend) | 1 hari |
+| P4 | Pecah `AdminDocumentGenerator.tsx` (1300 baris) jadi komponen modular | 1 hari |
+| P5 | Komisi bertingkat agen: otomasi kalkulasi by volume | 1 hari |
+| P6 | Upload file untuk marketing materials ke Supabase Storage | 0.5 hari |
+| P7 | Race condition slot booking: server-side lock | 0.5 hari |
+| P8 | Generate slip gaji PDF (AdminPayroll) | 1 hari |
+| P9 | Kalkulasi PPH21 & BPJS otomatis (AdminPayroll) | 1 hari |
+| P10 | Pindahkan kalkulasi keuangan besar ke Supabase RPC/view | 2 hari |
+
+#### FASE PENINGKATAN — Jangka Menengah
+
+| ID | Tugas | Estimasi |
+|----|-------|----------|
+| E1 | Migrasi WhatsApp dari Fonnte → Meta WABA atau Twilio | 3 hari |
+| E2 | RajaOngkir untuk ongkir toko online | 1 hari |
+| E3 | Logika expire poin loyalitas | 0.5 hari |
+| E4 | Deteksi fraud self-referral | 0.5 hari |
+| E5 | Midtrans Subscription untuk renewal membership otomatis | 1 hari |
+| E6 | Limit penggunaan kupon per user | 0.5 hari |
+| E7 | Assessment/quiz module di AdminTraining | 2 hari |
+| E8 | Sertifikat massal generator (K7 di Sprint 8) | 1 hari |
+| E9 | Sub-kategori toko online | 0.5 hari |
+| E10 | Live chat takeover AI → human agent | 2 hari |
+| E11 | Geo-fencing untuk absensi digital | 1 hari |
+| E12 | Barcode/QR per item equipment | 1 hari |
+| E13 | E-signature kontrak vendor | 2 hari |
+| E14 | Multi-bahasa (i18n) — sangat besar, perlu diskusi | 5+ hari |
+
+---
+
+### 15L — RINGKASAN STATUS PER KATEGORI
+
+| Kategori | Total Halaman | ✅ Fungsional | ⚠️ Ada Gap | 🔴 Kritis |
+|----------|---------------|--------------|------------|-----------|
+| Booking & Pembayaran | 9 | 6 | 2 | 1 (VA) |
+| Keuangan & Laporan | 13 | 8 | 3 | 2 (view, worker) |
+| Pelanggan & Jamaah | 10 | 7 | 3 | 0 |
+| Paket & Keberangkatan | 8 | 7 | 1 | 0 |
+| Komunikasi & Marketing | 14 | 9 | 4 | 1 (reminder otomasi) |
+| Sistem & Pengaturan | 10 | 6 | 3 | 1 (2FA) |
+| HR | 4 | 2 | 1 | 1 (face verify stub) |
+| Operasional Equipment | 3 | 2 | 1 | 0 |
+| Toko Online | 4 | 3 | 1 | 0 |
+| Agen & Mitra | 5 | 4 | 1 | 0 |
+| Tabungan & Loyalitas | 6 | 4 | 2 | 0 |
+| Master Data | 7 | 7 | 0 | 0 |
+| **TOTAL** | **93** | **65 (70%)** | **22 (24%)** | **6 (6%)** |
+
+---
+
+*Audit dilakukan berdasarkan pembacaan kode aktual semua halaman admin. Terakhir diperbarui: Mei 2026.*
