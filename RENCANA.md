@@ -641,38 +641,54 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
 
 ---
 
-### Sprint 8 — Fitur Sisa & Polish (BERIKUTNYA)
+### Sprint 8 — Fitur Sisa & Polish ✅ SELESAI
 
-> Urutan berdasarkan **tidak butuh migrasi DB dulu** → **butuh migrasi DB**. Kerjakan P1 ke P3 terlebih dahulu.
+> Semua item P1–P3 sudah dikerjakan. Catatan implementasi di bawah.
 
 ```
-PRIORITAS 1 — Kecil, tidak butuh migrasi DB, langsung dikerjakan:
-──────────────────────────────────────────────────────────────────
-19. K9  → Ringkasan anggaran di tab trigger "Budget" di AdminDepartureDetail
-           - Baca totalBudgeted & totalRealized dari useDepartureBudget (hook sudah ada)
-           - Tampilkan angka mini di label tab: "Budget · Rp X vs Rp Y"
+PRIORITAS 1 ✅ SELESAI
+──────────────────────
+19. K9  ✅ Ringkasan anggaran di tab trigger "Budget" di AdminDepartureDetail
+           - Integrasi useDepartureBudget + useDepartureCosts + computeBudgetSummary
+           - Tampil "formatCurrency(totalRealized) / formatCurrency(totalBudgeted)" pada tab
            - File: AdminDepartureDetail.tsx
 
-PRIORITAS 2 — Sedang, tidak butuh migrasi DB:
-──────────────────────────────────────────────
-20. J3  → Offline cache untuk JamaahDocuments & JamaahVisaTracker
-           - Simpan hasil query ke localStorage setelah berhasil fetch
-           - Deteksi navigator.onLine → tampilkan banner "Mode Offline — data dari cache terakhir"
-           - Data tetap terbaca dari cache saat tidak ada koneksi
-           - File: JamaahDocuments.tsx, JamaahVisaTracker.tsx
+PRIORITAS 2 ✅ SELESAI
+──────────────────────
+20. J3  ✅ Offline cache untuk JamaahDocuments & JamaahVisaTracker
+           - Hook baru: useOfflineCache<T> + useOnlineStatus (localStorage)
+           - Komponen OfflineBanner muncul saat navigator.onLine === false
+           - Query dibungkus useOfflineCache → fallback ke cache jika offline
+           - Files: hooks/useOfflineCache.ts, components/OfflineBanner.tsx,
+             JamaahDocuments.tsx, JamaahVisaTracker.tsx
 
-21. K7  → Generate sertifikat massal di DepartureDetail
-           - Tombol "Cetak Semua Sertifikat" muncul saat status departure = departed
-           - Loop semua jamaah, generate PDF per jamaah (pakai pdfmake/jsPDF)
-           - File: AdminDepartureDetail.tsx + komponen baru DepartureCertificateGenerator.tsx
+21. K7  ✅ Generate sertifikat massal di DepartureDetail
+           - Komponen baru: DepartureCertificateGenerator (loop jamaah → JSZip → download)
+           - Hanya tampil saat departure.status === 'departed'
+           - Format sertifikat: CERT/YYYY/DEP-ID-INDEX, pakai useCompanyInfo
+           - Files: components/departure/DepartureCertificateGenerator.tsx,
+             AdminDepartureDetail.tsx
 
-PRIORITAS 3 — Butuh migrasi DB (ALTER TABLE packages ADD COLUMN label TEXT):
-──────────────────────────────────────────────────────────────────────────────
-22. P6  → Tag/label kustom paket (Best Seller, Early Bird, Flash Sale)
-           - Tambah kolom label TEXT di tabel packages (migration baru: fase24_package_label.sql)
-           - Dropdown label di form paket (RegularPackageForm, SavingsPackageForm)
-           - Tampilkan badge label di kartu paket di AdminPackages + halaman publik
-           - File: AdminPackages.tsx, RegularPackageForm.tsx, SavingsPackageForm.tsx, PackageCard.tsx
+PRIORITAS 3 ✅ SELESAI (dengan migrasi DB lebih kaya dari rencana awal)
+──────────────────────────────────────────────────────────────────────
+22. P6  ✅ Tag/label kustom paket (Best Seller, Early Bird, Flash Sale, dll)
+           - Migrasi: tabel package_labels (master per branch / global) +
+             package_label_assignments (M:N ke packages), bukan kolom tunggal.
+             Lebih fleksibel: admin bisa CRUD label kustom + warna sendiri.
+           - 5 label default global di-seed: Best Seller, Early Bird,
+             Flash Sale, Baru, Terbatas.
+           - Hook usePackageLabels (list, map, assign, upsert, delete)
+           - Komponen: PackageLabelBadges, PackageLabelManagerDialog,
+             PackageLabelAssignDialog
+           - Tombol "Kelola Label" di header AdminPackages + item
+             "Atur Label" di dropdown per paket
+           - Badge tampil di PackageCard (publik) via usePackageLabelsMap
+           - Files: hooks/usePackageLabels.ts,
+             components/packages/PackageLabelBadges.tsx,
+             components/admin/packages/PackageLabelManagerDialog.tsx,
+             components/admin/packages/PackageLabelAssignDialog.tsx,
+             pages/admin/AdminPackages.tsx,
+             components/packages/PackageCard.tsx
 
 TIDAK DIPRIORITASKAN (terlalu besar / butuh tindakan user):
 ────────────────────────────────────────────────────────────
