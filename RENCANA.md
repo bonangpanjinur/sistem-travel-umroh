@@ -1714,3 +1714,246 @@ HR:            employees, attendance, training_modules, training_progress,
 ---
 
 *Audit dilakukan berdasarkan pembacaan kode aktual semua halaman admin. Terakhir diperbarui: Mei 2026.*
+
+---
+
+## BAGIAN 16 — RENCANA MIGRASI SQL (Konsolidasi & Pengembangan)
+
+> Semua file SQL sudah dipindahkan dan diorganisir di folder `sql/`. Bagian ini menjelaskan apa yang sudah dilakukan, cara menjalankannya, dan rencana migrasi berikutnya.
+
+---
+
+### 16A — Yang Sudah Dikerjakan
+
+Sebelumnya file SQL tersebar di **dua folder** dengan nama tidak konsisten:
+
+| Sebelum | Sesudah |
+|---------|---------|
+| `migrations/` (15 file, tidak bernomor) | `sql/migrations/001_*.sql ... 039_*.sql` |
+| `supabase/migrations/` (25 file, nama UUID + fase) | Digabung ke `sql/migrations/` |
+| Tidak ada urutan jelas | Penomoran 001–039 berurutan |
+| Tidak ada file master | `sql/MASTER_FRESH_INSTALL.sql` (7483 baris) |
+| Tidak ada panduan eksekusi | `sql/README.md` (panduan lengkap) |
+
+**Hasil konsolidasi:**
+```
+sql/
+├── README.md                    ← Panduan eksekusi lengkap
+├── MASTER_FRESH_INSTALL.sql     ← Fresh install — paste & run satu kali (320KB)
+├── PATCHES_ONLY.sql             ← Update existing DB — hanya file 024-039 (67KB)
+├── CONSOLIDATED_fase1-20.sql    ← Backup referensi fase 1-20 (145KB)
+└── migrations/                  ← 39 file individual berurutan
+    ├── 001_foundation.sql
+    ├── 002_fase1_membership_branch_commission.sql
+    ├── ...
+    └── 039_patch_website_settings_layout.sql
+```
+
+---
+
+### 16B — Urutan Eksekusi Lengkap (001–039)
+
+| No | File | Tabel/Fitur yang Dibuat | Syarat |
+|----|------|------------------------|--------|
+| 001 | `001_foundation.sql` | `packages`, `departures`, `bookings`, `customers`, `payments`, `profiles`, `user_roles`, `airports`, `airlines`, `hotels` | — Jalankan PERTAMA |
+| 002 | `002_fase1_membership_branch_commission.sql` | `memberships`, `branches`, `agent_commissions`, `branch_commissions` | Setelah 001 |
+| 003 | `003_fase2_public_website.sql` | `blog_articles`, `testimonials`, `faqs`, `banners`, `team_members` | Setelah 001 |
+| 004 | `004_fase3_customer_portal.sql` | `savings_plans`, `savings_payments`, `loyalty_points`, `loyalty_redemptions`, `referral_codes` | Setelah 001-002 |
+| 005 | `005_fase4_6_analytics_notif_operational.sql` | `analytics_events`, `customer_notifications`, `support_tickets`, `departure_itineraries` | Setelah 001-004 |
+| 006 | `006_whatsapp_tables.sql` | `whatsapp_config`, `whatsapp_logs` | Setelah 001 |
+| 007 | `007_fase6_app_settings_va_targets.sql` | `app_settings`, `virtual_accounts`, `agent_monthly_targets`, `jamaah_doa_sessions`, `jamaah_jurnal` | Setelah 001-005 |
+| 008 | `008_dashboard_access_config.sql` | `dashboard_access_config` | Setelah 001 |
+| 009 | `009_payment_deadline_reminders.sql` | `payment_deadline_reminders` | Setelah 001 |
+| 010 | `010_fase4_push_visa.sql` | `push_subscriptions`, `visa_applications` | Setelah 001-005 |
+| 011 | `011_fase5_rbac_improvements.sql` | `permissions_list`, `role_permissions`, enum app_role, RLS policies | Setelah 001-010 |
+| 012 | `012_hr_enhancements.sql` | `payroll_records`, `leave_requests`, `performance_reviews` | Setelah 001 |
+| 013 | `013_operational_integration.sql` | Views: `v_jamaah_operational_status`, `v_departure_financial` | Setelah 001-012 |
+| 014 | `014_flexible_rooming_groups.sql` | ALTER `booking_passengers` → tambah `room_group_id` | Setelah 001 |
+| 015 | `015_multi_mahram_rooming.sql` | ALTER `customer_mahrams` → tambah `relation_category` | Setelah 001 |
+| 016 | `016_fix_missing_fkeys.sql` | FK: `bookings.sales_id`, `booking_status_history.changed_by` | Setelah 001 |
+| 017 | `017_fase11_15_leads_manasik_reviews.sql` | `leads`, `lead_activities`, `manasik_schedules`, `manasik_attendance`, `reviews`, `media_gallery` | Setelah 001-011 |
+| 018 | `018_fase16_new_tables.sql` | `sos_alerts`, `visa_status_logs`, `approval_requests`, `approval_actions`, `chatbot_logs`, `chat_leads`, `audit_logs`, `activity_logs` | Setelah 001-017 |
+| 019 | `019_fase17_remaining_tables.sql` | `vendor_contracts`, `departure_budgets`, `training_modules`, `training_quizzes`, `training_progress`, `media_gallery` | Setelah 001-018 |
+| 020 | `020_fase18_core_settings.sql` | `company_settings`, `bank_accounts`, `website_settings`, `contact_page_content` | Setelah 001 |
+| 021 | `021_fase19_branch_kpi_targets.sql` | `branch_monthly_targets` | Setelah 002 |
+| 022 | `022_fase20_webhooks_push.sql` | `webhooks`, `webhook_logs`, (push_subscriptions update) | Setelah 001 |
+| 023 | `023_fase20_chat_bubble_color.sql` | ALTER `website_settings` → tambah `chat_bubble_color` | Setelah 020 |
+| 024 | `024_store_ecommerce.sql` | `store_categories`, `store_products`, `store_orders`, `store_order_items`, `store_shipments` | Setelah 001 |
+| 025 | `025_store_product_reviews.sql` | `store_product_reviews` | Setelah 024 |
+| 026 | `026_fase21_integration_fixes.sql` | Patch: `customer_notifications`, `jamaah_checklist`, `attendance_records`, `feedback`, `visa_status_logs`, `room_occupants` | Setelah 001-025 |
+| 027 | `027_fase22_muthawif_evaluations.sql` | `muthawif_jamaah_evaluations` | Setelah 001 |
+| 028 | `028_fase23_payments_transaction_id.sql` | ALTER `payments` → `transaction_id`, `payment_type` | Setelah 001 |
+| 029 | `029_patch_auto_commission_trigger.sql` | FUNCTION + TRIGGER `attribute_commission_to_parent` | Setelah 002 |
+| 030 | `030_patch_store_categories_extra.sql` | Tambahan kolom/index `store_categories` | Setelah 024 |
+| 031 | `031_patch_push_subscriptions.sql` | Ensure `push_subscriptions` RLS policies | Setelah 010 |
+| 032 | `032_patch_ibadah_progress.sql` | `ibadah_progress` tabel | Setelah 001 |
+| 033 | `033_patch_push_outbox.sql` | `push_outbox`, `notification_templates` | Setelah 001 |
+| 034 | `034_patch_audit_logs_policy_fix.sql` | Perbaiki policy INSERT `audit_logs` | Setelah 018 |
+| 035 | `035_patch_security_revoke_trigger_funcs.sql` | Revoke EXECUTE pada trigger functions | Setelah 001-034 |
+| 036 | `036_patch_customer_mahrams_rls.sql` | RLS policies `customer_mahrams` | Setelah 001 |
+| 037 | `037_patch_referral_policies_fix.sql` | Perbaiki policies referral_codes & referral_usages | Setelah 004 |
+| 038 | `038_patch_storage_upload_policy.sql` | Storage policy upload dokumen customer | Setelah 001-011 |
+| 039 | `039_patch_website_settings_layout.sql` | ALTER `website_settings` → `layout_variant`, `theme_overrides` | Setelah 020 |
+
+---
+
+### 16C — Cara Menjalankan (3 Skenario)
+
+#### Skenario 1: Database Baru (Fresh Install)
+```
+1. Buka Supabase Dashboard → SQL Editor
+2. Klik "New Query"
+3. Copy-paste isi file: sql/MASTER_FRESH_INSTALL.sql
+4. Klik Run
+5. Selesai. Semua 39 migrasi dijalankan sekaligus.
+```
+
+#### Skenario 2: Update Database yang Sudah Ada (Fase 1-20 sudah dijalankan)
+```
+1. Buka Supabase Dashboard → SQL Editor
+2. Copy-paste isi file: sql/PATCHES_ONLY.sql
+3. Klik Run
+4. Ini menjalankan hanya migrasi 024–039 (store + fase21-23 + patches)
+```
+
+#### Skenario 3: Migrasi Bertahap (Paling Aman)
+```
+Jalankan satu per satu dari folder sql/migrations/
+mulai dari 001_foundation.sql sampai 039_patch_website_settings_layout.sql
+Gunakan ini jika ada error di skenario 1/2 agar bisa debug per-file.
+```
+
+---
+
+### 16D — Migrasi yang BELUM Dibuat (Perlu Dibuat)
+
+File-file berikut dibutuhkan oleh frontend tapi SQL-nya belum ada:
+
+#### 040 — `v_financial_summary` VIEW
+```sql
+-- Dibutuhkan oleh: AdminAdvancedReports
+-- Tanpa ini: halaman Advanced Reports gagal load
+CREATE OR REPLACE VIEW v_financial_summary AS
+  SELECT
+    d.id AS departure_id,
+    d.departure_date,
+    p.name AS package_name,
+    COALESCE(SUM(pay.amount) FILTER (WHERE pay.status = 'paid'), 0) AS total_revenue,
+    COALESCE(SUM(vc.amount), 0) AS total_cost,
+    COALESCE(SUM(pay.amount) FILTER (WHERE pay.status = 'paid'), 0) 
+      - COALESCE(SUM(vc.amount), 0) AS gross_profit,
+    COUNT(DISTINCT b.id) AS total_bookings
+  FROM departures d
+  LEFT JOIN packages p ON p.id = d.package_id
+  LEFT JOIN bookings b ON b.departure_id = d.id AND b.status != 'cancelled'
+  LEFT JOIN payments pay ON pay.booking_id = b.id
+  LEFT JOIN vendor_costs vc ON vc.departure_id = d.id
+  GROUP BY d.id, d.departure_date, p.name;
+```
+**Status:** 🔴 Harus dibuat agar AdminAdvancedReports berfungsi
+
+#### 041 — `booking_installment_schedules` TABLE
+```sql
+-- Dibutuhkan oleh: AdminCicilanGenerator
+CREATE TABLE IF NOT EXISTS booking_installment_schedules (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
+  installment_number INT NOT NULL,
+  due_date DATE NOT NULL,
+  amount NUMERIC NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue')),
+  paid_at TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE booking_installment_schedules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Staff can manage installment schedules"
+  ON booking_installment_schedules FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('super_admin','admin','finance')));
+```
+**Status:** 🔴 Harus dibuat agar AdminCicilanGenerator berfungsi
+
+#### 042 — `scheduled_reports` TABLE
+```sql
+-- Dibutuhkan oleh: AdminScheduledReports
+CREATE TABLE IF NOT EXISTS scheduled_reports (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  report_type TEXT NOT NULL,
+  frequency TEXT NOT NULL CHECK (frequency IN ('daily','weekly','monthly')),
+  recipients JSONB DEFAULT '[]'::jsonb,
+  filters JSONB DEFAULT '{}'::jsonb,
+  is_active BOOLEAN DEFAULT true,
+  last_run_at TIMESTAMPTZ,
+  next_run_at TIMESTAMPTZ,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS scheduled_report_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  report_id UUID REFERENCES scheduled_reports(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'success' CHECK (status IN ('success','failed')),
+  rows_generated INT,
+  recipients_sent INT,
+  error_message TEXT,
+  executed_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+**Status:** 🔴 Harus dibuat agar fitur Scheduled Reports bisa bekerja
+
+#### 043 — `packages.label` COLUMN
+```sql
+-- Dibutuhkan oleh: Sprint 8 - P6 (tag kustom paket)
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS label TEXT 
+  CHECK (label IN ('best_seller', 'early_bird', 'flash_sale', 'new', 'limited'));
+```
+**Status:** 🟡 Opsional — hanya jika Sprint 8 P6 dikerjakan
+
+#### 044 — TOTP 2FA COLUMN
+```sql
+-- Dibutuhkan oleh: Admin2FASettings (implementasi TOTP)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS totp_secret TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS totp_verified_at TIMESTAMPTZ;
+```
+**Status:** 🟡 Perlu jika 2FA diimplementasikan
+
+---
+
+### 16E — Ringkasan Tabel per Kategori (Total)
+
+| Kategori | Tabel | Status |
+|----------|-------|--------|
+| Core Booking | packages, departures, bookings, booking_passengers, booking_status_history, payments, refunds | ✅ Ada di 001 |
+| Pelanggan | customers, customer_documents, customer_mahrams, customer_notifications, visa_applications | ✅ Ada di 001-026 |
+| Keuangan | bank_accounts, cash_transactions, vendor_costs, payroll_records, savings_plans, savings_payments | ✅ Ada di 001-020 |
+| Kamar & Keberangkatan | room_assignments, departure_itineraries, departure_budgets, attendance_records | ✅ Ada di 005-026 |
+| CRM & Chat | leads, lead_activities, chat_leads, chatbot_logs | ✅ Ada di 017-018 |
+| Komunikasi | whatsapp_config, whatsapp_logs, push_subscriptions, push_outbox, customer_notifications | ✅ Ada di 006-033 |
+| Konten Publik | blog_articles, banners, marketing_materials, faqs, testimonials, announcements | ✅ Ada di 003-017 |
+| HR | employees, payroll_records, leave_requests, performance_reviews, training_modules | ✅ Ada di 012-019 |
+| Equipment | equipment_categories, equipment_items, equipment_distributions | ✅ Ada di 019 |
+| Toko Online | store_categories, store_products, store_orders, store_order_items, store_shipments, store_product_reviews | ✅ Ada di 024-025 |
+| Agen & Cabang | agents, branches, agent_commissions, branch_commissions, branch_monthly_targets | ✅ Ada di 001-021 |
+| Loyalitas | loyalty_points, referral_codes, referral_usages, memberships, coupons | ✅ Ada di 004 |
+| Pengaturan | company_settings, website_settings, app_settings, api_keys, webhooks | ✅ Ada di 007-022 |
+| Keamanan | user_roles, permissions_list, role_permissions, audit_logs, activity_logs, dashboard_access_config | ✅ Ada di 008-018 |
+| Visa & Haji | visa_applications, visa_status_logs, haji_registrations, siskohat_sync_logs | ✅ Ada di 010-018 |
+| Muthawif | muthawifs, muthawif_jamaah_evaluations, sos_alerts | ✅ Ada di 001-027 |
+| **YANG KURANG** | booking_installment_schedules, scheduled_reports, scheduled_report_logs, v_financial_summary (view) | 🔴 Perlu dibuat (lihat 16D) |
+
+---
+
+### 16F — Checklist Sebelum Menjalankan Migrasi
+
+Sebelum menjalankan di Supabase SQL Editor, pastikan:
+
+- [ ] Anda login sebagai **postgres** atau menggunakan **service_role** key
+- [ ] **Row Level Security** bisa aktif — pastikan tidak ada policy yang konflik
+- [ ] Setelah migrasi, aktifkan **Realtime** untuk tabel: `bookings`, `customer_notifications`, `attendance_records`, `sos_alerts`, `chatbot_logs`
+- [ ] Set Supabase URL dan key di Replit Secrets: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] Buat storage bucket: `trip-photos`, `public-assets`, `customer-documents`, `pwa-icons`
+
+---
+
+*Rencana migrasi SQL ini diperbarui Mei 2026 setelah konsolidasi semua file dari `migrations/` dan `supabase/migrations/` ke dalam `sql/migrations/`.*
