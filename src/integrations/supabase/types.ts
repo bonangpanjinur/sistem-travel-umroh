@@ -137,6 +137,57 @@ export type Database = {
           },
         ]
       }
+      agent_training_progress: {
+        Row: {
+          agent_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          module_id: string
+          quiz_score: number | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          module_id: string
+          quiz_score?: number | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          module_id?: string
+          quiz_score?: number | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_training_progress_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_training_progress_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_wallet_transactions: {
         Row: {
           amount: number
@@ -5659,6 +5710,86 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_modules: {
+        Row: {
+          category: string
+          content_text: string | null
+          content_type: string
+          content_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          order_index: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content_text?: string | null
+          content_type?: string
+          content_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          order_index?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content_text?: string | null
+          content_type?: string
+          content_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          order_index?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      training_quizzes: {
+        Row: {
+          created_at: string
+          id: string
+          module_id: string
+          options: Json
+          order_index: number
+          question: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          module_id: string
+          options: Json
+          order_index?: number
+          question: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          module_id?: string
+          options?: Json
+          order_index?: number
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_quizzes_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
             referencedColumns: ["id"]
           },
         ]
