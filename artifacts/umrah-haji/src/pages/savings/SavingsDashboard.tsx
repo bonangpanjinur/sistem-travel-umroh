@@ -424,6 +424,26 @@ export default function SavingsDashboard() {
           </Card>
         )}
 
+        {/* Jadwal Cicilan */}
+        {activePlan && (
+          <SavingsScheduleList savingsPlanId={activePlan.id} />
+        )}
+
+        {/* Convert dialog */}
+        {activePlan && (
+          <SavingsConvertDialog
+            open={convertOpen}
+            onOpenChange={setConvertOpen}
+            savingsPlan={{
+              id: activePlan.id,
+              package_id: activePlan.package_id,
+              paid_amount: Number(activePlan.paid_amount) || 0,
+              target_amount: Number(activePlan.target_amount) || 0,
+              locked_price: (activePlan as any).locked_price,
+            }}
+          />
+        )}
+
         {/* Other Plans */}
         {plans.filter(p => p.status !== 'active').length > 0 && (
           <Card className="mt-8">
