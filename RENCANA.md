@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Mei 2026 (sesi terbaru: P4 riwayat harga, fix inkonsistensi status)
+> **Terakhir diperbarui:** Mei 2026 (sesi terbaru: audit status semua backlog — F3 & P7 ternyata sudah selesai, prioritas Sprint 8 ditetapkan)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
@@ -469,13 +469,13 @@ pnpm --filter @workspace/api-spec run codegen
 | P3 | **Tombol "Lihat di Website"** | ✅ |
 | P4 | **Riwayat perubahan harga** — `PackagePriceAuditCard` audit trail per departure lintas paket, dengan diff harga, oleh siapa, keterangan | ✅ |
 | P5 | **Total kapasitas aggregat** | ✅ |
+| P7 | **Salin itinerary antar paket** — tombol "Duplikasi" sudah ada di `AdminItineraryTemplates` via `duplicateMutation`, salin seluruh hari + aktivitas ke template baru dengan suffix "(Copy)" | ✅ |
 
 #### Yang Masih Kurang (Backlog)
 
-| ID | Fitur | Dampak | Prioritas |
-|----|-------|--------|-----------|
-| P6 | **Tag/label kustom** — selain `is_featured`, admin perlu label "Best Seller", "Early Bird", "Flash Sale" | Rendah | - |
-| P7 | **Salin itinerary antar paket** — copy template itinerary dari paket A ke paket B 1 klik | Rendah | - |
+| ID | Fitur | Dampak | Prioritas Sprint 8 |
+|----|-------|--------|---------------------|
+| P6 | **Tag/label kustom** — selain `is_featured`, admin perlu label "Best Seller", "Early Bird", "Flash Sale" di kartu & list paket | Rendah | 🟡 P3 — butuh kolom baru di tabel packages |
 
 #### Catatan Arsitektur Penting
 
@@ -523,10 +523,10 @@ pnpm --filter @workspace/api-spec run codegen
 
 #### Yang Masih Kurang (Backlog)
 
-| ID | Fitur | Dampak | Prioritas |
-|----|-------|--------|-----------|
-| K7 | **Generate sertifikat massal** — tombol 1 klik generate sertifikat untuk semua jamaah setelah trip completed | Rendah | - |
-| K9 | **Ringkasan anggaran di header** — DepartureBudgetTab ada tapi tidak muncul di overview. Tampilkan total aktual vs anggaran di tab header | Rendah | - |
+| ID | Fitur | Dampak | Prioritas Sprint 8 |
+|----|-------|--------|---------------------|
+| K9 | **Ringkasan anggaran di tab header** — `DepartureBudgetTab` sudah punya `totalBudgeted` & `totalRealized`, tapi tidak muncul di label tab. Tampilkan ringkasan mini (budget vs realisasi) di trigger tab "Budget" | Sedang | 🟡 P1 — kecil, tidak butuh migrasi DB |
+| K7 | **Generate sertifikat massal** — tombol 1 klik generate + download sertifikat PDF untuk semua jamaah setelah departure status = `departed` | Rendah | 🟡 P2 — butuh template PDF, tidak butuh migrasi DB |
 
 ---
 
@@ -539,19 +539,19 @@ pnpm --filter @workspace/api-spec run codegen
 
 | ID | Fitur | Status |
 |----|-------|--------|
-| F1 | **Midtrans payment gateway terintegrasi** — halaman Midtrans Config ada, tapi belum tentu flow payment online berjalan end-to-end | ⚠️ Perlu test |
+| F1 | **Midtrans payment gateway terintegrasi** — halaman Midtrans Config ada, flow QRIS sudah dibangun (Sprint 6). Belum bisa ditest end-to-end tanpa kredensial aktif | ⚠️ Perlu test — set `MIDTRANS_SERVER_KEY` + `MIDTRANS_CLIENT_KEY` dulu |
 | F2 | **Cicilan otomatis** — reminder cicilan sudah ada tapi belum ada generator jadwal cicilan dari booking | ✅ |
-| F3 | **Laporan piutang per booking** — Finance AR ada tapi apakah terhubung ke data booking aktual? | ⚠️ Perlu cek |
+| F3 | **Laporan piutang per booking** — `AdminFinanceAR.tsx` sudah query tabel `bookings` langsung: `total_price`, `paid_amount`, `payment_status`, hitung outstanding per booking, filter search + status | ✅ Sudah terhubung ke data aktual |
 
 ---
 
 ### 6D — Portal Jamaah — Backlog
 
-| ID | Fitur | Prioritas |
-|----|-------|-----------|
+| ID | Fitur | Prioritas Sprint 8 |
+|----|-------|---------------------|
 | J1 | **Ringkasan AI sungguhan** — `/jamaah/ringkasan-ai` integrasi Gemini/OpenAI dengan fallback cerdas berbasis data booking | ✅ |
-| J2 | **Push notification di iOS** — PWA iOS baru support push notification sejak iOS 16.4. Perlu test | ⚠️ |
-| J3 | **Offline mode** — checklist & itinerary sudah bisa offline, tapi dokumen dan visa tracker masih online-only | 🟡 |
+| J2 | **Push notification di iOS** — PWA iOS baru support push notification sejak iOS 16.4. Perlu test di device | ⚠️ Perlu test user — bukan kode |
+| J3 | **Offline mode dokumen & visa tracker** — `JamaahDocuments` dan `JamaahVisaTracker` masih online-only. Tambahkan cache `localStorage` + banner offline saat tidak ada koneksi, data tetap terbaca dari cache terakhir | 🟡 P2 — tidak butuh migrasi DB |
 | J4 | **Deep link dari WA** — ketika jamaah klik link WA, redirect langsung ke halaman yang relevan di portal | ✅ |
 
 ---
@@ -634,6 +634,52 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
            - Kolom: waktu, tanggal keberangkatan, quad/triple/double/single, diff harga, oleh siapa, keterangan
            - Search filter, collapse toggle, graceful state jika tabel belum ada (+ tombol SQL setup)
            - Fix inkonsistensi RENCANA.md: GAP 1/2/3 di tabel 14E, N9, F2, J1, N9 diupdate ke ✅
+    Audit backlog:
+        - F3 ternyata sudah ✅ (AdminFinanceAR sudah query bookings aktual)
+        - P7 ternyata sudah ✅ (AdminItineraryTemplates sudah ada duplicateMutation)
+```
+
+---
+
+### Sprint 8 — Fitur Sisa & Polish (BERIKUTNYA)
+
+> Urutan berdasarkan **tidak butuh migrasi DB dulu** → **butuh migrasi DB**. Kerjakan P1 ke P3 terlebih dahulu.
+
+```
+PRIORITAS 1 — Kecil, tidak butuh migrasi DB, langsung dikerjakan:
+──────────────────────────────────────────────────────────────────
+19. K9  → Ringkasan anggaran di tab trigger "Budget" di AdminDepartureDetail
+           - Baca totalBudgeted & totalRealized dari useDepartureBudget (hook sudah ada)
+           - Tampilkan angka mini di label tab: "Budget · Rp X vs Rp Y"
+           - File: AdminDepartureDetail.tsx
+
+PRIORITAS 2 — Sedang, tidak butuh migrasi DB:
+──────────────────────────────────────────────
+20. J3  → Offline cache untuk JamaahDocuments & JamaahVisaTracker
+           - Simpan hasil query ke localStorage setelah berhasil fetch
+           - Deteksi navigator.onLine → tampilkan banner "Mode Offline — data dari cache terakhir"
+           - Data tetap terbaca dari cache saat tidak ada koneksi
+           - File: JamaahDocuments.tsx, JamaahVisaTracker.tsx
+
+21. K7  → Generate sertifikat massal di DepartureDetail
+           - Tombol "Cetak Semua Sertifikat" muncul saat status departure = departed
+           - Loop semua jamaah, generate PDF per jamaah (pakai pdfmake/jsPDF)
+           - File: AdminDepartureDetail.tsx + komponen baru DepartureCertificateGenerator.tsx
+
+PRIORITAS 3 — Butuh migrasi DB (ALTER TABLE packages ADD COLUMN label TEXT):
+──────────────────────────────────────────────────────────────────────────────
+22. P6  → Tag/label kustom paket (Best Seller, Early Bird, Flash Sale)
+           - Tambah kolom label TEXT di tabel packages (migration baru: fase24_package_label.sql)
+           - Dropdown label di form paket (RegularPackageForm, SavingsPackageForm)
+           - Tampilkan badge label di kartu paket di AdminPackages + halaman publik
+           - File: AdminPackages.tsx, RegularPackageForm.tsx, SavingsPackageForm.tsx, PackageCard.tsx
+
+TIDAK DIPRIORITASKAN (terlalu besar / butuh tindakan user):
+────────────────────────────────────────────────────────────
+N8  → Multi-bahasa (i18n) — 🔴 SANGAT BESAR. Butuh 200+ file diubah.
+       Perlu diskusi dulu sebelum mulai. Belum direncanakan detail.
+F1  → Test Midtrans end-to-end — ⚠️ Bukan kode, butuh user set MIDTRANS_SERVER_KEY aktif
+J2  → Test push iOS — ⚠️ Bukan kode, butuh user test di device iOS 16.4+
 ```
 
 ### Sprint 6 — Integrasi QRIS Midtrans ✅
