@@ -166,6 +166,26 @@ function findLocalAnswer(question: string): string {
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const CHATBOT_STORAGE_KEY = "vinstour-chatbot-history";
+
+const DEFAULT_GREETING: Message = {
+  id: "1",
+  role: "assistant",
+  content: "Assalamu'alaikum warahmatullahi wabarakatuh! 🌙\n\nSaya adalah Asisten Virtual Vinstour Travel. Saya siap membantu Anda dengan pertanyaan seputar:\n\n• 📋 Dokumen & persyaratan\n• 💰 Pembayaran & cicilan\n• 🛂 Proses visa\n• 🏨 Info hotel & jadwal\n• 🕋 Panduan ibadah\n• 🧳 Ketentuan bagasi\n\nSilakan ketik pertanyaan Anda!",
+  timestamp: new Date(),
+};
+
+function loadChatbotHistory(): Message[] {
+  try {
+    const saved = localStorage.getItem(CHATBOT_STORAGE_KEY);
+    if (!saved) return [DEFAULT_GREETING];
+    const parsed: any[] = JSON.parse(saved);
+    if (!Array.isArray(parsed) || parsed.length === 0) return [DEFAULT_GREETING];
+    return parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) }));
+  } catch {
+    return [DEFAULT_GREETING];
+  }
+}
 
 async function fetchAIAnswer(
   message: string,
@@ -187,14 +207,7 @@ async function fetchAIAnswer(
 
 export default function JamaahChatbot() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: "Assalamu'alaikum warahmatullahi wabarakatuh! 🌙\n\nSaya adalah Asisten Virtual Vinstour Travel. Saya siap membantu Anda dengan pertanyaan seputar:\n\n• 📋 Dokumen & persyaratan\n• 💰 Pembayaran & cicilan\n• 🛂 Proses visa\n• 🏨 Info hotel & jadwal\n• 🕋 Panduan ibadah\n• 🧳 Ketentuan bagasi\n\nSilakan ketik pertanyaan Anda!",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(loadChatbotHistory);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiMode, setAiMode] = useState(false);
@@ -202,6 +215,13 @@ export default function JamaahChatbot() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHATBOT_STORAGE_KEY, JSON.stringify(messages));
+    } catch {}
   }, [messages]);
 
   async function sendMessage(text?: string) {
@@ -239,12 +259,14 @@ export default function JamaahChatbot() {
   }
 
   function clearChat() {
-    setMessages([{
-      id: "new",
+    const fresh: Message[] = [{
+      id: Date.now().toString(),
       role: "assistant",
       content: "Chat baru dimulai. Silakan ajukan pertanyaan Anda! 🌙",
       timestamp: new Date(),
-    }]);
+    }];
+    setMessages(fresh);
+    try { localStorage.setItem(CHATBOT_STORAGE_KEY, JSON.stringify(fresh)); } catch {}
   }
 
   function formatContent(content: string) {

@@ -81,11 +81,25 @@ const SUGGESTION_CHIPS = [
   { label: "💳 Cara bayar?", text: "Bagaimana cara pembayarannya?" },
 ];
 
+const WIDGET_STORAGE_KEY = "vinstour-widget-history";
+
+function loadWidgetHistory(): Message[] {
+  try {
+    const saved = localStorage.getItem(WIDGET_STORAGE_KEY);
+    if (!saved) return [];
+    const parsed: any[] = JSON.parse(saved);
+    if (!Array.isArray(parsed) || parsed.length === 0) return [];
+    return parsed.map(m => ({ ...m, ts: new Date(m.ts) }));
+  } catch {
+    return [];
+  }
+}
+
 export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }: ChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [geminiConfig, setGeminiConfig] = useState<GeminiConfig | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(loadWidgetHistory);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [leadCaptured, setLeadCaptured] = useState(false);
@@ -116,7 +130,8 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     const greeting = geminiConfig?.greeting
       ? geminiConfig.greeting
       : `Halo! Selamat datang di ${tenantName}. Ada yang bisa saya bantu? 😊`;
-    setMessages([{ id: Date.now().toString(), role: "bot", text: greeting, ts: new Date() }]);
+    const freshMessages: Message[] = [{ id: Date.now().toString(), role: "bot", text: greeting, ts: new Date() }];
+    setMessages(freshMessages);
     setInput("");
     setTyping(false);
     setReactions({});
@@ -126,6 +141,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     setLeadForm({ name: "", phone: "" });
     historyRef.current = [];
     setConfirmClear(false);
+    try { localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(freshMessages)); } catch {}
   };
 
   const pickReaction = (msgId: string, emoji: string) => {
@@ -169,6 +185,15 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     setShowScrollBtn(distFromBottom > 80);
   };
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(messages));
+      } catch {}
+    }
+  }, [messages]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -217,10 +242,11 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
         packageContext,
       };
       setGeminiConfig(config);
-      setMessages([{ id: "1", role: "bot", text: config.greeting, ts: new Date() }]);
+      // Only show greeting if no saved history exists
+      setMessages(prev => prev.length > 0 ? prev : [{ id: "1", role: "bot", text: config.greeting, ts: new Date() }]);
     } catch {
       setGeminiConfig(null);
-      setMessages([{ id: "1", role: "bot", text: `Halo! Selamat datang di ${tenantName}. Ada yang bisa saya bantu? 😊`, ts: new Date() }]);
+      setMessages(prev => prev.length > 0 ? prev : [{ id: "1", role: "bot", text: `Halo! Selamat datang di ${tenantName}. Ada yang bisa saya bantu? 😊`, ts: new Date() }]);
     }
     setConfigLoaded(true);
   }
