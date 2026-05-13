@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   Globe, Save, ExternalLink, Copy, QrCode,
   MessageCircle, Instagram, Facebook, Youtube, BarChart2,
-  Star, Plus, Trash2, Link as LinkIcon, MessageSquare, Check,
+  Star, Plus, Trash2, Link as LinkIcon, MessageSquare, Check, Eye,
 } from "lucide-react";
 import { CHAT_COLOR_PRESETS, type ChatColorPreset } from "@/components/public/TenantChatBubble";
 
