@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Mei 2026
+> **Terakhir diperbarui:** Mei 2026 (sesi terbaru: P4 riwayat harga, fix inkonsistensi status)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
@@ -458,11 +458,22 @@ pnpm --filter @workspace/api-spec run codegen
 | P1 | **Upload foto/galeri paket** — `PackageGalleryCard` dengan drag-drop, multi-upload, urutan, preview, hapus, caption | ✅ |
 | P5 | **Total kapasitas aggregat** — card di AdminPackageDetail: total jamaah, total kuota, % terisi, breakdown status keberangkatan + progress bar | ✅ |
 
+#### Yang Sudah Selesai (Semua Sesi)
+
+| ID | Fitur | Status |
+|----|-------|--------|
+| F1 | **Syarat & Ketentuan di halaman publik** | ✅ |
+| F2 | **Itinerary tab dengan departure selector** | ✅ |
+| P1 | **Upload foto/galeri paket** | ✅ |
+| P2 | **Duplikat Paket** | ✅ |
+| P3 | **Tombol "Lihat di Website"** | ✅ |
+| P4 | **Riwayat perubahan harga** — `PackagePriceAuditCard` audit trail per departure lintas paket, dengan diff harga, oleh siapa, keterangan | ✅ |
+| P5 | **Total kapasitas aggregat** | ✅ |
+
 #### Yang Masih Kurang (Backlog)
 
 | ID | Fitur | Dampak | Prioritas |
 |----|-------|--------|-----------|
-| P4 | **Riwayat perubahan harga** — audit trail: siapa ubah harga, dari berapa ke berapa, kapan | Menengah | 🟡 |
 | P6 | **Tag/label kustom** — selain `is_featured`, admin perlu label "Best Seller", "Early Bird", "Flash Sale" | Rendah | - |
 | P7 | **Salin itinerary antar paket** — copy template itinerary dari paket A ke paket B 1 klik | Rendah | - |
 
@@ -529,7 +540,7 @@ pnpm --filter @workspace/api-spec run codegen
 | ID | Fitur | Status |
 |----|-------|--------|
 | F1 | **Midtrans payment gateway terintegrasi** — halaman Midtrans Config ada, tapi belum tentu flow payment online berjalan end-to-end | ⚠️ Perlu test |
-| F2 | **Cicilan otomatis** — reminder cicilan sudah ada tapi belum ada generator jadwal cicilan dari booking | 🟡 |
+| F2 | **Cicilan otomatis** — reminder cicilan sudah ada tapi belum ada generator jadwal cicilan dari booking | ✅ |
 | F3 | **Laporan piutang per booking** — Finance AR ada tapi apakah terhubung ke data booking aktual? | ⚠️ Perlu cek |
 
 ---
@@ -538,7 +549,7 @@ pnpm --filter @workspace/api-spec run codegen
 
 | ID | Fitur | Prioritas |
 |----|-------|-----------|
-| J1 | **Ringkasan AI sungguhan** — `/jamaah/ringkasan-ai` saat ini template lokal, bukan LLM. Perlu integrasi OpenAI/Gemini atau fallback cerdas berbasis data booking | 🟡 |
+| J1 | **Ringkasan AI sungguhan** — `/jamaah/ringkasan-ai` integrasi Gemini/OpenAI dengan fallback cerdas berbasis data booking | ✅ |
 | J2 | **Push notification di iOS** — PWA iOS baru support push notification sejak iOS 16.4. Perlu test | ⚠️ |
 | J3 | **Offline mode** — checklist & itinerary sudah bisa offline, tapi dokumen dan visa tracker masih online-only | 🟡 |
 | J4 | **Deep link dari WA** — ketika jamaah klik link WA, redirect langsung ke halaman yang relevan di portal | ✅ |
@@ -557,7 +568,7 @@ pnpm --filter @workspace/api-spec run codegen
 | N6 | **Rate card & proposal otomatis** — admin bisa generate PDF proposal harga per paket untuk calon jamaah | Admin | ✅ |
 | N7 | **Integrasi Qris** — pembayaran via Qris langsung dari halaman booking | Pembayaran | ✅ |
 | N8 | **Multi-bahasa (i18n)** — halaman publik + jamaah portal dalam Bahasa Arab & Inggris | Public | 🔴 |
-| N9 | **Sistem Aturan Pembatalan Lengkap** — lihat BAGIAN 14 untuk rencana detail | Admin/Booking/Dokumen | 🟠 |
+| N9 | **Sistem Aturan Pembatalan Lengkap** — lihat BAGIAN 14 untuk rencana detail | Admin/Booking/Dokumen | ✅ |
 
 ---
 
@@ -613,6 +624,16 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
              PAYMENT_CONFIRM, PAYMENT_LUNAS, DOCUMENT_READY, DEPARTURE_REMINDER
            - Tambah getPortalUrl(path) helper di whatsapp-notifier.ts
            - renderTemplate diupdate: baris tak terselesaikan dihapus otomatis ✅
+```
+
+### Sprint 7 — P4 Riwayat Harga & Fix Status ✅
+
+```
+18. P4  → PackagePriceAuditCard di AdminPackageDetail
+           - Tabel audit trail semua perubahan harga departure lintas paket
+           - Kolom: waktu, tanggal keberangkatan, quad/triple/double/single, diff harga, oleh siapa, keterangan
+           - Search filter, collapse toggle, graceful state jika tabel belum ada (+ tombol SQL setup)
+           - Fix inkonsistensi RENCANA.md: GAP 1/2/3 di tabel 14E, N9, F2, J1, N9 diupdate ke ✅
 ```
 
 ### Sprint 6 — Integrasi QRIS Midtrans ✅
@@ -1138,14 +1159,14 @@ Langkah 4 (GAP 4) — Tier persentase: enhancement visual
 | Titik Tampil | Status | Gap | Siapa yang Melihat |
 |--------------|--------|-----|-------------------|
 | Halaman detail paket publik (`/packages/:id`) | ✅ Ada | — | Calon jamaah/customer |
-| Modal konfirmasi saat booking (StepReview) | ❌ Belum | GAP 1 | Calon jamaah/customer |
-| Form pembuatan/edit paket (admin) | ❌ Belum | GAP 2 | Admin |
+| Modal konfirmasi saat booking (StepReview) | ✅ Ada | GAP 1 | Calon jamaah/customer |
+| Form pembuatan/edit paket (admin) | ✅ Ada | GAP 2 | Admin |
 | Halaman detail paket admin (AdminPackageDetail) | ✅ Ada | — | Admin |
 | Halaman master aturan (AdminCancellationPolicies) | ✅ Ada | — | Admin |
 | PDF Form Transaksi | ✅ Ada | — | Admin + dicetak ke jamaah |
-| PDF Invoice | ❌ Belum secara terkontrol | GAP 3 | Admin + dicetak ke jamaah |
+| PDF Invoice | ✅ Ada (terkontrol via DocumentLayoutEditor) | GAP 3 | Admin + dicetak ke jamaah |
 | PDF Proposal | ✅ Ada | — | Admin + calon jamaah |
-| Pengaturan per-dokumen (DocumentLayoutEditor) | ❌ Belum | GAP 3 | Admin |
+| Pengaturan per-dokumen (DocumentLayoutEditor) | ✅ Ada | GAP 3 | Admin |
 
 ---
 

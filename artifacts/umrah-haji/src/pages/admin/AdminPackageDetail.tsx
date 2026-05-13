@@ -46,6 +46,7 @@ import { EquipmentReadinessCard } from "@/components/admin/EquipmentReadinessCar
 import { PackageCancellationPolicyCard } from "@/components/admin/PackageCancellationPolicyCard";
 import { PackageGalleryCard } from "@/components/admin/PackageGalleryCard";
 import { PackagePriceTrendCard } from "@/components/admin/PackagePriceTrendCard";
+import { PackagePriceAuditCard } from "@/components/admin/PackagePriceAuditCard";
 import { DeparturePriceComparisonCard } from "@/components/admin/DeparturePriceComparisonCard";
 import { toast } from "sonner";
 
@@ -505,6 +506,9 @@ export default function AdminPackageDetail() {
 
       {/* Price Trend */}
       <PackagePriceTrendCard packageId={id} departures={departures || []} />
+
+      {/* Price Audit Trail (P4) */}
+      <PackagePriceAuditCard packageId={id} />
 
       {/* Price Comparison */}
       {departures && departures.length > 1 && (
