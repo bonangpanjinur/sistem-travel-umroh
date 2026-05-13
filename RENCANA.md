@@ -2471,7 +2471,7 @@ Dari `useAuth.tsx`: `isCustomer()` cek `customer || jamaah`. Dari `CustomerRoute
 
 | ID | Tugas | File | Estimasi | Prioritas |
 |----|-------|------|----------|-----------|
-| RBAC-F1 | **Fix sumber roles** — `useDynamicMenus` baca dari `useAuth().roles`, bukan `(user as any).roles` | `useDynamicMenus.ts` | 0.25 hari | 🔴 Segera |
+| RBAC-F1 | ✅ **Fix sumber roles** — `useDynamicMenus` baca dari `useAuth().roles` (DONE) | `useDynamicMenus.ts` | 0.25 hari | ✅ Done |
 | RBAC-F2 | **Fix security: VAPID private key** (duplikat dengan PWA-F2, satu perbaikan menyelesaikan keduanya) | `usePWAConfig.ts` | 0.5 hari | 🔴 Segera |
 | RBAC-F3 | **Fix fallback permission** — jika DB offline, fallback ke localStorage cache, bukan full access | `useDynamicMenus.ts` | 0.5 hari | 🔴 Segera |
 | RBAC-F4 | **Realtime invalidation permission** — Supabase realtime pada `user_permissions` + `user_roles` invalidate React Query cache | `useDynamicMenus.ts` | 1 hari | 🟠 Penting |
@@ -2575,7 +2575,7 @@ Akibat: Bahkan saat localStorage ada cache, tampilan masih belum sempurna sampai
 
 ---
 
-#### 🔴 CSS-F3: Initial Loader Disembunyikan SEBELUM ThemeProvider Selesai Fetch
+#### ✅ CSS-F3 / CSS-FIX-1: Initial Loader Disembunyikan SEBELUM ThemeProvider Selesai Fetch — DONE (event 'theme-ready' + fallback 1.5s)
 
 **Masalah Kritis di `main.tsx` baris 106-116:**
 ```javascript
@@ -2653,7 +2653,7 @@ Beberapa komponen mungkin masih import dari versi lama → dua query ke Supabase
 
 | ID | Solusi | File | Estimasi | Dampak |
 |----|--------|------|----------|--------|
-| CSS-FIX-1 | **Sembunyikan loader saat tema siap** — event `theme-ready` dari ThemeProvider | `main.tsx` + `ThemeProvider.tsx` | 2 jam | 🔴 Hilangkan flash utama |
+| CSS-FIX-1 | ✅ **Sembunyikan loader saat tema siap** — event `theme-ready` dari ThemeProvider (DONE) | `main.tsx` + `ThemeProvider.tsx` | 2 jam | ✅ Done |
 | CSS-FIX-2 | **Simpan nama font di localStorage** — restore font sebelum React mount via script di index.html | `index.html` + `ThemeProvider.tsx` | 3 jam | 🟠 Hilangkan font swap |
 | CSS-FIX-3 | **Realtime invalidation tema** — Supabase realtime pada `website_settings` → clear cache | `useWebsiteSettingsOptimized.ts` | 4 jam | 🟠 Tema admin langsung berlaku |
 | CSS-FIX-4 | **Kurangi cache ke 5 menit** + staleTime 2 menit | `useWebsiteSettingsOptimized.ts` | 0.5 jam | 🟡 Perubahan admin cepat berlaku |
@@ -2817,7 +2817,7 @@ Agen harus buka portal dan refresh manual.
 
 | ID | Fitur | Prioritas | Estimasi |
 |----|-------|-----------|----------|
-| AGEN-ADD1 | **Manajemen rekening bank** — form simpan info bank untuk withdrawal | 🔴 Segera | 1 hari |
+| AGEN-ADD1 | ✅ **Manajemen rekening bank** — form bank di AgentSettings (Nama Bank/No. Rek/Pemilik) (DONE) | ✅ Done | 1 hari |
 | AGEN-ADD2 | **Fix tabel training** — pastikan migration + seed data ada | 🔴 Segera | 0.5 hari |
 | AGEN-ADD3 | **Notifikasi real-time agen** — push notification + in-app bell | 🟠 Penting | 2 hari |
 | AGEN-ADD4 | **Halaman Jamaah untuk sub-agen** — filter data milik sub-agen | 🟠 Penting | 1 hari |
