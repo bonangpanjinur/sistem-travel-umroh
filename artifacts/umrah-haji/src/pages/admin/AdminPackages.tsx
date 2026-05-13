@@ -42,6 +42,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
+import { PackageLabelManagerDialog } from "@/components/admin/packages/PackageLabelManagerDialog";
+import { PackageLabelAssignDialog } from "@/components/admin/packages/PackageLabelAssignDialog";
+import { PackageLabelBadges } from "@/components/packages/PackageLabelBadges";
+import { usePackageLabelsMap } from "@/hooks/usePackageLabels";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { usePackageAnalytics } from "@/hooks/usePackageAnalytics";
@@ -92,6 +96,9 @@ export default function AdminPackages() {
   const [isExporting, setIsExporting] = useState(false);
   const [isManifestDialogOpen, setIsManifestDialogOpen] = useState(false);
   const [selectedPackageForManifest, setSelectedPackageForManifest] = useState<any>(null);
+  const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
+  const [labelAssignFor, setLabelAssignFor] = useState<{ id: string; name: string } | null>(null);
+  const { data: labelsMap } = usePackageLabelsMap();
   
   const queryClient = useQueryClient();
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
