@@ -584,6 +584,44 @@ export type Database = {
           },
         ]
       }
+      baggage_policies: {
+        Row: {
+          airline_id: string | null
+          cabin_kg: number
+          checked_kg: number
+          created_at: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          airline_id?: string | null
+          cabin_kg?: number
+          checked_kg?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          airline_id?: string | null
+          cabin_kg?: number
+          checked_kg?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baggage_policies_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: false
+            referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_accounts: {
         Row: {
           account_name: string
@@ -718,6 +756,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "booking_status_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_transfers: {
+        Row: {
+          approved_by: string | null
+          booking_id: string | null
+          created_at: string
+          from_branch_id: string | null
+          id: string
+          reason: string | null
+          requested_by: string | null
+          status: string
+          to_branch_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          booking_id?: string | null
+          created_at?: string
+          from_branch_id?: string | null
+          id?: string
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          to_branch_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          booking_id?: string | null
+          created_at?: string
+          from_branch_id?: string | null
+          id?: string
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          to_branch_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_transfers_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
@@ -1544,6 +1629,67 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "itinerary_templates"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      departure_surveys: {
+        Row: {
+          comment: string | null
+          created_at: string
+          customer_id: string | null
+          departure_id: string | null
+          id: string
+          rating_food: number | null
+          rating_hotel: number | null
+          rating_muthawif: number | null
+          rating_overall: number | null
+          submitted_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          customer_id?: string | null
+          departure_id?: string | null
+          id?: string
+          rating_food?: number | null
+          rating_hotel?: number | null
+          rating_muthawif?: number | null
+          rating_overall?: number | null
+          submitted_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          customer_id?: string | null
+          departure_id?: string | null
+          id?: string
+          rating_food?: number | null
+          rating_hotel?: number | null
+          rating_muthawif?: number | null
+          rating_overall?: number | null
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departure_surveys_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departure_surveys_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departure_surveys_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["departure_id"]
           },
         ]
       }
@@ -3048,6 +3194,41 @@ export type Database = {
         }
         Relationships: []
       }
+      loyalty_point_expiry: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          expires_at: string
+          id: string
+          points: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          expires_at: string
+          id?: string
+          points: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          expires_at?: string
+          id?: string
+          points?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_point_expiry_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_points: {
         Row: {
           current_points: number | null
@@ -4276,6 +4457,33 @@ export type Database = {
           last_used_at?: string | null
           p256dh?: string
           updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      pwa_install_events: {
+        Row: {
+          created_at: string
+          id: string
+          installed_at: string
+          platform: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          installed_at?: string
+          platform?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          installed_at?: string
+          platform?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
