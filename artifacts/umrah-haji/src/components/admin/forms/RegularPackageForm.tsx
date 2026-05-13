@@ -347,6 +347,29 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="booking_mode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mode Booking Wizard</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih mode" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="umroh">Umroh — Alokasi kamar (Quad/Triple/Double/Single)</SelectItem>
+                      <SelectItem value="haji">Haji — Tampilkan validasi mahram & kebutuhan khusus</SelectItem>
+                      <SelectItem value="wisata">Wisata — Twin/Double, surcharge solo traveler</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Menentukan tampilan langkah-langkah di booking wizard.</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           <FormField
