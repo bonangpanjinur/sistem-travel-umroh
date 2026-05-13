@@ -131,11 +131,14 @@ const hideInitialLoader = () => {
 const root = createRoot(document.getElementById("root")!);
 root.render(<App />);
 
-// Hide loader after React has started rendering using requestAnimationFrame
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    requestAnimationFrame(hideInitialLoader);
-  });
-} else {
+// CSS-FIX-1: Hide loader only AFTER ThemeProvider has applied user-defined CSS
+// variables (event 'theme-ready'). Falls back to a 1.5s timeout so the loader
+// never gets stuck if the theme query fails.
+let loaderHidden = false;
+const safeHideLoader = () => {
+  if (loaderHidden) return;
+  loaderHidden = true;
   requestAnimationFrame(hideInitialLoader);
-}
+};
+window.addEventListener('theme-ready', safeHideLoader, { once: true });
+setTimeout(safeHideLoader, 1500);
