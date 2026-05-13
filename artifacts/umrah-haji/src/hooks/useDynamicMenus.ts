@@ -47,7 +47,7 @@ export const useDynamicMenus = () => {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`rbac-realtime-${user.id}`)
+      .channel(`rbac-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_permissions', filter: `user_id=eq.${user.id}` },
