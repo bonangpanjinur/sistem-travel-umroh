@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
+import { UnansweredQuestionsWidget } from "@/components/admin/chatbot/UnansweredQuestionsWidget";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -546,6 +547,9 @@ export default function AdminChatbotStats() {
           </CardContent>
         </Card>
       )}
+
+      {/* Unanswered Questions Leaderboard */}
+      <UnansweredQuestionsWidget />
 
       {/* Info Konfigurasi */}
       <Card className="bg-gray-50 border-dashed">
