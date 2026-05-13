@@ -275,11 +275,14 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                 <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
                   <Bot className="h-3 w-3 text-white" />
                 </div>
-                <div className="bg-white border rounded-2xl rounded-bl-sm px-3 py-2">
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map(i => (
-                      <div key={i} className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-gray-400 font-medium ml-1">{displayBotName} <span className="italic">sedang mengetik...</span></span>
+                  <div className="bg-white border rounded-2xl rounded-bl-sm px-3 py-2">
+                    <div className="flex gap-1 items-center">
+                      {[0, 1, 2].map(i => (
+                        <div key={i} className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
