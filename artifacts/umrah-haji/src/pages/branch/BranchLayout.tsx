@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import {
   Home, Users, DollarSign, BarChart3, Package,
-  Menu, X, LogOut, Building2, CheckSquare, Bell, Target, Globe,
+  Menu, X, LogOut, Building2, CheckSquare, Bell, Target, Globe, UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ const navItems = [
   { label: "Rekap Booking",   href: "/cabang/bookings",      icon: Package },
   { label: "Target KPI",      href: "/cabang/kpi-targets",   icon: Target },
   { label: "Approval Diskon", href: "/cabang/diskon",        icon: CheckSquare },
+  { label: "Staff Cabang",    href: "/cabang/staff",         icon: UserCog },
   { label: "Website Cabang",  href: "/cabang/website",       icon: Globe },
 ];
 
