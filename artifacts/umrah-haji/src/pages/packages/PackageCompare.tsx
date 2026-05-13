@@ -72,13 +72,13 @@ function FeatureRow({ label, values }: { label: string; values: (boolean | strin
   );
 }
 
-function PriceBadge({ price, selected }: { price: number; selected: boolean }) {
+function PriceBadge({ price, selected, currency }: { price: number; selected: boolean; currency?: string }) {
   return (
     <span className={cn(
       "text-2xl font-extrabold",
       selected ? "text-green-600" : "text-foreground"
     )}>
-      {formatCurrency(price, pkg.currency)}
+      {formatCurrency(price, currency)}
     </span>
   );
 }
