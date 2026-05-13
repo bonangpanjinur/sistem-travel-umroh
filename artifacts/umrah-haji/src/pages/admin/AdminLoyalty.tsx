@@ -509,6 +509,25 @@ export default function AdminLoyalty() {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>URL Gambar Reward</Label>
+                <Input
+                  type="url"
+                  placeholder="https://... (kosongkan untuk pakai ikon default)"
+                  value={rewardFormData.image_url}
+                  onChange={(e) => setRewardFormData({ ...rewardFormData, image_url: e.target.value })}
+                />
+                {rewardFormData.image_url && (
+                  <div className="mt-2 h-24 w-full bg-muted rounded-md overflow-hidden">
+                    <img
+                      src={rewardFormData.image_url}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setRewardDialogOpen(false)}>
