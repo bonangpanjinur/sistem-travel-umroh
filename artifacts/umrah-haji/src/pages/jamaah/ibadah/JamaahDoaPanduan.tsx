@@ -7,14 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
-  Book, BookOpen, ChevronDown, ChevronLeft,
+  Book, BookOpen, ChevronDown,
   Search, Volume2, Star, Languages, WifiOff, Wifi,
   Download, Check, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
-import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
+import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 
 interface OfflineContent {
   id: string;
@@ -54,7 +55,6 @@ function setCachedContent(category: string, data: OfflineContent[]) {
 }
 
 export default function JamaahDoaPanduan() {
-  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState("doa");
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -153,46 +153,33 @@ export default function JamaahDoaPanduan() {
   const hasCachedData = Object.keys(cachedData).length > 0;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-              onClick={() => navigate("/jamaah")}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="font-semibold">Doa & Panduan</h1>
-              <div className="flex items-center gap-1.5 text-xs opacity-80">
-                {isOnline ? (
-                  <><Wifi className="h-3 w-3" /> Online</>
-                ) : (
-                  <><WifiOff className="h-3 w-3" /> Offline {hasCachedData && "• Data tersedia"}</>
-                )}
-              </div>
-            </div>
-          </div>
+    <JamaahAppShell>
+      <JamaahPageHeader
+        title="Doa & Panduan"
+        arabic="ٱلْأَدْعِيَة"
+        subtitle={isOnline ? "Online" : `Offline${hasCachedData ? " • Data tersedia" : ""}`}
+        right={
           <Button
             variant="ghost"
             size="sm"
-            className="text-primary-foreground hover:bg-primary-foreground/10 gap-1.5"
+            className="text-primary-foreground hover:bg-white/10 gap-1.5"
             onClick={syncAllContent}
           >
             {isSynced ? (
               <><Check className="h-4 w-4" /> Tersimpan</>
             ) : (
-              <><Download className="h-4 w-4" /> Simpan Offline</>
+              <><Download className="h-4 w-4" /> Simpan</>
             )}
           </Button>
-        </div>
-      </div>
-
+        }
+      />
       <div className="p-4 space-y-4">
+        {/* Online indicator (mobile-friendly chip) */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+          <span>{isOnline ? "Terhubung internet" : "Mode offline"}</span>
+        </div>
+
         {/* Offline notice */}
         {!isOnline && hasCachedData && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
@@ -340,8 +327,6 @@ export default function JamaahDoaPanduan() {
           </p>
         )}
       </div>
-
-      <JamaahBottomNav />
-    </div>
+    </JamaahAppShell>
   );
 }

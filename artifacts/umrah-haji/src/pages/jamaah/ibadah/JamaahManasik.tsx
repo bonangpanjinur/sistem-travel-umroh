@@ -16,7 +16,8 @@ import { format, parseISO, isPast, isFuture } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
+import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 import JamaahManasikKuis from "@/components/jamaah/JamaahManasikKuis";
 
 export default function JamaahManasik() {
@@ -146,26 +147,24 @@ export default function JamaahManasik() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Header */}
-      <div className="bg-primary text-white px-4 pt-10 pb-4">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <BookOpen className="h-5 w-5" /> Manasik Digital
-        </h1>
-        <p className="text-white/80 text-sm mt-1">Jadwal bimbingan & kuis pemahaman ibadah</p>
-        <div className="flex gap-3 mt-3 text-sm">
-          <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
-            <p className="font-bold">{schedules.length}</p>
-            <p className="text-[10px] text-white/70">Total Sesi</p>
-          </div>
-          <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
-            <p className="font-bold">{attendances.length}</p>
-            <p className="text-[10px] text-white/70">Konfirmasi</p>
-          </div>
-          <div className="bg-white/20 rounded-xl px-3 py-1.5 text-center">
-            <p className="font-bold">{upcoming.length}</p>
-            <p className="text-[10px] text-white/70">Mendatang</p>
-          </div>
+    <JamaahAppShell>
+      <JamaahPageHeader
+        title="Manasik Digital"
+        arabic="ٱلْمَنَاسِك"
+        subtitle="Jadwal bimbingan & kuis pemahaman ibadah"
+      />
+      <div className="px-4 -mt-3 mb-2 grid grid-cols-3 gap-2">
+        <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
+          <p className="font-bold text-base">{schedules.length}</p>
+          <p className="text-[10px] text-muted-foreground">Total Sesi</p>
+        </div>
+        <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
+          <p className="font-bold text-base">{attendances.length}</p>
+          <p className="text-[10px] text-muted-foreground">Konfirmasi</p>
+        </div>
+        <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
+          <p className="font-bold text-base">{upcoming.length}</p>
+          <p className="text-[10px] text-muted-foreground">Mendatang</p>
         </div>
       </div>
 
@@ -286,8 +285,6 @@ export default function JamaahManasik() {
           </DialogContent>
         </Dialog>
       )}
-
-      <JamaahBottomNav />
-    </div>
+    </JamaahAppShell>
   );
 }

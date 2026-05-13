@@ -11,7 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Plus, RefreshCcw, CheckCircle2, Volume2, VolumeX, Trash2, Settings } from "lucide-react";
+import { Plus, RefreshCcw, CheckCircle2, Volume2, VolumeX, Trash2 } from "lucide-react";
+import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
+import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 
 const PRESET_DZIKIR = [
   { id: "subhanallah",   arab: "سُبْحَانَ اللَّهِ",     latin: "Subhanallah",      arti: "Maha Suci Allah",                  default_target: 33,  icon: "🌟" },
@@ -126,13 +128,13 @@ export default function JamaahDoaCounter() {
   const totalCompleted = sessions.filter(s => s.completed).length;
 
   return (
-    <div className="space-y-5 pb-8">
-      {/* Header */}
-      <div className="text-center pt-2">
-        <h1 className="text-2xl font-bold">Doa & Dzikir Counter</h1>
-        <p className="text-muted-foreground text-sm mt-1">Tracker dzikir harian dengan target dan sesi tersimpan</p>
-      </div>
-
+    <JamaahAppShell>
+      <JamaahPageHeader
+        title="Doa & Dzikir Counter"
+        arabic="ٱلتَّسْبِيح"
+        subtitle="Tracker dzikir harian dengan target & sesi tersimpan"
+      />
+      <div className="p-4 space-y-5">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card><CardContent className="pt-3 pb-3 text-center">
@@ -294,6 +296,7 @@ export default function JamaahDoaCounter() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </JamaahAppShell>
   );
 }
