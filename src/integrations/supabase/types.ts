@@ -2653,6 +2653,67 @@ export type Database = {
         }
         Relationships: []
       }
+      jamaah_daily_attendance: {
+        Row: {
+          attendance_date: string
+          customer_id: string
+          departure_id: string
+          id: string
+          location: string | null
+          notes: string | null
+          photo_url: string | null
+          recorded_at: string
+          recorded_by: string | null
+          status: string
+        }
+        Insert: {
+          attendance_date?: string
+          customer_id: string
+          departure_id: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          recorded_at?: string
+          recorded_by?: string | null
+          status?: string
+        }
+        Update: {
+          attendance_date?: string
+          customer_id?: string
+          departure_id?: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          recorded_at?: string
+          recorded_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jamaah_daily_attendance_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jamaah_daily_attendance_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jamaah_daily_attendance_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["departure_id"]
+          },
+        ]
+      }
       jamaah_live_locations: {
         Row: {
           accuracy: number | null
@@ -5714,6 +5775,39 @@ export type Database = {
           },
         ]
       }
+      tier_benefits: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_percent: number
+          free_upgrades: number
+          id: string
+          priority_support: boolean
+          tier_level: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          free_upgrades?: number
+          id?: string
+          priority_support?: boolean
+          tier_level: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          free_upgrades?: number
+          id?: string
+          priority_support?: boolean
+          tier_level?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       training_modules: {
         Row: {
           category: string
@@ -6490,6 +6584,10 @@ export type Database = {
         Args: { _customer_id: string; _user_id: string }
         Returns: boolean
       }
+      apply_tier_discount: {
+        Args: { _base_amount: number; _customer_id: string }
+        Returns: Json
+      }
       award_badge: {
         Args: {
           _badge_id: string
@@ -6602,6 +6700,7 @@ export type Database = {
       }
       is_account_locked: { Args: { _email: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_branch_manager_only: { Args: { _user_id: string }; Returns: boolean }
       list_users_with_emails: {
         Args: never
         Returns: {
