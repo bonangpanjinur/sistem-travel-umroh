@@ -46,12 +46,14 @@ export default function Admin2FASettings() {
       if (method === 'whatsapp' && !phoneNumber.trim()) {
         throw new Error('Masukkan nomor WhatsApp aktif.');
       }
-      const { data, error } = await supabase.functions.invoke('request-2fa-otp', {
+      const { data, error } = await supabase.functions.invoke<
+        { ok?: boolean; destination?: string; error?: string }
+      >('request-2fa-otp', {
         body: { purpose: 'setup', method, phone: phoneNumber.trim() || undefined },
       });
       if (error) throw new Error(error.message);
-      if ((data as any)?.error) throw new Error((data as any).error);
-      return data as { destination: string };
+      if (data?.error) throw new Error(data.error);
+      return { destination: data?.destination ?? '' };
     },
     onSuccess: (data) => {
       setDestinationHint(data.destination);
@@ -67,7 +69,9 @@ export default function Admin2FASettings() {
       if (!/^\d{6}$/.test(verificationCode)) {
         throw new Error('Kode harus 6 digit angka.');
       }
-      const { data, error } = await supabase.functions.invoke('verify-2fa-otp', {
+      const { data, error } = await supabase.functions.invoke<
+        { ok?: boolean; error?: string }
+      >('verify-2fa-otp', {
         body: {
           purpose: 'setup',
           method,
@@ -76,7 +80,7 @@ export default function Admin2FASettings() {
         },
       });
       if (error) throw new Error(error.message);
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if (data?.error) throw new Error(data.error);
       await supabase.rpc('log_activity', { _action: '2FA_ENABLED', _status: 'success' });
     },
     onSuccess: () => {
