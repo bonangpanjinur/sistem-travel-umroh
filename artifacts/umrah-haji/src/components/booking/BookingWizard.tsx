@@ -128,7 +128,7 @@ export function BookingWizard() {
   const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
 
   // Seat hold (BOOK-FIX3) — 15 menit lock kursi selama wizard
-  const requestedPax = Math.max(initialPax, totalPassengersFromForm(formData) || 1);
+  const requestedPax = Math.max(initialPax || 1, 1);
   const { remainingMs, error: holdError, expiresAt } = useSeatHold(initialDepartureId, requestedPax);
   const holdExpired = !!expiresAt && remainingMs === 0;
 
