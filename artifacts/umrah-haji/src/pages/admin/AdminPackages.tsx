@@ -517,6 +517,10 @@ export default function AdminPackages() {
               <Plus className="h-4 w-4" />
               Paket Tabungan
             </Button>
+            <Button onClick={() => setIsLabelManagerOpen(true)} variant="outline" className="gap-2 shadow-sm rounded-xl">
+              <Star className="h-4 w-4" />
+              Kelola Label
+            </Button>
           </div>
         </div>
 
