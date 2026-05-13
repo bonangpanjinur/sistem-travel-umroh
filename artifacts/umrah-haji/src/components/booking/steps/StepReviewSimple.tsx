@@ -30,7 +30,7 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
       const { data, error } = await supabase
         .from('packages')
         .select(`
-          id, name, code, duration_days,
+          id, name, code, duration_days, currency,
           price_quad, price_triple, price_double, price_single,
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, city),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, city),
@@ -166,7 +166,7 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Harga per jamaah ({ROOM_LABELS[formData.roomType]})</span>
-              <span>{formatCurrency(basePrice)}</span>
+              <span>{formatCurrency(basePrice, packageData?.currency)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Jumlah jamaah</span>
@@ -175,7 +175,7 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
             <Separator />
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
-              <span className="text-primary">{formatCurrency(totalPrice)}</span>
+              <span className="text-primary">{formatCurrency(totalPrice, packageData?.currency)}</span>
             </div>
           </div>
         </CardContent>
