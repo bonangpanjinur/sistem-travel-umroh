@@ -286,3 +286,105 @@ export function useSalesReport(from: string, to: string) {
     },
   });
 }
+
+/* ─── Low Stock Products ──────────────────────────────────── */
+export type LowStockProduct = {
+  id: string;
+  name: string;
+  sku: string | null;
+  current_stock: number;
+  min_stock: number;
+  avg_cost: number;
+  is_active: boolean;
+};
+
+export function useLowStockProducts() {
+  return useQuery({
+    queryKey: ["store-low-stock"],
+    queryFn: async () => {
+      const { data, error } = await sb
+        .from("store_products")
+        .select("id, name, sku, current_stock, min_stock, avg_cost, is_active")
+        .eq("is_active", true)
+        .order("current_stock", { ascending: true });
+      if (error) throw error;
+      const rows = (data ?? []) as LowStockProduct[];
+      return rows.filter(
+        (p) => (p.current_stock ?? 0) <= (p.min_stock ?? 0),
+      );
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+/* ─── Stock Opname / Adjustment ───────────────────────────── */
+export type OpnameLine = {
+  product_id: string;
+  physical_qty: number;
+  notes?: string;
+};
+
+export function useStockAdjust() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (lines: OpnameLine[]) => {
+      if (!lines.length) return;
+      const ids = lines.map((l) => l.product_id);
+      const { data: prods, error: e1 } = await sb
+        .from("store_products")
+        .select("id, current_stock, avg_cost")
+        .in("id", ids);
+      if (e1) throw e1;
+      const map = new Map<string, { stock: number; cost: number }>();
+      (prods ?? []).forEach((p: any) =>
+        map.set(p.id, { stock: p.current_stock ?? 0, cost: Number(p.avg_cost) || 0 }),
+      );
+      const payload = lines
+        .map((l) => {
+          const cur = map.get(l.product_id);
+          if (!cur) return null;
+          const diff = l.physical_qty - cur.stock;
+          if (diff === 0) return null;
+          return {
+            product_id: l.product_id,
+            type: "adjustment",
+            qty: diff,
+            unit_cost: cur.cost,
+            notes: l.notes || `Opname: fisik ${l.physical_qty}, sistem ${cur.stock}`,
+          };
+        })
+        .filter(Boolean);
+      if (!payload.length) return;
+      const { error } = await sb.from("store_stock_movements").insert(payload);
+      if (error) throw error;
+      return payload.length;
+    },
+    onSuccess: (n) => {
+      if (n) toast.success(`${n} penyesuaian stok tersimpan`);
+      else toast.info("Tidak ada selisih stok");
+      qc.invalidateQueries({ queryKey: ["store-products"] });
+      qc.invalidateQueries({ queryKey: ["store-low-stock"] });
+      qc.invalidateQueries({ queryKey: ["store-stock-movements"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
+export function useUpdateMinStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, min_stock }: { id: string; min_stock: number }) => {
+      const { error } = await sb
+        .from("store_products")
+        .update({ min_stock })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Batas minimum stok diperbarui");
+      qc.invalidateQueries({ queryKey: ["store-low-stock"] });
+      qc.invalidateQueries({ queryKey: ["store-products"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
