@@ -272,7 +272,7 @@ export default function PackageCompare() {
                   <td className="py-3 px-4 text-sm font-medium text-muted-foreground">Harga Quad (4 org)</td>
                   {selectedPackages.map((pkg, idx) => (
                     <td key={pkg.id} className="py-3 px-4 text-center">
-                      {pkg.price_quad ? <PriceBadge price={Number(pkg.price_quad)} selected={lowestPriceIndex === idx} /> : <span className="text-muted-foreground">—</span>}
+                      {pkg.price_quad ? <PriceBadge price={Number(pkg.price_quad)} selected={lowestPriceIndex === idx} currency={pkg.currency} /> : <span className="text-muted-foreground">—</span>}
                     </td>
                   ))}
                   {selectedPackages.length < MAX_COMPARE && <td />}
