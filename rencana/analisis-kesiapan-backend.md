@@ -394,3 +394,565 @@ Browser → Express API (semua operasi data)
 ---
 
 *Dokumen ini dibuat dari analisis statis terhadap 200+ file sumber. Update dokumen ini setiap kali ada perubahan arsitektur signifikan.*
+
+---
+
+---
+
+# Analisis UX Jamaah — Website & PWA
+
+> **Tanggal Update:** Mei 2025  
+> **Cakupan:** 45 halaman jamaah (36 di `/jamaah/` + 9 halaman customer terkait) · PWA manifest & service worker · Navigasi · Offline capability · User journey
+
+---
+
+## 11. Inventaris Halaman Jamaah (Lengkap)
+
+### Fase 1 — Onboarding & Portal Utama
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahWelcome` | `/jamaah/welcome` | Supabase (booking, customer) | ✅ Bisa | ✅ Baik — onboarding 5 slide, simpan flag di localStorage |
+| `JamaahPortal` | `/jamaah` | Supabase (booking, departure, payments) | ❌ Butuh data | ⚠️ Parsial — dashboard utama, ada cuaca live, countdown, SOS button |
+
+### Fase 2 — Identitas & Dokumen Resmi
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahDigitalID` | `/jamaah/digital-id` | Supabase (customers, bookings, departures) | ❌ | ✅ Baik — QR code, info booking, share via Web Share API |
+| `JamaahDocuments` | `/jamaah/documents` | Supabase Storage (upload) | ❌ | 🔴 Rusak — upload gagal tanpa Supabase Storage |
+| `JamaahVisaTracker` | `/jamaah/visa` | Supabase (visa_status_logs) | ❌ | ✅ Baik — status step progress, riwayat perubahan, online/offline indicator |
+| `JamaahCheckin` | `/jamaah/checkin` | Supabase (bookings, check-in status) | ❌ | ⚠️ Parsial — QR self check-in, status step keberangkatan |
+| `JamaahKontrak` | `/jamaah/kontrak` | Supabase (booking contracts) | ❌ | ⚠️ Parsial — viewer kontrak digital |
+| `JamaahSISKOHAT` | `/jamaah/siskohat` | Static demo data + Supabase | ✅ Demo | ⚠️ Parsial — cek nomor porsi haji, data real perlu API Kemenag |
+
+### Fase 3 — Keuangan
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahPayment` | `/jamaah/payment` | Supabase (bookings) + Express (`/api/midtrans/create-transaction`) | ❌ | ✅ Baik — multi-metode: QRIS, VA BCA/Mandiri/BNI, GoPay, transfer manual |
+| `JamaahPaymentHistory` | `/jamaah/payment-history` | Supabase (payments) | ❌ | ✅ Baik — riwayat transaksi lengkap |
+| `JamaahInvoice` | `/jamaah/invoice` | Supabase (bookings, payments) | ❌ | ✅ Baik — generate PDF invoice |
+| `JamaahKalkulatorKurs` | `/jamaah/kalkulator-kurs` | Express (`/api/v1/kurs`) | ❌ | ✅ Baik — konversi IDR↔SAR live |
+| `JamaahKalkulatorZakat` | `/jamaah/kalkulator-zakat` | Static (kalkulasi lokal) | ✅ | ✅ Baik — kalkulator zakat standalone, fully offline |
+
+### Fase 4 — Perjalanan & Logistik
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahItinerary` | `/jamaah/itinerary` | Supabase (departures, itinerary_items) | ❌ | ⚠️ Parsial — jadwal harian, perlu data dari DB |
+| `JamaahChecklist` | `/jamaah/checklist` | Supabase (booking_checklist) | ⚠️ Sebagian | ✅ Baik — 5 kategori: dokumen, keuangan, perlengkapan, kesehatan, spiritual |
+| `JamaahBagasi` | `/jamaah/bagasi` | Supabase (bookings, baggage status) | ⚠️ Kalkulator | ✅ Baik — kalkulator berat bagasi + status step, batas 32kg/7kg kabin |
+| `JamaahPetaLokasi` | `/jamaah/peta-lokasi` | Static data (koordinat Makkah/Madinah) | ✅ | ✅ Baik — peta lokasi penting statis, link ke Google Maps |
+| `JamaahRombongan` | `/jamaah/rombongan` | Supabase (bookings, customers) | ❌ | ✅ Baik — daftar anggota rombongan, search, info kontak |
+
+### Fase 5 — Ibadah (Sub-folder `/ibadah/`)
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahDoaPanduan` | `/jamaah/doa-panduan` | Supabase → **cache localStorage** | ✅ | ✅ Baik — doa & dzikir dengan cache offline, cari, favorit |
+| `JamaahPanduanIbadah` | `/jamaah/panduan-ibadah` | Supabase (offline_content) | ⚠️ Cache | ✅ Baik — panduan umroh/haji step-by-step |
+| `JamaahManasik` | `/jamaah/manasik` | Supabase (manasik_materials) | ❌ | ⚠️ Parsial — materi manasik dari DB |
+| `JamaahManasikInteraktif` | `/jamaah/manasik-interaktif` | Local quiz data | ✅ | ✅ Baik — kuis interaktif manasik, data hardcoded |
+| `JamaahTrackerIbadah` | `/jamaah/tracker-ibadah` | **localStorage** (daily logs) | ✅ | ✅ Baik — log harian: shalat, tawaf, sa'i, dzikir, Al-Quran, sedekah |
+| `JamaahTargetIbadah` | `/jamaah/target-ibadah` | Supabase (jamaah_ibadah_targets) | ❌ | ⚠️ Parsial — set target ibadah harian |
+| `JamaahDoaCounter` | `/jamaah/doa-counter` | **localStorage** | ✅ | ✅ Baik — tasbih digital, multiple counter, vibration API |
+| `JamaahZikir` | `/jamaah/zikir` | Local static data | ✅ | ✅ Baik — zikir pagi/petang, counter |
+| `JamaahPengingatIbadah` | `/jamaah/pengingat-ibadah` | Prayer API (aladhan.com) + **localStorage** | ⚠️ | ✅ Baik — reminder shalat dengan jadwal lokal |
+
+### Fase 6 — Tools Islami
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahWaktuSholat` | `/jamaah/waktu-sholat` | aladhan.com API + **localStorage cache** | ⚠️ Cache | ✅ Baik — waktu sholat akurat, countdown ke sholat berikutnya |
+| `JamaahKiblat` | `/jamaah/kiblat` | Device Geolocation + DeviceOrientation API | ✅ | ✅ Baik — kompas kiblat real-time, kalkulasi geodesi lokal |
+| `JamaahAlQuran` | `/jamaah/alquran` | **Hardcoded** (surah pendek) + API (full surah) | ✅ Partial | ⚠️ Parsial — hanya 10 surah pendek hardcoded, surah panjang butuh internet |
+
+### Fase 7 — Sosial & Komunitas
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahChat` | `/jamaah/chat` | Supabase Realtime (chat_rooms, chat_messages) | ❌ | ⚠️ Parsial — group chat rombongan, ada offline indicator tapi pesan gagal terkirim |
+| `JamaahGaleri` | `/jamaah/galeri` | Supabase Storage (trip_photos) | ❌ | 🔴 Rusak — upload foto gagal tanpa Supabase Storage |
+| `JamaahRombongan` | `/jamaah/rombongan` | Supabase (bookings, passengers) | ❌ | ✅ Baik — lihat anggota rombongan |
+| `JamaahPantauKeluarga` | `/jamaah/pantau-keluarga` | Supabase + localStorage (tracking toggle) | ❌ | ⚠️ Parsial — aktifkan berbagi lokasi, link ke keluarga |
+| `JamaahFeedback` | `/jamaah/feedback` | Supabase (feedback) | ❌ | ✅ Baik — form feedback layanan |
+
+### Fase 8 — Gamifikasi & Pencapaian
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahBadges` | `/jamaah/badges` | Supabase (jamaah_badges) | ❌ | ✅ Baik — badge pencapaian ibadah, progress visual |
+| `JamaahJurnal` | `/jamaah/jurnal` | Supabase (jamaah_journals) | ❌ | ✅ Baik — jurnal perjalanan harian, editor teks |
+| `JamaahSertifikat` | `/jamaah/sertifikat` | Supabase (bookings) + **jsPDF lokal** | ⚠️ | ✅ Baik — generate sertifikat PDF bergaya formal, gold frame |
+
+### Fase 9 — AI & Analytics
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahChatbot` | `/jamaah/chatbot` | Express (`/api/v1/chatbot`) | ❌ | ✅ Baik — AI chatbot umroh/haji, fallback FAQ jika OpenAI tidak diset |
+| `JamaahRingkasanAI` | `/jamaah/ringkasan-ai` | Supabase (booking data) + **jsPDF lokal** | ❌ | ✅ Baik — AI summary perjalanan, export PDF |
+
+### Fase 10 — Keselamatan & Kesehatan
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahSOSStatus` | `/jamaah/sos-status` | Supabase (sos_alerts) | ❌ | ⚠️ Parsial — lihat status SOS yang dikirim |
+| `JamaahKesehatan` | `/jamaah/kesehatan` | **localStorage** (health profile) | ✅ | ⚠️ Masalah — profil kesehatan hanya di localStorage, tidak tersinkron ke server |
+
+### Lainnya
+
+| Halaman | Route | Data Source | Offline? | Status UX |
+|---------|-------|-------------|----------|-----------|
+| `JamaahNotifications` | `/jamaah/notifications` | Supabase (customer_notifications) | ❌ | ✅ Baik — list notif dengan kategori, mark read |
+| `JamaahRiwayatPerjalanan` | `/jamaah/riwayat-perjalanan` | Supabase (bookings) | ❌ | ✅ Baik — histori perjalanan jamaah |
+| `JamaahReferral` | `/jamaah/referral` | Supabase (referrals) | ❌ | ✅ Baik — program referral, kode unik, share |
+
+---
+
+## 12. Komponen Pendukung Jamaah
+
+| Komponen | Deskripsi | Status |
+|----------|-----------|--------|
+| `JamaahBottomNav` | Navigasi bawah mobile 4 tab + "More" modal | ✅ Baik — dinamis via `usePWAConfig`, dark mode, badge notifikasi |
+| `SOSButton` | Tombol darurat hold-3-detik → kirim lokasi GPS ke Supabase | ⚠️ Butuh Supabase — hold progress, 4 tipe darurat, nomor darurat Saudi |
+| `TourLeaderSOSPanel` | Panel muthawif melihat SOS jamaah real-time | ⚠️ Butuh Supabase Realtime |
+| `LiveLocationShare` | Berbagi lokasi live ke keluarga | ⚠️ Butuh Supabase |
+| `CuacaWidget` | Widget cuaca Makkah & Madinah (open-meteo.com API) | ✅ Baik — gratis, no API key, fallback graceful |
+| `AgentAttributionBadge` | Badge agen yang mereferral jamaah | ✅ Baik |
+| `JamaahManasikKuis` | Kuis manasik interaktif | ✅ Baik — data lokal |
+| `PWAInstallPrompt` | Prompt install PWA (beforeinstallprompt) | ✅ Ada — di `DynamicPublicLayout`, `JamaahPortal`, `PWAGatePage` |
+| `StandaloneHomeGate` | Deteksi PWA installed vs browser biasa | ✅ Ada — redirect ke app jika standalone |
+| `PWAGatePage` | Gate page khusus sebelum masuk portal jamaah | ✅ Ada — instruksi install untuk Android & iOS |
+
+---
+
+## 13. Analisis PWA (Progressive Web App)
+
+### 13.1 Status Manifest
+
+```json
+// public/manifest.json — dikonfigurasi dengan baik
+{
+  "name": "Vinstour — Umrah & Haji",
+  "short_name": "Vinstour",
+  "start_url": "/jamaah",             ✅ Langsung ke portal jamaah
+  "display": "standalone",            ✅ Full-screen mode
+  "theme_color": "#16a34a",           ✅ Hijau brand
+  "background_color": "#f0fdf4",      ✅ Sesuai brand
+  "icons": [192px, 512px],            ✅ File ada di /images/
+  "shortcuts": [4 shortcut],         ✅ ID Digital, Waktu Sholat, Doa, SOS
+  "categories": ["travel", "lifestyle", "utilities"],  ✅
+  "lang": "id"                        ✅
+}
+```
+
+**⚠️ Catatan:** `<link rel="manifest" href="/api/manifest.json" />` — manifest dilayani dari Express server, bukan file statis. Ini bagus untuk konfigurasi dinamis, tapi **membutuhkan backend berjalan** agar PWA bisa diinstall.
+
+### 13.2 Status Service Worker (`public/sw.js`)
+
+| Fitur | Status | Keterangan |
+|-------|--------|------------|
+| Install + skipWaiting | ✅ | Cache version `vinstour-v4` |
+| Cache static assets | ✅ | JS, CSS, images cache-first |
+| Offline shell caching | ✅ | 23 rute jamaah dalam daftar JAMAAH_ROUTES |
+| Network-first untuk API | ✅ | Skip `/api/` — selalu ke network |
+| Cache navigation/HTML | ✅ | Stale-while-revalidate untuk HTML |
+| Background sync | ❌ | Tidak ada — sync manual via `useOfflineQueue` |
+| Push notification handler | ❌ | Tidak ada `push` event listener di SW |
+| Notification click handler | ❌ | Tidak ada `notificationclick` handler |
+| Periodic background sync | ❌ | Tidak ada |
+
+**❌ Masalah Kritis:** Service worker **tidak bisa menampilkan push notification** karena tidak ada handler `push` event. Meskipun backend sudah bisa kirim via VAPID (`/api/push/*`), notifikasi tidak akan muncul di perangkat jamaah.
+
+### 13.3 Meta Tags iOS PWA
+
+```html
+<!-- index.html — sudah lengkap -->
+<meta name="apple-mobile-web-app-capable" content="yes" />        ✅
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />  ✅
+<meta name="apple-mobile-web-app-title" content="Vinstour" />     ✅
+<meta name="theme-color" content="#16a34a" />                     ✅
+<link rel="apple-touch-icon" href="/favicon.svg" />               ⚠️ SVG tidak didukung iOS
+```
+
+**⚠️ Masalah:** `apple-touch-icon` menunjuk ke `/favicon.svg`. iOS **tidak mendukung SVG** untuk home screen icon — harus PNG. File `/images/icon-192.png` sudah ada, cukup ganti referensinya.
+
+### 13.4 PWA Install Flow
+
+```
+Android Chrome:
+    beforeinstallprompt → ditangkap di JamaahPortal + PWAInstallPrompt ✅
+    Tombol install custom tersedia ✅
+    PWAGatePage menampilkan instruksi install ✅
+
+iOS Safari:
+    Tidak ada beforeinstallprompt (tidak didukung iOS)
+    PWAGatePage menampilkan instruksi manual "Share → Add to Home Screen" ✅
+    apple-touch-icon → perlu ganti ke PNG ⚠️
+
+Standalone detection:
+    StandaloneHomeGate deteksi display-mode: standalone ✅
+    Redirect ke /jamaah saat dibuka dari home screen ✅
+```
+
+### 13.5 Offline Queue (`useOfflineQueue`)
+
+Hook ini sudah solid secara teknis:
+- Simpan aksi yang gagal ke localStorage
+- Retry otomatis saat `online` event terpicu
+- Max 3 retry per aksi
+- Toast informatif saat sync berhasil
+
+**❌ Masalah:** Hook ini **tidak digunakan** di hampir semua halaman jamaah yang butuh offline support. Hanya dideklarasikan, tidak diintegrasikan ke form/submit jamaah.
+
+---
+
+## 14. User Journey Map Jamaah
+
+### 14.1 Pra-Keberangkatan (T-30 hari hingga hari H)
+
+```
+1. Daftar & Login (Supabase Auth) ❌ [Butuh VITE_SUPABASE_URL]
+    ↓
+2. Onboarding JamaahWelcome (5 slide) ✅ [Sekali tampil, localStorage flag]
+    ↓
+3. Lihat JamaahPortal — dashboard utama ⚠️ [Butuh Supabase]
+    ↓
+4. Isi/upload dokumen (JamaahDocuments) 🔴 [Upload Supabase Storage rusak]
+    ↓
+5. Bayar cicilan (JamaahPayment → Midtrans) ✅ [Express sudah ada]
+    ↓
+6. Pantau status visa (JamaahVisaTracker) ⚠️ [Butuh Supabase]
+    ↓
+7. Pelajari manasik (JamaahManasik, JamaahManasikInteraktif) ⚠️/✅
+    ↓
+8. Ceklis persiapan (JamaahChecklist) ✅ [UI baik]
+    ↓
+9. Hitung berat bagasi (JamaahBagasi) ✅ [Kalkulator lokal]
+    ↓
+10. Lihat itinerary keberangkatan (JamaahItinerary) ⚠️ [Butuh Supabase]
+    ↓
+11. Download ID Digital (JamaahDigitalID) ⚠️ [Butuh Supabase]
+```
+
+### 14.2 Selama Ibadah di Saudi (Hari H hingga H+14)
+
+```
+12. Aktifkan PWA dari home screen ✅ [Sudah dikonfigurasi]
+    ↓
+13. Cek waktu sholat (JamaahWaktuSholat) ✅ [Offline dengan cache]
+    ↓
+14. Arahkan kiblat (JamaahKiblat) ✅ [Fully offline, device sensor]
+    ↓
+15. Baca doa & dzikir (JamaahDoaPanduan) ✅ [Offline dengan cache localStorage]
+    ↓
+16. Catat ibadah harian (JamaahTrackerIbadah) ✅ [Fully offline, localStorage]
+    ↓
+17. Tasbih digital (JamaahDoaCounter) ✅ [Fully offline, vibration API]
+    ↓
+18. Lihat peta lokasi (JamaahPetaLokasi) ✅ [Static data, offline]
+    ↓
+19. Chat dengan muthawif (JamaahChat) ❌ [Butuh Supabase Realtime]
+    ↓
+20. Foto kenangan (JamaahGaleri) 🔴 [Upload Supabase Storage rusak]
+    ↓
+21. SOS darurat (SOSButton di JamaahPortal) ❌ [Butuh Supabase]
+    ↓
+22. Pantau cuaca Makkah/Madinah (CuacaWidget) ✅ [open-meteo.com gratis]
+    ↓
+23. Baca Al-Quran (JamaahAlQuran) ⚠️ [10 surah pendek offline]
+    ↓
+24. Catat jurnal perjalanan (JamaahJurnal) ❌ [Butuh Supabase]
+```
+
+### 14.3 Pasca-Kepulangan
+
+```
+25. Lihat riwayat perjalanan (JamaahRiwayatPerjalanan) ❌ [Butuh Supabase]
+    ↓
+26. Dapatkan badge pencapaian (JamaahBadges) ❌ [Butuh Supabase]
+    ↓
+27. Download sertifikat (JamaahSertifikat) ⚠️ [Butuh data dari Supabase]
+    ↓
+28. Baca ringkasan AI (JamaahRingkasanAI) ❌ [Butuh Supabase + OpenAI]
+    ↓
+29. Beri feedback layanan (JamaahFeedback) ❌ [Butuh Supabase]
+    ↓
+30. Daftarkan anggota keluarga (JamaahReferral) ❌ [Butuh Supabase]
+```
+
+---
+
+## 15. Matriks Offline Capability
+
+```
+FULLY OFFLINE (tidak butuh internet sama sekali):
+✅ JamaahKiblat            — Device sensor + kalkulasi lokal
+✅ JamaahDoaCounter        — localStorage counter
+✅ JamaahTrackerIbadah     — localStorage daily log
+✅ JamaahKalkulatorZakat   — kalkulasi lokal
+✅ JamaahZikir             — data statis
+✅ JamaahManasikInteraktif — quiz data hardcoded
+✅ JamaahKesehatan         — localStorage (⚠️ tidak tersinkron ke server)
+✅ JamaahAlQuran (parsial) — 10 surah pendek hardcoded
+✅ JamaahPetaLokasi        — koordinat statis (peta butuh internet)
+✅ JamaahSISKOHAT (demo)   — demo data statis
+
+PARTIALLY OFFLINE (bekerja dengan cache, expire saat cache basi):
+⚠️ JamaahDoaPanduan        — cache localStorage (dari Supabase, perlu sekali online)
+⚠️ JamaahPanduanIbadah     — cache localStorage
+⚠️ JamaahWaktuSholat       — cache localStorage (24 jam, perlu refresh)
+⚠️ JamaahPengingatIbadah   — settings localStorage, jadwal dari cache
+⚠️ JamaahChecklist         — UI bisa tampil, data dari Supabase (perlu cache)
+⚠️ JamaahSertifikat        — jsPDF lokal, tapi data booking dari Supabase
+
+REQUIRES INTERNET (tidak bisa digunakan offline):
+❌ JamaahPortal             — booking, departure data
+❌ JamaahDigitalID          — data customer & booking
+❌ JamaahPayment            — Midtrans
+❌ JamaahChat               — Supabase Realtime
+❌ JamaahGaleri             — Supabase Storage
+❌ JamaahNotifications      — Supabase
+❌ JamaahRombongan          — Supabase
+❌ JamaahItinerary          — Supabase
+❌ JamaahBadges             — Supabase
+❌ JamaahJurnal             — Supabase
+❌ JamaahSOSStatus          — Supabase
+❌ SOSButton                — Supabase sos_alerts
+```
+
+**Masalah Kritis Ibadah di Saudi:** Koneksi internet di Arab Saudi bisa lambat/terputus saat jamaah sedang di Masjidil Haram atau area ramai. 4 dari 5 fitur yang paling dibutuhkan saat ibadah **sudah bisa offline** (kiblat, waktu sholat, doa, tasbih) — ini bagian yang baik. Namun **SOS dan Chat sama sekali tidak bisa offline** — ini risiko keselamatan nyata.
+
+---
+
+## 16. Analisis Navigasi & Discoverability
+
+### 16.1 Bottom Navigation (Mobile)
+
+```
+DEFAULT 4 TABS:                    MORE MODAL (15 item):
+┌────┬────┬────┬──────────┐       ┌─────────────────────────┐
+│🏠  │QR  │🛡️  │🔔(badge)  │       │ Bayar Online (CreditCard)│
+│Brnd│ID  │Visa│Notif     │       │ Checklist (FileText)     │
+└────┴────┴────┴──────────┘       │ Check-in (LogIn)         │
+                                   │ Bagasi (Luggage)         │
+Dynamic via usePWAConfig ✅        │ Kontrak (FileSignature)  │
+Dark mode support ✅               │ Dokumen (FileText)       │
+Badge notifikasi ✅                │ Galeri (Camera)          │
+                                   │ Doa & Panduan (BookOpen) │
+                                   │ Riwayat Bayar (Wallet)   │
+                                   │ Manasik (GradCap)        │
+                                   │ Pengingat (BellRing)     │
+                                   │ Pantau Keluarga          │
+                                   │ Wishlist (Heart)         │
+                                   │ Feedback (MessageCircle) │
+                                   │ Profil (User)            │
+                                   └─────────────────────────┘
+```
+
+**⚠️ Masalah Discoverability:** 15 menu di "More" terlalu banyak. Jamaah harus scroll/scroll untuk menemukan fitur. Fitur kritis seperti **Tracker Ibadah, Kiblat, Waktu Sholat, SOS** tidak ada di bottom nav default — padahal ini yang paling dibutuhkan saat ibadah berlangsung.
+
+### 16.2 PWA Shortcuts (dari Home Screen)
+
+```json
+// manifest.json shortcuts:
+1. /jamaah/digital-id      → "ID Digital"     ✅ Relevan
+2. /jamaah/waktu-sholat    → "Waktu Sholat"   ✅ Relevan
+3. /jamaah/doa-panduan     → "Doa & Panduan"  ✅ Relevan
+4. /jamaah/sos-status      → "SOS Darurat"    ✅ Sangat Relevan
+```
+
+PWA shortcuts sudah tepat sasaran. Tapi shortcut ke `/jamaah/sos-status` hanya menampilkan STATUS SOS yang sudah dikirim — bukan tombol SOS aktif (SOSButton ada di JamaahPortal). Perlu dipikirkan ulang.
+
+### 16.3 Deep Link dari Push Notification
+
+**❌ Masalah:** Service worker tidak punya handler `notificationclick`. Saat jamaah tap notifikasi push, tidak ada navigasi ke halaman yang relevan. Notifikasi hanya membuka tab baru ke `/jamaah` tanpa routing ke halaman spesifik.
+
+### 16.4 Sidebar (Desktop/Tablet)
+
+```
+Navigasi sidebar tersedia dengan 4 grup:
+- Perjalanan: 6 item
+- Keuangan: 4 item
+- Ibadah: 7 item
+- Info: 6 item + Toggle dark/light mode ✅
+```
+
+Sidebar hanya muncul di lebar layar ≥ 768px (md breakpoint). Baik untuk admin yang buka dari laptop, tapi jamaah mayoritas pakai HP.
+
+---
+
+## 17. Masalah UX Kritis per Kategori
+
+### 17.1 Keselamatan (🔴 Kritis)
+
+| Masalah | Dampak | Lokasi |
+|---------|--------|--------|
+| SOSButton tidak bisa offline | Jamaah darurat di area tanpa sinyal tidak bisa minta tolong | `SOSButton.tsx` |
+| Service worker tidak handle push event | Notifikasi darurat dari admin tidak tampil di layar jamaah | `public/sw.js` |
+| Shortcut SOS di PWA menuju /sos-status bukan tombol SOS aktif | Bingung jamaah saat darurat | `manifest.json` shortcuts |
+| Tidak ada nomor darurat offline yang mudah diakses | Jamaah tidak tahu harus hubungi siapa | Tidak ada halaman dedicated |
+
+### 17.2 Keuangan (🔴 Kritis)
+
+| Masalah | Dampak | Lokasi |
+|---------|--------|--------|
+| Tidak ada Midtrans webhook | Status booking tidak auto-update setelah bayar | Backend |
+| Upload bukti transfer gagal | Jamaah tidak bisa kirim bukti bayar manual | Supabase Storage |
+| Invoice tidak bisa diunduh offline | Jamaah perlu bukti di Saudi tanpa internet | `JamaahInvoice.tsx` |
+
+### 17.3 Dokumen (🔴 Kritis)
+
+| Masalah | Dampak | Lokasi |
+|---------|--------|--------|
+| Upload dokumen gagal | Paspor, KTP, dll tidak bisa diunggah | Supabase Storage |
+| Digital ID perlu internet | Tidak bisa scan ID saat offline | `JamaahDigitalID.tsx` |
+| Sertifikat gagal jika booking tidak ada | Jamaah completed tidak dapat sertifikat | `JamaahSertifikat.tsx` |
+
+### 17.4 Sinkronisasi Data (🟡 Sedang)
+
+| Masalah | Dampak | Lokasi |
+|---------|--------|--------|
+| Profil kesehatan hanya di localStorage | Data hilang jika ganti HP atau clear cache | `JamaahKesehatan.tsx` |
+| Jurnal tersimpan di Supabase, tracker ibadah di localStorage | Inkonsistensi — bagian bisa offline, bagian tidak | Arsitektur |
+| Checklist state dari Supabase, tidak ada fallback lokal | List persiapan tidak tampil offline | `JamaahChecklist.tsx` |
+| `useOfflineQueue` ada tapi tidak dipakai di halaman jamaah | Queue tidak fungsional | Hook tidak terintegrasi |
+
+### 17.5 PWA (🟡 Sedang)
+
+| Masalah | Dampak | Lokasi |
+|---------|--------|--------|
+| `apple-touch-icon` → SVG (iOS tidak support) | Icon rusak di iOS home screen | `index.html` |
+| SW tidak ada push event handler | Push notifikasi tidak tampil di perangkat | `public/sw.js` |
+| Manifest dari `/api/manifest.json` (bukan static) | PWA install gagal jika backend mati | `index.html` |
+| Tidak ada deeplink handler di SW | Tap notifikasi tidak buka halaman yang benar | `public/sw.js` |
+| Tidak ada splash screen kustom untuk iOS | Layar putih saat load di iPhone | Tidak ada |
+
+### 17.6 UX/Aksesibilitas (🟢 Penyempurnaan)
+
+| Masalah | Dampak | Lokasi |
+|---------|--------|--------|
+| More menu 15 item terlalu panjang | Overwhelming, susah menemukan fitur | `JamaahBottomNav.tsx` |
+| Tidak ada mode font besar | Jamaah lansia susah baca | Tidak ada |
+| Tracker ibadah tidak ada data visualisasi kemajuan | Kurang motivasi | `JamaahTrackerIbadah.tsx` |
+| SISKOHAT data demo tidak nyambung ke API real Kemenag | Data estimasi tidak akurat | `JamaahSISKOHAT.tsx` |
+| Al-Quran hanya 10 surah pendek | Tidak memadai untuk ibadah di Saudi | `JamaahAlQuran.tsx` |
+
+---
+
+## 18. Rekomendasi Perbaikan Jamaah (Prioritas)
+
+### 🔴 P1 — Darurat (Keselamatan & Fungsi Inti)
+
+```
+1. Tambah push event handler di service worker (sw.js)
+   → self.addEventListener('push', ...) + self.registration.showNotification()
+   → notificationclick → clients.openWindow('/jamaah/...')
+   Dampak: Push notifikasi dari admin sampai ke jamaah
+
+2. Ganti apple-touch-icon dari SVG ke PNG di index.html
+   → <link rel="apple-touch-icon" href="/images/icon-192.png" />
+   Dampak: Icon benar di iOS home screen
+
+3. Perbaiki PWA shortcut SOS
+   → Ubah shortcut ke /jamaah (yang punya SOSButton) atau buat halaman /jamaah/sos
+   Dampak: Tombol SOS langsung bisa diakses dari home screen
+
+4. Tambah halaman "Kontak Darurat" offline
+   → Nomor ambulan Saudi (997), polisi (999), KJRI Jeddah, KBRI Riyadh
+   → Data statis, fully offline
+   Dampak: Jamaah punya referensi darurat tanpa internet
+```
+
+### 🟠 P2 — Tinggi (Fitur Utama Rusak)
+
+```
+5. Set VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY
+   → Auth berfungsi → semua data jamaah tampil
+   
+6. Konfigurasi Supabase Storage untuk upload dokumen & galeri
+   → JamaahDocuments, JamaahGaleri, PaymentUpload berfungsi
+
+7. Tambah Midtrans webhook (POST /api/midtrans/webhook)
+   → Status booking auto-update setelah pembayaran
+
+8. Pindahkan profil kesehatan dari localStorage ke Supabase
+   → Tabel: jamaah_health_profiles
+   → Data tidak hilang saat ganti perangkat
+
+9. Integrasikan useOfflineQueue ke halaman jamaah kritis
+   → JamaahTrackerIbadah, JamaahJurnal, JamaahDoaCounter
+   → Aksi di-queue saat offline, sync saat online
+```
+
+### 🟡 P3 — Sedang (Pengalaman Lebih Baik)
+
+```
+10. Cache digital ID & itinerary untuk offline access
+    → Simpan ke IndexedDB saat online pertama kali
+    → Tampilkan read-only saat offline
+
+11. Perbaiki bottom nav: pisah "Ibadah Mode" vs "Admin Mode"
+    → Saat di Saudi: tab Kiblat, Waktu Sholat, Doa, Tracker, SOS
+    → Saat pra-keberangkatan: tab Dokumen, Checklist, Bayar, Visa
+
+12. Tambah Al-Quran lengkap via quran.com API dengan caching
+    → Cache surah yang sudah dibuka untuk offline
+    → Target minimal 30 juz tersedia
+
+13. Perbaiki SISKOHAT: integrasikan API Kemenag resmi
+    → https://haji.kemenag.go.id/ (perlu key)
+    → Atau buat fallback "cek manual" dengan link eksternal
+
+14. Tambah splash screen custom untuk iOS
+    → <link rel="apple-touch-startup-image"> per resolusi device
+
+15. Set VAPID keys + tambah push handler di SW
+    → Notifikasi "5 menit lagi Maghrib" dari server
+    → Notifikasi status dokumen approved
+```
+
+### 🟢 P4 — Penyempurnaan UX
+
+```
+16. Tambah ukuran font besar (accessibility setting)
+    → Simpan di localStorage, apply via CSS class
+    → Target jamaah lansia
+
+17. Sederhanakan More menu menjadi 8 item teratas
+    → Sisanya dalam sub-kategori atau halaman dedicated
+
+18. Tambah animasi loading skeleton di semua halaman jamaah
+    → Sudah ada LoadingState component, perlu dipakai konsisten
+
+19. Tambah tombol "Download untuk offline" di halaman kunci
+    → Itinerary, Digital ID, Invoice
+    → Simpan ke IndexedDB
+
+20. Gamifikasi: tambah streak tracker di JamaahBadges
+    → Badge berurutan berdasarkan konsistensi log ibadah
+```
+
+---
+
+## 19. Ringkasan Kesiapan Jamaah UX
+
+| Dimensi | Skor | Keterangan |
+|---------|------|------------|
+| **Fitur tersedia** | 8/10 | 45 halaman, cakupan sangat lengkap |
+| **Fitur berfungsi** | 4/10 | ~50% halaman butuh Supabase yang belum terkonfigurasi |
+| **Offline support** | 5/10 | Ibadah tools offline ✅, tapi data penting tidak |
+| **PWA install** | 6/10 | Manifest baik, iOS icon perlu perbaikan |
+| **Push notification** | 1/10 | SW tidak handle push event |
+| **Keselamatan (SOS)** | 3/10 | Ada SOSButton, tapi butuh internet & Supabase |
+| **Navigasi** | 6/10 | Bottom nav ada tapi More menu overwhelming |
+| **Performa** | 7/10 | React.lazy + Suspense, split code sudah baik |
+| **Aksesibilitas** | 4/10 | Tidak ada opsi font besar untuk lansia |
+| **Overall** | **5.4/10** | Fondasi kuat, perlu konfigurasi & beberapa perbaikan |
+
+**Paling Urgent:** Set Supabase secrets → Perbaiki SW push handler → Fix apple-touch-icon → Upload dokumen/galeri → Midtrans webhook.
+
+---
+
+*Analisis jamaah UX ditambahkan Mei 2025. Dibuat dari inspeksi langsung 45 file halaman, 10 komponen jamaah, manifest.json, sw.js, dan hooks terkait.*
