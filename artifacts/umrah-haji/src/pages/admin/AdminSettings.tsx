@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { SectionHead } from "@/components/admin/settings/SectionHead";
 import { SettingsNav } from "@/components/admin/settings/SettingsNav";
 import type { NavItem, SettingsSection } from "@/components/admin/settings/types";
+import { SectionErrorBoundary } from "@/components/admin/settings/SectionErrorBoundary";
 
 // Lazy-loaded section components — loaded only when their tab is activated.
 const CompanySection       = lazy(() => import("@/components/admin/settings/CompanySection").then(m => ({ default: m.CompanySection })));
@@ -49,6 +50,7 @@ export default function AdminSettings() {
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className={`space-y-6 ${isWide ? "max-w-4xl" : "max-w-2xl"}`}>
+          <SectionErrorBoundary resetKey={activeSection}>
           <Suspense fallback={
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" /> Memuat...
@@ -76,6 +78,7 @@ export default function AdminSettings() {
           {activeSection === "apikeys" && isSuperAdmin() && <ApiKeysSection />}
           {activeSection === "danger"  && isSuperAdmin() && <DangerSection />}
           </Suspense>
+          </SectionErrorBoundary>
         </div>
       </main>
     </div>
