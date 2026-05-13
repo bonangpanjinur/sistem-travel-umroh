@@ -42,6 +42,7 @@ function getFaqReply(text: string): string {
 
 interface GeminiConfig {
   apiKey: string;
+  model: string;
   systemPrompt: string;
   botName: string;
   greeting: string;
@@ -189,6 +190,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
 
       const config: GeminiConfig = {
         apiKey,
+        model: cfg.model || "gemini-2.0-flash",
         systemPrompt: enrichedPrompt,
         botName: cfg.botName || tenantName,
         greeting: cfg.greeting || `Halo! Selamat datang di ${tenantName}. Ada yang bisa saya bantu? 😊`,
@@ -218,7 +220,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
       generationConfig: { maxOutputTokens: 400, temperature: 0.75 },
     };
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${config.apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${config.model || "gemini-2.0-flash"}:generateContent?key=${config.apiKey}`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
     );
     if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);

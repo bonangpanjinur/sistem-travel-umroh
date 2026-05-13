@@ -32,10 +32,42 @@ Selalu ajak calon jamaah untuk mendaftar atau menghubungi tim jika butuh info le
 export default function AdminGeminiAI() {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [model, setModel] = useState("gemini-2.0-flash");
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [botName, setBotName] = useState("Asisten Vinstour");
   const [greeting, setGreeting] = useState("Halo! Selamat datang. Ada yang bisa saya bantu? 😊");
   const [enableLeadCapture, setEnableLeadCapture] = useState(true);
+
+  const GEMINI_MODELS = [
+    {
+      id: "gemini-2.0-flash",
+      name: "Gemini 2.0 Flash",
+      desc: "Tercepat & terbaru — direkomendasikan (butuh billing aktif)",
+      badge: "Terbaru",
+      badgeColor: "bg-purple-100 text-purple-700",
+    },
+    {
+      id: "gemini-1.5-flash",
+      name: "Gemini 1.5 Flash",
+      desc: "Cepat & andal — tersedia di free tier tanpa billing",
+      badge: "Gratis",
+      badgeColor: "bg-green-100 text-green-700",
+    },
+    {
+      id: "gemini-1.5-flash-8b",
+      name: "Gemini 1.5 Flash-8B",
+      desc: "Paling ringan — kuota gratis tertinggi, ideal untuk volume tinggi",
+      badge: "Hemat",
+      badgeColor: "bg-blue-100 text-blue-700",
+    },
+    {
+      id: "gemini-1.5-pro",
+      name: "Gemini 1.5 Pro",
+      desc: "Paling cerdas — jawaban paling akurat, kuota lebih terbatas",
+      badge: "Pro",
+      badgeColor: "bg-amber-100 text-amber-700",
+    },
+  ];
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
@@ -78,6 +110,7 @@ export default function AdminGeminiAI() {
             }
             if (row.key === "gemini_chatbot_config") {
               const cfg = JSON.parse(row.value);
+              if (cfg.model) setModel(cfg.model);
               if (cfg.systemPrompt) setSystemPrompt(cfg.systemPrompt);
               if (cfg.botName) setBotName(cfg.botName);
               if (cfg.greeting) setGreeting(cfg.greeting);
@@ -98,7 +131,7 @@ export default function AdminGeminiAI() {
         { key: "gemini_api_key", value: JSON.stringify(apiKey.trim()), updated_at: new Date().toISOString() },
         {
           key: "gemini_chatbot_config",
-          value: JSON.stringify({ systemPrompt, botName, greeting, enableLeadCapture }),
+          value: JSON.stringify({ model, systemPrompt, botName, greeting, enableLeadCapture }),
           updated_at: new Date().toISOString(),
         },
       ], { onConflict: "key" });
@@ -124,7 +157,7 @@ export default function AdminGeminiAI() {
         generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
       };
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey.trim()}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
       );
       if (!res.ok) {
@@ -180,8 +213,8 @@ export default function AdminGeminiAI() {
               <AlertCircle className="h-3 w-3" /> Belum Dikonfigurasi
             </Badge>
           )}
-          <Badge className="gap-1 bg-purple-100 text-purple-700 border-0">
-            <Zap className="h-3 w-3" /> Gemini 2.0 Flash
+          <Badge className={`gap-1 border-0 ${GEMINI_MODELS.find(m => m.id === model)?.badgeColor || "bg-purple-100 text-purple-700"}`}>
+            <Zap className="h-3 w-3" /> {GEMINI_MODELS.find(m => m.id === model)?.name || model}
           </Badge>
         </div>
       </div>
@@ -245,6 +278,48 @@ export default function AdminGeminiAI() {
         </CardContent>
       </Card>
 
+      {/* Model Selector */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className="h-4 w-4 text-amber-500" /> Pilih Model Gemini
+          </CardTitle>
+          <CardDescription>Sesuaikan model dengan kuota & kebutuhan akun Google AI Anda</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {GEMINI_MODELS.map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setModel(m.id)}
+                className={`text-left rounded-xl border-2 p-3 transition-all ${
+                  model === m.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-white hover:border-primary/40"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold">{m.name}</span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${m.badgeColor}`}>
+                    {m.badge}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-snug">{m.desc}</p>
+                {model === m.id && (
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-primary font-semibold">
+                    <CheckCircle2 className="h-3 w-3" /> Dipilih
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Jika mengalami error kuota pada Gemini 2.0 Flash, coba beralih ke <strong>Gemini 1.5 Flash</strong> yang tersedia gratis tanpa billing.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Test */}
       <Card>
         <CardHeader className="pb-3">
@@ -274,7 +349,7 @@ export default function AdminGeminiAI() {
                   ? <AlertCircle className="h-3.5 w-3.5 text-red-500" />
                   : <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />}
                 <span className={`text-xs font-semibold ${testResult.source === "error" ? "text-red-700" : "text-green-700"}`}>
-                  {testResult.source === "error" ? "Gagal" : "Gemini 2.0 Flash — Berhasil"}
+                  {testResult.source === "error" ? "Gagal" : `${GEMINI_MODELS.find(m => m.id === model)?.name || model} — Berhasil`}
                 </span>
               </div>
               <p className={`text-xs leading-relaxed whitespace-pre-wrap ${testResult.source === "error" ? "text-red-800" : "text-green-900"}`}>
