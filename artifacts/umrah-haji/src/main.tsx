@@ -23,6 +23,31 @@ if ("serviceWorker" in navigator) {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         console.log("SW registered:", registration.scope);
+
+        // ── PWA Update Detection ──
+        // When a new SW is installed and waiting, notify React app via window event.
+        const notifyUpdate = (reg: ServiceWorkerRegistration) => {
+          window.dispatchEvent(new CustomEvent("sw-update-available", { detail: { registration: reg } }));
+        };
+        if (registration.waiting) notifyUpdate(registration);
+        registration.addEventListener("updatefound", () => {
+          const installing = registration.installing;
+          if (!installing) return;
+          installing.addEventListener("statechange", () => {
+            if (installing.state === "installed" && navigator.serviceWorker.controller) {
+              notifyUpdate(registration);
+            }
+          });
+        });
+        // Reload once when new SW takes control
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+        // Periodically check for updates (every 30 minutes)
+        setInterval(() => registration.update().catch(() => {}), 30 * 60 * 1000);
       } catch (error) {
         console.warn("SW registration failed:", error);
       }
