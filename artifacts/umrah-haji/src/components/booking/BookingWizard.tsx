@@ -78,7 +78,7 @@ export function BookingWizard() {
     queryFn: async () => {
       const { data, error } = await supabase.from('packages').select('id, name, code, duration_days, package_type, booking_mode, currency').eq('id', packageId!).single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!packageId,
   });
