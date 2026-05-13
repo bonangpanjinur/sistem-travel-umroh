@@ -9,7 +9,8 @@ import {
   Sunrise, Sunset, Bell
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
+import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -137,34 +138,18 @@ export default function JamaahWaktuSholat() {
   const hijri = prayerData?.date.hijri;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/jamaah">
-              <Button variant="ghost" size="icon" className="text-primary-foreground">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="font-semibold">Waktu Sholat</h1>
-              <p className="text-xs opacity-80">
-                {format(currentTime, "EEEE, d MMMM yyyy", { locale: id })}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-primary-foreground"
-            onClick={() => fetchPrayerTimes(selectedCity)}
-          >
+    <JamaahAppShell>
+      <JamaahPageHeader
+        title="Waktu Sholat"
+        arabic="مَوَاقِيتُ الصَّلَاةِ"
+        subtitle={format(currentTime, "EEEE, d MMMM yyyy", { locale: id })}
+        right={
+          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-white/10"
+            onClick={() => fetchPrayerTimes(selectedCity)} aria-label="Muat ulang">
             <RefreshCw className="h-4 w-4" />
           </Button>
-        </div>
-      </div>
-
+        }
+      />
       <div className="p-4 space-y-4">
         {/* City Toggle */}
         <div className="flex gap-2 p-1 bg-muted rounded-lg">
@@ -270,8 +255,6 @@ export default function JamaahWaktuSholat() {
           </CardContent>
         </Card>
       </div>
-
-      <JamaahBottomNav />
-    </div>
+    </JamaahAppShell>
   );
 }
