@@ -24,8 +24,10 @@ Deno.serve(async (req) => {
     .limit(1)
     .maybeSingle();
 
-  const vapid = (settings?.custom_sections as any)?.push_vapid_config;
-  if (!vapid?.publicKey || !vapid?.privateKey || !vapid?.enabled) {
+  const vapid = (settings?.custom_sections as any)?.push_vapid_config || {};
+  // RBAC-F2: PRIVATE key from secret env (fallback to legacy DB).
+  const privateKey = Deno.env.get("VAPID_PRIVATE_KEY") || vapid.privateKey;
+  if (!vapid?.publicKey || !privateKey || !vapid?.enabled) {
     return new Response(
       JSON.stringify({ error: "VAPID not configured or disabled" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -35,7 +37,7 @@ Deno.serve(async (req) => {
   webpush.setVapidDetails(
     vapid.subject || "mailto:admin@vinstour.com",
     vapid.publicKey,
-    vapid.privateKey
+    privateKey
   );
 
   // Claim a batch of pending rows

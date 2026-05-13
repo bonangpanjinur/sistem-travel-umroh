@@ -77,17 +77,19 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Load VAPID config from website_settings
+  // Load VAPID public config from DB; PRIVATE key MUST come from secret env (RBAC-F2).
   const { data: settings } = await admin
     .from("website_settings")
     .select("custom_sections")
     .limit(1)
     .maybeSingle();
 
-  const vapid = (settings?.custom_sections as any)?.push_vapid_config;
-  if (!vapid?.publicKey || !vapid?.privateKey || !vapid?.enabled) {
+  const vapid = (settings?.custom_sections as any)?.push_vapid_config || {};
+  // Prefer secret env; fallback to legacy DB value (deprecated, will be removed).
+  const privateKey = Deno.env.get("VAPID_PRIVATE_KEY") || vapid.privateKey;
+  if (!vapid?.publicKey || !privateKey || !vapid?.enabled) {
     return new Response(
-      JSON.stringify({ error: "VAPID not configured or disabled in admin panel" }),
+      JSON.stringify({ error: "VAPID not configured. Set VAPID_PRIVATE_KEY secret + public key in admin panel and enable push." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -95,7 +97,7 @@ Deno.serve(async (req) => {
   webpush.setVapidDetails(
     vapid.subject || "mailto:admin@vinstour.com",
     vapid.publicKey,
-    vapid.privateKey
+    privateKey
   );
 
   // Build subscription query
