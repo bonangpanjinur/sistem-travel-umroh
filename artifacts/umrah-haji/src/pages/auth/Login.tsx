@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Loader2, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,19 +27,93 @@ export default function Login() {
   const { user, roles, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [twoFAStep, setTwoFAStep] = useState<'idle' | 'pending'>('idle');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpDestination, setOtpDestination] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const redirectTo = searchParams.get('redirect');
 
-  // Redirect jika sudah login — arahkan ke portal yang sesuai dengan role
+  const sessionVerifiedKey = (uid: string) => `2fa_verified_${uid}`;
+
+  // Redirect jika sudah login — tapi tunggu verifikasi 2FA bila wajib
   useEffect(() => {
-    if (user && !authLoading) {
+    if (!user || authLoading) return;
+    // Jika sedang menunggu OTP, jangan redirect
+    if (twoFAStep === 'pending') return;
+
+    const verified = sessionStorage.getItem(sessionVerifiedKey(user.id)) === '1';
+    if (verified) {
       if (redirectTo) {
         navigate(redirectTo);
       } else {
         navigate(getRoleHomeRoute(roles));
       }
+      return;
     }
-  }, [user, authLoading, roles, navigate, redirectTo]);
+
+    // Cek apakah user perlu 2FA
+    (async () => {
+      const { data } = await supabase
+        .from('user_2fa_settings')
+        .select('is_enabled, method, phone_number')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!data?.is_enabled) {
+        sessionStorage.setItem(sessionVerifiedKey(user.id), '1');
+        if (redirectTo) navigate(redirectTo);
+        else navigate(getRoleHomeRoute(roles));
+        return;
+      }
+
+      // Wajib 2FA — kirim OTP
+      setTwoFAStep('pending');
+      const { data: otpData, error: otpErr } = await supabase.functions.invoke('request-2fa-otp', {
+        body: { purpose: 'login', method: data.method, phone: data.phone_number ?? undefined },
+      });
+      if (otpErr || (otpData as any)?.error) {
+        toast({
+          title: 'Gagal kirim OTP',
+          description: (otpErr?.message ?? (otpData as any)?.error) || 'Coba lagi',
+          variant: 'destructive',
+        });
+      } else {
+        setOtpDestination((otpData as any)?.destination ?? '');
+      }
+    })();
+  }, [user, authLoading, roles, navigate, redirectTo, twoFAStep, toast]);
+
+  const handleVerifyOtp = async () => {
+    if (!user) return;
+    if (!/^\d{6}$/.test(otpCode)) {
+      toast({ title: 'Kode tidak valid', description: 'Masukkan 6 digit angka', variant: 'destructive' });
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-2fa-otp', {
+        body: { purpose: 'login', code: otpCode },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      sessionStorage.setItem(sessionVerifiedKey(user.id), '1');
+      setTwoFAStep('idle');
+      toast({ title: 'Verifikasi sukses', description: 'Selamat datang!' });
+      if (redirectTo) navigate(redirectTo);
+      else navigate(getRoleHomeRoute(roles));
+    } catch (err: any) {
+      toast({ title: 'Verifikasi gagal', description: err.message, variant: 'destructive' });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleCancelOtp = async () => {
+    setTwoFAStep('idle');
+    setOtpCode('');
+    await supabase.auth.signOut();
+  };
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -71,6 +145,43 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  // OTP gate UI
+  if (twoFAStep === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle>Verifikasi 2 Langkah</CardTitle>
+            <CardDescription>
+              Masukkan kode 6 digit yang dikirim ke {otpDestination || 'perangkat Anda'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="123456"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+              className="text-center text-2xl tracking-[0.5em] font-mono"
+              autoFocus
+            />
+            <Button className="w-full" onClick={handleVerifyOtp} disabled={otpLoading || otpCode.length !== 6}>
+              {otpLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Verifikasi
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={handleCancelOtp}>
+              Batal & Logout
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12">

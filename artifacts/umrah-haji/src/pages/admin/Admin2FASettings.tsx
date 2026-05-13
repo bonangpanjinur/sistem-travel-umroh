@@ -5,22 +5,22 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Shield, Smartphone, Mail, Key, CheckCircle, AlertCircle } from "lucide-react";
+import { Shield, Smartphone, Mail, Key, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 export default function Admin2FASettings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showSetupDialog, setShowSetupDialog] = useState(false);
-  const [method, setMethod] = useState<'email' | 'sms'>('email');
+  const [method, setMethod] = useState<'email' | 'whatsapp'>('email');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [setupStep, setSetupStep] = useState<'choose' | 'verify'>('choose');
+  const [destinationHint, setDestinationHint] = useState('');
 
   // Fetch 2FA settings
   const { data: settings, isLoading } = useQuery({
@@ -40,38 +40,54 @@ export default function Admin2FASettings() {
     enabled: !!user?.id
   });
 
-  // Enable 2FA mutation
-  const enableMutation = useMutation({
-    mutationFn: async ({ method, phone }: { method: string; phone?: string }) => {
-      if (!user?.id) throw new Error('User not authenticated');
-
-      const { error } = await supabase
-        .from('user_2fa_settings')
-        .upsert({
-          user_id: user.id,
-          is_enabled: true,
-          method,
-          phone_number: phone || null,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-
-      if (error) throw error;
-
-      // Log activity
-      await supabase.rpc('log_activity', {
-        _action: '2FA_ENABLED',
-        _status: 'success'
+  // Step 1: request OTP via edge function (no DB write yet)
+  const requestOtpMutation = useMutation({
+    mutationFn: async () => {
+      if (method === 'whatsapp' && !phoneNumber.trim()) {
+        throw new Error('Masukkan nomor WhatsApp aktif.');
+      }
+      const { data, error } = await supabase.functions.invoke('request-2fa-otp', {
+        body: { purpose: 'setup', method, phone: phoneNumber.trim() || undefined },
       });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data as { destination: string };
+    },
+    onSuccess: (data) => {
+      setDestinationHint(data.destination);
+      setSetupStep('verify');
+      toast.success('Kode OTP dikirim');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  // Step 2: verify OTP — server enables 2FA on success
+  const verifyOtpMutation = useMutation({
+    mutationFn: async () => {
+      if (!/^\d{6}$/.test(verificationCode)) {
+        throw new Error('Kode harus 6 digit angka.');
+      }
+      const { data, error } = await supabase.functions.invoke('verify-2fa-otp', {
+        body: {
+          purpose: 'setup',
+          method,
+          phone: phoneNumber.trim() || undefined,
+          code: verificationCode,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      await supabase.rpc('log_activity', { _action: '2FA_ENABLED', _status: 'success' });
     },
     onSuccess: () => {
-      toast.success('Two-Factor Authentication berhasil diaktifkan');
+      toast.success('2FA berhasil diaktifkan');
       queryClient.invalidateQueries({ queryKey: ['2fa-settings'] });
       setShowSetupDialog(false);
       setSetupStep('choose');
+      setVerificationCode('');
+      setDestinationHint('');
     },
-    onError: (error) => {
-      toast.error('Gagal mengaktifkan 2FA: ' + error.message);
-    }
+    onError: (error: Error) => toast.error(error.message),
   });
 
   // Disable 2FA mutation
@@ -104,15 +120,11 @@ export default function Admin2FASettings() {
     }
   });
 
-  const handleSetup = () => {
-    if (method === 'sms' && !phoneNumber) {
-      toast.error('Masukkan nomor telepon untuk metode SMS');
-      return;
-    }
-    
-    // For now, we'll skip verification step and enable directly
-    // In production, you'd send OTP and verify first
-    enableMutation.mutate({ method, phone: phoneNumber });
+  const closeDialog = () => {
+    setShowSetupDialog(false);
+    setSetupStep('choose');
+    setVerificationCode('');
+    setDestinationHint('');
   };
 
   return (
@@ -163,7 +175,7 @@ export default function Admin2FASettings() {
                   )}
                   <div>
                     <p className="font-medium">
-                      {settings.method === 'email' ? 'Email' : 'SMS'}
+                      {settings.method === 'email' ? 'Email' : 'WhatsApp'}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {settings.method === 'email' 
@@ -248,17 +260,22 @@ export default function Admin2FASettings() {
       </Card>
 
       {/* Setup Dialog */}
-      <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
+      <Dialog open={showSetupDialog} onOpenChange={(o) => (o ? setShowSetupDialog(true) : closeDialog())}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Setup Two-Factor Authentication</DialogTitle>
+            <DialogTitle>
+              {setupStep === 'choose' ? 'Setup Two-Factor Authentication' : 'Masukkan Kode Verifikasi'}
+            </DialogTitle>
             <DialogDescription>
-              Pilih metode verifikasi yang Anda inginkan
+              {setupStep === 'choose'
+                ? 'Pilih metode verifikasi yang Anda inginkan'
+                : `Kode 6 digit dikirim ke ${destinationHint}`}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            <RadioGroup value={method} onValueChange={(v) => setMethod(v as 'email' | 'sms')}>
+            {setupStep === 'choose' && (
+            <RadioGroup value={method} onValueChange={(v) => setMethod(v as 'email' | 'whatsapp')}>
               <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted">
                 <RadioGroupItem value="email" id="email" />
                 <Label htmlFor="email" className="flex items-center gap-3 cursor-pointer flex-1">
@@ -272,20 +289,21 @@ export default function Admin2FASettings() {
                 </Label>
               </div>
               <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted">
-                <RadioGroupItem value="sms" id="sms" />
-                <Label htmlFor="sms" className="flex items-center gap-3 cursor-pointer flex-1">
+                <RadioGroupItem value="whatsapp" id="whatsapp" />
+                <Label htmlFor="whatsapp" className="flex items-center gap-3 cursor-pointer flex-1">
                   <Smartphone className="h-5 w-5" />
                   <div>
-                    <p className="font-medium">SMS</p>
+                    <p className="font-medium">WhatsApp</p>
                     <p className="text-sm text-muted-foreground">
-                      Kode verifikasi dikirim via SMS
+                      Kode verifikasi dikirim via WhatsApp
                     </p>
                   </div>
                 </Label>
               </div>
             </RadioGroup>
+            )}
 
-            {method === 'sms' && (
+            {setupStep === 'choose' && method === 'whatsapp' && (
               <div className="space-y-2">
                 <Label>Nomor Telepon</Label>
                 <Input 
@@ -295,18 +313,52 @@ export default function Admin2FASettings() {
                 />
               </div>
             )}
+
+            {setupStep === 'verify' && (
+              <div className="space-y-2">
+                <Label>Kode OTP (6 digit)</Label>
+                <Input
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  className="text-center text-2xl tracking-[0.5em] font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="link"
+                  className="px-0 h-auto"
+                  onClick={() => requestOtpMutation.mutate()}
+                  disabled={requestOtpMutation.isPending}
+                >
+                  Kirim ulang kode
+                </Button>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSetupDialog(false)}>
+            <Button variant="outline" onClick={closeDialog}>
               Batal
             </Button>
-            <Button 
-              onClick={handleSetup}
-              disabled={enableMutation.isPending}
-            >
-              {enableMutation.isPending ? 'Mengaktifkan...' : 'Aktifkan 2FA'}
-            </Button>
+            {setupStep === 'choose' ? (
+              <Button
+                onClick={() => requestOtpMutation.mutate()}
+                disabled={requestOtpMutation.isPending}
+              >
+                {requestOtpMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Kirim Kode OTP
+              </Button>
+            ) : (
+              <Button
+                onClick={() => verifyOtpMutation.mutate()}
+                disabled={verifyOtpMutation.isPending || verificationCode.length !== 6}
+              >
+                {verifyOtpMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Verifikasi & Aktifkan
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
