@@ -42,13 +42,14 @@ export default function AdminAccessSimulator() {
         _user_id: selectedId,
         _roles: uniqueRoles,
       });
+      type PermissionRow = { permission_key: string };
       if (!v2.error && v2.data) {
-        return (v2.data as any[]).map((r) => r.permission_key);
+        return (v2.data as PermissionRow[]).map((r) => r.permission_key);
       }
       const legacy = await supabase.rpc("get_user_effective_permissions", {
         _user_id: selectedId,
       });
-      return ((legacy.data || []) as any[]).map((r) => r.permission_key);
+      return ((legacy.data ?? []) as PermissionRow[]).map((r) => r.permission_key);
     },
   });
 
