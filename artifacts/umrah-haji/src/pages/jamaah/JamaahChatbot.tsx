@@ -3,13 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import {
   Bot, Send, User, RefreshCcw, Home, ChevronRight,
-  Mic, Sparkles, ThumbsUp, ThumbsDown, Copy
+  Sparkles, ThumbsUp, ThumbsDown, Copy,
+  FileText, Share2, Download, Loader2, X, CheckCheck
 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
+import jsPDF from "jspdf";
 
 interface Message {
   id: string;
@@ -17,6 +26,13 @@ interface Message {
   content: string;
   timestamp: Date;
   liked?: boolean | null;
+}
+
+interface SummaryData {
+  topics: string[];
+  keyPoints: string[];
+  indonesianSummary: string;
+  generatedAt: Date;
 }
 
 const FAQ_KNOWLEDGE_BASE: Record<string, string> = {
@@ -142,6 +158,29 @@ Untuk pembatalan, hubungi tim admin segera melalui:
 🎟️ Buka tiket di *Hubungi Kami* → */customer/support*`,
 };
 
+const TOPIC_MAP: Record<string, string> = {
+  dokumen: "Dokumen & Persyaratan",
+  paspor: "Dokumen & Persyaratan",
+  bayar: "Pembayaran & Cicilan",
+  cicil: "Pembayaran & Cicilan",
+  transfer: "Pembayaran & Cicilan",
+  visa: "Proses Visa",
+  hotel: "Info Hotel",
+  jadwal: "Jadwal & Itinerary",
+  itinerary: "Jadwal & Itinerary",
+  bagasi: "Ketentuan Bagasi",
+  ibadah: "Panduan Ibadah",
+  thawaf: "Panduan Ibadah",
+  tawaf: "Panduan Ibadah",
+  zakat: "Zakat & Infaq",
+  kesehatan: "Tips Kesehatan",
+  haji: "Informasi Haji",
+  refund: "Pembatalan & Refund",
+  batal: "Pembatalan & Refund",
+  sertifikat: "Sertifikat Umroh",
+  referral: "Program Referral",
+};
+
 const SUGGESTED_QUESTIONS = [
   "Dokumen apa saja yang diperlukan?",
   "Bagaimana cara bayar cicilan?",
@@ -163,6 +202,47 @@ function findLocalAnswer(question: string): string {
   if (q.includes("halo") || q.includes("hi") || q.includes("assalamu") || q.includes("selamat")) return "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Chatbot Vinstour Travel. Saya siap membantu Anda dengan pertanyaan seputar:\n\n• Dokumen & persyaratan\n• Pembayaran & cicilan\n• Proses visa\n• Info hotel & jadwal\n• Panduan ibadah\n• Dan masih banyak lagi!\n\nSilakan ketik pertanyaan Anda atau pilih dari pertanyaan yang tersedia di bawah.";
   if (q.includes("terima kasih") || q.includes("makasih") || q.includes("jazak")) return "Wa iyyakum! Jazakallahu khairan 🤲\n\nJika ada pertanyaan lain, jangan ragu untuk bertanya. Semoga perjalanan ibadah Anda menjadi berkah dan mabrur. Barakallahu fiikum!";
   return `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum menemukan jawaban spesifik untuk pertanyaan tersebut. Silakan:\n\n1. Coba pertanyaan lain yang lebih spesifik\n2. Chat langsung dengan pembimbing → */jamaah/chat*\n3. Buat tiket dukungan → */customer/support*\n\nTim kami siap membantu Anda dengan lebih detail!`;
+}
+
+function buildLocalSummary(messages: Message[]): SummaryData {
+  const userMessages = messages.filter(m => m.role === "user");
+  const topicSet = new Set<string>();
+
+  for (const msg of userMessages) {
+    const q = msg.content.toLowerCase();
+    for (const [kw, label] of Object.entries(TOPIC_MAP)) {
+      if (q.includes(kw)) topicSet.add(label);
+    }
+  }
+
+  const topics = Array.from(topicSet);
+  const keyQAs = messages
+    .filter(m => m.role === "user")
+    .slice(0, 5)
+    .map(m => m.content.trim())
+    .filter(q => q.length > 5 && !q.toLowerCase().includes("halo") && !q.toLowerCase().includes("assalam"));
+
+  const keyPoints = messages
+    .filter(m => m.role === "assistant")
+    .slice(1, 5)
+    .map(m =>
+      m.content
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        .replace(/\*(.*?)\*/g, "$1")
+        .split("\n")
+        .find(l => l.trim().length > 20)?.trim() ?? ""
+    )
+    .filter(Boolean);
+
+  const topicText = topics.length > 0
+    ? `Dalam sesi ini, jamaah mendapatkan informasi mengenai: ${topics.join(", ")}.`
+    : "Jamaah telah berkonsultasi dengan asisten virtual Vinstour Travel.";
+
+  const countText = `Total ${userMessages.length} pertanyaan diajukan dan ${messages.filter(m => m.role === "assistant").length - 1} jawaban diberikan.`;
+
+  const indonesianSummary = `${topicText} ${countText} Semoga informasi yang diberikan bermanfaat dan memperlancar persiapan ibadah. Barakallahu fiikum.`;
+
+  return { topics, keyPoints, indonesianSummary, generatedAt: new Date() };
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
@@ -205,19 +285,56 @@ async function fetchAIAnswer(
   }
 }
 
+async function fetchAISummary(messages: Message[]): Promise<string | null> {
+  try {
+    const conversation = messages
+      .slice(1)
+      .map(m => `${m.role === "user" ? "Jamaah" : "Asisten"}: ${m.content}`)
+      .join("\n\n");
+    const prompt = `Buat ringkasan percakapan berikut dalam Bahasa Indonesia yang singkat, jelas, dan bermanfaat (maksimal 4 kalimat). Sebutkan topik-topik utama yang dibahas dan poin-poin penting yang perlu diingat jamaah:\n\n${conversation}`;
+    const res = await fetch(`${API_BASE}/api/v1/chatbot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: prompt, conversationHistory: [] }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    return data.answer ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/→ \*(.*?)\*/g, "→ $1")
+    .replace(/#+\s/g, "")
+    .trim();
+}
+
 export default function JamaahChatbot() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>(loadChatbotHistory);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiMode, setAiMode] = useState(false);
+
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+  const [aiSummaryText, setAiSummaryText] = useState<string | null>(null);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const bottomRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Persist messages to localStorage whenever they change
   useEffect(() => {
     try {
       localStorage.setItem(CHATBOT_STORAGE_KEY, JSON.stringify(messages));
@@ -231,13 +348,9 @@ export default function JamaahChatbot() {
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
-
-    // Build conversation history for context
     const history = messages.slice(-8).map(m => ({ role: m.role, content: m.content }));
-
     const { answer, source } = await fetchAIAnswer(msg, history);
     if (source === "ai" && !aiMode) setAiMode(true);
-
     const botMsg: Message = {
       id: (Date.now() + 1).toString(),
       role: "assistant",
@@ -266,21 +379,194 @@ export default function JamaahChatbot() {
       timestamp: new Date(),
     }];
     setMessages(fresh);
+    setSummaryData(null);
+    setAiSummaryText(null);
     try { localStorage.setItem(CHATBOT_STORAGE_KEY, JSON.stringify(fresh)); } catch {}
+  }
+
+  async function openSummary() {
+    const userMsgCount = messages.filter(m => m.role === "user").length;
+    if (userMsgCount === 0) {
+      toast.info("Belum ada percakapan untuk dirangkum. Mulai bertanya dahulu!");
+      return;
+    }
+    setShowSummary(true);
+    setGeneratingSummary(true);
+    const local = buildLocalSummary(messages);
+    setSummaryData(local);
+    const aiText = await fetchAISummary(messages);
+    setAiSummaryText(aiText);
+    setGeneratingSummary(false);
+  }
+
+  function getSummaryText(): string {
+    const sd = summaryData;
+    if (!sd) return "";
+    const dateStr = format(sd.generatedAt, "d MMMM yyyy, HH:mm", { locale: localeId });
+    const lines = [
+      "بسم الله الرحمن الرحيم",
+      "",
+      "RINGKASAN PERCAKAPAN",
+      "Asisten Virtual Vinstour Travel",
+      `Tanggal: ${dateStr}`,
+      "",
+      "--- TOPIK YANG DIBAHAS ---",
+      sd.topics.length > 0 ? sd.topics.map(t => `• ${t}`).join("\n") : "• Konsultasi umum",
+      "",
+      "--- RINGKASAN ---",
+      aiSummaryText ?? sd.indonesianSummary,
+      ...(sd.keyPoints.length > 0 ? [
+        "",
+        "--- POIN PENTING ---",
+        sd.keyPoints.map((p, i) => `${i + 1}. ${p}`).join("\n"),
+      ] : []),
+      "",
+      "---",
+      "Vinstour Travel | cs@vinstour.id",
+      "Semoga ibadah Anda menjadi mabrur. Aamiin.",
+    ];
+    return lines.join("\n");
+  }
+
+  async function shareSummary() {
+    const text = getSummaryText();
+    if (!text) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Ringkasan Konsultasi Umroh — Vinstour",
+          text,
+        });
+      } else {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+        toast.success("Ringkasan disalin ke clipboard!");
+      }
+    } catch {}
+  }
+
+  function downloadPDF() {
+    if (!summaryData) return;
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentW = pageW - margin * 2;
+    let y = 20;
+
+    const addText = (text: string, opts: {
+      size?: number; bold?: boolean; color?: [number, number, number];
+      align?: "left" | "center" | "right"; maxW?: number;
+    } = {}) => {
+      doc.setFontSize(opts.size ?? 11);
+      doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+      doc.setTextColor(...(opts.color ?? [30, 30, 30]));
+      const lines = doc.splitTextToSize(text, opts.maxW ?? contentW);
+      const lineH = (opts.size ?? 11) * 0.45;
+      if (y + lines.length * lineH > 275) { doc.addPage(); y = 20; }
+      doc.text(lines, opts.align === "center" ? pageW / 2 : margin, y, { align: opts.align ?? "left" });
+      y += lines.length * lineH + 2;
+    };
+
+    const addSpacer = (h = 4) => { y += h; };
+
+    const addHRule = () => {
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, pageW - margin, y);
+      y += 5;
+    };
+
+    const dateStr = format(summaryData.generatedAt, "d MMMM yyyy, HH:mm", { locale: localeId });
+
+    doc.setFillColor(79, 56, 170);
+    doc.rect(0, 0, pageW, 38, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Ringkasan Percakapan", margin, 17);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Asisten Virtual Vinstour Travel", margin, 25);
+    doc.text(`Tanggal: ${dateStr}`, margin, 31);
+    y = 48;
+
+    addText("Bismillahirrahmanirrahim", { size: 13, bold: true, color: [79, 56, 170], align: "center" });
+    addSpacer(3);
+    addHRule();
+
+    addText("Topik yang Dibahas", { size: 12, bold: true, color: [79, 56, 170] });
+    addSpacer(1);
+    if (summaryData.topics.length > 0) {
+      for (const t of summaryData.topics) {
+        addText(`• ${t}`, { size: 10 });
+      }
+    } else {
+      addText("• Konsultasi umum Umroh & Haji", { size: 10 });
+    }
+    addSpacer(4);
+
+    addHRule();
+    addText("Ringkasan", { size: 12, bold: true, color: [79, 56, 170] });
+    addSpacer(1);
+    addText(stripMarkdown(aiSummaryText ?? summaryData.indonesianSummary), { size: 10, maxW: contentW });
+    addSpacer(4);
+
+    if (summaryData.keyPoints.length > 0) {
+      addHRule();
+      addText("Poin Penting", { size: 12, bold: true, color: [79, 56, 170] });
+      addSpacer(1);
+      summaryData.keyPoints.forEach((p, i) => {
+        addText(`${i + 1}. ${stripMarkdown(p)}`, { size: 10 });
+      });
+      addSpacer(4);
+    }
+
+    const userMsgs = messages.filter(m => m.role === "user");
+    if (userMsgs.length > 0) {
+      addHRule();
+      addText("Pertanyaan yang Diajukan", { size: 12, bold: true, color: [79, 56, 170] });
+      addSpacer(1);
+      userMsgs.slice(0, 8).forEach((m, i) => {
+        addText(`${i + 1}. ${m.content}`, { size: 9, color: [60, 60, 60] });
+      });
+      addSpacer(4);
+    }
+
+    addHRule();
+    addText("Vinstour Travel | cs@vinstour.id", { size: 9, color: [120, 120, 120], align: "center" });
+    addText("Semoga perjalanan ibadah Anda menjadi mabrur. Aamiin.", {
+      size: 9, color: [120, 120, 120], align: "center"
+    });
+
+    const totalPages = (doc.internal as any).getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(160, 160, 160);
+      doc.text(`Halaman ${i} dari ${totalPages}`, pageW / 2, 290, { align: "center" });
+    }
+
+    const filename = `ringkasan-konsultasi-${format(summaryData.generatedAt, "yyyyMMdd-HHmm")}.pdf`;
+    doc.save(filename);
+    toast.success("PDF berhasil diunduh!");
   }
 
   function formatContent(content: string) {
     return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/→ \*(.*?)\*/g, '→ <code>$1</code>')
-      .split('\n')
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      .replace(/→ \*(.*?)\*/g, "→ <code>$1</code>")
+      .split("\n")
       .map((line, i) => `<span key="${i}">${line}</span>`)
-      .join('<br/>');
+      .join("<br/>");
   }
+
+  const userMsgCount = messages.filter(m => m.role === "user").length;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-0">
+      {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -299,11 +585,27 @@ export default function JamaahChatbot() {
               </div>
             </div>
           </div>
-          <Button size="sm" variant="ghost" onClick={clearChat}><RefreshCcw className="h-4 w-4" /></Button>
+          <div className="flex items-center gap-1">
+            {userMsgCount >= 1 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openSummary}
+                className="h-8 px-2.5 text-xs gap-1.5 text-violet-700 border-violet-200 bg-violet-50 hover:bg-violet-100"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Ringkasan
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={clearChat} className="h-8 w-8 p-0">
+              <RefreshCcw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-32">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-40">
         {messages.map(msg => (
           <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "assistant" ? "bg-gradient-to-br from-violet-500 to-indigo-600" : "bg-gradient-to-br from-green-400 to-emerald-500"}`}>
@@ -311,10 +613,7 @@ export default function JamaahChatbot() {
             </div>
             <div className={`max-w-[85%] ${msg.role === "user" ? "items-end" : "items-start"} flex flex-col gap-1`}>
               <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-sm" : "bg-white border shadow-sm rounded-tl-sm"}`}>
-                <div
-                  dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
-                  className="whitespace-pre-wrap"
-                />
+                <div dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }} className="whitespace-pre-wrap" />
               </div>
               {msg.role === "assistant" && (
                 <div className="flex gap-1">
@@ -350,6 +649,7 @@ export default function JamaahChatbot() {
         <div ref={bottomRef} />
       </div>
 
+      {/* Input bar */}
       <div className="fixed bottom-16 left-0 right-0 bg-white border-t p-3 space-y-2">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {SUGGESTED_QUESTIONS.map(q => (
@@ -380,6 +680,150 @@ export default function JamaahChatbot() {
           </Button>
         </div>
       </div>
+
+      {/* Summary Dialog */}
+      <Dialog open={showSummary} onOpenChange={setShowSummary}>
+        <DialogContent className="max-w-lg w-[95vw] max-h-[85vh] flex flex-col p-0 gap-0 rounded-2xl overflow-hidden">
+          {/* Dialog header */}
+          <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-4 flex-shrink-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <DialogTitle className="text-white text-base font-bold">Ringkasan Percakapan</DialogTitle>
+                <DialogDescription className="text-white/70 text-xs mt-0.5">
+                  {summaryData
+                    ? format(summaryData.generatedAt, "d MMMM yyyy, HH:mm", { locale: localeId })
+                    : "Memproses..."}
+                </DialogDescription>
+              </div>
+              <button
+                onClick={() => setShowSummary(false)}
+                className="text-white/70 hover:text-white mt-0.5"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Dialog body */}
+          <ScrollArea className="flex-1 overflow-y-auto">
+            <div className="p-5 space-y-5" ref={summaryRef}>
+              {/* Arabic greeting */}
+              <div className="text-center py-3 bg-violet-50 rounded-xl border border-violet-100">
+                <p className="text-lg font-semibold text-violet-800" style={{ fontFamily: "serif", direction: "rtl" }}>
+                  بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ
+                </p>
+                <p className="text-xs text-violet-600 mt-1">Bismillahirrahmanirrahim</p>
+              </div>
+
+              {/* Topics covered */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Topik Dibahas</p>
+                {generatingSummary && !summaryData ? (
+                  <div className="flex gap-2 items-center text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Menganalisis percakapan...
+                  </div>
+                ) : summaryData?.topics && summaryData.topics.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {summaryData.topics.map(t => (
+                      <Badge key={t} variant="secondary" className="bg-violet-100 text-violet-700 text-xs">
+                        {t}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <Badge variant="secondary" className="bg-violet-100 text-violet-700 text-xs">
+                    Konsultasi Umum
+                  </Badge>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Summary text */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ringkasan</p>
+                  {generatingSummary && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                  {!generatingSummary && aiSummaryText && (
+                    <Badge variant="outline" className="text-[10px] text-violet-600 border-violet-200 h-4">
+                      <Sparkles className="h-2.5 w-2.5 mr-1" /> AI
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {generatingSummary && !aiSummaryText && !summaryData
+                    ? "Sedang membuat ringkasan..."
+                    : aiSummaryText ?? summaryData?.indonesianSummary ?? ""}
+                </p>
+              </div>
+
+              {/* Key points */}
+              {summaryData && summaryData.keyPoints.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Poin Penting</p>
+                    <ul className="space-y-2">
+                      {summaryData.keyPoints.map((p, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-gray-700">
+                          <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center shrink-0 mt-0.5 font-medium">
+                            {i + 1}
+                          </span>
+                          <span className="leading-relaxed">{stripMarkdown(p)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+
+              {/* Stats */}
+              <Separator />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-muted/60 p-3 text-center">
+                  <p className="text-lg font-bold text-violet-700">{userMsgCount}</p>
+                  <p className="text-xs text-muted-foreground">Pertanyaan</p>
+                </div>
+                <div className="rounded-xl bg-muted/60 p-3 text-center">
+                  <p className="text-lg font-bold text-violet-700">
+                    {messages.filter(m => m.role === "assistant").length - 1}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Jawaban Diberikan</p>
+                </div>
+              </div>
+
+              {/* Footer note */}
+              <p className="text-center text-xs text-muted-foreground pb-2">
+                Semoga perjalanan ibadah Anda menjadi mabrur. Aamiin 🤲
+              </p>
+            </div>
+          </ScrollArea>
+
+          {/* Action buttons */}
+          <div className="flex gap-2 p-4 border-t bg-gray-50/80 flex-shrink-0">
+            <Button
+              variant="outline"
+              className="flex-1 gap-2 text-sm"
+              onClick={shareSummary}
+              disabled={generatingSummary || !summaryData}
+            >
+              {copied ? (
+                <><CheckCheck className="h-4 w-4 text-green-500" /> Tersalin!</>
+              ) : (
+                <><Share2 className="h-4 w-4" /> Bagikan</>
+              )}
+            </Button>
+            <Button
+              className="flex-1 gap-2 text-sm bg-violet-600 hover:bg-violet-700"
+              onClick={downloadPDF}
+              disabled={generatingSummary || !summaryData}
+            >
+              <Download className="h-4 w-4" />
+              Simpan PDF
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
