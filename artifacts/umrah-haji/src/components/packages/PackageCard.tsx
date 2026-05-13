@@ -529,3 +529,11 @@ export function PackageCard({
     </Card>
   );
 }
+
+function CustomLabelBadges({ packageId }: { packageId: string }) {
+  const { data: map } = usePackageLabelsMap();
+  const labels = map?.[packageId] ?? [];
+  if (labels.length === 0) return null;
+  return <PackageLabelBadges labels={labels} />;
+}
+}
