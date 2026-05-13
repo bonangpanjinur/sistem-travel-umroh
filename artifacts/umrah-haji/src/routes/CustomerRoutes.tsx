@@ -6,6 +6,7 @@ import { AppRole } from "@/types/database";
 
 const BookingPage = lazy(() => import("@/pages/booking/BookingPage"));
 const BookingSuccess = lazy(() => import("@/pages/booking/BookingSuccess"));
+const BookingRecover = lazy(() => import("@/pages/booking/BookingRecover"));
 const MyBookings = lazy(() => import("@/pages/customer/MyBookings"));
 const BookingDetail = lazy(() => import("@/pages/customer/BookingDetail"));
 const PaymentUpload = lazy(() => import("@/pages/customer/PaymentUpload"));
@@ -236,6 +237,7 @@ export default function CustomerRoutes() {
       {/* Booking — setiap user terautentikasi bisa booking */}
       <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />
       <Route path="/booking/success/:bookingId" element={<ProtectedRoute><LazyPage><BookingSuccess /></LazyPage></ProtectedRoute>} />
+      <Route path="/booking/recover" element={<LazyPage><BookingRecover /></LazyPage>} />
       <Route path="/my-bookings" element={<ProtectedRoute><LazyPage><MyBookings /></LazyPage></ProtectedRoute>} />
       <Route path="/my-bookings/:bookingId" element={<ProtectedRoute><LazyPage><BookingDetail /></LazyPage></ProtectedRoute>} />
       <Route path="/my-bookings/:bookingId/payment" element={<ProtectedRoute><LazyPage><PaymentUpload /></LazyPage></ProtectedRoute>} />

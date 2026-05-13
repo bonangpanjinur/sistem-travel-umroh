@@ -120,9 +120,9 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 
 | Kode | Fitur | Catatan |
 |------|-------|---------|
-| BOOK-FIX3 | Seat hold system (lock kursi 15 menit selama wizard) | Butuh tabel `seat_holds` + countdown UI |
-| BOOK-FIX6 | Webhook Midtrans auto-confirm + WA notif | Butuh edge function `midtrans-webhook` |
-| BOOK-FIX7 | Guest checkout recovery via email/WA link | Butuh template email + token unik |
+| ✅ BOOK-FIX3 | Seat hold 15 menit + countdown banner di wizard (tabel `seat_holds` + RPC `hold_departure_seats` / `release_seat_hold` + hook `useSeatHold`) |
+| ✅ BOOK-FIX6 | Edge function `midtrans-webhook` (verifikasi SHA512 signature, auto-update payment status, log ke `midtrans_webhook_logs`) |
+| ✅ BOOK-FIX7 | Edge function `send-booking-recovery` + tabel `booking_access_tokens` + page `/booking/recover` (token 30 hari) |
 | AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA — ditunda |
 
 > Detail lengkap setiap item ada di section masing-masing di bawah.
