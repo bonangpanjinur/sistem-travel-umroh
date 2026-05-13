@@ -117,6 +117,13 @@ export default function AdminDepartureDetail() {
   // K8 — H-X notification state
   const [sendingHX, setSendingHX] = useState<number | null>(null);
 
+  // K9 — Ringkasan budget di tab trigger
+  const { data: _budgets = [] } = useDepartureBudget(id || "");
+  const { data: _costs = [] } = useDepartureCosts(id || "");
+  const _budgetSummary = computeBudgetSummary(_budgets, _costs);
+  const totalBudgeted = _budgetSummary.reduce((s: number, r: any) => s + r.budgeted, 0);
+  const totalRealized = _budgetSummary.reduce((s: number, r: any) => s + r.realized, 0);
+
   // If no id, show error
   if (!id) {
     return (
