@@ -40,6 +40,7 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
+              <PWAUpdateNotifier />
               <BrowserRouter basename={import.meta.env.BASE_URL}>
                 <ScrollToTop />
                 <EnvDiagnostic />
