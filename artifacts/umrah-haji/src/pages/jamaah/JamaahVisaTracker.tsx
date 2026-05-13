@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
 import { useAuth } from "@/hooks/useAuth";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,7 +104,7 @@ export default function JamaahVisaTracker() {
     enabled: !!user?.id,
   });
 
-  const { data: visaApps = [], isLoading, refetch } = useQuery({
+  const { data: visaAppsRaw, isLoading, refetch } = useQuery({
     queryKey: ["jamaah-visa-applications", customer?.id],
     queryFn: async () => {
       if (!customer?.id) return [];
@@ -126,7 +128,7 @@ export default function JamaahVisaTracker() {
     enabled: !!customer?.id,
   });
 
-  const { data: visaHistory = [] } = useQuery({
+  const { data: visaHistoryRaw } = useQuery({
     queryKey: ["jamaah-visa-history", customer?.id],
     queryFn: async () => {
       if (!customer?.id) return [];
@@ -144,6 +146,16 @@ export default function JamaahVisaTracker() {
     },
     enabled: !!customer?.id,
   });
+
+  // J3 — offline cache
+  const visaApps = useOfflineCache<any[]>(
+    `jamaah-visa-apps:${customer?.id || "guest"}`,
+    visaAppsRaw,
+  ) ?? [];
+  const visaHistory = useOfflineCache<any[]>(
+    `jamaah-visa-history:${customer?.id || "guest"}`,
+    visaHistoryRaw,
+  ) ?? [];
 
   useEffect(() => {
     if (!customer?.id) return;
@@ -199,6 +211,7 @@ export default function JamaahVisaTracker() {
       </div>
 
       <div className="p-4 space-y-4">
+        <OfflineBanner />
         {flashUpdate && (
           <Alert className="border-green-400 bg-green-50 animate-pulse">
             <CheckCircle2 className="h-4 w-4 text-green-600" />

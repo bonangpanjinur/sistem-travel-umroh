@@ -81,6 +81,7 @@ import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
 import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
+import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/hooks/useDepartureBudget";
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
@@ -115,6 +116,13 @@ export default function AdminDepartureDetail() {
 
   // K8 — H-X notification state
   const [sendingHX, setSendingHX] = useState<number | null>(null);
+
+  // K9 — Ringkasan budget di tab trigger
+  const { data: _budgets = [] } = useDepartureBudget(id || "");
+  const { data: _costs = [] } = useDepartureCosts(id || "");
+  const _budgetSummary = computeBudgetSummary(_budgets, _costs);
+  const totalBudgeted = _budgetSummary.reduce((s: number, r: any) => s + r.budgeted, 0);
+  const totalRealized = _budgetSummary.reduce((s: number, r: any) => s + r.realized, 0);
 
   // If no id, show error
   if (!id) {
@@ -976,7 +984,14 @@ export default function AdminDepartureDetail() {
           <TabsTrigger value="kamar" className="text-xs">Kamar</TabsTrigger>
           <TabsTrigger value="perlengkapan" className="text-xs">Perlengkapan</TabsTrigger>
           <TabsTrigger value="itinerary" className="text-xs">Itinerary</TabsTrigger>
-          <TabsTrigger value="budget" className="text-xs">Budget</TabsTrigger>
+          <TabsTrigger value="budget" className="text-xs flex flex-col items-center gap-0.5">
+            <span>Budget</span>
+            {(totalBudgeted > 0 || totalRealized > 0) && (
+              <span className="text-[10px] font-normal text-muted-foreground leading-tight">
+                {formatCurrency(totalRealized)} / {formatCurrency(totalBudgeted)}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="harga" className="text-xs">Riwayat Harga</TabsTrigger>
           <TabsTrigger value="operasional" className="text-xs">Operasional</TabsTrigger>
         </TabsList>

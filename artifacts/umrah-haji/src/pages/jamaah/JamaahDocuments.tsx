@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,7 +151,7 @@ export default function JamaahDocuments() {
   const allowedExts: string[] = selectedType?.allowed_extensions ?? ["jpg", "jpeg", "png", "pdf"];
   const acceptAttr = allowedExts.map((e) => `.${e}`).join(",");
 
-  const { data: documents, isLoading } = useQuery({
+  const { data: documentsRaw, isLoading } = useQuery({
     queryKey: ["jamaah-documents", customer?.id],
     queryFn: async () => {
       if (!customer?.id) return [];
@@ -163,6 +165,11 @@ export default function JamaahDocuments() {
     },
     enabled: !!customer?.id,
   });
+  // J3 — offline cache: fallback ke localStorage jika offline / belum ada data
+  const documents = useOfflineCache<any[]>(
+    `jamaah-documents:${customer?.id || "guest"}`,
+    documentsRaw,
+  );
 
   // Required document checklist progress
   const requiredProgress = useMemo(() => {
@@ -286,6 +293,7 @@ export default function JamaahDocuments() {
       </div>
 
       <div className="p-4 space-y-4">
+        <OfflineBanner />
         {/* Package Type Filter */}
         <div className="flex items-center gap-2 flex-wrap">
           {activeBookingPackage && (
