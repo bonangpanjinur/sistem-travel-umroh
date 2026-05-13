@@ -267,6 +267,9 @@ export function useBookingWizardDynamic(
           notes: formData.notes,
           branch_id: branchId,
           agent_id: agentId,
+          payment_mode: formData.paymentMode || 'full',
+          dp_amount: formData.paymentMode === 'dp' ? (formData.dpAmount || 0) : 0,
+          savings_plan_id: formData.paymentMode === 'savings' ? (formData.savingsPlanId || null) : null,
         } as any)
         .select('id, booking_code')
         .single();
