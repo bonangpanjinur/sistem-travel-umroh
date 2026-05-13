@@ -41,6 +41,12 @@ const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocument
 const AdminDocumentTypes = lazy(() => import("@/pages/admin/AdminDocumentTypes"));
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
 const AdminPWASettings = lazy(() => import("@/pages/admin/AdminPWASettings"));
+const AdminPWAInstallStats = lazy(() => import("@/pages/admin/AdminPWAInstallStats"));
+const AdminAccessSimulator = lazy(() => import("@/pages/admin/AdminAccessSimulator"));
+const AdminCommissionCalculator = lazy(() => import("@/pages/admin/AdminCommissionCalculator"));
+const AdminBaggagePolicies = lazy(() => import("@/pages/admin/AdminBaggagePolicies"));
+const AdminPostDepartureSurvey = lazy(() => import("@/pages/admin/AdminPostDepartureSurvey"));
+const AdminBookingTransfers = lazy(() => import("@/pages/admin/AdminBookingTransfers"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
 const AdminBranchComparison = lazy(() => import("@/pages/admin/AdminBranchComparison"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
