@@ -1,112 +1,110 @@
 
-# Analisis Ulang RENCANA.md — Sisa Pekerjaan yang Sebenarnya
+# Rencana: Portal Jamaah PWA Islami + Modul Toko Lengkap
 
-Maaf, analisis sebelumnya keliru — saya membaca heading lama (`#### 🔴 PAK-F1 …`) tanpa melihat anotasi `— DONE` yang ditambahkan di akhir judul. Setelah cross-check ulang dengan tabel ringkasan + database + source code, berikut status yang **akurat**.
+## Bagian 1 — Redesign Full Portal Jamaah (PWA Islami)
 
----
+### 1.1 Bahasa Visual Baru ("Vinstour Islamic UI Kit")
+Inspirasi: Muslim Pro, Athan, Umma, Quran.com — kombinasi nuansa hijau zamrud + emas, ornamen geometri Islam, kaligrafi Arab tipis sebagai aksen.
 
-## A. Yang Saya Salah Sebut "Belum" — Padahal SUDAH Selesai ✅
+Token desain baru di `index.css` (mode jamaah scope `[data-portal="jamaah"]`):
+- Palette: Emerald deep `#0F2E1F`, Emerald `#1F7A4D`, Gold `#C9A96E`, Sand `#F5F1E8`, Ink `#0B1F14`.
+- Gradient: `--gradient-mihrab` (hero arch), `--gradient-night-sky` (waktu sholat malam), `--gradient-dawn` (subuh).
+- Font: heading **Amiri** / **Reem Kufi** (Arabic + display Latin), body **Plus Jakarta Sans** (sudah ada).
+- Ornamen SVG reusable: `<IslamicArch/>`, `<GeometricPattern/>`, `<CrescentMoon/>`, `<MosqueSilhouette/>`, `<KaabaIcon/>` di `src/components/jamaah/ornaments/`.
+- Kartu standar: `rounded-3xl`, border `1px hsl(var(--gold)/.25)`, soft shadow, optional pattern overlay 5% opacity.
+- Animasi: `framer-motion` fade+slide pada masuk halaman, Quran ayat marquee halus, kompas kiblat smooth rotate.
 
-| Item | Bukti |
-|---|---|
-| **Multi-currency PAK-F1/F2/F3** | `formatCurrency` locale-aware, field currency di `RegularPackageForm` (IDR/USD/SAR/EUR/MYR), departure mewarisi dari package |
-| **TAB-FIX1 Konversi tabungan → booking** | RPC `convert_savings_to_booking` + dialog UI |
-| **TAB-FIX2 Harga terkunci** | Kolom `locked_price` + price-protection saat konversi |
-| **TAB-FIX3 Jadwal cicilan otomatis** | Tabel `savings_schedules` + auto-generate (terverifikasi di DB) |
-| **AdminWebhooks** | Tabel `webhook_configs` + `webhook_logs`, tombol Test memanggil `/api/v1/webhook-test` (lampiran "fitur palsu" sudah usang) |
-| **Endpoint `POST /api/push/send`** | Sudah ada di `artifacts/api-server/src/routes/push.ts:228` |
-| **`scheduled_reports` table & `v_financial_summary` view** | Keduanya ada di DB (cek `information_schema`) |
-| **PAK-F7 Bandingkan paket** | `/packages/compare` aktif di PublicRoutes |
-| **Loyalty F1/F2 + Badge + Reminder tabungan + Reminder dokumen** | Trigger DB + edge functions + pg_cron (sprint 9) |
+### 1.2 Komponen Bersama Baru
+`src/components/jamaah/shell/`:
+- `JamaahAppShell.tsx` — wrapper standar (status bar warna, safe-area, header, content, bottom nav).
+- `JamaahHeader.tsx` — greeting kontekstual ("Assalamualaikum, {nama}"), waktu Hijriyah + Masehi, lokasi kota, tombol notif & profil.
+- `JamaahPageHeader.tsx` — header halaman dengan arch + breadcrumb + back.
+- `IslamicCard.tsx`, `IslamicSectionTitle.tsx`, `AyatBanner.tsx` (random ayat harian).
+- `JamaahBottomNav.tsx` direvisi: 5 tab (Beranda, Ibadah, Perjalanan, Toko, Akun) — ikon kustom + indicator pill emas.
 
----
+### 1.3 Halaman Utama (`JamaahPortal`) — Home Seimbang
+Urutan section (semua dalam app shell baru):
+1. **Hero Mihrab** — arch SVG, greeting + nama, tanggal Hijriyah, prayer-times mini (4 sholat berikutnya + countdown).
+2. **Quick Actions Grid (4)** — Al-Qur'an, Kiblat, Doa Harian, Tasbih.
+3. **Status Perjalanan** — kartu booking aktif (countdown keberangkatan, progress dokumen, paid bar).
+4. **Cross-sell Paket** — slider "Paket Pilihan Bulan Ini" (data dari `packages`).
+5. **Etalase Toko Perlengkapan** — 4 produk featured (koper, ihram, dll) + CTA "Lihat Semua".
+6. **Tabungan Umroh** — progress saving, CTA setor.
+7. **Program Referral** — kode referral user + ringkasan komisi + CTA share WA.
+8. **Galeri & Sertifikat** singkat untuk alumni.
+9. **Kontak Tour Leader / SOS** floating.
 
-## B. Yang BENAR-BENAR Masih Pending
+### 1.4 Halaman Ibadah Inti (rebuild visual)
+- `JamaahWaktuSholat` — full-bleed gradient sesuai waktu (subuh/dzuhur/ashar/maghrib/isya), kaligrafi nama sholat, countdown besar, list 7 hari, kalender Hijriyah.
+- `JamaahAlQuran` — list surah ala Quran.com, mode baca Mushaf-style, font Uthmani, audio per ayat, bookmark.
+- `JamaahKiblat` — kompas circular emas + Ka'bah icon, derajat akurasi, kalibrasi.
+- `JamaahDoaPanduan` / `JamaahZikir` — kartu doa Arab + latin + arti, counter tasbih besar.
+- `JamaahTrackerIbadah`, `JamaahDoaCounter`, `JamaahJurnal`, `JamaahTargetIbadah`, `JamaahBadges` — disesuaikan ke shell + token baru.
 
-### B1. 🔴 Kritis Bisnis (Booking Wizard)
-| ID | Item | Catatan |
-|---|---|---|
-| **BOOK-FIX1** | Multi-currency di **wizard booking**: tambah `bookings.exchange_rate`, `total_price_original`, `total_price_idr`; lock kurs saat submit | DB `bookings.currency` sudah ada, tapi `exchange_rate`/`total_price_idr` belum |
-| **BOOK-FIX2** | Wizard adaptif tipe paket: `packages.booking_mode` (umroh/haji/wisata) → Haji skip alokasi kamar, ganti step "Mahram & Kebutuhan Khusus" |
-| **PAK-F4** | Tabel `exchange_rates` + halaman admin manajemen kurs harian | Tabel belum ada |
-| **PAK-F6** | Booking wizard pakai `price_adult/child/infant` untuk Haji (saat ini tetap pakai price_quad/triple/etc) |
+### 1.5 Halaman Perjalanan & Dokumen
+Restyle ke shell baru tanpa ubah logika:
+`JamaahItinerary`, `JamaahDocuments`, `JamaahVisaTracker`, `JamaahPayment`, `JamaahPaymentHistory`, `JamaahInvoice`, `JamaahKontrak`, `JamaahDigitalID`, `JamaahCheckin`, `JamaahBagasi`, `JamaahKesehatan`, `JamaahSISKOHAT`, `JamaahManasik(Interaktif)`, `JamaahPetaLokasi`, `JamaahRombongan`, `JamaahPantauKeluarga`, `JamaahRingkasanAI`, `JamaahRiwayatPerjalanan`, `JamaahSertifikat`, `JamaahGaleri`, `JamaahFeedback`, `JamaahWishlist`, `JamaahReferral`, `JamaahNotifications`, `JamaahChat`, `JamaahChatbot`, `JamaahKalkulatorKurs`, `JamaahKalkulatorZakat`, `JamaahSOSStatus`, `JamaahWelcome`.
 
-### B2. 🟠 Penting (Booking & Tabungan & Cabang)
-| ID | Item |
-|---|---|
-| **BOOK-FIX3** | Seat hold (lock 15 menit) cegah overbooking — tabel `seat_locks` + countdown UI |
-| **BOOK-FIX4** | Pilih DP / Full / Tabungan langsung di Step 4 wizard (kurangi drop-off) |
-| **BOOK-FIX6** | Webhook Midtrans auto-confirm + trigger WA notif |
-| **BOOK-FIX7** | Guest checkout recovery via email/WA link unik |
-| **TAB-FIX4** | Flow pembatalan tabungan + kebijakan refund |
-| **TAB-FIX5** | Sertifikat/surat bukti tabungan PDF downloadable |
-| **PAK-F5** | Tipe paket dinamis dari `package_types` (saat ini wisata di-hardcode di enum) |
-| **KEP-F1** | Validasi flight number — minimal link ke Flightradar24 + notif jika berubah |
+Strategi: bungkus tiap page dengan `JamaahAppShell` + ganti `Card` → `IslamicCard`. Tidak ubah query/data. Dilakukan bertahap per file (no big-bang).
 
-### B3. 🟡 Sedang
-| ID | Item |
-|---|---|
-| **PAK-F8** | Filter currency di listing `/packages` |
-| **TAB-FIX6** | Tabungan fleksibel (tidak terikat 1 paket) |
-| **TAB-FIX7** | DP tabungan via Midtrans (bukan hanya manual) |
-| **TAB-FIX8** | Mini-kalkulator tenor di listing tabungan |
-| **AGEN-F8** | CRM Leads auto-link ke booking |
-| **GAP-RBAC-04/05/06/07** | Audit trail permission, sync code↔DB tool, branch-scoped permission, granular agen |
+### 1.6 Penguatan PWA
+- Tambah halaman `/install` dengan instruksi A2HS iOS & Android + tombol prompt (`beforeinstallprompt`).
+- Update `manifest.json`: nama "Vinstour Jamaah", `theme_color` `#0F2E1F`, screenshots baru, shortcuts: Beranda, Waktu Sholat, Al-Qur'an, Kiblat.
+- Splash screen (loader awal) bergaya Islami: arch + logo + ayat pendek.
+- Service worker (`public/sw.js`) sudah ada — tambahkan precache aset fonts Arabic + audio adzan kecil. Tetap network-first untuk navigasi.
+- Banner "Aktifkan Notifikasi" + komponen `<UpdateAvailableBanner>` saat ada SW baru (event `sw-update-available`).
 
-### B4. 🟢 Jangka Panjang (perlu diskusi arsitektur)
-- **N8** i18n Arab/Inggris (200+ file)
-- **AGEN-ADD7** SSR/SEO website agen (butuh Next/Remix)
-- **AGEN-F1** Withdrawal saldo agen via payment gateway
-- **HR Face-verify nyata** + geo-fencing
-- **SISKOHAT** Kemenag (butuh akun PPIU resmi)
-- **GAP-RBAC-01** Permission granular Read/Write/Delete (breaking change)
-- **2FA TOTP** enforcement (saat ini toggle UI sudah, backend OTP belum)
-- **AdminSmartNotif / JamaahRingkasanAI / AdminAISummary** — opsional ganti template lokal ke Lovable AI Gateway, atau biarkan + relabel "Statistik"
+## Bagian 2 — Modul Toko Admin (Procurement + Sales)
 
-### B5. ⚙️ Konfigurasi (bukan kode)
-Set di Replit Secrets: `MIDTRANS_*`, `SMTP_*`, `VAPID_*`, `VITE_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`.
+### 2.1 Skema Database Baru (migrasi)
+Tambah tabel:
+- `store_suppliers` — nama, kontak, alamat, npwp, term pembayaran, catatan.
+- `store_purchase_orders` — `po_number` (PO-YYMM-####, sequence via `store_po_counters`), supplier_id, status (`draft|ordered|partial|received|cancelled`), order_date, expected_date, received_date, subtotal, tax, shipping_cost, total, notes, created_by.
+- `store_purchase_order_items` — po_id, product_id, qty_ordered, qty_received, unit_cost, subtotal.
+- `store_stock_movements` — product_id, type (`purchase_in|sale_out|adjustment|return_in|return_out`), qty (signed), ref_table, ref_id, unit_cost, notes, created_by, created_at. Trigger otomatis dari penerimaan PO + order pelanggan ter-fulfilled.
+- `store_po_counters` — bucket bulanan untuk nomor PO.
+- Kolom tambahan di `store_products`: `current_stock` (int), `avg_cost` (numeric), `min_stock` (int) — auto update via trigger dari `store_stock_movements`.
 
----
+RLS: hanya role admin (`super_admin`, `owner`, `branch_manager`, `inventory_manager` baru) bisa CRUD. Pakai `has_role()` SECURITY DEFINER existing pattern. Stock movements immutable (no update/delete kecuali super_admin).
 
-## C. Rencana Eksekusi (3 Sprint, ringkas)
+### 2.2 Halaman Admin Baru
+Folder `src/pages/admin/store/`:
+- `AdminStoreDashboard.tsx` — KPI: total stok value, produk low stock, PO open, omzet 30 hari, top 5 produk, grafik penjualan vs pembelian (Recharts).
+- `AdminStoreSuppliers.tsx` — CRUD supplier + search.
+- `AdminStorePurchaseOrders.tsx` — list PO + filter status/periode/supplier + create/edit form (multi item, hitung total otomatis), aksi: kirim, terima sebagian/penuh, batalkan.
+- `AdminStorePurchaseOrderDetail.tsx` — detail PO + tombol "Terima Barang" → input qty diterima per item → buat `store_stock_movements` `purchase_in`.
+- `AdminStoreStockMovements.tsx` — riwayat mutasi stok (read-only) + filter produk/tipe/tanggal + export CSV.
+- `AdminStoreStockOpname.tsx` — adjustment stok manual dengan alasan (buat movement `adjustment`).
+- `AdminStoreSalesReport.tsx` — laporan penjualan dari `store_orders` (agregasi per hari/produk/kategori) + laba kotor (`avg_cost` × qty). Export CSV/PDF.
+- `AdminStoreLowStock.tsx` — daftar produk di bawah `min_stock` + tombol "Buat PO".
 
-### Sprint 10 — "Wizard Multi-Currency & Adaptif" (≈4 hari) — KRITIS
-1. **Migrasi DB:**
-   ```sql
-   ALTER TABLE bookings 
-     ADD COLUMN exchange_rate numeric DEFAULT 1,
-     ADD COLUMN total_price_original numeric,
-     ADD COLUMN total_price_idr numeric;
-   ALTER TABLE packages ADD COLUMN booking_mode text DEFAULT 'umroh';
-   CREATE TABLE exchange_rates (
-     id uuid PK, currency_from text, currency_to text DEFAULT 'IDR',
-     rate numeric, source text DEFAULT 'manual',
-     fetched_at timestamptz DEFAULT now(), is_active bool DEFAULT true
-   );
-   ```
-2. Halaman `/admin/exchange-rates` — admin input kurs harian.
-3. `useBookingWizardDynamic`: baca `package.currency` + kurs aktif → snapshot saat submit.
-4. `BookingWizard`: deteksi `booking_mode='haji'` → skip alokasi kamar, render `StepMahramHaji`.
-5. Update `PriceBadge`/`format.ts` agar pass currency dari context.
+Update existing:
+- `AdminStoreProducts.tsx` — tambah kolom Stock, Avg Cost, Min Stock; badge low stock; tombol "Riwayat Mutasi".
+- `AdminStoreOrders.tsx` — tombol "Tandai Terkirim" trigger `sale_out` movement (sudah ada base, integrasikan).
 
-### Sprint 11 — "Anti Overbooking & Smooth Checkout" (≈3 hari)
-1. **BOOK-FIX3** Tabel `seat_locks` (TTL 15 menit) + `SeatHoldCountdown.tsx` + cron release.
-2. **BOOK-FIX4** Step 4 wizard: radio "Bayar full / DP / Pakai tabungan".
-3. **BOOK-FIX6** Edge function `midtrans-webhook` → auto-update `payment_status='paid'` + enqueue WA via `whatsapp_logs`.
-4. **BOOK-FIX7** Generate `bookings.access_token` + email/WA link `/cek-booking?token=…`.
+### 2.3 Navigasi & RBAC
+- `AdminSidebar` — group baru "Toko & Inventori" berisi: Dashboard Toko, Produk, Kategori, Order Pelanggan, Supplier, Purchase Order, Stok Opname, Mutasi Stok, Low Stock, Laporan Penjualan.
+- Tambah `PERMISSIONS.STORE_*` keys dan map ke role default.
 
-### Sprint 12 — "Polish Tabungan & Operasional" (≈3 hari)
-1. **TAB-FIX4/5** Flow pembatalan tabungan + sertifikat PDF (`jspdf`).
-2. **PAK-F5** Ganti enum hardcoded → fetch `package_types` dinamis.
-3. **PAK-F6** `BookingWizard` Haji pakai `price_adult/child/infant`.
-4. **PAK-F8** Filter currency di `/packages`.
-5. **KEP-F1** Link Flightradar24 + notif perubahan flight number.
+### 2.4 Otomasi (Trigger DB)
+- Trigger `AFTER INSERT ON store_stock_movements` → update `store_products.current_stock` (sum) + `avg_cost` (weighted avg untuk `purchase_in`).
+- Trigger `AFTER UPDATE ON store_purchase_orders` saat status → `received` / `partial` membuat movement otomatis dari `qty_received` (atau via RPC `receive_po(po_id, items[])`).
+- Trigger `AFTER UPDATE ON store_orders` saat status → `shipped/completed` membuat `sale_out` movement (sekali, idempotent via cek ref).
 
-### Backlog (perlu diskusi terpisah)
-i18n, SSR website agen, withdrawal otomatis, 2FA TOTP, face-verify nyata, SISKOHAT, RBAC granular RWD.
+## Bagian 3 — Urutan Eksekusi
+1. Fondasi PWA Islami: token CSS, ornamen SVG, app shell, bottom nav, header. (1)
+2. Redesign `JamaahPortal` (home) + halaman ibadah inti (Waktu Sholat, Al-Qur'an, Kiblat, Doa, Zikir).
+3. Restyle bertahap halaman jamaah lainnya (batch 5–8 file per iterasi).
+4. Halaman `/install` + update manifest + splash + update banner.
+5. Migrasi DB toko (suppliers, PO, movements, kolom produk, triggers, RLS).
+6. Halaman admin toko + sidebar + RBAC.
+7. QA: cek route, RLS, alur PO end-to-end, sync stok, A2HS di mobile.
 
----
+## Catatan Teknis
+- Tidak ada perubahan logika auth/booking. Hanya UI/visual untuk jamaah + tambahan tabel & halaman untuk toko.
+- Semua warna via token HSL di `index.css` dan `tailwind.config.ts`. Tidak ada `text-white`/`bg-black` literal.
+- Service worker tetap pakai pola network-first + clone sinkron yang sudah diperbaiki.
+- Patuhi memory: payment status `paid`, role admin terbatas, Radix Select controlled, dst.
+- Fonts Arabic dimuat via `font-display: swap` + preconnect, fallback `serif` agar tidak block render.
 
-## D. Rekomendasi
-
-Mulai **Sprint 10** karena memblokir penjualan paket Haji USD secara akurat. Setujui plan ini, atau pilih sprint mana yang mau dikerjakan duluan, atau pilih item spesifik (mis. cuma BOOK-FIX2 + BOOK-FIX3) untuk batch yang lebih kecil.
+Setelah Anda setujui, saya akan mulai dari Bagian 1.1–1.3 (fondasi + home) dan Bagian 2.1 (migrasi DB toko) lebih dulu, lalu lanjut bertahap.
