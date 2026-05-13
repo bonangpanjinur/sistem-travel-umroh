@@ -1,4 +1,4 @@
-const CACHE_VERSION = "vinstour-v4";
+const CACHE_VERSION = "vinstour-v5";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -72,7 +72,10 @@ self.addEventListener("fetch", (event) => {
         const cached = await cache.match(request);
         const fetchPromise = fetch(request)
           .then((r) => {
-            if (r.ok) cache.put(request, r.clone());
+            if (r.ok) {
+              const copy = r.clone();
+              cache.put(request, copy).catch(() => {});
+            }
             return r;
           })
           .catch(() => cached);
@@ -89,7 +92,8 @@ self.addEventListener("fetch", (event) => {
         .then((r) => {
           // Cache HTML shells for jamaah routes
           if (r.ok && JAMAAH_ROUTES.some((route) => url.pathname === route || url.pathname.startsWith(route + "/"))) {
-            caches.open(CACHE_VERSION).then((c) => c.put(request, r.clone()));
+            const copy = r.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put(request, copy)).catch(() => {});
           }
           return r;
         })
@@ -112,7 +116,10 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request)
       .then((r) => {
-        if (r.ok) caches.open(CACHE_VERSION).then((c) => c.put(request, r.clone()));
+        if (r.ok) {
+          const copy = r.clone();
+          caches.open(CACHE_VERSION).then((c) => c.put(request, copy)).catch(() => {});
+        }
         return r;
       })
       .catch(() => caches.match(request))
