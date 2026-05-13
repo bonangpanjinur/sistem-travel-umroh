@@ -48,6 +48,9 @@ const AdminFinanceCash = lazy(() => import("@/pages/admin/AdminFinanceCash"));
 const AdminVendors = lazy(() => import("@/pages/admin/AdminVendors"));
 const AdminLoyalty = lazy(() => import("@/pages/admin/AdminLoyalty"));
 const AdminReferrals = lazy(() => import("@/pages/admin/AdminReferrals"));
+const AdminTierBenefits = lazy(() => import("@/pages/admin/AdminTierBenefits"));
+const AdminIncompleteDocuments = lazy(() => import("@/pages/admin/AdminIncompleteDocuments"));
+const AdminAbsensiHarianTanahSuci = lazy(() => import("@/pages/admin/AdminAbsensiHarianTanahSuci"));
 const AdminSupportTickets = lazy(() => import("@/pages/admin/AdminSupportTickets"));
 const AdminSecurityAudit = lazy(() => import("@/pages/admin/AdminSecurityAudit"));
 const Admin2FASettings = lazy(() => import("@/pages/admin/Admin2FASettings"));
@@ -246,6 +249,9 @@ export default function AdminRoutes() {
       <Route path="branches" element={<P k={PERMISSIONS.BRANCHES}><AdminBranches /></P>} />
       <Route path="branches/comparison" element={<P k={PERMISSIONS.BRANCHES}><AdminBranchComparison /></P>} />
       <Route path="loyalty" element={<P k={PERMISSIONS.LOYALTY}><AdminLoyalty /></P>} />
+      <Route path="loyalty/tier-benefits" element={<P k={PERMISSIONS.LOYALTY}><AdminTierBenefits /></P>} />
+      <Route path="documents-incomplete" element={<P k={PERMISSIONS.DOCUMENT_VERIFICATION}><AdminIncompleteDocuments /></P>} />
+      <Route path="absensi-harian" element={<P k={PERMISSIONS.ABSENSI_DIGITAL}><AdminAbsensiHarianTanahSuci /></P>} />
       <Route path="referrals" element={<P k={PERMISSIONS.REFERRALS}><AdminReferrals /></P>} />
       <Route path="haji" element={<P k={PERMISSIONS.HAJI}><AdminHajiManagement /></P>} />
       <Route path="manasik" element={<P k={PERMISSIONS.MANASIK}><AdminManasik /></P>} />
