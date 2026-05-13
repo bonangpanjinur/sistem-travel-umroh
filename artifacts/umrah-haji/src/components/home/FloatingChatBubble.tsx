@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useWebsiteSettings } from "@/hooks/useWebsiteSettingsOptimized";
 import { usePackages } from "@/hooks/usePackages";
 import { ChatPackageCard, extractPackageIds } from "@/components/chat/ChatPackageCard";
+import { useFaqSuggestions, getCategories, CATEGORY_EMOJI } from "@/hooks/useFaqSuggestions";
 import {
   Bot, Send, X, MessageCircle, RefreshCcw,
   Phone, ChevronDown, Sparkles, User,
@@ -93,12 +94,15 @@ export function FloatingChatBubble() {
   const waNumber = (settings as any)?.footer_whatsapp?.replace(/\D/g, "") || "";
   const siteName = (settings as any)?.site_name || "Vinstour Travel";
 
+  const { data: faqSuggestions = [] } = useFaqSuggestions();
+
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiMode, setAiMode] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
+  const [activeSuggestCat, setActiveSuggestCat] = useState<string>("all");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -265,19 +269,63 @@ export function FloatingChatBubble() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Suggested questions */}
-              <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto scrollbar-hide bg-white border-t border-gray-50">
-                {SUGGESTED.map(q => (
-                  <button
-                    key={q}
-                    onClick={() => sendMessage(q)}
-                    disabled={loading}
-                    className="shrink-0 text-[11px] bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full border border-violet-200 hover:bg-violet-100 transition-colors whitespace-nowrap disabled:opacity-50"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
+              {/* Dynamic FAQ Suggestions */}
+              {messages.length <= 2 && !loading && (() => {
+                const cats = getCategories(faqSuggestions);
+                const hasDynamic = faqSuggestions.length > 0;
+                const visibleFaqs = activeSuggestCat === "all"
+                  ? faqSuggestions.slice(0, 5)
+                  : faqSuggestions.filter(f => f.category === activeSuggestCat).slice(0, 5);
+                const staticQ = SUGGESTED;
+                return (
+                  <div className="bg-white border-t border-gray-100 px-3 pt-2 pb-1 space-y-1.5">
+                    {hasDynamic && cats.length > 1 && (
+                      <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-0.5">
+                        <button
+                          onClick={() => setActiveSuggestCat("all")}
+                          className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${activeSuggestCat === "all" ? "bg-indigo-600 text-white border-indigo-600" : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"}`}
+                        >
+                          Semua
+                        </button>
+                        {cats.map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setActiveSuggestCat(cat)}
+                            className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${activeSuggestCat === cat ? "bg-indigo-600 text-white border-indigo-600" : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"}`}
+                          >
+                            {CATEGORY_EMOJI[cat] ?? "💬"} {cat}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
+                      {hasDynamic
+                        ? visibleFaqs.map(faq => (
+                            <button
+                              key={faq.id}
+                              onClick={() => sendMessage(faq.question)}
+                              disabled={loading}
+                              className="shrink-0 text-[11px] bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full border border-violet-200 hover:bg-violet-100 transition-colors whitespace-nowrap disabled:opacity-50 max-w-[200px] truncate"
+                              title={faq.question}
+                            >
+                              {faq.question}
+                            </button>
+                          ))
+                        : staticQ.map(q => (
+                            <button
+                              key={q}
+                              onClick={() => sendMessage(q)}
+                              disabled={loading}
+                              className="shrink-0 text-[11px] bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full border border-violet-200 hover:bg-violet-100 transition-colors whitespace-nowrap disabled:opacity-50"
+                            >
+                              {q}
+                            </button>
+                          ))
+                      }
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Input */}
               <div className="px-3 pb-3 pt-2 bg-white space-y-2">

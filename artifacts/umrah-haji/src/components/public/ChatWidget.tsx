@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { buildPackageContext } from "@/lib/packageContext";
 import { usePackages } from "@/hooks/usePackages";
 import { ChatPackageCard, extractPackageIds } from "@/components/chat/ChatPackageCard";
+import { useFaqSuggestions, getCategories, CATEGORY_EMOJI } from "@/hooks/useFaqSuggestions";
 
 function formatBotMessage(text: string): string {
   return text
@@ -139,6 +140,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const [unread, setUnread] = useState(0);
   const [reactions, setReactions] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState<string | null>(null);
+  const [activeSuggestCat, setActiveSuggestCat] = useState<string>("all");
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<{ role: string; text: string }[]>([]);
@@ -147,6 +149,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const [confirmClear, setConfirmClear] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { data: packages = [] } = usePackages();
+  const { data: faqSuggestions = [] } = useFaqSuggestions();
 
   const copyMessage = (id: string, text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -635,21 +638,73 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
             </a>
           )}
 
-          {/* Suggestion Chips */}
-          {messages.length <= 2 && !typing && (
-            <div className="px-3 pt-2 pb-1 flex flex-wrap gap-1.5">
-              {SUGGESTION_CHIPS.map((chip) => (
-                <button
-                  key={chip.text}
-                  onClick={() => sendChip(chip.text)}
-                  disabled={typing}
-                  className="text-[11px] px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-colors font-medium whitespace-nowrap disabled:opacity-50"
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Dynamic FAQ Suggestions */}
+          {messages.length <= 2 && !typing && (() => {
+            const cats = getCategories(faqSuggestions);
+            const visibleFaqs = activeSuggestCat === "all"
+              ? faqSuggestions.slice(0, 6)
+              : faqSuggestions.filter(f => f.category === activeSuggestCat).slice(0, 6);
+            const hasDynamic = faqSuggestions.length > 0;
+            const staticChips = SUGGESTION_CHIPS;
+            return (
+              <div className="px-3 pt-2 pb-1 space-y-1.5 border-t border-gray-100">
+                {hasDynamic && cats.length > 1 && (
+                  <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-0.5">
+                    <button
+                      onClick={() => setActiveSuggestCat("all")}
+                      className={cn(
+                        "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap",
+                        activeSuggestCat === "all"
+                          ? "bg-primary text-white border-primary"
+                          : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                      )}
+                    >
+                      Semua
+                    </button>
+                    {cats.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveSuggestCat(cat)}
+                        className={cn(
+                          "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap",
+                          activeSuggestCat === cat
+                            ? "bg-primary text-white border-primary"
+                            : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                        )}
+                      >
+                        {CATEGORY_EMOJI[cat] ?? "💬"} {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {hasDynamic
+                    ? visibleFaqs.map((faq) => (
+                        <button
+                          key={faq.id}
+                          onClick={() => sendChip(faq.question)}
+                          disabled={typing}
+                          className="text-[11px] px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-colors font-medium whitespace-nowrap disabled:opacity-50 max-w-[220px] truncate"
+                          title={faq.question}
+                        >
+                          {faq.question}
+                        </button>
+                      ))
+                    : staticChips.map((chip) => (
+                        <button
+                          key={chip.text}
+                          onClick={() => sendChip(chip.text)}
+                          disabled={typing}
+                          className="text-[11px] px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-colors font-medium whitespace-nowrap disabled:opacity-50"
+                        >
+                          {chip.label}
+                        </button>
+                      ))
+                  }
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Input */}
           <div className="px-3 pt-2 pb-3 border-t flex flex-col gap-1.5">
