@@ -453,12 +453,37 @@ export function StepReviewDynamic({
             <span>Total Pembayaran</span>
             <span className="text-primary">{formatCurrency(totalPrice)}</span>
           </div>
-          
+
+          {paymentMode === 'dp' && (
+            <>
+              <Separator className="my-2" />
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Bayar Sekarang (DP)</span>
+                <span className="font-medium">{formatCurrency(dpAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Sisa Pelunasan</span>
+                <span>{formatCurrency(Math.max(0, totalPrice - dpAmount))}</span>
+              </div>
+            </>
+          )}
+
           <p className="text-xs text-muted-foreground mt-2">
             * Pembayaran dapat dilakukan setelah booking dikonfirmasi
           </p>
         </CardContent>
       </Card>
+
+      {/* Mode Pembayaran */}
+      <PaymentModeSelector
+        totalPrice={totalPrice}
+        mode={paymentMode}
+        dpAmount={dpAmount}
+        savingsPlanId={savingsPlanId}
+        onModeChange={(m) => onPaymentModeChange?.(m, dpAmount, savingsPlanId)}
+        onDpAmountChange={(a) => onPaymentModeChange?.('dp', a, savingsPlanId)}
+        onSavingsPlanChange={(id) => onPaymentModeChange?.('savings', dpAmount, id)}
+      />
     </div>
   );
 }
