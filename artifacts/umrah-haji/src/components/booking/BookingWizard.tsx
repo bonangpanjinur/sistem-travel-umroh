@@ -118,6 +118,8 @@ export function BookingWizard() {
     cancellationAgreed, setCancellationAgreed,
   } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
 
+  const [paymentStepValid, setPaymentStepValid] = useState(true);
+
   const bookingMode = (packageInfo as any)?.booking_mode || 'umroh';
   const isHaji = bookingMode === 'haji';
   const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
@@ -132,20 +134,8 @@ export function BookingWizard() {
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const totalPassengers = formData.passengers.length;
 
-  // Validasi mode pembayaran (Step 4)
-  const totalEstimate = formData.passengers.reduce((sum, _p) => sum + 0, 0); // jaga-jaga; total final dihitung di Step Review
-  const paymentValid = (() => {
-    const mode = formData.paymentMode || 'full';
-    if (mode === 'full') return true;
-    if (mode === 'dp') {
-      const dp = formData.dpAmount || 0;
-      // Validasi minimal 30% akan diperiksa di Step Review (butuh totalPrice).
-      // Di sini cukup pastikan DP > 0.
-      return dp > 0;
-    }
-    if (mode === 'savings') return !!formData.savingsPlanId;
-    return false;
-  })();
+  // Validasi mode pembayaran (Step 4) — dihitung penuh di StepReviewDynamic dengan totalPrice
+  const paymentValid = paymentStepValid;
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
@@ -306,6 +296,7 @@ export function BookingWizard() {
               onPaymentModeChange={(mode, dp, savingsId) =>
                 updateFormData({ paymentMode: mode, dpAmount: dp, savingsPlanId: savingsId })
               }
+              onPaymentValidityChange={setPaymentStepValid}
             />
           )}
         </CardContent>
