@@ -536,4 +536,3 @@ function CustomLabelBadges({ packageId }: { packageId: string }) {
   if (labels.length === 0) return null;
   return <PackageLabelBadges labels={labels} />;
 }
-}
