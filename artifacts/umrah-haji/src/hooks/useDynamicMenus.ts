@@ -30,7 +30,7 @@ export interface MenuGroup {
 }
 
 export const useDynamicMenus = () => {
-  const { user, hasRole, isStaff } = useAuth();
+  const { user, roles, hasRole, isStaff } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
 
   const isStaffUser = isStaff();
@@ -41,8 +41,8 @@ export const useDynamicMenus = () => {
     queryFn: async () => {
       if (!user || isSuperAdmin || !isStaffUser) return [] as string[];
 
-      // Support Role Inheritance
-      const userRoles = (user as any).roles || [] as AppRole[];
+      // RBAC-F1: Source roles from useAuth().roles (DB user_roles table) — not auth metadata.
+      const userRoles: AppRole[] = roles || [];
       const expandedRoles: AppRole[] = [...userRoles];
       userRoles.forEach((role: AppRole) => {
         expandedRoles.push(...getInheritedRoles(role));
@@ -90,14 +90,14 @@ export const useDynamicMenus = () => {
   // or role_permissions table is empty. Uses ROLE_DEFAULT_PERMISSIONS as the default.
   const roleBasedFallbackKeys = useMemo(() => {
     if (isSuperAdmin || !isStaffUser || !user) return [] as string[];
-    const userRoles: string[] = (user as any)?.roles || [];
+    const userRoles: string[] = roles || [];
     const keys = new Set<string>();
     userRoles.forEach((role) => {
       const defaults = ROLE_DEFAULT_PERMISSIONS[role] || [];
       defaults.forEach((k) => keys.add(k));
     });
     return Array.from(keys);
-  }, [isSuperAdmin, isStaffUser, user]);
+  }, [isSuperAdmin, isStaffUser, user, roles]);
 
   // Fetch all menus (DB) - with optimized caching
   const { data: dbMenus = [], isLoading, error, refetch } = useQuery({
