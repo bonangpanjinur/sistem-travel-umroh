@@ -37,7 +37,7 @@ export const useDynamicMenus = () => {
 
   // Fetch the effective permission set for the current user (role default + user overrides)
   const { data: effectiveKeys = [] } = useQuery({
-    queryKey: ['user-effective-permissions', user?.id],
+    queryKey: ['user-effective-permissions', user?.id, roles?.join(',')],
     queryFn: async () => {
       if (!user || isSuperAdmin || !isStaffUser) return [] as string[];
 
