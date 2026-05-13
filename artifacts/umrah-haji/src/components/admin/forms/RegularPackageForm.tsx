@@ -56,6 +56,7 @@ const regularPackageSchema = z.object({
   excludes: z.string().optional(),
   is_featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
+  currency: z.enum(["IDR", "USD", "SAR", "EUR", "MYR"]).default("IDR"),
   // PIC Fee fields
   fee_branch: z.coerce.number().min(0, "Fee cabang tidak boleh negatif").default(0),
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
