@@ -825,16 +825,19 @@ export type Database = {
           customer_id: string
           departure_id: string
           discount_amount: number | null
+          dp_amount: number | null
           exchange_rate: number
           id: string
           infant_count: number | null
           notes: string | null
           paid_amount: number | null
           payment_deadline: string | null
+          payment_mode: string
           payment_status: Database["public"]["Enums"]["payment_status"] | null
           remaining_amount: number | null
           room_type: Database["public"]["Enums"]["room_type"]
           sales_id: string | null
+          savings_plan_id: string | null
           total_pax: number | null
           total_price: number
           total_price_idr: number | null
@@ -855,16 +858,19 @@ export type Database = {
           customer_id: string
           departure_id: string
           discount_amount?: number | null
+          dp_amount?: number | null
           exchange_rate?: number
           id?: string
           infant_count?: number | null
           notes?: string | null
           paid_amount?: number | null
           payment_deadline?: string | null
+          payment_mode?: string
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           remaining_amount?: number | null
           room_type?: Database["public"]["Enums"]["room_type"]
           sales_id?: string | null
+          savings_plan_id?: string | null
           total_pax?: number | null
           total_price: number
           total_price_idr?: number | null
@@ -885,16 +891,19 @@ export type Database = {
           customer_id?: string
           departure_id?: string
           discount_amount?: number | null
+          dp_amount?: number | null
           exchange_rate?: number
           id?: string
           infant_count?: number | null
           notes?: string | null
           paid_amount?: number | null
           payment_deadline?: string | null
+          payment_mode?: string
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           remaining_amount?: number | null
           room_type?: Database["public"]["Enums"]["room_type"]
           sales_id?: string | null
+          savings_plan_id?: string | null
           total_pax?: number | null
           total_price?: number
           total_price_idr?: number | null
@@ -929,6 +938,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_financial_summary"
             referencedColumns: ["departure_id"]
+          },
+          {
+            foreignKeyName: "bookings_savings_plan_id_fkey"
+            columns: ["savings_plan_id"]
+            isOneToOne: false
+            referencedRelation: "savings_plans"
+            referencedColumns: ["id"]
           },
         ]
       }

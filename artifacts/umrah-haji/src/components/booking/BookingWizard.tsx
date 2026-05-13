@@ -285,6 +285,12 @@ export function BookingWizard() {
               onUpdatePassengers={(passengers) => updateFormData({ passengers })}
               cancellationAgreed={cancellationAgreed ?? undefined}
               onCancellationAgreedChange={setCancellationAgreed}
+              paymentMode={formData.paymentMode || 'full'}
+              dpAmount={formData.dpAmount || 0}
+              savingsPlanId={formData.savingsPlanId}
+              onPaymentModeChange={(mode, dp, savingsId) =>
+                updateFormData({ paymentMode: mode, dpAmount: dp, savingsPlanId: savingsId })
+              }
             />
           )}
         </CardContent>
@@ -293,7 +299,15 @@ export function BookingWizard() {
       <div className="flex justify-between">
         <Button variant="outline" onClick={handlePrev} disabled={currentStepIndex === 0}>Sebelumnya</Button>
         {currentStep === 'review' ? (
-          <Button onClick={handleSubmit} disabled={isSubmitting || !picValidation.isValid || cancellationAgreed === false}>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              isSubmitting ||
+              !picValidation.isValid ||
+              cancellationAgreed === false ||
+              (formData.paymentMode === 'savings' && !formData.savingsPlanId)
+            }
+          >
             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses...</> : 'Konfirmasi Booking'}
           </Button>
         ) : (

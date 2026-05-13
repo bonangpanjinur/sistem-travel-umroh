@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { RoomType } from "@/types/database";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { PaymentModeSelector, PaymentMode } from "@/components/booking/PaymentModeSelector";
 
 interface StepReviewDynamicProps {
   formData: DynamicBookingFormData;
@@ -47,6 +48,10 @@ interface StepReviewDynamicProps {
   onUpdatePassengers?: (passengers: any[]) => void;
   cancellationAgreed?: boolean;
   onCancellationAgreedChange?: (agreed: boolean) => void;
+  onPaymentModeChange?: (mode: PaymentMode, dpAmount: number, savingsPlanId?: string) => void;
+  paymentMode?: PaymentMode;
+  dpAmount?: number;
+  savingsPlanId?: string;
 }
 
 const ROOM_LABELS: Record<RoomType, string> = {
@@ -56,7 +61,12 @@ const ROOM_LABELS: Record<RoomType, string> = {
   single: 'Single',
 };
 
-export function StepReviewDynamic({ formData, packageInfo, departureInfo, departurePrices, onCouponApplied, onReferralApplied, onUpdatePassengers, cancellationAgreed, onCancellationAgreedChange }: StepReviewDynamicProps) {
+export function StepReviewDynamic({
+  formData, packageInfo, departureInfo, departurePrices,
+  onCouponApplied, onReferralApplied, onUpdatePassengers,
+  cancellationAgreed, onCancellationAgreedChange,
+  onPaymentModeChange, paymentMode = 'full', dpAmount = 0, savingsPlanId,
+}: StepReviewDynamicProps) {
   const { user } = useAuth();
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
@@ -443,12 +453,37 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
             <span>Total Pembayaran</span>
             <span className="text-primary">{formatCurrency(totalPrice)}</span>
           </div>
-          
+
+          {paymentMode === 'dp' && (
+            <>
+              <Separator className="my-2" />
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Bayar Sekarang (DP)</span>
+                <span className="font-medium">{formatCurrency(dpAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Sisa Pelunasan</span>
+                <span>{formatCurrency(Math.max(0, totalPrice - dpAmount))}</span>
+              </div>
+            </>
+          )}
+
           <p className="text-xs text-muted-foreground mt-2">
             * Pembayaran dapat dilakukan setelah booking dikonfirmasi
           </p>
         </CardContent>
       </Card>
+
+      {/* Mode Pembayaran */}
+      <PaymentModeSelector
+        totalPrice={totalPrice}
+        mode={paymentMode}
+        dpAmount={dpAmount}
+        savingsPlanId={savingsPlanId}
+        onModeChange={(m) => onPaymentModeChange?.(m, dpAmount, savingsPlanId)}
+        onDpAmountChange={(a) => onPaymentModeChange?.('dp', a, savingsPlanId)}
+        onSavingsPlanChange={(id) => onPaymentModeChange?.('savings', dpAmount, id)}
+      />
     </div>
   );
 }
