@@ -3014,7 +3014,7 @@ LAPISAN 3: TABUNGAN (Savings)
 
 ### 21B — GAP KRITIS SISTEM LOYALITAS
 
-#### 🔴 LOY-F1: Poin Loyalitas Tidak Dihitung Secara Otomatis
+#### ✅ LOY-F1: Poin Loyalitas Tidak Dihitung Secara Otomatis — DONE
 
 **Masalah:** `MyLoyalty.tsx` menampilkan data dari tabel `loyalty_points` dan `loyalty_transactions`, tapi tidak ada hook atau trigger yang otomatis menambah poin saat jamaah melakukan pembayaran.
 
@@ -3029,7 +3029,7 @@ Tidak ditemukan `useAutoLoyalty.ts` atau trigger Supabase yang terhubung ke tabe
 
 ---
 
-#### 🔴 LOY-F2: Benefit Tier Tidak Nyata — Tidak Ada Implementasi
+#### ✅ LOY-F2: Benefit Tier Tidak Nyata — DONE (Silver 0%/Gold 2%/Platinum 5% diskon di booking wizard)
 
 **Masalah:** Tier Silver/Gold/Platinum ada di `TIER_CONFIG`, tapi tidak ada implementasi benefit nyata:
 - Silver/Gold/Platinum mendapat diskon berapa? → tidak terdefinisi di kode
@@ -3286,7 +3286,7 @@ TABEL departures (Jadwal Keberangkatan per Paket)
 
 ### 23B — GAP KRITIS SISTEM PAKET
 
-#### 🔴 PAK-F1: Multi-Currency Ada di DB Tapi TIDAK Diimplementasikan di Frontend
+#### ✅ PAK-F1: Multi-Currency Ada di DB Tapi TIDAK Diimplementasikan di Frontend — DONE (formatCurrency locale-aware)
 
 **Ini gap paling kritis yang diminta untuk dianalisis.**
 
@@ -3659,7 +3659,7 @@ ALUR PAKET TABUNGAN
 
 ### 25B — GAP KRITIS ALUR TABUNGAN
 
-#### 🔴 TAB-F1: Tidak Ada Proses Konversi Tabungan → Booking yang Jelas
+#### ✅ TAB-F1: Konversi Tabungan → Booking — DONE (RPC convert_savings_to_booking + dialog)
 
 **Masalah Terbesar:** Alur konversi tabungan ke booking nyata belum diimplementasikan di frontend.
 
@@ -3687,7 +3687,7 @@ saat status = 'completed':
 
 ---
 
-#### 🔴 TAB-F2: Harga Terkunci Saat Daftar Tapi Tidak Diimplementasikan
+#### ✅ TAB-F2: Harga Terkunci — DONE (kolom locked_price + price-protection di konversi)
 
 **Masalah:** `SavingsPackageForm` menyebutkan "harga dikunci saat registrasi", tapi:
 - `savings_plans` tidak ada kolom `locked_price` atau `locked_at`
@@ -3703,7 +3703,7 @@ saat status = 'completed':
 
 ---
 
-#### 🔴 TAB-F3: Tidak Ada Jadwal Cicilan yang Jelas
+#### ✅ TAB-F3: Jadwal Cicilan — DONE (tabel savings_schedules + auto-generate + alokasi otomatis)
 
 **Masalah:** Cicilan tabungan sangat fleksibel — customer bisa bayar berapa saja kapan saja. Tidak ada jadwal cicilan dengan tanggal jatuh tempo.
 
