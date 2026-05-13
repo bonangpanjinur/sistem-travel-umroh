@@ -2817,7 +2817,7 @@ Agen harus buka portal dan refresh manual.
 
 | ID | Fitur | Prioritas | Estimasi |
 |----|-------|-----------|----------|
-| AGEN-ADD1 | **Manajemen rekening bank** — form simpan info bank untuk withdrawal | 🔴 Segera | 1 hari |
+| AGEN-ADD1 | ✅ **Manajemen rekening bank** — form bank di AgentSettings (Nama Bank/No. Rek/Pemilik) (DONE) | ✅ Done | 1 hari |
 | AGEN-ADD2 | **Fix tabel training** — pastikan migration + seed data ada | 🔴 Segera | 0.5 hari |
 | AGEN-ADD3 | **Notifikasi real-time agen** — push notification + in-app bell | 🟠 Penting | 2 hari |
 | AGEN-ADD4 | **Halaman Jamaah untuk sub-agen** — filter data milik sub-agen | 🟠 Penting | 1 hari |
