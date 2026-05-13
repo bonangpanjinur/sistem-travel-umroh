@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, Hotel, CreditCard, Plane, CheckCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLoyaltyTier, TIER_LABELS } from "@/hooks/useLoyaltyTier";
+import { Sparkles } from "lucide-react";
 
 interface StepReviewSimpleProps {
   formData: SimpleBookingFormData;
@@ -23,6 +25,7 @@ const ROOM_LABELS: Record<string, string> = {
 };
 
 export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps) {
+  const { data: loyalty } = useLoyaltyTier();
   // Fetch package details
   const { data: packageData, isLoading: packageLoading } = useQuery({
     queryKey: ['package-review', packageId],
