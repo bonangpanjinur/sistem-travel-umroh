@@ -627,6 +627,31 @@ export default function BranchWebsiteSettings() {
       </Tabs>
 
       <QrDialog url={websiteUrl} open={showQr} onClose={() => setShowQr(false)} />
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 overflow-hidden">
+          <DialogHeader className="px-4 py-3 border-b">
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Eye className="h-4 w-4" /> Preview Website Cabang
+              <span className="ml-2 text-xs text-muted-foreground font-normal truncate">{websiteUrl}</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto"
+                onClick={() => setPreviewKey(k => k + 1)}
+              >
+                Refresh
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <iframe
+            key={previewKey}
+            src={`/b/${branchSlug}`}
+            title="Preview website cabang"
+            className="w-full h-full border-0 bg-background"
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
