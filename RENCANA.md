@@ -3602,7 +3602,7 @@ Ini mengurangi drop-off antara "booking berhasil" dan "payment dilakukan".
 | BOOK-FIX2 | **Booking wizard adaptif tipe paket** — mode haji vs umroh vs wisata | 🔴 Kritis | 2 hari |
 | BOOK-FIX3 | **Seat hold system** — lock kursi sementara selama wizard | 🟠 Penting | 1.5 hari |
 | BOOK-FIX4 | **Opsi bayar di Step 4 wizard** — pilih DP/full/tabungan langsung | 🟠 Penting | 1 hari |
-| BOOK-FIX5 | **Cek kelayakan dokumen pre-booking** — warning jika dokumen belum lengkap | 🟠 Penting | 1 hari |
+| BOOK-FIX5 | ✅ **Cek kelayakan dokumen pre-booking** — warning NIK/paspor di Step Review (DONE) | ✅ Done | 1 hari |
 | BOOK-FIX6 | **Webhook Midtrans otomatis** — auto-confirm + WA notifikasi | 🟠 Penting | 1 hari |
 | BOOK-FIX7 | **Guest checkout recovery** — link akses booking via email/WA | 🟡 Sedang | 0.5 hari |
 
