@@ -3321,7 +3321,7 @@ export function formatCurrency(amount: number, currency: string = 'IDR'): string
 
 ---
 
-#### 🔴 PAK-F2: `RegularPackageForm` Tidak Ada Field Currency
+#### ✅ PAK-F2: `RegularPackageForm` Field Currency — DONE (Select IDR/USD/SAR/EUR/MYR di Info Dasar)
 
 **Masalah:** Form pembuatan paket (`RegularPackageForm.tsx`) tidak punya field untuk memilih mata uang. Zod schema tidak mencantumkan `currency`. Artinya:
 - Admin tidak bisa set currency saat buat paket Haji
@@ -3339,7 +3339,7 @@ Tambahkan di RegularPackageForm:
 
 ---
 
-#### 🔴 PAK-F3: `DepartureForm` Juga Tidak Ada Field Currency
+#### ✅ PAK-F3: Currency di Departure — N/A (currency live di tingkat package; departure mewarisi via FK)
 
 **Masalah:** Harga real per jadwal keberangkatan ada di `DepartureForm` (bukan di paket template). Field `price_quad`, `price_triple`, dll di form ini tidak punya pilihan currency. Semua asumsi IDR.
 
