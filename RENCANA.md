@@ -59,8 +59,39 @@
 
 _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 
-### 🟡 Belum Selesai — Prioritas Sedang
-GAP-PWA-07/08/09/10, GAP-RBAC-08/09/10/11, CSS-FIX-4/5, AGEN-ADD5/6/7/8, CAB-ADD6/7/8, LOY-FIX5/6/7/8, KEP-FIX6/7/8.
+### ✅ Tambahan Selesai (Sprint 9 — batch prioritas sedang)
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| GAP-PWA-07 | Manifest shortcuts dinamis | Tertangani oleh GAP-PWA-01 (manifest edge function) |
+| GAP-PWA-09 | Deteksi mode fullscreen/minimal-ui | `usePWAMode.ts` matchMedia diperluas |
+| GAP-PWA-10 | Statistik install PWA | Tabel `pwa_install_events` + hook `usePWAInstallTracker` (dipasang di `App.tsx`) + halaman `/admin/pwa-install-stats` |
+| GAP-RBAC-08 | Simulasi akses user | `/admin/access-simulator` (`AdminAccessSimulator.tsx`) — pilih user, lihat menu allowed/denied |
+| GAP-RBAC-09 | Dokumentasi customer vs jamaah | Komentar di `permissions.ts` & alias hook konsisten |
+| GAP-RBAC-10 | Permission `pwa-settings` terpisah | Constant `PERMISSIONS.PWA_SETTINGS` + entri di `permissions_list` + route diperbarui |
+| GAP-RBAC-11 | Fallback registry → cache localStorage | Sudah ditangani RBAC-F3 (cache hit terakhir, bukan full access) |
+| CSS-FIX-4 | Cache 5 menit + staleTime 2 menit | `useWebsiteSettingsOptimized.ts` |
+| CSS-FIX-5 | Hapus duplikasi hook lama | `useWebsiteSettings.ts` sekarang re-export dari Optimized |
+| AGEN-ADD5 | Kalkulator komisi | `/admin/commission-calculator` |
+| AGEN-ADD8 | Leaderboard realtime | `useRealtimeSubscription` ke `bookings` & `agent_commissions` di `AgentLeaderboard` |
+| CAB-ADD8 | Transfer booking antar cabang | Tabel `booking_transfers` + halaman `/admin/booking-transfers` (request → approve/reject + auto-update branch) |
+| LOY-FIX5 | Auto-upgrade tier agen | Trigger `tg_auto_upgrade_agent_membership` di `agent_commissions` (bronze→silver→gold→platinum berdasar komisi YTD) |
+| LOY-FIX7 | Expiry poin loyalitas | Tabel `loyalty_point_expiry` (status active/expired/consumed) |
+| KEP-FIX6 | Manajemen bagasi per maskapai | Tabel `baggage_policies` + `/admin/baggage-policies` |
+| KEP-FIX7 | Survey pasca keberangkatan | Tabel `departure_surveys` + `/admin/post-departure-survey` (rating overall/hotel/food/muthawif + komentar) |
+| KEP-FIX8 | Export ICS | Utility `lib/ics-export.ts` (`buildIcs`, `downloadIcs`) |
+
+### 🟡 Belum Selesai — Prioritas Sedang (sisa)
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| GAP-PWA-08 | Preview "Tampilan App" iframe di admin | Belum — perlu route `?preview=standalone` + tab di AdminPWASettings |
+| AGEN-ADD6 | Generate booking link dari lead CRM | Belum — perlu tombol di `AdminLeadDetail` |
+| AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA Vite tanpa migrasi ke Next/Remix — ditunda |
+| CAB-ADD6 | Iframe preview website cabang sebelum simpan | Belum |
+| CAB-ADD7 | Date range filter di dashboard cabang | Belum |
+| LOY-FIX6 | Download Digital ID sebagai gambar | Belum — perlu integrasi `html2canvas` |
+| LOY-FIX8 | Default reward image + upload UI | Belum |
 
 > Detail lengkap setiap item ada di section masing-masing di bawah.
 
