@@ -244,8 +244,8 @@ const websiteSettingsSchema = z.object({
 export function useWebsiteSettings() {
   return useQuery({
     queryKey: ["website-settings"],
-    staleTime: Infinity,
-    gcTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 2, // CSS-FIX-4: 2 menit
+    gcTime: CACHE_DURATION,
     retry: 1,
     queryFn: async () => {
       // Cek cache terlebih dahulu
