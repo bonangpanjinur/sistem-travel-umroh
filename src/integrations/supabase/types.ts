@@ -658,6 +658,50 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_access_tokens: {
+        Row: {
+          booking_id: string
+          created_at: string
+          email: string | null
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          phone: string | null
+          token: string
+          used_count: number
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          phone?: string | null
+          token: string
+          used_count?: number
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          phone?: string | null
+          token?: string
+          used_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_access_tokens_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_passengers: {
         Row: {
           booking_id: string
@@ -3655,6 +3699,48 @@ export type Database = {
         }
         Relationships: []
       }
+      midtrans_webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          fraud_status: string | null
+          gross_amount: number | null
+          id: string
+          order_id: string
+          payload: Json | null
+          payment_type: string | null
+          processed: boolean
+          signature_valid: boolean
+          transaction_status: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          fraud_status?: string | null
+          gross_amount?: number | null
+          id?: string
+          order_id: string
+          payload?: Json | null
+          payment_type?: string | null
+          processed?: boolean
+          signature_valid?: boolean
+          transaction_status?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          fraud_status?: string | null
+          gross_amount?: number | null
+          id?: string
+          order_id?: string
+          payload?: Json | null
+          payment_type?: string | null
+          processed?: boolean
+          signature_valid?: boolean
+          transaction_status?: string | null
+        }
+        Relationships: []
+      }
       muthawifs: {
         Row: {
           created_at: string | null
@@ -5388,6 +5474,54 @@ export type Database = {
         }
         Relationships: []
       }
+      seat_holds: {
+        Row: {
+          created_at: string
+          departure_id: string
+          expires_at: string
+          id: string
+          pax_count: number
+          released_at: string | null
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          departure_id: string
+          expires_at?: string
+          id?: string
+          pax_count?: number
+          released_at?: string | null
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          departure_id?: string
+          expires_at?: string
+          id?: string
+          pax_count?: number
+          released_at?: string | null
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_holds_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_holds_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["departure_id"]
+          },
+        ]
+      }
       static_pages: {
         Row: {
           content: string
@@ -6894,6 +7028,7 @@ export type Database = {
         Args: { _permission_key: string; _user_id: string }
         Returns: boolean
       }
+      cleanup_expired_seat_holds: { Args: never; Returns: number }
       convert_savings_to_booking: {
         Args: {
           _departure_id: string
@@ -6939,6 +7074,10 @@ export type Database = {
         Args: { _currency_from: string; _currency_to?: string }
         Returns: number
       }
+      get_active_seat_holds: {
+        Args: { _departure_id: string }
+        Returns: number
+      }
       get_booking_customer_ids_for_user: {
         Args: { _user_id: string }
         Returns: string[]
@@ -6977,6 +7116,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      hold_departure_seats: {
+        Args: {
+          _departure_id: string
+          _pax_count?: number
+          _session_id: string
+        }
+        Returns: Json
       }
       increment_departure_booked: {
         Args: { _departure_id: string; _pax: number }
@@ -7034,6 +7181,11 @@ export type Database = {
       recalculate_departure_booked_count: {
         Args: { p_departure_id?: string }
         Returns: undefined
+      }
+      redeem_booking_access_token: { Args: { _token: string }; Returns: Json }
+      release_seat_hold: {
+        Args: { _departure_id?: string; _session_id: string }
+        Returns: number
       }
       reset_role_permissions: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
