@@ -14,8 +14,8 @@
     <meta name="apple-mobile-web-app-title" content="Vinstour" />
     <meta name="theme-color" content="#16a34a" />
 
-    <!-- PWA Manifest (dynamic — served from API server with live settings) -->
-    <link rel="manifest" href="/api/manifest.json" />
+    <!-- PWA Manifest (dynamic — served from Supabase Edge Function with live settings) (GAP-PWA-01) -->
+    <link rel="manifest" id="pwa-manifest" href="https://ribjppjnjigiowhjgngu.supabase.co/functions/v1/manifest" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -50,6 +50,30 @@
             Object.keys(cssVars).forEach(key => {
               root.style.setProperty(key, cssVars[key]);
             });
+          }
+
+          // CSS-FIX-2: Restore fonts from localStorage BEFORE React mounts
+          // to eliminate the visible font swap on subsequent loads.
+          const cachedFonts = localStorage.getItem('website-fonts-cache');
+          if (cachedFonts) {
+            const { heading, body } = JSON.parse(cachedFonts);
+            const root = document.documentElement;
+            if (heading) root.style.setProperty('--font-display', '"' + heading + '", sans-serif');
+            if (body) root.style.setProperty('--font-sans', '"' + body + '", sans-serif');
+
+            // Inject Google Fonts <link> for the cached pair so the font is fetched
+            // in parallel with React bootstrap, not after it mounts.
+            const PRELOADED = new Set(['Inter', 'Plus Jakarta Sans']);
+            const custom = [heading, body].filter(Boolean).filter(f => !PRELOADED.has(f));
+            const unique = Array.from(new Set(custom));
+            if (unique.length > 0 && !document.getElementById('dynamic-google-fonts')) {
+              const families = unique.map(f => f.replace(/\s+/g, '+')).join('&family=');
+              const link = document.createElement('link');
+              link.id = 'dynamic-google-fonts';
+              link.rel = 'stylesheet';
+              link.href = 'https://fonts.googleapis.com/css2?family=' + families + ':wght@400;500;600;700&display=swap';
+              document.head.appendChild(link);
+            }
           }
 
           // Restore Google Search Console Verification

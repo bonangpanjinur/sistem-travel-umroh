@@ -1,4 +1,6 @@
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { getTheme, RADIUS_MAP, DENSITY_MAP } from '@/lib/themes/registry';
 
@@ -233,6 +235,7 @@ function generateSettingsHash(settings: WebsiteSettings | null | undefined): str
 export function ThemeProvider({ children, settings: propSettings }: ThemeProviderProps) {
   const { data: fetchedSettings } = useWebsiteSettings();
   const settings = propSettings !== undefined ? propSettings : fetchedSettings;
+  const queryClient = useQueryClient();
 
   const cssVariables = useMemo(() => generateCSSVariables(settings), [settings]);
   const settingsHash = useMemo(() => generateSettingsHash(settings), [settings]);
@@ -293,10 +296,41 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
       } else {
         localStorage.removeItem('website-seo-verification');
       }
+
+      // CSS-FIX-2: Persist active fonts so index.html can restore them
+      // BEFORE React mounts on the next visit (eliminates font swap).
+      if (settings.heading_font || settings.body_font) {
+        localStorage.setItem('website-fonts-cache', JSON.stringify({
+          heading: settings.heading_font || null,
+          body: settings.body_font || null,
+        }));
+      }
     } catch {
       // Ignore quota errors
     }
   }, [settingsHash, cssVariables, settings]);
+
+  // CSS-FIX-3: Realtime invalidation — when admin edits website_settings,
+  // every connected client invalidates its cached query and clears localStorage
+  // so the new theme/font/colors take effect immediately without manual refresh.
+  useEffect(() => {
+    if (propSettings !== undefined) return; // tenant-scoped tree manages its own data
+    const channel = supabase
+      .channel('website-settings-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'website_settings' },
+        () => {
+          try {
+            localStorage.removeItem('website-settings-cache');
+            localStorage.removeItem('website-settings-cache-time');
+          } catch { /* ignore */ }
+          queryClient.invalidateQueries({ queryKey: ['website-settings'] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient, propSettings]);
 
   return <>{children}</>;
 }

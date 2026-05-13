@@ -5,8 +5,8 @@
  * Resolusi dilakukan di server via RPC `get_user_effective_permissions`.
  */
 
-import { useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { RECOMMENDED_MENUS, ROLE_DEFAULT_PERMISSIONS } from '@/lib/admin-menu-registry';
@@ -32,6 +32,7 @@ export interface MenuGroup {
 export const useDynamicMenus = () => {
   const { user, roles, hasRole, isStaff } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
+  const queryClient = useQueryClient();
 
   const isStaffUser = isStaff();
 
@@ -39,6 +40,40 @@ export const useDynamicMenus = () => {
   // when the DB / RPC fails (offline, network error) we restore from cache instead
   // of falling back to the registry defaults (which would grant near-full access).
   const cacheKey = user?.id ? `rbac.effective.${user.id}` : null;
+
+  // RBAC-F4: realtime invalidation — listen to user_permissions & user_roles
+  // changes for the current user so granted/revoked permissions take effect
+  // immediately without waiting for the 15-minute staleTime.
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`rbac-realtime-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_permissions', filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles', filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'role_permissions' },
+        () => {
+          // Role-wide change affects every user with that role.
+          queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, queryClient]);
+
   const readCache = (): string[] => {
     if (!cacheKey || typeof window === 'undefined') return [];
     try {
