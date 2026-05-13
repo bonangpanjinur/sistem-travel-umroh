@@ -43,18 +43,7 @@
 
 ### 🟠 Belum Selesai — Prioritas Tinggi (saran batch berikutnya)
 
-| Kode | Fitur |
-|------|-------|
-| CSS-FIX-6 | Critical CSS inline di `<head>` |
-| AGEN-ADD3 | Notifikasi real-time agen (push + bell) |
-| AGEN-ADD4 | Halaman jamaah untuk sub-agen |
-| CAB-ADD1 | RLS per cabang (kritis) |
-| CAB-ADD5 | Notifikasi branch manager (booking + approval) |
-| LOY-FIX1 | Auto-hitung poin loyalitas (trigger DB) |
-| LOY-FIX2 | Implementasi benefit tier (diskon nyata) |
-| KEP-FIX2 | Validasi mahram di manifest haji |
-| KEP-FIX4 | Dashboard "jamaah belum lengkap dokumen" |
-| KEP-FIX5 | Absensi harian jamaah di tanah suci |
+_(kosong — semua item prioritas tinggi sudah ditangani; lihat bagian "Tambahan Selesai" di bawah)_
 
 ### ✅ Tambahan Selesai (Sprint 9 lanjutan)
 
@@ -64,6 +53,16 @@
 | RBAC-F4 | Realtime invalidation permission | Subscribe `user_permissions`, `user_roles`, `role_permissions` → invalidate query `user-effective-permissions` |
 | CSS-FIX-2 | Font cache di localStorage | `website-fonts-cache` ditulis ThemeProvider, di-restore script di `<head>` sebelum React mount |
 | CSS-FIX-3 | Realtime invalidation tema | Subscribe `website_settings` → clear `website-settings-cache` + invalidate query |
+| CSS-FIX-6 | Critical CSS inline di `<head>` | Box-sizing reset, image/link/button defaults, sr-only utility, app-shell skeleton — supaya first paint tidak menunggu CSS bundle |
+| AGEN-ADD3 | Notifikasi real-time agen (push + bell) | `useAgentNotifications` + `AgentNotificationBell` (subscribe `agent_commissions`, `notifications`) — sudah aktif di `AgentLayoutEnhanced` |
+| AGEN-ADD4 | Halaman jamaah sub-agen | `/agent/sub-agent-jamaah` (`AgentSubAgentJamaah.tsx`) — list booking jamaah dari semua sub-agen |
+| CAB-ADD1 | RLS per cabang | Policy `Branch managers see only own branch …` di `bookings`, `customers`, `payments`. Helper `is_branch_manager_only(uid)` |
+| CAB-ADD5 | Notifikasi branch manager | Trigger DB `tg_notify_branch_manager_new_booking` + `tg_notify_branch_manager_payment_pending` → enqueue_push ke role `branch_manager` di branch terkait |
+| LOY-FIX1 | Auto-hitung poin loyalitas | Trigger `tr_award_loyalty_points` di `payments` (sudah aktif): 1 poin per Rp 100.000 + auto-tier upgrade |
+| LOY-FIX2 | Benefit tier (diskon nyata) | Tabel `tier_benefits` (silver/gold/platinum) + RPC `apply_tier_discount(customer_id, base_amount)` + halaman admin `/admin/loyalty/tier-benefits` |
+| KEP-FIX2 | Validasi mahram di manifest haji | Banner peringatan di `AdminManifestJamaah` saat ada wanita dewasa tanpa mahram (gunakan tabel `customer_mahrams`) |
+| KEP-FIX4 | Dashboard jamaah belum lengkap dokumen | `/admin/documents-incomplete` (`AdminIncompleteDocuments.tsx`) — list jamaah dengan KTP/Paspor belum diisi atau belum diverifikasi |
+| KEP-FIX5 | Absensi harian jamaah di tanah suci | Tabel `jamaah_daily_attendance` + halaman `/admin/absensi-harian` (`AdminAbsensiHarianTanahSuci.tsx`) — roll-call per tanggal & lokasi (Mekkah/Madinah/Mina/Arafah/Muzdalifah/Jeddah) |
 
 ### 🟡 Belum Selesai — Prioritas Sedang
 GAP-PWA-07/08/09/10, GAP-RBAC-08/09/10/11, CSS-FIX-4/5, AGEN-ADD5/6/7/8, CAB-ADD6/7/8, LOY-FIX5/6/7/8, KEP-FIX6/7/8.
