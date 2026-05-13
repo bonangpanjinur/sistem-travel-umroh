@@ -283,6 +283,24 @@ export default function MyLoyalty() {
                     )}
                   </div>
 
+                  {/* Tier benefits */}
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold">Benefit Tier {tierConfig.label}</p>
+                      {tierConfig.discount > 0 && (
+                        <Badge className="bg-emerald-600 text-white">Diskon {tierConfig.discount}%</Badge>
+                      )}
+                    </div>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      {tierConfig.benefits.map((b, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-primary mt-0.5">•</span>
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-3 bg-background rounded-lg">
