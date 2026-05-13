@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Mei 2026 (Sprint 8 SELESAI: K9 + J3 + K7 + P6 — tag/label kustom paket pakai tabel relasional `package_labels` & `package_label_assignments`)
+> **Terakhir diperbarui:** Mei 2026 (Sprint 9 — batch GAP-PWA + RBAC + CSS + AGEN + CAB + LOY + KEP fix)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
@@ -15,6 +15,55 @@
 | 🔴 | Belum dibangun |
 | 🟡 | Prioritas sedang — direncanakan |
 | 🟠 | Prioritas tinggi — harus dikerjakan segera |
+
+---
+
+## RINGKASAN BATCH PERBAIKAN (Sprint 9)
+
+### ✅ Sudah Selesai
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| GAP-PWA-04 | Splash screen dinamis dari Admin | Event `theme-ready` dari ThemeProvider |
+| GAP-PWA-05 | Bottom Nav role-aware | `RoleAwareBottomNav.tsx` |
+| GAP-PWA-06 | SW update notification | `PWAUpdateNotifier.tsx` |
+| CSS-FIX-1 | Loader disembunyikan setelah tema siap | event `theme-ready` + fallback 1.5s |
+| RBAC-F1 | Sumber roles dari `useAuth().roles` | `useDynamicMenus.ts` |
+| RBAC-F2 | VAPID private key pindah ke `Deno.env` secret | `send-push`, `process-push-queue` |
+| RBAC-F3 | Fallback permission ke localStorage cache | `useDynamicMenus.ts` |
+| AGEN-ADD1 | Manajemen rekening bank agen | Form di `AgentSettings` |
+| AGEN-ADD2 | Migration training_modules + quizzes + progress | RLS + seed 3 modul |
+| CAB-ADD2 | Manajemen staff cabang | `/cabang/staff` |
+| CAB-ADD3 | Dashboard perbandingan cabang | `/admin/branches/comparison` (KPI + chart + leaderboard) |
+| CAB-ADD4 | Export laporan cabang | xlsx + jsPDF autoTable di `BranchLaporan` |
+| LOY-FIX3 | Trigger badge otomatis | 5 trigger DB + tabel `jamaah_badges` |
+| LOY-FIX4 | Reminder tabungan (H-3 + overdue) | edge `check-savings-reminders` + pg_cron 02:00 UTC |
+| KEP-FIX1 | Reminder deadline dokumen/visa | edge `check-document-deadlines` + pg_cron 00:00 UTC |
+| BUILD-FIX | TypeScript error di `PackageCompare.tsx` (ref `pkg` undefined di `PriceBadge`) | prop `currency` ditambah |
+
+### 🟠 Belum Selesai — Prioritas Tinggi (saran batch berikutnya)
+
+| Kode | Fitur |
+|------|-------|
+| GAP-PWA-01 | Manifest.json dinamis (saat ini statis) |
+| RBAC-F4 | Realtime invalidation permission via Supabase realtime |
+| CSS-FIX-2 | Simpan font di localStorage — hilangkan font swap |
+| CSS-FIX-3 | Realtime invalidation tema (`website_settings`) |
+| CSS-FIX-6 | Critical CSS inline di `<head>` |
+| AGEN-ADD3 | Notifikasi real-time agen (push + bell) |
+| AGEN-ADD4 | Halaman jamaah untuk sub-agen |
+| CAB-ADD1 | RLS per cabang (kritis) |
+| CAB-ADD5 | Notifikasi branch manager (booking + approval) |
+| LOY-FIX1 | Auto-hitung poin loyalitas (trigger DB) |
+| LOY-FIX2 | Implementasi benefit tier (diskon nyata) |
+| KEP-FIX2 | Validasi mahram di manifest haji |
+| KEP-FIX4 | Dashboard "jamaah belum lengkap dokumen" |
+| KEP-FIX5 | Absensi harian jamaah di tanah suci |
+
+### 🟡 Belum Selesai — Prioritas Sedang
+GAP-PWA-07/08/09/10, GAP-RBAC-08/09/10/11, CSS-FIX-4/5, AGEN-ADD5/6/7/8, CAB-ADD6/7/8, LOY-FIX5/6/7/8, KEP-FIX6/7/8.
+
+> Detail lengkap setiap item ada di section masing-masing di bawah.
 
 ---
 
