@@ -262,7 +262,7 @@ export function useBookingWizardDynamic(
           notes: formData.notes,
           branch_id: branchId,
           agent_id: agentId,
-        })
+        } as any)
         .select('id, booking_code')
         .single();
 
