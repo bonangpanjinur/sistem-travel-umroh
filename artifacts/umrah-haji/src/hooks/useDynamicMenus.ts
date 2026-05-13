@@ -35,6 +35,26 @@ export const useDynamicMenus = () => {
 
   const isStaffUser = isStaff();
 
+  // RBAC-F3: persist last-known-good effective permissions to localStorage so that
+  // when the DB / RPC fails (offline, network error) we restore from cache instead
+  // of falling back to the registry defaults (which would grant near-full access).
+  const cacheKey = user?.id ? `rbac.effective.${user.id}` : null;
+  const readCache = (): string[] => {
+    if (!cacheKey || typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(cacheKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed?.keys) ? parsed.keys : [];
+    } catch { return []; }
+  };
+  const writeCache = (keys: string[]) => {
+    if (!cacheKey || typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(cacheKey, JSON.stringify({ keys, ts: Date.now() }));
+    } catch { /* ignore quota errors */ }
+  };
+
   // Fetch the effective permission set for the current user (role default + user overrides)
   const { data: effectiveKeys = [] } = useQuery({
     queryKey: ['user-effective-permissions', user?.id, roles?.join(',')],
@@ -59,12 +79,22 @@ export const useDynamicMenus = () => {
         const { data: legacyData, error: legacyError } = await (supabase.rpc as any)('get_user_effective_permissions', {
           _user_id: user.id,
         });
-        if (legacyError) { console.error(legacyError); return [] as string[]; }
-        return ((legacyData || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+        if (legacyError) {
+          console.error('[RBAC-F3] legacy RPC failed, using localStorage cache', legacyError);
+          return readCache();
+        }
+        const keys = ((legacyData || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+        writeCache(keys);
+        return keys;
       }
 
-      if (error) { console.error(error); return [] as string[]; }
-      return ((data || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+      if (error) {
+        console.error('[RBAC-F3] permission RPC failed, using localStorage cache', error);
+        return readCache();
+      }
+      const keys = ((data || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+      writeCache(keys);
+      return keys;
     },
     enabled: !!user && !isSuperAdmin && isStaffUser,
     staleTime: 1000 * 60 * 15, // Sync with useEffectivePermissions (15m)

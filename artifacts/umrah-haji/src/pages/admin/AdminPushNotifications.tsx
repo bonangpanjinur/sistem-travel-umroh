@@ -38,12 +38,11 @@ export default function AdminPushNotifications() {
   const queryClient = useQueryClient();
   const { vapidConfig, saveVapidConfig, isSaving } = usePWAConfig();
   const [vapidDraft, setVapidDraft] = useState<PushVapidConfig>(DEFAULT_VAPID_CONFIG);
-  const [showPriv, setShowPriv] = useState(false);
 
   // Sync draft when config loads
   useEffect(() => {
     setVapidDraft(vapidConfig);
-  }, [vapidConfig.publicKey, vapidConfig.privateKey, vapidConfig.subject, vapidConfig.enabled]);
+  }, [vapidConfig.publicKey, vapidConfig.subject, vapidConfig.enabled]);
 
   const [recipientType, setRecipientType] = useState("all");
   const [selectedDeparture, setSelectedDeparture] = useState("");
@@ -484,19 +483,11 @@ export default function AdminPushNotifications() {
               <div>
                 <div className="flex items-center justify-between">
                   <Label>VAPID Private Key</Label>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowPriv((s) => !s)}>
-                    {showPriv ? "Sembunyikan" : "Tampilkan"}
-                  </Button>
                 </div>
-                <Textarea
-                  value={showPriv ? vapidDraft.privateKey : (vapidDraft.privateKey ? "•".repeat(Math.min(vapidDraft.privateKey.length, 43)) : "")}
-                  onChange={(e) => setVapidDraft((d) => ({ ...d, privateKey: e.target.value.trim() }))}
-                  rows={2}
-                  className="font-mono text-xs"
-                  placeholder="abc123...XYZ"
-                  readOnly={!showPriv && !!vapidDraft.privateKey}
-                />
-                <p className="text-xs text-amber-600 mt-1">⚠ RAHASIA. Hanya admin yang boleh tahu. Disimpan di database.</p>
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
+                  <p className="font-semibold">🔒 Private key TIDAK lagi disimpan di database (RBAC-F2).</p>
+                  <p>Set sebagai secret <code className="bg-amber-100 px-1 rounded">VAPID_PRIVATE_KEY</code> di Lovable Cloud → Settings → Secrets. Edge function <code>send-push</code> & <code>process-push-queue</code> akan membacanya otomatis.</p>
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">
