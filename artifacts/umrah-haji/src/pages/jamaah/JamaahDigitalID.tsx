@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
+import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +17,7 @@ import { toast } from "sonner";
 
 export default function JamaahDigitalID() {
   const { user } = useAuth();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Fetch customer data
   const { data: customer } = useQuery({
@@ -120,12 +123,25 @@ export default function JamaahDigitalID() {
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
-  const handleDownload = () => {
-    if (qrCodeUrl) {
+  const handleDownload = async () => {
+    if (!cardRef.current) return;
+    try {
+      toast.loading("Membuat gambar Digital ID...", { id: "dl-id" });
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.href = qrCodeUrl;
-      link.download = `digital-id-${customer?.full_name?.replace(/\s+/g, "-")}.png`;
+      link.href = dataUrl;
+      link.download = `digital-id-${(customer?.full_name || "jamaah").replace(/\s+/g, "-")}.png`;
       link.click();
+      toast.success("Digital ID berhasil diunduh", { id: "dl-id" });
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal mengunduh Digital ID", { id: "dl-id" });
     }
   };
 
@@ -148,7 +164,7 @@ export default function JamaahDigitalID() {
 
       <div className="p-4 space-y-4">
         {/* ID Card */}
-        <Card className="overflow-hidden">
+        <Card ref={cardRef} className="overflow-hidden">
           <div className="bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground p-6">
             <div className="flex items-center justify-between mb-4">
               <div>

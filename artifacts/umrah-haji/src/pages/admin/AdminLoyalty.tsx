@@ -56,6 +56,7 @@ export default function AdminLoyalty() {
     description: "",
     points_required: "",
     stock_quantity: "",
+    image_url: "",
   });
   const [pointFormData, setPointFormData] = useState({
     transaction_type: "EARN",
@@ -113,6 +114,7 @@ export default function AdminLoyalty() {
         description: data.description || null,
         points_required: parseInt(data.points_required),
         stock_quantity: parseInt(data.stock_quantity) || 0,
+        image_url: data.image_url?.trim() || null,
       };
       
       if (data.id) {
@@ -205,10 +207,11 @@ export default function AdminLoyalty() {
         description: reward.description || "",
         points_required: reward.points_required.toString(),
         stock_quantity: reward.stock_quantity.toString(),
+        image_url: reward.image_url || "",
       });
     } else {
       setEditingReward(null);
-      setRewardFormData({ name: "", description: "", points_required: "", stock_quantity: "" });
+      setRewardFormData({ name: "", description: "", points_required: "", stock_quantity: "", image_url: "" });
     }
     setRewardDialogOpen(true);
   };
@@ -376,8 +379,18 @@ export default function AdminLoyalty() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {rewards?.map((reward) => (
                   <Card key={reward.id} className="overflow-hidden">
-                    <div className="h-32 bg-muted flex items-center justify-center">
-                      <Gift className="h-12 w-12 text-muted-foreground" />
+                    <div className="h-32 bg-muted flex items-center justify-center overflow-hidden">
+                      {reward.image_url ? (
+                        <img
+                          src={reward.image_url}
+                          alt={reward.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <Gift className="h-12 w-12 text-muted-foreground" />
+                      )}
                     </div>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
@@ -495,6 +508,25 @@ export default function AdminLoyalty() {
                     onChange={(e) => setRewardFormData({ ...rewardFormData, stock_quantity: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>URL Gambar Reward</Label>
+                <Input
+                  type="url"
+                  placeholder="https://... (kosongkan untuk pakai ikon default)"
+                  value={rewardFormData.image_url}
+                  onChange={(e) => setRewardFormData({ ...rewardFormData, image_url: e.target.value })}
+                />
+                {rewardFormData.image_url && (
+                  <div className="mt-2 h-24 w-full bg-muted rounded-md overflow-hidden">
+                    <img
+                      src={rewardFormData.image_url}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
