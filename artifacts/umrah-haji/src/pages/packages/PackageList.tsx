@@ -15,7 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Label } from '@/components/ui/label';
 
 export default function PackageList() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: packages = [], isLoading } = usePackages();
   const { data: settings } = useWebsiteSettings();
   
@@ -188,9 +188,7 @@ export default function PackageList() {
                 <Select value={currencyFilter} onValueChange={(value) => {
                   const params = new URLSearchParams(searchParams);
                   if (value === 'all') params.delete('currency'); else params.set('currency', value);
-                  window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
-                  // Force re-render via location change
-                  window.dispatchEvent(new PopStateEvent('popstate'));
+                  setSearchParams(params);
                 }}>
                   <SelectTrigger className="w-[120px] h-9">
                     <SelectValue placeholder="Mata Uang" />
