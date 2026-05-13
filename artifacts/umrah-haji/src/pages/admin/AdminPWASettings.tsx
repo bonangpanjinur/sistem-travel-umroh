@@ -288,6 +288,7 @@ export default function AdminPWASettings() {
           <TabsTrigger value="header">Navigasi Header</TabsTrigger>
           <TabsTrigger value="icon">Ikon &amp; Tampilan</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsTrigger value="live-preview">Live App</TabsTrigger>
           <TabsTrigger value="panduan">Cara Pasang</TabsTrigger>
         </TabsList>
 
