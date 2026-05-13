@@ -1,4 +1,4 @@
-const CACHE_VERSION = "vinstour-v4";
+const CACHE_VERSION = "vinstour-v5";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
