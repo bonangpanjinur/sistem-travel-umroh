@@ -49,7 +49,8 @@ import {
   CheckCircle, XCircle, Eye, Clock, 
   CreditCard, User, Calendar,
   Search, Filter, Download, AlertCircle, X, ImageIcon,
-  Bell, Loader2, PiggyBank, FileWarning, Plus
+  Bell, Loader2, PiggyBank, FileWarning, Plus, QrCode,
+  Building2, Smartphone, Upload, Wallet
 } from "lucide-react";
 import { AddManualPaymentDialog } from "@/components/admin/AddManualPaymentDialog";
 import { Link } from "react-router-dom";
@@ -57,6 +58,34 @@ import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 
 const PAGE_SIZE = 20;
+
+// ─── Payment Method Badge ─────────────────────────────────────────────────────
+
+const METHOD_META: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
+  qris:       { label: "QRIS",         cls: "bg-purple-100 text-purple-700 border-purple-200", Icon: QrCode },
+  va_bca:     { label: "VA BCA",       cls: "bg-blue-100 text-blue-700 border-blue-200",       Icon: Building2 },
+  va_mandiri: { label: "VA Mandiri",   cls: "bg-yellow-100 text-yellow-700 border-yellow-200", Icon: Building2 },
+  va_bni:     { label: "VA BNI",       cls: "bg-orange-100 text-orange-700 border-orange-200", Icon: Building2 },
+  gopay:      { label: "GoPay",        cls: "bg-green-100 text-green-700 border-green-200",    Icon: Smartphone },
+  transfer:   { label: "Transfer",     cls: "bg-gray-100 text-gray-700 border-gray-200",       Icon: Upload },
+  cash:       { label: "Cash",         cls: "bg-emerald-100 text-emerald-700 border-emerald-200", Icon: Wallet },
+  midtrans:   { label: "Midtrans",     cls: "bg-blue-100 text-blue-700 border-blue-200",       Icon: CreditCard },
+};
+
+function PaymentMethodBadge({ method }: { method: string | null }) {
+  if (!method) return <span className="text-muted-foreground text-xs">-</span>;
+  const meta = METHOD_META[method.toLowerCase()];
+  if (!meta) {
+    return <span className="text-sm capitalize">{method}</span>;
+  }
+  const { label, cls, Icon } = meta;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border font-medium ${cls}`}>
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
 
 export default function AdminPayments() {
   const { user } = useAuth();
@@ -725,8 +754,10 @@ export default function AdminPayments() {
                             </TableCell>
                             <TableCell>
                               <div className="text-sm">
-                                <p>{payment.payment_method || '-'}</p>
-                                <p className="text-xs text-muted-foreground">{payment.bank_name}</p>
+                                <PaymentMethodBadge method={payment.payment_method} />
+                                {payment.bank_name && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">{payment.bank_name}</p>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">

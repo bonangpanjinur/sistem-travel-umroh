@@ -266,11 +266,13 @@ export interface Payment {
   payment_code: string;
   amount: number;
   payment_method: string | null;
+  payment_type: string | null;
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
   proof_url: string | null;
   status: PaymentStatus;
+  transaction_id: string | null;
   verified_at: string | null;
   verified_by: string | null;
   notes: string | null;

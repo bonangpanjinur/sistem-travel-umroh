@@ -1,3 +1,5 @@
+// ─── Snap (semua metode via popup Midtrans) ───────────────────────────────────
+
 export interface MidtransPaymentPayload {
   bookingId: string;
   bookingCode: string;
@@ -10,6 +12,7 @@ export interface MidtransPaymentPayload {
 export interface MidtransSnapResult {
   token: string;
   redirect_url: string;
+  order_id?: string;
 }
 
 export async function createMidtransPaymentToken(
@@ -18,11 +21,18 @@ export async function createMidtransPaymentToken(
   const response = await fetch('/api/midtrans/create-transaction', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      booking_id: payload.bookingId,
+      booking_code: payload.bookingCode,
+      amount: payload.amount,
+      customer_name: payload.customerName,
+      customer_email: payload.customerEmail,
+      customer_phone: payload.customerPhone,
+    }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.message || 'Gagal membuat token pembayaran');
+    throw new Error(err.message || err.error || 'Gagal membuat token pembayaran');
   }
   return response.json();
 }
@@ -48,4 +58,97 @@ export function openMidtransSnap(token: string, callbacks?: {
 
 export function isMidtransAvailable(): boolean {
   return typeof (window as any).snap !== 'undefined';
+}
+
+// ─── QRIS (Midtrans Core API) ─────────────────────────────────────────────────
+
+export interface QrisPaymentPayload {
+  bookingId: string;
+  bookingCode: string;
+  amount: number;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
+}
+
+export interface QrisCreateResult {
+  transaction_id: string;
+  order_id: string;
+  qr_code_url: string | null;
+  qr_string: string | null;
+  expiry_time: string | null;
+  gross_amount: string;
+  transaction_status: string;
+}
+
+export interface QrisStatusResult {
+  transaction_status: string;
+  fraud_status?: string;
+  status_message?: string;
+  order_id: string;
+  transaction_id?: string;
+  gross_amount?: string;
+  payment_type?: string;
+  settlement_time?: string;
+}
+
+/**
+ * Membuat transaksi QRIS via Midtrans Core API.
+ * Mengembalikan QR code URL + order_id untuk polling status.
+ */
+export async function createQrisPayment(
+  payload: QrisPaymentPayload
+): Promise<QrisCreateResult> {
+  const response = await fetch('/api/midtrans/create-qris', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      booking_id: payload.bookingId,
+      booking_code: payload.bookingCode,
+      amount: payload.amount,
+      customer_name: payload.customerName,
+      customer_email: payload.customerEmail,
+      customer_phone: payload.customerPhone,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || err.message || 'Gagal membuat QRIS');
+  }
+  return response.json();
+}
+
+/**
+ * Cek status pembayaran QRIS via Midtrans.
+ * Panggil setiap 5 detik sampai status 'settlement' atau 'expire'.
+ */
+export async function checkQrisStatus(orderId: string): Promise<QrisStatusResult> {
+  const response = await fetch(`/api/midtrans/qris-status/${encodeURIComponent(orderId)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Gagal cek status QRIS');
+  }
+  return response.json();
+}
+
+/** True jika status menandakan pembayaran berhasil */
+export function isQrisPaid(status: string): boolean {
+  return status === 'settlement' || status === 'capture';
+}
+
+/** True jika status menandakan transaksi kedaluwarsa/dibatalkan */
+export function isQrisExpired(status: string): boolean {
+  return status === 'expire' || status === 'cancel' || status === 'deny';
+}
+
+/**
+ * Hitung sisa detik dari expiry_time Midtrans.
+ * expiry_time format: "2024-01-15 14:30:00" (local +7)
+ */
+export function getQrisSecondsLeft(expiryTime: string | null): number {
+  if (!expiryTime) return 15 * 60; // default 15 menit
+  // Midtrans expiry_time dalam WIB (UTC+7)
+  const expiry = new Date(expiryTime.replace(' ', 'T') + '+07:00');
+  const diff = Math.floor((expiry.getTime() - Date.now()) / 1000);
+  return Math.max(0, diff);
 }

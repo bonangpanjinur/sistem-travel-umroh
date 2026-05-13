@@ -555,7 +555,7 @@ pnpm --filter @workspace/api-spec run codegen
 | N4 | **Dashboard KPI Cabang** — target monthly vs aktual per KPI: booking, revenue, konversi lead | Cabang | ✅ |
 | N5 | **Penilaian jamaah oleh muthawif** — muthawif bisa input catatan per jamaah selama perjalanan | Muthawif | ✅ |
 | N6 | **Rate card & proposal otomatis** — admin bisa generate PDF proposal harga per paket untuk calon jamaah | Admin | ✅ |
-| N7 | **Integrasi Qris** — pembayaran via Qris langsung dari halaman booking | Pembayaran | 🔴 |
+| N7 | **Integrasi Qris** — pembayaran via Qris langsung dari halaman booking | Pembayaran | ✅ |
 | N8 | **Multi-bahasa (i18n)** — halaman publik + jamaah portal dalam Bahasa Arab & Inggris | Public | 🔴 |
 | N9 | **Sistem Aturan Pembatalan Lengkap** — lihat BAGIAN 14 untuk rencana detail | Admin/Booking/Dokumen | 🟠 |
 
@@ -615,6 +615,42 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
            - renderTemplate diupdate: baris tak terselesaikan dihapus otomatis ✅
 ```
 
+### Sprint 6 — Integrasi QRIS Midtrans ✅
+
+```
+17. N7  → Integrasi QRIS langsung dari halaman jamaah (/jamaah/payment)
+           Backend (api-server/src/routes/midtrans.ts):
+           - POST /api/midtrans/create-qris  → Midtrans Core API /v2/charge
+             payload: payment_type=qris, qris.acquirer=gopay
+             response: transaction_id, order_id, qr_code_url, qr_string, expiry_time
+           - GET  /api/midtrans/qris-status/:orderId → Midtrans Core API /v2/{id}/status
+             response: transaction_status, fraud_status, settlement_time
+
+           Frontend (lib/paymentGateway.ts):
+           - createQrisPayment(payload)  — call POST /create-qris
+           - checkQrisStatus(orderId)    — call GET /qris-status/:orderId
+           - isQrisPaid(status)         — cek settlement/capture
+           - isQrisExpired(status)      — cek expire/cancel/deny
+           - getQrisSecondsLeft(expiry) — hitung countdown dari expiry_time WIB
+
+           Frontend (pages/jamaah/JamaahPayment.tsx):
+           - Step flow baru: form → confirm → generating-qr → showing-qr → qris-paid
+           - QrisDisplay component: tampil QR image + countdown timer + auto-poll 5 detik
+           - QrisCountdown component: timer mundur warna-adaptif (hijau→kuning→merah)
+           - Pada settlement: insert ke payments table status=paid (OTOMATIS, tanpa admin)
+           - Pada expire: tampil halaman expired + tombol "Buat QR Baru"
+           - Fallback: jika Midtrans belum dikonfigurasi → error toast jelas
+
+           Admin (pages/admin/AdminPayments.tsx):
+           - Komponen PaymentMethodBadge: badge berwarna per metode
+             (QRIS=ungu, VA BCA=biru, Mandiri=kuning, BNI=oranye, GoPay=hijau, dll.)
+
+           Database:
+           - SQL migration: fase23_payments_transaction_id.sql ✅
+             ALTER TABLE payments ADD COLUMN transaction_id TEXT
+             ALTER TABLE payments ADD COLUMN payment_type TEXT
+```
+
 ---
 
 ## BAGIAN 8 — DATABASE MIGRATIONS (Urutan Eksekusi)
@@ -643,6 +679,7 @@ Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 | 21 | `supabase/migrations/store_product_reviews.sql` | review produk |
 | 22 | `supabase/migrations/fase21_integration_fixes.sql` | customer_notifications, jamaah_checklist, attendance, feedback, visa_status_logs, room_occupants + kolom baru |
 | 23 | `supabase/migrations/fase22_muthawif_evaluations.sql` | muthawif_jamaah_evaluations — penilaian jamaah oleh muthawif (rating, catatan, kategori) |
+| 24 | `supabase/migrations/fase23_payments_transaction_id.sql` | Tambah kolom transaction_id dan payment_type di tabel payments |
 
 ---
 
