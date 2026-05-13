@@ -265,7 +265,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                 )}>
                   <p>{m.text}</p>
                   <p className={cn("text-[9px] mt-0.5", m.role === "user" ? "text-white/60 text-right" : "text-muted-foreground")}>
-                    {format(m.ts, "HH:mm")}
+                    {format(m.ts, "h:mm aa")}
                   </p>
                 </div>
               </div>
