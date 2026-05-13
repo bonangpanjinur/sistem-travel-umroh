@@ -2086,7 +2086,7 @@ const vapidConfig: PushVapidConfig = useMemo(() => {
 
 ---
 
-#### 🟠 GAP-PWA-04: Splash Screen Tidak Bisa Dikustomisasi dari Admin
+#### ✅ GAP-PWA-04: Splash Screen Tidak Bisa Dikustomisasi dari Admin — DONE
 
 **Masalah:** `index.html` punya `#initialLoader` dengan warna hijau `#0f2518` hardcoded. Warna ini tidak berubah walau admin set warna berbeda di panel.
 
@@ -2107,7 +2107,7 @@ ThemeProvider memang inject CSS variables ke `document.documentElement`, tapi in
 
 ---
 
-#### 🟠 GAP-PWA-05: Bottom Nav Sama untuk Semua User (Tidak Role-Aware)
+#### ✅ GAP-PWA-05: Bottom Nav Sama untuk Semua User (Tidak Role-Aware) — DONE
 
 **Masalah:** `MobileBottomNav.tsx` menampilkan item yang sama untuk semua user tanpa peduli login atau tidak, dan tidak peduli role.
 
@@ -2124,7 +2124,7 @@ ThemeProvider memang inject CSS variables ke `document.documentElement`, tapi in
 
 ---
 
-#### 🟠 GAP-PWA-06: Service Worker Tidak Ada Update Notification
+#### ✅ GAP-PWA-06: Service Worker Tidak Ada Update Notification — DONE
 
 **Masalah:** Ketika deploy versi baru, service worker baru ter-install tapi user tidak tahu. Konten lama bisa tetap tampil dari cache sampai user close dan buka ulang app.
 
