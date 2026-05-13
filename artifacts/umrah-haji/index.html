@@ -179,6 +179,19 @@
           opacity: 1;
         }
       }
+
+      /* CSS-FIX-6: Critical above-the-fold layout primitives.
+         Inlined here so first paint never depends on the main CSS bundle. */
+      *, *::before, *::after { box-sizing: border-box; }
+      img, svg, video { display: block; max-width: 100%; height: auto; }
+      a { color: inherit; text-decoration: none; }
+      button { font: inherit; cursor: pointer; }
+      .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+      }
+      /* Reserve space for app shell to avoid layout shift while React mounts */
+      .app-shell-skeleton { min-height: 100vh; background: hsl(0 0% 100%); }
     </style>
   </head>
 
