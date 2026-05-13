@@ -1,110 +1,85 @@
 
-# Rencana: Portal Jamaah PWA Islami + Modul Toko Lengkap
+# Audit & Rencana Perbaikan Menu Pengaturan
 
-## Bagian 1 — Redesign Full Portal Jamaah (PWA Islami)
+## 1. Temuan Utama (urut prioritas)
 
-### 1.1 Bahasa Visual Baru ("Vinstour Islamic UI Kit")
-Inspirasi: Muslim Pro, Athan, Umma, Quran.com — kombinasi nuansa hijau zamrud + emas, ornamen geometri Islam, kaligrafi Arab tipis sebagai aksen.
+### A. KRITIS — Keamanan
+1. **2FA palsu** (`Admin2FASettings.tsx:107-116`)
+   Komentar eksplisit: *"we'll skip verification step and enable directly"*. Status `is_enabled=true` disimpan ke `user_2fa_settings` **tanpa OTP**, dan tidak ada gate di flow login (`/auth/login`) yang memverifikasi kode. Akibatnya halaman 2FA hanya pajangan — tidak melindungi akun apa pun.
+2. **Akses simulator pakai RPC lama** (`AdminAccessSimulator.tsx`) memanggil `get_user_effective_permissions` (legacy), sedangkan production pakai `get_user_effective_permissions_v2` (`useEffectivePermissions.ts`). Hasil simulasi bisa beda dengan kenyataan sehingga audit menyesatkan.
+3. **Service role / VAPID / Midtrans secret diinput dari UI** lalu disimpan ke `app_settings` (`AdminSettings.tsx` tab *API Keys*, daftar `API_KEY_FIELDS` line 95-102). Service-role key tidak boleh hidup di tabel publik — harus pindah ke Edge Function secret.
 
-Token desain baru di `index.css` (mode jamaah scope `[data-portal="jamaah"]`):
-- Palette: Emerald deep `#0F2E1F`, Emerald `#1F7A4D`, Gold `#C9A96E`, Sand `#F5F1E8`, Ink `#0B1F14`.
-- Gradient: `--gradient-mihrab` (hero arch), `--gradient-night-sky` (waktu sholat malam), `--gradient-dawn` (subuh).
-- Font: heading **Amiri** / **Reem Kufi** (Arabic + display Latin), body **Plus Jakarta Sans** (sudah ada).
-- Ornamen SVG reusable: `<IslamicArch/>`, `<GeometricPattern/>`, `<CrescentMoon/>`, `<MosqueSilhouette/>`, `<KaabaIcon/>` di `src/components/jamaah/ornaments/`.
-- Kartu standar: `rounded-3xl`, border `1px hsl(var(--gold)/.25)`, soft shadow, optional pattern overlay 5% opacity.
-- Animasi: `framer-motion` fade+slide pada masuk halaman, Quran ayat marquee halus, kompas kiblat smooth rotate.
+### B. Duplikasi & Tumpang Tindih
+| Masalah | Halaman terkait |
+|---|---|
+| **3 halaman RBAC terpisah** untuk satu domain | `/admin/roles` (AdminRoleManagement), `/admin/rbac-tools`, `/admin/rbac-status` |
+| **2 tempat untuk API/Integrasi** | Tab *Integrasi & API Keys* di `/admin/settings` **vs** halaman penuh `/admin/api-connect` (1.361 baris) |
+| **2 tempat untuk Tampilan** | Tab *Tampilan* + *Menu Sidebar* di `/admin/settings` **vs** halaman penuh `/admin/appearance` (403 baris dengan 20+ tab) |
+| **Halaman yatim** | `/admin/dashboard-access` di-`Navigate` ke `/admin/roles?tab=user-overrides`, tapi file `DashboardAccessManager.tsx` masih ada dan tidak terpakai |
+| **Audit terpencar** | `AdminSecurityAudit` (activity+audit+login), `AdminActivityLog`, `PermissionAuditLog` (di tab Roles) — semuanya log tapi di tempat berbeda |
+| **PWA Settings** ada (`/admin/pwa-settings`) tapi tidak masuk grup *Pengaturan*, hanya bisa diakses dari dropdown user |
 
-### 1.2 Komponen Bersama Baru
-`src/components/jamaah/shell/`:
-- `JamaahAppShell.tsx` — wrapper standar (status bar warna, safe-area, header, content, bottom nav).
-- `JamaahHeader.tsx` — greeting kontekstual ("Assalamualaikum, {nama}"), waktu Hijriyah + Masehi, lokasi kota, tombol notif & profil.
-- `JamaahPageHeader.tsx` — header halaman dengan arch + breadcrumb + back.
-- `IslamicCard.tsx`, `IslamicSectionTitle.tsx`, `AyatBanner.tsx` (random ayat harian).
-- `JamaahBottomNav.tsx` direvisi: 5 tab (Beranda, Ibadah, Perjalanan, Toko, Akun) — ikon kustom + indicator pill emas.
+### C. Kualitas Kode
+- `AdminSettings.tsx` (1.182 baris) dan `AdminApiConnect.tsx` (1.361 baris) monolitik, banyak `as any`, `// eslint-disable-next-line react-hooks/exhaustive-deps` (stale form), `console.error` mentah.
+- Grup menu *Pengaturan* berisi **12 item** (`admin-menu-registry.ts:141-152`). Sidebar terlalu panjang dan banyak super-admin-only yang seharusnya di-hide bagi role lain (sebagian sudah, sebagian belum — `supabase-setup`, `webhooks`, `api-connect` muncul untuk semua yang punya permission).
+- Label tidak konsisten: "API Connect ke Apps", "Panduan Setup Supabase" (technical leak — seharusnya "Panduan Setup Backend").
 
-### 1.3 Halaman Utama (`JamaahPortal`) — Home Seimbang
-Urutan section (semua dalam app shell baru):
-1. **Hero Mihrab** — arch SVG, greeting + nama, tanggal Hijriyah, prayer-times mini (4 sholat berikutnya + countdown).
-2. **Quick Actions Grid (4)** — Al-Qur'an, Kiblat, Doa Harian, Tasbih.
-3. **Status Perjalanan** — kartu booking aktif (countdown keberangkatan, progress dokumen, paid bar).
-4. **Cross-sell Paket** — slider "Paket Pilihan Bulan Ini" (data dari `packages`).
-5. **Etalase Toko Perlengkapan** — 4 produk featured (koper, ihram, dll) + CTA "Lihat Semua".
-6. **Tabungan Umroh** — progress saving, CTA setor.
-7. **Program Referral** — kode referral user + ringkasan komisi + CTA share WA.
-8. **Galeri & Sertifikat** singkat untuk alumni.
-9. **Kontak Tour Leader / SOS** floating.
+### D. UX
+- Tidak ada landing/hub untuk grup Pengaturan — user harus menebak halaman mana untuk apa.
+- "Pengaturan Umum" menampung 10 sub-section (profile, company, bank, dokumen, notifikasi, tampilan, sidebar, keamanan, api keys, danger) → scroll panjang, navigasi sidebar lokal sulit dibedakan dari sidebar utama.
 
-### 1.4 Halaman Ibadah Inti (rebuild visual)
-- `JamaahWaktuSholat` — full-bleed gradient sesuai waktu (subuh/dzuhur/ashar/maghrib/isya), kaligrafi nama sholat, countdown besar, list 7 hari, kalender Hijriyah.
-- `JamaahAlQuran` — list surah ala Quran.com, mode baca Mushaf-style, font Uthmani, audio per ayat, bookmark.
-- `JamaahKiblat` — kompas circular emas + Ka'bah icon, derajat akurasi, kalibrasi.
-- `JamaahDoaPanduan` / `JamaahZikir` — kartu doa Arab + latin + arti, counter tasbih besar.
-- `JamaahTrackerIbadah`, `JamaahDoaCounter`, `JamaahJurnal`, `JamaahTargetIbadah`, `JamaahBadges` — disesuaikan ke shell + token baru.
+---
 
-### 1.5 Halaman Perjalanan & Dokumen
-Restyle ke shell baru tanpa ubah logika:
-`JamaahItinerary`, `JamaahDocuments`, `JamaahVisaTracker`, `JamaahPayment`, `JamaahPaymentHistory`, `JamaahInvoice`, `JamaahKontrak`, `JamaahDigitalID`, `JamaahCheckin`, `JamaahBagasi`, `JamaahKesehatan`, `JamaahSISKOHAT`, `JamaahManasik(Interaktif)`, `JamaahPetaLokasi`, `JamaahRombongan`, `JamaahPantauKeluarga`, `JamaahRingkasanAI`, `JamaahRiwayatPerjalanan`, `JamaahSertifikat`, `JamaahGaleri`, `JamaahFeedback`, `JamaahWishlist`, `JamaahReferral`, `JamaahNotifications`, `JamaahChat`, `JamaahChatbot`, `JamaahKalkulatorKurs`, `JamaahKalkulatorZakat`, `JamaahSOSStatus`, `JamaahWelcome`.
+## 2. Rencana Perbaikan
 
-Strategi: bungkus tiap page dengan `JamaahAppShell` + ganti `Card` → `IslamicCard`. Tidak ubah query/data. Dilakukan bertahap per file (no big-bang).
+### Fase 1 — Tambal Keamanan (wajib lebih dulu)
+1. **Implementasi 2FA nyata**:
+   - Edge Function baru `request-2fa-otp` (kirim OTP via email/Fonnte WA, simpan hash + expiry di tabel `user_2fa_codes`).
+   - Edge Function `verify-2fa-otp` dipanggil saat setup *dan* saat login.
+   - Tambah gate di `useAuth` / `/auth/login`: kalau `user_2fa_settings.is_enabled=true`, paksa step OTP sebelum redirect.
+   - `Admin2FASettings.tsx` ubah `handleSetup` → kirim OTP dulu, baru `enableMutation` setelah OTP valid.
+2. **Sinkronkan AdminAccessSimulator** ke `get_user_effective_permissions_v2` + ekspansi role hierarchy (sama seperti `useEffectivePermissions`).
+3. **Pindahkan service-role / VAPID private / Midtrans server key** dari `app_settings` ke Edge Function secret (gunakan `secrets--add_secret`). Hapus field tsb dari `API_KEY_FIELDS` di `AdminSettings.tsx`; tampilkan info "dikelola via secret backend".
 
-### 1.6 Penguatan PWA
-- Tambah halaman `/install` dengan instruksi A2HS iOS & Android + tombol prompt (`beforeinstallprompt`).
-- Update `manifest.json`: nama "Vinstour Jamaah", `theme_color` `#0F2E1F`, screenshots baru, shortcuts: Beranda, Waktu Sholat, Al-Qur'an, Kiblat.
-- Splash screen (loader awal) bergaya Islami: arch + logo + ayat pendek.
-- Service worker (`public/sw.js`) sudah ada — tambahkan precache aset fonts Arabic + audio adzan kecil. Tetap network-first untuk navigasi.
-- Banner "Aktifkan Notifikasi" + komponen `<UpdateAvailableBanner>` saat ada SW baru (event `sw-update-available`).
+### Fase 2 — Konsolidasi Halaman (rapikan grup *Pengaturan*)
+Susun ulang menu jadi **6 entry top-level** + sub-tab di dalam:
 
-## Bagian 2 — Modul Toko Admin (Procurement + Sales)
+```text
+Pengaturan
+├─ Pengaturan Umum        /admin/settings        (Profil, Perusahaan, Bank, Dokumen, Notifikasi, Danger Zone)
+├─ Tampilan & Branding    /admin/appearance      (semua tab tema + Sidebar Manager + PWA)
+├─ Hak Akses (RBAC)       /admin/access          (tabs: Users · Roles · Matriks · Tools · Status · Simulator · Audit)
+├─ Integrasi & API        /admin/integrations    (tabs: API Keys backend · Public API Keys · Webhooks · Email Template · Push)
+├─ Keamanan               /admin/security        (tabs: 2FA · Activity Log · Audit Log · Login Attempts)
+└─ Panduan Backend        /admin/backend-guide   (rename dari supabase-setup)
+```
 
-### 2.1 Skema Database Baru (migrasi)
-Tambah tabel:
-- `store_suppliers` — nama, kontak, alamat, npwp, term pembayaran, catatan.
-- `store_purchase_orders` — `po_number` (PO-YYMM-####, sequence via `store_po_counters`), supplier_id, status (`draft|ordered|partial|received|cancelled`), order_date, expected_date, received_date, subtotal, tax, shipping_cost, total, notes, created_by.
-- `store_purchase_order_items` — po_id, product_id, qty_ordered, qty_received, unit_cost, subtotal.
-- `store_stock_movements` — product_id, type (`purchase_in|sale_out|adjustment|return_in|return_out`), qty (signed), ref_table, ref_id, unit_cost, notes, created_by, created_at. Trigger otomatis dari penerimaan PO + order pelanggan ter-fulfilled.
-- `store_po_counters` — bucket bulanan untuk nomor PO.
-- Kolom tambahan di `store_products`: `current_stock` (int), `avg_cost` (numeric), `min_stock` (int) — auto update via trigger dari `store_stock_movements`.
+Detail aksi:
+- **Hak Akses**: jadikan `AdminRoleManagement` sebagai shell, pindah `AdminUsers`, `AdminRBACTools`, `AdminRBACStatus`, `AdminAccessSimulator` jadi tab. Buang halaman `DashboardAccessManager.tsx` yatim (sudah di-redirect).
+- **Tampilan**: gabung sub-section *Tampilan* + *Menu Sidebar* dari `AdminSettings` ke `AdminAppearance` (tambah tab "Sidebar"). Pindahkan `AdminPWASettings` jadi tab "PWA & Install". Hapus tab terkait dari `AdminSettings`.
+- **Integrasi & API**: `AdminApiConnect` (public API key + webhook + test) jadi tab pertama. Tab kedua "Backend Keys" pakai sisa field dari `AdminSettings` (Supabase URL/anon, Fonnte, SMTP — bukan service role). Tambahkan tab "Email Template" (route eksisting `/admin/email-templates`) & "Push" (`/admin/push-notifications`+`push-outbox`).
+- **Keamanan**: gabung `AdminSecurityAudit`, `Admin2FASettings`, `AdminActivityLog` jadi tab di `/admin/security`. `PermissionAuditLog` tetap di Hak Akses (lebih kontekstual).
+- Update `admin-menu-registry.ts`: hapus 6 entry lama, ganti 6 entry baru, sesuaikan `required_permission`.
+- Update `AdminRoutes.tsx`: tambah redirect dari path lama ke path baru supaya bookmark tidak rusak.
 
-RLS: hanya role admin (`super_admin`, `owner`, `branch_manager`, `inventory_manager` baru) bisa CRUD. Pakai `has_role()` SECURITY DEFINER existing pattern. Stock movements immutable (no update/delete kecuali super_admin).
+### Fase 3 — Refactor & Kualitas Kode
+- Pecah `AdminSettings.tsx` menjadi 5 file `<200` baris per section di `components/admin/settings/`.
+- Pecah `AdminApiConnect.tsx` menjadi `ApiKeysPanel`, `WebhooksPanel`, `ApiTesterPanel`, `RateLimitPanel`.
+- Hapus `as any` dengan tipe yang sudah ada di `types/database.ts`; ganti `console.error` ke `toast.error` + log struktural.
+- Hapus `// eslint-disable-next-line react-hooks/exhaustive-deps` — gunakan `reset` form di `onSuccess` query, bukan effect manual.
+- Tambahkan **Settings Hub** sederhana di `/admin/settings/index` yang menampilkan 6 kartu navigasi ke sub-halaman + status (mis. "2FA aktif", "12 webhook").
 
-### 2.2 Halaman Admin Baru
-Folder `src/pages/admin/store/`:
-- `AdminStoreDashboard.tsx` — KPI: total stok value, produk low stock, PO open, omzet 30 hari, top 5 produk, grafik penjualan vs pembelian (Recharts).
-- `AdminStoreSuppliers.tsx` — CRUD supplier + search.
-- `AdminStorePurchaseOrders.tsx` — list PO + filter status/periode/supplier + create/edit form (multi item, hitung total otomatis), aksi: kirim, terima sebagian/penuh, batalkan.
-- `AdminStorePurchaseOrderDetail.tsx` — detail PO + tombol "Terima Barang" → input qty diterima per item → buat `store_stock_movements` `purchase_in`.
-- `AdminStoreStockMovements.tsx` — riwayat mutasi stok (read-only) + filter produk/tipe/tanggal + export CSV.
-- `AdminStoreStockOpname.tsx` — adjustment stok manual dengan alasan (buat movement `adjustment`).
-- `AdminStoreSalesReport.tsx` — laporan penjualan dari `store_orders` (agregasi per hari/produk/kategori) + laba kotor (`avg_cost` × qty). Export CSV/PDF.
-- `AdminStoreLowStock.tsx` — daftar produk di bawah `min_stock` + tombol "Buat PO".
+### Fase 4 — UX & Konsistensi
+- Standardisasi label Bahasa Indonesia, hilangkan jargon ("Supabase" → "Backend").
+- Sembunyikan menu super-admin-only di sidebar untuk role lain via `permission` yang benar (saat ini `webhooks`, `api-connect`, `supabase-setup` masih bocor ke role yang sekadar punya permission key).
+- Tambah breadcrumb seragam (sudah ada pattern di `AdminRoleManagement`) ke 6 halaman baru.
 
-Update existing:
-- `AdminStoreProducts.tsx` — tambah kolom Stock, Avg Cost, Min Stock; badge low stock; tombol "Riwayat Mutasi".
-- `AdminStoreOrders.tsx` — tombol "Tandai Terkirim" trigger `sale_out` movement (sudah ada base, integrasikan).
+---
 
-### 2.3 Navigasi & RBAC
-- `AdminSidebar` — group baru "Toko & Inventori" berisi: Dashboard Toko, Produk, Kategori, Order Pelanggan, Supplier, Purchase Order, Stok Opname, Mutasi Stok, Low Stock, Laporan Penjualan.
-- Tambah `PERMISSIONS.STORE_*` keys dan map ke role default.
+## 3. Urutan Eksekusi yang Disarankan
+1. Fase 1 (3 patch terpisah, masing-masing kecil & terverifikasi).
+2. Fase 2 dilakukan per-halaman: mulai dari **Hak Akses** (paling banyak duplikasi), lanjut **Integrasi**, **Keamanan**, **Tampilan**.
+3. Fase 3 menyusul setelah halaman gabungan stabil.
+4. Fase 4 sebagai polish.
 
-### 2.4 Otomasi (Trigger DB)
-- Trigger `AFTER INSERT ON store_stock_movements` → update `store_products.current_stock` (sum) + `avg_cost` (weighted avg untuk `purchase_in`).
-- Trigger `AFTER UPDATE ON store_purchase_orders` saat status → `received` / `partial` membuat movement otomatis dari `qty_received` (atau via RPC `receive_po(po_id, items[])`).
-- Trigger `AFTER UPDATE ON store_orders` saat status → `shipped/completed` membuat `sale_out` movement (sekali, idempotent via cek ref).
-
-## Bagian 3 — Urutan Eksekusi
-1. Fondasi PWA Islami: token CSS, ornamen SVG, app shell, bottom nav, header. (1)
-2. Redesign `JamaahPortal` (home) + halaman ibadah inti (Waktu Sholat, Al-Qur'an, Kiblat, Doa, Zikir).
-3. Restyle bertahap halaman jamaah lainnya (batch 5–8 file per iterasi).
-4. Halaman `/install` + update manifest + splash + update banner.
-5. Migrasi DB toko (suppliers, PO, movements, kolom produk, triggers, RLS).
-6. Halaman admin toko + sidebar + RBAC.
-7. QA: cek route, RLS, alur PO end-to-end, sync stok, A2HS di mobile.
-
-## Catatan Teknis
-- Tidak ada perubahan logika auth/booking. Hanya UI/visual untuk jamaah + tambahan tabel & halaman untuk toko.
-- Semua warna via token HSL di `index.css` dan `tailwind.config.ts`. Tidak ada `text-white`/`bg-black` literal.
-- Service worker tetap pakai pola network-first + clone sinkron yang sudah diperbaiki.
-- Patuhi memory: payment status `paid`, role admin terbatas, Radix Select controlled, dst.
-- Fonts Arabic dimuat via `font-display: swap` + preconnect, fallback `serif` agar tidak block render.
-
-Setelah Anda setujui, saya akan mulai dari Bagian 1.1–1.3 (fondasi + home) dan Bagian 2.1 (migrasi DB toko) lebih dulu, lalu lanjut bertahap.
+Saya tunggu konfirmasi: **mau saya mulai langsung dari Fase 1 (tambal keamanan), atau prioritaskan Fase 2 (konsolidasi UI) dulu?**
