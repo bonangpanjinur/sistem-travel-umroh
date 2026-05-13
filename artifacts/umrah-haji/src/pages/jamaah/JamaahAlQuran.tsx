@@ -255,9 +255,7 @@ export default function JamaahAlQuran() {
           </div>
         )}
       </div>
-
-      <JamaahBottomNav />
-    </div>
+    </JamaahAppShell>
   );
 }
 
