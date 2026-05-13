@@ -252,24 +252,36 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
-            {messages.map(m => (
-              <div key={m.id} className={cn("flex items-end gap-1.5", m.role === "user" ? "flex-row-reverse" : "flex-row")}>
-                {m.role === "bot" && (
-                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                    <Bot className="h-3 w-3 text-white" />
+            {messages.map((m, idx) => {
+              const hasBotReplyAfter = messages.slice(idx + 1).some(n => n.role === "bot");
+              const isRead = hasBotReplyAfter;
+              const isSent = !hasBotReplyAfter && m.role === "user";
+              return (
+                <div key={m.id} className={cn("flex items-end gap-1.5", m.role === "user" ? "flex-row-reverse" : "flex-row")}>
+                  {m.role === "bot" && (
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                      <Bot className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                  <div className={cn(
+                    "max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
+                    m.role === "user" ? "bg-primary text-white rounded-br-sm" : "bg-white border rounded-bl-sm"
+                  )}>
+                    <p>{m.text}</p>
+                    <div className={cn("flex items-center gap-0.5 mt-0.5", m.role === "user" ? "justify-end" : "justify-start")}>
+                      <span className={cn("text-[9px]", m.role === "user" ? "text-white/60" : "text-muted-foreground")}>
+                        {format(m.ts, "h:mm aa")}
+                      </span>
+                      {m.role === "user" && (
+                        <span className={cn("text-[10px] leading-none", isRead ? "text-white" : "text-white/40")} title={isRead ? "Dibaca" : "Terkirim"}>
+                          {isRead ? "✓✓" : "✓"}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div className={cn(
-                  "max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
-                  m.role === "user" ? "bg-primary text-white rounded-br-sm" : "bg-white border rounded-bl-sm"
-                )}>
-                  <p>{m.text}</p>
-                  <p className={cn("text-[9px] mt-0.5", m.role === "user" ? "text-white/60 text-right" : "text-muted-foreground")}>
-                    {format(m.ts, "h:mm aa")}
-                  </p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {typing && (
               <div className="flex items-end gap-1.5">
                 <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
