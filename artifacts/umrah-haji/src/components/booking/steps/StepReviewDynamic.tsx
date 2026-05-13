@@ -67,7 +67,7 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
     queryKey: ["cancellation-policy", packageInfo.id],
     queryFn: async () => {
       if (packageInfo.id) {
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from("cancellation_policies")
           .select("id, name, description, terms")
           .eq("package_id", packageInfo.id)
@@ -75,7 +75,7 @@ export function StepReviewDynamic({ formData, packageInfo, departureInfo, depart
           .maybeSingle();
         if (data) return data;
       }
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("cancellation_policies")
         .select("id, name, description, terms")
         .eq("is_global", true)

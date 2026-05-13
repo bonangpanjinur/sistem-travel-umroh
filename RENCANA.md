@@ -541,7 +541,7 @@ pnpm --filter @workspace/api-spec run codegen
 | J1 | **Ringkasan AI sungguhan** — `/jamaah/ringkasan-ai` saat ini template lokal, bukan LLM. Perlu integrasi OpenAI/Gemini atau fallback cerdas berbasis data booking | 🟡 |
 | J2 | **Push notification di iOS** — PWA iOS baru support push notification sejak iOS 16.4. Perlu test | ⚠️ |
 | J3 | **Offline mode** — checklist & itinerary sudah bisa offline, tapi dokumen dan visa tracker masih online-only | 🟡 |
-| J4 | **Deep link dari WA** — ketika jamaah klik link WA, redirect langsung ke halaman yang relevan di portal | 🟡 |
+| J4 | **Deep link dari WA** — ketika jamaah klik link WA, redirect langsung ke halaman yang relevan di portal | ✅ |
 
 ---
 
@@ -549,12 +549,12 @@ pnpm --filter @workspace/api-spec run codegen
 
 | ID | Fitur | Modul | Prioritas |
 |----|-------|-------|-----------|
-| N1 | **Prediksi isi kursi** (`/admin/prediksi-seat`) | Admin | 🟡 Route sudah ada di AdminPrediksiSeat |
-| N2 | **Integrasi SISKOHAT Kemenag** — sinkronisasi data jamaah haji ke sistem resmi | Admin | 🟡 |
-| N3 | **Portal Pelaporan Muthawif** — laporan harian per lokasi (Mekah/Madinah/Jeddah) dengan foto | Muthawif | 🟡 |
-| N4 | **Dashboard KPI Cabang** — target monthly vs aktual per KPI: booking, revenue, konversi lead | Cabang | ⚠️ Perlu cek apakah KPI targets terhubung ke data aktual |
-| N5 | **Penilaian jamaah oleh muthawif** — muthawif bisa input catatan per jamaah selama perjalanan | Muthawif | 🟡 |
-| N6 | **Rate card & proposal otomatis** — admin bisa generate PDF proposal harga per paket untuk calon jamaah | Admin | 🟡 |
+| N1 | **Prediksi isi kursi** (`/admin/prediksi-seat`) | Admin | ✅ |
+| N2 | **Integrasi SISKOHAT Kemenag** — sinkronisasi data jamaah haji ke sistem resmi | Admin | ✅ |
+| N3 | **Portal Pelaporan Muthawif** — laporan harian per lokasi (Mekah/Madinah/Jeddah) dengan foto | Muthawif | ✅ |
+| N4 | **Dashboard KPI Cabang** — target monthly vs aktual per KPI: booking, revenue, konversi lead | Cabang | ✅ |
+| N5 | **Penilaian jamaah oleh muthawif** — muthawif bisa input catatan per jamaah selama perjalanan | Muthawif | ✅ |
+| N6 | **Rate card & proposal otomatis** — admin bisa generate PDF proposal harga per paket untuk calon jamaah | Admin | ✅ |
 | N7 | **Integrasi Qris** — pembayaran via Qris langsung dari halaman booking | Pembayaran | 🔴 |
 | N8 | **Multi-bahasa (i18n)** — halaman publik + jamaah portal dalam Bahasa Arab & Inggris | Public | 🔴 |
 | N9 | **Sistem Aturan Pembatalan Lengkap** — lihat BAGIAN 14 untuk rencana detail | Admin/Booking/Dokumen | 🟠 |
@@ -599,6 +599,22 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
 14. N2  → Integrasi SISKOHAT Kemenag — Import CSV + Print Kartu ✅
 ```
 
+### Sprint 5 — Penilaian Jamaah & Deep Link WA ✅
+
+```
+15. N5  → Halaman Penilaian Jamaah oleh Muthawif (/muthawif/penilaian)
+           - Rating bintang 1–5 per jamaah
+           - Catatan teks + kategori (umum/ibadah/kesehatan/disiplin/sosial)
+           - Simpan ke tabel baru muthawif_jamaah_evaluations
+           - Tombol "Penilaian Jamaah" di MuthawifDashboard quick actions
+           - SQL migration: fase22_muthawif_evaluations.sql ✅
+16. J4  → Deep link portal di semua template WA
+           - Tambah {link_portal} opsional ke template: BOOKING_CONFIRM,
+             PAYMENT_CONFIRM, PAYMENT_LUNAS, DOCUMENT_READY, DEPARTURE_REMINDER
+           - Tambah getPortalUrl(path) helper di whatsapp-notifier.ts
+           - renderTemplate diupdate: baris tak terselesaikan dihapus otomatis ✅
+```
+
 ---
 
 ## BAGIAN 8 — DATABASE MIGRATIONS (Urutan Eksekusi)
@@ -626,6 +642,7 @@ Jalankan berurutan di **Supabase Dashboard → SQL Editor**:
 | 20 | `supabase/migrations/store_ecommerce.sql` | toko e-commerce |
 | 21 | `supabase/migrations/store_product_reviews.sql` | review produk |
 | 22 | `supabase/migrations/fase21_integration_fixes.sql` | customer_notifications, jamaah_checklist, attendance, feedback, visa_status_logs, room_occupants + kolom baru |
+| 23 | `supabase/migrations/fase22_muthawif_evaluations.sql` | muthawif_jamaah_evaluations — penilaian jamaah oleh muthawif (rating, catatan, kategori) |
 
 ---
 

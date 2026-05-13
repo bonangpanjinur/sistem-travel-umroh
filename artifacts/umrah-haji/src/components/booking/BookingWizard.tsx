@@ -256,7 +256,7 @@ export function BookingWizard() {
               } : undefined}
               onCouponApplied={(discount, code) => updateFormData({ notes: `coupon:${code}` })}
               onUpdatePassengers={(passengers) => updateFormData({ passengers })}
-              cancellationAgreed={cancellationAgreed}
+              cancellationAgreed={cancellationAgreed ?? undefined}
               onCancellationAgreedChange={setCancellationAgreed}
             />
           )}

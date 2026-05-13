@@ -94,7 +94,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
   const { data: cancellationPolicies } = useQuery({
     queryKey: ["admin-cancellation-policies-global"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("cancellation_policies")
         .select("id, name, description")
         .eq("is_global", true)
@@ -218,7 +218,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       }
 
       if (selectedPolicyId && packageId) {
-        await supabase
+        await (supabase as any)
           .from("cancellation_policies")
           .update({ package_id: packageId })
           .eq("id", selectedPolicyId);

@@ -1238,6 +1238,11 @@ export default function MuthawifDashboard() {
                   </Link>
                 </Button>
                 <Button size="sm" variant="outline" className="h-9 text-xs" asChild>
+                  <Link to="/muthawif/penilaian">
+                    <Star className="h-3.5 w-3.5 mr-1.5" /> Penilaian Jamaah
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" className="h-9 text-xs" asChild>
                   <Link to="/admin/manifest">
                     <Users className="h-3.5 w-3.5 mr-1.5" /> Manifest
                   </Link>

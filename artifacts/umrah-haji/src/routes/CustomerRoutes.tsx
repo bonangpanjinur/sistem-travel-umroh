@@ -60,6 +60,8 @@ const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"
 const MuthawifLaporanHarian = lazy(() => import("@/pages/muthawif/MuthawifLaporanHarian"));
 const MuthawifJamaahProfil = lazy(() => import("@/pages/muthawif/MuthawifJamaahProfil"));
 const MuthawifSOS = lazy(() => import("@/pages/muthawif/MuthawifSOS"));
+// N5 — Penilaian Jamaah oleh Muthawif
+const MuthawifPenilaianJamaah = lazy(() => import("@/pages/muthawif/MuthawifPenilaianJamaah"));
 
 // FITUR 01 — SOS Real-time Jamaah
 const JamaahSOSStatus = lazy(() => import("@/pages/jamaah/JamaahSOSStatus"));
@@ -219,6 +221,12 @@ export default function CustomerRoutes() {
       <Route path="/muthawif/sos" element={
         <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
           <LazyPage><MuthawifSOS /></LazyPage>
+        </ProtectedRoute>
+      } />
+      {/* N5 — Penilaian Jamaah oleh Muthawif */}
+      <Route path="/muthawif/penilaian" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><MuthawifPenilaianJamaah /></LazyPage>
         </ProtectedRoute>
       } />
 
