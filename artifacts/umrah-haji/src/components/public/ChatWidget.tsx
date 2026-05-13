@@ -105,6 +105,32 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     setPickerOpen(null);
   };
 
+  const playChime = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const notes = [
+        { freq: 880, start: 0,    dur: 0.18 },
+        { freq: 1109, start: 0.12, dur: 0.18 },
+        { freq: 1320, start: 0.24, dur: 0.28 },
+      ];
+      notes.forEach(({ freq, start, dur }) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime + start);
+        gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + dur);
+        osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+      });
+      setTimeout(() => ctx.close(), 800);
+    } catch {}
+  };
+
   const scrollToBottom = () => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -228,6 +254,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     const botMsg: Message = { id: (Date.now() + 1).toString(), role: "bot", text: replyText, ts: new Date() };
     setMessages(prev => [...prev, botMsg]);
     setTyping(false);
+    playChime();
 
     if (geminiConfig?.enableLeadCapture && !leadCaptured && messages.length >= 3) {
       setShowLeadForm(true);
