@@ -5615,6 +5615,163 @@ export type Database = {
         }
         Relationships: []
       }
+      store_low_stock_alerts: {
+        Row: {
+          alert_type: string
+          branch_id: string | null
+          channels: Json
+          created_at: string
+          current_stock: number
+          id: string
+          min_stock: number
+          product_id: string
+          resolved_at: string | null
+          resolved_stock: number | null
+        }
+        Insert: {
+          alert_type: string
+          branch_id?: string | null
+          channels?: Json
+          created_at?: string
+          current_stock: number
+          id?: string
+          min_stock: number
+          product_id: string
+          resolved_at?: string | null
+          resolved_stock?: number | null
+        }
+        Update: {
+          alert_type?: string
+          branch_id?: string | null
+          channels?: Json
+          created_at?: string
+          current_stock?: number
+          id?: string
+          min_stock?: number
+          product_id?: string
+          resolved_at?: string | null
+          resolved_stock?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_low_stock_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_opname_lines: {
+        Row: {
+          applied: boolean
+          created_at: string
+          id: string
+          line_notes: string | null
+          movement_id: string | null
+          physical_qty: number
+          product_id: string
+          session_id: string
+          system_qty: number
+          unit_cost: number
+        }
+        Insert: {
+          applied?: boolean
+          created_at?: string
+          id?: string
+          line_notes?: string | null
+          movement_id?: string | null
+          physical_qty: number
+          product_id: string
+          session_id: string
+          system_qty: number
+          unit_cost?: number
+        }
+        Update: {
+          applied?: boolean
+          created_at?: string
+          id?: string
+          line_notes?: string | null
+          movement_id?: string | null
+          physical_qty?: number
+          product_id?: string
+          session_id?: string
+          system_qty?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_opname_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_opname_lines_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "store_opname_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_opname_sessions: {
+        Row: {
+          applied_movement_count: number
+          branch_id: string | null
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          status: Database["public"]["Enums"]["opname_status"]
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          applied_movement_count?: number
+          branch_id?: string | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["opname_status"]
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applied_movement_count?: number
+          branch_id?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["opname_status"]
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_opname_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_order_counters: {
         Row: {
           date_key: string
@@ -7238,6 +7395,10 @@ export type Database = {
         Args: { _base_amount: number; _customer_id: string }
         Returns: Json
       }
+      approve_opname_session: {
+        Args: { _reviewer_notes?: string; _session_id: string }
+        Returns: number
+      }
       award_badge: {
         Args: {
           _badge_id: string
@@ -7298,6 +7459,7 @@ export type Database = {
         Returns: string
       }
       generate_employee_code: { Args: never; Returns: string }
+      generate_opname_code: { Args: never; Returns: string }
       generate_payment_code: { Args: never; Returns: string }
       generate_po_number: { Args: never; Returns: string }
       generate_savings_payment_code: { Args: never; Returns: string }
@@ -7421,6 +7583,10 @@ export type Database = {
         Returns: undefined
       }
       redeem_booking_access_token: { Args: { _token: string }; Returns: Json }
+      reject_opname_session: {
+        Args: { _reviewer_notes: string; _session_id: string }
+        Returns: undefined
+      }
       release_seat_hold: {
         Args: { _departure_id?: string; _session_id: string }
         Returns: number
@@ -7438,6 +7604,10 @@ export type Database = {
           p_notes?: string
           p_return_photo_url?: string
         }
+        Returns: undefined
+      }
+      submit_opname_session: {
+        Args: { _session_id: string }
         Returns: undefined
       }
       sync_role_permissions_to_users: {
@@ -7500,6 +7670,7 @@ export type Database = {
         | "closing"
         | "won"
         | "lost"
+      opname_status: "draft" | "submitted" | "approved" | "rejected"
       package_type: "umroh" | "haji" | "haji_plus" | "umroh_plus" | "tabungan"
       payment_status: "pending" | "partial" | "paid" | "refunded" | "failed"
       po_status: "draft" | "ordered" | "partial" | "received" | "cancelled"
@@ -7676,6 +7847,7 @@ export const Constants = {
         "won",
         "lost",
       ],
+      opname_status: ["draft", "submitted", "approved", "rejected"],
       package_type: ["umroh", "haji", "haji_plus", "umroh_plus", "tabungan"],
       payment_status: ["pending", "partial", "paid", "refunded", "failed"],
       po_status: ["draft", "ordered", "partial", "received", "cancelled"],

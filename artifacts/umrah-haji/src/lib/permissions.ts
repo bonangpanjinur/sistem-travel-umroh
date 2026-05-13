@@ -161,6 +161,7 @@ export const PERMISSIONS = {
   STORE_STOCK_MOVEMENTS: 'store-stock-movements',
   STORE_STOCK_OPNAME: 'store-stock-opname',
   STORE_LOW_STOCK: 'store-low-stock',
+  STORE_OPNAME_SESSIONS: 'store-opname-sessions',
 
   // Fase 10 — AI & Smart Analytics
   GEMINI_AI: 'gemini-ai',

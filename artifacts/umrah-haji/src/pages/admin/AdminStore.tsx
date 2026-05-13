@@ -132,6 +132,7 @@ export default function AdminStore() {
               { href: "/admin/store/sales-report", icon: BarChart3, label: "Laporan Penjualan", desc: "Pendapatan, HPP, laba kotor" },
               { href: "/admin/store/stock-movements", icon: ArrowDownUp, label: "Mutasi Stok", desc: "Riwayat pergerakan stok" },
               { href: "/admin/store/stock-opname", icon: ClipboardCheck, label: "Stock Opname", desc: "Hitung fisik vs sistem" },
+              { href: "/admin/store/opname", icon: ClipboardCheck, label: "Sesi Opname", desc: "Approval & riwayat opname" },
               { href: "/admin/store/low-stock", icon: AlertTriangle, label: "Stok Menipis", desc: `${lowStock} produk perlu restock` },
             ].map((item) => (
               <Link key={item.href} to={item.href}>
