@@ -20,9 +20,9 @@ import {
 } from 'lucide-react';
 
 const TIER_CONFIG = {
-  silver: { label: 'Silver', color: 'bg-gray-400', nextTier: 'Gold', pointsNeeded: 1000, icon: '🥈' },
-  gold: { label: 'Gold', color: 'bg-yellow-500', nextTier: 'Platinum', pointsNeeded: 5000, icon: '🥇' },
-  platinum: { label: 'Platinum', color: 'bg-purple-500', nextTier: null, pointsNeeded: null, icon: '👑' },
+  silver: { label: 'Silver', color: 'bg-gray-400', nextTier: 'Gold', pointsNeeded: 1000, icon: '🥈', discount: 0, benefits: ['Akumulasi poin dari setiap pembayaran', 'Akses katalog reward'] },
+  gold: { label: 'Gold', color: 'bg-yellow-500', nextTier: 'Platinum', pointsNeeded: 5000, icon: '🥇', discount: 2, benefits: ['Diskon 2% otomatis untuk semua booking', 'Prioritas konfirmasi booking', 'Reward eksklusif tier Gold'] },
+  platinum: { label: 'Platinum', color: 'bg-purple-500', nextTier: null, pointsNeeded: null, icon: '👑', discount: 5, benefits: ['Diskon 5% otomatis untuk semua booking', 'Prioritas tertinggi & dedicated CS', 'Akses upgrade kamar gratis (jika tersedia)', 'Reward eksklusif tier Platinum'] },
 };
 
 interface LoyaltyReward {
