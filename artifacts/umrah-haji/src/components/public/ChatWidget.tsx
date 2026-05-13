@@ -80,8 +80,25 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const scrollRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<{ role: string; text: string }[]>([]);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const REACTION_EMOJIS = ["👍", "🙏", "❤️", "😊", "🤔"];
+
+  const clearConversation = () => {
+    const greeting = geminiConfig?.greeting
+      ? geminiConfig.greeting
+      : `Halo! Selamat datang di ${tenantName}. Ada yang bisa saya bantu? 😊`;
+    setMessages([{ id: Date.now().toString(), role: "bot", text: greeting, ts: new Date() }]);
+    setInput("");
+    setTyping(false);
+    setReactions({});
+    setPickerOpen(null);
+    setShowLeadForm(false);
+    setLeadCaptured(false);
+    setLeadForm({ name: "", phone: "" });
+    historyRef.current = [];
+    setConfirmClear(false);
+  };
 
   const pickReaction = (msgId: string, emoji: string) => {
     setReactions(prev => prev[msgId] === emoji ? (({ [msgId]: _, ...rest }) => rest)(prev) : { ...prev, [msgId]: emoji });
@@ -267,9 +284,42 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                 </div>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white transition-colors">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {/* Clear conversation */}
+              {confirmClear ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-white/80 text-[10px]">Hapus?</span>
+                  <button
+                    onClick={clearConversation}
+                    className="text-[10px] bg-red-500 hover:bg-red-600 text-white rounded px-1.5 py-0.5 font-medium transition-colors"
+                  >
+                    Ya
+                  </button>
+                  <button
+                    onClick={() => setConfirmClear(false)}
+                    className="text-white/70 hover:text-white transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="text-white/60 hover:text-white transition-colors"
+                  title="Hapus percakapan"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                    <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                  </svg>
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white transition-colors ml-1">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
