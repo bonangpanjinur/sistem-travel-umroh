@@ -238,8 +238,16 @@ export default function AdminDepartures() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('departures').delete().eq('id', id);
+      const { data, error } = await (supabase.rpc as any)('delete_departure_safely', {
+        _departure_id: id,
+      });
       if (error) throw error;
+      if (data && data.ok === false) {
+        if (data.error === 'departure_has_bookings') {
+          throw new Error(`Jadwal tidak bisa dihapus karena masih memiliki ${data.booking_count ?? 0} booking. Pindahkan atau batalkan booking terlebih dahulu.`);
+        }
+        throw new Error(data.error || 'Gagal menghapus jadwal');
+      }
     },
     onSuccess: () => {
       toast.success("Jadwal berhasil dihapus");
