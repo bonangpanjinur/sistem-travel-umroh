@@ -276,6 +276,80 @@ export function useBookingWizardDynamic(
 
       if (bookingError) throw bookingError;
 
+      // 5.0 Create initial payment record(s) sesuai mode pembayaran
+      try {
+        const paymentMode = formData.paymentMode || 'full';
+        const { data: pCode } = await supabase.rpc('generate_payment_code' as any);
+        const baseCode = pCode || `PAY${Date.now().toString(36).toUpperCase()}`;
+
+        if (paymentMode === 'full') {
+          await supabase.from('payments').insert({
+            booking_id: booking.id,
+            payment_code: baseCode,
+            amount: totalPrice,
+            status: 'pending',
+            notes: 'Pembayaran lunas — menunggu transfer & verifikasi',
+          } as any);
+        } else if (paymentMode === 'dp') {
+          const dp = Math.max(0, Math.min(totalPrice, formData.dpAmount || 0));
+          await supabase.from('payments').insert({
+            booking_id: booking.id,
+            payment_code: baseCode,
+            amount: dp,
+            status: 'pending',
+            notes: `Uang muka (DP). Sisa pelunasan ${(totalPrice - dp).toLocaleString('id-ID')} jatuh tempo H-30.`,
+          } as any);
+        } else if (paymentMode === 'savings' && formData.savingsPlanId) {
+          // Tarik saldo tabungan: ambil paid_amount, kurangi sebesar min(saldo, total)
+          const { data: plan } = await (supabase as any)
+            .from('savings_plans')
+            .select('id, paid_amount, remaining_amount, target_amount')
+            .eq('id', formData.savingsPlanId)
+            .maybeSingle();
+          const saldo = Number(plan?.paid_amount || 0);
+          const useFromSavings = Math.min(saldo, totalPrice);
+          const shortfall = Math.max(0, totalPrice - useFromSavings);
+
+          // Catat pembayaran terverifikasi dari saldo tabungan
+          if (useFromSavings > 0) {
+            await supabase.from('payments').insert({
+              booking_id: booking.id,
+              payment_code: baseCode,
+              amount: useFromSavings,
+              status: 'paid',
+              payment_method: 'savings',
+              notes: `Dibayar dari Tabungan Umroh (plan ${formData.savingsPlanId})`,
+              verified_at: new Date().toISOString(),
+            } as any);
+
+            // Tandai plan dikonversi & kurangi saldo
+            await (supabase as any)
+              .from('savings_plans')
+              .update({
+                paid_amount: Math.max(0, saldo - useFromSavings),
+                converted_booking_id: booking.id,
+                status: shortfall === 0 ? 'completed' : 'active',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', formData.savingsPlanId);
+          }
+
+          // Sisa kekurangan jadi payment pending baru
+          if (shortfall > 0) {
+            const { data: pCode2 } = await supabase.rpc('generate_payment_code' as any);
+            await supabase.from('payments').insert({
+              booking_id: booking.id,
+              payment_code: pCode2 || `${baseCode}-2`,
+              amount: shortfall,
+              status: 'pending',
+              notes: 'Sisa pelunasan setelah penggunaan saldo tabungan',
+            } as any);
+          }
+        }
+      } catch (payErr) {
+        console.warn('Initial payment creation failed:', payErr);
+      }
+
       // 5.1 Handle coupon usage atomically if provided
       if (picState.couponCode) {
         try {
