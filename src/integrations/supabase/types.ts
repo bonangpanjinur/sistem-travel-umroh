@@ -825,6 +825,7 @@ export type Database = {
           customer_id: string
           departure_id: string
           discount_amount: number | null
+          exchange_rate: number
           id: string
           infant_count: number | null
           notes: string | null
@@ -836,6 +837,8 @@ export type Database = {
           sales_id: string | null
           total_pax: number | null
           total_price: number
+          total_price_idr: number | null
+          total_price_original: number | null
           updated_at: string | null
         }
         Insert: {
@@ -852,6 +855,7 @@ export type Database = {
           customer_id: string
           departure_id: string
           discount_amount?: number | null
+          exchange_rate?: number
           id?: string
           infant_count?: number | null
           notes?: string | null
@@ -863,6 +867,8 @@ export type Database = {
           sales_id?: string | null
           total_pax?: number | null
           total_price: number
+          total_price_idr?: number | null
+          total_price_original?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -879,6 +885,7 @@ export type Database = {
           customer_id?: string
           departure_id?: string
           discount_amount?: number | null
+          exchange_rate?: number
           id?: string
           infant_count?: number | null
           notes?: string | null
@@ -890,6 +897,8 @@ export type Database = {
           sales_id?: string | null
           total_pax?: number | null
           total_price?: number
+          total_price_idr?: number | null
+          total_price_original?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -2507,6 +2516,45 @@ export type Database = {
           },
         ]
       }
+      exchange_rates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency_from: string
+          currency_to: string
+          fetched_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          rate: number
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency_from: string
+          currency_to?: string
+          fetched_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rate: number
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency_from?: string
+          currency_to?: string
+          fetched_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rate?: number
+          source?: string
+        }
+        Relationships: []
+      }
       haji_registrations: {
         Row: {
           created_at: string | null
@@ -3963,6 +4011,7 @@ export type Database = {
       packages: {
         Row: {
           airline_id: string | null
+          booking_mode: string
           branch_id: string | null
           code: string
           created_at: string | null
@@ -3996,6 +4045,7 @@ export type Database = {
         }
         Insert: {
           airline_id?: string | null
+          booking_mode?: string
           branch_id?: string | null
           code: string
           created_at?: string | null
@@ -4029,6 +4079,7 @@ export type Database = {
         }
         Update: {
           airline_id?: string | null
+          booking_mode?: string
           branch_id?: string | null
           code?: string
           created_at?: string | null
@@ -6859,6 +6910,10 @@ export type Database = {
       generate_savings_payment_code: { Args: never; Returns: string }
       generate_store_order_number: { Args: never; Returns: string }
       generate_ticket_code: { Args: never; Returns: string }
+      get_active_exchange_rate: {
+        Args: { _currency_from: string; _currency_to?: string }
+        Returns: number
+      }
       get_booking_customer_ids_for_user: {
         Args: { _user_id: string }
         Returns: string[]
