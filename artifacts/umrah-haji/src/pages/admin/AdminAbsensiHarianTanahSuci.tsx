@@ -105,7 +105,7 @@ export default function AdminAbsensiHarianTanahSuci() {
   const stats = useMemo(() => {
     const counts: Record<string, number> = { hadir: 0, sakit: 0, izin: 0, hilang: 0 };
     existing.forEach((e: any) => { counts[e.status] = (counts[e.status] || 0) + 1; });
-    return { ...counts, total: jamaahList.length, recorded: existing.length };
+    return { ...counts, total: jamaahList.length, recorded: existing.length } as Record<string, number>;
   }, [existing, jamaahList.length]);
 
   return (
