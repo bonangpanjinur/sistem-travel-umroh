@@ -295,7 +295,13 @@ export default function AdminRoutes() {
       <Route path="security-audit" element={<P k={PERMISSIONS.SECURITY_AUDIT}><AdminSecurityAudit /></P>} />
       <Route path="2fa" element={<P k={PERMISSIONS.TWO_FA}><Admin2FASettings /></P>} />
       <Route path="appearance" element={<P k={PERMISSIONS.APPEARANCE}><AdminAppearance /></P>} />
-      <Route path="pwa-settings" element={<P k={PERMISSIONS.APPEARANCE}><AdminPWASettings /></P>} />
+      <Route path="pwa-settings" element={<P k={PERMISSIONS.PWA_SETTINGS}><AdminPWASettings /></P>} />
+      <Route path="pwa-install-stats" element={<P k={PERMISSIONS.PWA_SETTINGS}><LazyPage><AdminPWAInstallStats /></LazyPage></P>} />
+      <Route path="access-simulator" element={<P k={PERMISSIONS.RBAC_STATUS}><LazyPage><AdminAccessSimulator /></LazyPage></P>} />
+      <Route path="commission-calculator" element={<P k={PERMISSIONS.AGENT_COMMISSION_REPORT}><LazyPage><AdminCommissionCalculator /></LazyPage></P>} />
+      <Route path="baggage-policies" element={<P k={PERMISSIONS.AIRLINES}><LazyPage><AdminBaggagePolicies /></LazyPage></P>} />
+      <Route path="post-departure-survey" element={<P k={PERMISSIONS.DEPARTURE_TRACKING}><LazyPage><AdminPostDepartureSurvey /></LazyPage></P>} />
+      <Route path="booking-transfers" element={<P k={PERMISSIONS.BOOKINGS}><LazyPage><AdminBookingTransfers /></LazyPage></P>} />
 
 
       <Route path="package-types" element={<P k={PERMISSIONS.PACKAGE_TYPES}><AdminPackageTypes /></P>} />
