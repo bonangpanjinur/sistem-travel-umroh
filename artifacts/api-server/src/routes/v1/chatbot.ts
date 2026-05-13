@@ -18,6 +18,12 @@ STRUKTUR URL WEBSITE — gunakan format Markdown untuk link yang bisa diklik:
 - Hubungi kami: [Kontak Kami](/hubungi-kami)
 Format link: [teks](/path)`;
 
+// ─── Default system prompt per channel (P7) ───────────────────────────────────
+const DEFAULT_CHANNEL_PROMPTS: Record<string, string> = {
+  widget: `Kamu adalah Asisten Virtual Vinstour Travel di website publik. Jawab pertanyaan calon jamaah secara singkat dan menarik. Dorong mereka untuk mendaftar atau menghubungi agen. Gunakan bahasa yang ramah dan persuasif.`,
+  jamaah: `Kamu adalah Asisten Virtual Vinstour Travel untuk jamaah yang sudah terdaftar. Bantu mereka dengan pertanyaan spesifik tentang perjalanan mereka: dokumen, jadwal, pembayaran, visa, hotel, dll. Gunakan bahasa yang personal dan supportif.`,
+};
+
 // ─── FAQ fallback (tanpa AI) ──────────────────────────────────────────────────
 const FAQ_KNOWLEDGE: Record<string, string> = {
   dokumen: `📋 Dokumen yang diperlukan untuk Umroh:\n1. Paspor berlaku min. 6 bulan\n2. KTP & Kartu Keluarga\n3. Buku Nikah (jika suami/istri berangkat bersama)\n4. Akta Lahir (untuk anak di bawah umur)\n5. Pas foto 4×6 background putih, wajah 80%\n6. Sertifikat Vaksin Meningitis\n7. Bukti tabungan (min. Rp 5 juta)\n\nUpload semua dokumen di menu Dokumen → /jamaah/documents ✅`,
@@ -32,26 +38,31 @@ const FAQ_KNOWLEDGE: Record<string, string> = {
   refund: `💳 Kebijakan Refund:\n- H-90 s.d H-60: refund 75%\n- H-60 s.d H-30: refund 50%\n- H-30 s.d H-7: refund 25%\n- < H-7: tidak ada refund\n\nHubungi admin via CS → /customer/support`,
 };
 
-function findFAQAnswer(question: string): string {
+// ─── P6: FAQ answer with unanswered detection ─────────────────────────────────
+function findFAQAnswerResult(question: string): { answer: string; isUnanswered: boolean } {
   const q = question.toLowerCase();
   for (const [key, answer] of Object.entries(FAQ_KNOWLEDGE)) {
-    if (q.includes(key)) return answer;
+    if (q.includes(key)) return { answer, isUnanswered: false };
   }
   if (q.includes('haji') || q.includes('porsi'))
-    return 'Untuk haji, cek nomor porsi Anda di menu SISKOHAT → /jamaah/siskohat. Vinstour menyediakan layanan haji khusus dan plus dengan pembimbing berpengalaman.';
+    return { answer: 'Untuk haji, cek nomor porsi Anda di menu SISKOHAT → /jamaah/siskohat. Vinstour menyediakan layanan haji khusus dan plus dengan pembimbing berpengalaman.', isUnanswered: false };
   if (q.includes('halo') || q.includes('hi') || q.includes('assalamu') || q.includes('selamat'))
-    return "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Asisten Virtual Vinstour Travel. Saya siap membantu!\n\nSilakan ajukan pertanyaan Anda.";
+    return { answer: "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Asisten Virtual Vinstour Travel. Saya siap membantu!\n\nSilakan ajukan pertanyaan Anda.", isUnanswered: false };
   if (q.includes('terima kasih') || q.includes('makasih') || q.includes('jazak'))
-    return 'Wa iyyakum! Jazakallahu khairan 🤲\n\nSemoga perjalanan ibadah Anda menjadi mabrur. Barakallahu fiikum!';
+    return { answer: 'Wa iyyakum! Jazakallahu khairan 🤲\n\nSemoga perjalanan ibadah Anda menjadi mabrur. Barakallahu fiikum!', isUnanswered: false };
   if (q.includes('chat') || q.includes('whatsapp') || q.includes('pembimbing'))
-    return 'Untuk chat langsung dengan pembimbing, gunakan menu Chat → /jamaah/chat. Tim kami siap membantu 24/7 InsyaAllah! 🤝';
+    return { answer: 'Untuk chat langsung dengan pembimbing, gunakan menu Chat → /jamaah/chat. Tim kami siap membantu 24/7 InsyaAllah! 🤝', isUnanswered: false };
   if (q.includes('sertifikat'))
-    return 'Sertifikat Umroh digital tersedia setelah perjalanan selesai → /jamaah/sertifikat 🎓';
+    return { answer: 'Sertifikat Umroh digital tersedia setelah perjalanan selesai → /jamaah/sertifikat 🎓', isUnanswered: false };
   if (q.includes('referral') || q.includes('promo') || q.includes('bonus'))
-    return 'Program referral tersedia di menu Referral → /jamaah/referral. Ajak keluarga & teman dan dapatkan poin bonus! 🎁';
+    return { answer: 'Program referral tersedia di menu Referral → /jamaah/referral. Ajak keluarga & teman dan dapatkan poin bonus! 🎁', isUnanswered: false };
   if (q.includes('sos') || q.includes('darurat') || q.includes('emergency'))
-    return '🆘 Dalam keadaan darurat, gunakan tombol SOS di portal jamaah Anda. Muthawif dan tim Vinstour akan merespons secepatnya.';
-  return `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum memiliki informasi spesifik tentang hal ini. Silakan:\n1. Chat langsung dengan pembimbing → /jamaah/chat\n2. Buat tiket dukungan → /customer/support\n\nTim kami siap membantu Anda!`;
+    return { answer: '🆘 Dalam keadaan darurat, gunakan tombol SOS di portal jamaah Anda. Muthawif dan tim Vinstour akan merespons secepatnya.', isUnanswered: false };
+  // Generic fallback — flagged as unanswered (P6)
+  return {
+    answer: `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum memiliki informasi spesifik tentang hal ini. Silakan:\n1. Chat langsung dengan pembimbing → /jamaah/chat\n2. Buat tiket dukungan → /customer/support\n\nTim kami siap membantu Anda!`,
+    isUnanswered: true,
+  };
 }
 
 // ─── AI providers ─────────────────────────────────────────────────────────────
@@ -121,6 +132,7 @@ let cachedAdminConfig: {
   systemPrompt: string;
   model: string;
   enableFAQContext: boolean;
+  channelPrompts: Record<string, string>; // P7
   ts: number;
 } | null = null;
 
@@ -128,6 +140,7 @@ async function getAdminConfig(): Promise<{
   systemPrompt: string;
   model: string;
   enableFAQContext: boolean;
+  channelPrompts: Record<string, string>; // P7
 }> {
   const now = Date.now();
   if (cachedAdminConfig && now - cachedAdminConfig.ts < 60_000) {
@@ -135,10 +148,11 @@ async function getAdminConfig(): Promise<{
       systemPrompt: cachedAdminConfig.systemPrompt,
       model: cachedAdminConfig.model,
       enableFAQContext: cachedAdminConfig.enableFAQContext,
+      channelPrompts: cachedAdminConfig.channelPrompts,
     };
   }
   if (!isSupabaseConfigured()) {
-    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true };
+    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true, channelPrompts: {} };
   }
 
   try {
@@ -148,6 +162,7 @@ async function getAdminConfig(): Promise<{
     let systemPrompt = DEFAULT_SYSTEM_PROMPT;
     let model = 'gemini-2.0-flash';
     let enableFAQContext = true;
+    let channelPrompts: Record<string, string> = {}; // P7
     for (const row of rows || []) {
       if (row.key === 'gemini_chatbot_config') {
         try {
@@ -155,13 +170,17 @@ async function getAdminConfig(): Promise<{
           if (cfg.systemPrompt) systemPrompt = cfg.systemPrompt;
           if (cfg.model && ALLOWED_GEMINI_MODELS.has(cfg.model)) model = cfg.model;
           if (typeof cfg.enableFAQContext === 'boolean') enableFAQContext = cfg.enableFAQContext;
+          // P7: per-channel prompts
+          if (cfg.channelPrompts && typeof cfg.channelPrompts === 'object') {
+            channelPrompts = cfg.channelPrompts;
+          }
         } catch {}
       }
     }
-    cachedAdminConfig = { systemPrompt, model, enableFAQContext, ts: now };
-    return { systemPrompt, model, enableFAQContext };
+    cachedAdminConfig = { systemPrompt, model, enableFAQContext, channelPrompts, ts: now };
+    return { systemPrompt, model, enableFAQContext, channelPrompts };
   } catch {
-    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true };
+    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true, channelPrompts: {} };
   }
 }
 
@@ -197,7 +216,6 @@ async function getFAQContext(): Promise<{ text: string; count: number }> {
     for (const [category, items] of Object.entries(byCategory)) {
       lines.push(`\n[${category}]`);
       for (const { question, answer } of items) {
-        // Strip HTML tags and collapse whitespace
         const cleanAnswer = answer
           .replace(/<[^>]+>/g, ' ')
           .replace(/\s+/g, ' ')
@@ -235,21 +253,26 @@ async function logToDB(params: {
   userId?: string;
   customerId?: string;
   channel?: string;
+  isUnanswered?: boolean; // P6
 }): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;
   try {
+    const body: Record<string, any> = {
+      session_id:  params.sessionId  || null,
+      message:     params.message,
+      answer:      params.answer,
+      source:      params.source,
+      user_id:     params.userId     || null,
+      customer_id: params.customerId || null,
+      channel:     params.channel    || 'jamaah',
+    };
+    // P6: only include is_unanswered if true (graceful — column may not exist yet)
+    if (params.isUnanswered) body['is_unanswered'] = true;
+
     const rows: any[] = await supabaseFetch('/chatbot_logs', {
       method: 'POST',
       headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({
-        session_id:  params.sessionId  || null,
-        message:     params.message,
-        answer:      params.answer,
-        source:      params.source,
-        user_id:     params.userId     || null,
-        customer_id: params.customerId || null,
-        channel:     params.channel    || 'jamaah',
-      }),
+      body: JSON.stringify(body),
     });
     return rows?.[0]?.id ?? null;
   } catch {
@@ -282,21 +305,21 @@ router.post('/', async (req: any, res: any) => {
       getFAQContext(),
     ]);
 
-    // Client-provided system prompt takes priority (allows per-widget customisation)
-    const baseSystemPrompt = clientSystemPrompt || adminConfig.systemPrompt;
+    // P7: Apply channel-specific prompt (client override > channel-specific > global)
+    const channelSpecificPrompt = adminConfig.channelPrompts[channel] || DEFAULT_CHANNEL_PROMPTS[channel] || '';
+    const baseSystemPrompt = clientSystemPrompt || channelSpecificPrompt || adminConfig.systemPrompt;
     const model = (clientModel && ALLOWED_GEMINI_MODELS.has(clientModel)) ? clientModel : adminConfig.model;
 
     // ── Build enriched system prompt: base + FAQ knowledge base ──────────────
     const promptParts: string[] = [baseSystemPrompt];
-
     if (adminConfig.enableFAQContext && faqCtx.text) {
       promptParts.push(faqCtx.text);
     }
-
     const systemPrompt = promptParts.join('\n\n');
 
     let answer = '';
     let source = 'faq';
+    let isUnanswered = false; // P6
 
     // Try Gemini (env key) ────────────────────────────────────────────────────
     const geminiKey = process.env['GEMINI_API_KEY'];
@@ -318,16 +341,18 @@ router.post('/', async (req: any, res: any) => {
       }
     }
 
-    // Local FAQ fallback ──────────────────────────────────────────────────────
+    // P6: Local FAQ fallback with unanswered detection ────────────────────────
     if (!answer) {
-      answer = findFAQAnswer(message);
+      const result = findFAQAnswerResult(message);
+      answer = result.answer;
       source = 'faq';
+      isUnanswered = result.isUnanswered;
     }
 
     // Log to DB (fire-and-forget — don't block the response) ─────────────────
-    const logId = await logToDB({ sessionId, message, answer, source, userId, customerId, channel });
+    const logId = await logToDB({ sessionId, message, answer, source, userId, customerId, channel, isUnanswered });
 
-    return res.json({ answer, source, logId, faqCount: faqCtx.count });
+    return res.json({ answer, source, logId, faqCount: faqCtx.count, isUnanswered });
   } catch {
     return res.status(500).json({ error: 'Internal server error' });
   }
@@ -357,20 +382,28 @@ router.patch('/rate', async (req: any, res: any) => {
 });
 
 // ─── POST /api/v1/chatbot/invalidate-faq ─────────────────────────────────────
-// Called by admin after saving FAQ to immediately refresh the cache
 router.post('/invalidate-faq', async (_req: any, res: any) => {
   invalidateFAQCache();
   return res.json({ success: true, message: 'FAQ cache invalidated' });
 });
 
 // ─── GET /api/v1/chatbot/faq-status ──────────────────────────────────────────
-// Returns current FAQ cache status
 router.get('/faq-status', async (_req: any, res: any) => {
   const faqCtx = await getFAQContext();
   return res.json({
     faqCount: faqCtx.count,
     hasContext: faqCtx.text.length > 0,
     cachedAt: cachedFAQContext?.ts ? new Date(cachedFAQContext.ts).toISOString() : null,
+  });
+});
+
+// ─── GET /api/v1/chatbot/channel-prompts ─────────────────────────────────────
+// Returns the currently configured channel prompts (for admin UI)
+router.get('/channel-prompts', async (_req: any, res: any) => {
+  const config = await getAdminConfig();
+  return res.json({
+    channelPrompts: config.channelPrompts,
+    defaults: DEFAULT_CHANNEL_PROMPTS,
   });
 });
 

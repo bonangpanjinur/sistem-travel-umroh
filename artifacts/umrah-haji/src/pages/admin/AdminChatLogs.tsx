@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   MessageSquare, Search, RefreshCcw, Loader2, ChevronDown,
   ChevronUp, Bot, ThumbsUp, ThumbsDown, Minus, Calendar,
-  Filter, Download, AlertCircle,
+  Filter, Download, AlertCircle, HelpCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -29,6 +29,8 @@ interface ChatLog {
   response?: string;
   source?: string;
   rating?: number | null;
+  is_unanswered?: boolean;
+  channel?: string;
   created_at: string;
   metadata?: any;
 }
@@ -83,6 +85,16 @@ function LogRow({ log }: { log: ChatLog }) {
               >
                 {SOURCE_LABELS[log.source || ""] || log.source || "—"}
               </Badge>
+              {log.is_unanswered && (
+                <Badge className="text-xs shrink-0 bg-amber-100 text-amber-700 border-amber-200 gap-1">
+                  <HelpCircle className="h-2.5 w-2.5" /> Tak Terjawab
+                </Badge>
+              )}
+              {log.channel && log.channel !== "jamaah" && (
+                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                  {log.channel}
+                </span>
+              )}
               {log.session_id && (
                 <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]">
                   {log.session_id.slice(0, 12)}…
@@ -154,15 +166,16 @@ export default function AdminChatLogs() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
+  const [unansweredOnly, setUnansweredOnly] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 30;
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["admin-chat-logs", sourceFilter, ratingFilter, page],
+    queryKey: ["admin-chat-logs", sourceFilter, ratingFilter, unansweredOnly, page],
     queryFn: async () => {
       let q = supabase
         .from("chatbot_logs")
-        .select("id, session_id, message, response, source, rating, created_at, metadata", { count: "exact" })
+        .select("id, session_id, message, response, source, rating, is_unanswered, channel, created_at, metadata", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -170,6 +183,7 @@ export default function AdminChatLogs() {
       if (ratingFilter === "positive") q = q.eq("rating", 1);
       else if (ratingFilter === "negative") q = q.eq("rating", -1);
       else if (ratingFilter === "unrated") q = q.is("rating", null);
+      if (unansweredOnly) q = q.eq("is_unanswered", true);
 
       const { data, error, count } = await q;
       if (error) throw error;
@@ -248,7 +262,7 @@ export default function AdminChatLogs() {
                 className="pl-9"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
               <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(0); }}>
                 <SelectTrigger className="w-36">
@@ -272,6 +286,18 @@ export default function AdminChatLogs() {
                   <SelectItem value="unrated">Belum Dinilai</SelectItem>
                 </SelectContent>
               </Select>
+              {/* P6: Filter unanswered */}
+              <button
+                onClick={() => { setUnansweredOnly(v => !v); setPage(0); }}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                  unansweredOnly
+                    ? "bg-amber-50 text-amber-700 border-amber-300 font-semibold"
+                    : "bg-background text-muted-foreground border-input hover:border-amber-300"
+                }`}
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                Tak Terjawab
+              </button>
             </div>
           </div>
         </CardContent>

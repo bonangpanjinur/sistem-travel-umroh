@@ -774,33 +774,33 @@ Ganti query `chat_leads.message` → `chatbot_logs.message` dengan `GROUP BY` pe
 
 File: ubah `AdminChatbotStats.tsx`
 
-#### P4 — Rating di Widget Publik 🟡
+#### P4 — Rating di Widget Publik ✅ Selesai
 
 Tambah tombol 👍/👎 di `FloatingChatBubble`. Backend kembalikan `logId` di response agar bisa dikirim ke `PATCH /api/v1/chatbot/rate`.
 
 File: ubah `FloatingChatBubble.tsx` · ubah `chatbot.ts`
 
-#### P5 — Riwayat Chat dari Server 🟡
+#### P5 — Riwayat Chat dari Server ✅ Selesai
 
-Untuk jamaah login, load history dari `chatbot_logs` (filter `user_id = auth.uid()`) sebagai pengganti localStorage.
+Untuk jamaah login, load history dari `chatbot_logs` (filter `user_id = auth.uid()`) sebagai pengganti localStorage. Tombol "Riwayat" muncul di header JamaahChatbot untuk user yang sudah login.
 
 File: ubah `JamaahChatbot.tsx`
 
-#### P6 — Deteksi Pertanyaan Tak Terjawab 🟡
+#### P6 — Deteksi Pertanyaan Tak Terjawab ✅ Selesai
 
-Flag `is_unanswered = true` di log ketika fallback generic. Badge counter di admin panel + filter khusus.
+Flag `is_unanswered = true` di log ketika fallback generic. Badge counter di admin panel + filter "Tak Terjawab" di AdminChatLogs.
 
-File: ubah `chatbot.ts` · ubah `AdminChatLogs.tsx` · tambah kolom DB
+File: ubah `chatbot.ts` · ubah `AdminChatLogs.tsx` · tambah kolom DB (`supabase-migrations/phase6-chatbot-unanswered.sql`)
 
-#### P7 — System Prompt Per-Channel 🟡
+#### P7 — System Prompt Per-Channel ✅ Selesai
 
-Extend `gemini_chatbot_config` dengan `channelPrompts.jamaah` dan `channelPrompts.widget`.
+Extend `gemini_chatbot_config` dengan `channelPrompts.jamaah` dan `channelPrompts.widget`. Default prompts per channel tersedia di backend.
 
 File: ubah `chatbot.ts`
 
-#### P8 — Stats Realtime 🟡
+#### P8 — Stats Realtime ✅ Selesai
 
-Supabase realtime subscription di `AdminChatbotStats` untuk tabel `chatbot_logs`.
+Supabase realtime subscription di `AdminChatbotStats` untuk tabel `chatbot_logs`. Badge "Realtime aktif" muncul saat ada pesan baru.
 
 File: ubah `AdminChatbotStats.tsx`
 
@@ -811,11 +811,11 @@ File: ubah `AdminChatbotStats.tsx`
 | 1 | FAQ Manager admin | Tinggi | Sedang | ✅ Selesai |
 | 2 | Log Viewer percakapan | Tinggi | Sedang | ✅ Selesai |
 | 3 | Perbaiki Top Questions | Sedang | Rendah | ✅ Selesai |
-| 4 | Rating di widget publik | Sedang | Rendah | 🔴 Belum |
-| 5 | Riwayat dari server | Tinggi | Sedang | 🔴 Belum |
-| 6 | Deteksi unanswered | Sedang | Rendah | 🔴 Belum |
-| 7 | Prompt per-channel | Sedang | Rendah | 🔴 Belum |
-| 8 | Stats realtime | Rendah | Rendah | 🔴 Belum |
+| 4 | Rating di widget publik | Sedang | Rendah | ✅ Selesai |
+| 5 | Riwayat dari server | Tinggi | Sedang | ✅ Selesai |
+| 6 | Deteksi unanswered | Sedang | Rendah | ✅ Selesai |
+| 7 | Prompt per-channel | Sedang | Rendah | ✅ Selesai |
+| 8 | Stats realtime | Rendah | Rendah | ✅ Selesai |
 
 ---
 
@@ -835,7 +835,7 @@ File: ubah `AdminChatbotStats.tsx`
 
 ## BAGIAN 14 — RENCANA FITUR: SISTEM ATURAN PEMBATALAN LENGKAP
 
-> **Status:** 🟡 Sebagian selesai — GAP 1 & GAP 2 selesai, GAP 3 & GAP 4 masih tersisa
+> **Status:** ✅ Selesai — GAP 1, GAP 2, & GAP 3 selesai; GAP 4 ditunda (low priority)
 > **Referensi:** N9 di Backlog 6E
 
 ---
@@ -951,9 +951,9 @@ Pilih dari dropdown / buat cepat → Simpan (semua sekaligus)
 
 ---
 
-#### GAP 3 — Pengaturan Dokumen Dinamis (Prioritas Sedang)
+#### GAP 3 — Pengaturan Dokumen Dinamis ✅ Selesai
 
-**Deskripsi:** Admin bisa mengatur di dokumen mana saja aturan pembatalan muncul. Saat ini aturan selalu dimasukkan ke form transaksi PDF jika ada data policy, tapi tidak ada toggle UI untuk mematikan/menyalakan per-dokumen.
+**Deskripsi:** Admin bisa mengatur di dokumen mana saja aturan pembatalan muncul. Card "Aturan Pembatalan" dengan 5 toggle di `DocumentLayoutEditor.tsx`, disimpan ke `app_settings` key `doc_cancellation_display_settings`.
 
 **Dokumen yang perlu dikontrol:**
 | Dokumen | Variable Setting | Default |

@@ -9,6 +9,7 @@ import { useFaqSuggestions, getCategories, CATEGORY_EMOJI, type FaqSuggestion } 
 import {
   Bot, Send, X, MessageCircle, RefreshCcw,
   Phone, ChevronDown, Sparkles, User, Search,
+  ThumbsUp, ThumbsDown,
 } from "lucide-react";
 
 interface Message {
@@ -16,6 +17,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  logId?: string | null;
+  liked?: boolean | null;
 }
 
 const FAQ_KNOWLEDGE_BASE: Record<string, string> = {
@@ -56,20 +59,48 @@ function findAnswer(q: string): string {
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || "";
 
+// P4: Session ID for rating linkage
+const WIDGET_SESSION_ID = (() => {
+  try {
+    const k = "vinstour-widget-session";
+    const existing = sessionStorage.getItem(k);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    sessionStorage.setItem(k, id);
+    return id;
+  } catch {
+    return "unknown";
+  }
+})();
+
 async function fetchAI(message: string, history: { role: string; content: string }[]) {
-  if (!API_BASE) return { answer: findAnswer(message), source: "faq" as const };
+  if (!API_BASE) return { answer: findAnswer(message), source: "faq" as const, logId: null as string | null };
   try {
     const res = await fetch(`${API_BASE}/api/v1/chatbot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, conversationHistory: history }),
+      body: JSON.stringify({ message, conversationHistory: history, sessionId: WIDGET_SESSION_ID, channel: "widget" }),
       signal: AbortSignal.timeout(7000),
     });
     if (!res.ok) throw new Error();
-    return await res.json() as { answer: string; source: "ai" | "faq" };
+    const data = await res.json() as { answer: string; source: "ai" | "faq"; logId?: string | null };
+    return { answer: data.answer, source: data.source, logId: data.logId ?? null };
   } catch {
-    return { answer: findAnswer(message), source: "faq" as const };
+    return { answer: findAnswer(message), source: "faq" as const, logId: null as string | null };
   }
+}
+
+// P4: Persist rating to backend
+async function persistWidgetRating(logId: string, rating: 1 | -1): Promise<void> {
+  if (!API_BASE) return;
+  try {
+    await fetch(`${API_BASE}/api/v1/chatbot/rate`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logId, rating }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch { /* non-critical */ }
 }
 
 function formatContent(text: string) {
@@ -102,6 +133,7 @@ export function FloatingChatBubble() {
   const [loading, setLoading] = useState(false);
   const [aiMode, setAiMode] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
+  const [ratedMsgs, setRatedMsgs] = useState<Record<string, 1 | -1>>({}); // P4
   const [activeSuggestCat, setActiveSuggestCat] = useState<string>("all");
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -190,7 +222,7 @@ export function FloatingChatBubble() {
     setLoading(true);
 
     const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
-    const { answer, source } = await fetchAI(msg, history);
+    const { answer, source, logId } = await fetchAI(msg, history);
     if (source === "ai") setAiMode(true);
 
     setMessages(prev => [...prev, {
@@ -198,8 +230,17 @@ export function FloatingChatBubble() {
       role: "assistant",
       content: answer,
       timestamp: new Date(),
+      logId: logId ?? null,
     }]);
     setLoading(false);
+  }
+
+  // P4: Rating handler for widget
+  function rateWidgetMessage(msgId: string, rating: 1 | -1) {
+    if (ratedMsgs[msgId]) return; // already rated
+    setRatedMsgs(prev => ({ ...prev, [msgId]: rating }));
+    const msg = messages.find(m => m.id === msgId);
+    if (msg?.logId) persistWidgetRating(msg.logId, rating);
   }
 
   // Select an autocomplete suggestion → send directly
@@ -317,7 +358,7 @@ export function FloatingChatBubble() {
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.role === "assistant" ? "bg-gradient-to-br from-violet-500 to-indigo-600" : "bg-gradient-to-br from-green-400 to-emerald-500"}`}>
                         {msg.role === "assistant" ? <Bot className="h-3.5 w-3.5 text-white" /> : <User className="h-3.5 w-3.5 text-white" />}
                       </div>
-                      <div className="flex flex-col gap-2 max-w-[82%]">
+                      <div className="flex flex-col gap-1.5 max-w-[82%]">
                         <div className={`rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-sm" : "bg-white border rounded-tl-sm text-gray-800"}`}>
                           <div
                             dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
@@ -338,6 +379,33 @@ export function FloatingChatBubble() {
                             {pkgIds.map(id => (
                               <ChatPackageCard key={id} packageId={id} packages={packages as any[]} accentColor="#6d28d9" />
                             ))}
+                          </div>
+                        )}
+                        {/* P4: Rating buttons for assistant messages */}
+                        {msg.role === "assistant" && msg.id !== "welcome" && (
+                          <div className="flex items-center gap-1 pl-0.5">
+                            {ratedMsgs[msg.id] ? (
+                              <span className={`text-[10px] font-medium ${ratedMsgs[msg.id] === 1 ? "text-green-600" : "text-red-500"}`}>
+                                {ratedMsgs[msg.id] === 1 ? "👍 Terima kasih!" : "👎 Masukan diterima"}
+                              </span>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => rateWidgetMessage(msg.id, 1)}
+                                  className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors"
+                                  title="Jawaban membantu"
+                                >
+                                  <ThumbsUp className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => rateWidgetMessage(msg.id, -1)}
+                                  className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                                  title="Jawaban kurang membantu"
+                                >
+                                  <ThumbsDown className="h-3 w-3" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>

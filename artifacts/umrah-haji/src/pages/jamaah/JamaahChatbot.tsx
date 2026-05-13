@@ -10,6 +10,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatbotFollowup, loadFollowupData, extractActionItems } from "@/hooks/useChatbotFollowup";
+import { supabase as supabaseRaw } from "@/integrations/supabase/client";
+const supabase: any = supabaseRaw;
 import { Link } from "react-router-dom";
 import {
   Bot, Send, User, RefreshCcw, Home, ChevronRight,
@@ -258,6 +260,40 @@ const DEFAULT_GREETING: Message = {
   timestamp: new Date(),
 };
 
+// P5: Load chat history from server for logged-in users
+async function fetchServerHistory(userId: string): Promise<Message[]> {
+  try {
+    const { data, error } = await supabase
+      .from("chatbot_logs")
+      .select("id, message, answer, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(40);
+    if (error || !data?.length) return [];
+    const msgs: Message[] = [DEFAULT_GREETING];
+    for (const row of data) {
+      msgs.push({
+        id: `srv-user-${row.id}`,
+        role: "user",
+        content: row.message || "",
+        timestamp: new Date(row.created_at),
+      });
+      if (row.answer) {
+        msgs.push({
+          id: `srv-bot-${row.id}`,
+          role: "assistant",
+          content: row.answer,
+          timestamp: new Date(row.created_at),
+          logId: row.id,
+        });
+      }
+    }
+    return msgs;
+  } catch {
+    return [];
+  }
+}
+
 function loadChatbotHistory(): Message[] {
   try {
     const saved = localStorage.getItem(CHATBOT_STORAGE_KEY);
@@ -361,6 +397,8 @@ export default function JamaahChatbot() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiMode, setAiMode] = useState(false);
+  const [loadingServerHistory, setLoadingServerHistory] = useState(false);
+  const [serverHistoryLoaded, setServerHistoryLoaded] = useState(false);
 
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
@@ -392,6 +430,20 @@ export default function JamaahChatbot() {
       localStorage.setItem(CHATBOT_STORAGE_KEY, JSON.stringify(messages));
     } catch {}
   }, [messages]);
+
+  // P5: Load server history for logged-in users
+  async function handleLoadServerHistory() {
+    if (!user?.id || loadingServerHistory || serverHistoryLoaded) return;
+    setLoadingServerHistory(true);
+    const serverMsgs = await fetchServerHistory(user.id);
+    setLoadingServerHistory(false);
+    if (serverMsgs.length > 1) {
+      setMessages(serverMsgs);
+      setServerHistoryLoaded(true);
+    } else {
+      setServerHistoryLoaded(true);
+    }
+  }
 
   async function sendMessage(text?: string) {
     const msg = (text || input).trim();
@@ -658,6 +710,23 @@ export default function JamaahChatbot() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {/* P5: Load from server button */}
+            {user && !serverHistoryLoaded && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleLoadServerHistory}
+                disabled={loadingServerHistory}
+                className="h-8 px-2.5 text-xs gap-1.5 text-indigo-600 hover:bg-indigo-50"
+                title="Muat riwayat percakapan sebelumnya dari server"
+              >
+                {loadingServerHistory
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <RefreshCcw className="h-3.5 w-3.5" />
+                }
+                Riwayat
+              </Button>
+            )}
             {/* Active reminder badge */}
             {isScheduled && (
               <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">

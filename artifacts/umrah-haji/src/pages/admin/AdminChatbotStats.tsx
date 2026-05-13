@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -86,8 +86,28 @@ export default function AdminChatbotStats() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<7 | 14 | 30>(14);
+  const [realtimeCount, setRealtimeCount] = useState(0);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => { load(); }, [range]);
+
+  // P8: Supabase realtime subscription on chatbot_logs
+  useEffect(() => {
+    channelRef.current = supabase
+      .channel('chatbot-stats-realtime')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chatbot_logs',
+      }, () => {
+        setRealtimeCount(c => c + 1);
+        load();
+      })
+      .subscribe();
+    return () => {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+    };
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -227,6 +247,11 @@ export default function AdminChatbotStats() {
           ) : (
             <Badge className="gap-1 bg-amber-100 text-amber-700 border-0">
               <AlertCircle className="h-3 w-3" /> Mode FAQ (AI belum dikonfigurasi)
+            </Badge>
+          )}
+          {realtimeCount > 0 && (
+            <Badge className="gap-1 bg-green-100 text-green-700 border-0 animate-pulse">
+              <Activity className="h-3 w-3" /> Realtime aktif
             </Badge>
           )}
           <Button variant="outline" size="sm" className="gap-1.5" onClick={load} disabled={loading}>

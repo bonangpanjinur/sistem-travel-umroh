@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck, Settings2 } from "lucide-react";
+import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck, Settings2, AlertTriangle, Save } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { DocumentLayout } from "@/lib/document-generator";
@@ -28,6 +28,31 @@ const documentTypeDescriptions: Record<DocumentType, string> = {
   general_letter: 'Surat resmi umum',
 };
 
+// GAP 3: Cancellation display settings
+interface CancellationDisplaySettings {
+  form_transaksi: boolean;
+  invoice: boolean;
+  proposal: boolean;
+  kontrak: boolean;
+  sertifikat: boolean;
+}
+
+const DEFAULT_CANCELLATION_SETTINGS: CancellationDisplaySettings = {
+  form_transaksi: true,
+  invoice: false,
+  proposal: true,
+  kontrak: true,
+  sertifikat: false,
+};
+
+const CANCELLATION_DOC_LABELS: Record<keyof CancellationDisplaySettings, { label: string; description: string }> = {
+  form_transaksi: { label: 'Form Transaksi / Booking', description: 'Dokumen utama saat konfirmasi pemesanan paket' },
+  invoice:        { label: 'Invoice Pembayaran',         description: 'Faktur tagihan yang dikirim ke jamaah' },
+  proposal:       { label: 'Proposal Penawaran',         description: 'Dokumen penawaran yang dikirim ke calon jamaah' },
+  kontrak:        { label: 'Surat Perjanjian / Kontrak', description: 'Kontrak resmi antara agen dan jamaah' },
+  sertifikat:     { label: 'Sertifikat Keberangkatan',   description: 'Sertifikat yang diberikan setelah perjalanan' },
+};
+
 export function DocumentLayoutEditor() {
   const { getSetting, updateMultipleSettings, isLoading, isUpdating } = useCompanySettings();
   const { company, documentSettings } = useCompanyInfo();
@@ -40,6 +65,10 @@ export function DocumentLayoutEditor() {
   });
   const [activeDocumentType, setActiveDocumentType] = useState<DocumentType>('invoice');
   const [isSaving, setIsSaving] = useState(false);
+
+  // GAP 3: Cancellation display settings state
+  const [cancellationSettings, setCancellationSettings] = useState<CancellationDisplaySettings>(DEFAULT_CANCELLATION_SETTINGS);
+  const [isSavingCancellation, setIsSavingCancellation] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
@@ -61,8 +90,29 @@ export function DocumentLayoutEditor() {
       });
       
       setLayouts(loadedLayouts);
+
+      // GAP 3: Load cancellation display settings
+      const savedCancellation = getSetting('doc_cancellation_display_settings');
+      if (savedCancellation) {
+        try {
+          const parsed = typeof savedCancellation === 'string' ? JSON.parse(savedCancellation) : savedCancellation;
+          setCancellationSettings({ ...DEFAULT_CANCELLATION_SETTINGS, ...parsed });
+        } catch {}
+      }
     }
   }, [isLoading, getSetting]);
+
+  // GAP 3: Save cancellation display settings
+  const handleSaveCancellation = async () => {
+    setIsSavingCancellation(true);
+    try {
+      await updateMultipleSettings([
+        { key: 'doc_cancellation_display_settings', value: JSON.stringify(cancellationSettings) },
+      ]);
+    } finally {
+      setIsSavingCancellation(false);
+    }
+  };
 
   const handleToggle = (key: keyof DocumentLayout) => {
     setLayouts(prev => {
@@ -220,6 +270,53 @@ export function DocumentLayoutEditor() {
           );
         })}
       </div>
+
+      {/* GAP 3: Cancellation display settings card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                Aturan Pembatalan di Dokumen
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Pilih dokumen mana saja yang akan menyertakan bagian aturan pembatalan secara otomatis.
+              </p>
+            </div>
+            <Button onClick={handleSaveCancellation} disabled={isSavingCancellation || isUpdating} size="sm" className="gap-2 shrink-0">
+              {isSavingCancellation || isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Simpan
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(Object.keys(CANCELLATION_DOC_LABELS) as (keyof CancellationDisplaySettings)[]).map((key) => {
+              const { label, description } = CANCELLATION_DOC_LABELS[key];
+              const isOn = cancellationSettings[key];
+              return (
+                <div
+                  key={key}
+                  className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${isOn ? 'bg-amber-50 border-amber-200' : 'bg-muted/30 border-muted'}`}
+                >
+                  <div className="flex-1 min-w-0 mr-3">
+                    <p className="text-sm font-medium truncate">{label}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
+                  </div>
+                  <Switch
+                    checked={isOn}
+                    onCheckedChange={(v) => setCancellationSettings(prev => ({ ...prev, [key]: v }))}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Aturan yang ditampilkan diambil dari kebijakan paket atau aturan global yang aktif.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
