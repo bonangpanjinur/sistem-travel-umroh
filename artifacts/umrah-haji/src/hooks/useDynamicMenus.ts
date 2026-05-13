@@ -46,8 +46,14 @@ export const useDynamicMenus = () => {
   // immediately without waiting for the 15-minute staleTime.
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
-      .channel(`rbac-realtime-${user.id}-${Math.random().toString(36).slice(2)}`)
+    let isCancelled = false;
+    const channel = supabase.channel(
+      `rbac-realtime-${user.id}-${Math.random().toString(36).slice(2)}`
+    );
+
+    // Register all handlers BEFORE calling subscribe(), otherwise Supabase
+    // throws: "cannot add postgres_changes callbacks after subscribe()".
+    channel
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_permissions', filter: `user_id=eq.${user.id}` },
@@ -69,9 +75,21 @@ export const useDynamicMenus = () => {
           // Role-wide change affects every user with that role.
           queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
         }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      );
+
+    channel.subscribe((status) => {
+      if (isCancelled && (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR')) {
+        // Effect already torn down before subscribe completed — clean up immediately.
+        try { channel.unsubscribe(); } catch { /* noop */ }
+        try { supabase.removeChannel(channel); } catch { /* noop */ }
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      try { channel.unsubscribe(); } catch { /* noop */ }
+      try { supabase.removeChannel(channel); } catch { /* noop */ }
+    };
   }, [user?.id, queryClient]);
 
   const readCache = (): string[] => {
