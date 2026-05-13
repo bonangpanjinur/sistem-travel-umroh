@@ -3967,7 +3967,7 @@ Padahal `BAGGAGE_CALCULATOR` ada di `PERMISSIONS` — artinya ini sudah direncan
 |----|-----------|-----------|----------|
 | KEP-FIX1 | **Reminder otomatis deadline dokumen/visa** — cron job + WA notif | 🔴 Kritis | 1 hari |
 | KEP-FIX2 | **Validasi mahram di manifest** — khusus paket haji | 🔴 Kritis | 1 hari |
-| KEP-FIX3 | **Validasi gender di room assignment** — warning kamar campur | 🟠 Penting | 1 hari |
+| KEP-FIX3 | ✅ **Validasi gender di room assignment** — confirm dialog jika kamar campur (DONE) | ✅ Done | 1 hari |
 | KEP-FIX4 | **Dashboard "jamaah belum lengkap dokumen"** — per keberangkatan | 🟠 Penting | 1 hari |
 | KEP-FIX5 | **Absensi harian jamaah di tanah suci** — portal muthawif + laporan | 🟠 Penting | 2 hari |
 | KEP-FIX6 | **Manajemen bagasi** — kuota + ketentuan per maskapai | 🟡 Sedang | 1 hari |
