@@ -34,7 +34,7 @@ export default function AdminAccessSimulator() {
         .eq("user_id", selectedId);
       const baseRoles = (roleRows || []).map((r: any) => r.role as AppRole);
       const expanded: AppRole[] = [...baseRoles];
-      baseRoles.forEach((r) => expanded.push(...getInheritedRoles(r)));
+      baseRoles.forEach((r: AppRole) => expanded.push(...getInheritedRoles(r)));
       const uniqueRoles = Array.from(new Set(expanded));
 
       // Coba RPC v2 dulu (sesuai produksi), fallback ke legacy bila belum migrasi
