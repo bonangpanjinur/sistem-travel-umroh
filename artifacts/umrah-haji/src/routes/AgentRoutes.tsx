@@ -29,6 +29,7 @@ const AgentLeads = lazy(() => import("@/pages/agent/AgentLeads"));
 const AgentBroadcast = lazy(() => import("@/pages/agent/AgentBroadcast"));
 const AgentUniqueLink = lazy(() => import("@/pages/agent/AgentUniqueLink"));
 const AgentLaporan = lazy(() => import("@/pages/agent/AgentLaporan"));
+const AgentSubAgentJamaah = lazy(() => import("@/pages/agent/AgentSubAgentJamaah"));
 
 /**
  * Role yang boleh mengakses portal agen.
@@ -99,6 +100,7 @@ export default function AgentRoutes() {
       {/* Manajemen — hanya agent utama */}
       <Route path="website" element={<AgentManagePage><AgentWebsiteSettings /></AgentManagePage>} />
       <Route path="network" element={<AgentManagePage><AgentNetwork /></AgentManagePage>} />
+      <Route path="sub-agent-jamaah" element={<AgentManagePage><AgentSubAgentJamaah /></AgentManagePage>} />
 
       {/* FITUR 07 — Pelatihan Agen */}
       <Route path="training" element={<LazyPage><AgentTraining /></LazyPage>} />
