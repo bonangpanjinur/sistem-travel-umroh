@@ -2653,7 +2653,7 @@ Beberapa komponen mungkin masih import dari versi lama → dua query ke Supabase
 
 | ID | Solusi | File | Estimasi | Dampak |
 |----|--------|------|----------|--------|
-| CSS-FIX-1 | **Sembunyikan loader saat tema siap** — event `theme-ready` dari ThemeProvider | `main.tsx` + `ThemeProvider.tsx` | 2 jam | 🔴 Hilangkan flash utama |
+| CSS-FIX-1 | ✅ **Sembunyikan loader saat tema siap** — event `theme-ready` dari ThemeProvider (DONE) | `main.tsx` + `ThemeProvider.tsx` | 2 jam | ✅ Done |
 | CSS-FIX-2 | **Simpan nama font di localStorage** — restore font sebelum React mount via script di index.html | `index.html` + `ThemeProvider.tsx` | 3 jam | 🟠 Hilangkan font swap |
 | CSS-FIX-3 | **Realtime invalidation tema** — Supabase realtime pada `website_settings` → clear cache | `useWebsiteSettingsOptimized.ts` | 4 jam | 🟠 Tema admin langsung berlaku |
 | CSS-FIX-4 | **Kurangi cache ke 5 menit** + staleTime 2 menit | `useWebsiteSettingsOptimized.ts` | 0.5 jam | 🟡 Perubahan admin cepat berlaku |
