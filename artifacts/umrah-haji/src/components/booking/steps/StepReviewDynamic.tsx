@@ -476,7 +476,14 @@ export function StepReviewDynamic({
           
           <div className="flex justify-between font-semibold text-lg">
             <span>Total Pembayaran</span>
-            <span className="text-primary">{formatCurrency(totalPrice)}</span>
+            <span className="text-primary text-right">
+              {formatCurrency(totalPrice, pkgCurrency)}
+              {pkgCurrency !== 'IDR' && idrRate > 1 && (
+                <span className="block text-xs font-normal text-muted-foreground">
+                  ≈ {formatCurrency(convertAmount(totalPrice, idrRate), 'IDR')}
+                </span>
+              )}
+            </span>
           </div>
 
           {paymentMode === 'dp' && (
