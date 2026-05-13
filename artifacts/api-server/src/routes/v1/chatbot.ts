@@ -1,14 +1,24 @@
 import { Router } from 'express';
+import { supabaseFetch, isSupabaseConfigured } from '../../lib/supabase.js';
 
 const router = Router();
 
+// ─── Default system prompt ────────────────────────────────────────────────────
 const DEFAULT_SYSTEM_PROMPT = `Kamu adalah Asisten Virtual Vinstour Travel — perusahaan perjalanan Umroh dan Haji terpercaya di Indonesia.
 Bantu jamaah dengan ramah, sopan, dan informatif dalam Bahasa Indonesia.
 Fokus pada: dokumen persyaratan, pembayaran, visa, info hotel, jadwal ibadah, panduan manasik, dan logistik perjalanan.
 Gunakan emoji secukupnya. Berikan jawaban ringkas (max 5 kalimat) namun lengkap.
 Jika ditanya di luar topik perjalanan umroh/haji, arahkan dengan sopan ke topik yang relevan.
-Selalu akhiri dengan ajakan untuk bertanya lebih lanjut jika masih ada yang kurang jelas.`;
+Selalu akhiri dengan ajakan untuk bertanya lebih lanjut jika masih ada yang kurang jelas.
 
+STRUKTUR URL WEBSITE — gunakan format Markdown untuk link yang bisa diklik:
+- Daftar semua paket: [Lihat Semua Paket](/packages)
+- Portal jamaah: [Portal Jamaah](/jamaah)
+- Cek status booking: [Cek Booking](/cek-booking)
+- Hubungi kami: [Kontak Kami](/hubungi-kami)
+Format link: [teks](/path)`;
+
+// ─── FAQ fallback (tanpa AI) ──────────────────────────────────────────────────
 const FAQ_KNOWLEDGE: Record<string, string> = {
   dokumen: `📋 Dokumen yang diperlukan untuk Umroh:\n1. Paspor berlaku min. 6 bulan\n2. KTP & Kartu Keluarga\n3. Buku Nikah (jika suami/istri berangkat bersama)\n4. Akta Lahir (untuk anak di bawah umur)\n5. Pas foto 4×6 background putih, wajah 80%\n6. Sertifikat Vaksin Meningitis\n7. Bukti tabungan (min. Rp 5 juta)\n\nUpload semua dokumen di menu Dokumen → /jamaah/documents ✅`,
   bayar: `💰 Cara Pembayaran:\n1. Transfer Bank ke rekening resmi Vinstour\n2. Virtual Account — nomor VA unik per jamaah\n3. Online via Midtrans (kartu kredit, GoPay, QRIS)\n4. Cicilan Tabungan bertahap\n\nSetelah transfer, upload bukti di menu Riwayat Pembayaran.`,
@@ -20,8 +30,6 @@ const FAQ_KNOWLEDGE: Record<string, string> = {
   manasik: `🎓 Manasik Digital:\nIkuti jadwal manasik online dan offline yang tersedia di portal Anda → /jamaah/manasik`,
   kesehatan: `🏥 Tips Kesehatan:\n- Vaksin meningitis (wajib) & influenza (dianjurkan)\n- Minum air 3-4 liter/hari, cuaca Saudi 40-50°C\n- Bawa payung, sunscreen, masker, obat pribadi`,
   refund: `💳 Kebijakan Refund:\n- H-90 s.d H-60: refund 75%\n- H-60 s.d H-30: refund 50%\n- H-30 s.d H-7: refund 25%\n- < H-7: tidak ada refund\n\nHubungi admin via CS → /customer/support`,
-  shalat: `🕌 Waktu Shalat:\nCek jadwal shalat real-time untuk Makkah & Madinah di /jamaah/waktu-sholat`,
-  zakat: `💝 Kalkulator Zakat tersedia di /jamaah/kalkulator-zakat\n- Zakat Fitrah: ~Rp 45.000/orang\n- Zakat Maal: 2,5% dari harta jika telah mencapai nisab`,
 };
 
 function findFAQAnswer(question: string): string {
@@ -29,17 +37,40 @@ function findFAQAnswer(question: string): string {
   for (const [key, answer] of Object.entries(FAQ_KNOWLEDGE)) {
     if (q.includes(key)) return answer;
   }
-  if (q.includes('haji') || q.includes('porsi')) return 'Untuk haji, cek nomor porsi Anda di menu SISKOHAT → /jamaah/siskohat. Vinstour menyediakan layanan haji khusus dan plus dengan pembimbing berpengalaman.';
-  if (q.includes('halo') || q.includes('hi') || q.includes('assalamu') || q.includes('selamat')) return "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Asisten Virtual Vinstour Travel. Saya siap membantu!\n\nSilakan ajukan pertanyaan Anda.";
-  if (q.includes('terima kasih') || q.includes('makasih') || q.includes('jazak')) return "Wa iyyakum! Jazakallahu khairan 🤲\n\nSemoga perjalanan ibadah Anda menjadi mabrur. Barakallahu fiikum!";
-  if (q.includes('chat') || q.includes('whatsapp') || q.includes('pembimbing')) return "Untuk chat langsung dengan pembimbing, gunakan menu Chat → /jamaah/chat. Tim kami siap membantu 24/7 InsyaAllah! 🤝";
-  if (q.includes('sertifikat')) return "Sertifikat Umroh digital tersedia setelah perjalanan selesai → /jamaah/sertifikat 🎓";
-  if (q.includes('referral') || q.includes('promo') || q.includes('bonus')) return "Program referral tersedia di menu Referral → /jamaah/referral. Ajak keluarga & teman dan dapatkan poin bonus! 🎁";
-  if (q.includes('sos') || q.includes('darurat') || q.includes('emergency')) return "🆘 Dalam keadaan darurat, gunakan tombol SOS di portal jamaah Anda. Muthawif dan tim Vinstour akan merespons secepatnya.";
+  if (q.includes('haji') || q.includes('porsi'))
+    return 'Untuk haji, cek nomor porsi Anda di menu SISKOHAT → /jamaah/siskohat. Vinstour menyediakan layanan haji khusus dan plus dengan pembimbing berpengalaman.';
+  if (q.includes('halo') || q.includes('hi') || q.includes('assalamu') || q.includes('selamat'))
+    return "Wa'alaikumsalam warahmatullahi wabarakatuh! 🌙\n\nSelamat datang di Asisten Virtual Vinstour Travel. Saya siap membantu!\n\nSilakan ajukan pertanyaan Anda.";
+  if (q.includes('terima kasih') || q.includes('makasih') || q.includes('jazak'))
+    return 'Wa iyyakum! Jazakallahu khairan 🤲\n\nSemoga perjalanan ibadah Anda menjadi mabrur. Barakallahu fiikum!';
+  if (q.includes('chat') || q.includes('whatsapp') || q.includes('pembimbing'))
+    return 'Untuk chat langsung dengan pembimbing, gunakan menu Chat → /jamaah/chat. Tim kami siap membantu 24/7 InsyaAllah! 🤝';
+  if (q.includes('sertifikat'))
+    return 'Sertifikat Umroh digital tersedia setelah perjalanan selesai → /jamaah/sertifikat 🎓';
+  if (q.includes('referral') || q.includes('promo') || q.includes('bonus'))
+    return 'Program referral tersedia di menu Referral → /jamaah/referral. Ajak keluarga & teman dan dapatkan poin bonus! 🎁';
+  if (q.includes('sos') || q.includes('darurat') || q.includes('emergency'))
+    return '🆘 Dalam keadaan darurat, gunakan tombol SOS di portal jamaah Anda. Muthawif dan tim Vinstour akan merespons secepatnya.';
   return `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum memiliki informasi spesifik tentang hal ini. Silakan:\n1. Chat langsung dengan pembimbing → /jamaah/chat\n2. Buat tiket dukungan → /customer/support\n\nTim kami siap membantu Anda!`;
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, message: string, history: any[]): Promise<string> {
+// ─── AI providers ─────────────────────────────────────────────────────────────
+
+const ALLOWED_GEMINI_MODELS = new Set([
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
+]);
+
+async function callGemini(
+  apiKey: string,
+  systemPrompt: string,
+  message: string,
+  history: any[],
+  model = 'gemini-2.0-flash',
+): Promise<string> {
+  const safeModel = ALLOWED_GEMINI_MODELS.has(model) ? model : 'gemini-2.0-flash';
   const contents = [
     ...history.slice(-8).map((h: any) => ({
       role: h.role === 'user' ? 'user' : 'model',
@@ -48,15 +79,17 @@ async function callGemini(apiKey: string, systemPrompt: string, message: string,
     { role: 'user', parts: [{ text: message }] },
   ];
 
-  const body = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents,
-    generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
-  };
-
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+      }),
+    },
   );
   if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
   const data: any = await res.json();
@@ -65,13 +98,12 @@ async function callGemini(apiKey: string, systemPrompt: string, message: string,
   return answer;
 }
 
-async function callOpenAI(apiKey: string, message: string, history: any[]): Promise<string> {
+async function callOpenAI(apiKey: string, systemPrompt: string, message: string, history: any[]): Promise<string> {
   const messages = [
-    { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...history.slice(-8),
     { role: 'user', content: message },
   ];
-
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -84,38 +116,153 @@ async function callOpenAI(apiKey: string, message: string, history: any[]): Prom
   return answer;
 }
 
+// ─── Fetch admin-configured system prompt from Supabase (cached 60s) ──────────
+let cachedAdminConfig: { systemPrompt: string; model: string; ts: number } | null = null;
+
+async function getAdminConfig(): Promise<{ systemPrompt: string; model: string }> {
+  const now = Date.now();
+  if (cachedAdminConfig && now - cachedAdminConfig.ts < 60_000) {
+    return { systemPrompt: cachedAdminConfig.systemPrompt, model: cachedAdminConfig.model };
+  }
+  if (!isSupabaseConfigured()) return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash' };
+
+  try {
+    const rows: any[] = await supabaseFetch(
+      `/app_settings?key=in.("gemini_chatbot_config")&select=key,value&limit=1`,
+    );
+    let systemPrompt = DEFAULT_SYSTEM_PROMPT;
+    let model = 'gemini-2.0-flash';
+    for (const row of rows || []) {
+      if (row.key === 'gemini_chatbot_config') {
+        try {
+          const cfg = JSON.parse(row.value);
+          if (cfg.systemPrompt) systemPrompt = cfg.systemPrompt;
+          if (cfg.model && ALLOWED_GEMINI_MODELS.has(cfg.model)) model = cfg.model;
+        } catch {}
+      }
+    }
+    cachedAdminConfig = { systemPrompt, model, ts: now };
+    return { systemPrompt, model };
+  } catch {
+    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash' };
+  }
+}
+
+// ─── Log message pair to chatbot_logs (fire-and-forget) ──────────────────────
+async function logToDB(params: {
+  sessionId?: string;
+  message: string;
+  answer: string;
+  source: string;
+  userId?: string;
+  customerId?: string;
+  channel?: string;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const rows: any[] = await supabaseFetch('/chatbot_logs', {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        session_id:  params.sessionId  || null,
+        message:     params.message,
+        answer:      params.answer,
+        source:      params.source,
+        user_id:     params.userId     || null,
+        customer_id: params.customerId || null,
+        channel:     params.channel    || 'jamaah',
+      }),
+    });
+    return rows?.[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── POST /api/v1/chatbot ─────────────────────────────────────────────────────
+// Body: { message, conversationHistory?, systemPrompt?, model?, sessionId?, userId?, customerId?, channel? }
 router.post('/', async (req: any, res: any) => {
   try {
-    const { message, conversationHistory = [] } = req.body;
+    const {
+      message,
+      conversationHistory = [],
+      systemPrompt: clientSystemPrompt,
+      model: clientModel,
+      sessionId,
+      userId,
+      customerId,
+      channel = 'jamaah',
+    } = req.body;
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    const geminiKey = process.env.GEMINI_API_KEY;
+    // Fetch admin-configured system prompt (cached)
+    const adminConfig = await getAdminConfig();
+
+    // Client-provided system prompt takes priority (allows per-widget customisation)
+    const systemPrompt = clientSystemPrompt || adminConfig.systemPrompt;
+    const model        = (clientModel && ALLOWED_GEMINI_MODELS.has(clientModel)) ? clientModel : adminConfig.model;
+
+    let answer = '';
+    let source = 'faq';
+
+    // Try Gemini (env key) ────────────────────────────────────────────────────
+    const geminiKey = process.env['GEMINI_API_KEY'];
     if (geminiKey) {
       try {
-        const answer = await callGemini(geminiKey, DEFAULT_SYSTEM_PROMPT, message, conversationHistory);
-        return res.json({ answer, source: 'gemini' });
-      } catch {
-        // fall through to OpenAI
+        answer = await callGemini(geminiKey, systemPrompt, message, conversationHistory, model);
+        source = 'gemini';
+      } catch { /* fall through */ }
+    }
+
+    // Try OpenAI ──────────────────────────────────────────────────────────────
+    if (!answer) {
+      const openaiKey = process.env['OPENAI_API_KEY'];
+      if (openaiKey) {
+        try {
+          answer = await callOpenAI(openaiKey, systemPrompt, message, conversationHistory);
+          source = 'openai';
+        } catch { /* fall through */ }
       }
     }
 
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (openaiKey) {
-      try {
-        const answer = await callOpenAI(openaiKey, message, conversationHistory);
-        return res.json({ answer, source: 'openai' });
-      } catch {
-        // fall through to FAQ
-      }
+    // Local FAQ fallback ──────────────────────────────────────────────────────
+    if (!answer) {
+      answer = findFAQAnswer(message);
+      source = 'faq';
     }
 
-    const answer = findFAQAnswer(message);
-    res.json({ answer, source: 'faq' });
+    // Log to DB (fire-and-forget — don't block the response) ─────────────────
+    const logId = await logToDB({ sessionId, message, answer, source, userId, customerId, channel });
+
+    return res.json({ answer, source, logId });
   } catch {
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── PATCH /api/v1/chatbot/rate ───────────────────────────────────────────────
+// Body: { logId, rating }  — 1 = 👍  -1 = 👎
+router.patch('/rate', async (req: any, res: any) => {
+  const { logId, rating } = req.body;
+
+  if (!logId || (rating !== 1 && rating !== -1)) {
+    return res.status(400).json({ error: 'logId dan rating (1 atau -1) wajib diisi.' });
+  }
+  if (!isSupabaseConfigured()) {
+    return res.status(503).json({ error: 'Supabase belum dikonfigurasi.' });
+  }
+
+  try {
+    await supabaseFetch(`/chatbot_logs?id=eq.${logId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rating }),
+    });
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 

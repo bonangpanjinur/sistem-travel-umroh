@@ -28,6 +28,7 @@ interface Message {
   content: string;
   timestamp: Date;
   liked?: boolean | null;
+  logId?: string | null;
 }
 
 interface SummaryData {
@@ -269,21 +270,56 @@ function loadChatbotHistory(): Message[] {
   }
 }
 
+// Session ID persisted per browser tab so ratings can be linked
+const CHATBOT_SESSION_ID = (() => {
+  try {
+    const k = "vinstour-chatbot-session";
+    const existing = sessionStorage.getItem(k);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    sessionStorage.setItem(k, id);
+    return id;
+  } catch {
+    return "unknown";
+  }
+})();
+
 async function fetchAIAnswer(
   message: string,
-  history: { role: string; content: string }[]
-): Promise<{ answer: string; source: "ai" | "faq" }> {
+  history: { role: string; content: string }[],
+  userId?: string
+): Promise<{ answer: string; source: "ai" | "faq"; logId?: string | null }> {
   try {
     const res = await fetch(`${API_BASE}/api/v1/chatbot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, conversationHistory: history }),
-      signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({
+        message,
+        conversationHistory: history,
+        sessionId: CHATBOT_SESSION_ID,
+        userId: userId ?? null,
+        channel: "jamaah",
+      }),
+      signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) throw new Error("API error");
-    return await res.json();
+    const data = await res.json();
+    return { answer: data.answer, source: data.source === "faq" ? "faq" : "ai", logId: data.logId ?? null };
   } catch {
-    return { answer: findLocalAnswer(message), source: "faq" };
+    return { answer: findLocalAnswer(message), source: "faq", logId: null };
+  }
+}
+
+async function persistRating(logId: string, rating: 1 | -1): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/v1/chatbot/rate`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logId, rating }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    // non-critical
   }
 }
 
@@ -365,20 +401,26 @@ export default function JamaahChatbot() {
     setInput("");
     setLoading(true);
     const history = messages.slice(-8).map(m => ({ role: m.role, content: m.content }));
-    const { answer, source } = await fetchAIAnswer(msg, history);
+    const { answer, source, logId } = await fetchAIAnswer(msg, history, user?.id);
     if (source === "ai" && !aiMode) setAiMode(true);
     const botMsg: Message = {
       id: (Date.now() + 1).toString(),
       role: "assistant",
       content: answer,
       timestamp: new Date(),
+      logId: logId ?? null,
     };
     setMessages(prev => [...prev, botMsg]);
     setLoading(false);
   }
 
   function rateMessage(msgId: string, liked: boolean) {
-    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, liked } : m));
+    setMessages(prev => prev.map(m => {
+      if (m.id !== msgId) return m;
+      // Persist to DB if we have a logId
+      if (m.logId) persistRating(m.logId, liked ? 1 : -1);
+      return { ...m, liked };
+    }));
     toast.success(liked ? "Terima kasih atas feedback positifnya!" : "Terima kasih, kami akan terus meningkatkan kualitas jawaban");
   }
 

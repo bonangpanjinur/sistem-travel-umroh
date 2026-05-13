@@ -58,8 +58,10 @@ function getFaqReply(text: string): string {
   return FAQ_REPLIES.default;
 }
 
+// API base — proxied via Vite to port 8080 in dev, relative path works in prod
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 interface GeminiConfig {
-  apiKey: string;
   model: string;
   systemPrompt: string;
   botName: string;
@@ -207,6 +209,18 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     if (!configLoaded) loadConfig();
   }, []);
 
+  // Session ID per browser session for analytics
+  const widgetSessionId = (() => {
+    try {
+      const k = "vinstour-widget-session";
+      const e = sessionStorage.getItem(k);
+      if (e) return e;
+      const id = crypto.randomUUID();
+      sessionStorage.setItem(k, id);
+      return id;
+    } catch { return "widget"; }
+  })();
+
   async function loadConfig() {
     try {
       const supabaseAny = supabase as any;
@@ -214,15 +228,13 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
         supabaseAny
           .from("app_settings")
           .select("key,value")
-          .in("key", ["gemini_api_key", "gemini_chatbot_config"]),
+          .in("key", ["gemini_chatbot_config"]),
         buildPackageContext(),
       ]);
 
-      let apiKey = "";
       let cfg: any = {};
       if (settingsResult.data?.length) {
         for (const row of settingsResult.data) {
-          if (row.key === "gemini_api_key") apiKey = JSON.parse(row.value) || "";
           if (row.key === "gemini_chatbot_config") cfg = JSON.parse(row.value) || {};
         }
       }
@@ -233,7 +245,6 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
         : basePrompt;
 
       const config: GeminiConfig = {
-        apiKey,
         model: cfg.model || "gemini-2.0-flash",
         systemPrompt: enrichedPrompt,
         botName: cfg.botName || tenantName,
@@ -242,7 +253,6 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
         packageContext,
       };
       setGeminiConfig(config);
-      // Only show greeting if no saved history exists
       setMessages(prev => prev.length > 0 ? prev : [{ id: "1", role: "bot", text: config.greeting, ts: new Date() }]);
     } catch {
       setGeminiConfig(null);
@@ -251,28 +261,26 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
     setConfigLoaded(true);
   }
 
-  async function callGemini(userText: string, config: GeminiConfig): Promise<string> {
-    const contents = [
-      ...historyRef.current.slice(-6).map(h => ({
-        role: h.role === "user" ? "user" : "model",
-        parts: [{ text: h.text }],
-      })),
-      { role: "user", parts: [{ text: userText }] },
-    ];
-    const body = {
-      system_instruction: { parts: [{ text: config.systemPrompt }] },
-      contents,
-      generationConfig: { maxOutputTokens: 400, temperature: 0.75 },
-    };
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${config.model || "gemini-2.0-flash"}:generateContent?key=${config.apiKey}`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
-    );
-    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
-    const data: any = await res.json();
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!answer) throw new Error("Empty response");
-    return answer;
+  // Call API server (secure — Gemini key stays server-side)
+  async function callAPIServer(userText: string, config: GeminiConfig | null): Promise<string> {
+    const history = historyRef.current.slice(-6).map(h => ({ role: h.role, content: h.text }));
+    const res = await fetch(`${API_BASE}/api/v1/chatbot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userText,
+        conversationHistory: history,
+        systemPrompt: config?.systemPrompt ?? undefined,
+        model: config?.model ?? undefined,
+        sessionId: widgetSessionId,
+        channel: "widget",
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`API HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.answer) throw new Error("Empty response");
+    return data.answer;
   }
 
   const sendChip = (text: string) => {
@@ -293,13 +301,11 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
 
     let replyText = "";
     try {
-      if (geminiConfig?.apiKey) {
-        replyText = await callGemini(userText, geminiConfig);
-      } else {
-        await new Promise(r => setTimeout(r, 800 + Math.random() * 600));
-        replyText = getFaqReply(userText);
-      }
+      // Always route through the API server — Gemini key stays secure server-side
+      replyText = await callAPIServer(userText, geminiConfig);
     } catch {
+      // Fallback to local FAQ if API is unreachable
+      await new Promise(r => setTimeout(r, 400 + Math.random() * 400));
       replyText = getFaqReply(userText);
     }
 
