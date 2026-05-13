@@ -157,7 +157,16 @@ export function BookingWizard() {
 
   const handleSubmit = async () => {
     const result = await submitBooking();
-    if (result?.bookingId) navigate(`/booking/success/${result.bookingId}`);
+    if (result?.bookingId) {
+      // Release seat hold once booking is confirmed (server-side booking_count already incremented)
+      try {
+        await (supabase.rpc as any)('release_seat_hold', {
+          _session_id: sessionStorage.getItem('seat-hold-session-id'),
+          _departure_id: initialDepartureId,
+        });
+      } catch {}
+      navigate(`/booking/success/${result.bookingId}`);
+    }
   };
 
   if (authLoading) {
