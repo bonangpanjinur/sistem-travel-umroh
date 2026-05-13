@@ -42,6 +42,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
 import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
 import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
+import { PackageLabelManagerDialog } from "@/components/admin/packages/PackageLabelManagerDialog";
+import { PackageLabelAssignDialog } from "@/components/admin/packages/PackageLabelAssignDialog";
+import { PackageLabelBadges } from "@/components/packages/PackageLabelBadges";
+import { usePackageLabelsMap } from "@/hooks/usePackageLabels";
 import { toast } from "sonner";
 import { usePackageStats, PackageStatsFilters } from "@/hooks/usePackageStats";
 import { usePackageAnalytics } from "@/hooks/usePackageAnalytics";
@@ -92,6 +96,9 @@ export default function AdminPackages() {
   const [isExporting, setIsExporting] = useState(false);
   const [isManifestDialogOpen, setIsManifestDialogOpen] = useState(false);
   const [selectedPackageForManifest, setSelectedPackageForManifest] = useState<any>(null);
+  const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
+  const [labelAssignFor, setLabelAssignFor] = useState<{ id: string; name: string } | null>(null);
+  const { data: labelsMap } = usePackageLabelsMap();
   
   const queryClient = useQueryClient();
   const { data: stats, isLoading: isStatsLoading } = usePackageStats(statsFilters);
@@ -509,6 +516,10 @@ export default function AdminPackages() {
             <Button onClick={() => handleAddPackage("tabungan")} variant="outline" className="gap-2 shadow-sm rounded-xl border-primary/20 text-primary">
               <Plus className="h-4 w-4" />
               Paket Tabungan
+            </Button>
+            <Button onClick={() => setIsLabelManagerOpen(true)} variant="outline" className="gap-2 shadow-sm rounded-xl">
+              <Star className="h-4 w-4" />
+              Kelola Label
             </Button>
           </div>
         </div>
@@ -1013,6 +1024,13 @@ export default function AdminPackages() {
                                 <Star className={cn("h-4 w-4", pkg.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground")} />
                                 {pkg.is_featured ? 'Hapus Unggulan' : 'Jadikan Unggulan'}
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => setLabelAssignFor({ id: pkg.id, name: pkg.name })}
+                              >
+                                <Star className="h-4 w-4 text-primary" />
+                                Atur Label
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
                                 onClick={() => toggleStatusMutation.mutate({ id: pkg.id, is_active: !pkg.is_active })}
@@ -1253,6 +1271,17 @@ export default function AdminPackages() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <PackageLabelManagerDialog
+          open={isLabelManagerOpen}
+          onOpenChange={setIsLabelManagerOpen}
+        />
+        <PackageLabelAssignDialog
+          open={!!labelAssignFor}
+          onOpenChange={(v) => !v && setLabelAssignFor(null)}
+          packageId={labelAssignFor?.id ?? null}
+          packageName={labelAssignFor?.name}
+        />
       </div>
     </TooltipProvider>
   );
