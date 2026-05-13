@@ -205,11 +205,20 @@ export function BookingWizard() {
               <span className="text-muted-foreground">Jamaah:</span>
               <span className="font-medium">{totalPassengers} orang</span>
             </div>
-            <div className="flex items-center gap-2">
-              <BedDouble className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Kamar:</span>
-              <span className="font-medium">{roomSummary.join(', ')}</span>
-            </div>
+            {!isHaji && (
+              <div className="flex items-center gap-2">
+                <BedDouble className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Kamar:</span>
+                <span className="font-medium">{roomSummary.join(', ') || '-'}</span>
+              </div>
+            )}
+            {isHaji && (
+              <div className="flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Mode:</span>
+                <Badge variant="outline" className="text-xs">Haji</Badge>
+              </div>
+            )}
             {picLabel && (
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
