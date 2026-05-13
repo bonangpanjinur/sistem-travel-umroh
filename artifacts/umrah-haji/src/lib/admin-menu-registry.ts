@@ -94,6 +94,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
 
   // ── Fase 10 — AI & Smart Analytics (560s) ────────────────────────────────
   { key: 'gemini-ai',          label: 'Gemini AI Chatbot',      path: '/admin/gemini-ai',          icon: 'Sparkles',          group_name: 'AI & Analytics',      sort_order: 560, required_permission: PERMISSIONS.GEMINI_AI },
+  { key: 'chatbot-stats',      label: 'Statistik Chatbot',      path: '/admin/chatbot-stats',      icon: 'BarChart3',         group_name: 'AI & Analytics',      sort_order: 561, required_permission: PERMISSIONS.GEMINI_AI },
   { key: 'sentimen-feedback',  label: 'Analisis Sentimen',      path: '/admin/sentimen-feedback',  icon: 'Smile',             group_name: 'AI & Analytics',      sort_order: 561, required_permission: PERMISSIONS.SENTIMEN_FEEDBACK },
   { key: 'prediksi-seat',      label: 'Prediksi Seat',          path: '/admin/prediksi-seat',      icon: 'TrendingUp',        group_name: 'AI & Analytics',      sort_order: 562, required_permission: PERMISSIONS.PREDIKSI_SEAT },
   { key: 'smart-notif',        label: 'Smart Notifikasi',       path: '/admin/smart-notif',        icon: 'BrainCircuit',      group_name: 'AI & Analytics',      sort_order: 563, required_permission: PERMISSIONS.SMART_NOTIF },

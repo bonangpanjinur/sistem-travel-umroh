@@ -151,6 +151,7 @@ const AdminProposalGenerator = lazy(() => import("@/pages/admin/AdminProposalGen
 
 // Fase 10 — AI & Smart Analytics
 const AdminGeminiAI = lazy(() => import("@/pages/admin/AdminGeminiAI"));
+const AdminChatbotStats = lazy(() => import("@/pages/admin/AdminChatbotStats"));
 const AdminSentimenFeedback = lazy(() => import("@/pages/admin/AdminSentimenFeedback"));
 const AdminPrediksiSeat = lazy(() => import("@/pages/admin/AdminPrediksiSeat"));
 const AdminSmartNotif = lazy(() => import("@/pages/admin/AdminSmartNotif"));
@@ -367,6 +368,7 @@ export default function AdminRoutes() {
 
       {/* Fase 10 — AI & Smart Analytics */}
       <Route path="gemini-ai" element={<P k={PERMISSIONS.GEMINI_AI}><LazyPage><AdminGeminiAI /></LazyPage></P>} />
+      <Route path="chatbot-stats" element={<P k={PERMISSIONS.GEMINI_AI}><LazyPage><AdminChatbotStats /></LazyPage></P>} />
       <Route path="sentimen-feedback" element={<P k={PERMISSIONS.SENTIMEN_FEEDBACK}><AdminSentimenFeedback /></P>} />
       <Route path="prediksi-seat" element={<P k={PERMISSIONS.PREDIKSI_SEAT}><AdminPrediksiSeat /></P>} />
       <Route path="smart-notif" element={<P k={PERMISSIONS.SMART_NOTIF}><AdminSmartNotif /></P>} />
