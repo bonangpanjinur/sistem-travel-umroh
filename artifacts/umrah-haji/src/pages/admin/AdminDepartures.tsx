@@ -51,6 +51,61 @@ const ITEMS_PER_PAGE = 20;
 
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
+const isMissingRpcError = (error: unknown) => {
+  const message = String((error as { message?: string })?.message ?? '').toLowerCase();
+  const code = String((error as { code?: string })?.code ?? '');
+  return code === 'PGRST202' || message.includes('schema cache') || message.includes('delete_departure_safely');
+};
+
+async function deleteDepartureWithClientCleanup(departureId: string) {
+  const { count: bookingCount, error: bookingError } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('departure_id', departureId);
+
+  if (bookingError) throw bookingError;
+  if ((bookingCount ?? 0) > 0) {
+    throw new Error(`Jadwal tidak bisa dihapus karena masih memiliki ${bookingCount ?? 0} booking. Pindahkan atau batalkan booking terlebih dahulu.`);
+  }
+
+  const cascadingTables = [
+    'equipment_distributions',
+    'manasik_schedules',
+    'attendance',
+    'bus_assignments',
+    'departure_hotels',
+    'departure_itineraries',
+    'departure_surveys',
+    'jamaah_daily_attendance',
+    'jamaah_qr_codes',
+    'luggage',
+    'manifests',
+    'room_assignments',
+    'seat_holds',
+    'vendor_costs',
+  ] as const;
+
+  const nullableTables = [
+    'support_tickets',
+    'visa_applications',
+    'jamaah_live_locations',
+    'room_assignment_audit',
+  ] as const;
+
+  for (const table of cascadingTables) {
+    const { error } = await (supabase.from(table as any) as any).delete().eq('departure_id', departureId);
+    if (error) throw error;
+  }
+
+  for (const table of nullableTables) {
+    const { error } = await (supabase.from(table as any) as any).update({ departure_id: null }).eq('departure_id', departureId);
+    if (error) throw error;
+  }
+
+  const { error: deleteError } = await supabase.from('departures').delete().eq('id', departureId);
+  if (deleteError) throw deleteError;
+}
+
 function CalendarDepartureView({ allDepartures, navigate }: { allDepartures: any[]; navigate: (path: string) => void }) {
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
