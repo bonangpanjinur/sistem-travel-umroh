@@ -714,7 +714,111 @@ supabase/
 
 ---
 
-## BAGIAN 12 — CATATAN BUG & SOLUSI YANG SUDAH DITEMUKAN
+## BAGIAN 12 — RENCANA PERBAIKAN CHATBOT
+
+> Analisis dilakukan Mei 2026 berdasarkan pembacaan kode seluruh komponen chatbot.
+
+### Arsitektur Chatbot Saat Ini
+
+| Lapisan | Komponen | Keterangan |
+|---|---|---|
+| Backend | `artifacts/api-server/src/routes/v1/chatbot.ts` | Gemini → OpenAI → FAQ fallback |
+| User — Jamaah | `artifacts/umrah-haji/src/pages/jamaah/JamaahChatbot.tsx` | Portal jamaah login, fitur lengkap |
+| User — Publik | `artifacts/umrah-haji/src/components/home/FloatingChatBubble.tsx` | Widget floating, lead capture |
+| Admin Stats | `artifacts/umrah-haji/src/pages/admin/AdminChatbotStats.tsx` | Grafik agregat |
+| Admin Leads | `artifacts/umrah-haji/src/pages/admin/AdminChatLeads.tsx` | Manajemen lead |
+
+### Kelemahan yang Ditemukan
+
+| # | Masalah | Detail |
+|---|---------|--------|
+| 1 | **FAQ duplikat & tidak bisa diedit admin** | Hardcoded di `FloatingChatBubble.tsx` baris 20–31 DAN di backend `chatbot.ts` — dua sumber berbeda. Tidak ada UI admin untuk mengelola FAQ. |
+| 2 | **Admin tidak bisa lihat isi percakapan** | Tabel `chatbot_logs` ada dengan kolom lengkap tapi `AdminChatbotStats` hanya grafik agregat. Tidak ada log viewer per pesan/sesi. |
+| 3 | **Top Questions ambil data dari tabel salah** | `AdminChatbotStats` query dari `chat_leads.message` (pesan lead form) bukan dari `chatbot_logs.message` (pertanyaan sesungguhnya ke chatbot). |
+| 4 | **Widget publik tidak ada rating** | `JamaahChatbot.tsx` punya 👍/👎 per pesan. `FloatingChatBubble.tsx` tidak punya sama sekali. |
+| 5 | **Riwayat chat hanya di localStorage** | Ganti perangkat/browser → riwayat hilang. Padahal `chatbot_logs` sudah simpan `user_id`. |
+| 6 | **Tidak ada deteksi pertanyaan tak terjawab** | Fallback generic tidak ditandai. Tidak ada notifikasi admin, tidak ada mekanisme handoff ke human agent. |
+| 7 | **Konfigurasi tidak mendukung per-channel** | `gemini_chatbot_config` satu `systemPrompt` untuk semua. `JamaahChatbot` dan `FloatingChatBubble` butuh konteks berbeda. |
+| 8 | **Stats tidak real-time** | `AdminChatbotStats` hanya load sekali. `AdminChatLeads` sudah realtime tapi stats tidak. |
+
+### Rencana Perbaikan Chatbot (Berurutan Prioritas)
+
+#### P1 — FAQ Manager di Admin Panel 🟠
+
+Buat halaman admin baru `AdminFAQManager` — CRUD FAQ dari UI, simpan ke tabel `faq_knowledge_base` di Supabase. Backend dan widget keduanya baca dari sumber yang sama.
+
+```sql
+CREATE TABLE faq_knowledge_base (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  keyword    TEXT    NOT NULL,
+  answer     TEXT    NOT NULL,
+  category   TEXT,
+  is_active  BOOLEAN DEFAULT true,
+  sort_order INT     DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+File: buat `AdminFAQManager.tsx` · ubah `chatbot.ts` · ubah `FloatingChatBubble.tsx`
+
+#### P2 — Log Viewer Percakapan di Admin Panel 🟠
+
+Tab baru "Log Percakapan" — tabel `chatbot_logs` dengan filter channel/source/rating/tanggal, search full-text, expand row jawaban lengkap, realtime subscription.
+
+File: buat `AdminChatLogs.tsx`
+
+#### P3 — Perbaiki Data Source Top Questions 🟡
+
+Ganti query `chat_leads.message` → `chatbot_logs.message` dengan `GROUP BY` per kata kunci.
+
+File: ubah `AdminChatbotStats.tsx`
+
+#### P4 — Rating di Widget Publik 🟡
+
+Tambah tombol 👍/👎 di `FloatingChatBubble`. Backend kembalikan `logId` di response agar bisa dikirim ke `PATCH /api/v1/chatbot/rate`.
+
+File: ubah `FloatingChatBubble.tsx` · ubah `chatbot.ts`
+
+#### P5 — Riwayat Chat dari Server 🟡
+
+Untuk jamaah login, load history dari `chatbot_logs` (filter `user_id = auth.uid()`) sebagai pengganti localStorage.
+
+File: ubah `JamaahChatbot.tsx`
+
+#### P6 — Deteksi Pertanyaan Tak Terjawab 🟡
+
+Flag `is_unanswered = true` di log ketika fallback generic. Badge counter di admin panel + filter khusus.
+
+File: ubah `chatbot.ts` · ubah `AdminChatLogs.tsx` · tambah kolom DB
+
+#### P7 — System Prompt Per-Channel 🟡
+
+Extend `gemini_chatbot_config` dengan `channelPrompts.jamaah` dan `channelPrompts.widget`.
+
+File: ubah `chatbot.ts`
+
+#### P8 — Stats Realtime 🟡
+
+Supabase realtime subscription di `AdminChatbotStats` untuk tabel `chatbot_logs`.
+
+File: ubah `AdminChatbotStats.tsx`
+
+### Ringkasan Prioritas Chatbot
+
+| # | Perbaikan | Dampak | Kompleksitas | Status |
+|---|---|---|---|---|
+| 1 | FAQ Manager admin | Tinggi | Sedang | 🔴 Belum |
+| 2 | Log Viewer percakapan | Tinggi | Sedang | 🔴 Belum |
+| 3 | Perbaiki Top Questions | Sedang | Rendah | 🔴 Belum |
+| 4 | Rating di widget publik | Sedang | Rendah | 🔴 Belum |
+| 5 | Riwayat dari server | Tinggi | Sedang | 🔴 Belum |
+| 6 | Deteksi unanswered | Sedang | Rendah | 🔴 Belum |
+| 7 | Prompt per-channel | Sedang | Rendah | 🔴 Belum |
+| 8 | Stats realtime | Rendah | Rendah | 🔴 Belum |
+
+---
+
+## BAGIAN 13 — CATATAN BUG & SOLUSI YANG SUDAH DITEMUKAN
 
 | Bug | Solusi | File |
 |-----|--------|------|
