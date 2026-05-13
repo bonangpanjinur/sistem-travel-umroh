@@ -9,6 +9,8 @@ import { formatCurrency, getPackageTypeLabel, formatDuration, formatDate } from 
 import { slugify } from '@/lib/slug';
 import { cn } from '@/lib/utils';
 import { useWishlist } from '@/hooks/useWishlist';
+import { PackageLabelBadges } from '@/components/packages/PackageLabelBadges';
+import { usePackageLabelsMap } from '@/hooks/usePackageLabels';
 import {
   Tooltip,
   TooltipContent,
@@ -198,6 +200,7 @@ export function PackageCard({
                 💰 Termurah
               </Badge>
             )}
+            <CustomLabelBadges packageId={pkg.id} />
           </div>
 
           {/* Wishlist Button */}
