@@ -45,10 +45,6 @@
 
 | Kode | Fitur |
 |------|-------|
-| GAP-PWA-01 | Manifest.json dinamis (saat ini statis) |
-| RBAC-F4 | Realtime invalidation permission via Supabase realtime |
-| CSS-FIX-2 | Simpan font di localStorage — hilangkan font swap |
-| CSS-FIX-3 | Realtime invalidation tema (`website_settings`) |
 | CSS-FIX-6 | Critical CSS inline di `<head>` |
 | AGEN-ADD3 | Notifikasi real-time agen (push + bell) |
 | AGEN-ADD4 | Halaman jamaah untuk sub-agen |
@@ -59,6 +55,15 @@
 | KEP-FIX2 | Validasi mahram di manifest haji |
 | KEP-FIX4 | Dashboard "jamaah belum lengkap dokumen" |
 | KEP-FIX5 | Absensi harian jamaah di tanah suci |
+
+### ✅ Tambahan Selesai (Sprint 9 lanjutan)
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| GAP-PWA-01 | Manifest dinamis dari DB | Edge function `manifest` (Supabase) baca `website_settings`; index.html link ke `…/functions/v1/manifest` |
+| RBAC-F4 | Realtime invalidation permission | Subscribe `user_permissions`, `user_roles`, `role_permissions` → invalidate query `user-effective-permissions` |
+| CSS-FIX-2 | Font cache di localStorage | `website-fonts-cache` ditulis ThemeProvider, di-restore script di `<head>` sebelum React mount |
+| CSS-FIX-3 | Realtime invalidation tema | Subscribe `website_settings` → clear `website-settings-cache` + invalidate query |
 
 ### 🟡 Belum Selesai — Prioritas Sedang
 GAP-PWA-07/08/09/10, GAP-RBAC-08/09/10/11, CSS-FIX-4/5, AGEN-ADD5/6/7/8, CAB-ADD6/7/8, LOY-FIX5/6/7/8, KEP-FIX6/7/8.
@@ -2523,7 +2528,7 @@ Dari `useAuth.tsx`: `isCustomer()` cek `customer || jamaah`. Dari `CustomerRoute
 | RBAC-F1 | ✅ **Fix sumber roles** — `useDynamicMenus` baca dari `useAuth().roles` (DONE) | `useDynamicMenus.ts` | 0.25 hari | ✅ Done |
 | RBAC-F2 | ✅ **VAPID private key dipindahkan ke secret env** (`VAPID_PRIVATE_KEY`). Edge functions baca dari `Deno.env.get`, client tidak lagi expose privateKey. | `usePWAConfig.ts`, `send-push`, `process-push-queue`, `AdminPushNotifications.tsx` | DONE | ✅ |
 | RBAC-F3 | ✅ **Fallback permission ke localStorage cache** — `useDynamicMenus` menyimpan effectiveKeys terakhir & restore saat RPC error. | `useDynamicMenus.ts` | DONE | ✅ |
-| RBAC-F4 | **Realtime invalidation permission** — Supabase realtime pada `user_permissions` + `user_roles` invalidate React Query cache | `useDynamicMenus.ts` | 1 hari | 🟠 Penting |
+| RBAC-F4 | ✅ **Realtime invalidation permission** — channel `rbac-realtime-{user.id}` subscribe ke `user_permissions`, `user_roles`, `role_permissions` → `invalidateQueries(['user-effective-permissions'])` (DONE) | `useDynamicMenus.ts` | DONE | ✅ |
 
 #### FASE PENTING — Sprint Berikutnya
 
@@ -2703,8 +2708,8 @@ Beberapa komponen mungkin masih import dari versi lama → dua query ke Supabase
 | ID | Solusi | File | Estimasi | Dampak |
 |----|--------|------|----------|--------|
 | CSS-FIX-1 | ✅ **Sembunyikan loader saat tema siap** — event `theme-ready` dari ThemeProvider (DONE) | `main.tsx` + `ThemeProvider.tsx` | 2 jam | ✅ Done |
-| CSS-FIX-2 | **Simpan nama font di localStorage** — restore font sebelum React mount via script di index.html | `index.html` + `ThemeProvider.tsx` | 3 jam | 🟠 Hilangkan font swap |
-| CSS-FIX-3 | **Realtime invalidation tema** — Supabase realtime pada `website_settings` → clear cache | `useWebsiteSettingsOptimized.ts` | 4 jam | 🟠 Tema admin langsung berlaku |
+| CSS-FIX-2 | ✅ **Font cache di localStorage** (`website-fonts-cache`) + restore + Google Fonts `<link>` injected dari script `<head>` (DONE) | `index.html` + `ThemeProvider.tsx` | DONE | ✅ |
+| CSS-FIX-3 | ✅ **Realtime invalidation tema** — channel `website-settings-realtime` clear localStorage cache + invalidate query (DONE) | `ThemeProvider.tsx` | DONE | ✅ |
 | CSS-FIX-4 | **Kurangi cache ke 5 menit** + staleTime 2 menit | `useWebsiteSettingsOptimized.ts` | 0.5 jam | 🟡 Perubahan admin cepat berlaku |
 | CSS-FIX-5 | **Audit dan hapus `useWebsiteSettings.ts` lama** — semua pakai yang optimized | Seluruh codebase | 1 jam | 🟡 Hapus redundan |
 | CSS-FIX-6 | **Critical CSS inline di `<head>`** — untuk warna utama yang diambil dari localStorage, inject `<style>` tag langsung dari script restoration | `index.html` | 3 jam | 🟠 Eliminasi flash index.css |
