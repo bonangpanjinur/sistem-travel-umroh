@@ -57,6 +57,7 @@ const regularPackageSchema = z.object({
   is_featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
   currency: z.enum(["IDR", "USD", "SAR", "EUR", "MYR"]).default("IDR"),
+  booking_mode: z.enum(["umroh", "haji", "wisata"]).default("umroh"),
   // PIC Fee fields
   fee_branch: z.coerce.number().min(0, "Fee cabang tidak boleh negatif").default(0),
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
@@ -127,6 +128,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       fee_sub_agent: (packageData as any)?.fee_sub_agent || 0,
       fee_referral: (packageData as any)?.fee_referral || 0,
       currency: ((packageData as any)?.currency as any) || "IDR",
+      booking_mode: ((packageData as any)?.booking_mode as any) || "umroh",
     },
   });
 
