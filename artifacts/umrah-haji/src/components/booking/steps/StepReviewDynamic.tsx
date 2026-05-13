@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/format";
+import { getExchangeRate, convertAmount } from "@/lib/currency";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Calendar, Users, BedDouble, Plane, User, Tag, Share2, Loader2, CheckCircle, XCircle, Mail, Phone, ShieldAlert, ChevronDown, ChevronUp } from "lucide-react";
@@ -28,6 +29,7 @@ interface StepReviewDynamicProps {
     price_triple: number;
     price_double: number;
     price_single: number;
+    currency?: string | null;
   };
   departureInfo?: {
     departure_date: string;
@@ -74,6 +76,14 @@ export function StepReviewDynamic({
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponResult, setCouponResult] = useState<{ valid: boolean; discount: number; name: string } | null>(null);
   const [policyExpanded, setPolicyExpanded] = useState(false);
+
+  const pkgCurrency = (packageInfo.currency || 'IDR').toUpperCase();
+  const { data: idrRate = 1 } = useQuery({
+    queryKey: ['exchange-rate', pkgCurrency, 'IDR'],
+    queryFn: () => getExchangeRate(pkgCurrency, 'IDR'),
+    enabled: pkgCurrency !== 'IDR',
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { data: cancellationPolicy } = useQuery({
     queryKey: ["cancellation-policy", packageInfo.id],
@@ -466,7 +476,14 @@ export function StepReviewDynamic({
           
           <div className="flex justify-between font-semibold text-lg">
             <span>Total Pembayaran</span>
-            <span className="text-primary">{formatCurrency(totalPrice)}</span>
+            <span className="text-primary text-right">
+              {formatCurrency(totalPrice, pkgCurrency)}
+              {pkgCurrency !== 'IDR' && idrRate > 1 && (
+                <span className="block text-xs font-normal text-muted-foreground">
+                  ≈ {formatCurrency(convertAmount(totalPrice, idrRate), 'IDR')}
+                </span>
+              )}
+            </span>
           </div>
 
           {paymentMode === 'dp' && (

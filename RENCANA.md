@@ -112,8 +112,18 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 | ✅ BOOK-FIX2 | Wizard branching: skip alokasi kamar untuk Haji (STEPS_HAJI di `BookingWizard`) |
 | ✅ CUR-4 | Kolom `departures.price_adult/child/infant` ditambahkan (migrasi 13 Mei 2026) |
 | ✅ CUR-5 | Helper `lib/currency.ts` (`getExchangeRate`, `formatPriceWithIDR`) |
-| CUR-6 | (lanjut Sprint 11) Tampilkan badge IDR ekuivalen di Step Review |
-| CUR-8 | (lanjut Sprint 11) Filter currency di listing `/packages` |
+| ✅ CUR-6 | Badge IDR ekuivalen di Step Review (di total saat currency paket ≠ IDR, pakai `getExchangeRate`) |
+| ✅ CUR-8 | Filter currency di `/packages` (dropdown URL param `?currency=`) |
+| ✅ BOOK-FIX4 | Step 4 wizard: opsi DP / Lunas / Tabungan + auto-create payment record sesuai mode |
+
+### 🟠 Sisa Sprint 11
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| BOOK-FIX3 | Seat hold system (lock kursi 15 menit selama wizard) | Butuh tabel `seat_holds` + countdown UI |
+| BOOK-FIX6 | Webhook Midtrans auto-confirm + WA notif | Butuh edge function `midtrans-webhook` |
+| BOOK-FIX7 | Guest checkout recovery via email/WA link | Butuh template email + token unik |
+| AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA — ditunda |
 
 > Detail lengkap setiap item ada di section masing-masing di bawah.
 
