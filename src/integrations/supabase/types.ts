@@ -7434,6 +7434,10 @@ export type Database = {
         Args: { amount?: number; item_id: string }
         Returns: undefined
       }
+      delete_departure_safely: {
+        Args: { _departure_id: string }
+        Returns: Json
+      }
       enqueue_h_minus_one_push: { Args: never; Returns: number }
       enqueue_push: {
         Args: {
