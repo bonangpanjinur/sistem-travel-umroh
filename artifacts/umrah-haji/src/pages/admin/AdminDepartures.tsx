@@ -54,7 +54,13 @@ const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const isMissingRpcError = (error: unknown) => {
   const message = String((error as { message?: string })?.message ?? '').toLowerCase();
   const code = String((error as { code?: string })?.code ?? '');
-  return code === 'PGRST202' || message.includes('schema cache') || message.includes('delete_departure_safely');
+  return (
+    code === 'PGRST202' || 
+    code === '42P01' || // undefined_table
+    message.includes('schema cache') || 
+    message.includes('delete_departure_safely') ||
+    message.includes('could not find the table')
+  );
 };
 
 async function deleteDepartureWithClientCleanup(departureId: string) {
@@ -94,12 +100,12 @@ async function deleteDepartureWithClientCleanup(departureId: string) {
 
   for (const table of cascadingTables) {
     const { error } = await (supabase.from(table as any) as any).delete().eq('departure_id', departureId);
-    if (error) throw error;
+    if (error && !isMissingRpcError(error)) throw error;
   }
 
   for (const table of nullableTables) {
     const { error } = await (supabase.from(table as any) as any).update({ departure_id: null }).eq('departure_id', departureId);
-    if (error) throw error;
+    if (error && !isMissingRpcError(error)) throw error;
   }
 
   const { error: deleteError } = await supabase.from('departures').delete().eq('id', departureId);

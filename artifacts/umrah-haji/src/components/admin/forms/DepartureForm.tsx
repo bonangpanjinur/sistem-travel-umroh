@@ -42,6 +42,17 @@ interface AdditionalHotel {
 type DepartureInsert = Database["public"]["Tables"]["departures"]["Insert"];
 type DepartureUpdate = Database["public"]["Tables"]["departures"]["Update"];
 
+const isMissingRpcError = (error: unknown) => {
+  const message = String((error as { message?: string })?.message ?? '').toLowerCase();
+  const code = String((error as { code?: string })?.code ?? '');
+  return (
+    code === 'PGRST202' || 
+    code === '42P01' || 
+    message.includes('schema cache') || 
+    message.includes('could not find the table')
+  );
+};
+
 const departureSchema = z.object({
   package_id: z.string().min(1, "Paket harus dipilih"),
   departure_date: z.string().optional().nullable(),
@@ -172,20 +183,29 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
   // Additional hotels state (transit, umroh plus, haji, etc)
   const [additionalHotels, setAdditionalHotels] = useState<AdditionalHotel[]>([]);
 
-  // Load existing additional hotels when editing
-  useQuery({
-    queryKey: ["departure-hotels", departureData?.id],
-    enabled: !!departureData?.id,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("departure_hotels")
-        .select("*")
-        .eq("departure_id", departureData!.id)
-        .order("sort_order", { ascending: true });
-      if (data) setAdditionalHotels(data as AdditionalHotel[]);
-      return data;
-    },
-  });
+      // Load existing additional hotels when editing
+      useQuery({
+        queryKey: ["departure-hotels", departureData?.id],
+        enabled: !!departureData?.id,
+        queryFn: async () => {
+          try {
+            const { data, error } = await (supabase as any)
+              .from("departure_hotels")
+              .select("*")
+              .eq("departure_id", departureData!.id)
+              .order("sort_order", { ascending: true });
+            if (error) {
+              if (isMissingRpcError(error)) return [];
+              throw error;
+            }
+            if (data) setAdditionalHotels(data as AdditionalHotel[]);
+            return data;
+          } catch (e) {
+            if (isMissingRpcError(e)) return [];
+            throw e;
+          }
+        },
+      });
 
   const form = useForm<DepartureFormValues>({
     resolver: zodResolver(departureSchema),
@@ -284,16 +304,20 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
           oldPrices.price_single !== newPrices.price_single;
 
         if (pricesChanged) {
-          await (supabase as any).from("departure_price_history").insert({
-            departure_id: departureId,
-            package_id: values.package_id || null,
-            changed_at: new Date().toISOString(),
-            price_quad: newPrices.price_quad,
-            price_triple: newPrices.price_triple,
-            price_double: newPrices.price_double,
-            price_single: newPrices.price_single,
-            keterangan: "Diperbarui melalui form edit keberangkatan",
-          });
+          try {
+            await (supabase as any).from("departure_price_history").insert({
+              departure_id: departureId,
+              package_id: values.package_id || null,
+              changed_at: new Date().toISOString(),
+              price_quad: newPrices.price_quad,
+              price_triple: newPrices.price_triple,
+              price_double: newPrices.price_double,
+              price_single: newPrices.price_single,
+              keterangan: "Diperbarui melalui form edit keberangkatan",
+            });
+          } catch (e) {
+            if (!isMissingRpcError(e)) throw e;
+          }
         }
       } else {
         const { data, error } = await supabase.from("departures").insert(payload as any).select("id").single();
@@ -302,21 +326,29 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
 
         // Record initial price on creation
         if (values.price_quad || values.price_triple || values.price_double || values.price_single) {
-          await (supabase as any).from("departure_price_history").insert({
-            departure_id: departureId,
-            package_id: values.package_id || null,
-            changed_at: new Date().toISOString(),
-            price_quad: values.price_quad || 0,
-            price_triple: values.price_triple || 0,
-            price_double: values.price_double || 0,
-            price_single: values.price_single || 0,
-            keterangan: "Harga awal saat keberangkatan dibuat",
-          });
+          try {
+            await (supabase as any).from("departure_price_history").insert({
+              departure_id: departureId,
+              package_id: values.package_id || null,
+              changed_at: new Date().toISOString(),
+              price_quad: values.price_quad || 0,
+              price_triple: values.price_triple || 0,
+              price_double: values.price_double || 0,
+              price_single: values.price_single || 0,
+              keterangan: "Harga awal saat keberangkatan dibuat",
+            });
+          } catch (e) {
+            if (!isMissingRpcError(e)) throw e;
+          }
         }
       }
 
       // Sync additional hotels (transit/umroh plus/haji): delete all then re-insert
-      await (supabase as any).from("departure_hotels").delete().eq("departure_id", departureId);
+      try {
+        await (supabase as any).from("departure_hotels").delete().eq("departure_id", departureId);
+      } catch (e) {
+        if (!isMissingRpcError(e)) throw e;
+      }
       const validAdditional = additionalHotels.filter(h => h.hotel_id);
       if (validAdditional.length > 0) {
         const rows = validAdditional.map((h, idx) => ({
@@ -329,8 +361,14 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
           notes: h.notes || null,
           sort_order: idx,
         }));
-        const { error: insErr } = await (supabase as any).from("departure_hotels").insert(rows);
-        if (insErr) throw insErr;
+        try {
+          const { error: insErr } = await (supabase as any).from("departure_hotels").insert(rows);
+          if (insErr) {
+            if (!isMissingRpcError(insErr)) throw insErr;
+          }
+        } catch (e) {
+          if (!isMissingRpcError(e)) throw e;
+        }
       }
     },
     onSuccess: () => {
