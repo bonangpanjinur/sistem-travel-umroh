@@ -28,6 +28,9 @@ export interface DynamicBookingFormData {
   roomAllocation: RoomAllocation;
   passengers: DynamicPassengerData[];
   notes?: string;
+  paymentMode?: 'full' | 'dp' | 'savings';
+  dpAmount?: number;
+  savingsPlanId?: string;
 }
 
 export interface PICData {
@@ -71,6 +74,8 @@ export function useBookingWizardDynamic(
     departureId: initialDepartureId,
     roomAllocation: initialRoomAllocation,
     passengers: initialPassengers,
+    paymentMode: 'full',
+    dpAmount: 0,
   });
 
   const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
