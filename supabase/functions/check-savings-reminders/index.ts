@@ -76,10 +76,8 @@ Deno.serve(async (req) => {
     if (cust.phone) {
       await supabase.from("whatsapp_logs").insert({
         recipient_phone: cust.phone,
-        recipient_name: cust.full_name,
-        message: `Assalamualaikum ${cust.full_name},\n\n${message}\n\nMohon segera lakukan pembayaran. Terima kasih.`,
-        message_type: "savings_reminder",
-        status: "queued",
+        message_content: `Assalamualaikum ${cust.full_name},\n\n${message}\n\nMohon segera lakukan pembayaran. Terima kasih.`,
+        status: "pending",
       }).then(() => {}, () => {});
     }
     summary.upcoming++;
@@ -113,10 +111,8 @@ Deno.serve(async (req) => {
     if (cust.phone) {
       await supabase.from("whatsapp_logs").insert({
         recipient_phone: cust.phone,
-        recipient_name: cust.full_name,
-        message: `Assalamualaikum ${cust.full_name},\n\n${message}\n\nMohon konfirmasi atau hubungi admin jika ada kendala. Terima kasih.`,
-        message_type: "savings_overdue",
-        status: "queued",
+        message_content: `Assalamualaikum ${cust.full_name},\n\n${message}\n\nMohon konfirmasi atau hubungi admin jika ada kendala. Terima kasih.`,
+        status: "pending",
       }).then(() => {}, () => {});
     }
     summary.overdue++;
