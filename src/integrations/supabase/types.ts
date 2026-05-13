@@ -1722,7 +1722,10 @@ export type Database = {
           operational_cost_per_pax: number | null
           package_id: string | null
           payment_deadline: string | null
+          price_adult: number | null
+          price_child: number | null
           price_double: number | null
+          price_infant: number | null
           price_quad: number | null
           price_single: number | null
           price_triple: number | null
@@ -1752,7 +1755,10 @@ export type Database = {
           operational_cost_per_pax?: number | null
           package_id?: string | null
           payment_deadline?: string | null
+          price_adult?: number | null
+          price_child?: number | null
           price_double?: number | null
+          price_infant?: number | null
           price_quad?: number | null
           price_single?: number | null
           price_triple?: number | null
@@ -1782,7 +1788,10 @@ export type Database = {
           operational_cost_per_pax?: number | null
           package_id?: string | null
           payment_deadline?: string | null
+          price_adult?: number | null
+          price_child?: number | null
           price_double?: number | null
+          price_infant?: number | null
           price_quad?: number | null
           price_single?: number | null
           price_triple?: number | null
