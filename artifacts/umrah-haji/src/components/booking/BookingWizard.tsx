@@ -10,6 +10,7 @@ import { StepRoomAllocation } from "./steps/StepRoomAllocation";
 import { PICSelectionStepImproved } from "./PICSelectionStepImproved";
 import { useBookingWizardDynamic, RoomAllocation, PICData } from "@/hooks/useBookingWizardDynamic";
 import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket } from "lucide-react";
+import { Clock, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/format";
@@ -18,6 +19,8 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { LoginSuggestionDialog } from "./LoginSuggestionDialog";
+import { useSeatHold, formatHoldRemaining } from "@/hooks/useSeatHold";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const MONTHS = [
   { value: "01", label: "Januari" },
@@ -123,6 +126,11 @@ export function BookingWizard() {
   const bookingMode = (packageInfo as any)?.booking_mode || 'umroh';
   const isHaji = bookingMode === 'haji';
   const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
+
+  // Seat hold (BOOK-FIX3) — 15 menit lock kursi selama wizard
+  const requestedPax = Math.max(initialPax, totalPassengersFromForm(formData) || 1);
+  const { remainingMs, error: holdError, expiresAt } = useSeatHold(initialDepartureId, requestedPax);
+  const holdExpired = !!expiresAt && remainingMs === 0;
 
   // Saat mode haji & step aktif adalah 'rooms' (state awal), pindahkan ke 'passengers'
   useEffect(() => {
