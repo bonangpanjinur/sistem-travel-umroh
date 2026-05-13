@@ -1957,3 +1957,533 @@ Sebelum menjalankan di Supabase SQL Editor, pastikan:
 ---
 
 *Rencana migrasi SQL ini diperbarui Mei 2026 setelah konsolidasi semua file dari `migrations/` dan `supabase/migrations/` ke dalam `sql/migrations/`.*
+
+---
+
+## BAGIAN 16 — ANALISIS MENDALAM: PWA & TAMPILAN YANG BISA DIATUR ADMIN
+
+> **Tanggal analisis:** Mei 2026 — membaca kode seluruh sistem PWA, manifest, service worker, layout, hooks, dan admin panel secara mendalam.
+> **Tujuan:** Mewujudkan visi: *website di browser tetap seperti website; setelah di-install jadi tampilan app yang bisa dikustomisasi dari panel admin.*
+
+---
+
+### 16A — Arsitektur PWA Saat Ini (Yang Sudah Ada)
+
+| Komponen | File | Status | Keterangan |
+|----------|------|--------|------------|
+| Deteksi mode standalone | `usePWAMode.ts` | ✅ Ada | `display-mode: standalone` + iOS `navigator.standalone` |
+| Layout berbeda saat di-install | `DynamicPublicLayout.tsx` | ✅ Ada | `PWACompactHeader` + `MobileBottomNav` gantikan navbar+footer |
+| Redirect ke portal saat installed | `StandaloneHomeGate.tsx` | ✅ Ada | Jamaah → `/jamaah`, Admin → `/dashboard` |
+| Konfigurasi bottom nav dari DB | `usePWAConfig.ts` | ✅ Ada | Simpan ke `website_settings.custom_sections.pwa_bottom_nav` |
+| UI admin kelola bottom nav | `AdminPWASettings.tsx` | ✅ Ada | Drag-drop, toggle, 16 pilihan ikon |
+| Bottom nav dinamis | `MobileBottomNav.tsx` | ✅ Ada | Baca dari DB, fallback ke default |
+| Manifest dasar | `public/manifest.json` | ⚠️ Statis | Hardcoded, tidak berubah walau admin edit settings |
+| Service Worker | `public/sw.js` | ⚠️ Parsial | Cache jamaah routes + static assets, belum optimal |
+| Install prompt | `PWAInstallPrompt.tsx` | ✅ Ada | Banner saat browser support install |
+| Gerbang install interaktif | `PWAGatePage.tsx` | ✅ Ada | Panduan per platform (Android/iOS/Desktop) |
+| Splash screen loader | `index.html` (`#initialLoader`) | ⚠️ Statis | Warna/ikon tidak dari DB admin |
+| Header kompak PWA | `PWACompactHeader` (di layout) | ⚠️ Terbatas | Tampil nama + tagline saja, tidak bisa dikustomisasi layout-nya |
+| Update meta tags saat settings berubah | `ThemeProvider.tsx` | ✅ Ada | Update `theme-color`, `apple-mobile-web-app-title`, favicon |
+
+---
+
+### 16B — GAP KRITIS PWA (Masalah yang Harus Diperbaiki)
+
+#### 🔴 GAP-PWA-01: manifest.json STATIS — Perubahan Admin Tidak Terpantul
+
+**Masalah:** `public/manifest.json` adalah file fisik statis. Admin bisa ubah nama app, warna, ikon di `AdminPWASettings`, perubahan ini disimpan ke DB — **tapi `manifest.json` tidak pernah diupdate**. Saat jamaah install PWA, yang terpasang di homescreen selalu "Vinstour Travel", warna splash `#0f2518`, dan ikon dari `/images/icon-192.png`.
+
+**Bukti di kode:**
+- `usePWAConfig.ts` menyimpan `pwa_icon_config` ke `website_settings.custom_sections` ✅
+- `ThemeProvider.tsx` memang update `<meta name="theme-color">` dan `<link rel="icon">` ✅
+- **Tapi**: `manifest.json` yang di-cache browser (dan dipakai untuk install) tetap hardcoded ❌
+- Perubahan meta tag di runtime tidak berpengaruh pada manifest yang sudah di-cache saat install
+
+**Dampak Nyata:** Multi-tenant tidak berjalan. Cabang A dan Cabang B sama-sama punya nama "Vinstour" di homescreen. Warna splash screen tidak bisa dikustomisasi per tenant.
+
+**Solusi yang Harus Dibangun:**
+```
+Opsi A (Direkomendasikan): Buat endpoint dinamis di Express
+  GET /api/manifest.json → baca dari DB → return JSON manifest dengan nama/warna/ikon dari settings
+  Konfigurasi sw.js untuk tidak cache /api/manifest.json
+  Tambahkan header: Cache-Control: no-cache, no-store
+
+Opsi B: Endpoint manifest di vite server proxy ke /api/manifest
+  Vite config sudah punya proxy /api → localhost:8080
+  Tinggal tambah route manifest.json di api-server
+```
+
+---
+
+#### 🔴 GAP-PWA-02: VAPID Private Key Tersimpan di Frontend — Security Vulnerability
+
+**Masalah:** `usePWAConfig.ts` baris 133 membaca `push_vapid_config` termasuk `privateKey` dari DB dan expose ke frontend React. VAPID private key adalah secret server-side — **tidak boleh ada di browser**.
+
+**Bukti di kode:**
+```typescript
+// usePWAConfig.ts baris 133-136
+const vapidConfig: PushVapidConfig = useMemo(() => {
+  const saved = customData?.push_vapid_config as Partial<PushVapidConfig> | undefined;
+  return { ...DEFAULT_VAPID_CONFIG, ...(saved || {}) };
+}, [customData]);
+// Interface PushVapidConfig mengandung: privateKey: string
+```
+
+**Dampak:** Siapapun yang buka DevTools bisa curi VAPID private key → bisa kirim push notification palsu ke semua jamaah.
+
+**Solusi:**
+- Hapus `privateKey` dari interface `PushVapidConfig` di frontend
+- VAPID private key hanya dibaca via env var `VAPID_PRIVATE_KEY` di api-server
+- Frontend hanya perlu `publicKey` untuk subscribe
+- Admin set private key via Replit Secrets, bukan via UI admin
+
+---
+
+#### 🔴 GAP-PWA-03: Tidak Ada Layout App Terpisah untuk Portal Jamaah
+
+**Masalah:** Saat PWA terinstall, `StandaloneHomeGate` redirect jamaah ke `/jamaah`. Tapi `/jamaah` dan semua sub-route-nya (`/jamaah/*`) menggunakan `DynamicPublicLayout` — layout yang sama dengan website publik. `DynamicPublicLayout` memang sudah ada logika berbeda untuk standalone mode (`PWACompactHeader` + `MobileBottomNav`), tapi ini berlaku untuk **semua halaman publik**, bukan khusus "tampilan app jamaah".
+
+**Akibat:**
+- Jamaah yang install PWA masuk ke halaman `/jamaah` dengan header kecil + bottom nav → ✅
+- Tapi halaman jamaah tidak punya App Shell yang proper (tidak ada sidebar, tidak ada navigasi kontekstual per section)
+- Bottom nav yang dikonfigurasi admin adalah untuk **publik** (Beranda, Paket, Sholat, Toko, Akun), **bukan untuk portal jamaah** (Beranda Jamaah, Dokumen, Pembayaran, Notifikasi, Profil)
+- Jamaah di-install tapi navigasi dalam "app"-nya tidak representatif fitur jamaah
+
+**Solusi:**
+- Buat `JamaahAppLayout` terpisah yang otomatis aktif saat standalone mode
+- Bottom nav jamaah (5 item khusus portal jamaah) dikonfigurasi terpisah dari bottom nav publik
+- Tambahkan konfigurasi `pwa_jamaah_bottom_nav` di `usePWAConfig`
+- Admin bisa set bottom nav berbeda untuk mode publik vs mode jamaah
+
+---
+
+#### 🟠 GAP-PWA-04: Splash Screen Tidak Bisa Dikustomisasi dari Admin
+
+**Masalah:** `index.html` punya `#initialLoader` dengan warna hijau `#0f2518` hardcoded. Warna ini tidak berubah walau admin set warna berbeda di panel.
+
+**Bukti:**
+```html
+<!-- index.html — statis -->
+<style>
+  #initialLoader { background: #0f2518; }
+</style>
+```
+
+ThemeProvider memang inject CSS variables ke `document.documentElement`, tapi ini terjadi SETELAH React mount — sementara initial loader tampil SEBELUM React mount.
+
+**Solusi:**
+- Buat endpoint `GET /api/splash-config` yang return warna utama dari DB sebagai JSON minimal
+- Di `index.html`, tambahkan inline script yang fetch `/api/splash-config` dan update style `#initialLoader` sebelum React load
+- Atau: simpan warna di localStorage saat ThemeProvider jalan, baca localStorage di awal load berikutnya
+
+---
+
+#### 🟠 GAP-PWA-05: Bottom Nav Sama untuk Semua User (Tidak Role-Aware)
+
+**Masalah:** `MobileBottomNav.tsx` menampilkan item yang sama untuk semua user tanpa peduli login atau tidak, dan tidak peduli role.
+
+**Contoh masalah:**
+- User sudah login sebagai jamaah → tetap tampil "Akun" yang link ke `/auth/login`
+- Admin yang buka halaman publik dari mobile → dapat bottom nav jamaah publik, bukan shortcut admin
+- User belum login → item "Jadwal" tampil sama seperti user sudah login
+
+**Solusi:**
+- Di `MobileBottomNav`, cek auth status dan role via `useAuth`
+- Jika logged in sebagai jamaah → tampilkan bottom nav jamaah (bukan bottom nav publik)
+- Jika tidak login → tampilkan bottom nav publik dengan item "Masuk" bukan "Akun"
+- Admin di mobile → tampilkan shortcut ke admin panel
+
+---
+
+#### 🟠 GAP-PWA-06: Service Worker Tidak Ada Update Notification
+
+**Masalah:** Ketika deploy versi baru, service worker baru ter-install tapi user tidak tahu. Konten lama bisa tetap tampil dari cache sampai user close dan buka ulang app.
+
+**Bukti di kode:**
+- `sw.js` menggunakan `self.skipWaiting()` di install event → akan otomatis aktif
+- Tapi tidak ada pesan ke main thread: "Ada versi baru, refresh?"
+- `main.tsx` ada handler `SKIP_WAITING` tapi hanya untuk chunk error, bukan update notification
+
+**Solusi:**
+```javascript
+// sw.js: broadcast ke semua tab saat versi baru aktif
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    clients.claim().then(() => {
+      clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
+      });
+    })
+  );
+});
+
+// main.tsx: tampilkan toast/banner "Versi baru tersedia"
+navigator.serviceWorker.addEventListener('message', (event) => {
+  if (event.data?.type === 'SW_UPDATED') {
+    toast("Versi baru tersedia", { action: { label: "Refresh", onClick: () => window.location.reload() }});
+  }
+});
+```
+
+---
+
+#### 🟡 GAP-PWA-07: Manifest Shortcuts Tidak Dinamis
+
+**Masalah:** `manifest.json` hardcode 4 shortcuts (Portal Jamaah, Waktu Sholat, Panduan, Cek Booking). Admin tidak bisa menambah/mengurangi shortcuts dari panel admin.
+
+**Solusi:** Endpoint manifest dinamis (solusi GAP-PWA-01) otomatis menyelesaikan ini — shortcut bisa diambil dari DB.
+
+---
+
+#### 🟡 GAP-PWA-08: Tidak Ada Preview "Tampilan App" di Admin Panel
+
+**Masalah:** `AdminPWASettings.tsx` ada mockup preview kecil di sisi kanan, tapi hanya menampilkan simulasi sederhana bottom nav. Tidak ada iframe preview bagaimana app sebenarnya terlihat saat installed.
+
+**Solusi:**
+- Tambahkan tab "Preview Mode" di AdminPWASettings
+- Render iframe dengan `?preview=standalone` parameter
+- App mendeteksi parameter ini dan menampilkan layout standalone meski di browser biasa
+- Admin bisa lihat persis tampilannya sebelum simpan
+
+---
+
+#### 🟡 GAP-PWA-09: mode `fullscreen` dan `minimal-ui` Tidak Dideteksi
+
+**Masalah:** `usePWAMode.ts` hanya cek `display-mode: standalone`. Jika manifest menggunakan `fullscreen` atau `minimal-ui`, hook ini return `false` walau app sebenarnya terinstall.
+
+**Solusi:**
+```typescript
+const mq = window.matchMedia(
+  "(display-mode: standalone) or (display-mode: fullscreen) or (display-mode: minimal-ui)"
+);
+```
+
+---
+
+#### 🟡 GAP-PWA-10: Tidak Ada Cara Admin Melihat Statistik Install PWA
+
+**Masalah:** Tidak ada data: berapa jamaah yang install PWA? Dari platform apa (Android/iOS)? Kapan install?
+
+**Solusi:**
+- Tambahkan endpoint `POST /api/pwa/install-event` yang dipanggil dari event `appinstalled` di browser
+- Simpan ke tabel `pwa_install_events` (platform, timestamp, user_agent)
+- Tampilkan statistik di AdminPWASettings: "XX jamaah sudah install"
+
+---
+
+### 16C — Rencana Perbaikan PWA (Berurutan Prioritas)
+
+| ID | Tugas | Dampak | Estimasi | Prioritas |
+|----|-------|--------|----------|-----------|
+| PWA-F1 | **Manifest dinamis** — endpoint `GET /api/manifest.json` di Express yang baca nama/warna/ikon dari DB | 🔴 KRITIS | 1 hari | Sprint berikutnya |
+| PWA-F2 | **Fix security: hapus VAPID private key dari frontend** — interface, hook, dan admin UI | 🔴 KRITIS | 0.5 hari | Sprint berikutnya |
+| PWA-F3 | **Bottom nav jamaah terpisah** — `pwa_jamaah_bottom_nav` config, `JamaahAppLayout` standalone | 🟠 Tinggi | 1 hari | Sprint berikutnya |
+| PWA-F4 | **Bottom nav role-aware** — tampilan berbeda untuk logged-in vs guest, per role | 🟠 Tinggi | 0.5 hari | Sprint berikutnya |
+| PWA-F5 | **SW update notification** — broadcast `SW_UPDATED` + toast di main thread | 🟠 Tinggi | 0.5 hari | Sprint berikutnya |
+| PWA-F6 | **Splash screen dari DB** — baca warna dari localStorage (yang diisi ThemeProvider) untuk initial loader | 🟡 Sedang | 0.5 hari | Sprint +2 |
+| PWA-F7 | **Preview mode di admin** — parameter `?preview=standalone` untuk preview layout app | 🟡 Sedang | 1 hari | Sprint +2 |
+| PWA-F8 | **Deteksi mode fullscreen/minimal-ui** — update `usePWAMode.ts` | 🟡 Sedang | 0.25 hari | Sprint +2 |
+| PWA-F9 | **Statistik install PWA** — event tracking + tabel + tampilan di admin | 🟡 Sedang | 1 hari | Sprint +2 |
+| PWA-F10 | **Manifest shortcuts dinamis** — ikut terselesaikan saat PWA-F1 selesai | 🟢 Rendah | — | Otomatis |
+
+---
+
+### 16D — Arsitektur Ideal: "Tampilan App yang Bisa Diatur Admin"
+
+Visi yang diinginkan membutuhkan 3 lapisan yang bekerja bersama:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ LAPISAN 1 — MANIFEST DINAMIS (dari DB)                         │
+│  GET /api/manifest.json → baca website_settings → return JSON  │
+│  nama, short_name, themeColor, bgColor, icons, shortcuts       │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ Browser baca manifest saat install
+┌────────────────────────▼────────────────────────────────────────┐
+│ LAPISAN 2 — DETEKSI MODE (sudah ada, perlu penyempurnaan)      │
+│  usePWAMode → isStandalone: boolean                            │
+│  StandaloneHomeGate → redirect jamaah ke /jamaah               │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ isStandalone = true
+┌────────────────────────▼────────────────────────────────────────┐
+│ LAPISAN 3 — LAYOUT APP (perlu dibangun untuk jamaah)           │
+│  JamaahAppLayout (baru):                                       │
+│    ├── PWACompactHeader (sudah ada, perlu penyempurnaan)       │
+│    ├── <main> konten halaman jamaah                            │
+│    └── JamaahBottomNav (baru, 5 item khusus jamaah, dari DB)   │
+│                                                                │
+│  DynamicPublicLayout (sudah ada, untuk halaman publik):        │
+│    ├── Browser mode: Navbar + Footer                           │
+│    └── Standalone mode: PWACompactHeader + MobileBottomNav     │
+└─────────────────────────────────────────────────────────────────┘
+
+ADMIN PANEL CONTROLS:
+  AdminPWASettings (sudah ada + perlu penambahan):
+    Tab 1: Ikon & Identitas App (nama, short_name, warna, ikon)
+    Tab 2: Bottom Nav Publik (untuk mode standalone di halaman publik)
+    Tab 3: Bottom Nav Jamaah (BARU — untuk portal jamaah saat terinstall)
+    Tab 4: Preview Mode (BARU — lihat tampilan app sebelum simpan)
+    Tab 5: Statistik Install (BARU — berapa yang sudah install)
+```
+
+---
+
+## BAGIAN 17 — ANALISIS MENDALAM: HAK AKSES (RBAC)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `permissions.ts`, `admin-menu-registry.ts`, `useDynamicMenus.ts`, `ProtectedRoute.tsx`, `AdminRoleManagement.tsx`, SQL migrations RBAC.
+> **Tujuan:** Mengidentifikasi celah, ketidakkonsistenan, dan risiko keamanan dalam sistem hak akses.
+
+---
+
+### 17A — Arsitektur RBAC Saat Ini
+
+```
+Database (Supabase):
+  auth.users → profiles → user_roles (multi-role)
+  role_permissions: role → permission_key[]
+  user_permissions: user_id → permission_key (override per user)
+  menu_items: label + path + required_permission (dikonfigurasi dari DB)
+
+  RPC get_user_effective_permissions_v2:
+    1. Kumpulkan semua roles user (dari user_roles)
+    2. Expand dengan role inheritance (dari kode, bukan DB)
+    3. Gabungkan semua permission dari role_permissions
+    4. Terapkan override dari user_permissions (grant/revoke per user)
+
+Frontend:
+  useAuth → user, session, roles, isAdmin(), isStaff(), isAgent()
+  useDynamicMenus → effectiveKeys[], isPathAllowed(path)
+  ProtectedRoute → DynamicMenuGate → isPathAllowed
+  AdminRoleManagement → UI matrix permission per role
+  AdminRBACStatus → diagnostic + re-seed tools
+```
+
+---
+
+### 17B — GAP KRITIS HAK AKSES (Masalah yang Harus Diperbaiki)
+
+#### 🔴 GAP-RBAC-01: Tidak Ada Granularitas Read vs Write vs Delete
+
+**Masalah:** Permission saat ini adalah flat string: `bookings`, `payments`, `customers`, dll. Tidak ada perbedaan antara "bisa lihat" vs "bisa edit" vs "bisa hapus".
+
+**Dampak Nyata:**
+- Staff `sales` yang punya permission `bookings` otomatis bisa **hapus booking** — padahal harusnya hanya lihat + buat
+- Staff `marketing` dengan `customers` bisa **edit data pribadi jamaah**
+- Tidak ada cara memberi seseorang akses "read-only" ke finance tanpa juga bisa edit
+
+**Solusi — Hierarki Permission Granular:**
+```
+Contoh format baru: "modul.aksi"
+  bookings.read    → bisa lihat daftar + detail booking
+  bookings.write   → bisa buat + edit booking
+  bookings.delete  → bisa hapus booking
+  bookings.export  → bisa export ke Excel/PDF
+
+  finance.read     → bisa lihat laporan
+  finance.write    → bisa input transaksi
+  finance.approve  → bisa approve pembayaran
+```
+
+**Catatan:** Ini adalah perubahan besar. Perlu:
+1. Update semua `PERMISSIONS` constant di `permissions.ts`
+2. Update semua entri di `admin-menu-registry.ts` (tiap route → permission granular)
+3. Migrasi data di `role_permissions` table
+4. Update RPC di Supabase
+5. Update semua guard di komponen (`useCanAccess`, `ProtectedRoute`)
+
+---
+
+#### 🔴 GAP-RBAC-02: `user.roles` Diambil dari Auth Metadata, Bukan Tabel `user_roles`
+
+**Masalah:** Di `useDynamicMenus.ts` baris 45:
+```typescript
+const userRoles = (user as any).roles || [] as AppRole[];
+```
+Ini membaca `roles` dari Supabase auth user object — yang diisi saat login dari user metadata, bukan dari tabel `user_roles`. Tabel `user_roles` adalah source of truth untuk multi-role, tapi yang dibaca adalah metadata auth.
+
+**Dampak:**
+- Jika admin tambah role di tabel `user_roles` tapi tidak update auth metadata → tidak berpengaruh ke permission
+- Inkonsistensi: `useAuth` membaca tabel `user_roles` (✅), tapi `useDynamicMenus` membaca auth metadata (⚠️)
+- Multi-role hanya jalan jika metadata auth dan tabel user_roles sinkron
+
+**Solusi:**
+- `useDynamicMenus` harus ambil roles dari hasil `useAuth().roles` (yang sudah baca dari `user_roles` tabel), bukan dari `(user as any).roles`
+- Atau: pass roles sebagai parameter ke hook
+
+---
+
+#### 🔴 GAP-RBAC-03: Cache Permission 15 Menit Tidak Bisa Diinvalidasi
+
+**Masalah:** `useDynamicMenus.ts` baris 70: `staleTime: 1000 * 60 * 15`. Permission di-cache 15 menit di React Query.
+
+**Dampak:**
+- Admin cabut hak akses user → user masih bisa akses halaman tersebut selama 15 menit
+- Admin tambah role baru ke user → butuh 15 menit sebelum berlaku
+- Tidak ada mekanisme force-refresh permission dari server side
+
+**Solusi:**
+- Tambahkan Supabase Realtime subscription pada tabel `user_permissions` dan `user_roles`
+- Saat ada perubahan untuk user yang sedang login → invalidate query `user-effective-permissions`
+- Atau: kurangi staleTime menjadi 2-5 menit dengan smart refetch
+
+---
+
+#### 🟠 GAP-RBAC-04: Tidak Ada Audit Trail saat Permission Diubah
+
+**Masalah:** `AdminRoleManagement.tsx` memungkinkan super_admin ubah permission role, tapi tidak ada catatan: siapa mengubah, apa yang diubah, kapan.
+
+**Dampak:** Tidak ada akuntabilitas. Jika ada kebocoran data karena permission yang salah, tidak bisa ditelusuri kapan dan siapa yang salah set.
+
+**Solusi:**
+- Tambahkan trigger SQL di tabel `role_permissions` dan `user_permissions` yang menulis ke `admin_activity_log`
+- Format log: `{ action: "permission_granted", role: "sales", permission: "finance.read", changed_by: "admin@vinstour.com" }`
+
+---
+
+#### 🟠 GAP-RBAC-05: Sinkronisasi Permission Kode ↔ DB Harus Manual
+
+**Masalah:** Ada 3 tempat yang harus selalu sinkron secara manual:
+1. `permissions.ts` — `PERMISSIONS` constant (source of truth kode)
+2. `admin-menu-registry.ts` — `RECOMMENDED_MENUS` dan `ROLE_DEFAULT_PERMISSIONS`
+3. Database — tabel `role_permissions` dan `menu_items`
+
+Jika developer tambah fitur baru dan tambah permission di `permissions.ts`, mereka **harus ingat** untuk:
+- Daftarkan di `RECOMMENDED_MENUS`
+- Set default di `ROLE_DEFAULT_PERMISSIONS`
+- Jalankan SQL di Supabase untuk update `role_permissions`
+- Klik "Menu Sync" di `AdminRBACStatus`
+
+Sering lupa → fitur baru tidak bisa diakses siapapun sampai manual dikonfigurasi.
+
+**Solusi:**
+- Buat skrip `db:sync-permissions` yang baca `PERMISSIONS` + `RECOMMENDED_MENUS` dari kode → compare dengan DB → report diff → tanya user mau sync tidak
+- Atau: endpoint `POST /api/admin/rbac/sync` yang otomatis sync dari registry ke DB
+- Tambahkan test/assertion: jika ada permission di registry yang tidak ada di DB, tampilkan warning di `AdminRBACStatus`
+
+---
+
+#### 🟠 GAP-RBAC-06: Branch-Scoped Permission Tidak Ada
+
+**Masalah:** Semua staff dengan role `operational` bisa lihat data dari SEMUA cabang. Tidak ada pembatasan "staff ini hanya boleh lihat data Cabang Jakarta".
+
+**Dampak:**
+- Staff Cabang Surabaya bisa lihat dan edit booking dari Cabang Jakarta
+- Branch Manager tidak punya isolasi data antar cabang
+- Multi-tenant per cabang tidak aman
+
+**Solusi:**
+- Tambahkan kolom `branch_id` di `user_roles` atau buat tabel `user_branch_access`
+- RLS policy di semua tabel yang punya `branch_id` harus cek apakah user punya akses ke branch tersebut
+- Frontend harus filter data berdasarkan `branchId` dari context auth
+
+---
+
+#### 🟠 GAP-RBAC-07: Permission Agen Tidak Granular
+
+**Masalah:** Semua agen mendapat akses portal `/agent/*` secara sama. Tidak ada perbedaan antara:
+- Agen yang hanya bisa lihat booking miliknya sendiri vs semua booking cabang
+- Agen yang boleh lihat komisi vs tidak
+- Sub-agen yang hanya bisa lihat data parent agent-nya
+
+**Solusi:**
+- Buat `agent_permissions` table untuk konfigurasi per-agen
+- Portal agen bisa filter data berdasarkan `agent_id` yang tersimpan di auth session
+
+---
+
+#### 🟡 GAP-RBAC-08: Tidak Ada Tool "Simulasi Akses sebagai User X"
+
+**Masalah:** Admin bisa lihat matrix permission per role, tapi tidak bisa melihat "apa yang bisa dilakukan oleh user John Doe dengan override spesifiknya". Jika user komplain tidak bisa akses sesuatu, admin harus menebak-nebak kombinasi role + override.
+
+**Solusi:**
+- Tambahkan fitur "Simulasi Akses" di `AdminRBACStatus`
+- Admin pilih user → sistem menampilkan list semua menu yang bisa diakses + yang tidak + alasannya
+- Tampilkan apakah permission dari role default atau dari user override
+
+---
+
+#### 🟡 GAP-RBAC-09: role `customer` vs `jamaah` — Perbedaan Tidak Jelas
+
+**Masalah:** Ada dua role yang hampir identik: `customer` dan `jamaah`. Keduanya diijinkan di `CustomerRoutes.tsx`. Tidak ada dokumentasi jelas perbedaannya.
+
+Dari `useAuth.tsx`: `isCustomer()` cek `customer || jamaah`. Dari `CustomerRoutes.tsx`: keduanya diijinkan masuk `/jamaah/*`. Dari `permissions.ts`: keduanya tidak ada dalam `ROLE_HIERARCHY` (tidak punya sub-role).
+
+**Solusi:**
+- Dokumentasikan perbedaan: `customer` = pernah pesan tapi belum berangkat; `jamaah` = sedang dalam perjalanan/aktif
+- Atau: hapus salah satu dan gunakan satu role saja
+- Atau: berikan kemampuan berbeda (jamaah bisa akses fitur SOS, customer tidak)
+
+---
+
+#### 🟡 GAP-RBAC-10: Tidak Ada Permission untuk Fitur PWA
+
+**Masalah:** `AdminPWASettings` dilindungi permission `APPEARANCE`. Artinya siapapun yang bisa akses Appearance bisa juga ubah konfigurasi PWA (nama app, ikon, bottom nav). Ini terlalu lebar — marketing yang urus tampilan website tidak perlu mengubah konfigurasi app.
+
+**Solusi:**
+- Tambahkan permission baru `PWA_SETTINGS: 'pwa-settings'` di `PERMISSIONS`
+- Pisahkan `AdminAppearance` (theme/warna) dan `AdminPWASettings` (konfigurasi app) menjadi permission berbeda
+- Update `admin-menu-registry.ts` dan DB
+
+---
+
+#### 🟡 GAP-RBAC-11: Frontend Fallback ke Registry saat DB Offline
+
+**Masalah:** `useDynamicMenus.ts` baris 74-80: jika DB tidak bisa dijangkau atau query gagal, fallback ke `RECOMMENDED_MENUS` (semua menu tersedia). Ini berarti jika Supabase error, semua staff internal otomatis mendapat akses penuh ke semua menu.
+
+**Solusi:**
+- Fallback seharusnya return empty atau minimal permission, bukan full access
+- Atau: fallback ke permission yang di-cache di localStorage (hasil fetch sukses terakhir)
+
+---
+
+### 17C — Rencana Perbaikan Hak Akses (Berurutan Prioritas)
+
+#### FASE KRITIS — Segera Diperbaiki
+
+| ID | Tugas | File | Estimasi | Prioritas |
+|----|-------|------|----------|-----------|
+| RBAC-F1 | **Fix sumber roles** — `useDynamicMenus` baca dari `useAuth().roles`, bukan `(user as any).roles` | `useDynamicMenus.ts` | 0.25 hari | 🔴 Segera |
+| RBAC-F2 | **Fix security: VAPID private key** (duplikat dengan PWA-F2, satu perbaikan menyelesaikan keduanya) | `usePWAConfig.ts` | 0.5 hari | 🔴 Segera |
+| RBAC-F3 | **Fix fallback permission** — jika DB offline, fallback ke localStorage cache, bukan full access | `useDynamicMenus.ts` | 0.5 hari | 🔴 Segera |
+| RBAC-F4 | **Realtime invalidation permission** — Supabase realtime pada `user_permissions` + `user_roles` invalidate React Query cache | `useDynamicMenus.ts` | 1 hari | 🟠 Penting |
+
+#### FASE PENTING — Sprint Berikutnya
+
+| ID | Tugas | File/Tabel | Estimasi |
+|----|-------|------------|----------|
+| RBAC-P1 | **Audit trail permission changes** — trigger SQL pada `role_permissions` + `user_permissions` ke `admin_activity_log` | SQL migration baru | 0.5 hari |
+| RBAC-P2 | **Pisahkan permission `pwa-settings`** dari `appearance` | `permissions.ts` + registry + DB | 0.5 hari |
+| RBAC-P3 | **Tool simulasi akses user** — "Lihat akses sebagai user X" di AdminRBACStatus | `AdminRBACStatus.tsx` | 1 hari |
+| RBAC-P4 | **Skrip sync permission kode → DB** — deteksi diff, auto-sync dengan konfirmasi | Script baru + endpoint | 1 hari |
+| RBAC-P5 | **Dokumentasi `customer` vs `jamaah`** — bersihkan ambiguitas, tambahkan perbedaan fitur yang jelas | `permissions.ts` + `CustomerRoutes.tsx` | 0.5 hari |
+
+#### FASE JANGKA PANJANG — Arsitektur Ulang
+
+| ID | Tugas | Estimasi |
+|----|-------|----------|
+| RBAC-L1 | **Permission granular read/write/delete** — breaking change, butuh perencanaan migrasi | 3-5 hari |
+| RBAC-L2 | **Branch-scoped data isolation** — RLS policy per branch di Supabase | 2-3 hari |
+| RBAC-L3 | **Permission granular per agen** — `agent_permissions` table + filter data per agen | 2 hari |
+
+---
+
+### 17D — Checklist Kondisi RBAC yang Sehat
+
+Gunakan checklist ini untuk validasi setelah perbaikan:
+
+```
+[ ] Roles user dibaca dari tabel user_roles, bukan auth metadata
+[ ] Perubahan permission berlaku dalam < 2 menit (bukan 15 menit)
+[ ] Jika DB offline → user mendapat minimum permission, bukan full access
+[ ] Setiap perubahan role/permission tercatat di admin_activity_log
+[ ] Ada tool simulasi "akses sebagai user X" di panel admin
+[ ] VAPID private key tidak ada di kode frontend
+[ ] Permission PWA Settings terpisah dari Appearance
+[ ] Staff hanya bisa akses data dari branch mereka sendiri
+[ ] Diff antara permissions.ts dan DB bisa dideteksi otomatis
+[ ] customer vs jamaah memiliki perbedaan fitur yang jelas dan terdokumentasi
+```
+
+---
+
+*Analisis PWA dan Hak Akses ini dibuat Mei 2026 berdasarkan pembacaan kode mendalam seluruh sistem. Temuan di atas adalah prioritas teknis yang harus diselesaikan sebelum go-live dengan multi-tenant sesungguhnya.*
