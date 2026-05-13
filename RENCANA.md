@@ -2968,7 +2968,7 @@ Semua manajemen staff/role harus minta super_admin.
 | ID | Fitur | Prioritas | Estimasi |
 |----|-------|-----------|----------|
 | CAB-ADD1 | **RLS per cabang** — policy Supabase agar isolasi data dijamin di DB level | 🔴 Kritis | 2 hari |
-| CAB-ADD2 | **Manajemen staff cabang** — branch manager bisa kelola staff sendiri | 🔴 Penting | 2 hari |
+| CAB-ADD2 | ✅ **Manajemen staff cabang** — `/cabang/staff` page, assign role staff existing user via email (DONE) | ✅ Done | 2 hari |
 | CAB-ADD3 | **Dashboard perbandingan cabang** — semua cabang dalam satu view | 🟠 Penting | 1.5 hari |
 | CAB-ADD4 | **Export laporan cabang** — Excel/PDF dari BranchLaporan | 🟠 Penting | 0.5 hari |
 | CAB-ADD5 | **Notifikasi branch manager** — booking baru + approval request | 🟠 Penting | 1 hari |
@@ -3119,7 +3119,7 @@ Badge tampaknya diberikan manual atau sepenuhnya fiksi.
 |----|-------|-----------|----------|
 | LOY-FIX1 | **Auto-hitung poin** — trigger DB atau backend hook setelah payment confirmed | 🔴 Kritis | 1 hari |
 | LOY-FIX2 | **Implementasi benefit tier nyata** — diskon/keistimewaan yang berlaku di booking | 🔴 Penting | 2 hari |
-| LOY-FIX3 | **Trigger badge otomatis** — minimal 5 badge yang bisa diraih dari aktivitas nyata | 🟠 Penting | 1.5 hari |
+| LOY-FIX3 | ✅ **Trigger badge otomatis** — tabel jamaah_badges + 5 trigger DB (first payment, tier gold/platinum, savings, booking confirmed, dokumen lengkap) (DONE) | ✅ Done | 1.5 hari |
 | LOY-FIX4 | **Reminder tabungan** — notifikasi cicilan jatuh tempo via push + WhatsApp | 🟠 Penting | 1.5 hari |
 | LOY-FIX5 | **Auto-upgrade keanggotaan agen** — berdasarkan performa booking | 🟡 Sedang | 1 hari |
 | LOY-FIX6 | **Download Digital ID** — export kartu sebagai gambar | 🟡 Sedang | 0.5 hari |
@@ -3965,7 +3965,7 @@ Padahal `BAGGAGE_CALCULATOR` ada di `PERMISSIONS` — artinya ini sudah direncan
 
 | ID | Perbaikan | Prioritas | Estimasi |
 |----|-----------|-----------|----------|
-| KEP-FIX1 | **Reminder otomatis deadline dokumen/visa** — cron job + WA notif | 🔴 Kritis | 1 hari |
+| KEP-FIX1 | ✅ **Reminder otomatis deadline dokumen/visa** — edge function `check-document-deadlines` + pg_cron harian 00:00 UTC (DONE) | ✅ Done | 1 hari |
 | KEP-FIX2 | **Validasi mahram di manifest** — khusus paket haji | 🔴 Kritis | 1 hari |
 | KEP-FIX3 | ✅ **Validasi gender di room assignment** — confirm dialog jika kamar campur (DONE) | ✅ Done | 1 hari |
 | KEP-FIX4 | **Dashboard "jamaah belum lengkap dokumen"** — per keberangkatan | 🟠 Penting | 1 hari |
