@@ -144,6 +144,28 @@ export function DepartureRoomingTab({ departureId, hotelMakkah, hotelMadinah }: 
 
   const assignMutation = useMutation({
     mutationFn: async ({ roomId, customerIds }: { roomId: string; customerIds: string[] }) => {
+      // KEP-FIX3: Validate gender consistency in the room before assigning.
+      // Mixed-gender rooms are not allowed unless mahram is set; warn admin.
+      const targetRoom = rooms?.find((r) => r.id === roomId);
+      const existingGenders = new Set(
+        (targetRoom?.occupants || [])
+          .map((o: any) => o.customer?.gender)
+          .filter(Boolean)
+      );
+      const incomingGenders = new Set(
+        (unassignedPassengers || [])
+          .filter((p) => customerIds.includes(p.customer_id))
+          .map((p) => p.customer?.gender)
+          .filter(Boolean)
+      );
+      const allGenders = new Set([...existingGenders, ...incomingGenders]);
+      if (allGenders.size > 1) {
+        const proceed = window.confirm(
+          "Peringatan: Kamar ini akan berisi jamaah dengan gender berbeda (Pria & Wanita). " +
+          "Hal ini hanya diperbolehkan untuk pasangan mahram. Lanjutkan?"
+        );
+        if (!proceed) throw new Error("Penempatan dibatalkan oleh admin (validasi gender).");
+      }
       const rows = customerIds.map(cid => ({ room_assignment_id: roomId, customer_id: cid }));
       const { error } = await supabase.from("room_occupants").insert(rows);
       if (error) throw error;

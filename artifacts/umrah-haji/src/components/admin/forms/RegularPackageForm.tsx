@@ -56,6 +56,7 @@ const regularPackageSchema = z.object({
   excludes: z.string().optional(),
   is_featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
+  currency: z.enum(["IDR", "USD", "SAR", "EUR", "MYR"]).default("IDR"),
   // PIC Fee fields
   fee_branch: z.coerce.number().min(0, "Fee cabang tidak boleh negatif").default(0),
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
@@ -125,6 +126,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       fee_agent: (packageData as any)?.fee_agent || 0,
       fee_sub_agent: (packageData as any)?.fee_sub_agent || 0,
       fee_referral: (packageData as any)?.fee_referral || 0,
+      currency: ((packageData as any)?.currency as any) || "IDR",
     },
   });
 
@@ -311,6 +313,34 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                   <FormControl>
                     <Input type="number" min={1} {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mata Uang Harga</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih mata uang" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="IDR">IDR — Rupiah</SelectItem>
+                      <SelectItem value="USD">USD — US Dollar</SelectItem>
+                      <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
+                      <SelectItem value="EUR">EUR — Euro</SelectItem>
+                      <SelectItem value="MYR">MYR — Ringgit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Berlaku untuk semua keberangkatan paket ini.</p>
                   <FormMessage />
                 </FormItem>
               )}

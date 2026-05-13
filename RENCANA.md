@@ -3014,7 +3014,7 @@ LAPISAN 3: TABUNGAN (Savings)
 
 ### 21B — GAP KRITIS SISTEM LOYALITAS
 
-#### 🔴 LOY-F1: Poin Loyalitas Tidak Dihitung Secara Otomatis
+#### ✅ LOY-F1: Poin Loyalitas Tidak Dihitung Secara Otomatis — DONE
 
 **Masalah:** `MyLoyalty.tsx` menampilkan data dari tabel `loyalty_points` dan `loyalty_transactions`, tapi tidak ada hook atau trigger yang otomatis menambah poin saat jamaah melakukan pembayaran.
 
@@ -3029,7 +3029,7 @@ Tidak ditemukan `useAutoLoyalty.ts` atau trigger Supabase yang terhubung ke tabe
 
 ---
 
-#### 🔴 LOY-F2: Benefit Tier Tidak Nyata — Tidak Ada Implementasi
+#### ✅ LOY-F2: Benefit Tier Tidak Nyata — DONE (Silver 0%/Gold 2%/Platinum 5% diskon di booking wizard)
 
 **Masalah:** Tier Silver/Gold/Platinum ada di `TIER_CONFIG`, tapi tidak ada implementasi benefit nyata:
 - Silver/Gold/Platinum mendapat diskon berapa? → tidak terdefinisi di kode
@@ -3286,7 +3286,7 @@ TABEL departures (Jadwal Keberangkatan per Paket)
 
 ### 23B — GAP KRITIS SISTEM PAKET
 
-#### 🔴 PAK-F1: Multi-Currency Ada di DB Tapi TIDAK Diimplementasikan di Frontend
+#### ✅ PAK-F1: Multi-Currency Ada di DB Tapi TIDAK Diimplementasikan di Frontend — DONE (formatCurrency locale-aware)
 
 **Ini gap paling kritis yang diminta untuk dianalisis.**
 
@@ -3321,7 +3321,7 @@ export function formatCurrency(amount: number, currency: string = 'IDR'): string
 
 ---
 
-#### 🔴 PAK-F2: `RegularPackageForm` Tidak Ada Field Currency
+#### ✅ PAK-F2: `RegularPackageForm` Field Currency — DONE (Select IDR/USD/SAR/EUR/MYR di Info Dasar)
 
 **Masalah:** Form pembuatan paket (`RegularPackageForm.tsx`) tidak punya field untuk memilih mata uang. Zod schema tidak mencantumkan `currency`. Artinya:
 - Admin tidak bisa set currency saat buat paket Haji
@@ -3339,7 +3339,7 @@ Tambahkan di RegularPackageForm:
 
 ---
 
-#### 🔴 PAK-F3: `DepartureForm` Juga Tidak Ada Field Currency
+#### ✅ PAK-F3: Currency di Departure — N/A (currency live di tingkat package; departure mewarisi via FK)
 
 **Masalah:** Harga real per jadwal keberangkatan ada di `DepartureForm` (bukan di paket template). Field `price_quad`, `price_triple`, dll di form ini tidak punya pilihan currency. Semua asumsi IDR.
 
@@ -3602,7 +3602,7 @@ Ini mengurangi drop-off antara "booking berhasil" dan "payment dilakukan".
 | BOOK-FIX2 | **Booking wizard adaptif tipe paket** — mode haji vs umroh vs wisata | 🔴 Kritis | 2 hari |
 | BOOK-FIX3 | **Seat hold system** — lock kursi sementara selama wizard | 🟠 Penting | 1.5 hari |
 | BOOK-FIX4 | **Opsi bayar di Step 4 wizard** — pilih DP/full/tabungan langsung | 🟠 Penting | 1 hari |
-| BOOK-FIX5 | **Cek kelayakan dokumen pre-booking** — warning jika dokumen belum lengkap | 🟠 Penting | 1 hari |
+| BOOK-FIX5 | ✅ **Cek kelayakan dokumen pre-booking** — warning NIK/paspor di Step Review (DONE) | ✅ Done | 1 hari |
 | BOOK-FIX6 | **Webhook Midtrans otomatis** — auto-confirm + WA notifikasi | 🟠 Penting | 1 hari |
 | BOOK-FIX7 | **Guest checkout recovery** — link akses booking via email/WA | 🟡 Sedang | 0.5 hari |
 
@@ -3659,7 +3659,7 @@ ALUR PAKET TABUNGAN
 
 ### 25B — GAP KRITIS ALUR TABUNGAN
 
-#### 🔴 TAB-F1: Tidak Ada Proses Konversi Tabungan → Booking yang Jelas
+#### ✅ TAB-F1: Konversi Tabungan → Booking — DONE (RPC convert_savings_to_booking + dialog)
 
 **Masalah Terbesar:** Alur konversi tabungan ke booking nyata belum diimplementasikan di frontend.
 
@@ -3687,7 +3687,7 @@ saat status = 'completed':
 
 ---
 
-#### 🔴 TAB-F2: Harga Terkunci Saat Daftar Tapi Tidak Diimplementasikan
+#### ✅ TAB-F2: Harga Terkunci — DONE (kolom locked_price + price-protection di konversi)
 
 **Masalah:** `SavingsPackageForm` menyebutkan "harga dikunci saat registrasi", tapi:
 - `savings_plans` tidak ada kolom `locked_price` atau `locked_at`
@@ -3703,7 +3703,7 @@ saat status = 'completed':
 
 ---
 
-#### 🔴 TAB-F3: Tidak Ada Jadwal Cicilan yang Jelas
+#### ✅ TAB-F3: Jadwal Cicilan — DONE (tabel savings_schedules + auto-generate + alokasi otomatis)
 
 **Masalah:** Cicilan tabungan sangat fleksibel — customer bisa bayar berapa saja kapan saja. Tidak ada jadwal cicilan dengan tanggal jatuh tempo.
 
@@ -3967,7 +3967,7 @@ Padahal `BAGGAGE_CALCULATOR` ada di `PERMISSIONS` — artinya ini sudah direncan
 |----|-----------|-----------|----------|
 | KEP-FIX1 | **Reminder otomatis deadline dokumen/visa** — cron job + WA notif | 🔴 Kritis | 1 hari |
 | KEP-FIX2 | **Validasi mahram di manifest** — khusus paket haji | 🔴 Kritis | 1 hari |
-| KEP-FIX3 | **Validasi gender di room assignment** — warning kamar campur | 🟠 Penting | 1 hari |
+| KEP-FIX3 | ✅ **Validasi gender di room assignment** — confirm dialog jika kamar campur (DONE) | ✅ Done | 1 hari |
 | KEP-FIX4 | **Dashboard "jamaah belum lengkap dokumen"** — per keberangkatan | 🟠 Penting | 1 hari |
 | KEP-FIX5 | **Absensi harian jamaah di tanah suci** — portal muthawif + laporan | 🟠 Penting | 2 hari |
 | KEP-FIX6 | **Manajemen bagasi** — kuota + ketentuan per maskapai | 🟡 Sedang | 1 hari |
