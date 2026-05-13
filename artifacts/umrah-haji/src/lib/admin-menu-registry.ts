@@ -138,19 +138,12 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'master-data',         label: 'Master Data Lainnya',   path: '/admin/master-data',          icon: 'Database',        group_name: 'Master Data',        sort_order: 907, required_permission: PERMISSIONS.MASTER_DATA },
 
   // ── Pengaturan (1000s) ────────────────────────────────────────────────────
-  { key: 'users',               label: 'Manajemen User',        path: '/admin/users',                icon: 'Users2',          group_name: 'Pengaturan',         sort_order: 1001, required_permission: PERMISSIONS.USERS },
-  { key: 'roles',               label: 'Manajemen Role',        path: '/admin/roles',                icon: 'ShieldCheck',     group_name: 'Pengaturan',         sort_order: 1002, required_permission: PERMISSIONS.ROLES },
-  { key: 'dashboard-access',    label: 'Akses Dashboard',       path: '/admin/dashboard-access',     icon: 'LayoutGrid',      group_name: 'Pengaturan',         sort_order: 1003, required_permission: PERMISSIONS.DASHBOARD_ACCESS },
-  { key: 'rbac-tools',          label: 'RBAC Tools',            path: '/admin/rbac-tools',           icon: 'ShieldAlert',     group_name: 'Pengaturan',         sort_order: 1004, required_permission: PERMISSIONS.RBAC_TOOLS },
-  { key: 'rbac-status',         label: 'Status RBAC',           path: '/admin/rbac-status',          icon: 'ShieldQuestion',  group_name: 'Pengaturan',         sort_order: 1005, required_permission: PERMISSIONS.RBAC_STATUS },
-  { key: 'security-audit',      label: 'Audit Keamanan',        path: '/admin/security-audit',       icon: 'ScanSearch',      group_name: 'Pengaturan',         sort_order: 1006, required_permission: PERMISSIONS.SECURITY_AUDIT },
-  { key: '2fa',                 label: 'Pengaturan 2FA',        path: '/admin/2fa',                  icon: 'KeyRound',        group_name: 'Pengaturan',         sort_order: 1007, required_permission: PERMISSIONS.TWO_FA },
-  { key: 'appearance',          label: 'Tampilan & Tema',       path: '/admin/appearance',           icon: 'Palette',         group_name: 'Pengaturan',         sort_order: 1008, required_permission: PERMISSIONS.APPEARANCE },
-  { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1009, required_permission: PERMISSIONS.SETTINGS },
-  { key: 'api-connect',         label: 'API Connect ke Apps',   path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Pengaturan',         sort_order: 1010, required_permission: PERMISSIONS.API_CONNECT },
-  { key: 'supabase-setup',      label: 'Panduan Setup Supabase', path: '/admin/supabase-setup',       icon: 'Database',        group_name: 'Pengaturan',         sort_order: 1011, required_permission: PERMISSIONS.SUPABASE_SETUP },
-  { key: 'webhooks',            label: 'Webhook Outgoing',       path: '/admin/webhooks',             icon: 'Webhook',         group_name: 'Pengaturan',         sort_order: 1012, required_permission: PERMISSIONS.WEBHOOKS },
-  { key: 'activity-log',        label: 'Log Aktivitas Admin',    path: '/admin/activity-log',         icon: 'ClipboardList',   group_name: 'Pengaturan',         sort_order: 1013, required_permission: PERMISSIONS.ACTIVITY_LOG },
+  { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1001, required_permission: PERMISSIONS.SETTINGS },
+  { key: 'appearance',          label: 'Tampilan & Branding',   path: '/admin/appearance',           icon: 'Palette',         group_name: 'Pengaturan',         sort_order: 1002, required_permission: PERMISSIONS.APPEARANCE },
+  { key: 'users',               label: 'Hak Akses (RBAC)',      path: '/admin/users',                icon: 'ShieldCheck',     group_name: 'Pengaturan',         sort_order: 1003, required_permission: PERMISSIONS.USERS },
+  { key: 'api-connect',         label: 'Integrasi & API',       path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Pengaturan',         sort_order: 1004, required_permission: PERMISSIONS.API_CONNECT },
+  { key: '2fa',                 label: 'Keamanan',              path: '/admin/2fa',                  icon: 'Shield',          group_name: 'Pengaturan',         sort_order: 1005, required_permission: PERMISSIONS.TWO_FA },
+  { key: 'supabase-setup',      label: 'Panduan Backend',       path: '/admin/supabase-setup',       icon: 'Database',        group_name: 'Pengaturan',         sort_order: 1006, required_permission: PERMISSIONS.SUPABASE_SETUP },
 ];
 
 /**
