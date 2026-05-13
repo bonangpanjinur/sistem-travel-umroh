@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Mei 2026 (sesi terbaru: audit status semua backlog — F3 & P7 ternyata sudah selesai, prioritas Sprint 8 ditetapkan)
+> **Terakhir diperbarui:** Mei 2026 (Sprint 8 SELESAI: K9 + J3 + K7 + P6 — tag/label kustom paket pakai tabel relasional `package_labels` & `package_label_assignments`)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
@@ -641,38 +641,54 @@ Berdasarkan dampak operasional langsung, inilah urutan yang direkomendasikan:
 
 ---
 
-### Sprint 8 — Fitur Sisa & Polish (BERIKUTNYA)
+### Sprint 8 — Fitur Sisa & Polish ✅ SELESAI
 
-> Urutan berdasarkan **tidak butuh migrasi DB dulu** → **butuh migrasi DB**. Kerjakan P1 ke P3 terlebih dahulu.
+> Semua item P1–P3 sudah dikerjakan. Catatan implementasi di bawah.
 
 ```
-PRIORITAS 1 — Kecil, tidak butuh migrasi DB, langsung dikerjakan:
-──────────────────────────────────────────────────────────────────
-19. K9  → Ringkasan anggaran di tab trigger "Budget" di AdminDepartureDetail
-           - Baca totalBudgeted & totalRealized dari useDepartureBudget (hook sudah ada)
-           - Tampilkan angka mini di label tab: "Budget · Rp X vs Rp Y"
+PRIORITAS 1 ✅ SELESAI
+──────────────────────
+19. K9  ✅ Ringkasan anggaran di tab trigger "Budget" di AdminDepartureDetail
+           - Integrasi useDepartureBudget + useDepartureCosts + computeBudgetSummary
+           - Tampil "formatCurrency(totalRealized) / formatCurrency(totalBudgeted)" pada tab
            - File: AdminDepartureDetail.tsx
 
-PRIORITAS 2 — Sedang, tidak butuh migrasi DB:
-──────────────────────────────────────────────
-20. J3  → Offline cache untuk JamaahDocuments & JamaahVisaTracker
-           - Simpan hasil query ke localStorage setelah berhasil fetch
-           - Deteksi navigator.onLine → tampilkan banner "Mode Offline — data dari cache terakhir"
-           - Data tetap terbaca dari cache saat tidak ada koneksi
-           - File: JamaahDocuments.tsx, JamaahVisaTracker.tsx
+PRIORITAS 2 ✅ SELESAI
+──────────────────────
+20. J3  ✅ Offline cache untuk JamaahDocuments & JamaahVisaTracker
+           - Hook baru: useOfflineCache<T> + useOnlineStatus (localStorage)
+           - Komponen OfflineBanner muncul saat navigator.onLine === false
+           - Query dibungkus useOfflineCache → fallback ke cache jika offline
+           - Files: hooks/useOfflineCache.ts, components/OfflineBanner.tsx,
+             JamaahDocuments.tsx, JamaahVisaTracker.tsx
 
-21. K7  → Generate sertifikat massal di DepartureDetail
-           - Tombol "Cetak Semua Sertifikat" muncul saat status departure = departed
-           - Loop semua jamaah, generate PDF per jamaah (pakai pdfmake/jsPDF)
-           - File: AdminDepartureDetail.tsx + komponen baru DepartureCertificateGenerator.tsx
+21. K7  ✅ Generate sertifikat massal di DepartureDetail
+           - Komponen baru: DepartureCertificateGenerator (loop jamaah → JSZip → download)
+           - Hanya tampil saat departure.status === 'departed'
+           - Format sertifikat: CERT/YYYY/DEP-ID-INDEX, pakai useCompanyInfo
+           - Files: components/departure/DepartureCertificateGenerator.tsx,
+             AdminDepartureDetail.tsx
 
-PRIORITAS 3 — Butuh migrasi DB (ALTER TABLE packages ADD COLUMN label TEXT):
-──────────────────────────────────────────────────────────────────────────────
-22. P6  → Tag/label kustom paket (Best Seller, Early Bird, Flash Sale)
-           - Tambah kolom label TEXT di tabel packages (migration baru: fase24_package_label.sql)
-           - Dropdown label di form paket (RegularPackageForm, SavingsPackageForm)
-           - Tampilkan badge label di kartu paket di AdminPackages + halaman publik
-           - File: AdminPackages.tsx, RegularPackageForm.tsx, SavingsPackageForm.tsx, PackageCard.tsx
+PRIORITAS 3 ✅ SELESAI (dengan migrasi DB lebih kaya dari rencana awal)
+──────────────────────────────────────────────────────────────────────
+22. P6  ✅ Tag/label kustom paket (Best Seller, Early Bird, Flash Sale, dll)
+           - Migrasi: tabel package_labels (master per branch / global) +
+             package_label_assignments (M:N ke packages), bukan kolom tunggal.
+             Lebih fleksibel: admin bisa CRUD label kustom + warna sendiri.
+           - 5 label default global di-seed: Best Seller, Early Bird,
+             Flash Sale, Baru, Terbatas.
+           - Hook usePackageLabels (list, map, assign, upsert, delete)
+           - Komponen: PackageLabelBadges, PackageLabelManagerDialog,
+             PackageLabelAssignDialog
+           - Tombol "Kelola Label" di header AdminPackages + item
+             "Atur Label" di dropdown per paket
+           - Badge tampil di PackageCard (publik) via usePackageLabelsMap
+           - Files: hooks/usePackageLabels.ts,
+             components/packages/PackageLabelBadges.tsx,
+             components/admin/packages/PackageLabelManagerDialog.tsx,
+             components/admin/packages/PackageLabelAssignDialog.tsx,
+             pages/admin/AdminPackages.tsx,
+             components/packages/PackageCard.tsx
 
 TIDAK DIPRIORITASKAN (terlalu besar / butuh tindakan user):
 ────────────────────────────────────────────────────────────
@@ -1385,10 +1401,10 @@ Langkah 4 (GAP 4) — Tier persentase: enhancement visual
 
 | Halaman | Status | Gap |
 |---------|--------|-----|
-| AdminPackages | ✅ Sangat lengkap | Tag/label kustom (P6 di Sprint 8) |
+| AdminPackages | ✅ Sangat lengkap | ✅ P6 selesai — tag/label kustom via tabel `package_labels` + `package_label_assignments` |
 | AdminPackageDetail | ✅ Lengkap | — |
 | AdminDepartures | ✅ Sangat lengkap | — |
-| AdminDepartureDetail | ✅ Sangat lengkap | K9: ringkasan budget di tab header |
+| AdminDepartureDetail | ✅ Sangat lengkap | ✅ K9 selesai — ringkasan budget di tab + ✅ K7 sertifikat massal |
 | AdminDepartureTracking | ✅ Fungsional | — |
 | AdminHajiManagement | ⚠️ Fungsional | Tidak ada integrasi API Kemenag |
 | AdminManasik | ✅ Fungsional | — |
@@ -1901,13 +1917,26 @@ CREATE TABLE IF NOT EXISTS scheduled_report_logs (
 ```
 **Status:** 🔴 Harus dibuat agar fitur Scheduled Reports bisa bekerja
 
-#### 043 — `packages.label` COLUMN
+#### 043 — `package_labels` + `package_label_assignments` ✅ SELESAI
 ```sql
--- Dibutuhkan oleh: Sprint 8 - P6 (tag kustom paket)
-ALTER TABLE packages ADD COLUMN IF NOT EXISTS label TEXT 
-  CHECK (label IN ('best_seller', 'early_bird', 'flash_sale', 'new', 'limited'));
+-- Migrasi P6 (Sprint 8) — implementasi final pakai tabel relasional
+-- bukan satu kolom enum, agar admin bisa CRUD label kustom + warna sendiri.
+CREATE TABLE public.package_labels (
+  id uuid PK, branch_id uuid NULL → branches(id),
+  slug, name, color, icon, description, sort_order, is_active,
+  UNIQUE (branch_id, slug)
+);
+CREATE TABLE public.package_label_assignments (
+  id uuid PK,
+  package_id uuid → packages(id) ON DELETE CASCADE,
+  label_id uuid → package_labels(id) ON DELETE CASCADE,
+  UNIQUE (package_id, label_id)
+);
+-- RLS: SELECT publik (label aktif); ALL hanya admin/owner/super_admin
+--      branch_manager dibatasi pada branch_id-nya sendiri.
+-- Seed: 5 label default (best_seller, early_bird, flash_sale, new, limited)
 ```
-**Status:** 🟡 Opsional — hanya jika Sprint 8 P6 dikerjakan
+**Status:** ✅ Selesai (migrasi sudah dijalankan & UI terhubung)
 
 #### 044 — TOTP 2FA COLUMN
 ```sql
