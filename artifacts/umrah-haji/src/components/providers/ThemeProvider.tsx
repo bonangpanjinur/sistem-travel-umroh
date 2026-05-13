@@ -316,7 +316,7 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
   useEffect(() => {
     if (propSettings !== undefined) return; // tenant-scoped tree manages its own data
     const channel = supabase
-      .channel('website-settings-realtime')
+      .channel(`website-settings-realtime-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'website_settings' },
