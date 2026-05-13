@@ -3204,3 +3204,854 @@ Badge tampaknya diberikan manual atau sepenuhnya fiksi.
 ---
 
 *Analisis Bagian 18-22 selesai Mei 2026. Total gap teridentifikasi: 50+ item di 5 area sistem. Prioritas kritis berjumlah 5 item yang harus diselesaikan sebelum go-live produksi.*
+
+---
+
+## BAGIAN 23 — ANALISIS SISTEM PAKET (UMROH, HAJI, WISATA, TABUNGAN)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `RegularPackageForm.tsx`, `AdminPackages.tsx`, `PackageDetail.tsx`, `PackageBookingFormSimple.tsx`, `format.ts`, dan database schema `packages` + `departures`.
+
+---
+
+### 23A — Arsitektur Sistem Paket Saat Ini
+
+**Dua tabel inti yang memisahkan Template vs Jadwal:**
+
+```
+TABEL packages (Template / Master Paket)
+  ├── id, code, name
+  ├── package_type_id → FK ke package_types (dinamis dari DB)
+  ├── package_type (enum hardcoded): umroh | umroh_plus | haji | haji_plus | tabungan
+  ├── duration_days, description, includes, excludes, itinerary (JSON)
+  ├── featured_image, is_active, is_featured
+  ├── currency (field ada di DB, default IDR) ← PENTING
+  ├── savings_target (untuk tipe tabungan)
+  ├── fee_branch, fee_agent, fee_sub_agent, fee_referral (PIC Fee)
+  ├── hotel_makkah_id, hotel_madinah_id, airline_id (default per paket)
+  └── price_quad, price_triple, price_double, price_single (harga default/legacy)
+
+TABEL departures (Jadwal Keberangkatan per Paket)
+  ├── id, package_id → FK ke packages
+  ├── departure_date, return_date, month (bisa hanya bulan saja)
+  ├── quota, booked_count, status (open/closed/cancelled)
+  ├── airline_id, hotel_makkah_id, hotel_madinah_id (override per jadwal)
+  ├── price_quad, price_triple, price_double, price_single (OVERRIDE harga per jadwal)
+  ├── price_adult, price_child, price_infant (harga per tipe penumpang)
+  ├── break_even_pax, operational_cost_per_pax (analisis keuangan)
+  ├── document_deadline, payment_deadline, visa_deadline
+  └── muthawif_id, team_leader_id
+```
+
+**Tipe Paket yang Tersedia:**
+
+| Kode | Label | Keterangan |
+|------|-------|------------|
+| `umroh` | Umroh | Paket umroh standar — IDR |
+| `umroh_plus` | Umroh Plus | Umroh + kunjungan kota lain — IDR |
+| `haji` | Haji Reguler | Haji biasa (antre) — **bisa USD** |
+| `haji_plus` | Haji Plus | Haji plus (ONH Plus) — **USD dominan** |
+| `tabungan` | Tabungan Umroh | Cicilan jangka panjang — IDR |
+| *(custom)* | Wisata Religi, dll | Dari tabel `package_types` dinamis |
+
+---
+
+### 23B — GAP KRITIS SISTEM PAKET
+
+#### 🔴 PAK-F1: Multi-Currency Ada di DB Tapi TIDAK Diimplementasikan di Frontend
+
+**Ini gap paling kritis yang diminta untuk dianalisis.**
+
+**Bukti di DB:** Tabel `packages` punya kolom `currency` (default `IDR`). Field ini ada di TypeScript types di `supabase/types.ts`.
+
+**Bukti di kode:** `format.ts` baris 3-10 — fungsi `formatCurrency` sudah support parameter `currency`:
+```typescript
+export function formatCurrency(amount: number, currency: string = 'IDR'): string {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency,  // ← Sudah support multi-currency!
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+```
+
+**Tapi di SEMUA tempat yang memanggil `formatCurrency`, tidak ada yang pass currency selain IDR:**
+- `AdminPackages.tsx` → `formatCurrency(price)` (tanpa currency, default IDR)
+- `PackageDetail.tsx` → `formatCurrency(price)` (IDR)
+- `BookingWizard` semua steps → `formatCurrency(total)` (IDR)
+- `AgentCommissions.tsx` → `formatCurrency(amount)` (IDR)
+- `BranchLaporan.tsx` → `formatCurrency(revenue)` (IDR)
+
+**Masalah Nyata untuk Paket Haji:**
+- Haji Plus (ONH Plus) harganya biasanya dalam **USD** (mulai USD 8.000-15.000)
+- Nilai rupiah berubah terhadap dolar setiap hari
+- Admin set harga USD di DB, tapi tampil di frontend sebagai "Rp 8.000" bukan "$8,000"
+- Tidak ada konversi kurs, tidak ada rate USD→IDR
+
+**Dampak:** Harga Haji Plus tampil salah total. Paket yang seharusnya "USD 12.000" tampil sebagai "Rp 12.000" — terlihat sangat murah dan menyesatkan.
+
+---
+
+#### 🔴 PAK-F2: `RegularPackageForm` Tidak Ada Field Currency
+
+**Masalah:** Form pembuatan paket (`RegularPackageForm.tsx`) tidak punya field untuk memilih mata uang. Zod schema tidak mencantumkan `currency`. Artinya:
+- Admin tidak bisa set currency saat buat paket Haji
+- Semua paket baru selalu IDR
+- Tidak ada dropdown: IDR / USD / SAR (Saudi Riyal)
+
+**Solusi yang Dibutuhkan:**
+```
+Tambahkan di RegularPackageForm:
+  - Select "Mata Uang": IDR | USD | SAR | EUR
+  - Ketika currency = USD atau SAR → sembunyikan harga IDR
+  - Tampilkan field "Kurs Saat Ini" (bisa manual input atau ambil dari API)
+  - Harga final = jumlah_currency × kurs
+```
+
+---
+
+#### 🔴 PAK-F3: `DepartureForm` Juga Tidak Ada Field Currency
+
+**Masalah:** Harga real per jadwal keberangkatan ada di `DepartureForm` (bukan di paket template). Field `price_quad`, `price_triple`, dll di form ini tidak punya pilihan currency. Semua asumsi IDR.
+
+**Haji Plus biasanya membutuhkan:**
+- Harga base dalam USD (ditentukan saat pendaftaran)
+- Kurs dikunci saat booking untuk menghindari fluktuasi
+- Notifikasi ke jamaah jika kurs berubah signifikan
+
+---
+
+#### 🟠 PAK-F4: Tidak Ada Sistem Kurs Mata Uang
+
+**Masalah:** Tidak ada tabel `exchange_rates`, tidak ada service fetch kurs dari API, tidak ada mekanisme kurs dikunci saat booking.
+
+**Kebutuhan untuk Haji:**
+1. **Kurs manual** — admin input kurs hari ini (USD/IDR, SAR/IDR)
+2. **Kurs API** — fetch otomatis dari Bank Indonesia atau Fixer.io
+3. **Kurs terkunci** — saat jamaah booking, kurs di-snapshot dan disimpan di `bookings`
+4. **Notifikasi perubahan kurs** — alert admin jika kurs berubah > X%
+
+---
+
+#### 🟠 PAK-F5: Tidak Ada Tipe Paket "Wisata" (Religi Tour)
+
+**Masalah:** `format.ts` hanya punya label untuk `umroh`, `umroh_plus`, `haji`, `haji_plus`, `tabungan`. Tidak ada tipe "wisata" atau "wisata religi".
+
+Tapi `package_types` tabel di DB bersifat dinamis — admin bisa tambah tipe custom. **Masalahnya:** tambahan tipe dari DB tidak tampil di form booking wizard yang menggunakan enum hardcoded.
+
+**Dampak:** Paket wisata Turki, Maroko, Jordan, atau wisata religi Palestina tidak bisa dibuat dengan tipe yang tepat.
+
+**Solusi:**
+- Ganti enum hardcoded di frontend dengan data dinamis dari tabel `package_types`
+- Booking wizard harus bisa handle tipe paket apapun, bukan hanya yang ter-hardcode
+
+---
+
+#### 🟠 PAK-F6: Harga Paket Hanya per Tipe Kamar — Tidak Ada Harga per Orang Mandiri
+
+**Masalah:** Sistem harga: `price_quad` = harga per orang kalau di kamar quad, dst. Tapi untuk Haji, model harga berbeda:
+- Harga Haji biasanya **flat per orang** (tidak tergantung tipe kamar, semua jamaah sama)
+- Ada pilihan upgrade kamar dengan biaya tambahan (surcharge single room)
+- Bayi (infant) tidak punya tarif haji sendiri
+
+`DepartureForm` sudah punya `price_adult`, `price_child`, `price_infant` tapi ini **tidak terhubung ke booking wizard** — wizard masih hitung dari `price_quad/triple/double/single`.
+
+**Solusi:**
+- Untuk tipe `haji` dan `haji_plus`: aktifkan mode harga per orang
+- Booking wizard deteksi tipe paket → gunakan model harga yang sesuai
+- Surcharge untuk upgrade kamar bisa ditambahkan
+
+---
+
+#### 🟡 PAK-F7: Tidak Ada Fitur "Bandingkan Paket"
+
+**Masalah:** Di halaman publik `/packages`, jamaah hanya bisa lihat satu paket sekali. Tidak bisa pilih 2-3 paket dan bandingkan side-by-side.
+
+**Dampak:** Proses keputusan pembelian lebih lama → conversion rate rendah.
+
+**Solusi:** Tambahkan fitur "Compare" dengan checkbox di card paket → tampilkan tabel perbandingan.
+
+---
+
+#### 🟡 PAK-F8: Tidak Ada Filter Harga per Currency di Listing Publik
+
+**Masalah:** Ketika multi-currency diimplementasikan, listing publik menampilkan harga campuran IDR dan USD — tidak bisa difilter "tampilkan hanya paket IDR" atau "tampilkan hanya USD".
+
+**Solusi:** Tambahkan filter currency di halaman listing paket.
+
+---
+
+### 23C — Tabel Ringkasan Gap Sistem Paket
+
+| ID | Gap | Dampak | Prioritas |
+|----|-----|--------|-----------|
+| PAK-F1 | Multi-currency tidak diimplementasikan di frontend | 🔴 Harga Haji tampil salah | Kritis |
+| PAK-F2 | Form paket tidak ada field pilih currency | 🔴 Admin tidak bisa set USD | Kritis |
+| PAK-F3 | Form keberangkatan tidak ada field currency | 🔴 Harga keberangkatan selalu IDR | Kritis |
+| PAK-F4 | Tidak ada sistem kurs mata uang | 🔴 Harga fluktuatif tidak bisa dikelola | Kritis |
+| PAK-F5 | Tidak ada tipe paket "wisata" yang proper | 🟠 Paket wisata tidak bisa dikategorikan | Penting |
+| PAK-F6 | Model harga per orang tidak terhubung ke wizard | 🟠 Haji butuh model harga berbeda | Penting |
+| PAK-F7 | Tidak ada fitur bandingkan paket | 🟡 Konversi customer lebih lambat | Sedang |
+| PAK-F8 | Tidak ada filter currency di listing | 🟡 UX listing campur IDR-USD | Sedang |
+
+---
+
+## BAGIAN 24 — ANALISIS ALUR PEMBELIAN PAKET REGULER (BOOKING WIZARD)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `BookingWizard.tsx`, `useBookingWizardDynamic.ts`, `StepRoomAllocation.tsx`, `StepPassengersDynamic.tsx`, `StepReviewDynamic.tsx`, `JamaahPayment.tsx`, `paymentGateway.ts`.
+
+---
+
+### 24A — Alur Pembelian yang Sudah Ada (Mapping Lengkap)
+
+```
+JALUR PEMBELIAN PAKET REGULER
+
+[1] DISCOVERY
+    Halaman publik /packages
+    └── Filter: tipe, harga, keberangkatan, durasi
+    └── Card paket → tampil harga mulai dari (lowest departure price)
+
+[2] DETAIL PAKET
+    /packages/:packageId
+    └── Tab: Overview | Itinerary | Fasilitas
+    └── Pilih tanggal keberangkatan (dropdown departures aktif)
+    └── Pilih jumlah jamaah per tipe kamar → "Pesan Sekarang"
+
+[3] BOOKING WIZARD (4 Langkah)
+    /booking/:packageId?departure=...
+    
+    Step 1 — Alokasi Kamar (StepRoomAllocation)
+      └── Tentukan: berapa quad, triple, double, single
+      └── Tampil: sisa kursi, harga per tipe kamar
+    
+    Step 2 — Data Penumpang (StepPassengersDynamic)
+      └── Isi per penumpang: nama, gender, telp, email
+      └── Tipe penumpang: Dewasa / Anak / Bayi
+    
+    Step 3 — Sumber Booking (PICSelectionStepImproved)
+      └── Dari: Pusat / Cabang / Agen / Referral Code
+      └── Validasi via RPC: validate_registration_context
+    
+    Step 4 — Review & Konfirmasi (StepReviewDynamic)
+      └── Ringkasan biaya per penumpang
+      └── Input kode kupon → diskon otomatis
+      └── Setujui kebijakan pembatalan
+      └── SUBMIT → buat booking di DB
+
+[4] BOOKING BERHASIL
+    /booking/success/:bookingCode
+    └── Tampil kode booking, instruksi pembayaran
+    └── Pilihan: transfer manual atau bayar online
+
+[5] PEMBAYARAN
+    /jamaah/payment/:bookingId
+    └── Pilih metode: QRIS / VA BCA / VA Mandiri / GoPay / Manual Transfer
+    └── Midtrans Snap popup untuk online payment
+    └── Upload bukti transfer untuk manual payment
+
+[6] KONFIRMASI
+    Admin verifikasi → update payment_status → notifikasi WhatsApp ke jamaah
+    └── Jamaah akses portal /jamaah setelah lunas
+```
+
+---
+
+### 24B — GAP KRITIS ALUR PEMBELIAN
+
+#### 🔴 BOOK-F1: Tidak Ada Penanganan Multi-Currency di Seluruh Wizard
+
+**Masalah:** Seluruh `BookingWizard` mengasumsikan IDR. Di `useBookingWizardDynamic.ts`:
+- `total_price` dihitung langsung dari `price_quad/triple/double/single` tanpa konversi
+- `base_price` disimpan ke DB tanpa currency field
+- Di tabel `bookings`, tidak ada kolom `currency` atau `exchange_rate`
+
+**Akibat untuk Haji USD:**
+- Harga USD disimpan mentah ke `bookings.total_price` sebagai angka IDR
+- Contoh: Haji Plus USD 12.000 → `total_price = 12000` → terlihat "Rp 12.000" di semua tampilan
+
+**Solusi:**
+- Tambahkan kolom `currency` dan `exchange_rate` di tabel `bookings`
+- Saat booking Haji USD: simpan `total_price = 12000`, `currency = 'USD'`, `exchange_rate = 16500`
+- Tambahkan `total_price_idr = total_price * exchange_rate` untuk pembayaran aktual
+- Semua tampilan harga harus baca `currency` dari booking → format yang sesuai
+
+---
+
+#### 🔴 BOOK-F2: Booking Wizard Tidak Adaptatif terhadap Tipe Paket
+
+**Masalah:** Step 1 (alokasi kamar) selalu menampilkan: Quad / Triple / Double / Single. Ini benar untuk Umroh, tapi **tidak sesuai untuk Haji dan Wisata:**
+
+**Haji:**
+- Kuota haji sangat terbatas (BPIH — Biaya Penyelenggaraan Ibadah Haji)
+- Jamaah mendaftar secara individu, bukan per kelompok kamar
+- Tidak ada pilihan "berapa quad" — semua sudah ditetapkan pemerintah
+- Persyaratan tambahan: mahram untuk wanita, usia minimal
+
+**Wisata Religi (Turki, Maroko, dll):**
+- Model kamar mungkin Twin / Double / Triple / Single
+- Tidak ada "Quad" untuk wisata mewah
+- Mungkin ada surcharge "Solo traveler"
+
+**Solusi:**
+- Tambahkan `booking_mode` di tabel `packages`: `standard` | `haji` | `wisata`
+- Wizard baca `booking_mode` dan tampilkan step yang sesuai
+- Mode `haji`: skip step alokasi kamar, ganti dengan step "Data Mahram & Kebutuhan Khusus"
+
+---
+
+#### 🔴 BOOK-F3: Tidak Ada Verifikasi Kelengkapan Dokumen Sebelum Booking
+
+**Masalah:** Jamaah bisa booking tanpa dokumen apapun. Passport, KTP, foto tidak dicek di wizard booking.
+
+**Untuk Haji ini sangat kritis:**
+- Haji membutuhkan: passport valid > 1 tahun, vaksin meningitis, BPIH lunas
+- Tanpa verifikasi dokumen, booking Haji bisa masuk tapi jamaah tidak eligible
+
+**Solusi:**
+- Tambahkan Step 0 (pre-booking): "Cek Kelayakan" → cek dokumen yang sudah diupload
+- Untuk paket Haji: tampilkan checklist persyaratan wajib
+- Jika ada persyaratan yang belum terpenuhi → tampilkan warning (bukan hard block)
+
+---
+
+#### 🟠 BOOK-F4: Tidak Ada Reservasi Sementara (Seat Hold)
+
+**Masalah:** Saat user di step booking wizard, tidak ada "hold" pada kursi. Jika 2 user mengisi wizard bersamaan untuk departure yang tersisa 1 kursi → keduanya bisa sampai submit.
+
+**Akibat:** Overbooking — ada penumpang yang sudah bayar tapi ternyata kursi habis.
+
+**Solusi:**
+- Implementasi seat reservation lock di Redis/Supabase dengan TTL 15 menit
+- Saat user masuk wizard → lock 1 kursi sementara
+- Kursi terlepas jika: wizard di-cancel, TTL habis, atau booking berhasil dikonfirmasi
+- Tampilkan countdown "Kursi Anda akan dilepas dalam X menit"
+
+---
+
+#### 🟠 BOOK-F5: Pembayaran DP dan Cicilan Tidak Terintegrasi Langsung di Wizard
+
+**Masalah:** Saat ini, booking wizard hanya membuat booking penuh tanpa menawarkan opsi pembayaran:
+1. Booking selesai → redirect ke halaman payment terpisah
+2. Di halaman payment, baru ada opsi DP / cicilan
+
+**Idealnya:** Di Step 4 (Review), user sudah bisa pilih:
+- Bayar full sekarang
+- Bayar DP X% sekarang, sisanya cicil
+- Daftar tabungan (jika paket ini punya tabungan)
+
+Ini mengurangi drop-off antara "booking berhasil" dan "payment dilakukan".
+
+---
+
+#### 🟠 BOOK-F6: Guest Checkout Tidak Bisa Melanjutkan Booking Jika Tutup Browser
+
+**Masalah:** `createGuestAccount` di `guestCheckoutService.ts` membuat akun temporary. Tapi jika user close browser setelah booking berhasil tapi sebelum bayar → tidak tahu cara akses booking lagi tanpa login.
+
+**Solusi:**
+- Kirim email/SMS dengan link unik untuk akses booking tanpa login
+- Atau: minta email/WA di awal wizard → simpan sebelum submit
+
+---
+
+#### 🟡 BOOK-F7: Tidak Ada Konfirmasi Otomatis untuk Booking Online (Midtrans)
+
+**Masalah:** Alur Midtrans: user bayar → Midtrans callback → status diupdate. Tapi tidak ada webhook handler yang otomatis:
+1. Update `payment_status` di tabel `bookings`
+2. Kirim email/WA konfirmasi ke jamaah
+3. Update `booked_count` di `departures`
+
+**Akibat:** Admin harus manual konfirmasi bahkan untuk pembayaran online yang sudah berhasil.
+
+---
+
+### 24C — Rencana Perbaikan Alur Booking
+
+| ID | Perbaikan | Prioritas | Estimasi |
+|----|-----------|-----------|----------|
+| BOOK-FIX1 | **Multi-currency di wizard** — currency + exchange_rate di bookings table | 🔴 Kritis | 2 hari |
+| BOOK-FIX2 | **Booking wizard adaptif tipe paket** — mode haji vs umroh vs wisata | 🔴 Kritis | 2 hari |
+| BOOK-FIX3 | **Seat hold system** — lock kursi sementara selama wizard | 🟠 Penting | 1.5 hari |
+| BOOK-FIX4 | **Opsi bayar di Step 4 wizard** — pilih DP/full/tabungan langsung | 🟠 Penting | 1 hari |
+| BOOK-FIX5 | **Cek kelayakan dokumen pre-booking** — warning jika dokumen belum lengkap | 🟠 Penting | 1 hari |
+| BOOK-FIX6 | **Webhook Midtrans otomatis** — auto-confirm + WA notifikasi | 🟠 Penting | 1 hari |
+| BOOK-FIX7 | **Guest checkout recovery** — link akses booking via email/WA | 🟡 Sedang | 0.5 hari |
+
+---
+
+## BAGIAN 25 — ANALISIS ALUR PEMBELIAN PAKET TABUNGAN (SAVINGS)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `SavingsRegister.tsx`, `MySavings.tsx`, `AdminSavings.tsx`, `SavingsPackageForm.tsx`, dan database tables `savings_plans` + `savings_payments`.
+
+---
+
+### 25A — Alur Tabungan Saat Ini (Mapping Lengkap)
+
+```
+ALUR PAKET TABUNGAN
+
+[1] DISCOVERY
+    /savings (SavingsPackages.tsx)
+    └── Listing paket tabungan (package_type = 'tabungan')
+    └── Tampil: target menabung, durasi tenor, cicilan per bulan
+
+[2] REGISTRASI TABUNGAN
+    /savings/register/:packageId (SavingsRegister.tsx)
+    └── Pilih tenor: 6 / 12 / 18 / 24 / 36 bulan
+    └── Slider kalkulasi cicilan: target / tenor = cicilan/bulan
+    └── Opsi DP: 10%-30% dari target
+    └── Isi data: nama, gender, telepon
+    └── SUBMIT → buat savings_plan (status: pending / dp_paid)
+
+[3] BAYAR DP (Opsional)
+    └── Upload bukti transfer DP
+    └── Admin verifikasi → status jadi 'active'
+
+[4] CICILAN BULANAN
+    /jamaah/savings (MySavings.tsx)
+    └── Tampil progress (% dari target)
+    └── Upload bukti bayar cicilan manual
+    └── Admin verifikasi setiap cicilan → update paid_amount
+    └── Proyeksi lunas otomatis terhitung
+
+[5] LUNAS / KONVERSI
+    └── paid_amount >= target_amount → status 'completed'
+    └── Customer pilih jadwal keberangkatan nyata
+    └── Tabungan dikonversi ke booking reguler
+    └── savings_plan.status = 'converted', booking_id terhubung
+
+[6] MONITORING ADMIN
+    AdminSavings.tsx — monitor semua tabungan aktif
+    AdminMonitoringTabungan.tsx — laporan tabungan keseluruhan
+    AdminCicilanReminder.tsx — kirim reminder WA ke yang nunggak
+```
+
+---
+
+### 25B — GAP KRITIS ALUR TABUNGAN
+
+#### 🔴 TAB-F1: Tidak Ada Proses Konversi Tabungan → Booking yang Jelas
+
+**Masalah Terbesar:** Alur konversi tabungan ke booking nyata belum diimplementasikan di frontend.
+
+`savings_plans` punya field `status: 'converted'` dan `booking_id`, tapi:
+- Tidak ada halaman/form "Konversi Tabungan ke Booking"
+- Customer yang sudah lunas tidak tahu cara memilih jadwal keberangkatan
+- Tidak ada flow dari MySavings → pilih departure → generate booking baru
+- Admin harus lakukan konversi manual di database
+
+**Dampak:** Uang sudah terkumpul, tapi tidak ada cara bagi jamaah untuk "menunaikan" tabungannya menjadi booking nyata.
+
+**Solusi yang Harus Dibangun:**
+```
+Tambahkan tombol "Pilih Jadwal Keberangkatan" di MySavings
+saat status = 'completed':
+  └── Tampil daftar departures dari paket yang ditabung
+  └── Customer pilih jadwal
+  └── System buat booking baru dengan:
+        total_price = savings_plan.target_amount
+        payment_status = 'paid' (karena sudah lunas via tabungan)
+        savings_plan_id → FK ke bookings
+  └── savings_plan.status = 'converted'
+  └── savings_plan.booking_id = booking.id
+```
+
+---
+
+#### 🔴 TAB-F2: Harga Terkunci Saat Daftar Tapi Tidak Diimplementasikan
+
+**Masalah:** `SavingsPackageForm` menyebutkan "harga dikunci saat registrasi", tapi:
+- `savings_plans` tidak ada kolom `locked_price` atau `locked_at`
+- Jika harga paket naik (inflasi, kenaikan biaya haji), tabungan lama tetap pakai target lama
+- Tidak ada mekanisme "harga naik → info customer → minta tambahan tabungan"
+
+**Dampak:** Jika customer daftar tabungan Haji target Rp 50 juta, 2 tahun kemudian harga Haji naik ke Rp 65 juta → tidak ada notifikasi, customer mengira tabungannya cukup.
+
+**Solusi:**
+- Simpan `locked_price_per_pax` dan `locked_at` saat registrasi
+- Bandingkan dengan harga paket saat ini secara periodik
+- Jika ada kenaikan → notifikasi customer + beri opsi: top-up target atau tetap lanjut
+
+---
+
+#### 🔴 TAB-F3: Tidak Ada Jadwal Cicilan yang Jelas
+
+**Masalah:** Cicilan tabungan sangat fleksibel — customer bisa bayar berapa saja kapan saja. Tidak ada jadwal cicilan dengan tanggal jatuh tempo.
+
+**Akibat:**
+- Tidak ada reminder otomatis berbasis jadwal (hanya ada reminder manual dari admin)
+- Customer tidak tahu berapa yang harus dibayar bulan ini
+- Admin tidak bisa monitor siapa yang "nunggak" vs sengaja bayar lebih
+
+**Solusi:**
+- Saat registrasi tabungan: generate `savings_schedule` (tabel jadwal cicilan)
+  - Contoh: tenor 12 bulan → 12 baris jadwal dengan `due_date` dan `expected_amount`
+- Tampilkan jadwal di MySavings
+- Reminder otomatis H-3 sebelum tanggal jatuh tempo
+
+---
+
+#### 🟠 TAB-F4: Tidak Ada Aturan Pembatalan Tabungan
+
+**Masalah:** Jika customer ingin membatalkan tabungan setelah bayar sebagian:
+- Tidak ada kebijakan refund yang jelas di sistem
+- Tidak ada form/flow "batalkan tabungan"
+- Admin harus proses manual
+
+**Solusi:**
+- Buat `savings_cancellation_policy` per paket tabungan
+- Contoh: "Batalkan sebelum 6 bulan → refund 100%, setelah itu → refund 80%"
+- Flow: customer ajukan batal → admin approve → system hitung refund → proses pengembalian
+
+---
+
+#### 🟠 TAB-F5: Tidak Ada Laporan/Sertifikat Tabungan
+
+**Masalah:** Tidak ada dokumen resmi yang bisa di-download oleh customer sebagai bukti tabungan mereka.
+
+**Solusi:**
+- Generate PDF "Surat Bukti Tabungan" yang bisa di-download dari MySavings
+- Isi: nama, nomor tabungan, paket yang ditabung, progress, tanda tangan digital perusahaan
+
+---
+
+#### 🟠 TAB-F6: Paket Tabungan Hanya Bisa untuk Satu Paket Spesifik
+
+**Masalah:** `SavingsRegister` terikat ke satu `packageId` — customer daftar tabungan untuk paket Umroh A, tapi tidak bisa pindah ke Umroh B jika Umroh A tidak lagi tersedia.
+
+**Solusi:**
+- Tambahkan opsi "Tabungan Fleksibel" — customer tentukan target (misal Rp 30 juta) tanpa terikat paket spesifik
+- Saat konversi, bisa pilih paket manapun yang sesuai budget
+
+---
+
+#### 🟡 TAB-F7: SavingsRegister Tidak Ada Opsi Pembayaran DP Online
+
+**Masalah:** Setelah registrasi tabungan, customer harus upload bukti transfer manual untuk DP. Tidak ada opsi bayar DP langsung via Midtrans/QRIS.
+
+**Solusi:** Integrasikan Midtrans ke flow DP tabungan, sama seperti booking reguler.
+
+---
+
+#### 🟡 TAB-F8: Tidak Ada Kalkulator Perbandingan Tenor di Halaman Publik
+
+**Masalah:** `KalkulatorCicilan.tsx` ada, tapi tersembunyi. Halaman listing tabungan tidak langsung menampilkan kalkulator interaktif.
+
+**Solusi:**
+- Di halaman listing paket tabungan, embed mini-kalkulator: "Target: Rp X, Bayar Rp Y/bulan selama Z bulan"
+- Interaktif: slider tenor → update cicilan per bulan real-time
+
+---
+
+### 25C — Rencana Perbaikan Alur Tabungan
+
+| ID | Perbaikan | Prioritas | Estimasi |
+|----|-----------|-----------|----------|
+| TAB-FIX1 | **Flow konversi tabungan → booking nyata** — halaman pilih jadwal + generate booking | 🔴 Kritis | 2 hari |
+| TAB-FIX2 | **Harga terkunci + notifikasi kenaikan harga** — `locked_price` + monitoring | 🔴 Kritis | 1 hari |
+| TAB-FIX3 | **Jadwal cicilan otomatis** — generate `savings_schedule` saat registrasi | 🔴 Penting | 1.5 hari |
+| TAB-FIX4 | **Flow pembatalan tabungan** — kebijakan refund + form batal | 🟠 Penting | 1 hari |
+| TAB-FIX5 | **Sertifikat/surat bukti tabungan** — PDF downloadable | 🟠 Penting | 1 hari |
+| TAB-FIX6 | **Tabungan fleksibel** — tidak terikat satu paket | 🟡 Sedang | 1 hari |
+| TAB-FIX7 | **DP tabungan via Midtrans** — bukan hanya manual transfer | 🟡 Sedang | 1 hari |
+| TAB-FIX8 | **Kalkulator tenor di listing** — mini-kalkulator interaktif | 🟡 Sedang | 0.5 hari |
+
+---
+
+## BAGIAN 26 — ANALISIS SISTEM KEBERANGKATAN (DEPARTURE MANAGEMENT)
+
+> **Tanggal analisis:** Mei 2026 — membaca kode `DepartureForm.tsx`, `AdminDepartures.tsx`, `AdminManifestJamaah.tsx`, `AdminRoomAssignments.tsx`, `AdminDepartureTracking.tsx`.
+
+---
+
+### 26A — Alur Keberangkatan Saat Ini (Mapping Lengkap)
+
+```
+SIKLUS HIDUP KEBERANGKATAN
+
+[1] PEMBUATAN JADWAL
+    AdminDepartures.tsx + DepartureForm.tsx
+    └── Pilih paket → set tanggal/bulan
+    └── Atur: kuota, airline, hotel Makkah/Madinah, hotel tambahan
+    └── Set harga per tipe kamar (override harga paket)
+    └── Set: muthawif, tour leader, break-even pax
+    └── Deadline: dokumen, pembayaran, visa
+
+[2] PENGISIAN (BOOKING)
+    Jamaah booking → departure.booked_count bertambah
+    └── Monitor: AdminDepartures → lihat sisa kursi per jadwal
+    └── Rekonsiliasi: recalculate_departure_booked_count RPC
+
+[3] PERSIAPAN KEBERANGKATAN
+    AdminManifestJamaah.tsx
+    └── Daftar semua penumpang dari bookings aktif
+    └── Cek dokumen: KTP, Paspor, Foto
+    └── Alert: paspor kadaluarsa < 6 bulan
+    └── Export manifest: Excel + PDF (untuk maskapai/imigrasi)
+    
+    AdminRoomAssignments.tsx
+    └── Kelompokkan jamaah ke kamar
+    └── Auto-deteksi tipe kamar berdasarkan jumlah orang
+    └── Bisa gabungkan antar booking code
+    └── Maks 4 orang per kamar
+
+[4] EKSEKUSI KEBERANGKATAN
+    AdminDepartureTracking.tsx
+    └── Check-in menggunakan QR code (CheckinPage.tsx)
+    └── Update status penerbangan (Scheduled/Boarding/Departed/Arrived)
+    └── Auto-refresh 30 detik
+    └── SOS Alert monitoring (AdminSOSAlerts.tsx)
+
+[5] KOMUNIKASI
+    AdminDepartureDetail.tsx
+    └── Blast WA ke semua jamaah per keberangkatan (H-7, H-3, H-1)
+    └── Update status manual
+
+[6] PASCA KEBERANGKATAN
+    └── Update status departure: 'completed'
+    └── Jamaah akses portal /jamaah untuk tracking
+    └── Laporan perjalanan, badge, jurnal
+```
+
+---
+
+### 26B — GAP KRITIS SISTEM KEBERANGKATAN
+
+#### 🔴 KEP-F1: Tidak Ada Integrasi Maskapai Penerbangan (E-Ticket)
+
+**Masalah:** `DepartureForm` punya `airline_id` dan `flight_number`, tapi:
+- Tidak ada integrasi dengan sistem maskapai untuk verifikasi penerbangan
+- E-ticket tidak bisa di-generate dari sistem
+- Nomor penerbangan tidak divalidasi (bisa salah ketik)
+- Tidak ada update otomatis jika penerbangan delayed/cancelled
+
+**Dampak:** Admin harus input manual nomor penerbangan → risiko salah data → jamaah bawa info yang salah.
+
+**Solusi:**
+- Integrasi dengan Amadeus/Sabre API untuk verifikasi penerbangan
+- Atau: minimal tambahkan link ke flight tracker (Flightradar24) berdasarkan flight number
+- Notifikasi ke jamaah jika flight number berubah
+
+---
+
+#### 🔴 KEP-F2: Deadline Dokumen/Visa Tidak Ada Sistem Reminder Otomatis
+
+**Masalah:** `DepartureForm` punya `document_deadline`, `payment_deadline`, `visa_deadline`. Tapi:
+- Tidak ada scheduler yang mengirim reminder H-X sebelum deadline
+- Admin harus cek manual setiap hari apakah ada jamaah yang belum lengkap dokumen
+- Tidak ada dashboard "jamaah yang belum submit dokumen untuk keberangkatan X"
+
+**Dampak:** Jamaah bisa terlewat deadline visa → gagal berangkat.
+
+**Solusi:**
+- Buat cron job (atau Supabase pg_cron): setiap hari cek `visa_deadline` yang kurang dari 7 hari
+- Kirim notifikasi ke jamaah yang dokumennya belum lengkap
+- Kirim notifikasi ke admin: "5 jamaah belum submit dokumen untuk keberangkatan 15 Maret"
+
+---
+
+#### 🔴 KEP-F3: Manifest Jamaah Tidak Validasi Mahram untuk Haji
+
+**Masalah:** `AdminManifestJamaah` cek dokumen (KTP, paspor, foto), tapi tidak validasi:
+- Wanita di bawah 45 tahun yang tidak ada mahram dalam booking yang sama → tidak eligible haji
+- Bayi yang tidak ada orang tua dalam booking
+- Jamaah dengan kondisi kesehatan yang perlu perhatian khusus
+
+**Ini kritis untuk keberangkatan Haji** di mana validasi mahram adalah syarat wajib.
+
+**Solusi:**
+- Tambahkan validasi mahram: untuk paket haji, tampilkan warning jika ada jamaah wanita tanpa pasangan mahram dalam booking yang sama
+- Tambahkan field `health_notes` dan `special_needs` di `booking_passengers`
+- Manifest export untuk Haji harus menyertakan kolom mahram sesuai format Kemenag
+
+---
+
+#### 🟠 KEP-F4: Room Assignment Tidak Mempertimbangkan Gender dan Mahram
+
+**Masalah:** `AdminRoomAssignments` auto-group berdasarkan jumlah orang, tapi tidak mempertimbangkan:
+- Segregasi gender (wanita tidak dengan pria asing)
+- Mahram harus sekamar dengan pasangan/keluarga
+- Lansia yang butuh kamar di lantai bawah atau dekat lift
+
+**Solusi:**
+- Tambahkan validasi gender di room assignment: warning jika kamar berisi campuran pria-wanita yang bukan pasangan/mahram
+- Tampilkan info mahram dari field di `customers` table
+- Tambahkan notes per kamar untuk kebutuhan khusus
+
+---
+
+#### 🟠 KEP-F5: Tracking Real-time Jamaah di Tanah Suci Tidak Ada
+
+**Masalah:** `AdminDepartureTracking` hanya track check-in di bandara. Setelah jamaah sampai di Makkah/Madinah, tidak ada tracking:
+- Lokasi real-time muthawif (walaupun SOS sudah ada)
+- Status jamaah per hari (hari ini di Makkah, besok pindah Madinah)
+- Absensi harian di hotel/bus
+
+**Solusi:**
+- Buat halaman `DailyAttendance` di portal muthawif
+- Muthawif input kehadiran jamaah per hari
+- Admin bisa lihat status per jamaah secara real-time dari kantor
+
+---
+
+#### 🟠 KEP-F6: Tidak Ada Manajemen Bagasi
+
+**Masalah:** Tidak ada sistem untuk:
+- Registrasi bagasi per jamaah (berat, jumlah koper)
+- Tracking bagasi yang hilang
+- Informasi ketentuan bagasi per maskapai
+
+Padahal `BAGGAGE_CALCULATOR` ada di `PERMISSIONS` — artinya ini sudah direncanakan tapi belum ada halamannya.
+
+**Solusi:**
+- Tambahkan tab "Bagasi" di detail keberangkatan
+- Admin bisa set kuota bagasi per jamaah berdasarkan kebijakan maskapai
+- Jamaah bisa lihat ketentuan bagasi dari portal /jamaah
+
+---
+
+#### 🟡 KEP-F7: Tidak Ada Evaluasi/Feedback Pasca Keberangkatan
+
+**Masalah:** Setelah jamaah pulang, tidak ada sistem evaluasi:
+- Rating kepuasan jamaah
+- Ulasan per komponen (maskapai, hotel, muthawif, katering)
+- Feedback untuk perbaikan keberangkatan berikutnya
+
+**Solusi:**
+- Setelah status departure `completed` → kirim survey ke semua jamaah via WA/email
+- Tampilkan average rating per muthawif, hotel, maskapai di admin panel
+- Report "Net Promoter Score" keberangkatan
+
+---
+
+#### 🟡 KEP-F8: Kalender Keberangkatan Tidak Bisa Di-export ke Kalender Eksternal
+
+**Masalah:** `AdminDepartures` punya calendar view, tapi tidak ada export ke Google Calendar / iCal / ICS.
+
+**Solusi:** Tambahkan endpoint `GET /api/departures/calendar.ics` yang generate ICS file dari semua jadwal keberangkatan aktif.
+
+---
+
+### 26C — Rencana Perbaikan Keberangkatan
+
+| ID | Perbaikan | Prioritas | Estimasi |
+|----|-----------|-----------|----------|
+| KEP-FIX1 | **Reminder otomatis deadline dokumen/visa** — cron job + WA notif | 🔴 Kritis | 1 hari |
+| KEP-FIX2 | **Validasi mahram di manifest** — khusus paket haji | 🔴 Kritis | 1 hari |
+| KEP-FIX3 | **Validasi gender di room assignment** — warning kamar campur | 🟠 Penting | 1 hari |
+| KEP-FIX4 | **Dashboard "jamaah belum lengkap dokumen"** — per keberangkatan | 🟠 Penting | 1 hari |
+| KEP-FIX5 | **Absensi harian jamaah di tanah suci** — portal muthawif + laporan | 🟠 Penting | 2 hari |
+| KEP-FIX6 | **Manajemen bagasi** — kuota + ketentuan per maskapai | 🟡 Sedang | 1 hari |
+| KEP-FIX7 | **Survey evaluasi pasca keberangkatan** — rating + feedback | 🟡 Sedang | 1.5 hari |
+| KEP-FIX8 | **Export kalender ICS** — integrasi Google Calendar | 🟢 Rendah | 0.5 hari |
+
+---
+
+## BAGIAN 27 — RENCANA IMPLEMENTASI MULTI-CURRENCY
+
+> **Ini adalah fitur yang paling mendesak untuk Haji dan paket berdenominasi USD/SAR.**
+
+---
+
+### 27A — Arsitektur Multi-Currency yang Dibutuhkan
+
+```
+KOMPONEN YANG DIBUTUHKAN:
+
+1. TABEL exchange_rates (baru)
+   ├── id, currency_from, currency_to
+   ├── rate (nilai tukar, contoh: USD → IDR = 16500)
+   ├── source: 'manual' | 'api'
+   ├── fetched_at (timestamp rate ini diambil)
+   └── is_active
+
+2. UPDATE TABEL packages
+   └── currency: 'IDR' | 'USD' | 'SAR' | 'EUR' (default: IDR)
+
+3. UPDATE TABEL departures
+   └── currency: inherit dari packages atau override
+   └── price_quad_original (harga asli dalam currency asal)
+   └── price_quad_idr (harga konversi ke IDR saat terakhir diupdate)
+   └── rate_used (kurs yang digunakan saat hitung IDR)
+   └── rate_locked_at (kapan kurs dikunci)
+
+4. UPDATE TABEL bookings
+   ├── currency (mata uang yang digunakan saat booking)
+   ├── exchange_rate (kurs IDR saat booking)
+   ├── total_price_original (total dalam currency asal, misal USD)
+   └── total_price_idr (total dalam IDR untuk pembayaran)
+
+5. TABEL savings_plans (update)
+   └── locked_currency, locked_price_per_pax, locked_rate
+```
+
+---
+
+### 27B — Alur Multi-Currency: Haji Plus USD
+
+```
+CONTOH ALUR: Paket Haji Plus — USD 12.000 per orang
+
+[1] Admin buat paket:
+    currency = 'USD'
+    package_type = 'haji_plus'
+    
+[2] Admin buat departure:
+    price_quad_original = 12000 (USD)
+    rate_used = 16500 (kurs hari ini)
+    price_quad_idr = 12000 × 16500 = 198.000.000
+    
+[3] Customer lihat halaman publik:
+    Tampil: "USD 12,000 / orang"
+    Tambah info: "(≈ Rp 198 juta berdasarkan kurs Rp 16.500/USD)"
+    
+[4] Customer booking:
+    bookings.total_price_original = 12000 (USD)
+    bookings.exchange_rate = 16500
+    bookings.total_price_idr = 198.000.000
+    bookings.currency = 'USD'
+    Kurs DIKUNCI saat booking dibuat
+    
+[5] Customer bayar:
+    Pembayaran dalam IDR: Rp 198.000.000
+    Jika ada cicilan: cicilan dalam IDR (tidak berubah walau kurs berfluktuasi)
+    
+[6] Admin update kurs (harian):
+    exchange_rates.rate diupdate
+    Harga tampilan di listing berubah mengikuti kurs baru
+    Harga booking yang sudah ada TIDAK berubah (sudah locked)
+```
+
+---
+
+### 27C — Mata Uang yang Perlu Didukung
+
+| Kode | Nama | Digunakan untuk |
+|------|------|----------------|
+| `IDR` | Rupiah Indonesia | Umroh standar, tabungan, wisata domestik |
+| `USD` | Dollar AS | Haji Plus, wisata premium, hotel bintang 5 |
+| `SAR` | Saudi Riyal | Biaya di Arab Saudi (visa, muthawif lokal) |
+| `EUR` | Euro | Wisata Eropa (opsional, masa depan) |
+
+**Catatan:** SAR terutama untuk internal cost tracking — pembayaran ke customer tetap IDR atau USD.
+
+---
+
+### 27D — Rencana Implementasi Multi-Currency (Urutan Pekerjaan)
+
+| ID | Langkah | Estimasi | Keterangan |
+|----|---------|----------|------------|
+| CUR-1 | Buat tabel `exchange_rates` + migration | 0.5 hari | Tabel kurs, bisa input manual |
+| CUR-2 | Update tabel `packages` + `departures` + `bookings` | 1 hari | Tambah kolom currency, original price, locked rate |
+| CUR-3 | UI admin: page manajemen kurs (input manual + tanggal) | 0.5 hari | Admin update kurs setiap hari |
+| CUR-4 | Update `RegularPackageForm` + `DepartureForm` | 1 hari | Tambah field currency, harga dalam currency asal |
+| CUR-5 | Update `formatCurrency` calls di seluruh frontend | 1 hari | Pass currency dari package/booking ke formatter |
+| CUR-6 | Update `BookingWizard` untuk handle multi-currency | 1 hari | Tampilkan harga USD + konversi IDR |
+| CUR-7 | Lock kurs saat booking submit | 0.5 hari | Snapshot kurs ke bookings table |
+| CUR-8 | Update halaman publik listing + filter currency | 0.5 hari | Tampilkan harga dengan currency label |
+| CUR-9 | (Opsional) Fetch kurs otomatis dari API Bank Indonesia | 1 hari | Auto-update kurs harian |
+| **Total** | | **~7 hari** | Sprint khusus multi-currency |
+
+---
+
+*Analisis Bagian 23-27 selesai Mei 2026. Multi-currency untuk Haji adalah fitur kritis yang tidak bisa ditunda — sistem saat ini menampilkan harga USD sebagai IDR yang menyesatkan. Estimasi total implementasi multi-currency: 7 hari kerja.*
