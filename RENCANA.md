@@ -2472,8 +2472,8 @@ Dari `useAuth.tsx`: `isCustomer()` cek `customer || jamaah`. Dari `CustomerRoute
 | ID | Tugas | File | Estimasi | Prioritas |
 |----|-------|------|----------|-----------|
 | RBAC-F1 | ✅ **Fix sumber roles** — `useDynamicMenus` baca dari `useAuth().roles` (DONE) | `useDynamicMenus.ts` | 0.25 hari | ✅ Done |
-| RBAC-F2 | **Fix security: VAPID private key** (duplikat dengan PWA-F2, satu perbaikan menyelesaikan keduanya) | `usePWAConfig.ts` | 0.5 hari | 🔴 Segera |
-| RBAC-F3 | **Fix fallback permission** — jika DB offline, fallback ke localStorage cache, bukan full access | `useDynamicMenus.ts` | 0.5 hari | 🔴 Segera |
+| RBAC-F2 | ✅ **VAPID private key dipindahkan ke secret env** (`VAPID_PRIVATE_KEY`). Edge functions baca dari `Deno.env.get`, client tidak lagi expose privateKey. | `usePWAConfig.ts`, `send-push`, `process-push-queue`, `AdminPushNotifications.tsx` | DONE | ✅ |
+| RBAC-F3 | ✅ **Fallback permission ke localStorage cache** — `useDynamicMenus` menyimpan effectiveKeys terakhir & restore saat RPC error. | `useDynamicMenus.ts` | DONE | ✅ |
 | RBAC-F4 | **Realtime invalidation permission** — Supabase realtime pada `user_permissions` + `user_roles` invalidate React Query cache | `useDynamicMenus.ts` | 1 hari | 🟠 Penting |
 
 #### FASE PENTING — Sprint Berikutnya
@@ -2818,7 +2818,7 @@ Agen harus buka portal dan refresh manual.
 | ID | Fitur | Prioritas | Estimasi |
 |----|-------|-----------|----------|
 | AGEN-ADD1 | ✅ **Manajemen rekening bank** — form bank di AgentSettings (Nama Bank/No. Rek/Pemilik) (DONE) | ✅ Done | 1 hari |
-| AGEN-ADD2 | **Fix tabel training** — pastikan migration + seed data ada | 🔴 Segera | 0.5 hari |
+| AGEN-ADD2 | ✅ **Migration training_modules + training_quizzes + agent_training_progress** dengan RLS & seed 3 modul + 2 quiz. | DONE | ✅ |
 | AGEN-ADD3 | **Notifikasi real-time agen** — push notification + in-app bell | 🟠 Penting | 2 hari |
 | AGEN-ADD4 | **Halaman Jamaah untuk sub-agen** — filter data milik sub-agen | 🟠 Penting | 1 hari |
 | AGEN-ADD5 | **Kalkulator komisi** — estimasi sebelum booking | 🟡 Sedang | 1 hari |
