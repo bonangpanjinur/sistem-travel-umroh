@@ -117,6 +117,9 @@ export const PERMISSIONS = {
   // Blog & Artikel
   BLOG: 'blog',
 
+  // FAQ Manager
+  FAQ_MANAGER: 'faq-manager',
+
   // Keuangan Terpadu
   FINANCE_TERPADU: 'finance-terpadu',
 

@@ -121,6 +121,7 @@ const AdminRefundDetail = lazy(() => import("@/pages/admin/AdminRefundDetail"));
 const AdminActivityLog = lazy(() => import("@/pages/admin/AdminActivityLog"));
 const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
 const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
+const AdminFAQManager = lazy(() => import("@/pages/admin/AdminFAQManager"));
 const AdminFinanceTerpadu = lazy(() => import("@/pages/admin/AdminFinanceTerpadu"));
 const AdminAISummary = lazy(() => import("@/pages/admin/AdminAISummary"));
 const AdminWebhooks = lazy(() => import("@/pages/admin/AdminWebhooks"));
@@ -317,6 +318,9 @@ export default function AdminRoutes() {
 
       {/* Blog & Artikel */}
       <Route path="blog" element={<P k={PERMISSIONS.BLOG}><LazyPage><AdminBlog /></LazyPage></P>} />
+
+      {/* FAQ Manager */}
+      <Route path="faq-manager" element={<P k={PERMISSIONS.FAQ_MANAGER}><LazyPage><AdminFAQManager /></LazyPage></P>} />
 
       {/* Keuangan Terpadu */}
       <Route path="finance-terpadu" element={<P k={PERMISSIONS.FINANCE_TERPADU}><LazyPage><AdminFinanceTerpadu /></LazyPage></P>} />

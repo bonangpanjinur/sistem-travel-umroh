@@ -46,6 +46,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'whatsapp',            label: 'WhatsApp Blast',        path: '/admin/whatsapp',             icon: 'MessageSquare',   group_name: 'Konten & Marketing', sort_order: 305, required_permission: PERMISSIONS.WHATSAPP },
   { key: 'email-templates',     label: 'Template Email',        path: '/admin/email-templates',      icon: 'Mail',            group_name: 'Konten & Marketing', sort_order: 306, required_permission: PERMISSIONS.EMAIL_TEMPLATES },
   { key: 'push-notifications',  label: 'Push Notifikasi',       path: '/admin/push-notifications',   icon: 'Bell',            group_name: 'Konten & Marketing', sort_order: 307, required_permission: PERMISSIONS.PUSH_NOTIFICATIONS },
+  { key: 'faq-manager',         label: 'FAQ Manager',           path: '/admin/faq-manager',          icon: 'HelpCircle',      group_name: 'Konten & Marketing', sort_order: 308, required_permission: PERMISSIONS.FAQ_MANAGER },
 
   // ── Keberangkatan (400s) ──────────────────────────────────────────────────
   { key: 'departures',          label: 'Jadwal Keberangkatan',  path: '/admin/departures',           icon: 'CalendarDays',    group_name: 'Keberangkatan',      sort_order: 401, required_permission: PERMISSIONS.DEPARTURES },
@@ -192,7 +193,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'hotels', 'airlines', 'airports',
     'users', 'support',
     'push-notifications',
-    'blog',
+    'blog', 'faq-manager',
     'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'monitoring-tabungan',
     'manifest-jamaah', 'absensi-digital', 'wa-blast-keberangkatan', 'muthawif-dashboard',
     'wa-otomatis', 'midtrans', 'cicilan-reminder', 'virtual-account',
@@ -219,7 +220,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   marketing: [
     'dashboard', 'analytics',
-    'blog',
+    'blog', 'faq-manager',
     'leads', 'chat-leads', 'landing-pages', 'banners', 'marketing-materials',
     'coupons', 'referrals', 'loyalty', 'whatsapp',
     'email-templates', 'push-notifications',
