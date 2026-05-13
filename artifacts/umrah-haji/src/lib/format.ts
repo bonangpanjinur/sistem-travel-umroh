@@ -1,12 +1,27 @@
 // Formatting utilities for the Umroh system
 
-export function formatCurrency(amount: number, currency: string = 'IDR'): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+const CURRENCY_LOCALE: Record<string, string> = {
+  IDR: 'id-ID',
+  USD: 'en-US',
+  SAR: 'ar-SA',
+  EUR: 'de-DE',
+  MYR: 'ms-MY',
+  SGD: 'en-SG',
+};
+
+export function formatCurrency(amount: number, currency?: string | null): string {
+  const cur = (currency || 'IDR').toUpperCase();
+  const locale = CURRENCY_LOCALE[cur] || 'id-ID';
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: cur,
+      minimumFractionDigits: cur === 'IDR' ? 0 : 2,
+      maximumFractionDigits: cur === 'IDR' ? 0 : 2,
+    }).format(amount || 0);
+  } catch {
+    return `${cur} ${(amount || 0).toLocaleString('id-ID')}`;
+  }
 }
 
 export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {

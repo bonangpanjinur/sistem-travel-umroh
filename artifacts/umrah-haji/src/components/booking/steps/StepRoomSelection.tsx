@@ -99,7 +99,7 @@ export function StepRoomSelection({ packageId, roomType, onSelect }: StepRoomSel
                   </div>
                   <div className="mt-auto pt-2 border-t">
                     <p className="text-lg font-bold text-primary">
-                      {formatCurrency(price)}
+                      {formatCurrency(price, pkg?.currency)}
                     </p>
                     <p className="text-xs text-muted-foreground">per orang</p>
                   </div>

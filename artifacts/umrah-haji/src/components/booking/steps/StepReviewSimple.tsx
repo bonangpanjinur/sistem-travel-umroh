@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, Hotel, CreditCard, Plane, CheckCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLoyaltyTier, TIER_LABELS } from "@/hooks/useLoyaltyTier";
+import { Sparkles } from "lucide-react";
 
 interface StepReviewSimpleProps {
   formData: SimpleBookingFormData;
@@ -23,6 +25,7 @@ const ROOM_LABELS: Record<string, string> = {
 };
 
 export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps) {
+  const { data: loyalty } = useLoyaltyTier();
   // Fetch package details
   const { data: packageData, isLoading: packageLoading } = useQuery({
     queryKey: ['package-review', packageId],
@@ -30,7 +33,7 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
       const { data, error } = await supabase
         .from('packages')
         .select(`
-          id, name, code, duration_days,
+          id, name, code, duration_days, currency,
           price_quad, price_triple, price_double, price_single,
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, city),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, city),
@@ -81,7 +84,9 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
 
   const basePrice = priceMap[formData.roomType];
   const totalPax = formData.passengers.length;
-  const totalPrice = basePrice * totalPax;
+  const subtotal = basePrice * totalPax;
+  const tierDiscount = loyalty?.discountAmount(subtotal) ?? 0;
+  const totalPrice = subtotal - tierDiscount;
 
   return (
     <div className="space-y-6">
@@ -166,16 +171,25 @@ export function StepReviewSimple({ formData, packageId }: StepReviewSimpleProps)
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Harga per jamaah ({ROOM_LABELS[formData.roomType]})</span>
-              <span>{formatCurrency(basePrice)}</span>
+              <span>{formatCurrency(basePrice, packageData?.currency)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Jumlah jamaah</span>
               <span>× {totalPax}</span>
             </div>
+            {loyalty && tierDiscount > 0 && (
+              <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Diskon Loyalitas {TIER_LABELS[loyalty.tier]} ({loyalty.discountPercent}%)
+                </span>
+                <span>− {formatCurrency(tierDiscount, packageData?.currency)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
-              <span className="text-primary">{formatCurrency(totalPrice)}</span>
+              <span className="text-primary">{formatCurrency(totalPrice, packageData?.currency)}</span>
             </div>
           </div>
         </CardContent>

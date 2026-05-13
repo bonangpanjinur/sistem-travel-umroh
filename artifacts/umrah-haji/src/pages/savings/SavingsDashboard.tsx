@@ -19,6 +19,9 @@ import {
   History, Home, LogOut, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { useEffect } from 'react';
+import { SavingsConvertDialog } from '@/components/savings/SavingsConvertDialog';
+import { SavingsScheduleList } from '@/components/savings/SavingsScheduleList';
+import { Plane } from 'lucide-react';
 
 export default function SavingsDashboard() {
   const navigate = useNavigate();
@@ -28,6 +31,7 @@ export default function SavingsDashboard() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -312,6 +316,12 @@ export default function SavingsDashboard() {
                     Detail
                   </Link>
                 </Button>
+                {activePlan.paid_amount > 0 && activePlan.status !== 'converted' && (
+                  <Button variant="default" onClick={() => setConvertOpen(true)}>
+                    <Plane className="h-4 w-4 mr-2" />
+                    Konversi ke Booking
+                  </Button>
+                )}
               </div>
 
               {/* Payment Form */}
@@ -412,6 +422,26 @@ export default function SavingsDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Jadwal Cicilan */}
+        {activePlan && (
+          <SavingsScheduleList savingsPlanId={activePlan.id} />
+        )}
+
+        {/* Convert dialog */}
+        {activePlan && (
+          <SavingsConvertDialog
+            open={convertOpen}
+            onOpenChange={setConvertOpen}
+            savingsPlan={{
+              id: activePlan.id,
+              package_id: activePlan.package_id,
+              paid_amount: Number(activePlan.paid_amount) || 0,
+              target_amount: Number(activePlan.target_amount) || 0,
+              locked_price: (activePlan as any).locked_price,
+            }}
+          />
         )}
 
         {/* Other Plans */}

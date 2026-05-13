@@ -300,7 +300,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
                       <div className="space-y-0.5">
                         <p className="font-medium text-sm capitalize">{ROOM_INFO[type].label}</p>
                         <p className="text-xs text-muted-foreground">{ROOM_INFO[type].desc}</p>
-                        <p className="text-sm font-semibold text-primary">{formatCurrency(price)}</p>
+                        <p className="text-sm font-semibold text-primary">{formatCurrency(price, pkg.currency)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -390,7 +390,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
                     </div>
                     <div className="border-t pt-2 flex justify-between">
                       <span className="font-semibold">Total Harga:</span>
-                      <span className="text-lg font-bold text-primary">{formatCurrency(totalPrice)}</span>
+                      <span className="text-lg font-bold text-primary">{formatCurrency(totalPrice, pkg.currency)}</span>
                     </div>
                   </CardContent>
                 </Card>

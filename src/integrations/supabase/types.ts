@@ -4750,10 +4750,12 @@ export type Database = {
           created_at: string | null
           customer_id: string
           id: string
+          locked_price: number | null
           monthly_amount: number
           notes: string | null
           package_id: string
           paid_amount: number | null
+          price_lock_date: string | null
           remaining_amount: number | null
           start_date: string
           status: string | null
@@ -4767,10 +4769,12 @@ export type Database = {
           created_at?: string | null
           customer_id: string
           id?: string
+          locked_price?: number | null
           monthly_amount: number
           notes?: string | null
           package_id: string
           paid_amount?: number | null
+          price_lock_date?: string | null
           remaining_amount?: number | null
           start_date?: string
           status?: string | null
@@ -4784,10 +4788,12 @@ export type Database = {
           created_at?: string | null
           customer_id?: string
           id?: string
+          locked_price?: number | null
           monthly_amount?: number
           notes?: string | null
           package_id?: string
           paid_amount?: number | null
+          price_lock_date?: string | null
           remaining_amount?: number | null
           start_date?: string
           status?: string | null
@@ -4816,6 +4822,56 @@ export type Database = {
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      savings_schedules: {
+        Row: {
+          amount: number
+          created_at: string | null
+          due_date: string
+          id: string
+          installment_number: number
+          notes: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          savings_plan_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          due_date: string
+          id?: string
+          installment_number: number
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          savings_plan_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          savings_plan_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "savings_schedules_savings_plan_id_fkey"
+            columns: ["savings_plan_id"]
+            isOneToOne: false
+            referencedRelation: "savings_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -6287,6 +6343,14 @@ export type Database = {
       check_user_permission: {
         Args: { _permission_key: string; _user_id: string }
         Returns: boolean
+      }
+      convert_savings_to_booking: {
+        Args: {
+          _departure_id: string
+          _room_type?: string
+          _savings_plan_id: string
+        }
+        Returns: string
       }
       decrement_equipment_stock: {
         Args: { amount?: number; item_id: string }

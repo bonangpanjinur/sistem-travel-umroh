@@ -228,7 +228,7 @@ export function PackageCard({
                 "text-2xl font-bold leading-none",
                 isRoyal ? "text-amber-400" : "text-white"
               )}>
-                {formatCurrency(lowestPrice)}
+                {formatCurrency(lowestPrice, pkg.currency)}
               </p>
             </div>
             {showDuration && (
@@ -474,7 +474,7 @@ export function PackageCard({
           <div className="mt-auto pt-4 border-t flex items-center justify-between">
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Harga Mulai</p>
-              <p className="text-lg font-bold text-primary">{formatCurrency(lowestPrice)}</p>
+              <p className="text-lg font-bold text-primary">{formatCurrency(lowestPrice, pkg.currency)}</p>
             </div>
             <Button asChild size="sm" className="rounded-full px-6">
               <Link to={`/packages/${pkg.id}-${slugify(pkg.name)}`}>Detail</Link>
@@ -517,7 +517,7 @@ export function PackageCard({
         </p>
         
         <div className="mt-auto flex items-center justify-between">
-          <p className="font-bold text-primary">{formatCurrency(lowestPrice)}</p>
+          <p className="font-bold text-primary">{formatCurrency(lowestPrice, pkg.currency)}</p>
           <Link 
             to={`/packages/${pkg.id}-${slugify(pkg.name)}`}
             className="text-xs font-bold flex items-center gap-1 text-slate-400 group-hover:text-primary transition-colors"

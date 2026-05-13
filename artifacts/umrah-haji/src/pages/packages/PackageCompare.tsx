@@ -78,7 +78,7 @@ function PriceBadge({ price, selected }: { price: number; selected: boolean }) {
       "text-2xl font-extrabold",
       selected ? "text-green-600" : "text-foreground"
     )}>
-      {formatCurrency(price)}
+      {formatCurrency(price, pkg.currency)}
     </span>
   );
 }
@@ -281,7 +281,7 @@ export default function PackageCompare() {
                   <td className="py-3 px-4 text-sm font-medium text-muted-foreground">Harga Triple (3 org)</td>
                   {selectedPackages.map(pkg => (
                     <td key={pkg.id} className="py-3 px-4 text-center text-sm font-medium">
-                      {pkg.price_triple ? formatCurrency(Number(pkg.price_triple)) : '—'}
+                      {pkg.price_triple ? formatCurrency(Number(pkg.price_triple), pkg.currency) : '—'}
                     </td>
                   ))}
                   {selectedPackages.length < MAX_COMPARE && <td />}
@@ -290,7 +290,7 @@ export default function PackageCompare() {
                   <td className="py-3 px-4 text-sm font-medium text-muted-foreground">Harga Double (2 org)</td>
                   {selectedPackages.map(pkg => (
                     <td key={pkg.id} className="py-3 px-4 text-center text-sm font-medium">
-                      {pkg.price_double ? formatCurrency(Number(pkg.price_double)) : '—'}
+                      {pkg.price_double ? formatCurrency(Number(pkg.price_double), pkg.currency) : '—'}
                     </td>
                   ))}
                   {selectedPackages.length < MAX_COMPARE && <td />}
@@ -299,7 +299,7 @@ export default function PackageCompare() {
                   <td className="py-3 px-4 text-sm font-medium text-muted-foreground">Harga Single (1 org)</td>
                   {selectedPackages.map(pkg => (
                     <td key={pkg.id} className="py-3 px-4 text-center text-sm font-medium">
-                      {pkg.price_single ? formatCurrency(Number(pkg.price_single)) : '—'}
+                      {pkg.price_single ? formatCurrency(Number(pkg.price_single), pkg.currency) : '—'}
                     </td>
                   ))}
                   {selectedPackages.length < MAX_COMPARE && <td />}
@@ -366,7 +366,7 @@ export default function PackageCompare() {
                   className="p-3 border rounded-xl text-left hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all group"
                 >
                   <p className="text-sm font-semibold line-clamp-2 group-hover:text-blue-600">{pkg.name}</p>
-                  <p className="text-xs text-green-600 font-medium mt-1">{formatCurrency(Number(pkg.price_quad) || 0)}</p>
+                  <p className="text-xs text-green-600 font-medium mt-1">{formatCurrency(Number(pkg.price_quad) || 0, pkg.currency)}</p>
                   <div className="flex items-center gap-1 mt-2 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Plus className="h-3 w-3" />
                     Bandingkan

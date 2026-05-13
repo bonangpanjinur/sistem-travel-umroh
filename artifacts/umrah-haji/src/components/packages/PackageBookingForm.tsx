@@ -287,7 +287,7 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
                         <div className="space-y-0.5">
                           <p className="font-medium text-sm capitalize">{ROOM_INFO[type].label}</p>
                           <p className="text-xs text-muted-foreground">{ROOM_INFO[type].desc}</p>
-                          <p className="text-sm font-semibold text-primary">{formatCurrency(price)}</p>
+                          <p className="text-sm font-semibold text-primary">{formatCurrency(price, pkg.currency)}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => updateRoomCount(type, -1)} disabled={roomAllocation[type] === 0}><Minus className="h-3 w-3" /></Button>
@@ -409,7 +409,7 @@ export function PackageBookingForm({ pkg }: PackageBookingFormProps) {
               </div>
               <div className="flex justify-between items-end">
                 <span className="text-sm font-medium">Total Harga</span>
-                <span className="text-xl font-bold text-primary">{formatCurrency(totalPrice)}</span>
+                <span className="text-xl font-bold text-primary">{formatCurrency(totalPrice, pkg.currency)}</span>
               </div>
             </div>
 
