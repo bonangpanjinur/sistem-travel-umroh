@@ -1020,6 +1020,13 @@ export default function AdminPackages() {
                                 <Star className={cn("h-4 w-4", pkg.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground")} />
                                 {pkg.is_featured ? 'Hapus Unggulan' : 'Jadikan Unggulan'}
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => setLabelAssignFor({ id: pkg.id, name: pkg.name })}
+                              >
+                                <Star className="h-4 w-4 text-primary" />
+                                Atur Label
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
                                 onClick={() => toggleStatusMutation.mutate({ id: pkg.id, is_active: !pkg.is_active })}
@@ -1260,6 +1267,17 @@ export default function AdminPackages() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <PackageLabelManagerDialog
+          open={isLabelManagerOpen}
+          onOpenChange={setIsLabelManagerOpen}
+        />
+        <PackageLabelAssignDialog
+          open={!!labelAssignFor}
+          onOpenChange={(v) => !v && setLabelAssignFor(null)}
+          packageId={labelAssignFor?.id ?? null}
+          packageName={labelAssignFor?.name}
+        />
       </div>
     </TooltipProvider>
   );
