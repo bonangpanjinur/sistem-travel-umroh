@@ -1401,10 +1401,10 @@ Langkah 4 (GAP 4) — Tier persentase: enhancement visual
 
 | Halaman | Status | Gap |
 |---------|--------|-----|
-| AdminPackages | ✅ Sangat lengkap | Tag/label kustom (P6 di Sprint 8) |
+| AdminPackages | ✅ Sangat lengkap | ✅ P6 selesai — tag/label kustom via tabel `package_labels` + `package_label_assignments` |
 | AdminPackageDetail | ✅ Lengkap | — |
 | AdminDepartures | ✅ Sangat lengkap | — |
-| AdminDepartureDetail | ✅ Sangat lengkap | K9: ringkasan budget di tab header |
+| AdminDepartureDetail | ✅ Sangat lengkap | ✅ K9 selesai — ringkasan budget di tab + ✅ K7 sertifikat massal |
 | AdminDepartureTracking | ✅ Fungsional | — |
 | AdminHajiManagement | ⚠️ Fungsional | Tidak ada integrasi API Kemenag |
 | AdminManasik | ✅ Fungsional | — |
@@ -1917,13 +1917,26 @@ CREATE TABLE IF NOT EXISTS scheduled_report_logs (
 ```
 **Status:** 🔴 Harus dibuat agar fitur Scheduled Reports bisa bekerja
 
-#### 043 — `packages.label` COLUMN
+#### 043 — `package_labels` + `package_label_assignments` ✅ SELESAI
 ```sql
--- Dibutuhkan oleh: Sprint 8 - P6 (tag kustom paket)
-ALTER TABLE packages ADD COLUMN IF NOT EXISTS label TEXT 
-  CHECK (label IN ('best_seller', 'early_bird', 'flash_sale', 'new', 'limited'));
+-- Migrasi P6 (Sprint 8) — implementasi final pakai tabel relasional
+-- bukan satu kolom enum, agar admin bisa CRUD label kustom + warna sendiri.
+CREATE TABLE public.package_labels (
+  id uuid PK, branch_id uuid NULL → branches(id),
+  slug, name, color, icon, description, sort_order, is_active,
+  UNIQUE (branch_id, slug)
+);
+CREATE TABLE public.package_label_assignments (
+  id uuid PK,
+  package_id uuid → packages(id) ON DELETE CASCADE,
+  label_id uuid → package_labels(id) ON DELETE CASCADE,
+  UNIQUE (package_id, label_id)
+);
+-- RLS: SELECT publik (label aktif); ALL hanya admin/owner/super_admin
+--      branch_manager dibatasi pada branch_id-nya sendiri.
+-- Seed: 5 label default (best_seller, early_bird, flash_sale, new, limited)
 ```
-**Status:** 🟡 Opsional — hanya jika Sprint 8 P6 dikerjakan
+**Status:** ✅ Selesai (migrasi sudah dijalankan & UI terhubung)
 
 #### 044 — TOTP 2FA COLUMN
 ```sql
