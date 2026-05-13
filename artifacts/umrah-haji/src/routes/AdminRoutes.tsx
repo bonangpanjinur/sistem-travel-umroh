@@ -42,6 +42,7 @@ const AdminDocumentTypes = lazy(() => import("@/pages/admin/AdminDocumentTypes")
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
 const AdminPWASettings = lazy(() => import("@/pages/admin/AdminPWASettings"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
+const AdminBranchComparison = lazy(() => import("@/pages/admin/AdminBranchComparison"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
 const AdminFinanceCash = lazy(() => import("@/pages/admin/AdminFinanceCash"));
 const AdminVendors = lazy(() => import("@/pages/admin/AdminVendors"));
@@ -243,6 +244,7 @@ export default function AdminRoutes() {
       <Route path="customers/:id" element={<P k={PERMISSIONS.CUSTOMERS}><AdminCustomerDetail /></P>} />
       <Route path="agents" element={<P k={PERMISSIONS.AGENTS}><AdminAgents /></P>} />
       <Route path="branches" element={<P k={PERMISSIONS.BRANCHES}><AdminBranches /></P>} />
+      <Route path="branches/comparison" element={<P k={PERMISSIONS.BRANCHES}><AdminBranchComparison /></P>} />
       <Route path="loyalty" element={<P k={PERMISSIONS.LOYALTY}><AdminLoyalty /></P>} />
       <Route path="referrals" element={<P k={PERMISSIONS.REFERRALS}><AdminReferrals /></P>} />
       <Route path="haji" element={<P k={PERMISSIONS.HAJI}><AdminHajiManagement /></P>} />
