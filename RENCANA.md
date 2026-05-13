@@ -2575,7 +2575,7 @@ Akibat: Bahkan saat localStorage ada cache, tampilan masih belum sempurna sampai
 
 ---
 
-#### 🔴 CSS-F3: Initial Loader Disembunyikan SEBELUM ThemeProvider Selesai Fetch
+#### ✅ CSS-F3 / CSS-FIX-1: Initial Loader Disembunyikan SEBELUM ThemeProvider Selesai Fetch — DONE (event 'theme-ready' + fallback 1.5s)
 
 **Masalah Kritis di `main.tsx` baris 106-116:**
 ```javascript
