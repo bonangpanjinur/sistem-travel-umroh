@@ -81,6 +81,7 @@ import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
 import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
+import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/hooks/useDepartureBudget";
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
