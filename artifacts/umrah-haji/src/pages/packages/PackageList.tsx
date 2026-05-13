@@ -39,6 +39,7 @@ export default function PackageList() {
   const minPrice = minPriceParam ? Number(minPriceParam) : 0;
   const maxPrice = maxPriceParam ? Number(maxPriceParam) : Infinity;
   const durationFilter = searchParams.get('duration')?.split(',').filter(Boolean) || [];
+  const currencyFilter = searchParams.get('currency') || 'all';
 
   // Helper: harga termurah dari semua tipe kamar (mengabaikan 0/null)
   const getStartingPrice = (p: any): number => {
@@ -63,6 +64,11 @@ export default function PackageList() {
     // Package type
     if (typeFilter && typeFilter !== 'all') {
       result = result.filter(p => p.package_type === typeFilter);
+    }
+
+    // Currency filter
+    if (currencyFilter && currencyFilter !== 'all') {
+      result = result.filter(p => (p.currency || 'IDR').toUpperCase() === currencyFilter.toUpperCase());
     }
 
     // Price range — pakai harga termurah dan hanya apply bila user mengubah default
@@ -108,7 +114,7 @@ export default function PackageList() {
     });
 
     return result;
-  }, [packages, q, typeFilter, minPrice, maxPrice, durationFilter, sortBy]);
+  }, [packages, q, typeFilter, currencyFilter, minPrice, maxPrice, durationFilter, sortBy]);
 
   const handleFilterApplied = () => {
     setIsSheetOpen(false);
@@ -176,6 +182,31 @@ export default function PackageList() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {/* Currency filter */}
+              <div className="flex flex-col gap-1">
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Mata Uang</Label>
+                <Select value={currencyFilter} onValueChange={(value) => {
+                  const params = new URLSearchParams(searchParams);
+                  if (value === 'all') params.delete('currency'); else params.set('currency', value);
+                  window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+                  // Force re-render via location change
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}>
+                  <SelectTrigger className="w-[120px] h-9">
+                    <SelectValue placeholder="Mata Uang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    <SelectItem value="IDR">IDR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="SAR">SAR</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="MYR">MYR</SelectItem>
+                    <SelectItem value="SGD">SGD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Sort */}
               <div className="flex flex-col gap-1">
                 <Label className="text-[10px] uppercase text-muted-foreground font-bold">Urutkan</Label>
