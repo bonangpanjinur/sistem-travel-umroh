@@ -115,6 +115,11 @@ export function PaymentModeSelector({
                   <span className="text-xs text-muted-foreground">IDR</span>
                 </div>
               )}
+              {mode === "dp" && dpAmount > 0 && dpAmount < minDp && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <Info className="h-3 w-3" /> DP minimal {formatCurrency(minDp)} (30%).
+                </p>
+              )}
             </div>
           </Label>
 
