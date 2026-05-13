@@ -162,10 +162,36 @@
     <!-- Initial Loader - akan dihapus setelah React siap -->
     <div class="initial-loader" id="initialLoader">
       <div>
+        <img id="initialLoaderLogo" alt="" style="display:none;width:64px;height:64px;border-radius:14px;margin:0 auto 14px;object-fit:cover;box-shadow:0 6px 18px rgba(0,0,0,.25)" />
         <div class="spinner"></div>
-        <div class="loader-text">MEMUAT</div>
+        <div class="loader-text" id="initialLoaderText">MEMUAT</div>
       </div>
     </div>
+
+    <!-- Dynamic Splash: apply tenant brand from previous session before React paints -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('tenant-brand');
+          if (!raw) return;
+          var brand = JSON.parse(raw);
+          var loader = document.getElementById('initialLoader');
+          if (loader && brand.gradient) {
+            loader.style.background = brand.gradient;
+          } else if (loader && brand.color) {
+            loader.style.background = 'linear-gradient(135deg, ' + brand.color + ' 0%, #0b0b0b 100%)';
+          }
+          if (brand.logo) {
+            var img = document.getElementById('initialLoaderLogo');
+            if (img) { img.src = brand.logo; img.style.display = 'block'; }
+          }
+          if (brand.name) {
+            var t = document.getElementById('initialLoaderText');
+            if (t) t.textContent = brand.name.toUpperCase();
+          }
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
 
     <!-- React Root Element -->
     <div id="root"></div>

@@ -10,6 +10,7 @@ import { TenantProvider } from "@/contexts/TenantContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { EnvDiagnostic } from "@/components/EnvDiagnostic";
+import { PWAUpdateNotifier } from "@/components/pwa/PWAUpdateNotifier";
 import NotFound from "./pages/NotFound";
 
 // Route modules
@@ -40,6 +41,7 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
+              <PWAUpdateNotifier />
               <BrowserRouter basename={import.meta.env.BASE_URL}>
                 <ScrollToTop />
                 <EnvDiagnostic />
