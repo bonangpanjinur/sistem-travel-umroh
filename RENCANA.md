@@ -80,18 +80,18 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 | KEP-FIX6 | Manajemen bagasi per maskapai | Tabel `baggage_policies` + `/admin/baggage-policies` |
 | KEP-FIX7 | Survey pasca keberangkatan | Tabel `departure_surveys` + `/admin/post-departure-survey` (rating overall/hotel/food/muthawif + komentar) |
 | KEP-FIX8 | Export ICS | Utility `lib/ics-export.ts` (`buildIcs`, `downloadIcs`) |
+| GAP-PWA-08 | Preview "Tampilan App" iframe | Tab `Live App` di `AdminPWASettings` dengan iframe `/?preview=standalone` |
+| AGEN-ADD6 | Generate booking link dari lead CRM | Tombol "Generate Link Booking" di `AdminLeadDetail` (auto copy + WA) |
+| CAB-ADD6 | Iframe preview website cabang | Tombol Preview + dialog iframe di `BranchWebsiteSettings` |
+| CAB-ADD7 | Date range filter dashboard cabang | Filter periode (Bulan Ini / Bulan Lalu / 3 Bulan / custom) di `BranchDashboard` |
+| LOY-FIX6 | Download Digital ID sebagai gambar | Integrasi `html2canvas` di `JamaahDigitalID` |
+| LOY-FIX8 | Reward image upload UI | Field `image_url` di form + preview + render di katalog (`AdminLoyalty`) |
 
 ### 🟡 Belum Selesai — Prioritas Sedang (sisa)
 
 | Kode | Fitur | Catatan |
 |------|-------|---------|
-| GAP-PWA-08 | Preview "Tampilan App" iframe di admin | Belum — perlu route `?preview=standalone` + tab di AdminPWASettings |
-| AGEN-ADD6 | Generate booking link dari lead CRM | Belum — perlu tombol di `AdminLeadDetail` |
 | AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA Vite tanpa migrasi ke Next/Remix — ditunda |
-| CAB-ADD6 | Iframe preview website cabang sebelum simpan | Belum |
-| CAB-ADD7 | Date range filter di dashboard cabang | Belum |
-| LOY-FIX6 | Download Digital ID sebagai gambar | Belum — perlu integrasi `html2canvas` |
-| LOY-FIX8 | Default reward image + upload UI | Belum |
 
 > Detail lengkap setiap item ada di section masing-masing di bawah.
 
