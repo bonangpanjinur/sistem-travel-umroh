@@ -86,7 +86,7 @@ Platform manajemen Umroh & Haji digital berbasis React + Vite (port 5000) dengan
 ## 📋 Backlog (Bisa Dikerjakan Berikutnya)
 
 ### Fitur AI Chatbot Lanjutan
-- [ ] **Kartu paket interaktif** — respons AI untuk pertanyaan paket menampilkan kartu visual (gambar, harga, tombol) bukan teks biasa
+- [x] **Kartu paket interaktif** — respons AI untuk pertanyaan paket menampilkan kartu visual (gambar, harga, tombol) langsung di dalam chat bubble
 - [ ] **Konteks percakapan persisten** — simpan riwayat chat di localStorage agar tidak hilang saat halaman di-refresh
 - [ ] **Typed responses** — animasi karakter-per-karakter untuk respons bot agar terasa lebih natural
 - [ ] **Multi-language support** — deteksi bahasa user dan jawab dalam bahasa yang sama (Indonesia/English/Arabic)

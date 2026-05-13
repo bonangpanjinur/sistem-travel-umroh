@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useWebsiteSettings } from "@/hooks/useWebsiteSettingsOptimized";
+import { usePackages } from "@/hooks/usePackages";
+import { ChatPackageCard, extractPackageIds } from "@/components/chat/ChatPackageCard";
 import {
   Bot, Send, X, MessageCircle, RefreshCcw,
   Phone, ChevronDown, Sparkles, User,
@@ -87,6 +89,7 @@ function formatContent(text: string) {
 
 export function FloatingChatBubble() {
   const { data: settings } = useWebsiteSettings();
+  const { data: packages = [] } = usePackages();
   const waNumber = (settings as any)?.footer_whatsapp?.replace(/\D/g, "") || "";
   const siteName = (settings as any)?.site_name || "Vinstour Travel";
 
@@ -210,28 +213,40 @@ export function FloatingChatBubble() {
             <>
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
-                {messages.map(msg => (
-                  <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.role === "assistant" ? "bg-gradient-to-br from-violet-500 to-indigo-600" : "bg-gradient-to-br from-green-400 to-emerald-500"}`}>
-                      {msg.role === "assistant" ? <Bot className="h-3.5 w-3.5 text-white" /> : <User className="h-3.5 w-3.5 text-white" />}
+                {messages.map(msg => {
+                  const pkgIds = msg.role === "assistant" ? extractPackageIds(msg.content) : [];
+                  return (
+                    <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.role === "assistant" ? "bg-gradient-to-br from-violet-500 to-indigo-600" : "bg-gradient-to-br from-green-400 to-emerald-500"}`}>
+                        {msg.role === "assistant" ? <Bot className="h-3.5 w-3.5 text-white" /> : <User className="h-3.5 w-3.5 text-white" />}
+                      </div>
+                      <div className="flex flex-col gap-2 max-w-[82%]">
+                        <div className={`rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-sm" : "bg-white border rounded-tl-sm text-gray-800"}`}>
+                          <div
+                            dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
+                            className="whitespace-pre-wrap text-[13px]"
+                            onClick={(e) => {
+                              const target = e.target as HTMLElement;
+                              if (target.tagName === "A") {
+                                e.preventDefault();
+                                const href = target.getAttribute("href") || "";
+                                if (href.startsWith("/")) window.location.href = href;
+                                else if (href.startsWith("http")) window.open(href, "_blank", "noopener,noreferrer");
+                              }
+                            }}
+                          />
+                        </div>
+                        {pkgIds.length > 0 && (
+                          <div className="flex flex-col gap-2">
+                            {pkgIds.map(id => (
+                              <ChatPackageCard key={id} packageId={id} packages={packages as any[]} accentColor="#6d28d9" />
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-sm" : "bg-white border rounded-tl-sm text-gray-800"}`}>
-                      <div
-                        dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
-                        className="whitespace-pre-wrap text-[13px]"
-                        onClick={(e) => {
-                          const target = e.target as HTMLElement;
-                          if (target.tagName === "A") {
-                            e.preventDefault();
-                            const href = target.getAttribute("href") || "";
-                            if (href.startsWith("/")) window.location.href = href;
-                            else if (href.startsWith("http")) window.open(href, "_blank", "noopener,noreferrer");
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {loading && (
                   <div className="flex gap-2">

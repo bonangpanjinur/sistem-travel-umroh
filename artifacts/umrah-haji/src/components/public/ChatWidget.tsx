@@ -5,6 +5,8 @@ import { MessageCircle, X, Send, Bot, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { buildPackageContext } from "@/lib/packageContext";
+import { usePackages } from "@/hooks/usePackages";
+import { ChatPackageCard, extractPackageIds } from "@/components/chat/ChatPackageCard";
 
 function formatBotMessage(text: string): string {
   return text
@@ -99,6 +101,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { data: packages = [] } = usePackages();
 
   const copyMessage = (id: string, text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -384,10 +387,11 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
               return (
                 <div key={m.id} className={cn("flex items-end gap-1.5", m.role === "user" ? "flex-row-reverse" : "flex-row")}>
                   {m.role === "bot" && (
-                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0 mb-auto mt-0.5">
                       <Bot className="h-3 w-3 text-white" />
                     </div>
                   )}
+                  <div className="flex flex-col gap-2 min-w-0">
                   <div className="relative group">
                     {/* Copy button */}
                     <button
@@ -484,6 +488,14 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                         )}
                       </div>
                     )}
+                  </div>
+                  {m.role === "bot" && extractPackageIds(m.text).length > 0 && (
+                    <div className="flex flex-col gap-2 pb-2">
+                      {extractPackageIds(m.text).map(id => (
+                        <ChatPackageCard key={id} packageId={id} packages={packages as any[]} accentColor="#7c3aed" />
+                      ))}
+                    </div>
+                  )}
                   </div>
                 </div>
               );
