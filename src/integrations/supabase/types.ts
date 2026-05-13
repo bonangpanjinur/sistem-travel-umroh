@@ -2575,6 +2575,33 @@ export type Database = {
         }
         Relationships: []
       }
+      jamaah_badges: {
+        Row: {
+          badge_id: string
+          earned_at: string
+          id: string
+          metadata: Json | null
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          earned_at?: string
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          earned_at?: string
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       jamaah_live_locations: {
         Row: {
           accuracy: number | null
@@ -6330,6 +6357,16 @@ export type Database = {
       }
       agent_can_access_customer: {
         Args: { _customer_id: string; _user_id: string }
+        Returns: boolean
+      }
+      award_badge: {
+        Args: {
+          _badge_id: string
+          _badge_name: string
+          _source?: string
+          _user_id: string
+          _xp?: number
+        }
         Returns: boolean
       }
       bulk_distribute_equipment: {
