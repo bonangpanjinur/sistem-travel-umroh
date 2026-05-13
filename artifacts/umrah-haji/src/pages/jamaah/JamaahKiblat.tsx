@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, RotateCcw, Smartphone, Info } from "lucide-react";
-import { Link } from "react-router-dom";
-import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
+import { MapPin, RotateCcw, Smartphone, Info } from "lucide-react";
+import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
+import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 
 // Koordinat Ka'bah
 const KABAH_LAT = 21.4225;
@@ -113,32 +113,18 @@ export default function JamaahKiblat() {
   const isAligned = Math.abs(rotation) < 5 || Math.abs(rotation - 360) < 5;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/jamaah">
-              <Button variant="ghost" size="icon" className="text-primary-foreground">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="font-semibold">Arah Kiblat</h1>
-              <p className="text-xs opacity-80">Kompas digital untuk ibadah</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-primary-foreground"
-            onClick={fetchLocation}
-          >
+    <JamaahAppShell>
+      <JamaahPageHeader
+        title="Arah Kiblat"
+        arabic="ٱلْقِبْلَة"
+        subtitle="Kompas digital untuk ibadah"
+        right={
+          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-white/10"
+            onClick={fetchLocation} aria-label="Muat ulang">
             <RotateCcw className="h-4 w-4" />
           </Button>
-        </div>
-      </div>
-
+        }
+      />
       <div className="p-4 space-y-4">
         {/* Info Card */}
         <Card className="bg-amber-50 border-amber-200">
@@ -267,9 +253,7 @@ export default function JamaahKiblat() {
           </CardContent>
         </Card>
       </div>
-
-      <JamaahBottomNav />
-    </div>
+    </JamaahAppShell>
   );
 }
 
