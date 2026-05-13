@@ -265,6 +265,13 @@ export default function AdminManifestJamaah() {
         const sixMonthsOut = addMonths(new Date(), 6);
         return isAfter(sixMonthsOut, exp);
       }).length,
+      // KEP-FIX2: Validasi mahram — wanita dewasa tanpa mahram
+      wanitaTanpaMahram: list.filter(p => {
+        if (isGenderMale(p.gender)) return false;
+        const pt = (p.passenger_type || "adult").toLowerCase();
+        if (pt === "child" || pt === "anak" || pt === "infant" || pt === "bayi") return false;
+        return !p.mahram_name;
+      }).length,
     };
   }, [filtered]);
 
