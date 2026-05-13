@@ -984,7 +984,14 @@ export default function AdminDepartureDetail() {
           <TabsTrigger value="kamar" className="text-xs">Kamar</TabsTrigger>
           <TabsTrigger value="perlengkapan" className="text-xs">Perlengkapan</TabsTrigger>
           <TabsTrigger value="itinerary" className="text-xs">Itinerary</TabsTrigger>
-          <TabsTrigger value="budget" className="text-xs">Budget</TabsTrigger>
+          <TabsTrigger value="budget" className="text-xs flex flex-col items-center gap-0.5">
+            <span>Budget</span>
+            {(totalBudgeted > 0 || totalRealized > 0) && (
+              <span className="text-[10px] font-normal text-muted-foreground leading-tight">
+                {formatCurrency(totalRealized)} / {formatCurrency(totalBudgeted)}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="harga" className="text-xs">Riwayat Harga</TabsTrigger>
           <TabsTrigger value="operasional" className="text-xs">Operasional</TabsTrigger>
         </TabsList>
