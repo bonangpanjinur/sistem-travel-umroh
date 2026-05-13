@@ -159,6 +159,8 @@ export default function BranchWebsiteSettings() {
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [gallery, setGallery] = useState<string[]>([]);
   const [showQr, setShowQr] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
 
   // 1. Get branch info
   const { data: branchData, isLoading: loadingBranch } = useQuery({
@@ -304,6 +306,9 @@ export default function BranchWebsiteSettings() {
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setShowQr(true)}>
             <QrCode className="h-4 w-4 mr-2" />QR Code
+          </Button>
+          <Button variant="outline" onClick={() => { setPreviewKey(k => k + 1); setShowPreview(true); }}>
+            <Eye className="h-4 w-4 mr-2" />Preview
           </Button>
           <Button variant="outline" asChild>
             <a href={`/b/${branchSlug}`} target="_blank" rel="noopener noreferrer">
