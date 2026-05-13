@@ -635,6 +635,20 @@ export default function AdminManifestJamaah() {
               </div>
             </div>
           )}
+          {/* KEP-FIX2: Validasi mahram untuk jamaah haji */}
+          {!isLoading && summary.wanitaTanpaMahram > 0 && (
+            <div className="no-print flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+              <Shield className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                  {summary.wanitaTanpaMahram} jamaah wanita dewasa belum tercatat mahramnya
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  Wajib syariat untuk haji/umroh. Lengkapi data mahram pada profil jamaah masing-masing.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Main Table */}
           <div className="print-area">
