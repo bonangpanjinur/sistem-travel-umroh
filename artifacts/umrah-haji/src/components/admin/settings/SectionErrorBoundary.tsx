@@ -1,6 +1,7 @@
 import { Component, ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface Props {
   children: ReactNode;
@@ -28,6 +29,16 @@ export class SectionErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: unknown) {
     // eslint-disable-next-line no-console
     console.error("[SectionErrorBoundary]", error, info);
+    const msg = error?.message || "Terjadi kesalahan tak terduga.";
+    const isChunkError = /chunk|dynamically imported module|Failed to fetch/i.test(msg);
+    toast.error(
+      isChunkError ? "Gagal memuat modul" : "Gagal memuat bagian",
+      {
+        description: isChunkError
+          ? "Periksa koneksi atau muat ulang halaman."
+          : msg,
+      }
+    );
   }
 
   private handleRetry = () => {
