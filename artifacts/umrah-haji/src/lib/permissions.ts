@@ -159,6 +159,8 @@ export const PERMISSIONS = {
   STORE_PURCHASE_ORDERS: 'store-purchase-orders',
   STORE_SALES_REPORT: 'store-sales-report',
   STORE_STOCK_MOVEMENTS: 'store-stock-movements',
+  STORE_STOCK_OPNAME: 'store-stock-opname',
+  STORE_LOW_STOCK: 'store-low-stock',
 
   // Fase 10 — AI & Smart Analytics
   GEMINI_AI: 'gemini-ai',
