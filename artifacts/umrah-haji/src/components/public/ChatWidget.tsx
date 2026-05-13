@@ -505,7 +505,7 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
                   <p className="text-white/80 text-[10px]">
-                    {geminiConfig?.apiKey ? "AI Gemini Aktif" : "Online — Balas dalam menit"}
+                    {geminiConfig ? "AI Gemini Aktif" : "Online — Balas dalam menit"}
                   </p>
                 </div>
               </div>
