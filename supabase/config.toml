@@ -1,1 +1,4 @@
 project_id = "ribjppjnjigiowhjgngu"
+
+[functions.manifest]
+verify_jwt = false
