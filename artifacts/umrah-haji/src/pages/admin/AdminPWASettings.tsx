@@ -762,6 +762,36 @@ export default function AdminPWASettings() {
           </p>
         </TabsContent>
 
+        {/* ── TAB: LIVE APP ── */}
+        <TabsContent value="live-preview">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Pratinjau live website Anda dalam mode aplikasi (standalone). Iframe di bawah ini menampilkan website seperti yang akan terlihat ketika dipasang sebagai PWA di perangkat pengguna.
+            </p>
+            <div className="flex justify-center">
+              <div
+                className="relative rounded-[2.5rem] border-4 bg-background shadow-2xl overflow-hidden"
+                style={{ width: 360, height: 720, borderColor: iconConfig.themeColor }}
+              >
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 rounded-b-xl z-10"
+                  style={{ backgroundColor: iconConfig.themeColor }}
+                />
+                <iframe
+                  src="/?preview=standalone"
+                  title="Preview PWA standalone"
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                />
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-foreground/30 rounded-full" />
+              </div>
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Tips: tambahkan parameter <code>?preview=standalone</code> pada URL untuk memunculkan tampilan aplikasi tanpa header browser.
+            </p>
+          </div>
+        </TabsContent>
+
         {/* ── TAB: CARA PASANG ── */}
         <TabsContent value="panduan">
           <div className="grid gap-4 sm:grid-cols-3">
