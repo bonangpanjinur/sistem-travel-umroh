@@ -379,8 +379,18 @@ export default function AdminLoyalty() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {rewards?.map((reward) => (
                   <Card key={reward.id} className="overflow-hidden">
-                    <div className="h-32 bg-muted flex items-center justify-center">
-                      <Gift className="h-12 w-12 text-muted-foreground" />
+                    <div className="h-32 bg-muted flex items-center justify-center overflow-hidden">
+                      {reward.image_url ? (
+                        <img
+                          src={reward.image_url}
+                          alt={reward.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <Gift className="h-12 w-12 text-muted-foreground" />
+                      )}
                     </div>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
