@@ -243,6 +243,33 @@ export function BookingWizard() {
         </CardContent>
       </Card>
 
+      {/* Seat hold countdown — BOOK-FIX3 */}
+      {expiresAt && !holdExpired && (
+        <Alert className="border-primary/30 bg-primary/5">
+          <Clock className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-sm">
+            Kursi Anda dikunci selama <strong className="font-mono">{formatHoldRemaining(remainingMs)}</strong>.
+            Selesaikan booking sebelum waktu habis agar tidak diambil orang lain.
+          </AlertDescription>
+        </Alert>
+      )}
+      {holdError === 'insufficient_capacity' && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Kuota tidak mencukupi untuk {requestedPax} jamaah. Mungkin sudah ada user lain yang sedang booking — coba kurangi jumlah atau pilih tanggal lain.
+          </AlertDescription>
+        </Alert>
+      )}
+      {holdExpired && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Waktu kunci kursi telah habis. Refresh halaman untuk mengunci ulang sebelum melanjutkan.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <StepIndicator steps={STEPS} currentStep={currentStep} />
 
       <Card>
