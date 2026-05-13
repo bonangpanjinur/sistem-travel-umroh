@@ -81,6 +81,14 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
   const historyRef = useRef<{ role: string; text: string }[]>([]);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyMessage = (id: string, text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1800);
+    }).catch(() => {});
+  };
 
   const REACTION_EMOJIS = ["👍", "🙏", "❤️", "😊", "🤔"];
 
@@ -363,6 +371,29 @@ export default function ChatWidget({ tenantName = "Vinstour Travel", waNumber }:
                     </div>
                   )}
                   <div className="relative group">
+                    {/* Copy button */}
+                    <button
+                      onClick={() => copyMessage(m.id, m.text)}
+                      title="Salin pesan"
+                      className={cn(
+                        "absolute -top-2 z-10 w-6 h-6 rounded-full border bg-white shadow-sm flex items-center justify-center transition-all",
+                        "opacity-0 group-hover:opacity-100 hover:scale-110",
+                        m.role === "user" ? "-left-2" : "-right-2",
+                        copiedId === m.id ? "border-green-400" : "border-gray-200"
+                      )}
+                    >
+                      {copiedId === m.id ? (
+                        <svg className="h-3 w-3 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg className="h-3 w-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                        </svg>
+                      )}
+                    </button>
+
                     <div className={cn(
                       "max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
                       m.role === "user" ? "bg-primary text-white rounded-br-sm" : "bg-white border rounded-bl-sm"
