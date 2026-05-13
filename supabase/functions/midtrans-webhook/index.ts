@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
   // Verify signature: SHA512(order_id + status_code + gross_amount + server_key)
   let signatureValid = false;
   if (MIDTRANS_SERVER_KEY && order_id && status_code && gross_amount && signature_key) {
-    const expected = sha512Hex(`${order_id}${status_code}${gross_amount}${MIDTRANS_SERVER_KEY}`);
+    const expected = await sha512Hex(`${order_id}${status_code}${gross_amount}${MIDTRANS_SERVER_KEY}`);
     signatureValid = expected === signature_key;
   }
 
