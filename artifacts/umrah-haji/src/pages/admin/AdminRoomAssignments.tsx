@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,17 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
-import { Users, UserPlus, BedDouble, Search, X, UserCog, UsersRound } from "lucide-react";
+import { Users, UserPlus, BedDouble, Search, X, UserCog, UsersRound, Wand2, FileSpreadsheet, FileText } from "lucide-react";
 import { ROOM_TYPE_LABELS, GENDER_LABELS } from "@/lib/constants";
 import { v4 as uuidv4 } from "uuid";
 import { Database } from "@/integrations/supabase/types";
+import {
+  exportRoomingListExcel,
+  exportRoomingListPDF,
+  type RoomingExportData,
+  type RoomingPassenger,
+  type RoomTypeDB,
+} from "@/lib/rooming-list-exporter";
 
 type RoomType = Database["public"]["Enums"]["room_type"];
 
@@ -32,6 +39,9 @@ interface Passenger {
     full_name: string;
     gender: string | null;
     phone: string | null;
+    birth_date?: string | null;
+    passport_number?: string | null;
+    passport_expiry?: string | null;
   };
   booking: {
     id: string;
@@ -104,14 +114,35 @@ export default function AdminRoomAssignmentsImproved() {
       const { data, error } = await supabase
         .from("booking_passengers")
         .select(
-          `id, room_preference, passenger_type, room_number, room_group_id, roommate_id,
-           customer:customers(id, full_name, gender, phone),
+          `id, room_preference, passenger_type, room_number, room_group_id, roommate_id, booking_id,
+           customer:customers(id, full_name, gender, phone, birth_date, passport_number, passport_expiry),
            booking:bookings!inner(id, booking_code, room_type, departure_id, booking_status)`
         )
         .eq("booking.departure_id", selectedDeparture)
         .in("booking.booking_status", ["confirmed", "pending"]);
       if (error) throw error;
       return data as unknown as Passenger[];
+    },
+  });
+
+  // Departure metadata for export (package, hotels, airline, flight info)
+  const { data: departureMeta } = useQuery({
+    queryKey: ["departure-meta-rooming", selectedDeparture],
+    enabled: !!selectedDeparture,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departures")
+        .select(
+          `id, departure_date, return_date, flight_number, departure_time,
+           package:packages(name, duration_days),
+           airline:airlines(name, code),
+           hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name, city),
+           hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, city)`
+        )
+        .eq("id", selectedDeparture)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
     },
   });
 
@@ -158,6 +189,13 @@ export default function AdminRoomAssignmentsImproved() {
       if (!groupsMap.has(p.room_group_id)) groupsMap.set(p.room_group_id, []);
       groupsMap.get(p.room_group_id)!.push(p);
     }
+  }
+
+  // Tally booking room_type counts (apa yang dipesan jamaah)
+  const bookingTypeCounts: Record<string, number> = {};
+  for (const p of passengers || []) {
+    const t = (p.booking?.room_type || "quad") as string;
+    bookingTypeCounts[t] = (bookingTypeCounts[t] || 0) + 1;
   }
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -278,6 +316,127 @@ export default function AdminRoomAssignmentsImproved() {
     onError: (e: Error) => toast.error("❌ " + e.message),
   });
 
+  // ── Auto-arrange by booking room_type ────────────────────────────────────
+  // Kelompokkan jamaah ungrouped berdasarkan (booking_id + room_type pesanan)
+  // dipotong sesuai kapasitas tipe kamar.
+  const autoArrangeMutation = useMutation({
+    mutationFn: async () => {
+      if (!passengers || passengers.length === 0) return { created: 0 };
+      const ungrouped = passengers.filter((p) => !p.room_group_id);
+      if (ungrouped.length === 0) return { created: 0 };
+
+      // Bucket by booking_id + room_type
+      const buckets = new Map<string, Passenger[]>();
+      for (const p of ungrouped) {
+        const rt = (p.booking?.room_type || "quad") as RoomType;
+        const key = `${p.booking?.id}::${rt}`;
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key)!.push(p);
+      }
+
+      let created = 0;
+      const updates: Promise<any>[] = [];
+      for (const [key, members] of buckets.entries()) {
+        const rt = (key.split("::")[1] || "quad") as RoomType;
+        const cap =
+          rt === "single" ? 1 : rt === "double" ? 2 : rt === "triple" ? 3 : 4;
+        for (let i = 0; i < members.length; i += cap) {
+          const chunk = members.slice(i, i + cap);
+          const groupId = uuidv4();
+          const finalType = getRoomTypeBySize(chunk.length);
+          for (const m of chunk) {
+            updates.push(
+              supabase
+                .from("booking_passengers")
+                .update({ room_group_id: groupId, room_preference: finalType } as any)
+                .eq("id", m.id)
+            );
+          }
+          created++;
+        }
+      }
+      const results = await Promise.all(updates);
+      results.forEach((r) => { if (r.error) throw r.error; });
+      return { created };
+    },
+    onSuccess: ({ created }) => {
+      if (created > 0) {
+        toast.success(`✅ ${created} grup kamar dibuat otomatis sesuai pesanan`);
+      } else {
+        toast.info("Tidak ada jamaah ungrouped untuk disusun");
+      }
+      queryClient.invalidateQueries({ queryKey: ["room-passengers-improved"] });
+    },
+    onError: (e: Error) => toast.error("❌ " + e.message),
+  });
+
+  // Auto-trigger sekali ketika pertama kali memuat keberangkatan dan
+  // semua jamaah masih ungrouped.
+  const autoArrangedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedDeparture || !passengers || passengers.length === 0) return;
+    if (autoArrangedRef.current === selectedDeparture) return;
+    const allUngrouped = passengers.every((p) => !p.room_group_id);
+    if (allUngrouped) {
+      autoArrangedRef.current = selectedDeparture;
+      autoArrangeMutation.mutate();
+    } else {
+      autoArrangedRef.current = selectedDeparture;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDeparture, passengers]);
+
+  // ── Export helpers ───────────────────────────────────────────────────────
+  const buildExportData = (): RoomingExportData | null => {
+    if (!passengers || passengers.length === 0 || !departureMeta) {
+      toast.error("Data belum lengkap untuk diekspor");
+      return null;
+    }
+    const expPassengers: RoomingPassenger[] = passengers.map((p) => ({
+      id: p.id,
+      passenger_type: p.passenger_type,
+      room_number: p.room_number,
+      roommate_id: p.room_group_id || p.roommate_id, // pakai group_id agar exporter mengelompokkan benar
+      booking_id: p.booking?.id || "",
+      booking_room_type: ((p.booking?.room_type || "quad") as RoomTypeDB),
+      customer: {
+        full_name: p.customer?.full_name || "",
+        gender: p.customer?.gender,
+        birth_date: p.customer?.birth_date,
+        passport_number: p.customer?.passport_number,
+        passport_expiry: p.customer?.passport_expiry,
+      },
+    }));
+    const hotels = [departureMeta.hotel_makkah, departureMeta.hotel_madinah]
+      .filter(Boolean)
+      .map((h: any) => ({ name: h.name, city: h.city }));
+    return {
+      departureDate: departureMeta.departure_date,
+      returnDate: departureMeta.return_date,
+      airlineName: departureMeta.airline?.name || "",
+      airlineCode: departureMeta.airline?.code || null,
+      flightNumber: departureMeta.flight_number || null,
+      departureTime: departureMeta.departure_time || null,
+      packageName: departureMeta.package?.name || "",
+      durationDays: departureMeta.package?.duration_days || null,
+      welcomeBoard: departureMeta.package?.name || "",
+      timeLimit: "-",
+      tourLeaderName: null,
+      tourLeaderPhone: null,
+      hotels,
+      passengers: expPassengers,
+    };
+  };
+
+  const handleExportExcel = () => {
+    const data = buildExportData();
+    if (data) exportRoomingListExcel(data);
+  };
+  const handleExportPDF = () => {
+    const data = buildExportData();
+    if (data) exportRoomingListPDF(data);
+  };
+
   // ── Dialog helpers ────────────────────────────────────────────────────────
 
   const openNewGroup = (p: Passenger) => {
@@ -357,6 +516,47 @@ export default function AdminRoomAssignmentsImproved() {
 
       {selectedDeparture && (
         <>
+          {/* Action Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => autoArrangeMutation.mutate()}
+              disabled={autoArrangeMutation.isPending || !passengers?.length}
+            >
+              <Wand2 className="h-4 w-4" />
+              {autoArrangeMutation.isPending ? "Menyusun..." : "Susun Otomatis Sesuai Pesanan"}
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" className="gap-2" onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4" /> Export Excel
+              </Button>
+              <Button size="sm" variant="outline" className="gap-2" onClick={handleExportPDF}>
+                <FileText className="h-4 w-4" /> Export PDF
+              </Button>
+            </div>
+          </div>
+
+          {/* Booking room-type tally */}
+          {Object.keys(bookingTypeCounts).length > 0 && (
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase">
+                  Tipe Kamar yang Dipesan
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(bookingTypeCounts).map(([t, n]) => (
+                    <Badge key={t} variant="outline" className="gap-1 text-xs">
+                      <BedDouble className="h-3 w-3" />
+                      {ROOM_TYPE_LABELS[t] || t}: <span className="font-semibold">{n} jamaah</span>
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
             <Card>
@@ -490,6 +690,7 @@ export default function AdminRoomAssignmentsImproved() {
                       <TableHead>Nama</TableHead>
                       <TableHead>Gender</TableHead>
                       <TableHead>Booking</TableHead>
+                    <TableHead>Tipe Pesanan</TableHead>
                       <TableHead>Status Grup</TableHead>
                       <TableHead>Teman Sekamar</TableHead>
                       <TableHead>Aksi</TableHead>
@@ -510,6 +711,12 @@ export default function AdminRoomAssignmentsImproved() {
                           <TableCell className="text-sm text-muted-foreground">
                             {p.booking?.booking_code}
                           </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <BedDouble className="h-3 w-3" />
+                            {ROOM_TYPE_LABELS[p.booking?.room_type || "quad"] || p.booking?.room_type || "-"}
+                          </Badge>
+                        </TableCell>
                           <TableCell>
                             {p.room_group_id ? (
                               <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
