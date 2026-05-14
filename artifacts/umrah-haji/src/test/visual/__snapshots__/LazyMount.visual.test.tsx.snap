@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`LazyMount · visual regression > mounted after intersect > mounted 1`] = `"<div style=""><div data-testid="c">CHILD</div></div>"`;
+
+exports[`LazyMount · visual regression > placeholder before intersect > placeholder 1`] = `"<div style="min-height: 180px;"></div>"`;
