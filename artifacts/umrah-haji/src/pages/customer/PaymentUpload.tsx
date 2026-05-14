@@ -38,9 +38,12 @@ function useMidtransSnap(clientKey: string | null) {
     const existing = document.getElementById("midtrans-snap-script");
     if (existing) { setReady(true); return; }
 
+    const isProduction = (midtransConfig as any)?.is_production === true;
     const script = document.createElement("script");
     script.id = "midtrans-snap-script";
-    script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+    script.src = isProduction
+      ? "https://app.midtrans.com/snap/snap.js"
+      : "https://app.sandbox.midtrans.com/snap/snap.js";
     script.setAttribute("data-client-key", clientKey);
     script.onload = () => setReady(true);
     script.onerror = () => console.warn("[Midtrans] Gagal memuat Snap.js");
