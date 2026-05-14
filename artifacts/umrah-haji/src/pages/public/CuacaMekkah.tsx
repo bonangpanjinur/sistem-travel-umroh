@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Cloud, Wind, Droplets, Thermometer, Eye, Sun } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 
 const CITIES = [
   { name: "Mekah", nameAr: "مكة المكرمة", lat: 21.3891, lng: 39.8579, emoji: "🕋", desc: "Kota Suci, Arab Saudi" },
@@ -142,11 +143,12 @@ export default function CuacaMekkah() {
   return (
     <DynamicPublicLayout>
       <div className="min-h-screen bg-gradient-to-b from-orange-950 to-amber-950 pb-16">
-        <div className="bg-gradient-to-r from-orange-800 to-amber-700 py-10 px-4 text-center">
-          <Badge className="mb-3 bg-white/20 text-white border-0">🌡️ Cuaca</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Cuaca Tanah Suci</h1>
-          <p className="text-amber-200 text-sm">Mekah, Madinah & Jeddah — Update real-time</p>
-        </div>
+        <AppPageHeader
+          title="Cuaca Tanah Suci"
+          subtitle="Mekah, Madinah & Jeddah — Update real-time"
+          backTo="/"
+          dark
+        />
 
         <div className="max-w-2xl mx-auto px-4 mt-6 space-y-4">
           {CITIES.map(city => <CityWeather key={city.name} city={city} />)}

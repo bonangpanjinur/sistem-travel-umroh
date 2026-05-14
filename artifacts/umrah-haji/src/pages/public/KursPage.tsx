@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 
 interface RateData {
   currency: string;
@@ -84,33 +86,20 @@ export default function KursPage() {
     : 0;
 
   return (
+    <DynamicPublicLayout>
     <div className="min-h-screen bg-background">
-      {/* Hero */}
-      <div className="bg-gradient-to-br from-green-700 to-emerald-600 text-white px-4 pt-10 pb-16">
-        <div className="max-w-lg mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 text-sm mb-4">
-            <DollarSign className="h-4 w-4" /> Kurs Real-time
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Nilai Tukar Mata Uang</h1>
-          <p className="text-green-100 text-sm">
-            Data kurs terkini (Bank Sentral Eropa) — diperbarui setiap hari kerja
-          </p>
-          {lastUpdated && (
-            <p className="text-green-200 text-xs mt-1">
-              Terakhir diperbarui: {lastUpdated.toLocaleTimeString("id-ID")}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="max-w-lg mx-auto px-4 -mt-8 pb-24 space-y-4">
-        {/* Refresh */}
-        <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={fetchRates} disabled={loading} className="bg-background">
-            <RefreshCw className={cn("h-4 w-4 mr-1", loading && "animate-spin")} />
-            Perbarui
+      <AppPageHeader
+        title="Nilai Tukar Mata Uang"
+        subtitle={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}` : "Kurs real-time SAR, USD, EUR & lainnya"}
+        backTo="/"
+        right={
+          <Button variant="ghost" size="icon" onClick={fetchRates} disabled={loading} className="h-9 w-9 rounded-full text-muted-foreground">
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </Button>
-        </div>
+        }
+      />
+
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-24 space-y-4">
 
         {/* Error */}
         {error && (
@@ -228,5 +217,6 @@ export default function KursPage() {
         </p>
       </div>
     </div>
+    </DynamicPublicLayout>
   );
 }

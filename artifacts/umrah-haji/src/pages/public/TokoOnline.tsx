@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Heart, ShoppingCart, Star, Filter, Package } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 
@@ -79,31 +80,27 @@ export default function TokoOnline() {
   return (
     <DynamicPublicLayout>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-16">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-teal-700 to-emerald-700 py-8 px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <Badge className="mb-1 bg-white/20 text-white border-0">🛍️ Toko Umroh</Badge>
-                <h1 className="text-2xl font-bold text-white">Toko Perlengkapan Umroh</h1>
-                <p className="text-emerald-200 text-sm">Lengkapi persiapan ibadah Anda</p>
-              </div>
-              <div className="relative">
-                <ShoppingCart className="w-8 h-8 text-white" />
-                {cartCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 p-0 flex items-center justify-center">{cartCount}</Badge>
-                )}
-              </div>
-            </div>
-            {/* Search */}
+        <AppPageHeader
+          title="Toko Perlengkapan Umroh"
+          subtitle="Lengkapi persiapan ibadah Anda"
+          backTo="/"
+          right={
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-white border-0" />
+              <ShoppingCart className="w-5 h-5 text-foreground/70" />
+              {cartCount > 0 && (
+                <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-4 h-4 p-0 flex items-center justify-center leading-none">
+                  {cartCount}
+                </Badge>
+              )}
             </div>
-          </div>
-        </div>
-
+          }
+        />
         <div className="max-w-4xl mx-auto px-4 mt-4">
+            {/* Search */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            </div>
           {/* Category + Favorite filter */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none mb-4">
             {CATEGORIES.map(cat => (

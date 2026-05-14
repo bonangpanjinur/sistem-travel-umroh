@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Mei 2026 (Sprint 9 — batch GAP-PWA + RBAC + CSS + AGEN + CAB + LOY + KEP fix)
+> **Terakhir diperbarui:** Mei 2026 (Sprint 10 — UI/UX redesign halaman publik: AppPageHeader, JadwalSholat, QuickMenuGrid, TokoOnline, KursPage)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 

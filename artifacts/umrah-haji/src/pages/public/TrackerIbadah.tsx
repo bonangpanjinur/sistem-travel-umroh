@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Circle, Trophy, Flame, RotateCcw, Plus, Minus } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 
 interface IbadahItem {
   id: string;
@@ -92,11 +93,12 @@ export default function TrackerIbadah() {
   return (
     <DynamicPublicLayout>
       <div className="min-h-screen bg-gradient-to-b from-violet-950 to-indigo-950 pb-16">
-        <div className="bg-gradient-to-r from-violet-800 to-purple-800 py-10 px-4 text-center">
-          <Badge className="mb-3 bg-white/20 text-white border-0">🎯 Tracker Ibadah</Badge>
-          <h1 className="text-3xl font-bold text-white mb-2">Tracker Ibadah Harian</h1>
-          <p className="text-purple-200 text-sm">Pantau & tingkatkan kualitas ibadah Anda setiap hari</p>
-        </div>
+        <AppPageHeader
+          title="Tracker Ibadah Harian"
+          subtitle="Pantau & tingkatkan kualitas ibadah Anda"
+          backTo="/"
+          dark
+        />
 
         <div className="max-w-xl mx-auto px-4 mt-6 space-y-4">
           {/* Summary */}

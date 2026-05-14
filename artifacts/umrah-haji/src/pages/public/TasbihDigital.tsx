@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RotateCcw, Settings, Volume2, VolumeX } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 
 const DZIKIR_LIST = [
   { id: "subhanallah", text: "سُبْحَانَ اللّٰهِ", latin: "Subhanallah", arti: "Maha Suci Allah", target: 33 },
@@ -116,11 +117,12 @@ export default function TasbihDigital() {
   return (
     <DynamicPublicLayout>
       <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-950 to-slate-950 pb-16 select-none">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-800 py-8 px-4 text-center">
-          <Badge className="mb-2 bg-white/20 text-white border-0">📿 Tasbih Digital</Badge>
-          <h1 className="text-2xl font-bold text-white">Tasbih Digital</h1>
-        </div>
+        <AppPageHeader
+          title="Tasbih Digital"
+          subtitle="Dzikir & penghitung tasbih"
+          backTo="/"
+          dark
+        />
 
         {/* Settings toggle */}
         <div className="flex justify-center gap-3 mt-4 px-4">

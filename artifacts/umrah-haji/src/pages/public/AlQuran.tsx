@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookOpen, Search, ChevronLeft, ChevronRight, Play, Volume2 } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 
 interface Surah {
   number: number;
@@ -101,12 +102,12 @@ export default function AlQuran() {
   return (
     <DynamicPublicLayout>
       <div className="min-h-screen bg-gradient-to-b from-emerald-950 to-slate-900 pb-16">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-800 py-10 px-4 text-center">
-          <Badge className="mb-3 bg-white/20 text-white border-0">📖 Al-Quran Digital</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Al-Quran Al-Karim</h1>
-          <p className="text-emerald-200 text-sm">114 Surah • Terjemahan Bahasa Indonesia • Audio Murottal</p>
-        </div>
+        <AppPageHeader
+          title="Al-Quran Al-Karim"
+          subtitle="114 Surah • Terjemahan Indonesia • Audio Murottal"
+          backTo="/"
+          dark
+        />
 
         <div className="max-w-3xl mx-auto px-4 mt-6">
           {view === "list" ? (

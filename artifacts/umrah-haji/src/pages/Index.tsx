@@ -8,6 +8,7 @@ import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { JamaahTrackerWidget } from '@/components/home/JamaahTrackerWidget';
 import { FloatingChatBubble } from '@/components/home/FloatingChatBubble';
+import { QuickMenuGrid } from '@/components/home/QuickMenuGrid';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -62,6 +63,9 @@ const Index = () => {
           {showBanner && <BannerCarousel template={template as any} />}
         </>
       )}
+      {/* Quick Menu Grid — shortcut icons below banner */}
+      <QuickMenuGrid settings={settings ?? undefined} />
+
       {/* Jamaah Tracker – only visible for logged-in users */}
       <JamaahTrackerWidget />
 

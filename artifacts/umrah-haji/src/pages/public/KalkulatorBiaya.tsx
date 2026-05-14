@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -105,30 +106,25 @@ export default function KalkulatorBiaya() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      {/* Navigation */}
-      <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-bold text-green-700 dark:text-green-400">
-            <span className="text-xl">🕌</span>
-            <span>Vinstour Travel</span>
+      <AppPageHeader
+        title="Kalkulator Biaya"
+        subtitle="Estimasi biaya Umroh & Haji Anda"
+        backTo="/"
+        right={
+          <Link to="/packages" className="text-xs font-medium text-primary px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors">
+            Lihat Paket
           </Link>
-          <div className="flex items-center gap-2">
-            <Link to="/packages" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Lihat Paket</Link>
-            <Button size="sm" variant="outline" asChild>
-              <Link to="/contact">Hubungi Kami</Link>
-            </Button>
-          </div>
-        </div>
-      </nav>
+        }
+      />
 
-      <div className="max-w-5xl mx-auto px-4 py-10">
+      <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Hero */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-medium mb-4">
             <Calculator className="h-4 w-4" />
             Kalkulator Biaya Umroh & Haji
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-3">
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-3">
             Estimasi Biaya Perjalanan<br />
             <span className="text-green-600 dark:text-green-400">Umroh & Haji Anda</span>
           </h1>

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Compass, MapPin, RefreshCw, Navigation } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 
 const KAABA = { lat: 21.4225, lng: 39.8262 };
 
@@ -92,11 +93,12 @@ export default function ArahKiblat() {
   return (
     <DynamicPublicLayout>
       <div className="min-h-screen bg-gradient-to-b from-emerald-950 to-teal-950 pb-16">
-        <div className="bg-gradient-to-r from-teal-800 to-emerald-800 py-10 px-4 text-center">
-          <Badge className="mb-3 bg-white/20 text-white border-0">🧭 Arah Kiblat</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Arah Kiblat</h1>
-          <p className="text-emerald-200 text-sm">Penunjuk arah Ka'bah berbasis GPS & Kompas</p>
-        </div>
+        <AppPageHeader
+          title="Arah Kiblat"
+          subtitle="Penunjuk arah Ka'bah berbasis GPS & Kompas"
+          backTo="/"
+          dark
+        />
 
         <div className="max-w-md mx-auto px-4 mt-8 space-y-6">
           {/* Location */}

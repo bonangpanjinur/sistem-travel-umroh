@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calculator, BookOpen, Moon, Heart, Coins, PiggyBank, CreditCard } from "lucide-react";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
+import { AppPageHeader } from "@/components/shared/AppPageHeader";
 import { formatCurrency } from "@/lib/format";
 
 const NISAB_EMAS_GRAM = 85;
@@ -199,11 +200,12 @@ export default function KalkulatorIslami() {
   return (
     <DynamicPublicLayout>
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-gray-950 pb-16">
-        <div className="bg-gradient-to-r from-slate-800 to-gray-800 py-10 px-4 text-center">
-          <Badge className="mb-3 bg-white/20 text-white border-0">🔢 Kalkulator Islami</Badge>
-          <h1 className="text-3xl font-bold text-white mb-2">Kalkulator Islami</h1>
-          <p className="text-gray-400 text-sm">Zakat, Fidyah, Qadha Puasa, Khatam Quran & Keuangan Syariah</p>
-        </div>
+        <AppPageHeader
+          title="Kalkulator Islami"
+          subtitle="Zakat, Fidyah, Qadha Puasa, Khatam Quran & Keuangan Syariah"
+          backTo="/"
+          dark
+        />
 
         <div className="max-w-xl mx-auto px-4 mt-6">
           {/* Menu Grid */}
