@@ -7013,6 +7013,62 @@ export type Database = {
           },
         ]
       }
+      web_vitals_metrics: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          device_type: string | null
+          id: string
+          metric_id: string | null
+          metric_name: string
+          metric_value: number
+          navigation_type: string | null
+          rating: string | null
+          release_version: string | null
+          route: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          metric_id?: string | null
+          metric_name: string
+          metric_value: number
+          navigation_type?: string | null
+          rating?: string | null
+          release_version?: string | null
+          route: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          metric_id?: string | null
+          metric_name?: string
+          metric_value?: number
+          navigation_type?: string | null
+          rating?: string | null
+          release_version?: string | null
+          route?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_vitals_metrics_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       website_settings: {
         Row: {
           accent_color: string | null
