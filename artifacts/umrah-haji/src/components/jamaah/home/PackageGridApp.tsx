@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/format";
 import { slugify } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { useWishlist } from "@/hooks/useWishlist";
+import { buildSrcSet, CARD_WIDTHS, CARD_SIZES } from "@/lib/responsiveImage";
 
 function getMinPrice(p: any): number {
   const arr = [p.price_quad, p.price_triple, p.price_double, p.price_single]
@@ -71,6 +72,8 @@ export function PackageGridApp({ limit = 6, themeColor = "#15803d" }: { limit?: 
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                 <img
                   src={p.featured_image || "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=400&auto=format&fit=crop&q=70"}
+                  srcSet={buildSrcSet(p.featured_image || "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=400&auto=format&fit=crop&q=70", CARD_WIDTHS, 70)}
+                  sizes={CARD_SIZES}
                   alt={p.name}
                   width={400}
                   height={300}
