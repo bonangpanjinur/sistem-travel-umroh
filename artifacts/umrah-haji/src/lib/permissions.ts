@@ -11,6 +11,7 @@ export const PERMISSIONS = {
   // Overview
   DASHBOARD: 'dashboard',
   ANALYTICS: 'analytics',
+  WEB_VITALS: 'web-vitals',
 
   // Penjualan
   LEADS: 'leads',

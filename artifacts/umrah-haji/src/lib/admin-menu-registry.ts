@@ -176,7 +176,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   owner: RECOMMENDED_MENUS.map(m => m.required_permission),
 
   branch_manager: [
-    'dashboard', 'analytics', 'kpi-dashboard', 'ai-summary',
+    'dashboard', 'analytics', 'web-vitals', 'kpi-dashboard', 'ai-summary',
     'leads', 'chat-leads', 'bookings', 'packages', 'coupons', 'banners',
     'departures', 'departure-tracking', 'sos-alerts',
     'room-assignments', 'equipment', 'equipment-master', 'equipment-settings', 'stock-opname', 'haji', 'manasik',
