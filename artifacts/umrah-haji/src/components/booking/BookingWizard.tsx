@@ -29,6 +29,14 @@ import {
 } from "@/components/ui/dialog";
 import { useSeatHold, formatHoldRemaining } from "@/hooks/useSeatHold";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import {
+  buildDraftKey,
+  buildAutoSubmitKey,
+  saveBookingDraft,
+  loadBookingDraft,
+  clearBookingDraft,
+} from "@/lib/bookingDraft";
 
 const MONTHS = [
   { value: "01", label: "Januari" },
@@ -131,62 +139,63 @@ export function BookingWizard() {
 
   const [paymentStepValid, setPaymentStepValid] = useState(true);
   const [loginGate, setLoginGate] = useState(false);
+  const [resumed, setResumed] = useState(false);
+  const [seatLostAfterLogin, setSeatLostAfterLogin] = useState(false);
 
   // Persist guest wizard state per departure to survive login redirect
-  const draftKey = initialDepartureId ? `booking-draft:${packageId}:${initialDepartureId}` : '';
+  const draftKey = buildDraftKey(packageId, initialDepartureId);
   const restoredRef = useRef(false);
+  const autoSubmittedRef = useRef(false);
 
-  // Restore draft on mount (after login)
+  // Restore draft on mount (after login or refresh) — TTL aware
   useEffect(() => {
     if (!draftKey || restoredRef.current) return;
     restoredRef.current = true;
-    try {
-      const raw = sessionStorage.getItem(draftKey);
-      if (!raw) return;
-      const draft = JSON.parse(raw);
-      if (draft?.passengers?.length) {
-        updateFormData({
-          passengers: draft.passengers,
-          notes: draft.notes,
-          paymentMode: draft.paymentMode,
-          dpAmount: draft.dpAmount,
-          savingsPlanId: draft.savingsPlanId,
-        });
-      }
-      if (draft?.picState) setPicState(draft.picState);
-      if (draft?.cancellationAgreed != null) setCancellationAgreed(draft.cancellationAgreed);
-      if (draft?.currentStep) setCurrentStep(draft.currentStep);
-    } catch {}
+    const result = loadBookingDraft<any>(draftKey);
+    if (result.status === 'expired') {
+      toast.warning('Draft booking sebelumnya telah kedaluwarsa', {
+        description: 'Silakan isi ulang data jamaah Anda.',
+      });
+      // Pastikan auto-submit flag juga hilang
+      try { sessionStorage.removeItem(buildAutoSubmitKey(draftKey)); } catch {}
+      return;
+    }
+    if (result.status !== 'ok') return;
+    const draft = result.payload || {};
+    if (draft?.passengers?.length) {
+      updateFormData({
+        passengers: draft.passengers,
+        notes: draft.notes,
+        paymentMode: draft.paymentMode,
+        dpAmount: draft.dpAmount,
+        savingsPlanId: draft.savingsPlanId,
+      });
+    }
+    if (draft?.picState) setPicState(draft.picState);
+    if (draft?.cancellationAgreed != null) setCancellationAgreed(draft.cancellationAgreed);
+    if (draft?.currentStep) setCurrentStep(draft.currentStep);
+    setResumed(true);
+    toast.success('Data booking Anda dipulihkan', {
+      description: 'Lanjutkan dari tempat terakhir tanpa perlu mengisi ulang.',
+      duration: 4000,
+    });
   }, [draftKey]);
 
-  // Continuously persist draft for guests
+  // Continuously persist draft (untuk guest, dan juga untuk user login agar
+  // refresh halaman tidak menghapus progres). Menggunakan TTL envelope.
   useEffect(() => {
-    if (!draftKey || user) return;
-    try {
-      sessionStorage.setItem(draftKey, JSON.stringify({
-        passengers: formData.passengers,
-        notes: formData.notes,
-        paymentMode: formData.paymentMode,
-        dpAmount: formData.dpAmount,
-        savingsPlanId: formData.savingsPlanId,
-        picState,
-        cancellationAgreed,
-        currentStep,
-      }));
-    } catch {}
-  }, [draftKey, user, formData, picState, cancellationAgreed, currentStep]);
-
-  // Auto-submit after returning from login (if user came back with draft + auto flag)
-  useEffect(() => {
-    if (!user || !draftKey) return;
-    const shouldAuto = sessionStorage.getItem(`${draftKey}:auto-submit`);
-    if (shouldAuto === '1' && currentStep === 'review' && !isSubmitting) {
-      sessionStorage.removeItem(`${draftKey}:auto-submit`);
-      // small delay to let form state hydrate
-      const t = setTimeout(() => { handleSubmit(); }, 300);
-      return () => clearTimeout(t);
-    }
-  }, [user, draftKey, currentStep]);
+    if (!draftKey) return;
+    saveBookingDraft(draftKey, {
+      passengers: formData.passengers,
+      notes: formData.notes,
+      paymentMode: formData.paymentMode,
+      dpAmount: formData.dpAmount,
+      savingsPlanId: formData.savingsPlanId,
+      picState,
+      cancellationAgreed,
+      currentStep,
+    });
+  }, [draftKey, formData, picState, cancellationAgreed, currentStep]);
 
   const bookingMode = (packageInfo as any)?.booking_mode || 'umroh';
   const isHaji = bookingMode === 'haji';
@@ -196,6 +205,20 @@ export function BookingWizard() {
   const requestedPax = Math.max(initialPax || 1, 1);
   const { remainingMs, error: holdError, expiresAt } = useSeatHold(initialDepartureId, requestedPax);
   const holdExpired = !!expiresAt && remainingMs === 0;
+
+  // Deteksi seat hold gagal setelah login (kursi diambil orang lain selama proses login)
+  useEffect(() => {
+    if (!user || !draftKey) return;
+    const flag = sessionStorage.getItem(buildAutoSubmitKey(draftKey));
+    if (flag === '1' && holdError === 'insufficient_capacity') {
+      setSeatLostAfterLogin(true);
+      try { sessionStorage.removeItem(buildAutoSubmitKey(draftKey)); } catch {}
+      toast.error('Kursi sudah terisi penuh', {
+        description: 'Saat Anda login, kursi habis diambil jamaah lain. Silakan pilih tanggal keberangkatan lain.',
+        duration: 8000,
+      });
+    }
+  }, [user, draftKey, holdError]);
 
   // Saat mode haji & step aktif adalah 'rooms' (state awal), pindahkan ke 'passengers'
   useEffect(() => {
@@ -226,6 +249,10 @@ export function BookingWizard() {
       setLoginGate(true);
       return;
     }
+    if (holdError === 'insufficient_capacity' || holdExpired) {
+      toast.error('Kursi tidak tersedia. Silakan refresh atau pilih tanggal lain.');
+      return;
+    }
     const result = await submitBooking();
     if (result?.bookingId) {
       // Release seat hold once booking is confirmed (server-side booking_count already incremented)
@@ -235,18 +262,52 @@ export function BookingWizard() {
           _departure_id: initialDepartureId,
         });
       } catch {}
-      // Clear guest draft on success
-      try { if (draftKey) sessionStorage.removeItem(draftKey); } catch {}
+      // Clear draft + auto-submit flag on success
+      clearBookingDraft(draftKey);
       navigate(`/booking/success/${result.bookingId}`);
     }
   };
 
   const goLogin = (mode: 'login' | 'register') => {
-    if (draftKey) sessionStorage.setItem(`${draftKey}:auto-submit`, '1');
+    // Pastikan draft tersimpan dengan TTL terbaru sebelum redirect
+    saveBookingDraft(draftKey, {
+      passengers: formData.passengers,
+      notes: formData.notes,
+      paymentMode: formData.paymentMode,
+      dpAmount: formData.dpAmount,
+      savingsPlanId: formData.savingsPlanId,
+      picState,
+      cancellationAgreed,
+      currentStep,
+    });
+    if (draftKey) sessionStorage.setItem(buildAutoSubmitKey(draftKey), '1');
     const back = encodeURIComponent(window.location.pathname + window.location.search);
     const path = mode === 'register' ? '/auth/register' : '/auth/login';
     navigate(`${path}?redirect=${back}`);
   };
+
+  // Auto-submit setelah login: tunggu sampai draft ter-restore, PIC tervalidasi,
+  // seat hold valid, dan ada di step review. Kalau gagal validasi, jangan paksa submit.
+  useEffect(() => {
+    if (!user || !draftKey || autoSubmittedRef.current) return;
+    const shouldAuto = sessionStorage.getItem(buildAutoSubmitKey(draftKey));
+    if (shouldAuto !== '1') return;
+    if (currentStep !== 'review') return;
+    if (isSubmitting) return;
+    if (isValidatingPIC) return;
+    if (!picValidation.isValid) return;
+    if (holdError === 'insufficient_capacity' || holdExpired) return;
+    if (cancellationAgreed === false) return;
+
+    autoSubmittedRef.current = true;
+    sessionStorage.removeItem(buildAutoSubmitKey(draftKey));
+    toast.info('Melanjutkan proses booking Anda...', { duration: 2500 });
+    const t = setTimeout(() => { handleSubmit(); }, 400);
+    return () => clearTimeout(t);
+  }, [
+    user, draftKey, currentStep, isSubmitting, isValidatingPIC,
+    picValidation.isValid, holdError, holdExpired, cancellationAgreed,
+  ]);
 
   if (authLoading) {
     return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -338,6 +399,23 @@ export function BookingWizard() {
           <AlertDescription className="text-sm">
             Kursi Anda dikunci selama <strong className="font-mono">{formatHoldRemaining(remainingMs)}</strong>.
             Selesaikan booking sebelum waktu habis agar tidak diambil orang lain.
+          </AlertDescription>
+        </Alert>
+      )}
+      {seatLostAfterLogin && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Maaf, kursi yang Anda kunci sudah habis diambil jamaah lain saat proses login.
+            Data Anda tetap tersimpan — silakan pilih tanggal keberangkatan lain di halaman paket.
+          </AlertDescription>
+        </Alert>
+      )}
+      {resumed && !seatLostAfterLogin && (
+        <Alert className="border-emerald-500/30 bg-emerald-500/5">
+          <Clock className="h-4 w-4 text-emerald-600" />
+          <AlertDescription className="text-sm">
+            Progres booking Anda berhasil dipulihkan. Periksa kembali data sebelum konfirmasi.
           </AlertDescription>
         </Alert>
       )}
