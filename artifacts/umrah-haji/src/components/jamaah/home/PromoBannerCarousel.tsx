@@ -83,7 +83,16 @@ export function PromoBannerCarousel() {
             className="absolute inset-0"
           >
             <Link to={slide.href} className="block h-full w-full">
-              <img src={slide.image} alt={slide.title} className="h-full w-full object-cover" loading="lazy" />
+              <img
+                src={slide.image}
+                alt={slide.title}
+                className="h-full w-full object-cover"
+                width={1200}
+                height={600}
+                loading={idx === 0 ? "eager" : "lazy"}
+                decoding="async"
+                fetchPriority={idx === 0 ? "high" : "low"}
+              />
               <div className="absolute inset-0 bg-gradient-to-tr from-black/85 via-black/35 to-transparent" />
               <div className="absolute inset-0 p-4 flex flex-col justify-between">
                 <div className="flex items-center gap-2">
