@@ -142,6 +142,7 @@ export const PERMISSIONS = {
   MANIFEST_JAMAAH: 'manifest-jamaah',
   ABSENSI_DIGITAL: 'absensi-digital',
   WA_BLAST_KEBERANGKATAN: 'wa-blast-keberangkatan',
+  WA_BLAST_TAGIHAN: 'wa-blast-tagihan',
   MUTHAWIF_DASHBOARD: 'muthawif-dashboard',
 
   // Fase 9 — Integrasi & Otomasi

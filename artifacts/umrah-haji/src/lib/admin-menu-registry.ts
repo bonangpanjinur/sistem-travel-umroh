@@ -83,6 +83,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'manifest-jamaah',        label: 'Manifest Jamaah',         path: '/admin/manifest',               icon: 'FileText',        group_name: 'Keberangkatan',      sort_order: 410, required_permission: PERMISSIONS.MANIFEST_JAMAAH },
   { key: 'absensi-digital',        label: 'Absensi Digital',         path: '/admin/absensi',                icon: 'UserCheck',       group_name: 'Keberangkatan',      sort_order: 411, required_permission: PERMISSIONS.ABSENSI_DIGITAL },
   { key: 'wa-blast-keberangkatan', label: 'Broadcast WA Keberangkatan', path: '/admin/wa-blast',            icon: 'MessageSquare',   group_name: 'Keberangkatan',      sort_order: 412, required_permission: PERMISSIONS.WA_BLAST_KEBERANGKATAN },
+  { key: 'wa-blast-tagihan',       label: 'WA Blast Tagihan',          path: '/admin/wa-blast-tagihan',    icon: 'Wallet',          group_name: 'Keuangan',           sort_order: 326, required_permission: PERMISSIONS.WA_BLAST_TAGIHAN },
   { key: 'muthawif-dashboard',     label: 'Dashboard Muthawif',      path: '/muthawif/dashboard',           icon: 'UserCog',         group_name: 'Keberangkatan',      sort_order: 413, required_permission: PERMISSIONS.MUTHAWIF_DASHBOARD },
 
   // ── Fase 9 — Integrasi & Otomasi (550s) ──────────────────────────────────

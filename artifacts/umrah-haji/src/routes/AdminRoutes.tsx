@@ -168,6 +168,7 @@ const AdminVirtualAccount = lazy(() => import("@/pages/admin/AdminVirtualAccount
 // Sprint 4
 const AdminCicilanGenerator  = lazy(() => import("@/pages/admin/AdminCicilanGenerator"));
 const AdminProposalGenerator = lazy(() => import("@/pages/admin/AdminProposalGenerator"));
+const AdminWABlastTagihan    = lazy(() => import("@/pages/admin/AdminWABlastTagihan"));
 
 // Fase 10 — AI & Smart Analytics
 const AdminGeminiAI = lazy(() => import("@/pages/admin/AdminGeminiAI"));
@@ -408,6 +409,7 @@ export default function AdminRoutes() {
       {/* Sprint 4 */}
       <Route path="cicilan-generator"  element={<P k={PERMISSIONS.CICILAN_GENERATOR}><LazyPage><AdminCicilanGenerator /></LazyPage></P>} />
       <Route path="proposal-generator" element={<P k={PERMISSIONS.PROPOSAL_GENERATOR}><LazyPage><AdminProposalGenerator /></LazyPage></P>} />
+      <Route path="wa-blast-tagihan"   element={<P k={PERMISSIONS.WA_BLAST_TAGIHAN}><LazyPage><AdminWABlastTagihan /></LazyPage></P>} />
 
       {/* Fase 10 — AI & Smart Analytics */}
       <Route path="gemini-ai" element={<P k={PERMISSIONS.GEMINI_AI}><LazyPage><AdminGeminiAI /></LazyPage></P>} />
