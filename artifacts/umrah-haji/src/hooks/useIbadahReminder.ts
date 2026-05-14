@@ -173,13 +173,16 @@ async function showLocalNotification(title: string, body: string, tag: string, u
 
 // ── Hook ───────────────────────────────────────────────────────────────────
 
-export function useIbadahReminder() {
+export function useIbadahReminder(externalPrayerTimes?: PrayerTimes | null) {
   const [settings, setSettingsState] = useState<IbadahReminderSettings>(loadSettings);
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default"
   );
-  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
+  const [fetchedPrayerTimes, setFetchedPrayerTimes] = useState<PrayerTimes | null>(null);
   const [loadingPrayer, setLoadingPrayer] = useState(false);
+
+  // Use external times (from page's GPS fetch) if provided, otherwise fallback to fetched
+  const prayerTimes = externalPrayerTimes ?? fetchedPrayerTimes;
   const [scheduled, setScheduled] = useState<ScheduledReminder[]>([]);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -214,18 +217,18 @@ export function useIbadahReminder() {
     return false;
   }, []);
 
-  // Load prayer times whenever city changes
+  // Load prayer times from city only when no external times are provided
   useEffect(() => {
-    if (!settings.enabled) return;
+    if (!settings.enabled || externalPrayerTimes) return;
     let cancelled = false;
     setLoadingPrayer(true);
     fetchPrayerTimes(settings.city).then((times) => {
       if (cancelled) return;
-      setPrayerTimes(times);
+      setFetchedPrayerTimes(times);
       setLoadingPrayer(false);
     });
     return () => { cancelled = true; };
-  }, [settings.city, settings.enabled]);
+  }, [settings.city, settings.enabled, externalPrayerTimes]);
 
   // Clear all scheduled timers
   const clearAllTimers = useCallback(() => {

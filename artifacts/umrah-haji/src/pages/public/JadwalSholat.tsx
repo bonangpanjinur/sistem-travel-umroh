@@ -299,7 +299,10 @@ export default function JadwalSholat() {
 
         {/* Notification Settings */}
         <div className="px-4 pb-8">
-          <PrayerNotificationCard />
+          <PrayerNotificationCard
+            prayerTimes={data?.timings as any}
+            locationName={locationName}
+          />
         </div>
 
       </div>
