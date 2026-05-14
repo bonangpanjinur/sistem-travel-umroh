@@ -367,7 +367,7 @@ export function useIbadahReminder(externalPrayerTimes?: PrayerTimes | null) {
 
     const t = setTimeout(() => {
       fetchPrayerTimes(settings.city).then((times) => {
-        if (times) setPrayerTimes(times);
+        if (times) setFetchedPrayerTimes(times);
       });
     }, msToMidnight);
 
