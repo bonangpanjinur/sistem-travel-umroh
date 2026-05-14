@@ -99,13 +99,15 @@ export default function JamaahPortal() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [liveCountdown, setLiveCountdown] = useState({ h: 0, m: 0, s: 0 });
 
-  // P4: Redirect first-time users to welcome/onboarding flow
+  // P4: Redirect first-time SIGNED-IN users to welcome/onboarding flow.
+  // Guests stay on the home portal (no login wall).
   useEffect(() => {
+    if (!user?.id) return;
     const seen = localStorage.getItem(WELCOME_SEEN_KEY);
     if (!seen) {
       navigate("/jamaah/welcome", { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, user?.id]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
