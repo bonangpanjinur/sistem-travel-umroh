@@ -10,8 +10,6 @@
 
 | Prioritas | Kode | Fitur | Keterangan |
 | :--- | :--- | :--- | :--- |
-| 🟠 **TINGGI** | PAK-F4 | Sistem Kurs Mata Uang | Pengelolaan kurs harian untuk harga fluktuatif |
-| 🟠 **TINGGI** | PAK-F5 | Tipe Paket "Wisata" | Kategorisasi paket wisata religi tour yang proper |
 | 🟠 **TINGGI** | PAK-F6 | Harga per Orang Mandiri | Model harga haji yang tidak hanya berbasis tipe kamar |
 | 🟠 **TINGGI** | TAB-FIX1 | Konversi Tabungan → Booking | Flow pilih jadwal + generate booking dari tabungan |
 | 🟠 **TINGGI** | TAB-FIX2 | Harga Terkunci + Notifikasi | Monitoring `locked_price` dan alert kenaikan harga |
@@ -143,6 +141,17 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 | ✅ BOOK-FIX6 | Edge function `midtrans-webhook` (verifikasi SHA512 signature, auto-update payment status, log ke `midtrans_webhook_logs`) |
 | ✅ BOOK-FIX7 | Edge function `send-booking-recovery` + tabel `booking_access_tokens` + page `/booking/recover` (token 30 hari) |
 | AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA — ditunda |
+
+### ✅ Selesai Sprint 12 (14 Mei 2026 — PAK-F4 & PAK-F5)
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| ✅ PAK-F4 | Sistem Kurs Mata Uang — upgrade `AdminExchangeRates` | Tombol "Ambil dari API" (Frankfurter/ECB proxy), simpan semua sekaligus, % perubahan dari kurs sebelumnya (TrendingUp/Down + alert > 1%), klik kartu untuk load ke form, fallback seed kurs default |
+| ✅ PAK-F5-A | Label wisata di `format.ts` | Tambah: `wisata`, `wisata_religi`, `wisata_turki`, `wisata_maroko`, `wisata_jordan`, `wisata_palestina`, `wisata_mesir`, `wisata_eropa` + helper `getBookingModeLabel`, `getBookingModeBadgeColor` |
+| ✅ PAK-F5-B | Field `booking_mode` di `PackageTypeForm` | Select umroh/haji/wisata + deskripsi impak wizard per mode |
+| ✅ PAK-F5-C | Kolom `booking_mode` di `AdminPackageTypes` | Badge berwarna per mode, filter card 3 mode, tampilkan jumlah per mode |
+| ✅ PAK-F5-D | SQL migration `20260514_wisata_package_types_and_booking_mode.sql` | Kolom `booking_mode` di tabel `package_types`, seed 7 tipe wisata, RPC `get_active_exchange_rate` (idempotent), seed kurs default |
+| ✅ BUG-FIX | Install `web-vitals` + fallback loader 500ms | Package hilang menyebabkan error overlay; loader fallback dipercepat dari 1500ms ke 500ms |
 
 > Detail lengkap setiap item ada di section masing-masing di bawah.
 

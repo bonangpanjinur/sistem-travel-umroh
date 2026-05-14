@@ -95,6 +95,14 @@ export function getPackageTypeLabel(packageType: string): string {
     haji_plus: 'Haji Plus',
     umroh_plus: 'Umroh Plus',
     tabungan: 'Tabungan Umroh',
+    wisata: 'Wisata Religi',
+    wisata_religi: 'Wisata Religi',
+    wisata_turki: 'Wisata Turki',
+    wisata_maroko: 'Wisata Maroko',
+    wisata_jordan: 'Wisata Jordan',
+    wisata_palestina: 'Wisata Palestina',
+    wisata_mesir: 'Wisata Mesir',
+    wisata_eropa: 'Wisata Eropa Islam',
   };
   
   if (labels[packageType]) return labels[packageType];
@@ -104,6 +112,24 @@ export function getPackageTypeLabel(packageType: string): string {
     .split('_')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+export function getBookingModeLabel(mode: string): string {
+  const labels: Record<string, string> = {
+    umroh: 'Umroh',
+    haji: 'Haji',
+    wisata: 'Wisata',
+  };
+  return labels[mode] || mode;
+}
+
+export function getBookingModeBadgeColor(mode: string): string {
+  const colors: Record<string, string> = {
+    umroh: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    haji: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    wisata: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+  };
+  return colors[mode] || 'bg-gray-100 text-gray-800';
 }
 
 // Alias for formatPackageType
