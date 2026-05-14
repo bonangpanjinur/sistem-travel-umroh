@@ -34,6 +34,7 @@ import { restorePendingFollowup } from "@/hooks/useChatbotFollowup";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
 import { IslamicHomeSections } from "@/components/jamaah/home/IslamicHomeSections";
+import { LogIn, UserPlus } from "lucide-react";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useRecentlyViewedPackages } from "@/hooks/useRecentlyViewedPackages";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -287,9 +288,9 @@ export default function JamaahPortal() {
             {/* Q6: Avatar clickable untuk upload foto */}
             <div className="relative">
               <button
-                onClick={() => photoInputRef.current?.click()}
+                onClick={() => user && photoInputRef.current?.click()}
                 className="relative group"
-                title="Ganti foto profil"
+                title={user ? "Ganti foto profil" : "Tamu"}
               >
                 <Avatar className="h-10 w-10 border-2 border-primary-foreground/20">
                   <AvatarImage src={customer?.photo_url || ""} />
@@ -297,13 +298,15 @@ export default function JamaahPortal() {
                     {uploadingPhoto ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      customer?.full_name?.[0] || "J"
+                      customer?.full_name?.[0] || (user ? "J" : "T")
                     )}
                   </AvatarFallback>
                 </Avatar>
-                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera className="h-3 w-3 text-white" />
-                </div>
+                {user && (
+                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-3 w-3 text-white" />
+                  </div>
+                )}
               </button>
               <input
                 ref={photoInputRef}
@@ -318,7 +321,7 @@ export default function JamaahPortal() {
               />
             </div>
             <div>
-              <p className="font-semibold">{customer?.full_name || "Jamaah"}</p>
+              <p className="font-semibold">{customer?.full_name || (user ? "Jamaah" : "Tamu")}</p>
               <p className="text-xs opacity-80">
                 {isOnline ? (
                   <span className="flex items-center gap-1">
@@ -333,7 +336,9 @@ export default function JamaahPortal() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <DropdownMenu>
+            {user ? (
+              <>
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-primary-foreground relative">
                   <Bell className="h-5 w-5" />
@@ -371,18 +376,51 @@ export default function JamaahPortal() {
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-            <SOSButton
+              </DropdownMenu>
+              <SOSButton
               customerName={customer?.full_name || "Jamaah"}
               customerId={customer?.id}
               departureId={(booking as any)?.departure_id}
               muthawifPhone={muthawifPhone}
               emergencyPhone={emergencyPhone}
               bookingCode={booking?.booking_code}
-            />
+              />
+              </>
+            ) : (
+              <Button asChild size="sm" variant="secondary" className="h-8 px-3 text-xs font-semibold">
+                <Link to="/auth/login">
+                  <LogIn className="h-3.5 w-3.5 mr-1" /> Masuk
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Guest welcome banner */}
+      {!user && (
+        <div className="mx-4 mt-3 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Selamat datang!</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Jelajahi paket, jadwal sholat, dan panduan ibadah. Masuk untuk booking & dokumen pribadi.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <Button asChild size="sm" className="h-8 text-xs">
+                  <Link to="/auth/login"><LogIn className="h-3.5 w-3.5 mr-1" /> Masuk</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                  <Link to="/auth/register"><UserPlus className="h-3.5 w-3.5 mr-1" /> Daftar</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Install Banner */}
       {deferredPrompt && (
@@ -525,7 +563,7 @@ export default function JamaahPortal() {
         )}
 
         {/* Q5: Empty state saat customer belum terdaftar */}
-        {!customer && (
+        {user && !customer && (
           <Card className="border-dashed border-2 border-amber-300 bg-amber-50">
             <CardContent className="p-5 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
