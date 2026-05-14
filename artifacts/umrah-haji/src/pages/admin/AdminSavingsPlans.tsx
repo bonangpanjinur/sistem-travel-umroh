@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import {
   Wallet, Plus, Search, TrendingUp, CheckCircle, Clock,
   Eye, CreditCard, DollarSign, XCircle, Users, CalendarDays,
-  ArrowRight, AlertCircle, Receipt, UserPlus, BanknoteIcon, Bell, Send
+  ArrowRight, AlertCircle, Receipt, UserPlus, BanknoteIcon, Bell, Send, Lock, TrendingDown, MessageSquare
 } from "lucide-react";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -77,6 +77,7 @@ export default function AdminSavingsPlans() {
   // conversion dialog
   const [convPlan, setConvPlan] = useState<any>(null);
   const [convDepartureId, setConvDepartureId] = useState("");
+  const [convRoomType, setConvRoomType] = useState("quad");
 
   // enrollment dialog
   const [enrollOpen, setEnrollOpen] = useState(false);
@@ -132,13 +133,38 @@ export default function AdminSavingsPlans() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("departures")
-        .select("id, departure_date, return_date")
+        .select("id, departure_date, return_date, quota, booked_count, price_quad, price_triple, price_double, price_single")
         .eq("package_id", convPlan.package_id)
-        .eq("status", "open")
+        .in("status", ["open", "confirmed", "active"])
         .gte("departure_date", new Date().toISOString().split("T")[0])
         .order("departure_date");
       if (error) throw error;
       return data;
+    },
+  });
+
+  // ── TAB-FIX2: locked price monitoring ────────────────────────────────────
+  const { data: lockedPricePlans = [] } = useQuery({
+    queryKey: ["admin-savings-locked-price"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("savings_plans")
+        .select(`
+          id, locked_price, target_amount, paid_amount, status,
+          customer:customers(id, full_name, phone),
+          package:packages(id, name, code, savings_target, price_quad)
+        `)
+        .not("locked_price", "is", null)
+        .in("status", ["active", "completed"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((p: any) => {
+        const currentPrice = p.package?.savings_target || p.package?.price_quad || 0;
+        const lockedPrice = p.locked_price || 0;
+        const priceDiff = currentPrice - lockedPrice;
+        const pctChange = lockedPrice > 0 ? (priceDiff / lockedPrice) * 100 : 0;
+        return { ...p, currentPrice, lockedPrice, priceDiff, pctChange };
+      });
     },
   });
 
@@ -391,43 +417,71 @@ export default function AdminSavingsPlans() {
   const convertMutation = useMutation({
     mutationFn: async () => {
       if (!convPlan || !convDepartureId) throw new Error("Pilih jadwal keberangkatan");
+      // TAB-FIX1: Use locked_price if set, otherwise use target_amount
+      const basePrice = convPlan.locked_price || convPlan.target_amount;
       const { data: booking, error: bErr } = await supabase
         .from("bookings")
         .insert({
           customer_id: convPlan.customer_id,
           departure_id: convDepartureId,
-          room_type: "quad",
+          room_type: convRoomType,
           total_pax: 1,
-          base_price: convPlan.target_amount,
-          total_price: convPlan.target_amount,
+          base_price: basePrice,
+          total_price: basePrice,
           paid_amount: convPlan.paid_amount,
           booking_status: "confirmed",
-          payment_status: convPlan.paid_amount >= convPlan.target_amount ? "paid" : "partial",
-          notes: `Konversi dari tabungan ${convPlan.package?.name}`,
+          payment_status: convPlan.paid_amount >= basePrice ? "paid" : "partial",
+          notes: `Konversi dari tabungan ${convPlan.package?.name}${convPlan.locked_price ? " (harga terkunci)" : ""}`,
         })
         .select()
         .single();
       if (bErr) throw bErr;
-      // Create booking_passengers entry
       await supabase.from("booking_passengers").insert({
         booking_id: booking.id,
         customer_id: convPlan.customer_id,
         passenger_type: "adult",
-        room_preference: "quad",
+        room_preference: convRoomType,
       } as any);
-      // Mark plan converted
       await supabase
         .from("savings_plans")
         .update({ status: "converted", converted_booking_id: booking.id } as any)
         .eq("id", convPlan.id);
+      return booking;
     },
-    onSuccess: () => {
-      toast.success("✅ Tabungan berhasil dikonversi menjadi booking");
+    onSuccess: async (booking) => {
+      toast.success(`✅ Tabungan berhasil dikonversi menjadi booking`);
       queryClient.invalidateQueries({ queryKey: ["admin-savings-plans"] });
-      setConvPlan(null); setConvDepartureId("");
+      // TAB-FIX1: WA notification after conversion
+      if (wa.isReady && convPlan?.customer?.phone) {
+        const dep = convDepartures.find((d: any) => d.id === convDepartureId);
+        const depDate = dep ? formatDate(dep.departure_date) : "-";
+        await wa.sendBookingConfirm(convPlan.customer.phone, {
+          nama: convPlan.customer.full_name ?? "Jamaah",
+          nama_paket: convPlan.package?.name ?? "-",
+          tanggal_keberangkatan: depDate,
+          tipe_kamar: convRoomType,
+          total_harga: formatCurrency(convPlan.locked_price || convPlan.target_amount),
+        } as any);
+      }
+      setConvPlan(null); setConvDepartureId(""); setConvRoomType("quad");
     },
     onError: (e: Error) => toast.error("❌ " + e.message),
   });
+
+  // TAB-FIX2: Send WA price alert to jamaah with locked price
+  const sendLockedPriceAlert = async (plan: any) => {
+    if (!plan.customer?.phone) { toast.error("Nomor HP tidak tersedia"); return; }
+    const phone = plan.customer.phone.replace(/\D/g, "").replace(/^0/, "62");
+    const selisih = plan.priceDiff > 0 ? `(naik ${formatCurrency(plan.priceDiff)})` : "(harga stabil)";
+    const pesan = encodeURIComponent(
+      `Halo ${plan.customer.full_name},\n\n` +
+      `Harga paket *${plan.package?.name}* saat ini adalah *${formatCurrency(plan.currentPrice)}* ${selisih}.\n\n` +
+      `Kabar baiknya, Anda terlindungi dengan *harga terkunci ${formatCurrency(plan.lockedPrice)}* yang tidak akan berubah.\n\n` +
+      `Teruslah menabung agar bisa segera berangkat 🕌 Terima kasih 🙏`
+    );
+    window.open(`https://wa.me/${phone}?text=${pesan}`, "_blank");
+    toast.success(`📲 Alert harga dikirim ke ${plan.customer.full_name}`);
+  };
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
@@ -516,6 +570,13 @@ export default function AdminSavingsPlans() {
             Perlu Verifikasi
             {stats.pending > 0 && (
               <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-[10px]">{stats.pending}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="locked-price">
+            <Lock className="h-4 w-4 mr-1.5" />
+            Harga Terkunci
+            {lockedPricePlans.filter((p: any) => p.priceDiff > 0).length > 0 && (
+              <Badge className="ml-1.5 h-4 px-1 text-[10px] bg-amber-500">{lockedPricePlans.filter((p: any) => p.priceDiff > 0).length}</Badge>
             )}
           </TabsTrigger>
         </TabsList>
@@ -635,6 +696,141 @@ export default function AdminSavingsPlans() {
                           </TableRow>
                         );
                       })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Tab 3: Harga Terkunci (TAB-FIX2) ── */}
+        <TabsContent value="locked-price" className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Pantau jamaah yang memiliki harga terkunci dan bandingkan dengan harga paket saat ini.
+                Kirim notifikasi ke jamaah saat harga naik agar mereka tetap tenang.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              {lockedPricePlans.length} tabungan dengan harga terkunci
+            </Badge>
+          </div>
+
+          {/* Summary cards */}
+          {lockedPricePlans.length > 0 && (() => {
+            const priceUp = lockedPricePlans.filter((p: any) => p.priceDiff > 0);
+            const priceStable = lockedPricePlans.filter((p: any) => p.priceDiff <= 0);
+            const totalSaving = lockedPricePlans.reduce((s: number, p: any) => s + Math.max(0, p.priceDiff), 0);
+            return (
+              <div className="grid grid-cols-3 gap-3">
+                <Card className={priceUp.length > 0 ? "border-amber-300 bg-amber-50/30 dark:bg-amber-950/10" : ""}>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Harga Naik</p>
+                    <p className="text-2xl font-bold text-amber-600 mt-1">{priceUp.length}</p>
+                    <p className="text-xs text-muted-foreground">jamaah terdampak kenaikan harga</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Harga Stabil</p>
+                    <p className="text-2xl font-bold text-green-600 mt-1">{priceStable.length}</p>
+                    <p className="text-xs text-muted-foreground">tidak ada perubahan harga</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Total Penghematan Jamaah</p>
+                    <p className="text-xl font-bold text-emerald-600 mt-1">{formatCurrency(totalSaving)}</p>
+                    <p className="text-xs text-muted-foreground">dari proteksi harga terkunci</p>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })()}
+
+          <Card>
+            <CardContent className="pt-4">
+              {lockedPricePlans.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <Lock className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">Belum ada tabungan dengan harga terkunci.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Jamaah</TableHead>
+                        <TableHead>Paket</TableHead>
+                        <TableHead className="text-right">Harga Terkunci</TableHead>
+                        <TableHead className="text-right">Harga Saat Ini</TableHead>
+                        <TableHead className="text-right">Selisih</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-center">Notifikasi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lockedPricePlans.map((plan: any) => (
+                        <TableRow key={plan.id} className={plan.priceDiff > 0 ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}>
+                          <TableCell>
+                            <p className="font-medium">{plan.customer?.full_name || "-"}</p>
+                            <p className="text-xs text-muted-foreground">{plan.customer?.phone || "-"}</p>
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium">{plan.package?.name || "-"}</p>
+                            <p className="text-xs text-muted-foreground">{plan.package?.code || "-"}</p>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Lock className="h-3.5 w-3.5 text-emerald-600" />
+                              <span className="font-bold text-emerald-700">{formatCurrency(plan.lockedPrice)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {plan.currentPrice > 0 ? formatCurrency(plan.currentPrice) : <span className="text-muted-foreground text-xs">N/A</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {plan.priceDiff > 0 ? (
+                              <div className="flex items-center justify-end gap-1 text-amber-600">
+                                <TrendingUp className="h-3.5 w-3.5" />
+                                <span className="font-semibold text-sm">+{formatCurrency(plan.priceDiff)}</span>
+                                <Badge className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 ml-1">
+                                  +{plan.pctChange.toFixed(1)}%
+                                </Badge>
+                              </div>
+                            ) : plan.priceDiff < 0 ? (
+                              <div className="flex items-center justify-end gap-1 text-blue-600">
+                                <TrendingDown className="h-3.5 w-3.5" />
+                                <span className="text-sm">{formatCurrency(plan.priceDiff)}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sama</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {plan.status === "active" ? (
+                              <Badge className="bg-blue-100 text-blue-800 text-[10px]">Aktif</Badge>
+                            ) : (
+                              <Badge className="bg-green-100 text-green-800 text-[10px]">Lunas</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {plan.customer?.phone && plan.priceDiff > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50"
+                                onClick={() => sendLockedPriceAlert(plan)}
+                                title="Kirim notifikasi WA tentang kenaikan harga"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5" /> Notif WA
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -895,38 +1091,109 @@ export default function AdminSavingsPlans() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Conversion Dialog ── */}
-      <Dialog open={!!convPlan} onOpenChange={open => { if (!open) { setConvPlan(null); setConvDepartureId(""); } }}>
-        <DialogContent className="max-w-sm">
+      {/* ── Conversion Dialog (TAB-FIX1) ── */}
+      <Dialog open={!!convPlan} onOpenChange={open => { if (!open) { setConvPlan(null); setConvDepartureId(""); setConvRoomType("quad"); } }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Konversi ke Booking</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRight className="h-5 w-5" /> Konversi Tabungan ke Booking
+            </DialogTitle>
           </DialogHeader>
-          {convPlan && (
-            <div className="space-y-4 py-2">
-              <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg text-sm">
-                <p className="font-semibold">{convPlan.customer?.full_name}</p>
-                <p className="text-muted-foreground">{convPlan.package?.name}</p>
-                <p className="text-green-700 font-semibold mt-1">Total lunas: {formatCurrency(convPlan.paid_amount || 0)}</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Pilih Jadwal Keberangkatan</Label>
-                <Select value={convDepartureId} onValueChange={setConvDepartureId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={convDepartures.length === 0 ? "Tidak ada jadwal tersedia" : "Pilih jadwal..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {convDepartures.map((d: any) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {formatDate(d.departure_date)} — {formatDate(d.return_date)}
-                      </SelectItem>
+          {convPlan && (() => {
+            const selectedDep = convDepartures.find((d: any) => d.id === convDepartureId);
+            const depCurrentPrice = selectedDep ? (selectedDep as any)[`price_${convRoomType}`] || 0 : 0;
+            const lockedPrice = convPlan.locked_price;
+            const basePrice = lockedPrice || convPlan.target_amount;
+            const priceSaving = lockedPrice && depCurrentPrice > lockedPrice ? depCurrentPrice - lockedPrice : 0;
+            return (
+              <div className="space-y-4 py-2">
+                {/* Jamaah info */}
+                <div className="p-3 bg-muted rounded-lg text-sm space-y-0.5">
+                  <p className="font-semibold">{convPlan.customer?.full_name}</p>
+                  <p className="text-muted-foreground">{convPlan.package?.name}</p>
+                  <p className="text-green-700 dark:text-green-400 font-semibold">
+                    Terkumpul: {formatCurrency(convPlan.paid_amount || 0)}
+                  </p>
+                </div>
+
+                {/* Locked price display */}
+                {lockedPrice && (
+                  <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-sm">
+                    <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-semibold">
+                      <Lock className="h-4 w-4" />
+                      Harga Terkunci: {formatCurrency(lockedPrice)}
+                    </div>
+                    {priceSaving > 0 && (
+                      <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-1">
+                        Hemat {formatCurrency(priceSaving)} vs harga jadwal saat ini
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Room type */}
+                <div className="space-y-1.5">
+                  <Label>Tipe Kamar</Label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { value: "quad", label: "Quad" },
+                      { value: "triple", label: "Triple" },
+                      { value: "double", label: "Double" },
+                      { value: "single", label: "Single" },
+                    ].map(r => (
+                      <button
+                        key={r.value}
+                        type="button"
+                        className={`py-2 rounded-lg border text-xs font-medium transition-colors ${
+                          convRoomType === r.value
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "hover:border-primary/40"
+                        }`}
+                        onClick={() => setConvRoomType(r.value)}
+                      >
+                        {r.label}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </div>
+
+                {/* Departure */}
+                <div className="space-y-1.5">
+                  <Label>Pilih Jadwal Keberangkatan</Label>
+                  <Select value={convDepartureId} onValueChange={setConvDepartureId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={convDepartures.length === 0 ? "Tidak ada jadwal tersedia" : "Pilih jadwal..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {convDepartures.map((d: any) => {
+                        const seats = (d.quota || 0) - (d.booked_count || 0);
+                        return (
+                          <SelectItem key={d.id} value={d.id} disabled={seats <= 0}>
+                            {formatDate(d.departure_date)} — {formatDate(d.return_date)}
+                            {seats > 0 ? ` · ${seats} kursi` : " · Penuh"}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Price summary */}
+                <div className="p-3 bg-muted/50 rounded-lg text-sm grid grid-cols-2 gap-y-1.5">
+                  <span className="text-muted-foreground">Harga Booking</span>
+                  <span className="font-bold text-right">{formatCurrency(basePrice)}</span>
+                  <span className="text-muted-foreground">Sudah Terbayar</span>
+                  <span className="font-semibold text-right text-green-600">{formatCurrency(convPlan.paid_amount || 0)}</span>
+                  <span className="text-muted-foreground">Sisa Tagihan</span>
+                  <span className="font-bold text-right text-amber-600">
+                    {formatCurrency(Math.max(0, basePrice - (convPlan.paid_amount || 0)))}
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConvPlan(null)}>Batal</Button>
+            <Button variant="outline" onClick={() => { setConvPlan(null); setConvDepartureId(""); setConvRoomType("quad"); }}>Batal</Button>
             <Button
               onClick={() => convertMutation.mutate()}
               disabled={convertMutation.isPending || !convDepartureId}

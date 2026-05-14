@@ -11,8 +11,8 @@
 | Prioritas | Kode | Fitur | Keterangan |
 | :--- | :--- | :--- | :--- |
 | 🟠 **TINGGI** | PAK-F6 | Harga per Orang Mandiri | Model harga haji yang tidak hanya berbasis tipe kamar |
-| 🟠 **TINGGI** | TAB-FIX1 | Konversi Tabungan → Booking | Flow pilih jadwal + generate booking dari tabungan |
-| 🟠 **TINGGI** | TAB-FIX2 | Harga Terkunci + Notifikasi | Monitoring `locked_price` dan alert kenaikan harga |
+| ✅ **SELESAI** | TAB-FIX1 | Konversi Tabungan → Booking | Flow pilih jadwal + tipe kamar + locked_price + WA notif setelah konversi |
+| ✅ **SELESAI** | TAB-FIX2 | Harga Terkunci + Notifikasi | Tab "Harga Terkunci" di AdminSavingsPlans — monitoring locked_price vs harga saat ini + WA alert |
 | 🟡 **SEDANG** | PAK-F7 | Bandingkan Paket | Fitur komparasi antar paket untuk user |
 | 🟡 **SEDANG** | PAK-F8 | Filter Currency di Listing | UX filter harga berdasarkan mata uang di halaman publik |
 | 🟡 **SEDANG** | BOOK-FIX7 | Guest Checkout Recovery | Link akses booking via email/WA untuk guest |
