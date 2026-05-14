@@ -105,6 +105,15 @@ export default function AdminPayments() {
   const { sendPaymentConfirmation, isReady: waReady } = useWhatsAppNotifier();
   const emailNotifier = useEmailNotifier();
 
+  // Check if a WA Otomatis trigger is enabled (reads from localStorage, synced by AdminWAOtomatis)
+  function isWATriggerEnabled(triggerId: string): boolean {
+    try {
+      const stored = localStorage.getItem("wa_otomatis_triggers");
+      if (!stored) return false;
+      return JSON.parse(stored)[triggerId] === true;
+    } catch { return false; }
+  }
+
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin-payments'],
     queryFn: async (): Promise<Payment[]> => {
@@ -266,7 +275,8 @@ export default function AdminPayments() {
         silent: true,
       });
     }
-    if (waReady && (payment as any).booking?.customer?.phone) {
+    // Kirim WA otomatis hanya jika trigger "payment_confirmed" aktif di AdminWAOtomatis
+    if (waReady && isWATriggerEnabled("payment_confirmed") && (payment as any).booking?.customer?.phone) {
       const bk = (payment as any).booking;
       sendPaymentConfirmation(bk.customer.phone, {
         nama: bk.customer.full_name || "-",
