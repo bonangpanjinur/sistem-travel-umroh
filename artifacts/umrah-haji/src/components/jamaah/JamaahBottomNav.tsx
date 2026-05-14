@@ -38,6 +38,7 @@ const moreMenuItems = [
   { to: "/jamaah/doa-panduan", icon: BookOpen, label: "Doa & Panduan", color: "text-emerald-600 bg-emerald-50" },
   { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600 bg-amber-50" },
   { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600 bg-indigo-50" },
+  { to: "/jamaah/progress-wall", icon: Trophy, label: "Progress Wall", color: "text-yellow-600 bg-yellow-50" },
   { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "text-emerald-600 bg-emerald-50" },
   { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga", color: "text-blue-600 bg-blue-50" },
   { to: "/jamaah/wishlist", icon: Heart, label: "Wishlist", color: "text-rose-600 bg-rose-50" },
@@ -83,6 +84,7 @@ const sidebarGroups = [
     items: [
       { to: "/jamaah/chat", icon: MessageCircle, label: "Chat Rombongan" },
       { to: "/jamaah/galeri", icon: Camera, label: "Galeri Foto" },
+      { to: "/jamaah/progress-wall", icon: Trophy, label: "Progress Wall" },
     ],
   },
   {

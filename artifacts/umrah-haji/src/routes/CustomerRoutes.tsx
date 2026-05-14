@@ -70,6 +70,7 @@ const JamaahSOSStatus = lazy(() => import("@/pages/jamaah/JamaahSOSStatus"));
 
 // Fase 8 — Engagement & Gamifikasi Jamaah
 const JamaahBadges = lazy(() => import("@/pages/jamaah/JamaahBadges"));
+const JamaahProgressWall = lazy(() => import("@/pages/jamaah/JamaahProgressWall"));
 const JamaahTargetIbadah = lazy(() => import("@/pages/jamaah/ibadah/JamaahTargetIbadah"));
 const JamaahJurnal = lazy(() => import("@/pages/jamaah/JamaahJurnal"));
 const JamaahDoaCounter = lazy(() => import("@/pages/jamaah/ibadah/JamaahDoaCounter"));
@@ -184,6 +185,7 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/bagasi" element={<JamaahRoute><JamaahBagasi /></JamaahRoute>} />
       <Route path="/jamaah/kontrak" element={<JamaahRoute><JamaahKontrak /></JamaahRoute>} />
       <Route path="/jamaah/badges" element={<JamaahRoute><JamaahBadges /></JamaahRoute>} />
+      <Route path="/jamaah/progress-wall" element={<JamaahRoute><JamaahProgressWall /></JamaahRoute>} />
       <Route path="/jamaah/jurnal" element={<JamaahRoute><JamaahJurnal /></JamaahRoute>} />
       <Route path="/jamaah/sertifikat" element={<JamaahRoute><JamaahSertifikat /></JamaahRoute>} />
       <Route path="/jamaah/siskohat" element={<JamaahRoute><JamaahSISKOHAT /></JamaahRoute>} />
