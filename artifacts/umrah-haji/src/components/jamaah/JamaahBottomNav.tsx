@@ -257,90 +257,93 @@ export function JamaahBottomNav() {
 
       {/* ── MOBILE "LEBIH" OVERLAY ── */}
       {moreOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end md:hidden">
+        <div className="fixed inset-0 z-[60] md:hidden">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setMoreOpen(false)}
           />
-          <div className="relative bg-background rounded-t-2xl shadow-2xl px-4 pt-4 pb-28 z-10 max-h-[70vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base">Menu Lengkap</h3>
+          <div className="absolute bottom-20 left-4 right-4 bg-background border rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-center justify-between mb-4 px-1">
+              <h3 className="font-bold text-lg">Menu Lainnya</h3>
               <button
                 onClick={() => setMoreOpen(false)}
-                className="p-1.5 rounded-full hover:bg-muted"
+                className="p-2 hover:bg-muted rounded-full transition-colors"
               >
-                <X className="h-5 w-5 text-muted-foreground" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-3">
+
+            <div className="grid grid-cols-3 gap-3">
               {moreMenuItems.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   onClick={() => setMoreOpen(false)}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-muted transition-colors"
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted transition-colors group"
                 >
-                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", item.color)}>
-                    <item.icon className="h-5 w-5" />
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-active:scale-95",
+                    item.color
+                  )}>
+                    <item.icon className="h-6 w-6" />
                   </div>
-                  <span className="text-[10px] text-center leading-tight font-medium">{item.label}</span>
+                  <span className="text-[11px] font-medium text-center leading-tight">
+                    {item.label}
+                  </span>
                 </Link>
               ))}
-
-              {/* Dark mode toggle tile */}
-              <button
-                onClick={() => { toggleDark(); setMoreOpen(false); }}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-muted transition-colors"
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                  {isDark ? <Sun className="h-5 w-5 text-amber-500" /> : <Moon className="h-5 w-5 text-indigo-500" />}
-                </div>
-                <span className="text-[10px] text-center leading-tight font-medium">{isDark ? "Mode Terang" : "Mode Gelap"}</span>
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── MOBILE BOTTOM NAV BAR ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t py-2 px-4 z-40 safe-area-inset-bottom">
-        <div className="flex justify-around max-w-md mx-auto">
+      {/* ── MOBILE BOTTOM BAR ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t pb-safe">
+        <div className="flex items-center justify-around h-16 px-2">
           {mobileNavItems.map((item) => {
-            const active = location.pathname === item.to;
+            const active = isActive(item.to);
             return (
               <Link
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg transition-colors relative",
-                  active ? "text-primary" : "text-muted-foreground hover:text-primary"
+                  "flex flex-col items-center justify-center gap-1 w-full h-full transition-colors relative",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <div className="relative">
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className={cn("h-5 w-5 transition-transform", active && "scale-110")} />
                   {item.showBadge && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border border-background">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-background">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] leading-none">{item.label}</span>
+                <span className={cn("text-[10px] font-medium", active ? "opacity-100" : "opacity-70")}>
+                  {item.label}
+                </span>
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-b-full" />
+                )}
               </Link>
             );
           })}
 
           <button
-            onClick={() => setMoreOpen(true)}
+            onClick={() => setMoreOpen(!moreOpen)}
             className={cn(
-              "flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg transition-colors",
-              moreOpen ? "text-primary" : "text-muted-foreground hover:text-primary"
+              "flex flex-col items-center justify-center gap-1 w-full h-full transition-colors relative",
+              moreOpen ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <LayoutGrid className="h-5 w-5" />
-            <span className="text-[10px] leading-none">Lebih</span>
+            <LayoutGrid className={cn("h-5 w-5 transition-transform", moreOpen && "scale-110")} />
+            <span className="text-[10px] font-medium opacity-70">Menu</span>
+            {moreOpen && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-b-full" />
+            )}
           </button>
         </div>
-      </div>
+      </nav>
     </>
   );
 }
