@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BookOpen, Calendar, MapPin, Clock, CheckCircle2, Users,
-  PlayCircle, FileText, ChevronRight, Star, Loader2, Brain
+  PlayCircle, FileText, ChevronRight, Star, Loader2, Brain, Share2
 } from "lucide-react";
 import { format, parseISO, isPast, isFuture } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -19,11 +19,13 @@ import { cn } from "@/lib/utils";
 import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
 import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 import JamaahManasikKuis from "@/components/jamaah/JamaahManasikKuis";
+import { ManasikProgressCard } from "@/components/jamaah/ManasikProgressCard";
 
 export default function JamaahManasik() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const [showProgressCard, setShowProgressCard] = useState(false);
 
   const { data: customer } = useQuery({
     queryKey: ["customer-profile-manasik", user?.id],
@@ -153,19 +155,42 @@ export default function JamaahManasik() {
         arabic="ٱلْمَنَاسِك"
         subtitle="Jadwal bimbingan & kuis pemahaman ibadah"
       />
-      <div className="px-4 -mt-3 mb-2 grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
-          <p className="font-bold text-base">{schedules.length}</p>
-          <p className="text-[10px] text-muted-foreground">Total Sesi</p>
+      <div className="px-4 -mt-3 mb-2 space-y-2">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
+            <p className="font-bold text-base">{schedules.length}</p>
+            <p className="text-[10px] text-muted-foreground">Total Sesi</p>
+          </div>
+          <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
+            <p className="font-bold text-base">{attendances.length}</p>
+            <p className="text-[10px] text-muted-foreground">Konfirmasi</p>
+          </div>
+          <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
+            <p className="font-bold text-base">{upcoming.length}</p>
+            <p className="text-[10px] text-muted-foreground">Mendatang</p>
+          </div>
         </div>
-        <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
-          <p className="font-bold text-base">{attendances.length}</p>
-          <p className="text-[10px] text-muted-foreground">Konfirmasi</p>
-        </div>
-        <div className="rounded-xl bg-card border p-2 text-center shadow-sm">
-          <p className="font-bold text-base">{upcoming.length}</p>
-          <p className="text-[10px] text-muted-foreground">Mendatang</p>
-        </div>
+
+        {/* Share Progress Button */}
+        <button
+          onClick={() => setShowProgressCard(true)}
+          className="w-full flex items-center justify-between gap-3 bg-gradient-to-r from-emerald-700 to-emerald-600 text-white rounded-xl px-4 py-3 hover:from-emerald-800 hover:to-emerald-700 transition-all shadow-sm active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+              <Share2 className="h-4 w-4" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold leading-tight">Bagikan Progress</p>
+              <p className="text-[10px] opacity-75 leading-tight">
+                {attendances.length > 0
+                  ? `${attendances.length} sesi dikonfirmasi · unduh kartu progress`
+                  : "Buat & unduh kartu pencapaian manasik"}
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 opacity-70 shrink-0" />
+        </button>
       </div>
 
       <Tabs defaultValue="jadwal" className="w-full">
@@ -219,6 +244,22 @@ export default function JamaahManasik() {
           <JamaahManasikKuis />
         </TabsContent>
       </Tabs>
+
+      {/* Progress Card */}
+      {showProgressCard && (
+        <ManasikProgressCard
+          open={showProgressCard}
+          onClose={() => setShowProgressCard(false)}
+          customerName={customer?.full_name || "Jamaah"}
+          confirmedCount={attendances.length}
+          totalCount={schedules.length}
+          confirmedSessions={
+            schedules
+              .filter((s: any) => confirmedIds.has(s.id))
+              .map((s: any) => ({ title: s.title, type: s.type || "umum" }))
+          }
+        />
+      )}
 
       {/* Detail Dialog */}
       {selectedSchedule && (
