@@ -16,7 +16,7 @@
 |------|-------|------|----------|------------|
 | **F1** | Midtrans VA real (bukan stub) | `api-server/src/routes/midtrans.ts` | 1 hari | Butuh `MIDTRANS_SERVER_KEY` + `MIDTRANS_CLIENT_KEY` di Replit Secrets |
 | **F2** | Ganti stub `/api/hr/verify-face` dengan face-api.js | `api-server/src/routes/hr.ts` | 1-2 hari | Absensi wajah tidak berfungsi |
-| **F7** | TOTP 2FA backend (speakeasy + QR enroll + verify endpoint) | Route baru + `Admin2FASettings.tsx` | 2 hari | SQL migration 044 sudah tersedia |
+| ✅ **F7** | TOTP 2FA backend (speakeasy + QR enroll + verify) | `api-server/src/routes/totp.ts` + `Admin2FASettings.tsx` | DONE | SQL migration `045_totp_columns.sql` + 4 endpoint: enroll, verify-enroll, verify, disable |
 
 ### FASE PENTING (sprint berikutnya)
 
@@ -53,6 +53,7 @@
 | **F5** | Pindahkan setting reminder cicilan dari localStorage ke DB | `AdminCicilanReminder.tsx` — kini baca/tulis via `app_settings` tabel |
 | **F6** | SQL migration `booking_installment_schedules` | File `sql/migrations/043_booking_installment_schedules.sql` dibuat |
 | —  | SQL migration `scheduled_reports` | File `sql/migrations/044_scheduled_reports.sql` dibuat |
+| **F7** | TOTP 2FA backend + UI | `api-server/src/routes/totp.ts` (speakeasy) — 4 endpoints: enroll, verify-enroll, verify, disable. `Admin2FASettings.tsx` — 2 tab TOTP + OTP. SQL `045_totp_columns.sql` |
 | **P1** | Gemini API key server-side via env var | Sudah diimplementasikan di chatbot.ts Sprint sebelumnya (`process.env['GEMINI_API_KEY']`) |
 | **Ekspor Tagihan** | Export piutang (AR) ke Excel/CSV | `AdminFinanceAR.tsx` — tombol export xlsx + csv |
 

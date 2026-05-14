@@ -9,6 +9,7 @@ import whatsappRouter from "./whatsapp.js";
 import agentsRouter from "./agents.js";
 import hrRouter from "./hr.js";
 import remindersRouter from "./reminders.js";
+import totpRouter from "./totp.js";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use("/whatsapp", whatsappRouter);
 router.use("/agents", agentsRouter);
 router.use("/hr", hrRouter);
 router.use("/reminders", remindersRouter);
+router.use("/totp", totpRouter);
 
 export default router;
