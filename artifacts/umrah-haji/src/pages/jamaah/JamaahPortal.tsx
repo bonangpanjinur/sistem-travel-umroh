@@ -34,6 +34,7 @@ import { restorePendingFollowup } from "@/hooks/useChatbotFollowup";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
 import { IslamicHomeSections } from "@/components/jamaah/home/IslamicHomeSections";
+import { ProfileProgressCard } from "@/components/jamaah/home/ProfileProgressCard";
 import { LogIn, UserPlus } from "lucide-react";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useRecentlyViewedPackages } from "@/hooks/useRecentlyViewedPackages";
@@ -397,31 +398,6 @@ export default function JamaahPortal() {
         </div>
       </div>
 
-      {/* Guest welcome banner */}
-      {!user && (
-        <div className="mx-4 mt-3 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">Selamat datang!</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Jelajahi paket, jadwal sholat, dan panduan ibadah. Masuk untuk booking & dokumen pribadi.
-              </p>
-              <div className="flex gap-2 mt-3">
-                <Button asChild size="sm" className="h-8 text-xs">
-                  <Link to="/auth/login"><LogIn className="h-3.5 w-3.5 mr-1" /> Masuk</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                  <Link to="/auth/register"><UserPlus className="h-3.5 w-3.5 mr-1" /> Daftar</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Install Banner */}
       {deferredPrompt && (
         <div className="bg-accent p-3 flex items-center justify-between">
@@ -437,6 +413,9 @@ export default function JamaahPortal() {
 
 
       <div className="p-4 space-y-4">
+        {/* Profile / Progress card — guest atau logged-in */}
+        <ProfileProgressCard isGuest={!user} customer={customer} booking={booking} />
+
         {/* Islamic Home Sections — hero mihrab, ibadah, paket, toko, tabungan & referral */}
         <IslamicHomeSections customerName={customer?.full_name} customerId={customer?.id} />
 
