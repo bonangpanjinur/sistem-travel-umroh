@@ -252,8 +252,8 @@ export default function CustomerRoutes() {
       {/* Wishlist Paket */}
       <Route path="/jamaah/wishlist" element={<CustomerRoute><JamaahWishlist /></CustomerRoute>} />
 
-      {/* Booking — setiap user terautentikasi bisa booking */}
-      <Route path="/booking/:packageId" element={<ProtectedRoute><LazyPage><BookingPage /></LazyPage></ProtectedRoute>} />
+      {/* Booking — guest mode: wizard publik, login diminta saat konfirmasi pembayaran */}
+      <Route path="/booking/:packageId" element={<LazyPage><BookingPage /></LazyPage>} />
       <Route path="/booking/success/:bookingId" element={<ProtectedRoute><LazyPage><BookingSuccess /></LazyPage></ProtectedRoute>} />
       <Route path="/booking/recover" element={<LazyPage><BookingRecover /></LazyPage>} />
       <Route path="/my-bookings" element={<ProtectedRoute><LazyPage><MyBookings /></LazyPage></ProtectedRoute>} />
