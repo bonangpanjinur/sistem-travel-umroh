@@ -142,3 +142,6 @@ const safeHideLoader = () => {
 };
 window.addEventListener('theme-ready', safeHideLoader, { once: true });
 setTimeout(safeHideLoader, 1500);
+
+// Web Vitals monitoring (LCP, CLS, INP, FCP, TTFB)
+import("./lib/webVitals").then((m) => m.initWebVitals()).catch(() => {});
