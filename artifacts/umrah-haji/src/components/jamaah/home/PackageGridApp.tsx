@@ -70,9 +70,13 @@ export function PackageGridApp({ limit = 6, themeColor = "#15803d" }: { limit?: 
             <Link to={href} className="block">
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                 <img
-                  src={p.featured_image || "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=600&auto=format&fit=crop"}
+                  src={p.featured_image || "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=400&auto=format&fit=crop&q=70"}
                   alt={p.name}
+                  width={400}
+                  height={300}
                   loading="lazy"
+                  decoding="async"
+                  fetchPriority={i < 2 ? "high" : "low"}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
