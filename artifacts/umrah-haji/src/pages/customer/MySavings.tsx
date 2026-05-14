@@ -20,9 +20,10 @@ import { toast } from 'sonner';
 import {
   Wallet, Calendar, Receipt, Upload,
   CheckCircle, Clock, AlertCircle, Plus, Eye,
-  BanknoteIcon, Copy, CalendarClock
+  BanknoteIcon, Copy, CalendarClock, Plane
 } from 'lucide-react';
 import { SavingsScheduleList } from '@/components/savings/SavingsScheduleList';
+import { SavingsConvertDialog } from '@/components/savings/SavingsConvertDialog';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const STATUS_CLS: Record<string, string> = {
@@ -62,7 +63,8 @@ export default function MySavings() {
   const [payFile, setPayFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const [historyPlanId, setHistoryPlanId] = useState<string | null>(null);
+  const [historyPlanId, setHistoryPlanId]       = useState<string | null>(null);
+  const [convertPlan,   setConvertPlan]         = useState<any | null>(null);
 
   // ── queries ───────────────────────────────────────────────────────────────
   const { data: savingsPlans = [], isLoading } = useQuery({
@@ -346,6 +348,16 @@ export default function MySavings() {
                           <Upload className="h-4 w-4 mr-2" /> Bayar Cicilan
                         </Button>
                       )}
+                      {/* Convert to booking — show for active/dp_paid plans not yet converted */}
+                      {(plan.status === 'active' || plan.status === 'dp_paid') && !plan.converted_booking_id && (
+                        <Button
+                          variant="secondary"
+                          className="flex-1"
+                          onClick={() => setConvertPlan(plan)}
+                        >
+                          <Plane className="h-4 w-4 mr-2" /> Konversi ke Booking
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         className={isActive ? '' : 'flex-1'}
@@ -523,6 +535,21 @@ export default function MySavings() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Convert Savings to Booking Dialog ── */}
+      {convertPlan && (
+        <SavingsConvertDialog
+          open={!!convertPlan}
+          onOpenChange={(v) => { if (!v) setConvertPlan(null); }}
+          savingsPlan={{
+            id:            convertPlan.id,
+            package_id:    convertPlan.package_id ?? null,
+            paid_amount:   Number(convertPlan.paid_amount) || 0,
+            target_amount: Number(convertPlan.target_amount) || 0,
+            locked_price:  (convertPlan as any).locked_price ?? null,
+          }}
+        />
+      )}
     </DynamicPublicLayout>
   );
 }
