@@ -1,6 +1,7 @@
 import { Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import JamaahPrivateGate from "@/components/auth/JamaahPrivateGate";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { AppRole } from "@/types/database";
 
@@ -128,6 +129,21 @@ function CustomerRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Soft-gated route for /jamaah/* private features.
+ * - Guests see a friendly "Masuk untuk melanjutkan" panel (no redirect).
+ * - Signed-in users see the page directly.
+ * Use this instead of CustomerRoute for jamaah personal features so that
+ * installing the PWA never feels like an "Access Denied" wall.
+ */
+function JamaahRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <JamaahPrivateGate>
+      <LazyPage>{children}</LazyPage>
+    </JamaahPrivateGate>
+  );
+}
+
 export default function CustomerRoutes() {
   return (
     <>
@@ -145,35 +161,37 @@ export default function CustomerRoutes() {
       {/* Tabungan */}
       <Route path="/savings/success/:planId" element={<CustomerRoute><SavingsSuccess /></CustomerRoute>} />
 
-      {/* ── Portal Jamaah — Memerlukan Login (data personal) ── */}
-      <Route path="/jamaah" element={<CustomerRoute><JamaahPortal /></CustomerRoute>} />
-      <Route path="/jamaah/digital-id" element={<CustomerRoute><JamaahDigitalID /></CustomerRoute>} />
-      <Route path="/jamaah/itinerary" element={<CustomerRoute><JamaahItinerary /></CustomerRoute>} />
-      <Route path="/jamaah/documents" element={<CustomerRoute><JamaahDocuments /></CustomerRoute>} />
-      <Route path="/jamaah/payment-history" element={<CustomerRoute><JamaahPaymentHistory /></CustomerRoute>} />
-      <Route path="/jamaah/feedback/:bookingId" element={<CustomerRoute><JamaahFeedback /></CustomerRoute>} />
-      <Route path="/jamaah/notifications" element={<CustomerRoute><JamaahNotifications /></CustomerRoute>} />
-      <Route path="/jamaah/visa" element={<CustomerRoute><JamaahVisaTracker /></CustomerRoute>} />
-      <Route path="/jamaah/welcome" element={<CustomerRoute><JamaahWelcome /></CustomerRoute>} />
-      <Route path="/jamaah/chat" element={<CustomerRoute><JamaahChat /></CustomerRoute>} />
-      <Route path="/jamaah/rombongan" element={<CustomerRoute><JamaahRombongan /></CustomerRoute>} />
-      <Route path="/jamaah/galeri" element={<CustomerRoute><JamaahGaleri /></CustomerRoute>} />
-      <Route path="/jamaah/riwayat-perjalanan" element={<CustomerRoute><JamaahRiwayatPerjalanan /></CustomerRoute>} />
-      <Route path="/jamaah/referral" element={<CustomerRoute><JamaahReferral /></CustomerRoute>} />
-      <Route path="/jamaah/invoice/:bookingId" element={<CustomerRoute><JamaahInvoice /></CustomerRoute>} />
-      <Route path="/jamaah/checkin" element={<CustomerRoute><JamaahCheckin /></CustomerRoute>} />
-      <Route path="/jamaah/bagasi" element={<CustomerRoute><JamaahBagasi /></CustomerRoute>} />
-      <Route path="/jamaah/kontrak" element={<CustomerRoute><JamaahKontrak /></CustomerRoute>} />
-      <Route path="/jamaah/badges" element={<CustomerRoute><JamaahBadges /></CustomerRoute>} />
-      <Route path="/jamaah/jurnal" element={<CustomerRoute><JamaahJurnal /></CustomerRoute>} />
-      <Route path="/jamaah/sertifikat" element={<CustomerRoute><JamaahSertifikat /></CustomerRoute>} />
-      <Route path="/jamaah/siskohat" element={<CustomerRoute><JamaahSISKOHAT /></CustomerRoute>} />
-      <Route path="/jamaah/chatbot" element={<CustomerRoute><JamaahChatbot /></CustomerRoute>} />
-      <Route path="/jamaah/ringkasan-ai" element={<CustomerRoute><JamaahRingkasanAI /></CustomerRoute>} />
-      <Route path="/jamaah/payment" element={<CustomerRoute><JamaahPayment /></CustomerRoute>} />
-      <Route path="/jamaah/kesehatan" element={<CustomerRoute><JamaahKesehatan /></CustomerRoute>} />
-      <Route path="/jamaah/sos-status" element={<CustomerRoute><JamaahSOSStatus /></CustomerRoute>} />
-      <Route path="/jamaah/pantau-keluarga" element={<CustomerRoute><JamaahPantauKeluarga /></CustomerRoute>} />
+      {/* ── Portal Jamaah — PUBLIK, mendukung mode tamu (PWA-friendly) ── */}
+      <Route path="/jamaah" element={<LazyPage><JamaahPortal /></LazyPage>} />
+      <Route path="/jamaah/welcome" element={<LazyPage><JamaahWelcome /></LazyPage>} />
+      <Route path="/jamaah/chatbot" element={<LazyPage><JamaahChatbot /></LazyPage>} />
+
+      {/* ── Fitur Pribadi Jamaah — soft prompt login (bukan access denied) ── */}
+      <Route path="/jamaah/digital-id" element={<JamaahRoute><JamaahDigitalID /></JamaahRoute>} />
+      <Route path="/jamaah/itinerary" element={<JamaahRoute><JamaahItinerary /></JamaahRoute>} />
+      <Route path="/jamaah/documents" element={<JamaahRoute><JamaahDocuments /></JamaahRoute>} />
+      <Route path="/jamaah/payment-history" element={<JamaahRoute><JamaahPaymentHistory /></JamaahRoute>} />
+      <Route path="/jamaah/feedback/:bookingId" element={<JamaahRoute><JamaahFeedback /></JamaahRoute>} />
+      <Route path="/jamaah/notifications" element={<JamaahRoute><JamaahNotifications /></JamaahRoute>} />
+      <Route path="/jamaah/visa" element={<JamaahRoute><JamaahVisaTracker /></JamaahRoute>} />
+      <Route path="/jamaah/chat" element={<JamaahRoute><JamaahChat /></JamaahRoute>} />
+      <Route path="/jamaah/rombongan" element={<JamaahRoute><JamaahRombongan /></JamaahRoute>} />
+      <Route path="/jamaah/galeri" element={<JamaahRoute><JamaahGaleri /></JamaahRoute>} />
+      <Route path="/jamaah/riwayat-perjalanan" element={<JamaahRoute><JamaahRiwayatPerjalanan /></JamaahRoute>} />
+      <Route path="/jamaah/referral" element={<JamaahRoute><JamaahReferral /></JamaahRoute>} />
+      <Route path="/jamaah/invoice/:bookingId" element={<JamaahRoute><JamaahInvoice /></JamaahRoute>} />
+      <Route path="/jamaah/checkin" element={<JamaahRoute><JamaahCheckin /></JamaahRoute>} />
+      <Route path="/jamaah/bagasi" element={<JamaahRoute><JamaahBagasi /></JamaahRoute>} />
+      <Route path="/jamaah/kontrak" element={<JamaahRoute><JamaahKontrak /></JamaahRoute>} />
+      <Route path="/jamaah/badges" element={<JamaahRoute><JamaahBadges /></JamaahRoute>} />
+      <Route path="/jamaah/jurnal" element={<JamaahRoute><JamaahJurnal /></JamaahRoute>} />
+      <Route path="/jamaah/sertifikat" element={<JamaahRoute><JamaahSertifikat /></JamaahRoute>} />
+      <Route path="/jamaah/siskohat" element={<JamaahRoute><JamaahSISKOHAT /></JamaahRoute>} />
+      <Route path="/jamaah/ringkasan-ai" element={<JamaahRoute><JamaahRingkasanAI /></JamaahRoute>} />
+      <Route path="/jamaah/payment" element={<JamaahRoute><JamaahPayment /></JamaahRoute>} />
+      <Route path="/jamaah/kesehatan" element={<JamaahRoute><JamaahKesehatan /></JamaahRoute>} />
+      <Route path="/jamaah/sos-status" element={<JamaahRoute><JamaahSOSStatus /></JamaahRoute>} />
+      <Route path="/jamaah/pantau-keluarga" element={<JamaahRoute><JamaahPantauKeluarga /></JamaahRoute>} />
 
       {/* ── Konten Islami & Alat Ibadah — PUBLIK, tidak perlu login ── */}
       <Route path="/jamaah/doa-panduan" element={<LazyPage><JamaahDoaPanduan /></LazyPage>} />
