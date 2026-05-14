@@ -1,7 +1,7 @@
 import {
   Bell, Check, Trash2, Calendar, CreditCard, MessageCircle,
   AlertTriangle, ShieldCheck, ClipboardCheck, UserPlus, FileSearch,
-  Smartphone, X,
+  Smartphone, X, PiggyBank,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +70,14 @@ const CATEGORIES: CategoryDef[] = [
     link: '/admin/payments',
   },
   {
+    label: 'Tabungan',
+    types: ['savings_converted'],
+    icon: PiggyBank,
+    color: 'text-teal-600',
+    bg: 'bg-teal-50 dark:bg-teal-950/40',
+    link: '/admin/savings',
+  },
+  {
     label: 'SOS',
     types: ['sos_alert'],
     icon: AlertTriangle,
@@ -97,6 +105,8 @@ function getTypeStyle(type: AdminNotification['type']) {
       return { icon: ShieldCheck, iconClass: 'text-purple-600', bgClass: 'bg-purple-100 dark:bg-purple-900/30' };
     case 'device_registration':
       return { icon: Smartphone, iconClass: 'text-slate-600', bgClass: 'bg-slate-100 dark:bg-slate-900/30' };
+    case 'savings_converted':
+      return { icon: PiggyBank, iconClass: 'text-teal-600', bgClass: 'bg-teal-100 dark:bg-teal-900/30' };
     default:
       return { icon: Bell, iconClass: 'text-muted-foreground', bgClass: 'bg-muted' };
   }

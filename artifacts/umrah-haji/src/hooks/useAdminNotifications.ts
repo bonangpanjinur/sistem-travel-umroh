@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 export interface AdminNotification {
   id: string;
-  type: 'booking' | 'payment' | 'device_registration' | 'chat_lead' | 'sos_alert' | 'visa_update' | 'approval_request' | 'lead' | 'document';
+  type: 'booking' | 'payment' | 'device_registration' | 'chat_lead' | 'sos_alert' | 'visa_update' | 'approval_request' | 'lead' | 'document' | 'savings_converted';
   title: string;
   message: string;
   createdAt: Date;
@@ -235,7 +235,38 @@ export function useAdminNotifications() {
           }
         )
 
-        // 10. Visa Status Updates
+        // 10. Savings Plan Converted to Booking
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'savings_plans' },
+          async (payload) => {
+            if (!payload?.new || !payload?.old) return;
+            const newPlan = payload.new as any;
+            const oldPlan = payload.old as any;
+            if (oldPlan.status === newPlan.status || newPlan.status !== 'converted') return;
+
+            const paidAmount = newPlan.paid_amount ?? 0;
+
+            const { data: customer } = await supabase
+              .from('customers').select('full_name, phone').eq('id', newPlan.customer_id).maybeSingle();
+
+            const bookingId = newPlan.converted_booking_id;
+            const { data: booking } = bookingId
+              ? await supabase.from('bookings').select('booking_code, total_price').eq('id', bookingId).maybeSingle()
+              : { data: null };
+
+            const totalPrice = booking?.total_price ?? targetAmount;
+            const sisa = Math.max(0, totalPrice - paidAmount);
+
+            addNotification({
+              type: 'savings_converted',
+              title: '💰 Tabungan Dikonversi ke Booking!',
+              message: `${customer?.full_name || 'Jamaah'} (${customer?.phone || '-'}) — Booking ${booking?.booking_code || ''} · Sisa tagihan: ${formatCurrency(sisa)}`,
+              link: bookingId ? `/admin/bookings/${bookingId}` : '/admin/savings',
+              data: { ...newPlan, customer, booking },
+            });
+          }
+        )
+
+        // 11. Visa Status Updates
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visa_applications' },
           async (payload) => {
             if (!payload?.new || !payload?.old) return;
