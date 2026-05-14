@@ -152,6 +152,7 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 | ✅ PAK-F5-C | Kolom `booking_mode` di `AdminPackageTypes` | Badge berwarna per mode, filter card 3 mode, tampilkan jumlah per mode |
 | ✅ PAK-F5-D | SQL migration `20260514_wisata_package_types_and_booking_mode.sql` | Kolom `booking_mode` di tabel `package_types`, seed 7 tipe wisata, RPC `get_active_exchange_rate` (idempotent), seed kurs default |
 | ✅ BUG-FIX | Install `web-vitals` + fallback loader 500ms | Package hilang menyebabkan error overlay; loader fallback dipercepat dari 1500ms ke 500ms |
+| ✅ PAK-F6 | Harga per Orang Mandiri (Model Haji) | `StepPassengersDynamic` mode haji: tambah/hapus jamaah per tipe usia (Dewasa/Anak/Bayi), price tag per orang. `StepReviewDynamic` isHaji: rincian harga per tipe usia. `useBookingWizardDynamic` submit: deteksi `booking_mode=haji` → kalkulasi total dari `price_adult/child/infant`, bukan per tipe kamar. `bookingMode` dari URL param → hook |
 
 > Detail lengkap setiap item ada di section masing-masing di bawah.
 

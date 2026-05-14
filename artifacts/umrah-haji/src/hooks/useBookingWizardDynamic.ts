@@ -59,16 +59,21 @@ export function useBookingWizardDynamic(
   initialDepartureId: string,
   initialRoomAllocation: RoomAllocation,
   picData?: PICData,
-  initialPax: number = 0
+  initialPax: number = 0,
+  bookingMode: string = 'umroh'
 ) {
+  const isHaji = bookingMode === 'haji';
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState<BookingStep>(initialPax > 0 ? 'rooms' : 'passengers');
+  const [currentStep, setCurrentStep] = useState<BookingStep>((!isHaji && initialPax > 0) ? 'rooms' : 'passengers');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const initialPassengers = useMemo(() => 
-    createPassengersFromAllocation(initialRoomAllocation), 
-    [initialRoomAllocation.quad, initialRoomAllocation.triple, initialRoomAllocation.double, initialRoomAllocation.single]
-  );
+  const initialPassengers = useMemo(() => {
+    if (isHaji) {
+      // Haji: mulai dengan 1 orang dewasa default
+      return [{ id: generateTempId(), fullName: '', gender: 'male' as const, phone: '', passengerType: 'adult' as const, roomType: 'quad' as RoomType }];
+    }
+    return createPassengersFromAllocation(initialRoomAllocation);
+  }, [isHaji, initialRoomAllocation.quad, initialRoomAllocation.triple, initialRoomAllocation.double, initialRoomAllocation.single]);
   
   const [formData, setFormData] = useState<DynamicBookingFormData>({
     departureId: initialDepartureId,
@@ -183,35 +188,56 @@ export function useBookingWizardDynamic(
       // 2. Get departure info (incl. package currency for multi-currency snapshot)
       const { data: departure, error: departureError } = await supabase
         .from('departures')
-        .select('id, departure_date, price_quad, price_triple, price_double, price_single, package:packages(code, currency, booking_mode)')
+        .select('id, departure_date, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, package:packages(code, currency, booking_mode)')
         .eq('id', formData.departureId)
         .single();
 
       if (departureError || !departure) throw new Error('Departure tidak ditemukan');
+
+      const departureBookingMode: string = (departure as any).package?.booking_mode || bookingMode;
+      const useAgeBasedPricing = departureBookingMode === 'haji' ||
+        ((departure as any).price_adult && (departure as any).price_adult > 0);
 
       // 3. Calculate pricing
       const priceMap: Record<RoomType, number> = {
         quad: departure.price_quad || 0, triple: departure.price_triple || 0,
         double: departure.price_double || 0, single: departure.price_single || 0,
       };
-      
-      let totalPrice = 0;
-      for (const passenger of formData.passengers) {
-        totalPrice += priceMap[passenger.roomType];
-      }
+
+      const agePriceMap: Record<string, number> = {
+        adult: (departure as any).price_adult || 0,
+        child: (departure as any).price_child || 0,
+        infant: (departure as any).price_infant || 0,
+      };
       
       const adultCount = formData.passengers.filter(p => p.passengerType === 'adult').length;
       const childCount = formData.passengers.filter(p => p.passengerType === 'child').length;
       const infantCount = formData.passengers.filter(p => p.passengerType === 'infant').length;
       const totalPax = formData.passengers.length;
-      
-      const roomCounts = formData.passengers.reduce((acc, p) => {
-        acc[p.roomType] = (acc[p.roomType] || 0) + 1;
-        return acc;
-      }, {} as Record<RoomType, number>);
-      
-      const mainRoomType = (Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'quad') as RoomType;
-      const basePrice = priceMap[mainRoomType];
+
+      let totalPrice = 0;
+      let basePrice = 0;
+      let mainRoomType: RoomType = 'quad';
+
+      if (useAgeBasedPricing) {
+        // Model harga per usia: adult × harga_dewasa + child × harga_anak + infant × harga_bayi
+        totalPrice = adultCount * agePriceMap.adult
+          + childCount * agePriceMap.child
+          + infantCount * agePriceMap.infant;
+        basePrice = agePriceMap.adult;
+        mainRoomType = 'quad'; // default, tidak relevan untuk haji
+      } else {
+        // Model harga per tipe kamar (umroh/wisata)
+        for (const passenger of formData.passengers) {
+          totalPrice += priceMap[passenger.roomType];
+        }
+        const roomCounts = formData.passengers.reduce((acc, p) => {
+          acc[p.roomType] = (acc[p.roomType] || 0) + 1;
+          return acc;
+        }, {} as Record<RoomType, number>);
+        mainRoomType = (Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'quad') as RoomType;
+        basePrice = priceMap[mainRoomType];
+      }
 
       // 3.1 Multi-currency snapshot (BOOK-FIX1 / CUR-7)
       const pkgCurrency: string = (departure as any).package?.currency || 'IDR';
@@ -482,6 +508,32 @@ export function useBookingWizardDynamic(
     }));
   };
 
+  // PAK-F6: Haji — tambah jamaah per tipe usia
+  const addHajiPassenger = (type: 'adult' | 'child' | 'infant') => {
+    const newPassenger: DynamicPassengerData = {
+      id: generateTempId(),
+      fullName: '',
+      gender: 'male',
+      phone: '',
+      passengerType: type,
+      roomType: 'quad', // tidak relevan untuk haji, diset default
+    };
+    setFormData(prev => ({
+      ...prev,
+      passengers: [...prev.passengers, newPassenger],
+    }));
+  };
+
+  // PAK-F6: Haji — hapus jamaah (tidak bisa hapus pemesan utama index 0)
+  const removeHajiPassenger = (id: string) => {
+    setFormData(prev => {
+      if (prev.passengers.length <= 1) return prev; // minimal 1 jamaah
+      const idx = prev.passengers.findIndex(p => p.id === id);
+      if (idx === 0) return prev; // pemesan utama tidak bisa dihapus
+      return { ...prev, passengers: prev.passengers.filter(p => p.id !== id) };
+    });
+  };
+
   return { 
     currentStep, 
     setCurrentStep, 
@@ -490,6 +542,9 @@ export function useBookingWizardDynamic(
     isSubmitting, 
     submitBooking,
     updateRoomAllocation,
+    addHajiPassenger,
+    removeHajiPassenger,
+    isHaji,
     picState,
     setPicState,
     picValidation,

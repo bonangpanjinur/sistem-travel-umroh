@@ -45,6 +45,7 @@ interface StepReviewDynamicProps {
     price_child?: number;
     price_infant?: number;
   };
+  isHaji?: boolean;
   onCouponApplied?: (discount: number, code: string) => void;
   onReferralApplied?: (code: string) => void;
   onUpdatePassengers?: (passengers: any[]) => void;
@@ -66,6 +67,7 @@ const ROOM_LABELS: Record<RoomType, string> = {
 
 export function StepReviewDynamic({
   formData, packageInfo, departureInfo, departurePrices,
+  isHaji = false,
   onCouponApplied, onReferralApplied, onUpdatePassengers,
   cancellationAgreed, onCancellationAgreedChange,
   onPaymentModeChange, paymentMode = 'full', dpAmount = 0, savingsPlanId,
@@ -302,7 +304,7 @@ export function StepReviewDynamic({
         </CardContent>
       </Card>
 
-      {/* Passengers by Room Type */}
+      {/* Passengers section — Haji: per tipe usia | Umroh: per tipe kamar */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -311,35 +313,71 @@ export function StepReviewDynamic({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {(Object.keys(groupedPassengers) as RoomType[]).map((roomType) => (
-            <div key={roomType}>
-              <div className="flex items-center gap-2 mb-2">
-                <BedDouble className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Kamar {ROOM_LABELS[roomType]}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {groupedPassengers[roomType].length} orang
-                </Badge>
-              </div>
-              <div className="grid gap-2 pl-6">
-                {groupedPassengers[roomType].map((passenger) => (
-                  <div key={passenger.id} className="flex items-center gap-3 text-sm">
-                    <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                      <User className="h-3 w-3" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{passenger.fullName || 'Belum diisi'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {passenger.gender === 'male' ? 'L' : 'P'} • {passenger.passengerType === 'adult' ? 'Dewasa' : passenger.passengerType === 'child' ? 'Anak' : 'Bayi'}
-                      </p>
-                    </div>
-                    <span className="text-xs text-primary font-medium">
-                      {formatCurrency(priceMap[roomType])}
-                    </span>
+          {isHaji ? (
+            // Haji: tampilkan per tipe usia
+            (['adult', 'child', 'infant'] as const).map((type) => {
+              const typePassengers = formData.passengers.filter(p => p.passengerType === type);
+              if (typePassengers.length === 0) return null;
+              const typeLabel = type === 'adult' ? 'Dewasa' : type === 'child' ? 'Anak-anak' : 'Bayi';
+              const typePrice = type === 'adult' ? adultPrice : type === 'child' ? childPrice : infantPrice;
+              return (
+                <div key={type}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{typeLabel}</span>
+                    <Badge variant="secondary" className="text-xs">{typePassengers.length} orang</Badge>
                   </div>
-                ))}
+                  <div className="grid gap-2 pl-6">
+                    {typePassengers.map((passenger) => (
+                      <div key={passenger.id} className="flex items-center gap-3 text-sm">
+                        <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <User className="h-3 w-3" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{passenger.fullName || 'Belum diisi'}</p>
+                          <p className="text-xs text-muted-foreground">{passenger.gender === 'male' ? 'L' : 'P'}</p>
+                        </div>
+                        {typePrice > 0 && (
+                          <span className="text-xs text-primary font-medium">{formatCurrency(typePrice)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            // Umroh/Wisata: tampilkan per tipe kamar
+            (Object.keys(groupedPassengers) as RoomType[]).map((roomType) => (
+              <div key={roomType}>
+                <div className="flex items-center gap-2 mb-2">
+                  <BedDouble className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Kamar {ROOM_LABELS[roomType]}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {groupedPassengers[roomType].length} orang
+                  </Badge>
+                </div>
+                <div className="grid gap-2 pl-6">
+                  {groupedPassengers[roomType].map((passenger) => (
+                    <div key={passenger.id} className="flex items-center gap-3 text-sm">
+                      <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <User className="h-3 w-3" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{passenger.fullName || 'Belum diisi'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {passenger.gender === 'male' ? 'L' : 'P'} • {passenger.passengerType === 'adult' ? 'Dewasa' : passenger.passengerType === 'child' ? 'Anak' : 'Bayi'}
+                        </p>
+                      </div>
+                      <span className="text-xs text-primary font-medium">
+                        {formatCurrency(priceMap[roomType])}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
 
@@ -447,17 +485,51 @@ export function StepReviewDynamic({
           <CardTitle className="text-base">Rincian Harga</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {(Object.keys(priceBreakdown) as RoomType[]).map((roomType) => {
-            const item = priceBreakdown[roomType];
-            return (
-              <div key={roomType} className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {item.count}x {ROOM_LABELS[roomType]} @ {formatCurrency(item.price)}
-                </span>
-                <span>{formatCurrency(item.total)}</span>
-              </div>
-            );
-          })}
+          {isHaji ? (
+            // Haji: rincian per tipe usia
+            <>
+              {adultPrice > 0 && formData.passengers.filter(p => p.passengerType === 'adult').length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {formData.passengers.filter(p => p.passengerType === 'adult').length}x Dewasa @ {formatCurrency(adultPrice)}
+                  </span>
+                  <span>{formatCurrency(formData.passengers.filter(p => p.passengerType === 'adult').length * adultPrice)}</span>
+                </div>
+              )}
+              {childPrice > 0 && formData.passengers.filter(p => p.passengerType === 'child').length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {formData.passengers.filter(p => p.passengerType === 'child').length}x Anak-anak @ {formatCurrency(childPrice)}
+                  </span>
+                  <span>{formatCurrency(formData.passengers.filter(p => p.passengerType === 'child').length * childPrice)}</span>
+                </div>
+              )}
+              {infantPrice > 0 && formData.passengers.filter(p => p.passengerType === 'infant').length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {formData.passengers.filter(p => p.passengerType === 'infant').length}x Bayi @ {formatCurrency(infantPrice)}
+                  </span>
+                  <span>{formatCurrency(formData.passengers.filter(p => p.passengerType === 'infant').length * infantPrice)}</span>
+                </div>
+              )}
+              {adultPrice === 0 && childPrice === 0 && infantPrice === 0 && (
+                <p className="text-sm text-muted-foreground italic">Harga per orang belum diset untuk keberangkatan ini</p>
+              )}
+            </>
+          ) : (
+            // Umroh/Wisata: rincian per tipe kamar
+            (Object.keys(priceBreakdown) as RoomType[]).map((roomType) => {
+              const item = priceBreakdown[roomType];
+              return (
+                <div key={roomType} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {item.count}x {ROOM_LABELS[roomType]} @ {formatCurrency(item.price)}
+                  </span>
+                  <span>{formatCurrency(item.total)}</span>
+                </div>
+              );
+            })
+          )}
           
           {discountAmount > 0 && (
             <>

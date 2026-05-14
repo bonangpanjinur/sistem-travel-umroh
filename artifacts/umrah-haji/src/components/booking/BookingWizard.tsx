@@ -131,11 +131,16 @@ export function BookingWizard() {
     },
   });
 
+  // bookingMode sudah tersedia dari packageInfo, tapi hook dipanggil sebelum packageInfo ready.
+  // Kita baca dari searchParams atau default 'umroh' — akan di-sync setelah packageInfo loaded.
+  const earlyBookingMode = searchParams.get('booking_mode') || 'umroh';
+
   const {
     currentStep, setCurrentStep, formData, updateFormData, isSubmitting, submitBooking,
-    updateRoomAllocation, picState, setPicState, picValidation, isValidatingPIC,
+    updateRoomAllocation, addHajiPassenger, removeHajiPassenger, isHaji: isHajiFromHook,
+    picState, setPicState, picValidation, isValidatingPIC,
     cancellationAgreed, setCancellationAgreed,
-  } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
+  } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax, earlyBookingMode);
 
   const [paymentStepValid, setPaymentStepValid] = useState(true);
   const [loginGate, setLoginGate] = useState(false);
@@ -197,8 +202,9 @@ export function BookingWizard() {
     });
   }, [draftKey, formData, picState, cancellationAgreed, currentStep]);
 
-  const bookingMode = (packageInfo as any)?.booking_mode || 'umroh';
-  const isHaji = bookingMode === 'haji';
+  const bookingMode = (packageInfo as any)?.booking_mode || earlyBookingMode;
+  // isHaji dari hook (early) atau dari packageInfo setelah loaded
+  const isHaji = bookingMode === 'haji' || isHajiFromHook;
   const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
 
   // Seat hold (BOOK-FIX3) — 15 menit lock kursi selama wizard
@@ -457,6 +463,14 @@ export function BookingWizard() {
             <StepPassengersDynamic
               passengers={formData.passengers}
               onUpdate={(passengers) => updateFormData({ passengers })}
+              isHaji={isHaji}
+              departurePrices={departureInfo ? {
+                price_adult: (departureInfo as any)?.price_adult ?? 0,
+                price_child: (departureInfo as any)?.price_child ?? 0,
+                price_infant: (departureInfo as any)?.price_infant ?? 0,
+              } : undefined}
+              onAddPassenger={addHajiPassenger}
+              onRemovePassenger={removeHajiPassenger}
             />
           )}
           {currentStep === 'pic' && (
@@ -478,6 +492,7 @@ export function BookingWizard() {
               formData={formData}
               packageInfo={packageInfo as any}
               departureInfo={departureInfo}
+              isHaji={isHaji}
               departurePrices={departureInfo ? {
                 price_quad: departureInfo.price_quad ?? 0,
                 price_triple: departureInfo.price_triple ?? 0,
