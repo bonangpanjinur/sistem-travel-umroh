@@ -35,6 +35,7 @@ import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
 import { IslamicHomeSections } from "@/components/jamaah/home/IslamicHomeSections";
 import { ProfileProgressCard } from "@/components/jamaah/home/ProfileProgressCard";
+import { PushOnboardingSheet } from "@/components/pwa/PushOnboardingSheet";
 import { LogIn, UserPlus } from "lucide-react";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useRecentlyViewedPackages } from "@/hooks/useRecentlyViewedPackages";
@@ -410,6 +411,7 @@ export default function JamaahPortal() {
       )}
 
       <PushNotifBanner customerId={customer?.id} />
+      <PushOnboardingSheet customerId={customer?.id} />
 
 
       <div className="p-4 space-y-4">
