@@ -20,8 +20,9 @@ import { toast } from 'sonner';
 import {
   Wallet, Calendar, Receipt, Upload,
   CheckCircle, Clock, AlertCircle, Plus, Eye,
-  BanknoteIcon, Copy
+  BanknoteIcon, Copy, CalendarClock
 } from 'lucide-react';
+import { SavingsScheduleList } from '@/components/savings/SavingsScheduleList';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const STATUS_CLS: Record<string, string> = {
@@ -234,7 +235,8 @@ export default function MySavings() {
               const isActive = plan.status === 'active' || plan.status === 'dp_paid';
 
               return (
-                <Card key={plan.id} className={isActive ? 'border-primary/40 shadow-md' : ''}>
+                <div key={plan.id} className="space-y-3">
+                <Card className={isActive ? 'border-primary/40 shadow-md' : ''}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -354,6 +356,10 @@ export default function MySavings() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Jadwal Cicilan Otomatis */}
+                <SavingsScheduleList savingsPlanId={plan.id} />
+                </div>
               );
             })}
           </div>
