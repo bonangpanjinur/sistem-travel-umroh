@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/format";
 import { slugify } from "@/lib/slug";
 import { cn } from "@/lib/utils";
+import { buildSrcSet, BANNER_WIDTHS, BANNER_SIZES } from "@/lib/responsiveImage";
 
 interface Slide {
   id: string;
@@ -56,6 +57,8 @@ export function PromoBannerCarousel() {
 
   const [idx, setIdx] = useState(0);
   const timer = useRef<number | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const prefetchedRef = useRef(false);
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -67,12 +70,41 @@ export function PromoBannerCarousel() {
     };
   }, [slides.length]);
 
+  // Prefetch route bundle paket detail saat banner masuk viewport (≈ user mendekati tombol).
+  useEffect(() => {
+    if (!rootRef.current || slides.length === 0 || prefetchedRef.current) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const el = rootRef.current;
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        prefetchedRef.current = true;
+        // 1) Prefetch JS chunk halaman detail paket.
+        import("@/pages/packages/PackageDetail").catch(() => {});
+        // 2) Prefetch HTML target slide aktif via <link rel="prefetch">.
+        const head = document.head;
+        slides.slice(0, 3).forEach((s) => {
+          if (head.querySelector(`link[rel="prefetch"][href="${s.href}"]`)) return;
+          const link = document.createElement("link");
+          link.rel = "prefetch";
+          link.as = "document";
+          link.href = s.href;
+          head.appendChild(link);
+        });
+        io.disconnect();
+        break;
+      }
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [slides]);
+
   if (slides.length === 0) return null;
   const slide = slides[idx];
 
   return (
     <section className="mb-4 -mt-1">
-      <div className="relative aspect-[16/8] overflow-hidden rounded-3xl shadow-md">
+      <div ref={rootRef} className="relative aspect-[16/8] overflow-hidden rounded-3xl shadow-md">
         <AnimatePresence mode="wait">
           <motion.div
             key={slide.id}
@@ -85,6 +117,8 @@ export function PromoBannerCarousel() {
             <Link to={slide.href} className="block h-full w-full">
               <img
                 src={slide.image}
+                srcSet={buildSrcSet(slide.image, BANNER_WIDTHS, 75)}
+                sizes={BANNER_SIZES}
                 alt={slide.title}
                 className="h-full w-full object-cover"
                 width={1200}

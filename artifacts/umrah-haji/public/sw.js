@@ -1,4 +1,13 @@
-const CACHE_VERSION = "vinstour-v6";
+const CACHE_VERSION = "vinstour-v7";
+const IMAGE_CACHE = "vinstour-images-v1";
+const IMAGE_CACHE_MAX = 80; // maksimum entry agar tidak membengkak
+
+const IMAGE_HOST_ALLOWLIST = [
+  "images.unsplash.com",
+  "source.unsplash.com",
+  "supabase.co",
+  "supabase.in",
+];
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -52,24 +61,92 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+        Promise.all(
+          keys
+            .filter((k) => k !== CACHE_VERSION && k !== IMAGE_CACHE)
+            .map((k) => caches.delete(k))
+        )
       )
       .then(() => clients.claim())
   );
 });
 
+async function trimCache(cacheName, maxEntries) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    if (keys.length <= maxEntries) return;
+    const removeCount = keys.length - maxEntries;
+    for (let i = 0; i < removeCount; i++) {
+      await cache.delete(keys[i]);
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+function isImageRequest(request, url) {
+  if (request.destination === "image") return true;
+  return /\.(png|jpe?g|webp|avif|gif|svg)(\?|$)/i.test(url.pathname);
+}
+
+function isAllowedImageHost(url) {
+  return IMAGE_HOST_ALLOWLIST.some((h) => url.hostname === h || url.hostname.endsWith("." + h));
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin
-  if (request.method !== "GET" || url.origin !== location.origin) return;
+  // Skip non-GET
+  if (request.method !== "GET") return;
+
+  // Cross-origin images dari host yang diizinkan → stale-while-revalidate
+  if (url.origin !== location.origin) {
+    if (isImageRequest(request, url) && isAllowedImageHost(url)) {
+      event.respondWith(
+        caches.open(IMAGE_CACHE).then(async (cache) => {
+          const cached = await cache.match(request);
+          const network = fetch(request)
+            .then((r) => {
+              if (r && r.ok) {
+                cache.put(request, r.clone()).then(() => trimCache(IMAGE_CACHE, IMAGE_CACHE_MAX)).catch(() => {});
+              }
+              return r;
+            })
+            .catch(() => cached);
+          return cached || network;
+        })
+      );
+      return;
+    }
+    return;
+  }
 
   // Skip API calls — always go to network
   if (url.pathname.startsWith("/api/")) return;
 
-  // Static assets (JS, CSS, images) — cache-first with network fallback
-  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/images/")) {
+  // Same-origin images → stale-while-revalidate (banner & kartu paket lokal)
+  if (isImageRequest(request, url) || url.pathname.startsWith("/images/")) {
+    event.respondWith(
+      caches.open(IMAGE_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const network = fetch(request)
+          .then((r) => {
+            if (r && r.ok) {
+              cache.put(request, r.clone()).then(() => trimCache(IMAGE_CACHE, IMAGE_CACHE_MAX)).catch(() => {});
+            }
+            return r;
+          })
+          .catch(() => cached);
+        return cached || network;
+      })
+    );
+    return;
+  }
+
+  // Static assets (JS, CSS) — cache-first with network fallback
+  if (url.pathname.startsWith("/assets/")) {
     event.respondWith(
       caches.open(CACHE_VERSION).then(async (cache) => {
         const cached = await cache.match(request);
