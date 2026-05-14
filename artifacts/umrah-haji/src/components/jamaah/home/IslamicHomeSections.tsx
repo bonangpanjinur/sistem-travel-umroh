@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,8 +7,28 @@ import { IslamicCard, IslamicSectionTitle } from "@/components/jamaah/shell/Isla
 import { GeometricPattern, KaabaIcon } from "@/components/jamaah/ornaments/GeometricPattern";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { PromoBannerCarousel } from "@/components/jamaah/home/PromoBannerCarousel";
-import { PackageGridApp } from "@/components/jamaah/home/PackageGridApp";
+import { LazyMount } from "@/components/utils/LazyMount";
+
+// Code-split: kedua bundle ini berisi framer-motion & query yang berat di first paint.
+const PromoBannerCarousel = lazy(() =>
+  import("@/components/jamaah/home/PromoBannerCarousel").then(m => ({ default: m.PromoBannerCarousel }))
+);
+const PackageGridApp = lazy(() =>
+  import("@/components/jamaah/home/PackageGridApp").then(m => ({ default: m.PackageGridApp }))
+);
+
+function BannerSkeleton() {
+  return <div className="mb-4 -mt-1 aspect-[16/8] rounded-3xl bg-muted animate-pulse" />;
+}
+function GridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="rounded-2xl bg-muted aspect-[3/4] animate-pulse" />
+      ))}
+    </div>
+  );
+}
 
 /** Random ayat harian (dari pool kecil offline). */
 const AYAT_POOL = [
@@ -126,7 +146,11 @@ function PackageSection() {
         arabic="بَاقَات مُخْتَارَة"
         action={<Link to="/packages" className="text-xs text-primary font-medium">Lihat semua</Link>}
       />
-      <PackageGridApp limit={6} />
+      <LazyMount minHeight={320} rootMargin="300px">
+        <Suspense fallback={<GridSkeleton />}>
+          <PackageGridApp limit={6} />
+        </Suspense>
+      </LazyMount>
     </section>
   );
 }
@@ -227,7 +251,11 @@ export function IslamicHomeSections({ customerName, customerId }: { customerName
   return (
     <div className="space-y-1">
       <HeroMihrab name={customerName} />
-      <PromoBannerCarousel />
+      <LazyMount minHeight={180} rootMargin="150px">
+        <Suspense fallback={<BannerSkeleton />}>
+          <PromoBannerCarousel />
+        </Suspense>
+      </LazyMount>
       <QuickIbadahGrid />
       <PackageSection />
       <StoreEtalase />
