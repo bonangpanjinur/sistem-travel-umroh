@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { VIEWPORTS, setViewport, renderWithProviders, stableMarkup } from "./utils";
 
 // ── Mock Supabase: return 3 paket promosi deterministik ──────────────────────
@@ -31,8 +31,6 @@ vi.mock("framer-motion", async () => {
 import { PromoBannerCarousel } from "@/components/jamaah/home/PromoBannerCarousel";
 
 describe("PromoBannerCarousel · visual regression", () => {
-  beforeEach(() => vi.useFakeTimers());
-
   for (const vp of VIEWPORTS) {
     it(`matches snapshot @ ${vp.name}`, async () => {
       setViewport(vp.width, vp.height);
