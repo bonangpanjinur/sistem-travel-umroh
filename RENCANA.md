@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** 14 Mei 2026 (Sprint 10 — Perbaikan Bug & Multi-Currency)
+> **Terakhir diperbarui:** 14 Mei 2026 (Sprint 13 — TAB-FIX1, TAB-FIX2, TAB-FIX6, KEP-FIX6)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
@@ -10,14 +10,14 @@
 
 | Prioritas | Kode | Fitur | Keterangan |
 | :--- | :--- | :--- | :--- |
-| 🟠 **TINGGI** | PAK-F6 | Harga per Orang Mandiri | Model harga haji yang tidak hanya berbasis tipe kamar |
+| ✅ **SELESAI** | PAK-F6 | Harga per Orang Mandiri | Model haji: kalkulasi dari price_adult/child/infant, StepPassengersDynamic, StepReviewDynamic (Sprint 12) |
 | ✅ **SELESAI** | TAB-FIX1 | Konversi Tabungan → Booking | Flow pilih jadwal + tipe kamar + locked_price + WA notif setelah konversi |
 | ✅ **SELESAI** | TAB-FIX2 | Harga Terkunci + Notifikasi | Tab "Harga Terkunci" di AdminSavingsPlans — monitoring locked_price vs harga saat ini + WA alert |
-| 🟡 **SEDANG** | PAK-F7 | Bandingkan Paket | Fitur komparasi antar paket untuk user |
-| 🟡 **SEDANG** | PAK-F8 | Filter Currency di Listing | UX filter harga berdasarkan mata uang di halaman publik |
-| 🟡 **SEDANG** | BOOK-FIX7 | Guest Checkout Recovery | Link akses booking via email/WA untuk guest |
-| 🟡 **SEDANG** | TAB-FIX6 | Tabungan Fleksibel | Tabungan yang tidak terikat pada satu paket spesifik |
-| 🟡 **SEDANG** | KEP-FIX6 | Manajemen Bagasi | Kuota dan ketentuan bagasi per maskapai |
+| ✅ **SELESAI** | PAK-F7 | Bandingkan Paket | `PackageCompare.tsx` + route `/packages/compare` + link di PackageList |
+| ✅ **SELESAI** | PAK-F8 | Filter Currency di Listing | Dropdown filter `?currency=` di `/packages` (CUR-8, Sprint 10) |
+| ✅ **SELESAI** | BOOK-FIX7 | Guest Checkout Recovery | Edge function `send-booking-recovery` + `booking_access_tokens` + `/booking/recover` (Sprint 11) |
+| ✅ **SELESAI** | TAB-FIX6 | Tabungan Fleksibel | `SavingsFlexibleRegister.tsx` + route `/savings/register/flexible` + kartu di SavingsPackages |
+| ✅ **SELESAI** | KEP-FIX6 | Manajemen Bagasi | `AdminBaggagePolicies.tsx` — UI proper, dialog create/edit, tabel lengkap, konfirmasi hapus |
 
 ---
 
@@ -141,6 +141,19 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 | ✅ BOOK-FIX6 | Edge function `midtrans-webhook` (verifikasi SHA512 signature, auto-update payment status, log ke `midtrans_webhook_logs`) |
 | ✅ BOOK-FIX7 | Edge function `send-booking-recovery` + tabel `booking_access_tokens` + page `/booking/recover` (token 30 hari) |
 | AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA — ditunda |
+
+### ✅ Selesai Sprint 13 (14 Mei 2026 — TAB-FIX1, TAB-FIX2, TAB-FIX6, KEP-FIX6)
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| ✅ TAB-FIX1 | Konversi Tabungan → Booking | `AdminSavingsPlans.tsx`: state `convRoomType`, grid pilih tipe kamar (quad/triple/double/single), query departure include price columns + status open/confirmed/active, tampil sisa kursi, ringkasan harga (booking/terbayar/sisa), `locked_price` ditampilkan di dialog, WA notif otomatis via `sendBookingConfirm` setelah konversi |
+| ✅ TAB-FIX2 | Harga Terkunci + Notifikasi | `AdminSavingsPlans.tsx`: tab ketiga "Harga Terkunci", badge counter jumlah jamaah terdampak, summary cards (harga naik/stabil/total hemat), tabel perbandingan `locked_price` vs harga paket saat ini, tombol "Notif WA" per baris, row highlight amber untuk harga naik |
+| ✅ TAB-FIX6 | Tabungan Fleksibel | `SavingsFlexibleRegister.tsx` (baru): slider target Rp 5–100 juta, label tujuan custom, tenor 6–36 bln, DP 0–30%, insert `savings_plans` dengan `package_id: null`; kartu amber "Baru" ditambahkan ke `SavingsPackages.tsx`; route `/savings/register/flexible` didaftarkan sebelum `/:packageId` di `PublicRoutes.tsx` |
+| ✅ KEP-FIX6 | Manajemen Bagasi per Maskapai | `AdminBaggagePolicies.tsx` (rewrite): tabel shadcn + dialog create/edit dengan Select maskapai proper + field max_pieces + Textarea notes + preview badge; AlertDialog konfirmasi hapus; info card panduan penggunaan; fallback "Default (Global)" untuk semua maskapai |
+
+> **Catatan teknis KEP-FIX6:** Kolom `max_pieces` mungkin perlu ditambah ke tabel `baggage_policies` via Supabase SQL: `ALTER TABLE baggage_policies ADD COLUMN IF NOT EXISTS max_pieces integer;`
+
+---
 
 ### ✅ Selesai Sprint 12 (14 Mei 2026 — PAK-F4 & PAK-F5)
 

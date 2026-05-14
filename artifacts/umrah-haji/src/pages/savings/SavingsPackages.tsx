@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, formatPackageType } from '@/lib/format';
 import { 
   Wallet, Clock, Building2, Plane, 
-  Calculator, TrendingUp, Shield, CheckCircle 
+  Calculator, TrendingUp, Shield, CheckCircle, Star,
 } from 'lucide-react';
 
 // Icon mapping for dynamic values
@@ -109,7 +109,7 @@ export default function SavingsPackages() {
                 </Card>
               ))}
             </div>
-          ) : packages.length > 0 ? (
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {packages.map((pkg) => (
                 <Card key={pkg.id} className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -156,16 +156,49 @@ export default function SavingsPackages() {
                   </CardFooter>
                 </Card>
               ))}
-            </div>
-          ) : (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Wallet className="h-12 w-12 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Belum Ada Paket Tersedia</h3>
-              <p className="text-muted-foreground">
-                Hubungi kami untuk informasi lebih lanjut tentang program tabungan umroh.
-              </p>
+
+              {/* TAB-FIX6 — Kartu Tabungan Fleksibel */}
+              <Card className="overflow-hidden hover:shadow-lg transition-shadow border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+                <div className="relative h-48 bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Star className="h-12 w-12 mx-auto mb-2" />
+                    <p className="font-bold text-lg">Tabungan Fleksibel</p>
+                  </div>
+                  <div className="absolute top-3 left-3">
+                    <Badge className="bg-white text-amber-700">Baru</Badge>
+                  </div>
+                </div>
+
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Tentukan Target Sendiri</CardTitle>
+                  <p className="text-sm text-muted-foreground">Tidak terikat paket — pilih paket saat tabungan siap</p>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  <div className="pt-2 border-t border-amber-200/50">
+                    <p className="text-sm text-muted-foreground mb-1">Target Tabungan</p>
+                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">Bebas Anda pilih</p>
+                    <p className="text-sm text-muted-foreground mt-2">Mulai dari Rp 5 juta hingga Rp 100 juta</p>
+                  </div>
+                  <ul className="space-y-1">
+                    {['Bebas pilih paket saat lunas', 'Tenor 6–36 bulan', 'Cicilan fleksibel'].map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+
+                <CardFooter>
+                  <Button asChild className="w-full bg-amber-600 hover:bg-amber-700">
+                    <Link to="/savings/register/flexible">
+                      <Star className="h-4 w-4 mr-2" />
+                      Buat Tabungan Fleksibel
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
             </div>
           )}
         </div>
