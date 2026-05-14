@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { StepReviewDynamic } from "./steps/StepReviewDynamic";
 import { StepRoomAllocation } from "./steps/StepRoomAllocation";
 import { PICSelectionStepImproved } from "./PICSelectionStepImproved";
 import { useBookingWizardDynamic, RoomAllocation, PICData } from "@/hooks/useBookingWizardDynamic";
-import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket } from "lucide-react";
+import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket, LogIn } from "lucide-react";
 import { Clock, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,14 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { LoginSuggestionDialog } from "./LoginSuggestionDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSeatHold, formatHoldRemaining } from "@/hooks/useSeatHold";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -122,6 +130,63 @@ export function BookingWizard() {
   } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
 
   const [paymentStepValid, setPaymentStepValid] = useState(true);
+  const [loginGate, setLoginGate] = useState(false);
+
+  // Persist guest wizard state per departure to survive login redirect
+  const draftKey = initialDepartureId ? `booking-draft:${packageId}:${initialDepartureId}` : '';
+  const restoredRef = useRef(false);
+
+  // Restore draft on mount (after login)
+  useEffect(() => {
+    if (!draftKey || restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft?.passengers?.length) {
+        updateFormData({
+          passengers: draft.passengers,
+          notes: draft.notes,
+          paymentMode: draft.paymentMode,
+          dpAmount: draft.dpAmount,
+          savingsPlanId: draft.savingsPlanId,
+        });
+      }
+      if (draft?.picState) setPicState(draft.picState);
+      if (draft?.cancellationAgreed != null) setCancellationAgreed(draft.cancellationAgreed);
+      if (draft?.currentStep) setCurrentStep(draft.currentStep);
+    } catch {}
+  }, [draftKey]);
+
+  // Continuously persist draft for guests
+  useEffect(() => {
+    if (!draftKey || user) return;
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify({
+        passengers: formData.passengers,
+        notes: formData.notes,
+        paymentMode: formData.paymentMode,
+        dpAmount: formData.dpAmount,
+        savingsPlanId: formData.savingsPlanId,
+        picState,
+        cancellationAgreed,
+        currentStep,
+      }));
+    } catch {}
+  }, [draftKey, user, formData, picState, cancellationAgreed, currentStep]);
+
+  // Auto-submit after returning from login (if user came back with draft + auto flag)
+  useEffect(() => {
+    if (!user || !draftKey) return;
+    const shouldAuto = sessionStorage.getItem(`${draftKey}:auto-submit`);
+    if (shouldAuto === '1' && currentStep === 'review' && !isSubmitting) {
+      sessionStorage.removeItem(`${draftKey}:auto-submit`);
+      // small delay to let form state hydrate
+      const t = setTimeout(() => { handleSubmit(); }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [user, draftKey, currentStep]);
 
   const bookingMode = (packageInfo as any)?.booking_mode || 'umroh';
   const isHaji = bookingMode === 'haji';
@@ -156,6 +221,11 @@ export function BookingWizard() {
   };
 
   const handleSubmit = async () => {
+    // Guest gate: require login before creating booking + payment
+    if (!user) {
+      setLoginGate(true);
+      return;
+    }
     const result = await submitBooking();
     if (result?.bookingId) {
       // Release seat hold once booking is confirmed (server-side booking_count already incremented)
@@ -165,8 +235,17 @@ export function BookingWizard() {
           _departure_id: initialDepartureId,
         });
       } catch {}
+      // Clear guest draft on success
+      try { if (draftKey) sessionStorage.removeItem(draftKey); } catch {}
       navigate(`/booking/success/${result.bookingId}`);
     }
+  };
+
+  const goLogin = (mode: 'login' | 'register') => {
+    if (draftKey) sessionStorage.setItem(`${draftKey}:auto-submit`, '1');
+    const back = encodeURIComponent(window.location.pathname + window.location.search);
+    const path = mode === 'register' ? '/auth/register' : '/auth/login';
+    navigate(`${path}?redirect=${back}`);
   };
 
   if (authLoading) {
@@ -369,6 +448,34 @@ export function BookingWizard() {
           </Button>
         )}
       </div>
+
+      <Dialog open={loginGate} onOpenChange={setLoginGate}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogIn className="h-5 w-5 text-primary" />
+              Login untuk Melanjutkan Pembayaran
+            </DialogTitle>
+            <DialogDescription>
+              Data booking Anda sudah kami simpan. Silakan login atau daftar untuk
+              memproses pembayaran dengan aman dan mengakses tiket, dokumen, serta
+              status visa Anda.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+            Kursi Anda tetap dikunci selama proses login. Setelah berhasil masuk,
+            booking akan otomatis dibuat tanpa perlu mengisi ulang.
+          </div>
+          <DialogFooter className="flex gap-2 sm:flex-row">
+            <Button variant="outline" className="flex-1" onClick={() => goLogin('register')}>
+              Daftar Akun Baru
+            </Button>
+            <Button className="flex-1" onClick={() => goLogin('login')}>
+              Login Sekarang
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
