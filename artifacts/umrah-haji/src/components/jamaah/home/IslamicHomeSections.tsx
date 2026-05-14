@@ -7,6 +7,8 @@ import { IslamicCard, IslamicSectionTitle } from "@/components/jamaah/shell/Isla
 import { GeometricPattern, KaabaIcon } from "@/components/jamaah/ornaments/GeometricPattern";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
+import { PromoBannerCarousel } from "@/components/jamaah/home/PromoBannerCarousel";
+import { PackageGridApp } from "@/components/jamaah/home/PackageGridApp";
 
 /** Random ayat harian (dari pool kecil offline). */
 const AYAT_POOL = [
@@ -116,48 +118,15 @@ function QuickIbadahGrid() {
   );
 }
 
-function PackageCarousel() {
-  const { data } = useQuery({
-    queryKey: ["islamic-home-packages"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("packages")
-        .select("id, name, slug, image_url, starting_price, type")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(6);
-      return data || [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-  if (!data || data.length === 0) return null;
+function PackageSection() {
   return (
     <section className="mb-4">
       <IslamicSectionTitle
         title="Paket Pilihan"
         arabic="بَاقَات مُخْتَارَة"
-        action={<Link to="/paket" className="text-xs text-primary font-medium">Lihat semua</Link>}
+        action={<Link to="/packages" className="text-xs text-primary font-medium">Lihat semua</Link>}
       />
-      <div className="flex gap-3 overflow-x-auto -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
-        {data.map((p: any) => (
-          <Link key={p.id} to={`/paket/${p.slug || p.id}`}
-                className="islamic-card flex-shrink-0 w-56 p-0 overflow-hidden snap-start">
-            <div className="aspect-[4/3] bg-secondary relative">
-              {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy"/> :
-                <div className="w-full h-full flex items-center justify-center text-primary"><KaabaIcon className="h-10 w-10"/></div>}
-              <span className="absolute top-2 left-2 text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-2 py-0.5">
-                {(p.type || "umroh").toUpperCase()}
-              </span>
-            </div>
-            <div className="p-3">
-              <p className="font-display text-sm font-semibold text-foreground line-clamp-2">{p.name}</p>
-              {p.starting_price && (
-                <p className="text-xs text-muted-foreground mt-1">Mulai <span className="text-primary font-semibold">{formatCurrency(p.starting_price)}</span></p>
-              )}
-            </div>
-          </Link>
-        ))}
-      </div>
+      <PackageGridApp limit={6} />
     </section>
   );
 }
@@ -258,8 +227,9 @@ export function IslamicHomeSections({ customerName, customerId }: { customerName
   return (
     <div className="space-y-1">
       <HeroMihrab name={customerName} />
+      <PromoBannerCarousel />
       <QuickIbadahGrid />
-      <PackageCarousel />
+      <PackageSection />
       <StoreEtalase />
       <MonetizationDuo customerId={customerId} />
     </div>

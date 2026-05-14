@@ -1,4 +1,4 @@
-const CACHE_VERSION = "vinstour-v5";
+const CACHE_VERSION = "vinstour-v6";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -11,6 +11,9 @@ const STATIC_ASSETS = [
 // Jamaah portal routes that should work offline (shell caching)
 const JAMAAH_ROUTES = [
   "/jamaah",
+  "/packages",
+  "/paket",
+  "/store",
   "/jamaah/panduan-ibadah",
   "/jamaah/doa-panduan",
   "/jamaah/waktu-sholat",
