@@ -147,4 +147,81 @@ router.post('/create', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/agents/:agentId/commission-tier
+ * P5: Kalkulasi komisi bertingkat berdasarkan volume booking agen.
+ * Memanggil DB function calculate_tiered_commission(p_agent_id, p_period_start, p_period_end).
+ *
+ * Query params opsional: ?start=YYYY-MM-DD&end=YYYY-MM-DD (default: bulan berjalan)
+ */
+router.get('/:agentId/commission-tier', async (req, res) => {
+  const { agentId } = req.params;
+  const now = new Date();
+  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const defaultEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const start = (req.query.start as string) || defaultStart;
+  const end   = (req.query.end   as string) || defaultEnd;
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    res.status(503).json({ success: false, error: 'Supabase belum dikonfigurasi.' });
+    return;
+  }
+
+  try {
+    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/calculate_tiered_commission`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_agent_id: agentId, p_period_start: start, p_period_end: end }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!rpcRes.ok) {
+      const errText = await rpcRes.text();
+      throw new Error(`DB error: ${rpcRes.status} — ${errText}`);
+    }
+
+    const data = await rpcRes.json();
+    res.json({ success: true, agentId, period: { start, end }, commission: data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/agents/commission-tiers/list
+ * P5: Daftar semua tier komisi yang terdaftar.
+ */
+router.get('/commission-tiers/list', async (_req, res) => {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    res.status(503).json({ success: false, error: 'Supabase belum dikonfigurasi.' });
+    return;
+  }
+
+  try {
+    const tiersRes = await fetch(
+      `${supabaseUrl}/rest/v1/agent_commission_tiers?select=*&order=min_bookings.asc`,
+      {
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+    if (!tiersRes.ok) throw new Error(`HTTP ${tiersRes.status}`);
+    const tiers = await tiersRes.json();
+    res.json({ success: true, tiers });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
+

@@ -1,89 +1,65 @@
 import { Router } from "express";
+import { db } from "../lib/db.js";
+import { sql } from "drizzle-orm";
 
 const router = Router();
 
-// ─── Canonical permission list dari kode (source of truth) ───────────────────
-// Ini adalah daftar semua permission yang digunakan di aplikasi (dari permissions.ts frontend).
-// RBAC-P4: Script sync deteksi diff antara kode dan DB.
-
 const CODE_PERMISSIONS = [
-  // Dashboard
   "dashboard", "dashboard-branch", "dashboard-agent",
-  // Booking
   "bookings", "bookings-create", "bookings-edit", "bookings-delete", "bookings-approve",
-  // Customers
   "customers", "customers-create", "customers-edit", "customers-delete",
-  // Packages
   "packages", "packages-create", "packages-edit", "packages-delete",
-  // Departures
   "departures", "departures-create", "departures-edit", "departures-delete",
-  // Payments
   "payments", "payments-approve", "payments-export",
-  // Agents
   "agents", "agents-create", "agents-edit", "agents-delete", "agents-commissions",
-  // HR
   "hr", "hr-employees", "hr-attendance", "hr-payroll", "hr-leave",
-  // Finance
   "finance", "finance-cash", "finance-ar", "finance-reports", "finance-payroll",
-  // Operations
   "operations", "operations-manifest", "operations-documents", "operations-rooming",
   "operations-visa", "operations-baggage",
-  // Branches
   "branches", "branches-create", "branches-edit", "branches-delete",
   "branches-comparison", "branches-kpi",
-  // Marketing
   "marketing", "marketing-leads", "marketing-blog", "marketing-testimonials",
-  // Reports
   "reports", "reports-advanced", "reports-scheduled",
-  // Store
   "store", "store-products", "store-orders", "store-categories",
-  // Loyalty
   "loyalty", "loyalty-points", "loyalty-rewards", "loyalty-tier-benefits",
-  // Settings
   "settings", "settings-website", "settings-pwa", "settings-rbac",
   "settings-integrations", "settings-webhooks",
-  // RBAC
   "rbac", "rbac-roles", "rbac-permissions", "rbac-access-simulator",
-  // Exchange rates
   "exchange-rates",
-  // Savings
   "savings", "savings-plans",
-  // Misc
   "pwa-settings", "analytics", "ai-features",
   "commission-calculator", "booking-transfers",
 ] as const;
 
-// ─── GET /api/permissions/list — Daftar semua permission di kode ──────────────
+// ── Ensure permissions_list table exists ──────────────────────────────────────
+async function ensureTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS permissions_list (
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      permission_key TEXT NOT NULL UNIQUE,
+      label       TEXT,
+      description TEXT,
+      group_name  TEXT,
+      is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+}
+
+// ── GET /api/permissions/list ─────────────────────────────────────────────────
 router.get("/list", (_req, res) => {
   res.json({ permissions: CODE_PERMISSIONS, total: CODE_PERMISSIONS.length });
 });
 
-// ─── GET /api/permissions/sync-diff — Diff antara kode dan DB ────────────────
-// RBAC-P4: Deteksi permission yang ada di kode tapi tidak ada di DB (atau sebaliknya)
+// ── GET /api/permissions/sync-diff ───────────────────────────────────────────
+// RBAC-P4: Deteksi diff antara kode dan Replit Postgres permissions_list
 router.get("/sync-diff", async (_req, res) => {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    res.status(503).json({ error: "Supabase belum dikonfigurasi" });
-    return;
-  }
-
   try {
-    // Ambil semua permission yang ada di DB (tabel permissions_list atau role_permissions)
-    const dbRes = await fetch(
-      `${supabaseUrl}/rest/v1/permissions_list?select=permission_key&limit=500`,
-      {
-        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-        signal: AbortSignal.timeout(10000),
-      }
+    await ensureTable();
+    const rows = await db.execute(
+      sql`SELECT permission_key FROM permissions_list WHERE is_active = TRUE LIMIT 500`
     );
-
-    let dbPermissions: string[] = [];
-    if (dbRes.ok) {
-      const rows = await dbRes.json() as Array<{ permission_key: string }>;
-      dbPermissions = rows.map((r) => r.permission_key);
-    }
+    const dbPermissions: string[] = (rows.rows as any[]).map((r) => r.permission_key);
 
     const codeSet = new Set(CODE_PERMISSIONS as readonly string[]);
     const dbSet = new Set(dbPermissions);
@@ -110,45 +86,35 @@ router.get("/sync-diff", async (_req, res) => {
   }
 });
 
-// ─── POST /api/permissions/sync — Auto-sync permission kode ke DB ─────────────
+// ── POST /api/permissions/sync ────────────────────────────────────────────────
+// RBAC-P4: Auto-sync permission kode → Replit Postgres permissions_list
 router.post("/sync", async (_req, res) => {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    res.status(503).json({ error: "Supabase belum dikonfigurasi" });
-    return;
-  }
-
   try {
-    const toInsert = CODE_PERMISSIONS.map((key) => ({
-      permission_key: key,
-      label: key.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      description: `Permission untuk fitur ${key}`,
-      is_active: true,
-    }));
+    await ensureTable();
 
-    const insertRes = await fetch(`${supabaseUrl}/rest/v1/permissions_list`, {
-      method: "POST",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "resolution=ignore-duplicates,return=minimal",
-      },
-      body: JSON.stringify(toInsert),
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!insertRes.ok) {
-      const errText = await insertRes.text();
-      throw new Error(`DB error: ${insertRes.status} — ${errText}`);
+    for (const key of CODE_PERMISSIONS) {
+      const label = key.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const groupName = key.split("-")[0];
+      await db.execute(sql`
+        INSERT INTO permissions_list (permission_key, label, description, group_name, is_active)
+        VALUES (
+          ${key},
+          ${label},
+          ${"Permission untuk fitur " + key},
+          ${groupName},
+          TRUE
+        )
+        ON CONFLICT (permission_key) DO UPDATE
+          SET label = EXCLUDED.label,
+              group_name = EXCLUDED.group_name,
+              is_active = TRUE
+      `);
     }
 
     res.json({
       success: true,
-      message: `${toInsert.length} permission di-sync ke database (duplicates diabaikan)`,
-      synced_count: toInsert.length,
+      message: `${CODE_PERMISSIONS.length} permission di-sync ke Replit Postgres (duplicates diperbarui)`,
+      synced_count: CODE_PERMISSIONS.length,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

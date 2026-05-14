@@ -14,24 +14,24 @@
 
 | Kode | Fitur | File | Estimasi | Keterangan |
 |------|-------|------|----------|------------|
-| **F1** | Midtrans VA real (bukan stub) | `api-server/src/routes/midtrans.ts` | 1 hari | Butuh `MIDTRANS_SERVER_KEY` + `MIDTRANS_CLIENT_KEY` di Replit Secrets |
-| **F2** | Ganti stub `/api/hr/verify-face` dengan face-api.js | `api-server/src/routes/hr.ts` | 1-2 hari | Absensi wajah tidak berfungsi |
+| ✅ **F1** | Midtrans VA real (bukan stub) | `api-server/src/routes/midtrans.ts` | DONE | Route lengkap (VA, QRIS, Snap, webhook). Aktif setelah `MIDTRANS_SERVER_KEY` + `MIDTRANS_CLIENT_KEY` diset di Replit Secrets |
+| ✅ **F2** | Ganti stub `/api/hr/verify-face` dengan euclidean distance server-side | `api-server/src/routes/hr.ts` | DONE | face_descriptor disimpan di kolom `employees.face_descriptor` (SQL 049), matching di server pakai threshold 0.45 |
 | ✅ **F7** | TOTP 2FA backend (speakeasy + QR enroll + verify) | `api-server/src/routes/totp.ts` + `Admin2FASettings.tsx` | DONE | SQL migration `045_totp_columns.sql` + 4 endpoint: enroll, verify-enroll, verify, disable |
 
 ### FASE PENTING (sprint berikutnya)
 
 | Kode | Fitur | File | Estimasi | Keterangan |
 |------|-------|------|----------|------------|
-| **P2** | Server-side export manifest — hindari crash browser saat download besar | `AdminManifestJamaah.tsx` | 1 hari | |
-| **P4** | Pecah `AdminDocumentGenerator.tsx` (>1300 baris) jadi komponen modular | `AdminDocumentGenerator.tsx` | 1 hari | File terlalu besar, sulit maintain |
-| **P5** | Komisi bertingkat agen: otomasi kalkulasi by volume | `agent_commissions` + trigger SQL | 1 hari | |
-| **P7** | Race condition slot booking: server-side lock | API route + Supabase RPC | 0.5 hari | Risiko overbooking |
-| **P8** | Generate slip gaji PDF (AdminPayroll) | `AdminPayroll.tsx` | 1 hari | |
-| **P9** | Kalkulasi PPH21 & BPJS otomatis (AdminPayroll) | `AdminPayroll.tsx` | 1 hari | |
+| ✅ **P2** | Server-side export manifest — hindari crash browser saat download besar | `AdminManifestJamaah.tsx` + `manifest.ts` | DONE | Endpoint `GET /api/manifest/export/:departureId?format=csv\|xlsx\|pdf` di `manifest.ts` — frontend sudah pakai |
+| ✅ **P4** | Pecah `AdminDocumentGenerator.tsx` (>1100 baris) jadi komponen modular | `AdminDocumentGenerator.tsx` → 8 tab komponen | DONE | 7 tab components + `shared.tsx` di `components/document-generator/` |
+| ✅ **P5** | Komisi bertingkat agen: otomasi kalkulasi by volume | `agents.ts` + SQL 046 | DONE | SQL `agent_commission_tiers` + `calculate_tiered_commission()`. API: `GET /api/agents/:id/commission-tier` + `GET /api/agents/commission-tiers/list` |
+| ✅ **P7** | Race condition slot booking: server-side lock | `bookings.ts` + SQL 048 | DONE | SQL `reserve_departure_slot()` + API `POST /api/bookings/reserve-slot` + `POST /api/bookings/release-slot` |
+| ✅ **P8** | Generate slip gaji PDF (AdminPayroll) | `AdminPayroll.tsx` | DONE | PDF download dengan `jsPDF` sudah ada di `handleDownloadPDF()` |
+| ✅ **P9** | Kalkulasi PPH21 & BPJS otomatis (AdminPayroll) | `AdminPayroll.tsx` | DONE | `calculatePPH21Monthly()` + `calculateBPJS()` functions sudah diimplementasi |
 | **P10** | Pindahkan kalkulasi keuangan besar ke Supabase RPC/view | Frontend + Supabase | 2 hari | |
-| **PWA-F3** | Jamaah App Layout terpisah (bottom nav khusus portal jamaah saat PWA installed) | `JamaahAppLayout.tsx` baru | 1 hari | |
-| **RBAC-P1** | Audit trail saat permission diubah (trigger SQL ke `admin_activity_log`) | SQL migration baru | 0.5 hari | |
-| **RBAC-P4** | Script sync permission kode → DB (deteksi diff, auto-sync) | Script baru + endpoint | 1 hari | |
+| ✅ **PWA-F3** | Jamaah App Layout terpisah (bottom nav khusus portal jamaah saat PWA installed) | `JamaahAppLayout.tsx` | DONE | Layout dengan 5-tab bottom nav, `usePWAMode()` untuk detect standalone mode, fallback ke `JamaahAppShell` di browser biasa |
+| ✅ **RBAC-P1** | Audit trail saat permission diubah (trigger SQL ke `admin_activity_log`) | SQL migration 047 | DONE | Trigger `log_permission_changes()` pada `role_permissions` |
+| ✅ **RBAC-P4** | Script sync permission kode → DB (deteksi diff, auto-sync) | `permissions.ts` | DONE | Rewritten to use Drizzle/Replit Postgres. `GET /api/permissions/sync-diff` + `POST /api/permissions/sync` — auto-creates `permissions_list` table |
 
 ### SQL Migrations yang Perlu Dijalankan di Supabase
 

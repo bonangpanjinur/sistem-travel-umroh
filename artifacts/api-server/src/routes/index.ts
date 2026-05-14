@@ -11,6 +11,7 @@ import hrRouter from "./hr.js";
 import remindersRouter from "./reminders.js";
 import totpRouter from "./totp.js";
 import permissionsRouter from "./permissions.js";
+import bookingsRouter from "./bookings.js";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use("/hr", hrRouter);
 router.use("/reminders", remindersRouter);
 router.use("/totp", totpRouter);
 router.use("/permissions", permissionsRouter);
+router.use("/bookings", bookingsRouter);
 
 export default router;
