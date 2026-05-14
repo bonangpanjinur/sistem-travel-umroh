@@ -36,7 +36,7 @@ import { CuacaWidget } from "@/components/jamaah/CuacaWidget";
 import { IslamicHomeSections } from "@/components/jamaah/home/IslamicHomeSections";
 import { ProfileProgressCard } from "@/components/jamaah/home/ProfileProgressCard";
 import { PushOnboardingSheet } from "@/components/pwa/PushOnboardingSheet";
-import { LogIn, UserPlus } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useRecentlyViewedPackages } from "@/hooks/useRecentlyViewedPackages";
 import { useWishlist } from "@/hooks/useWishlist";
