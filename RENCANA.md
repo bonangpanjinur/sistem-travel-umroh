@@ -1,8 +1,25 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** Mei 2026 (Sprint 10 — UI/UX redesign halaman publik: AppPageHeader, JadwalSholat, QuickMenuGrid, TokoOnline, KursPage)
+> **Terakhir diperbarui:** 14 Mei 2026 (Sprint 10 — Perbaikan Bug & Multi-Currency)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
+
+---
+
+## 🚀 DAFTAR PRIORITAS (BELUM SELESAI)
+
+| Prioritas | Kode | Fitur | Keterangan |
+| :--- | :--- | :--- | :--- |
+| 🟠 **TINGGI** | PAK-F4 | Sistem Kurs Mata Uang | Pengelolaan kurs harian untuk harga fluktuatif |
+| 🟠 **TINGGI** | PAK-F5 | Tipe Paket "Wisata" | Kategorisasi paket wisata religi tour yang proper |
+| 🟠 **TINGGI** | PAK-F6 | Harga per Orang Mandiri | Model harga haji yang tidak hanya berbasis tipe kamar |
+| 🟠 **TINGGI** | TAB-FIX1 | Konversi Tabungan → Booking | Flow pilih jadwal + generate booking dari tabungan |
+| 🟠 **TINGGI** | TAB-FIX2 | Harga Terkunci + Notifikasi | Monitoring `locked_price` dan alert kenaikan harga |
+| 🟡 **SEDANG** | PAK-F7 | Bandingkan Paket | Fitur komparasi antar paket untuk user |
+| 🟡 **SEDANG** | PAK-F8 | Filter Currency di Listing | UX filter harga berdasarkan mata uang di halaman publik |
+| 🟡 **SEDANG** | BOOK-FIX7 | Guest Checkout Recovery | Link akses booking via email/WA untuk guest |
+| 🟡 **SEDANG** | TAB-FIX6 | Tabungan Fleksibel | Tabungan yang tidak terikat pada satu paket spesifik |
+| 🟡 **SEDANG** | KEP-FIX6 | Manajemen Bagasi | Kuota dan ketentuan bagasi per maskapai |
 
 ---
 
@@ -54,6 +71,7 @@
 | KEP-FIX4 | Dashboard jamaah belum lengkap dokumen | `/admin/documents-incomplete` (`AdminIncompleteDocuments.tsx`) |
 | KEP-FIX5 | Absensi harian jamaah di tanah suci | Tabel `jamaah_daily_attendance` + `/admin/absensi-harian` (Mekkah/Madinah/Mina/Arafah/Muzdalifah/Jeddah) |
 | BUILD-FIX | TS error `PackageCompare.tsx` (`pkg` undefined di `PriceBadge`) | prop `currency` ditambah |
+| BUILD-FIX-2 | TS error `useIbadahReminder.ts` (`setPrayerTimes` undefined) | Diganti ke `setFetchedPrayerTimes` |
 
 ### 🟠 Belum Selesai — Prioritas Tinggi
 
