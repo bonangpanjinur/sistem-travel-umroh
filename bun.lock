@@ -122,6 +122,7 @@
         "qrcode": "^1.5.4",
         "react-router-dom": "^7.14.2",
         "uuid": "^14.0.0",
+        "web-vitals": "^5.2.0",
         "xlsx": "^0.18.5",
         "xlsx-js-style": "^1.2.0",
       },
@@ -1551,6 +1552,8 @@
     "vite": ["vite@7.3.3", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/vite/-/vite-7.3.3.tgz", { "dependencies": { "esbuild": "0.27.3", "fdir": "6.5.0", "picomatch": "4.0.4", "postcss": "8.5.14", "rollup": "4.60.3", "tinyglobby": "0.2.16" }, "optionalDependencies": { "@types/node": "25.6.2", "fsevents": "2.3.3", "jiti": "2.7.0", "lightningcss": "1.32.0", "tsx": "4.21.0", "yaml": "2.8.4" }, "bin": { "vite": "bin/vite.js" } }, "sha512-/4XH147Ui7OGTjg3HbdWe5arnZQSbfuRzdr9Ec7TQi5I7R+ir0Rlc9GIvD4v0XZurELqA035KVXJXpR61xhiTA=="],
 
     "web-push": ["web-push@3.6.7", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/web-push/-/web-push-3.6.7.tgz", { "dependencies": { "asn1.js": "5.4.1", "http_ece": "1.2.0", "https-proxy-agent": "7.0.6", "jws": "4.0.1", "minimist": "1.2.8" }, "bin": { "web-push": "src/cli.js" } }, "sha512-OpiIUe8cuGjrj3mMBFWY+e4MMIkW3SVT+7vEIjvD9kejGUypv8GPDf84JdPWskK8zMRIJ6xYGm+Kxr8YkPyA0A=="],
+
+    "web-vitals": ["web-vitals@5.2.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/web-vitals/-/web-vitals-5.2.0.tgz", {}, "sha512-i2z98bEmaCqSDiHEDu+gHl/dmR4Q+TxFmG3/13KkMO+o8UxQzCqWaDRCiLgEa41nlO4VpXSI0ASa1xWmO9sBlA=="],
 
     "which": ["which@2.0.2", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/which/-/which-2.0.2.tgz", { "dependencies": { "isexe": "2.0.0" }, "bin": { "node-which": "./bin/node-which" } }, "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA=="],
 
