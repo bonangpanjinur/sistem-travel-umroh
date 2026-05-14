@@ -18,9 +18,9 @@ import { toast } from "sonner";
 import {
   Bell, PiggyBank, Send, CheckCircle2, AlertCircle, Clock,
   RefreshCcw, Settings, Calendar, Users, Zap, MessageSquare,
-  TrendingUp, Filter
+  TrendingUp, Filter, Database
 } from "lucide-react";
-import { format, parseISO, addDays, differenceInDays, isBefore } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format";
 
@@ -45,14 +45,67 @@ Transfer ke:
 Barakallahu fiikum 🤲
 _Tim Vinstour Travel_`;
 
+interface ReminderSettings {
+  reminder_days: number;
+  auto_enabled: boolean;
+  reminder_template: string;
+}
+
+const SETTINGS_KEY = "cicilan_reminder_settings";
+
 export default function AdminCicilanReminder() {
   const queryClient = useQueryClient();
-  const [reminderDays, setReminderDays] = useState(() => parseInt(localStorage.getItem("cicilan_reminder_days") || "3"));
-  const [isAutoEnabled, setIsAutoEnabled] = useState(() => localStorage.getItem("cicilan_auto_reminder") === "true");
-  const [template, setTemplate] = useState(() => localStorage.getItem("cicilan_reminder_template") || DEFAULT_TEMPLATE);
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [sendingAll, setSendingAll] = useState(false);
   const [filterStatus, setFilterStatus] = useState("upcoming");
+  const [localSettings, setLocalSettings] = useState<ReminderSettings | null>(null);
+
+  const { data: savedSettings, isLoading: loadingSettings } = useQuery<ReminderSettings>({
+    queryKey: ["app-settings", SETTINGS_KEY],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", SETTINGS_KEY)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return { reminder_days: 3, auto_enabled: false, reminder_template: DEFAULT_TEMPLATE };
+      try {
+        const parsed = JSON.parse(data.value);
+        return { reminder_days: 3, auto_enabled: false, reminder_template: DEFAULT_TEMPLATE, ...parsed };
+      } catch {
+        return { reminder_days: 3, auto_enabled: false, reminder_template: DEFAULT_TEMPLATE };
+      }
+    },
+  });
+
+  const settings: ReminderSettings = localSettings ?? savedSettings ?? {
+    reminder_days: 3,
+    auto_enabled: false,
+    reminder_template: DEFAULT_TEMPLATE,
+  };
+  const reminderDays = settings.reminder_days;
+  const isAutoEnabled = settings.auto_enabled;
+  const template = settings.reminder_template;
+
+  function updateSettings(patch: Partial<ReminderSettings>) {
+    setLocalSettings(prev => ({ ...settings, ...(prev ?? {}), ...patch }));
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async (newSettings: ReminderSettings) => {
+      const { error } = await supabase
+        .from("app_settings")
+        .upsert({ key: SETTINGS_KEY, value: JSON.stringify(newSettings) }, { onConflict: "key" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["app-settings", SETTINGS_KEY] });
+      setLocalSettings(null);
+      toast.success("Pengaturan reminder disimpan ke database");
+    },
+    onError: (e: any) => toast.error("Gagal menyimpan: " + e.message),
+  });
 
   const { data: waConfig } = useQuery({
     queryKey: ["wa-config"],
@@ -94,7 +147,6 @@ export default function AdminCicilanReminder() {
   const upcomingPlans = plans.filter(p => p.daysUntil !== null && p.daysUntil >= 0 && p.daysUntil <= reminderDays);
   const overduePlans = plans.filter(p => p.daysUntil !== null && p.daysUntil < 0);
   const allActivePlans = plans;
-
   const displayedPlans = filterStatus === "upcoming" ? upcomingPlans : filterStatus === "overdue" ? overduePlans : allActivePlans;
 
   function buildMessage(plan: any): string {
@@ -116,14 +168,14 @@ export default function AdminCicilanReminder() {
     if (!plan.customer?.phone) { toast.error("Nomor telepon jamaah tidak tersedia"); return; }
     setSendingIds(prev => new Set(prev).add(plan.id));
     try {
-      const { sendWhatsAppMessage } = await import("@/lib/whatsapp-notifier");
-      const result = await sendWhatsAppMessage({
-        token: waConfig.api_key,
-        target: plan.customer.phone,
-        message: buildMessage(plan),
+      const resp = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target: plan.customer.phone, message: buildMessage(plan) }),
       });
+      const result = await resp.json();
       if (result.success) toast.success(`Reminder dikirim ke ${plan.customer.full_name}`);
-      else toast.error("Gagal: " + result.error);
+      else toast.error("Gagal: " + (result.error || result.message));
     } catch (e: any) {
       toast.error("Error: " + e.message);
     } finally {
@@ -139,12 +191,12 @@ export default function AdminCicilanReminder() {
     for (const plan of upcomingPlans) {
       if (!plan.customer?.phone) { failed++; continue; }
       try {
-        const { sendWhatsAppMessage } = await import("@/lib/whatsapp-notifier");
-        const result = await sendWhatsAppMessage({
-          token: waConfig.api_key,
-          target: plan.customer.phone,
-          message: buildMessage(plan),
+        const resp = await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target: plan.customer.phone, message: buildMessage(plan) }),
         });
+        const result = await resp.json();
         if (result.success) success++; else failed++;
       } catch { failed++; }
       await new Promise(r => setTimeout(r, 1000));
@@ -153,11 +205,23 @@ export default function AdminCicilanReminder() {
     toast.success(`Reminder selesai: ${success} berhasil, ${failed} gagal`);
   }
 
-  function saveSettings() {
-    localStorage.setItem("cicilan_reminder_days", reminderDays.toString());
-    localStorage.setItem("cicilan_auto_reminder", isAutoEnabled.toString());
-    localStorage.setItem("cicilan_reminder_template", template);
-    toast.success("Pengaturan reminder disimpan");
+  async function runAutoReminder() {
+    try {
+      const resp = await fetch("/api/reminders/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "cicilan" }),
+      });
+      const result = await resp.json();
+      if (result.success) {
+        const s = result.summary?.cicilan;
+        toast.success(`Auto-reminder selesai: ${s?.sent ?? 0} terkirim, ${s?.failed ?? 0} gagal`);
+      } else {
+        toast.error("Gagal: " + result.error);
+      }
+    } catch (e: any) {
+      toast.error("Error: " + e.message);
+    }
   }
 
   return (
@@ -239,10 +303,18 @@ export default function AdminCicilanReminder() {
               </Select>
               <Button variant="outline" size="icon" onClick={() => refetch()}><RefreshCcw className="h-4 w-4" /></Button>
             </div>
-            <Button onClick={sendAllReminders} disabled={sendingAll || upcomingPlans.length === 0 || !waConfig}>
-              {sendingAll ? <RefreshCcw className="h-4 w-4 mr-1 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
-              Kirim Semua Reminder ({upcomingPlans.length})
-            </Button>
+            <div className="flex gap-2">
+              {isAutoEnabled && (
+                <Button variant="outline" onClick={runAutoReminder}>
+                  <TrendingUp className="h-4 w-4 mr-1" />
+                  Jalankan Auto-Reminder
+                </Button>
+              )}
+              <Button onClick={sendAllReminders} disabled={sendingAll || upcomingPlans.length === 0 || !waConfig}>
+                {sendingAll ? <RefreshCcw className="h-4 w-4 mr-1 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
+                Kirim Semua ({upcomingPlans.length})
+              </Button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -317,19 +389,24 @@ export default function AdminCicilanReminder() {
         <TabsContent value="settings" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Pengaturan Reminder Otomatis</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Database className="h-4 w-4 text-blue-500" />
+                Pengaturan Reminder Otomatis
+              </CardTitle>
+              <CardDescription>Pengaturan disimpan ke database — berlaku untuk semua perangkat dan sesi</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {loadingSettings && <p className="text-sm text-muted-foreground">Memuat pengaturan dari database...</p>}
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
                   <p className="text-sm font-medium">Aktifkan Reminder Otomatis</p>
-                  <p className="text-xs text-muted-foreground">Sistem akan otomatis mengirim reminder sesuai jadwal</p>
+                  <p className="text-xs text-muted-foreground">Sistem akan otomatis mengirim reminder setiap hari jam 08:00 WIB</p>
                 </div>
-                <Switch checked={isAutoEnabled} onCheckedChange={setIsAutoEnabled} />
+                <Switch checked={isAutoEnabled} onCheckedChange={v => updateSettings({ auto_enabled: v })} />
               </div>
               <div className="space-y-2">
                 <Label>Kirim Reminder H- (hari sebelum jatuh tempo)</Label>
-                <Select value={reminderDays.toString()} onValueChange={v => setReminderDays(parseInt(v))}>
+                <Select value={reminderDays.toString()} onValueChange={v => updateSettings({ reminder_days: parseInt(v) })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -340,7 +417,13 @@ export default function AdminCicilanReminder() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={saveSettings}><CheckCircle2 className="h-4 w-4 mr-1" />Simpan Pengaturan</Button>
+              <Button
+                onClick={() => saveMutation.mutate(settings)}
+                disabled={saveMutation.isPending}
+              >
+                {saveMutation.isPending ? <RefreshCcw className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+                Simpan ke Database
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -349,16 +432,27 @@ export default function AdminCicilanReminder() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Template Pesan Reminder</CardTitle>
-              <CardDescription>Edit pesan yang dikirim ke jamaah sebagai pengingat cicilan</CardDescription>
+              <CardDescription>Edit pesan yang dikirim ke jamaah sebagai pengingat cicilan. Disimpan ke database.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Textarea value={template} onChange={e => setTemplate(e.target.value)} rows={15} className="font-mono text-sm" />
+              <Textarea
+                value={template}
+                onChange={e => updateSettings({ reminder_template: e.target.value })}
+                rows={15}
+                className="font-mono text-sm"
+              />
               <p className="text-xs text-muted-foreground">
                 Variabel: {"{nama}"}, {"{hari}"}, {"{tanggal_jatuh_tempo}"}, {"{jumlah_cicilan}"}, {"{total_terkumpul}"}, {"{target}"}, {"{progress}"}
               </p>
               <div className="flex gap-2">
-                <Button onClick={saveSettings}><CheckCircle2 className="h-4 w-4 mr-1" />Simpan Template</Button>
-                <Button variant="outline" onClick={() => setTemplate(DEFAULT_TEMPLATE)}>Reset Default</Button>
+                <Button
+                  onClick={() => saveMutation.mutate(settings)}
+                  disabled={saveMutation.isPending}
+                >
+                  {saveMutation.isPending ? <RefreshCcw className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+                  Simpan Template
+                </Button>
+                <Button variant="outline" onClick={() => updateSettings({ reminder_template: DEFAULT_TEMPLATE })}>Reset Default</Button>
               </div>
             </CardContent>
           </Card>

@@ -1,12 +1,64 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** 14 Mei 2026 (Sprint 14 — TAB-FIX3, NOTIF-TAB, K9, J3, K7)
+> **Terakhir diperbarui:** Sprint 15 (cron reminders, SQL migrations 042-044, settings DB migration)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
 ---
 
-## 🚀 DAFTAR PRIORITAS (BELUM SELESAI)
+## 🔴 ITEM BELUM SELESAI — PRIORITAS TERTINGGI
+
+> Item-item berikut WAJIB diselesaikan sebelum go-live. Diurutkan dari paling kritis ke paling rendah.
+
+### FASE KRITIS (selesaikan segera)
+
+| Kode | Fitur | File | Estimasi | Keterangan |
+|------|-------|------|----------|------------|
+| **F1** | Midtrans VA real (bukan stub) | `api-server/src/routes/midtrans.ts` | 1 hari | Butuh `MIDTRANS_SERVER_KEY` + `MIDTRANS_CLIENT_KEY` di Replit Secrets |
+| **F2** | Ganti stub `/api/hr/verify-face` dengan face-api.js | `api-server/src/routes/hr.ts` | 1-2 hari | Absensi wajah tidak berfungsi |
+| **F7** | TOTP 2FA backend (speakeasy + QR enroll + verify endpoint) | Route baru + `Admin2FASettings.tsx` | 2 hari | SQL migration 044 sudah tersedia |
+
+### FASE PENTING (sprint berikutnya)
+
+| Kode | Fitur | File | Estimasi | Keterangan |
+|------|-------|------|----------|------------|
+| **P2** | Server-side export manifest — hindari crash browser saat download besar | `AdminManifestJamaah.tsx` | 1 hari | |
+| **P4** | Pecah `AdminDocumentGenerator.tsx` (>1300 baris) jadi komponen modular | `AdminDocumentGenerator.tsx` | 1 hari | File terlalu besar, sulit maintain |
+| **P5** | Komisi bertingkat agen: otomasi kalkulasi by volume | `agent_commissions` + trigger SQL | 1 hari | |
+| **P7** | Race condition slot booking: server-side lock | API route + Supabase RPC | 0.5 hari | Risiko overbooking |
+| **P8** | Generate slip gaji PDF (AdminPayroll) | `AdminPayroll.tsx` | 1 hari | |
+| **P9** | Kalkulasi PPH21 & BPJS otomatis (AdminPayroll) | `AdminPayroll.tsx` | 1 hari | |
+| **P10** | Pindahkan kalkulasi keuangan besar ke Supabase RPC/view | Frontend + Supabase | 2 hari | |
+| **PWA-F3** | Jamaah App Layout terpisah (bottom nav khusus portal jamaah saat PWA installed) | `JamaahAppLayout.tsx` baru | 1 hari | |
+| **RBAC-P1** | Audit trail saat permission diubah (trigger SQL ke `admin_activity_log`) | SQL migration baru | 0.5 hari | |
+| **RBAC-P4** | Script sync permission kode → DB (deteksi diff, auto-sync) | Script baru + endpoint | 1 hari | |
+
+### SQL Migrations yang Perlu Dijalankan di Supabase
+
+| File | Tabel / View | Status |
+|------|-------------|--------|
+| `sql/migrations/042_v_financial_summary_view.sql` | `v_financial_summary` VIEW | 🔴 Belum dijalankan — AdminAdvancedReports crash |
+| `sql/migrations/043_booking_installment_schedules.sql` | `booking_installment_schedules` | 🔴 Belum dijalankan — AdminCicilanGenerator crash |
+| `sql/migrations/044_scheduled_reports.sql` | `scheduled_reports`, `scheduled_report_logs` | 🔴 Belum dijalankan |
+| Inline SQL (RENCANA.md §16D item 044) | `ALTER TABLE profiles ADD COLUMN totp_secret, totp_enabled, totp_verified_at` | 🟡 Hanya jika F7 (TOTP) diimplementasikan |
+
+---
+
+## ✅ SELESAI SPRINT 15
+
+| Kode | Fitur | Keterangan |
+|------|-------|------------|
+| **F3** | Cron job auto-reminder harian | `POST /api/reminders/run` + `node-cron` (08:00 WIB) — cicilan + payment deadline |
+| **F4** | SQL view `v_financial_summary` | File `sql/migrations/042_v_financial_summary_view.sql` dibuat |
+| **F5** | Pindahkan setting reminder cicilan dari localStorage ke DB | `AdminCicilanReminder.tsx` — kini baca/tulis via `app_settings` tabel |
+| **F6** | SQL migration `booking_installment_schedules` | File `sql/migrations/043_booking_installment_schedules.sql` dibuat |
+| —  | SQL migration `scheduled_reports` | File `sql/migrations/044_scheduled_reports.sql` dibuat |
+| **P1** | Gemini API key server-side via env var | Sudah diimplementasikan di chatbot.ts Sprint sebelumnya (`process.env['GEMINI_API_KEY']`) |
+| **Ekspor Tagihan** | Export piutang (AR) ke Excel/CSV | `AdminFinanceAR.tsx` — tombol export xlsx + csv |
+
+---
+
+## 🚀 DAFTAR PRIORITAS (SPRINT 1-14 — SELESAI)
 
 | Prioritas | Kode | Fitur | Keterangan |
 | :--- | :--- | :--- | :--- |

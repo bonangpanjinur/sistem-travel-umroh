@@ -8,6 +8,7 @@ import manifestRouter from "./manifest.js";
 import whatsappRouter from "./whatsapp.js";
 import agentsRouter from "./agents.js";
 import hrRouter from "./hr.js";
+import remindersRouter from "./reminders.js";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use("/push", pushRouter);
 router.use("/whatsapp", whatsappRouter);
 router.use("/agents", agentsRouter);
 router.use("/hr", hrRouter);
+router.use("/reminders", remindersRouter);
 
 export default router;
