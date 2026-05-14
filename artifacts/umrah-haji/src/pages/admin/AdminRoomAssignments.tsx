@@ -350,6 +350,7 @@ export default function AdminRoomAssignmentsImproved() {
                 .from("booking_passengers")
                 .update({ room_group_id: groupId, room_preference: finalType } as any)
                 .eq("id", m.id)
+                .select()
             );
           }
           created++;
