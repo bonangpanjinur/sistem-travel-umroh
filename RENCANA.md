@@ -1,6 +1,6 @@
 # Rencana & Status Pengembangan — Vinstour Travel Portal
 
-> **Terakhir diperbarui:** 14 Mei 2026 (Sprint 13 — TAB-FIX1, TAB-FIX2, TAB-FIX6, KEP-FIX6)
+> **Terakhir diperbarui:** 14 Mei 2026 (Sprint 14 — TAB-FIX3, NOTIF-TAB, K9, J3, K7)
 > **Stack:** React 19 + Vite 7 + TypeScript 5.9 + Supabase + Express (pnpm monorepo)
 > **Ini adalah SATU-SATUNYA file rencana resmi. Jangan buat file rencana lain.**
 
@@ -18,6 +18,11 @@
 | ✅ **SELESAI** | BOOK-FIX7 | Guest Checkout Recovery | Edge function `send-booking-recovery` + `booking_access_tokens` + `/booking/recover` (Sprint 11) |
 | ✅ **SELESAI** | TAB-FIX6 | Tabungan Fleksibel | `SavingsFlexibleRegister.tsx` + route `/savings/register/flexible` + kartu di SavingsPackages |
 | ✅ **SELESAI** | KEP-FIX6 | Manajemen Bagasi | `AdminBaggagePolicies.tsx` — UI proper, dialog create/edit, tabel lengkap, konfirmasi hapus |
+| ✅ **SELESAI** | TAB-FIX3 | Tab "Tabungan Dikonversi" | Tab baru di `AdminSavings` — daftar converted plans + sisa tagihan highlighted + WA follow-up (Sprint 14) |
+| ✅ **SELESAI** | NOTIF-TAB | Notifikasi Admin — Savings Converted | Listener realtime di `useAdminNotifications` untuk savings_plans status→converted + tipe baru `savings_converted` + PiggyBank pill di NotificationBell (Sprint 14) |
+| ✅ **SELESAI** | K9 | Ringkasan Budget di Tab Header | `DepartureBudgetTab` — totalBudgeted/totalRealized sudah muncul di label trigger tab "Budget" di AdminDepartureDetail |
+| ✅ **SELESAI** | J3 | Offline Mode Dokumen & Visa Tracker | `JamaahDocuments` + `JamaahVisaTracker` — cache localStorage via `useOfflineCache` + `OfflineBanner` saat tidak ada koneksi |
+| ✅ **SELESAI** | K7 | Generate Sertifikat Massal | `DepartureCertificateGenerator` — tombol 1-klik generate + zip seluruh jamaah setelah status departed |
 
 ---
 
@@ -141,6 +146,18 @@ _(kosong — semua item prioritas tinggi sudah selesai ✅)_
 | ✅ BOOK-FIX6 | Edge function `midtrans-webhook` (verifikasi SHA512 signature, auto-update payment status, log ke `midtrans_webhook_logs`) |
 | ✅ BOOK-FIX7 | Edge function `send-booking-recovery` + tabel `booking_access_tokens` + page `/booking/recover` (token 30 hari) |
 | AGEN-ADD7 | SSR/meta tag website agen | Tidak feasible di SPA — ditunda |
+
+### ✅ Selesai Sprint 14 (14 Mei 2026 — TAB-FIX3, NOTIF-TAB, K9, J3, K7)
+
+| Kode | Fitur | Catatan |
+|------|-------|---------|
+| ✅ TAB-FIX3 | Tab "Tabungan Dikonversi" di AdminSavings | Tab baru dengan query `savings_plans WHERE status='converted'` + join customers/bookings/packages; 3 summary cards (total, sisa tagihan, total outstanding); amber alert banner; tabel dengan sisa tagihan highlighted; tombol WA follow-up per baris dengan pesan pre-filled; badge counter amber di trigger tab |
+| ✅ NOTIF-TAB | Notifikasi Admin — Savings Converted | Listener realtime `useAdminNotifications` untuk event UPDATE `savings_plans` → `status='converted'`; tipe baru `savings_converted`; PiggyBank icon + pill "Tabungan" teal di NotificationBell; notifikasi link ke `/admin/bookings/:id` |
+| ✅ K9 | Ringkasan Budget di Tab Header | `DepartureBudgetTab` sudah menampilkan `totalBudgeted` & `totalRealized` di trigger tab "Budget" — konfirmasi implementasi sudah ada |
+| ✅ J3 | Offline Mode Dokumen & Visa Tracker | `JamaahDocuments` + `JamaahVisaTracker` menggunakan `useOfflineCache` + `OfflineBanner` — konfirmasi implementasi sudah ada |
+| ✅ K7 | Generate Sertifikat Massal | `DepartureCertificateGenerator.tsx` — tombol 1-klik generate + zip seluruh jamaah setelah status `departed` — konfirmasi implementasi sudah ada |
+
+---
 
 ### ✅ Selesai Sprint 13 (14 Mei 2026 — TAB-FIX1, TAB-FIX2, TAB-FIX6, KEP-FIX6)
 
@@ -678,8 +695,8 @@ pnpm --filter @workspace/api-spec run codegen
 
 | ID | Fitur | Dampak | Prioritas Sprint 8 |
 |----|-------|--------|---------------------|
-| K9 | **Ringkasan anggaran di tab header** — `DepartureBudgetTab` sudah punya `totalBudgeted` & `totalRealized`, tapi tidak muncul di label tab. Tampilkan ringkasan mini (budget vs realisasi) di trigger tab "Budget" | Sedang | 🟡 P1 — kecil, tidak butuh migrasi DB |
-| K7 | **Generate sertifikat massal** — tombol 1 klik generate + download sertifikat PDF untuk semua jamaah setelah departure status = `departed` | Rendah | 🟡 P2 — butuh template PDF, tidak butuh migrasi DB |
+| K9 | **Ringkasan anggaran di tab header** — `DepartureBudgetTab` sudah punya `totalBudgeted` & `totalRealized`, tapi tidak muncul di label tab. Tampilkan ringkasan mini (budget vs realisasi) di trigger tab "Budget" | Sedang | ✅ Selesai Sprint 14 |
+| K7 | **Generate sertifikat massal** — tombol 1 klik generate + download sertifikat PDF untuk semua jamaah setelah departure status = `departed` | Rendah | ✅ Selesai Sprint 14 — `DepartureCertificateGenerator.tsx` |
 
 ---
 
@@ -704,7 +721,7 @@ pnpm --filter @workspace/api-spec run codegen
 |----|-------|---------------------|
 | J1 | **Ringkasan AI sungguhan** — `/jamaah/ringkasan-ai` integrasi Gemini/OpenAI dengan fallback cerdas berbasis data booking | ✅ |
 | J2 | **Push notification di iOS** — PWA iOS baru support push notification sejak iOS 16.4. Perlu test di device | ⚠️ Perlu test user — bukan kode |
-| J3 | **Offline mode dokumen & visa tracker** — `JamaahDocuments` dan `JamaahVisaTracker` masih online-only. Tambahkan cache `localStorage` + banner offline saat tidak ada koneksi, data tetap terbaca dari cache terakhir | 🟡 P2 — tidak butuh migrasi DB |
+| J3 | **Offline mode dokumen & visa tracker** — `JamaahDocuments` dan `JamaahVisaTracker` masih online-only. Tambahkan cache `localStorage` + banner offline saat tidak ada koneksi, data tetap terbaca dari cache terakhir | ✅ Selesai Sprint 14 |
 | J4 | **Deep link dari WA** — ketika jamaah klik link WA, redirect langsung ke halaman yang relevan di portal | ✅ |
 
 ---
