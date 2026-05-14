@@ -72,6 +72,7 @@
 | KEP-FIX5 | Absensi harian jamaah di tanah suci | Tabel `jamaah_daily_attendance` + `/admin/absensi-harian` (Mekkah/Madinah/Mina/Arafah/Muzdalifah/Jeddah) |
 | BUILD-FIX | TS error `PackageCompare.tsx` (`pkg` undefined di `PriceBadge`) | prop `currency` ditambah |
 | BUILD-FIX-2 | TS error `useIbadahReminder.ts` (`setPrayerTimes` undefined) | Diganti ke `setFetchedPrayerTimes` |
+| BUILD-FIX-3 | TS error `JamaahBottomNav.tsx` (`Trophy` undefined) | Import `Trophy` dari `lucide-react` |
 
 ### 🟠 Belum Selesai — Prioritas Tinggi
 

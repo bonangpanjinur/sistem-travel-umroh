@@ -4,7 +4,7 @@ import {
   LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard,
   MessageCircle, X, GraduationCap, CalendarDays, Users, Clock,
   BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart, Star,
-  BellRing, Moon, Sun, UsersRound
+  BellRing, Moon, Sun, UsersRound, Trophy
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ const ICON_MAP: Record<string, any> = {
   Home, QrCode, Shield, Bell, LayoutGrid, FileText, Luggage, LogIn,
   FileSignature, Camera, BookOpen, Wallet, CreditCard, MessageCircle,
   GraduationCap, CalendarDays, Users, Clock, BookMarked, User, Plane,
-  Heart, Star, BellRing, Moon, Sun, UsersRound,
+  Heart, Star, BellRing, Moon, Sun, UsersRound, Trophy,
 };
 
 const moreMenuItems = [
