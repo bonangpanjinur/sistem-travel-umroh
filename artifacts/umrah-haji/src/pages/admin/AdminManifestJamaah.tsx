@@ -425,6 +425,20 @@ export default function AdminManifestJamaah() {
               <Button variant="outline" size="sm" onClick={exportPDF}>
                 <FileText className="h-4 w-4 mr-1.5 text-blue-600" /> PDF
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = `/api/manifest/export/${selectedDeparture}?format=csv`;
+                  a.download = `manifest-${departure?.package?.name || "jamaah"}-server.csv`;
+                  a.click();
+                  toast.success("Mengunduh manifest CSV dari server...");
+                }}
+                title="Unduh langsung dari server — aman untuk data besar"
+              >
+                <Download className="h-4 w-4 mr-1.5 text-violet-600" /> CSV Server
+              </Button>
               <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-1.5 text-slate-600" /> Cetak
               </Button>

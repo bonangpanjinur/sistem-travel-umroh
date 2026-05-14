@@ -159,17 +159,195 @@ router.delete('/employees/:id', async (req, res) => {
 
 /**
  * POST /api/hr/verify-face
- * Face verification endpoint. Currently returns a graceful bypass since
- * face recognition requires a dedicated ML service (e.g. AWS Rekognition).
- * Returns verified: true so attendance can proceed — upgrade later.
+ * Face verification menggunakan face-api.js (browser-side descriptor matching).
+ * Server menerima face descriptor array dari browser yang sudah diproses face-api.js,
+ * lalu membandingkan dengan descriptor referensi yang tersimpan di database.
+ *
+ * Payload:
+ *   - employee_id: UUID karyawan
+ *   - live_descriptor: number[] (128-dim face descriptor dari face-api.js di browser)
+ *   - reference_descriptor?: number[] (jika dikirim dari browser, tidak perlu fetch DB)
+ *
+ * Response:
+ *   - verified: boolean
+ *   - confidence: number (0-100)
+ *   - distance: number (euclidean distance, < 0.6 = match)
+ *   - reason: string
  */
-router.post('/verify-face', async (_req, res) => {
+router.post('/verify-face', async (req, res) => {
+  const { employee_id, live_descriptor, reference_descriptor } = req.body as {
+    employee_id?: string;
+    live_descriptor?: number[];
+    reference_descriptor?: number[];
+  };
+
+  // Validasi: live_descriptor harus ada
+  if (!live_descriptor || !Array.isArray(live_descriptor) || live_descriptor.length === 0) {
+    res.status(400).json({
+      verified: false,
+      confidence: 0,
+      reason: 'live_descriptor wajib diisi (kirim face descriptor array dari face-api.js di browser)',
+    });
+    return;
+  }
+
+  // Jika reference_descriptor dikirim dari browser, bandingkan langsung
+  if (reference_descriptor && Array.isArray(reference_descriptor) && reference_descriptor.length > 0) {
+    const result = compareFaceDescriptors(live_descriptor, reference_descriptor);
+    res.json(result);
+    return;
+  }
+
+  // Jika employee_id dikirim, ambil descriptor referensi dari database
+  if (employee_id) {
+    const sb = getSupabase();
+    if (!sb.configured) {
+      // Graceful bypass jika Supabase belum dikonfigurasi
+      res.json({
+        verified: true,
+        confidence: 70,
+        reason: 'Mode bypass: Supabase belum dikonfigurasi, absensi diizinkan.',
+        bypass: true,
+      });
+      return;
+    }
+
+    try {
+      const getRes = await fetch(
+        `${sb.url}/rest/v1/employees?id=eq.${employee_id}&select=id,face_descriptor&limit=1`,
+        { headers: { 'apikey': sb.key, 'Authorization': `Bearer ${sb.key}` } }
+      );
+      const rows = await getRes.json() as Array<{ id: string; face_descriptor?: string | null }>;
+      const employee = rows?.[0];
+
+      if (!employee?.face_descriptor) {
+        // Belum ada foto referensi — bypass dengan catatan
+        res.json({
+          verified: true,
+          confidence: 50,
+          reason: 'Foto referensi wajah belum didaftarkan. Absensi diizinkan, daftarkan foto terlebih dahulu.',
+          bypass: true,
+        });
+        return;
+      }
+
+      let refDescriptor: number[];
+      try {
+        refDescriptor = typeof employee.face_descriptor === 'string'
+          ? JSON.parse(employee.face_descriptor)
+          : employee.face_descriptor as unknown as number[];
+      } catch {
+        res.json({
+          verified: true,
+          confidence: 50,
+          reason: 'Format descriptor referensi tidak valid. Absensi diizinkan.',
+          bypass: true,
+        });
+        return;
+      }
+
+      const result = compareFaceDescriptors(live_descriptor, refDescriptor);
+      res.json(result);
+      return;
+    } catch (err: any) {
+      console.error('[HR verify-face] DB error:', err.message);
+      // Graceful fallback
+      res.json({
+        verified: true,
+        confidence: 60,
+        reason: 'Gagal verifikasi dari database. Absensi diizinkan.',
+        bypass: true,
+      });
+      return;
+    }
+  }
+
+  // Tidak ada data cukup — bypass
   res.json({
     verified: true,
     confidence: 0,
-    reason: 'Verifikasi wajah otomatis tidak tersedia. Absensi diizinkan.',
+    reason: 'Tidak ada data verifikasi. Absensi diizinkan (mode bypass).',
     bypass: true,
   });
 });
+
+/**
+ * POST /api/hr/register-face
+ * Simpan face descriptor karyawan sebagai referensi untuk verifikasi berikutnya.
+ */
+router.post('/register-face', async (req, res) => {
+  const sb = getSupabase();
+  if (!sb.configured) {
+    res.status(503).json({ success: false, error: 'Supabase belum dikonfigurasi.' });
+    return;
+  }
+
+  const { employee_id, face_descriptor } = req.body as {
+    employee_id?: string;
+    face_descriptor?: number[];
+  };
+
+  if (!employee_id || !face_descriptor || !Array.isArray(face_descriptor)) {
+    res.status(400).json({ success: false, error: 'employee_id dan face_descriptor wajib diisi.' });
+    return;
+  }
+
+  try {
+    const patchRes = await fetch(`${sb.url}/rest/v1/employees?id=eq.${employee_id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': sb.key,
+        'Authorization': `Bearer ${sb.key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ face_descriptor: JSON.stringify(face_descriptor) }),
+    });
+
+    if (!patchRes.ok) {
+      throw new Error(`DB error: ${patchRes.status}`);
+    }
+
+    res.json({ success: true, message: 'Foto wajah referensi berhasil disimpan.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Euclidean distance antara dua face descriptor (128-dim array dari face-api.js). */
+function euclideanDistance(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 1;
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    sum += (a[i] - b[i]) ** 2;
+  }
+  return Math.sqrt(sum);
+}
+
+/**
+ * Bandingkan dua face descriptor.
+ * Threshold face-api.js: < 0.6 = same person (default), < 0.5 = strict
+ */
+function compareFaceDescriptors(live: number[], reference: number[]) {
+  const distance = euclideanDistance(live, reference);
+  const THRESHOLD = 0.6;
+  const verified = distance < THRESHOLD;
+
+  // Konversi distance ke confidence (0-100)
+  // distance=0 → confidence=100, distance=0.6 → confidence=0, distance>0.6 → negatif → clamp ke 0
+  const confidence = Math.max(0, Math.round((1 - distance / THRESHOLD) * 100));
+
+  return {
+    verified,
+    confidence,
+    distance: parseFloat(distance.toFixed(4)),
+    threshold: THRESHOLD,
+    reason: verified
+      ? `Wajah terverifikasi (jarak: ${distance.toFixed(3)}, kepercayaan: ${confidence}%)`
+      : `Wajah tidak cocok (jarak: ${distance.toFixed(3)} melebihi threshold ${THRESHOLD})`,
+  };
+}
 
 export default router;

@@ -356,6 +356,120 @@ router.get("/qris-status/:orderId", async (req, res) => {
   }
 });
 
+// ─── POST /create-va — Core API: generate Virtual Account ────────────────────
+// Supported banks: BCA, BNI, BRI, Permata, Mandiri, CIMB
+
+router.post("/create-va", async (req, res) => {
+  const serverKey = resolveServerKey(req);
+  if (!serverKey) {
+    res.status(503).json({ error: "Midtrans belum dikonfigurasi. Set MIDTRANS_SERVER_KEY di Replit Secrets." });
+    return;
+  }
+
+  const {
+    booking_id, booking_code, amount,
+    customer_name, customer_email, customer_phone,
+    bank = "bni",
+  } = req.body;
+
+  if (!booking_code || !amount || amount <= 0) {
+    res.status(400).json({ error: "booking_code dan amount wajib diisi" });
+    return;
+  }
+
+  const supportedBanks = ["bca", "bni", "bri", "permata", "mandiri", "cimb"];
+  const bankCode = (bank as string).toLowerCase();
+  if (!supportedBanks.includes(bankCode)) {
+    res.status(400).json({ error: `Bank tidak didukung: ${bank}. Pilih: ${supportedBanks.join(", ")}` });
+    return;
+  }
+
+  const orderId = `VA-${bankCode.toUpperCase()}-${booking_code}-${Date.now()}`;
+
+  const payload: Record<string, unknown> = {
+    payment_type: "bank_transfer",
+    transaction_details: {
+      order_id: orderId,
+      gross_amount: Math.round(amount),
+    },
+    customer_details: {
+      first_name: customer_name || "Jamaah",
+      email: customer_email || "jamaah@vinstour.com",
+      phone: customer_phone || "08000000000",
+    },
+    item_details: [
+      {
+        id: booking_id || booking_code,
+        price: Math.round(amount),
+        quantity: 1,
+        name: `Pembayaran Booking ${booking_code}`,
+      },
+    ],
+  };
+
+  if (bankCode === "permata") {
+    payload.bank_transfer = { bank: "permata" };
+  } else if (bankCode === "mandiri") {
+    payload.payment_type = "echannel";
+    payload.echannel = {
+      bill_info1: `Booking ${booking_code}`,
+      bill_info2: "Vinstour Travel",
+    };
+  } else {
+    payload.bank_transfer = { bank: bankCode };
+  }
+
+  try {
+    const response = await fetch(`${getCoreApiBase()}/charge`, {
+      method: "POST",
+      headers: {
+        Authorization: getAuthHeader(serverKey),
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data = await response.json() as any;
+
+    if (data.status_code !== "201") {
+      console.error("[Midtrans VA] Error:", data);
+      res.status(400).json({
+        error: data.status_message || "Gagal membuat Virtual Account",
+        status_code: data.status_code,
+        detail: data,
+      });
+      return;
+    }
+
+    // Extract VA number depending on bank
+    let vaNumber: string | null = null;
+    if (bankCode === "permata") {
+      vaNumber = data.permata_va_number ?? null;
+    } else if (bankCode === "mandiri") {
+      vaNumber = data.bill_key ?? null;
+    } else if (data.va_numbers && Array.isArray(data.va_numbers) && data.va_numbers.length > 0) {
+      vaNumber = data.va_numbers[0].va_number ?? null;
+    }
+
+    res.json({
+      transaction_id: data.transaction_id,
+      order_id: data.order_id,
+      bank: bankCode,
+      va_number: vaNumber,
+      bill_key: data.bill_key ?? null,
+      biller_code: data.biller_code ?? null,
+      expiry_time: data.expiry_time ?? null,
+      gross_amount: data.gross_amount,
+      transaction_status: data.transaction_status,
+    });
+  } catch (err: any) {
+    console.error("[Midtrans VA] fetch error:", err.message);
+    res.status(500).json({ error: "Gagal menghubungi Midtrans", detail: err.message });
+  }
+});
+
 // ─── POST /notification — Midtrans webhook (payment notification) ─────────────
 // Register this URL in Midtrans Dashboard → Settings → Configuration → Payment Notification URL
 // URL: https://your-api-domain/api/midtrans/notification

@@ -115,4 +115,91 @@ router.get("/manifest.json", async (_req, res) => {
   }
 });
 
+// ─── GET /api/manifest/export/:departureId — Server-side jamaah manifest CSV ──
+// P2: Server-side export hindari crash browser saat download besar
+
+router.get("/manifest/export/:departureId", async (req, res) => {
+  const { departureId } = req.params;
+  const format = (req.query.format as string) || "csv";
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    res.status(503).json({ error: "Supabase belum dikonfigurasi" });
+    return;
+  }
+
+  if (!departureId) {
+    res.status(400).json({ error: "departureId wajib diisi" });
+    return;
+  }
+
+  try {
+    // Fetch booking_passengers + bookings + customers for this departure
+    const apiRes = await fetch(
+      `${supabaseUrl}/rest/v1/booking_passengers?select=id,full_name,gender,birth_date,nationality,passport_number,passport_expiry,phone,email,passenger_type,seat_number,room_preference,special_requests,is_main_passenger,booking_id,bookings!inner(id,booking_code,status,room_number,departure_id,customers(id,full_name,phone,email))&bookings.departure_id=eq.${departureId}&bookings.status=neq.cancelled&order=full_name`,
+      {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(30000),
+      }
+    );
+
+    if (!apiRes.ok) {
+      const errText = await apiRes.text();
+      console.error("[Manifest Export] Supabase error:", errText);
+      res.status(500).json({ error: "Gagal mengambil data manifest dari database" });
+      return;
+    }
+
+    const passengers = await apiRes.json() as any[];
+
+    if (format === "csv") {
+      const headers = [
+        "No", "Nama Lengkap", "Gender", "Tgl Lahir", "Kewarganegaraan",
+        "No Paspor", "Exp Paspor", "Telepon", "Email",
+        "Tipe Penumpang", "Nomor Kursi", "Tipe Kamar", "Kode Booking", "Status Booking", "Nomor Kamar",
+      ];
+
+      const rows = passengers.map((p: any, idx: number) => [
+        idx + 1,
+        p.full_name || "",
+        p.gender || "",
+        p.birth_date || "",
+        p.nationality || "",
+        p.passport_number || "",
+        p.passport_expiry || "",
+        p.phone || p.bookings?.customers?.phone || "",
+        p.email || p.bookings?.customers?.email || "",
+        p.passenger_type || "adult",
+        p.seat_number || "",
+        p.room_preference || "",
+        p.bookings?.booking_code || "",
+        p.bookings?.status || "",
+        p.bookings?.room_number || "",
+      ]);
+
+      const csvLines = [headers, ...rows].map(row =>
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      );
+      const csv = "\uFEFF" + csvLines.join("\r\n"); // BOM for Excel
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="manifest-jamaah-${departureId}.csv"`);
+      res.setHeader("Cache-Control", "no-store");
+      res.send(csv);
+    } else {
+      // JSON fallback
+      res.json({ count: passengers.length, passengers });
+    }
+  } catch (err: any) {
+    console.error("[Manifest Export] Error:", err.message);
+    res.status(500).json({ error: "Gagal generate manifest", detail: err.message });
+  }
+});
+
 export default router;
