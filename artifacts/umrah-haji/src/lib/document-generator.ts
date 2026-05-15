@@ -3,6 +3,7 @@ import { drawPaymentWatermark } from './pdf/watermark';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import type { CancellationPolicy } from './transaction-form-generator';
 
 // Helper function to convert image URL to Base64
 async function imageUrlToBase64(url: string): Promise<string> {
@@ -172,6 +173,7 @@ export interface InvoiceDataExtended extends InvoiceData {
   paidAmount?: number;
   remainingAmount?: number;
   paymentStatus?: string;
+  cancellationPolicy?: CancellationPolicy;
 }
 
 export interface GeneralLetterData {
@@ -635,6 +637,59 @@ export async function generateInvoice(
     doc.setTextColor(78, 52, 46);
     doc.text(noteLines, 18, y + 13);
     y += noteLines.length * 5 + 20;
+  }
+
+  // ── Aturan Pembatalan ─────────────────────────────────────────────────
+  const ensureInvSpace = (currentY: number, needed: number): number => {
+    if (currentY + needed > pageHeight - 18) {
+      doc.addPage();
+      addFooter(doc, 1, 1, company);
+      return 20;
+    }
+    return currentY;
+  };
+
+  if (data.cancellationPolicy) {
+    const policy = data.cancellationPolicy;
+    const termW = pageWidth - 28;
+
+    y = ensureInvSpace(y, 14);
+    doc.setFont(font, 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(rgbAccent.r, rgbAccent.g, rgbAccent.b);
+    doc.text('ATURAN PEMBATALAN', 14, y);
+    y += 5;
+
+    doc.setFont(font, 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    const policyTitleLines = doc.splitTextToSize(policy.name.toUpperCase(), termW);
+    y = ensureInvSpace(y, policyTitleLines.length * 4 + 3);
+    doc.text(policyTitleLines, 14, y);
+    y += policyTitleLines.length * 4 + 3;
+
+    for (const section of policy.sections) {
+      y = ensureInvSpace(y, 12);
+      doc.setFont(font, 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(rgbAccent.r, rgbAccent.g, rgbAccent.b);
+      doc.text(section.title.toUpperCase() + ':', 14, y);
+      y += 4.5;
+
+      doc.setFont(font, 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(30, 30, 30);
+      for (const item of section.items) {
+        const itemLines = doc.splitTextToSize(item, termW - 10);
+        const blockH = itemLines.length * 3.5 + 1.5;
+        y = ensureInvSpace(y, blockH);
+        doc.text('\u2022', 17, y);
+        doc.text(itemLines, 21, y);
+        y += blockH;
+      }
+      y += 2;
+    }
+    y += 4;
   }
 
   // ── Signature ────────────────────────────────────────────────────────

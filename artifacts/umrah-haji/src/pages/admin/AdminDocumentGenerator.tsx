@@ -110,7 +110,7 @@ const AdminDocumentGenerator = () => {
       if (depIds.length === 0) return [];
       const { data, error } = await supabase
         .from('bookings')
-        .select(`id, booking_code, room_type, total_price, total_pax, base_price, discount_amount, paid_amount, remaining_amount, payment_status, created_at, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single))`)
+        .select(`id, booking_code, room_type, total_price, total_pax, base_price, discount_amount, paid_amount, remaining_amount, payment_status, created_at, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single, cancellation_policy:cancellation_policies(id, name, sections)))`)
         .in('departure_id', depIds).order('created_at', { ascending: false });
       if (error) throw error; return data;
     },
@@ -211,8 +211,43 @@ const AdminDocumentGenerator = () => {
   const handleGenerateInvoice = () => {
     const booking = invoiceBookings.find((b: any) => b.id === invoiceForm.bookingId);
     if (!booking) { toast.error('Pilih booking terlebih dahulu'); return undefined; }
-    const customer = booking.customer as any; const departure = booking.departure as any; const pkg = departure?.package as any;
-    const data: InvoiceDataExtended = { invoiceNumber: `INV-${booking.booking_code}`, invoiceDate: new Date(), dueDate: invoiceForm.dueDate || new Date(Date.now() + 7 * 86400000), customer: { name: customer?.full_name || '-', address: customer?.address || '-', phone: customer?.phone || '-', email: customer?.email }, items: [{ description: `Paket ${pkg?.name || 'Umrah'} - ${booking.room_type}`, quantity: booking.total_pax || 1, unitPrice: booking.base_price / (booking.total_pax || 1), total: booking.base_price }], subtotal: booking.base_price, discount: booking.discount_amount || 0, total: booking.total_price, paidAmount: booking.paid_amount || 0, remainingAmount: booking.remaining_amount || 0, paymentStatus: (booking.paid_amount || 0) >= booking.total_price ? 'paid' : (booking.paid_amount || 0) > 0 ? 'partial' : 'pending', packageName: pkg?.name, departureDate: departure?.departure_date ? new Date(departure.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined, notes: invoiceForm.notes || 'Pembayaran dapat dilakukan secara bertahap. Pelunasan paling lambat 2 minggu sebelum keberangkatan.', bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined };
+    const customer = booking.customer as any;
+    const departure = booking.departure as any;
+    const pkg = departure?.package as any;
+
+    const roomTypeLabels: Record<string, string> = {
+      single: 'Single (1 Orang)',
+      double: 'Double (2 Orang)',
+      triple: 'Triple (3 Orang)',
+      quad: 'Quad (4 Orang)',
+    };
+    const roomLabel = roomTypeLabels[booking.room_type as string] || booking.room_type;
+    const paxCount = booking.total_pax || 1;
+    const pricePerPax = booking.base_price || 0;
+    const totalBeforeDiscount = pricePerPax * paxCount;
+
+    const cp = pkg?.cancellation_policy as any;
+    const cancellationPolicy = cp ? { id: cp.id, name: cp.name, sections: cp.sections ?? [] } : undefined;
+
+    const data: InvoiceDataExtended = {
+      invoiceNumber: `INV-${booking.booking_code}`,
+      invoiceDate: new Date(),
+      dueDate: invoiceForm.dueDate || new Date(Date.now() + 7 * 86400000),
+      customer: { name: customer?.full_name || '-', address: customer?.address || '-', phone: customer?.phone || '-', email: customer?.email },
+      items: [{ description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${roomLabel}`, quantity: paxCount, unitPrice: pricePerPax, total: totalBeforeDiscount }],
+      subtotal: totalBeforeDiscount,
+      discount: booking.discount_amount || 0,
+      total: booking.total_price,
+      paidAmount: booking.paid_amount || 0,
+      remainingAmount: booking.remaining_amount || 0,
+      paymentStatus: (booking.paid_amount || 0) >= booking.total_price ? 'paid' : (booking.paid_amount || 0) > 0 ? 'partial' : 'pending',
+      packageName: pkg?.name,
+      departureDate: departure?.departure_date ? new Date(departure.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
+      passengerSummary: { adult: paxCount },
+      notes: invoiceForm.notes || 'Pembayaran dapat dilakukan secara bertahap. Pelunasan paling lambat 2 minggu sebelum keberangkatan.',
+      bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined,
+      cancellationPolicy,
+    };
     return { generate: async () => await generateInvoice(data, company) };
   };
 

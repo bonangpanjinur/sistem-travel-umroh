@@ -58,7 +58,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
-import { generateInvoice, type InvoiceData } from "@/lib/document-generator";
+import { generateInvoice, type InvoiceDataExtended } from "@/lib/document-generator";
 import { generateTransactionForm, previewTransactionForm, DEFAULT_TEMPLATE, type PaymentInfoBlock, type CancellationPolicy } from "@/lib/transaction-form-generator";
 import { DocumentPreviewModal } from "@/components/admin/DocumentPreviewModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -667,7 +667,15 @@ export default function AdminBookingDetail() {
     if ((booking as any).infant_count > 0) paxBreakdown.push(`${(booking as any).infant_count} Bayi`);
     const paxLabel = paxBreakdown.length > 0 ? paxBreakdown.join(', ') : `${booking.total_pax || 1} Pax`;
 
-    const invoiceData = {
+    const paxCount = booking.total_pax || 1;
+    const pricePerPax = booking.base_price || 0;
+    const totalBeforeDiscount = pricePerPax * paxCount;
+
+    const activeCpForInvoice: CancellationPolicy | undefined = cancellationPolicy
+      ? { id: cancellationPolicy.id, name: cancellationPolicy.name, sections: cancellationPolicy.sections ?? [] }
+      : undefined;
+
+    const invoiceData: InvoiceDataExtended = {
       invoiceNumber: `INV-${booking.booking_code}`,
       invoiceDate: new Date(booking.created_at || new Date()),
       dueDate: booking.payment_deadline ? new Date(booking.payment_deadline) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
@@ -680,9 +688,9 @@ export default function AdminBookingDetail() {
       items: [
         {
           description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${paxLabel})\nKeberangkatan: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
-          quantity: booking.total_pax || 1,
-          unitPrice: booking.base_price / (booking.total_pax || 1),
-          total: booking.base_price,
+          quantity: paxCount,
+          unitPrice: pricePerPax,
+          total: totalBeforeDiscount,
         },
         ...(booking.addons_price && booking.addons_price > 0 ? [{
           description: 'Biaya Tambahan / Add-ons',
@@ -691,7 +699,7 @@ export default function AdminBookingDetail() {
           total: booking.addons_price,
         }] : []),
       ],
-      subtotal: booking.base_price + (booking.addons_price || 0),
+      subtotal: totalBeforeDiscount + (booking.addons_price || 0),
       discount: booking.discount_amount || undefined,
       total: booking.total_price,
       paidAmount,
@@ -710,6 +718,7 @@ export default function AdminBookingDetail() {
         accountNumber: bank.account_number,
         accountName: bank.account_name,
       } : undefined,
+      cancellationPolicy: activeCpForInvoice,
     };
 
     const doc = await generateInvoice(invoiceData, companyInfo);
