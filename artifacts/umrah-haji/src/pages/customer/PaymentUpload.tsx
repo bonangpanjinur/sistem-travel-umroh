@@ -38,7 +38,7 @@ function useMidtransSnap(clientKey: string | null) {
     const existing = document.getElementById("midtrans-snap-script");
     if (existing) { setReady(true); return; }
 
-    const isProduction = (midtransConfig as any)?.is_production === true;
+    const isProduction = false; // Default to false if midtransConfig is missing
     const script = document.createElement("script");
     script.id = "midtrans-snap-script";
     script.src = isProduction

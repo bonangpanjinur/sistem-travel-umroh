@@ -126,7 +126,7 @@ export function SavingsConvertDialog({ open, onOpenChange, savingsPlan }: Props)
         .select("id, name, type, duration_days, price, savings_target")
         .eq("is_active", true)
         .order("name");
-      return (data || []) as PkgOption[];
+      return (data || []) as unknown as PkgOption[];
     },
   });
 
@@ -144,7 +144,7 @@ export function SavingsConvertDialog({ open, onOpenChange, savingsPlan }: Props)
           status, price_quad, price_triple, price_double, price_single,
           packages:package_id ( id, name, type, duration_days, airline, hotel_makkah, hotel_madinah )
         `)
-        .eq("package_id", activePkgId)
+        .eq("package_id", activePkgId as string)
         .gte("departure_date", new Date().toISOString().split("T")[0])
         .neq("status", "cancelled")
         .order("departure_date");
@@ -166,8 +166,7 @@ export function SavingsConvertDialog({ open, onOpenChange, savingsPlan }: Props)
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("convert_savings_to_booking" as any, {
         _savings_plan_id: savingsPlan.id,
-        _departure_id:    selectedDepId,
-        _room_type:       roomType,
+        _departure_id:    selectedDepId,          room_type: convRoomType as any,
       });
       if (error) throw error;
       return data as string;

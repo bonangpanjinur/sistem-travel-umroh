@@ -186,17 +186,18 @@ export function useBookingWizardDynamic(
       if (!customerId) throw new Error('Gagal memproses data pelanggan');
 
       // 2. Get departure info (incl. package currency for multi-currency snapshot)
-      const { data: departure, error: departureError } = await supabase
+      const { data: departureRaw, error: departureError } = await supabase
         .from('departures')
         .select('id, departure_date, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, package:packages(code, currency, booking_mode)')
         .eq('id', formData.departureId)
         .single();
 
-      if (departureError || !departure) throw new Error('Departure tidak ditemukan');
+      if (departureError || !departureRaw) throw new Error('Departure tidak ditemukan');
+      const departure = departureRaw as any;
 
-      const departureBookingMode: string = (departure as any).package?.booking_mode || bookingMode;
+      const departureBookingMode: string = departure.package?.booking_mode || bookingMode;
       const useAgeBasedPricing = departureBookingMode === 'haji' ||
-        ((departure as any).price_adult && (departure as any).price_adult > 0);
+        (departure.price_adult && departure.price_adult > 0);
 
       // 3. Calculate pricing
       const priceMap: Record<RoomType, number> = {
@@ -205,9 +206,9 @@ export function useBookingWizardDynamic(
       };
 
       const agePriceMap: Record<string, number> = {
-        adult: (departure as any).price_adult || 0,
-        child: (departure as any).price_child || 0,
-        infant: (departure as any).price_infant || 0,
+        adult: departure.price_adult || 0,
+        child: departure.price_child || 0,
+        infant: departure.price_infant || 0,
       };
       
       const adultCount = formData.passengers.filter(p => p.passengerType === 'adult').length;
@@ -269,7 +270,7 @@ export function useBookingWizardDynamic(
       const referralId = validationResult?.resolved_referral_id;
 
       // 5. Create booking
-      const { data: bookingCodeData, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: (departure.package as any)?.code || '', _departure_date: departure.departure_date });
+      const { data: bookingCodeData, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: departure.package?.code || '', _departure_date: departure.departure_date });
       if (bookingCodeError) throw bookingCodeError;
       const bookingCode = bookingCodeData || `TRA${Date.now().toString(36).toUpperCase()}`;
       

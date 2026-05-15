@@ -424,7 +424,7 @@ export default function AdminSavingsPlans() {
         .insert({
           customer_id: convPlan.customer_id,
           departure_id: convDepartureId,
-          room_type: convRoomType,
+          room_type: convRoomType as any,
           total_pax: 1,
           base_price: basePrice,
           total_price: basePrice,

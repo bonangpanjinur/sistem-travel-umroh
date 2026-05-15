@@ -253,7 +253,7 @@ export function useAdminNotifications() {
               ? await supabase.from('bookings').select('booking_code, total_price').eq('id', bookingId).maybeSingle()
               : { data: null };
 
-            const totalPrice = booking?.total_price ?? targetAmount;
+            const totalPrice = booking?.total_price ?? newPlan.target_amount;
             const sisa = Math.max(0, totalPrice - paidAmount);
 
             addNotification({

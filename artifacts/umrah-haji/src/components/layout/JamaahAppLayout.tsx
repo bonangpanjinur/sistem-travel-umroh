@@ -76,7 +76,8 @@ function PWAJamaahBottomNav() {
     >
       <div className="mx-auto max-w-md">
         <div className="flex items-stretch">
-          {COMPACT_NAV.map(({ to, label, icon: Icon, exact }) => {
+          {COMPACT_NAV.map(({ to, label, icon: Icon, ...rest }) => {
+            const exact = (rest as any).exact;
             const isActive = exact
               ? location.pathname === to
               : location.pathname.startsWith(to);

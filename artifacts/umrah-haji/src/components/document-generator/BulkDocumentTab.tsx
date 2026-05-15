@@ -154,7 +154,8 @@ export function BulkDocumentTab({
                                 const num = await getLetterNumber("cuti_jamaah", "CUTI-JMH");
                                 const doc = await generateJamaahLeaveLetter(data, num, company);
                                 handleDownloadPdf(doc, `cuti-jamaah-${customer.full_name.replace(/\s+/g, "-")}`);
-                              } catch { toast.error("Gagal generate"); }
+                                return;
+                              } catch { toast.error("Gagal generate"); return; }
                             }}
                             className="inline-flex items-center gap-1 px-2 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md transition-colors"
                           >
