@@ -60,7 +60,7 @@ async function getProfile(userId: string): Promise<any | null> {
       },
     );
     if (!res.ok) return null;
-    const rows: any[] = await res.json();
+    const rows: any[] = (await res.json()) as any;
     return rows[0] ?? null;
   } catch {
     return null;
