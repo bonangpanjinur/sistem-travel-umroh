@@ -166,7 +166,7 @@ export function SavingsConvertDialog({ open, onOpenChange, savingsPlan }: Props)
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("convert_savings_to_booking" as any, {
         _savings_plan_id: savingsPlan.id,
-        _departure_id:    selectedDepId,          room_type: convRoomType as any,
+        _departure_id:    selectedDepId,          room_type: roomType as any,
       });
       if (error) throw error;
       return data as string;
