@@ -2067,74 +2067,86 @@ export default function AdminBookingDetail() {
             <div className="bg-muted/50 px-6 py-3 border-b">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Aksi Cepat</h3>
             </div>
-            <CardContent className="p-4 space-y-2">
-              <Button className="w-full justify-start h-10 font-bold text-xs" variant="outline" onClick={handlePrintInvoice}>
-                <Printer className="h-4 w-4 mr-3 text-primary" />
-                CETAK INVOICE PDF
-              </Button>
-              <div className="grid grid-cols-[1fr_auto] gap-2">
-                <Button className="justify-start h-10 font-bold text-xs" variant="outline" onClick={() => handlePrintTransactionForm("download")}>
-                  <FileText className="h-4 w-4 mr-3 text-amber-600" />
-                  FORM TRANSAKSI UMRAH
+            <CardContent className="p-4 space-y-4">
+              <div className="grid grid-cols-1 gap-2">
+                <Button className="w-full justify-start h-11 font-bold text-xs border-2" variant="outline" onClick={handlePrintInvoice}>
+                  <Printer className="h-4 w-4 mr-3 text-primary" />
+                  CETAK INVOICE PDF
                 </Button>
-                <Button
-                  className="h-10 font-bold text-xs"
-                  variant="secondary"
-                  title="Pratinjau sebelum download"
-                  onClick={() => handlePrintTransactionForm("preview")}
+                
+                <div className="space-y-2 p-3 rounded-lg border-2 border-dashed bg-muted/30">
+                  <div className="flex items-center justify-between gap-2">
+                    <Button 
+                      className="flex-1 justify-start h-10 font-bold text-xs" 
+                      variant="outline" 
+                      onClick={() => handlePrintTransactionForm("download")}
+                    >
+                      <FileText className="h-4 w-4 mr-3 text-amber-600" />
+                      FORM TRANSAKSI UMRAH
+                    </Button>
+                    <Button
+                      className="h-10 px-3 font-bold text-xs shrink-0"
+                      variant="secondary"
+                      title="Pratinjau sebelum download"
+                      onClick={() => handlePrintTransactionForm("preview")}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={trxPaperSize} onValueChange={(v) => setTrxPaperSize(v as "a4" | "letter")}>
+                      <SelectTrigger className="h-8 text-[11px] bg-background">
+                        <SelectValue placeholder="Ukuran kertas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="a4">A4 (210 × 297 mm)</SelectItem>
+                        <SelectItem value="letter">Letter (8.5 × 11 in)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={trxOrientation} onValueChange={(v) => setTrxOrientation(v as "portrait" | "landscape")}>
+                      <SelectTrigger className="h-8 text-[11px] bg-background">
+                        <SelectValue placeholder="Orientasi" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="portrait">Portrait</SelectItem>
+                        <SelectItem value="landscape">Landscape</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button 
+                  className="w-full justify-start h-11 font-bold text-xs border-2" 
+                  variant="outline" 
+                  onClick={() => setShowManagePaymentModal(true)}
                 >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Pratinjau
+                  <CreditCard className="h-4 w-4 mr-3 text-emerald-600" />
+                  KELOLA PEMBAYARAN
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <Select value={trxPaperSize} onValueChange={(v) => setTrxPaperSize(v as "a4" | "letter")}>
-                  <SelectTrigger className="h-8 text-[11px]">
-                    <SelectValue placeholder="Ukuran kertas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="a4">A4 (210 × 297 mm)</SelectItem>
-                    <SelectItem value="letter">Letter (8.5 × 11 in)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={trxOrientation} onValueChange={(v) => setTrxOrientation(v as "portrait" | "landscape")}>
-                  <SelectTrigger className="h-8 text-[11px]">
-                    <SelectValue placeholder="Orientasi" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="portrait">Portrait</SelectItem>
-                    <SelectItem value="landscape">Landscape</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button 
-                className="w-full justify-start h-10 font-bold text-xs" 
-                variant="outline" 
-                onClick={() => setShowManagePaymentModal(true)}
-              >
-                <CreditCard className="h-4 w-4 mr-3 text-emerald-600" />
-                KELOLA PEMBAYARAN
-              </Button>
-              <Separator className="my-2" />
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  className="w-full h-9 text-[10px] font-bold" 
-                  variant="secondary"
-                  onClick={() => sendNotificationMutation.mutate('booking_confirmed')}
-                  disabled={sendNotificationMutation.isPending}
-                >
-                  <Send className="h-3.5 w-3.5 mr-2 text-blue-600" />
-                  NOTIF WA
-                </Button>
-                <Button 
-                  className="w-full h-9 text-[10px] font-bold" 
-                  variant="secondary"
-                  onClick={() => sendNotificationMutation.mutate('payment_received')}
-                  disabled={sendNotificationMutation.isPending}
-                >
-                  <Send className="h-3.5 w-3.5 mr-2 text-amber-600" />
-                  REMINDER
-                </Button>
+
+              <div className="pt-2 border-t">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    className="w-full h-10 text-[10px] font-bold shadow-sm" 
+                    variant="secondary"
+                    onClick={() => sendNotificationMutation.mutate('booking_confirmed')}
+                    disabled={sendNotificationMutation.isPending}
+                  >
+                    <Send className="h-3.5 w-3.5 mr-2 text-blue-600" />
+                    NOTIF WA
+                  </Button>
+                  <Button 
+                    className="w-full h-10 text-[10px] font-bold shadow-sm" 
+                    variant="secondary"
+                    onClick={() => sendNotificationMutation.mutate('payment_received')}
+                    disabled={sendNotificationMutation.isPending}
+                  >
+                    <Send className="h-3.5 w-3.5 mr-2 text-amber-600" />
+                    REMINDER
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
