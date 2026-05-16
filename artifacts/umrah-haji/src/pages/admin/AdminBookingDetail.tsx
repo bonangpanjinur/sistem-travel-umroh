@@ -189,6 +189,22 @@ export default function AdminBookingDetail() {
     },
   });
 
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase.from("payments").delete().eq("id", paymentId);
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      toast.success("Data pembayaran berhasil dihapus");
+      queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
+      queryClient.invalidateQueries({ queryKey: ['booking-payments', id] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Gagal menghapus pembayaran");
+    },
+  });
+
   const { data: booking, isLoading, isError, error: bookingError } = useQuery({
     queryKey: ['admin-booking', id],
     queryFn: async () => {
@@ -1918,9 +1934,28 @@ export default function AdminBookingDetail() {
                               </div>
                               <div className="col-span-2 space-y-1">
                                 <p className="text-[9px] font-bold uppercase tracking-tighter text-muted-foreground">Catatan / Keterangan</p>
-                                <p className="text-xs text-muted-foreground italic bg-white dark:bg-slate-900 p-2 rounded border">
-                                  {pay.notes || "Tidak ada catatan tambahan."}
-                                </p>
+                                <div className="flex items-start justify-between gap-4">
+                                  <p className="text-xs text-muted-foreground italic bg-white dark:bg-slate-900 p-2 rounded border flex-1">
+                                    {pay.notes || "Tidak ada catatan tambahan."}
+                                  </p>
+                                  {isFailed && (isSuperAdmin() || hasRole('owner')) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm("Apakah Anda yakin ingin menghapus data pembayaran gagal ini?")) {
+                                          deletePaymentMutation.mutate(pay.id);
+                                        }
+                                      }}
+                                      disabled={deletePaymentMutation.isPending}
+                                    >
+                                      <Trash className="h-3.5 w-3.5 mr-1.5" />
+                                      Hapus
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </AccordionContent>
