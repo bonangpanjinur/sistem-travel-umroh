@@ -1108,7 +1108,7 @@ export default function AdminBookingDetail() {
     const rt = (booking.room_type || 'quad') as string;
     const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
     const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
-    const pricePerPax = (fromDep || fromPkg) ?? (booking.base_price > booking.total_price / 2 && booking.total_pax > 1 ? Math.round(booking.base_price / booking.total_pax) : booking.base_price);
+    const pricePerPax = (fromDep || fromPkg) ?? (booking.base_price > booking.total_price / 2 && (booking.total_pax ?? 0) > 1 ? Math.round(booking.base_price / (booking.total_pax ?? 1)) : booking.base_price);
     return pricePerPax * (booking.total_pax || 1);
   })();
 
@@ -1785,7 +1785,7 @@ export default function AdminBookingDetail() {
 
                     const rtLabels: Record<string, string> = { quad: "Quad", triple: "Triple", double: "Double", single: "Single" };
                     const rt = (booking.room_type || 'quad') as string;
-                    const pricePerPax = getPrice(rt) || (booking.base_price > booking.total_price / 2 && booking.total_pax > 1 ? Math.round(booking.base_price / booking.total_pax) : booking.base_price);
+                    const pricePerPax = getPrice(rt) || (booking.base_price > booking.total_price / 2 && (booking.total_pax ?? 0) > 1 ? Math.round(booking.base_price / (booking.total_pax ?? 1)) : booking.base_price);
                     
                     return (
                       <div className="flex justify-between text-sm">
