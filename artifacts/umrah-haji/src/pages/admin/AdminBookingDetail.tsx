@@ -23,6 +23,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -1863,61 +1869,65 @@ export default function AdminBookingDetail() {
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Riwayat Pembayaran</p>
                     <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{payments.length} Transaksi</span>
                   </div>
-                  <div className="overflow-hidden border rounded-lg">
-                    <table className="w-full text-[11px] border-collapse">
-                      <thead>
-                        <tr className="bg-muted/30 border-b text-muted-foreground font-bold uppercase tracking-tighter">
-                          <th className="px-3 py-2 text-left w-8">#</th>
-                          <th className="px-2 py-2 text-left">Info</th>
-                          <th className="px-3 py-2 text-right">Jumlah</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {[...payments].reverse().map((pay: any, idx: number) => {
-                          const isSuccess = pay.status === 'paid' || pay.status === 'verified';
-                          const isPending = pay.status === 'pending';
-                          const isFailed = pay.status === 'failed' || pay.status === 'cancelled';
-                          
-                          return (
-                            <tr key={pay.id} className="hover:bg-muted/20 transition-colors">
-                              <td className="px-3 py-2.5 align-top text-muted-foreground font-medium">
-                                {payments.length - idx}
-                              </td>
-                              <td className="px-2 py-2.5 align-top">
-                                <div className="flex flex-col gap-0.5">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`font-bold uppercase text-[9px] px-1 rounded ${
+                  
+                  <Accordion type="single" collapsible className="w-full border rounded-lg overflow-hidden">
+                    {[...payments].reverse().map((pay: any, idx: number) => {
+                      const isSuccess = pay.status === 'paid' || pay.status === 'verified';
+                      const isPending = pay.status === 'pending';
+                      const isFailed = pay.status === 'failed' || pay.status === 'cancelled';
+                      const paymentNo = payments.length - idx;
+                      
+                      return (
+                        <AccordionItem key={pay.id} value={pay.id} className="border-b last:border-0">
+                          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center justify-between w-full pr-4 text-left">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[11px] font-bold text-muted-foreground w-4">#{paymentNo}</span>
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className={`text-[9px] h-4 px-1 uppercase font-bold border-none ${
                                       isSuccess ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                                       : isPending ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
                                       : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
                                     }`}>
                                       {pay.status === 'verified' ? 'Verified' : pay.status === 'paid' ? 'Lunas' : pay.status === 'pending' ? 'Pending' : pay.status}
-                                    </span>
-                                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                    </Badge>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                                       {pay.payment_method?.toUpperCase() || '—'}
                                     </span>
                                   </div>
-                                  <p className="text-muted-foreground">
+                                  <span className="text-[10px] text-muted-foreground">
                                     {pay.created_at ? dfFormat(new Date(pay.created_at), 'd MMM yyyy', { locale: localeId }) : '-'}
-                                  </p>
-                                  {pay.notes && (
-                                    <p className="text-[10px] text-muted-foreground/60 italic line-clamp-1 mt-0.5" title={pay.notes}>
-                                      "{pay.notes}"
-                                    </p>
-                                  )}
+                                  </span>
                                 </div>
-                              </td>
-                              <td className="px-3 py-2.5 align-top text-right">
-                                <span className={`font-bold ${isSuccess ? 'text-slate-900 dark:text-white' : 'text-muted-foreground'}`}>
-                                  {formatCurrency(pay.amount)}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </div>
+                              <span className={`text-sm font-bold ${isSuccess ? 'text-slate-900 dark:text-white' : 'text-muted-foreground'}`}>
+                                {formatCurrency(pay.amount)}
+                              </span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-4 pt-0 bg-muted/10">
+                            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-dashed">
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-tighter text-muted-foreground">Metode Pembayaran</p>
+                                <p className="text-xs font-semibold">{pay.payment_method?.toUpperCase() || '—'}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-tighter text-muted-foreground">Tanggal Transaksi</p>
+                                <p className="text-xs font-semibold">{pay.created_at ? dfFormat(new Date(pay.created_at), 'PPP', { locale: localeId }) : '-'}</p>
+                              </div>
+                              <div className="col-span-2 space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-tighter text-muted-foreground">Catatan / Keterangan</p>
+                                <p className="text-xs text-muted-foreground italic bg-white dark:bg-slate-900 p-2 rounded border">
+                                  {pay.notes || "Tidak ada catatan tambahan."}
+                                </p>
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
                 </div>
               ) : (
                 <div className="px-5 py-4">
