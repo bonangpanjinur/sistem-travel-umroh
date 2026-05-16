@@ -102,7 +102,7 @@ export function ChangeRoomTypeDialog({
         .from("bookings")
         .update({
           room_type: selectedRoomType as "double" | "quad" | "single" | "triple",
-          base_price: newTotalPrice,
+          base_price: Math.round(newTotalPrice / totalPax),
           total_price: newTotalPrice,
           updated_at: new Date().toISOString(),
         })

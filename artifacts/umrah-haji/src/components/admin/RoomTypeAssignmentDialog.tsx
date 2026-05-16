@@ -103,7 +103,7 @@ export function RoomTypeAssignmentDialog({ isOpen, onClose, bookingId, passenger
         .from("bookings")
         .update({
           total_price: newTotalPrice,
-          base_price: newTotalPrice,
+          base_price: Math.round(newTotalPrice / passengers.length),
           room_type: dominant,
           updated_at: new Date().toISOString(),
         })

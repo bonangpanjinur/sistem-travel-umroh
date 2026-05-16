@@ -668,7 +668,7 @@ export default function AdminBookingDetail() {
     const paxLabel = paxBreakdown.length > 0 ? paxBreakdown.join(', ') : `${booking.total_pax || 1} Pax`;
 
     const paxCount = booking.total_pax || 1;
-    const pricePerPax = booking.base_price || 0;
+    const pricePerPax = (booking.base_price > booking.total_price / 2 && paxCount > 1) ? Math.round(booking.base_price / paxCount) : booking.base_price;
     const totalBeforeDiscount = pricePerPax * paxCount;
 
     const activeCpForInvoice: CancellationPolicy | undefined = cancellationPolicy
@@ -1081,7 +1081,7 @@ export default function AdminBookingDetail() {
     const rt = (booking.room_type || 'quad') as string;
     const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
     const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
-    const pricePerPax = (fromDep || fromPkg) ?? (booking.base_price / (booking.total_pax || 1));
+    const pricePerPax = (fromDep || fromPkg) ?? (booking.base_price > booking.total_price / 2 && booking.total_pax > 1 ? Math.round(booking.base_price / booking.total_pax) : booking.base_price);
     return pricePerPax * (booking.total_pax || 1);
   })();
 
@@ -1777,7 +1777,7 @@ export default function AdminBookingDetail() {
 
                   // Fallback: use booking-level data
                   const rt = (booking.room_type || 'quad') as string;
-                  const pricePerPax = getPrice(rt) || (booking.base_price / (booking.total_pax || 1));
+                  const pricePerPax = getPrice(rt) || (booking.base_price > booking.total_price / 2 && booking.total_pax > 1 ? Math.round(booking.base_price / booking.total_pax) : booking.base_price);
                   const adultCount = (booking as any).adult_count || 0;
                   const childCount = (booking as any).child_count || 0;
                   const infantCount = (booking as any).infant_count || 0;
