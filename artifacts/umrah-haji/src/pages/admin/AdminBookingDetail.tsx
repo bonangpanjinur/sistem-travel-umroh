@@ -1858,36 +1858,65 @@ export default function AdminBookingDetail() {
 
               {/* Payment records */}
               {payments && payments.length > 0 ? (
-                <div className="px-5 py-4 space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Riwayat Pembayaran</p>
-                  <div className="space-y-2">
-                    {[...payments].reverse().map((pay: any, idx: number) => (
-                      <div key={pay.id} className={`flex items-start justify-between gap-2 p-2.5 rounded-lg text-xs ${
-                        pay.status === 'paid' || pay.status === 'verified'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/30'
-                          : pay.status === 'pending'
-                            ? 'bg-amber-50/70 dark:bg-amber-950/20'
-                            : 'bg-muted/50'
-                      }`}>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="font-bold text-muted-foreground">#{idx + 1}</span>
-                            <span className={`font-semibold capitalize ${
-                              pay.status === 'paid' || pay.status === 'verified' ? 'text-emerald-700 dark:text-emerald-400'
-                              : pay.status === 'pending' ? 'text-amber-700 dark:text-amber-400'
-                              : 'text-muted-foreground'
-                            }`}>
-                              {pay.status === 'verified' ? 'Terverifikasi' : pay.status === 'paid' ? 'Lunas' : pay.status === 'pending' ? 'Menunggu' : pay.status}
-                            </span>
-                          </div>
-                          <p className="text-muted-foreground truncate">
-                            {pay.payment_method?.toUpperCase() || '—'} · {pay.created_at ? dfFormat(new Date(pay.created_at), 'd MMM yyyy', { locale: localeId }) : '-'}
-                          </p>
-                          {pay.notes && <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 italic">{pay.notes}</p>}
-                        </div>
-                        <span className="font-bold text-right shrink-0">{formatCurrency(pay.amount)}</span>
-                      </div>
-                    ))}
+                <div className="px-5 py-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Riwayat Pembayaran</p>
+                    <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{payments.length} Transaksi</span>
+                  </div>
+                  <div className="overflow-hidden border rounded-lg">
+                    <table className="w-full text-[11px] border-collapse">
+                      <thead>
+                        <tr className="bg-muted/30 border-b text-muted-foreground font-bold uppercase tracking-tighter">
+                          <th className="px-3 py-2 text-left w-8">#</th>
+                          <th className="px-2 py-2 text-left">Info</th>
+                          <th className="px-3 py-2 text-right">Jumlah</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {[...payments].reverse().map((pay: any, idx: number) => {
+                          const isSuccess = pay.status === 'paid' || pay.status === 'verified';
+                          const isPending = pay.status === 'pending';
+                          const isFailed = pay.status === 'failed' || pay.status === 'cancelled';
+                          
+                          return (
+                            <tr key={pay.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="px-3 py-2.5 align-top text-muted-foreground font-medium">
+                                {payments.length - idx}
+                              </td>
+                              <td className="px-2 py-2.5 align-top">
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`font-bold uppercase text-[9px] px-1 rounded ${
+                                      isSuccess ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                      : isPending ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                                      : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                                    }`}>
+                                      {pay.status === 'verified' ? 'Verified' : pay.status === 'paid' ? 'Lunas' : pay.status === 'pending' ? 'Pending' : pay.status}
+                                    </span>
+                                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                      {pay.payment_method?.toUpperCase() || '—'}
+                                    </span>
+                                  </div>
+                                  <p className="text-muted-foreground">
+                                    {pay.created_at ? dfFormat(new Date(pay.created_at), 'd MMM yyyy', { locale: localeId }) : '-'}
+                                  </p>
+                                  {pay.notes && (
+                                    <p className="text-[10px] text-muted-foreground/60 italic line-clamp-1 mt-0.5" title={pay.notes}>
+                                      "{pay.notes}"
+                                    </p>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2.5 align-top text-right">
+                                <span className={`font-bold ${isSuccess ? 'text-slate-900 dark:text-white' : 'text-muted-foreground'}`}>
+                                  {formatCurrency(pay.amount)}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               ) : (
