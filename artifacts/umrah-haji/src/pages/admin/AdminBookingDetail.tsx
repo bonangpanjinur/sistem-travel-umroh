@@ -346,6 +346,21 @@ export default function AdminBookingDetail() {
     enabled: !!id && !!passengers && passengers.length > 0,
   });
 
+  const { data: lineItems } = useQuery({
+    queryKey: ['booking-line-items', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('booking_line_items' as any)
+        .select('*')
+        .eq('booking_id', id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!id,
+  });
+
   // C7 — Fetch refunds for this booking
   const { data: bookingRefunds } = useQuery({
     queryKey: ['booking-refunds', id],
@@ -685,22 +700,34 @@ export default function AdminBookingDetail() {
         phone: booking.customer.phone || '-',
         email: booking.customer.email || undefined,
       },
-      items: [
-        {
-          description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${paxLabel})\nKeberangkatan: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
-          quantity: paxCount,
-          unitPrice: pricePerPax,
-          total: totalBeforeDiscount,
-        },
-        ...(booking.addons_price && booking.addons_price > 0 ? [{
-          description: 'Biaya Tambahan / Add-ons',
-          quantity: 1,
-          unitPrice: booking.addons_price,
-          total: booking.addons_price,
-        }] : []),
-      ],
-      subtotal: totalBeforeDiscount + (booking.addons_price || 0),
-      discount: booking.discount_amount || undefined,
+      items: lineItems && lineItems.length > 0 
+        ? lineItems.map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: Math.abs(item.unit_price),
+            total: Math.abs(item.total_price),
+            isDiscount: item.item_type === 'discount'
+          }))
+        : [
+            {
+              description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${paxLabel})\nKeberangkatan: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
+              quantity: paxCount,
+              unitPrice: pricePerPax,
+              total: totalBeforeDiscount,
+            },
+            ...(booking.addons_price && booking.addons_price > 0 ? [{
+              description: 'Biaya Tambahan / Add-ons',
+              quantity: 1,
+              unitPrice: booking.addons_price,
+              total: booking.addons_price,
+            }] : []),
+          ],
+      subtotal: lineItems && lineItems.length > 0
+        ? lineItems.filter(i => i.item_type !== 'discount').reduce((acc, i) => acc + Number(i.total_price), 0)
+        : totalBeforeDiscount + (booking.addons_price || 0),
+      discount: lineItems && lineItems.length > 0
+        ? Math.abs(lineItems.filter(i => i.item_type === 'discount').reduce((acc, i) => acc + Number(i.total_price), 0)) || undefined
+        : booking.discount_amount || undefined,
       total: booking.total_price,
       paidAmount,
       remainingAmount,
@@ -1735,105 +1762,40 @@ export default function AdminBookingDetail() {
             <div className="bg-slate-900 text-white p-5">
               <h3 className="font-bold text-xs uppercase tracking-widest opacity-60 mb-4">Rincian Tagihan</h3>
               <div className="space-y-2.5">
-                {/* Per-room-type breakdown — reads from actual passenger room_preference */}
-                {(() => {
-                  const getPrice = (rt: string): number => {
-                    const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
-                    const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
-                    return fromDep || fromPkg || 0;
-                  };
+                {/* Line Items from booking_line_items table */}
+                {lineItems && lineItems.length > 0 ? (
+                  lineItems.map((item) => (
+                    <div key={item.id} className={cn("flex justify-between text-sm", item.item_type === 'discount' && "text-emerald-400")}>
+                      <span className="opacity-80">
+                        {item.description} {item.quantity > 1 ? `(${item.quantity}x)` : ''}
+                      </span>
+                      <span className="font-semibold">
+                        {item.total_price < 0 ? '−' : ''}{formatCurrency(Math.abs(item.total_price))}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  /* Fallback if no line items yet */
+                  (() => {
+                    const getPrice = (rt: string): number => {
+                      const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
+                      const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
+                      return fromDep || fromPkg || 0;
+                    };
 
-                  const rtLabels: Record<string, string> = { quad: "Quad", triple: "Triple", double: "Double", single: "Single" };
-
-                  // If passengers are loaded with room_preference, group by room type
-                  if (passengers && passengers.length > 0) {
-                    const groups: Record<string, { count: number; price: number }> = {};
-                    passengers.forEach((p: any) => {
-                      const rt = (p.room_preference || booking.room_type || 'quad') as string;
-                      if (!groups[rt]) groups[rt] = { count: 0, price: getPrice(rt) };
-                      groups[rt].count += 1;
-                    });
-
-                    const hasMixedTypes = Object.keys(groups).length > 1;
-
+                    const rtLabels: Record<string, string> = { quad: "Quad", triple: "Triple", double: "Double", single: "Single" };
+                    const rt = (booking.room_type || 'quad') as string;
+                    const pricePerPax = getPrice(rt) || (booking.base_price > booking.total_price / 2 && booking.total_pax > 1 ? Math.round(booking.base_price / booking.total_pax) : booking.base_price);
+                    
                     return (
-                      <>
-                        {hasMixedTypes && (
-                          <div className="text-xs opacity-60 pb-1 border-b border-white/10 mb-1">
-                            Rincian per tipe kamar
-                          </div>
-                        )}
-                        {Object.entries(groups).map(([rt, { count, price }]) => (
-                          <div key={rt} className="flex justify-between text-sm">
-                            <span className="opacity-80">
-                              {rtLabels[rt] || rt}: {count} jamaah × {formatCurrency(price)}
-                            </span>
-                            <span className="font-semibold">{formatCurrency(count * price)}</span>
-                          </div>
-                        ))}
-                      </>
-                    );
-                  }
-
-                  // Fallback: use booking-level data
-                  const rt = (booking.room_type || 'quad') as string;
-                  const pricePerPax = getPrice(rt) || (booking.base_price > booking.total_price / 2 && booking.total_pax > 1 ? Math.round(booking.base_price / booking.total_pax) : booking.base_price);
-                  const adultCount = (booking as any).adult_count || 0;
-                  const childCount = (booking as any).child_count || 0;
-                  const infantCount = (booking as any).infant_count || 0;
-                  const hasBreakdown = adultCount > 0 || childCount > 0 || infantCount > 0;
-
-                  return (
-                    <>
-                      <div className="flex justify-between text-xs opacity-70 pb-1">
-                        <span>Kamar {rtLabels[rt] || rt}</span>
-                        <span className="font-mono">{formatCurrency(pricePerPax)}/orang</span>
+                      <div className="flex justify-between text-sm">
+                        <span className="opacity-80">
+                          Paket {rtLabels[rt] || rt} ({booking.total_pax || 1} orang)
+                        </span>
+                        <span className="font-semibold">{formatCurrency(booking.total_price)}</span>
                       </div>
-                      {hasBreakdown ? (
-                        <>
-                          {adultCount > 0 && (
-                            <div className="flex justify-between text-sm pl-3">
-                              <span className="opacity-80">{adultCount} Dewasa × {formatCurrency(pricePerPax)}</span>
-                              <span className="font-semibold">{formatCurrency(adultCount * pricePerPax)}</span>
-                            </div>
-                          )}
-                          {childCount > 0 && (
-                            <div className="flex justify-between text-sm pl-3">
-                              <span className="opacity-80">{childCount} Anak × {formatCurrency(pricePerPax)}</span>
-                              <span className="font-semibold">{formatCurrency(childCount * pricePerPax)}</span>
-                            </div>
-                          )}
-                          {infantCount > 0 && (
-                            <div className="flex justify-between text-sm pl-3">
-                              <span className="opacity-80">{infantCount} Bayi × {formatCurrency(pricePerPax)}</span>
-                              <span className="font-semibold">{formatCurrency(infantCount * pricePerPax)}</span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between text-sm pl-3">
-                          <span className="opacity-80">{booking.total_pax || 1} Pax × {formatCurrency(pricePerPax)}</span>
-                          <span className="font-semibold">{formatCurrency((booking.total_pax || 1) * pricePerPax)}</span>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                {/* Add-ons */}
-                {(booking.addons_price || 0) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="opacity-70">Biaya Tambahan</span>
-                    <span className="font-semibold">+{formatCurrency(booking.addons_price || 0)}</span>
-                  </div>
-                )}
-
-                {/* Diskon */}
-                {(booking.discount_amount || 0) > 0 && (
-                  <div className="flex justify-between text-sm text-emerald-400">
-                    <span>{(booking as any).discount_label || 'Diskon'}</span>
-                    <span className="font-semibold">−{formatCurrency(booking.discount_amount || 0)}</span>
-                  </div>
+                    );
+                  })()
                 )}
 
                 {/* Total */}

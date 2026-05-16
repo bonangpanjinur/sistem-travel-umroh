@@ -389,7 +389,9 @@ export function useBookingWizardDynamic(
         }
       }
 
-      // 6. Create passengers
+      // 6. Create passengers and line items
+      const lineItems: any[] = [];
+
       for (let i = 0; i < formData.passengers.length; i++) {
         const passenger = formData.passengers[i];
         let passengerId = customerId;
@@ -404,10 +406,59 @@ export function useBookingWizardDynamic(
           passengerId = passengerCustomer.id;
         }
 
-        await supabase
+        const { data: bp, error: bpError } = await supabase
           .from('booking_passengers')
-          .insert({ booking_id: booking.id, customer_id: passengerId, is_main_passenger: i === 0, passenger_type: passenger.passengerType, room_preference: passenger.roomType });
+          .insert({ 
+            booking_id: booking.id, 
+            customer_id: passengerId, 
+            is_main_passenger: i === 0, 
+            passenger_type: passenger.passengerType, 
+            room_preference: passenger.roomType 
+          })
+          .select('id')
+          .single();
+        
+        if (bpError) throw bpError;
+
+        // Add line item for this passenger
+        const unitPrice = useAgeBasedPricing ? agePriceMap[passenger.passengerType] : priceMap[passenger.roomType];
+        const description = useAgeBasedPricing 
+          ? `Paket Haji - ${passenger.passengerType === 'adult' ? 'Dewasa' : passenger.passengerType === 'child' ? 'Anak' : 'Bayi'}`
+          : `Paket Umroh - Room ${passenger.roomType.charAt(0).toUpperCase() + passenger.roomType.slice(1)}`;
+
+        lineItems.push({
+          booking_id: booking.id,
+          passenger_id: bp.id,
+          description: description,
+          quantity: 1,
+          unit_price: unitPrice,
+          total_price: unitPrice,
+          item_type: 'package'
+        });
       }
+
+      // Handle Coupon as a negative line item if exists
+      if (picState.couponCode && picValidation.metadata?.discount_amount) {
+        const discountAmount = Number(picValidation.metadata.discount_amount);
+        if (discountAmount > 0) {
+          lineItems.push({
+            booking_id: booking.id,
+            description: `Diskon Kupon: ${picState.couponCode}`,
+            quantity: 1,
+            unit_price: -discountAmount,
+            total_price: -discountAmount,
+            item_type: 'discount',
+            reference_id: picValidation.metadata.coupon_id || null
+          });
+        }
+      }
+
+      // Insert all line items
+      const { error: lineItemsError } = await supabase
+        .from('booking_line_items' as any)
+        .insert(lineItems);
+      
+      if (lineItemsError) throw lineItemsError;
 
       // Auto-pair Double room passengers (chunks of 2)
       try {

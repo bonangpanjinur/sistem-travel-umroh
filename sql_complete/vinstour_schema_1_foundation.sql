@@ -1841,3 +1841,74 @@ ON CONFLICT DO NOTHING;
 -- Lanjutkan dengan menjalankan vinstour_schema_2_extended.sql
 -- =============================================================================
 SELECT 'Vinstour Schema Bagian 1 (Fondasi) — selesai dibuat.' AS result;
+
+-- =============================================================================
+-- 13.5. BOOKING_LINE_ITEMS — Rincian harga per komponen untuk setiap booking
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS booking_line_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  passenger_id UUID REFERENCES booking_passengers(id) ON DELETE SET NULL, -- Opsional, jika item terkait penumpang spesifik
+  description TEXT NOT NULL, -- Contoh: 'Paket Umroh Quad', 'Biaya Visa', 'Diskon Kupon'
+  quantity INTEGER NOT NULL DEFAULT 1,
+  unit_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total_price NUMERIC(15,2) NOT NULL DEFAULT 0, -- quantity * unit_price
+  item_type TEXT NOT NULL CHECK (item_type IN ('package', 'addon', 'discount', 'tax', 'other')),
+  reference_id UUID, -- Opsional, referensi ke add-on_id, coupon_id, dll.
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE booking_line_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "booking_line_items_admin_manage" ON booking_line_items;
+DROP POLICY IF EXISTS "booking_line_items_read_own"     ON booking_line_items;
+
+CREATE POLICY "booking_line_items_admin_manage" ON booking_line_items
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM user_roles
+      WHERE user_id = auth.uid()
+        AND role IN ('super_admin','owner','admin','branch_manager','operational','finance','sales')
+    )
+  );
+
+CREATE POLICY "booking_line_items_read_own" ON booking_line_items
+  FOR SELECT USING (
+    booking_id IN (SELECT id FROM bookings WHERE customer_id IN (SELECT id FROM customers WHERE user_id = auth.uid()))
+  );
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='set_booking_line_items_updated_at'
+    AND tgrelid='booking_line_items'::regclass) THEN
+    CREATE TRIGGER set_booking_line_items_updated_at
+      BEFORE UPDATE ON booking_line_items
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
+
+-- Trigger to update bookings.total_price based on booking_line_items
+CREATE OR REPLACE FUNCTION update_booking_total_price()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE bookings
+  SET total_price = (SELECT COALESCE(SUM(total_price), 0) FROM booking_line_items WHERE booking_id = NEW.booking_id)
+  WHERE id = NEW.booking_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_booking_total_price_insert ON booking_line_items;
+CREATE TRIGGER trg_update_booking_total_price_insert
+  AFTER INSERT ON booking_line_items
+  FOR EACH ROW EXECUTE FUNCTION update_booking_total_price();
+
+DROP TRIGGER IF EXISTS trg_update_booking_total_price_update ON booking_line_items;
+CREATE TRIGGER trg_update_booking_total_price_update
+  AFTER UPDATE OF total_price ON booking_line_items
+  FOR EACH ROW EXECUTE FUNCTION update_booking_total_price();
+
+DROP TRIGGER IF EXISTS trg_update_booking_total_price_delete ON booking_line_items;
+CREATE TRIGGER trg_update_booking_total_price_delete
+  AFTER DELETE ON booking_line_items
+  FOR EACH ROW EXECUTE FUNCTION update_booking_total_price();

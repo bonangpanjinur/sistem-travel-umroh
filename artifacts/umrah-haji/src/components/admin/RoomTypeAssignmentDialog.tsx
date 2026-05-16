@@ -109,6 +109,38 @@ export function RoomTypeAssignmentDialog({ isOpen, onClose, bookingId, passenger
         })
         .eq("id", bookingId);
       if (bookingErr) throw bookingErr;
+
+      // Update booking_line_items for each passenger
+      for (const [pid, rt] of Object.entries(roomMap)) {
+        const price = getPriceForType(rt);
+        const description = `Paket Umroh - Room ${rt.charAt(0).toUpperCase() + rt.slice(1)}`;
+        
+        const { error: lineItemErr } = await supabase
+          .from("booking_line_items" as any)
+          .update({
+            description: description,
+            unit_price: price,
+            total_price: price,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("booking_id", bookingId)
+          .eq("passenger_id", pid);
+        
+        if (lineItemErr) {
+          // If line item doesn't exist for this passenger, create it
+          await supabase
+            .from("booking_line_items" as any)
+            .insert({
+              booking_id: bookingId,
+              passenger_id: pid,
+              description: description,
+              quantity: 1,
+              unit_price: price,
+              total_price: price,
+              item_type: 'package'
+            });
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Alokasi kamar berhasil disimpan");

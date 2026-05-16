@@ -174,6 +174,7 @@ export interface InvoiceDataExtended extends InvoiceData {
   remainingAmount?: number;
   paymentStatus?: string;
   cancellationPolicy?: CancellationPolicy;
+  lineItems?: any[];
 }
 
 export interface GeneralLetterData {
@@ -498,7 +499,7 @@ export async function generateInvoice(
     item.description,
     item.quantity.toString(),
     formatCurrency(item.unitPrice),
-    formatCurrency(item.total)
+    (item as any).isDiscount ? `-${formatCurrency(item.total)}` : formatCurrency(item.total)
   ]);
   
   autoTable(doc, {
