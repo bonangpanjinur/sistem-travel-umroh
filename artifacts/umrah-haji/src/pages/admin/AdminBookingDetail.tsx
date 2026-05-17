@@ -218,6 +218,44 @@ export default function AdminBookingDetail() {
       // 2. Delete the payment record
       const { error } = await supabase.from("payments").delete().eq("id", paymentId);
       if (error) throw error;
+
+      // 3. Recalculate paid_amount from remaining payments (only status 'paid' or 'verified')
+      const { data: remainingPayments, error: fetchError } = await supabase
+        .from("payments")
+        .select("amount, status")
+        .eq("booking_id", id);
+      if (fetchError) throw fetchError;
+
+      const { data: bookingData, error: bookingFetchError } = await supabase
+        .from("bookings")
+        .select("total_price")
+        .eq("id", id)
+        .single();
+      if (bookingFetchError) throw bookingFetchError;
+
+      const newPaidAmount = (remainingPayments || [])
+        .filter((p: any) => p.status === 'paid' || p.status === 'verified')
+        .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+      const totalPrice = Number(bookingData?.total_price || 0);
+      const newRemainingAmount = Math.max(0, totalPrice - newPaidAmount);
+      const newPaymentStatus =
+        newPaidAmount >= totalPrice && totalPrice > 0
+          ? 'paid'
+          : newPaidAmount > 0
+          ? 'partial'
+          : 'pending';
+
+      const { error: updateError } = await supabase
+        .from("bookings")
+        .update({
+          paid_amount: newPaidAmount,
+          remaining_amount: newRemainingAmount,
+          payment_status: newPaymentStatus,
+        })
+        .eq("id", id);
+      if (updateError) throw updateError;
+
       return true;
     },
     onSuccess: () => {
@@ -225,6 +263,7 @@ export default function AdminBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
       queryClient.invalidateQueries({ queryKey: ['booking-payments', id] });
       queryClient.invalidateQueries({ queryKey: ['payment-deletion-audit', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
     },
     onError: (err: any) => {
       toast.error(err.message || "Gagal menghapus pembayaran");
