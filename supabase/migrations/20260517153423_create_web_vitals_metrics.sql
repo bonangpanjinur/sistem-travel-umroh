@@ -33,14 +33,15 @@ CREATE POLICY "allow_anon_insert_metrics" ON web_vitals_metrics
   FOR INSERT WITH CHECK (true);
 
 -- Policy: Admin bisa baca semua data untuk dashboard monitoring
+-- Menggunakan role yang valid sesuai enum app_role: super_admin, owner, branch_manager, dll.
 DROP POLICY IF EXISTS "admin_read_metrics" ON web_vitals_metrics;
 CREATE POLICY "admin_read_metrics" ON web_vitals_metrics
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_id = auth.uid()
-        AND role IN ('super_admin', 'owner', 'admin')
+        AND role IN ('super_admin'::app_role, 'owner'::app_role, 'branch_manager'::app_role)
     )
   );
 
-SELECT 'web_vitals_metrics migration created' AS result;
+SELECT 'web_vitals_metrics migration updated' AS result;
