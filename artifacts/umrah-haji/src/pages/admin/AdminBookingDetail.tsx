@@ -728,7 +728,7 @@ export default function AdminBookingDetail() {
         phone: booking.customer.phone || '-',
         email: booking.customer.email || undefined,
       },
-      items: lineItems && lineItems.length > 0 
+      items: lineItems && lineItems.length > 0
         ? lineItems.map(item => ({
             description: item.description,
             quantity: item.quantity,
@@ -736,20 +736,60 @@ export default function AdminBookingDetail() {
             total: Math.abs(item.total_price),
             isDiscount: item.item_type === 'discount'
           }))
-        : [
-            {
-              description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${paxLabel})\nKeberangkatan: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
-              quantity: paxCount,
-              unitPrice: pricePerPax,
-              total: totalBeforeDiscount,
-            },
-            ...(booking.addons_price && booking.addons_price > 0 ? [{
-              description: 'Biaya Tambahan / Add-ons',
-              quantity: 1,
-              unitPrice: booking.addons_price,
-              total: booking.addons_price,
-            }] : []),
-          ],
+        : passengers && passengers.length > 0
+          ? [
+              // Header row grouping the package + departure info
+              {
+                description: `Paket ${pkg?.name || 'Umrah'} — Keberangkatan: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
+                quantity: paxCount,
+                unitPrice: pricePerPax,
+                total: totalBeforeDiscount,
+                isHeader: true,
+              },
+              // Per-passenger breakdown rows
+              ...passengers.map((p: any) => {
+                const pRt = (p.room_preference || booking.room_type || 'quad') as string;
+                const pFromDep = departure?.[`price_${pRt}`] as number | null | undefined;
+                const pFromPkg = pkg?.[`price_${pRt}`] as number | null | undefined;
+                // Infants may have a dedicated price field on departure/package
+                const infantOverride = p.passenger_type === 'infant'
+                  ? ((departure as any)?.price_infant || (pkg as any)?.price_infant || 0)
+                  : 0;
+                const unitP = infantOverride > 0
+                  ? infantOverride
+                  : (pFromDep && pFromDep > 0 ? pFromDep : null)
+                    ?? (pFromPkg && pFromPkg > 0 ? pFromPkg : null)
+                    ?? pricePerPax;
+                const typeLabel = p.passenger_type === 'adult' ? 'Dewasa' : p.passenger_type === 'child' ? 'Anak' : 'Bayi';
+                const roomLabel = getRoomTypeLabel(pRt);
+                return {
+                  description: `  ${p.customer?.full_name || '-'} (${typeLabel}) — ${roomLabel}`,
+                  quantity: 1,
+                  unitPrice: unitP,
+                  total: unitP,
+                };
+              }),
+              ...(booking.addons_price && booking.addons_price > 0 ? [{
+                description: 'Biaya Tambahan / Add-ons',
+                quantity: 1,
+                unitPrice: booking.addons_price,
+                total: booking.addons_price,
+              }] : []),
+            ]
+          : [
+              {
+                description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${getRoomTypeLabel(booking.room_type)} (${paxLabel})\nKeberangkatan: ${departure?.departure_date ? formatDate(departure.departure_date) : '-'}`,
+                quantity: paxCount,
+                unitPrice: pricePerPax,
+                total: totalBeforeDiscount,
+              },
+              ...(booking.addons_price && booking.addons_price > 0 ? [{
+                description: 'Biaya Tambahan / Add-ons',
+                quantity: 1,
+                unitPrice: booking.addons_price,
+                total: booking.addons_price,
+              }] : []),
+            ],
       subtotal: lineItems && lineItems.length > 0
         ? lineItems.filter(i => i.item_type !== 'discount').reduce((acc, i) => acc + Number(i.total_price), 0)
         : totalBeforeDiscount + (booking.addons_price || 0),

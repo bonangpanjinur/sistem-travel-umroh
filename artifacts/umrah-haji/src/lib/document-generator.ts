@@ -148,6 +148,8 @@ export interface InvoiceData {
     quantity: number;
     unitPrice: number;
     total: number;
+    isDiscount?: boolean;
+    isHeader?: boolean;
   }[];
   subtotal: number;
   discount?: number;
@@ -494,13 +496,30 @@ export async function generateInvoice(
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   };
 
-  const tableData = data.items.map((item, index) => [
-    (index + 1).toString(),
-    item.description,
-    item.quantity.toString(),
-    formatCurrency(item.unitPrice),
-    (item as any).isDiscount ? `-${formatCurrency(item.total)}` : formatCurrency(item.total)
-  ]);
+  // Track which rows are "header" rows vs passenger breakdown rows
+  const hasPerPassengerBreakdown = data.items.some(i => (i as any).isHeader);
+  
+  // For numbering: header rows get no number, passenger rows get sequential numbers
+  let passengerRowIndex = 0;
+  const tableData = data.items.map((item) => {
+    if ((item as any).isHeader) {
+      return [
+        '',
+        item.description,
+        item.quantity > 1 ? `${item.quantity} Pax` : item.quantity.toString(),
+        '',
+        '',
+      ];
+    }
+    passengerRowIndex++;
+    return [
+      passengerRowIndex.toString(),
+      item.description,
+      item.quantity.toString(),
+      item.isDiscount ? '-' : formatCurrency(item.unitPrice),
+      item.isDiscount ? `-${formatCurrency(item.total)}` : formatCurrency(item.total),
+    ];
+  });
   
   autoTable(doc, {
     startY: y,
@@ -524,12 +543,29 @@ export async function generateInvoice(
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 15, halign: 'center' },
+      2: { cellWidth: hasPerPassengerBreakdown ? 18 : 15, halign: 'center' },
       3: { cellWidth: 38, halign: 'right' },
       4: { cellWidth: 38, halign: 'right' },
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     margin: { left: 14, right: 14 },
+    // Style header rows (package summary) differently from passenger rows
+    didParseCell: (hookData) => {
+      const rowIndex = hookData.row.index;
+      const item = data.items[rowIndex];
+      if (!item) return;
+      if ((item as any).isHeader) {
+        // Package header row: light blue-grey background, bold description
+        hookData.cell.styles.fillColor = [235, 242, 255];
+        hookData.cell.styles.fontStyle = hookData.column.index === 1 ? 'bold' : 'normal';
+        hookData.cell.styles.textColor = [30, 58, 138];
+        hookData.cell.styles.fontSize = 8;
+      } else if (item.isDiscount) {
+        // Discount rows: light red tint
+        hookData.cell.styles.fillColor = [255, 242, 242];
+        hookData.cell.styles.textColor = [185, 28, 28];
+      }
+    },
   });
   
   // @ts-ignore
