@@ -705,7 +705,13 @@ export default function AdminBookingDetail() {
     const paxLabel = paxBreakdown.length > 0 ? paxBreakdown.join(', ') : `${booking.total_pax || 1} Pax`;
 
     const paxCount = booking.total_pax || 1;
-    const pricePerPax = (booking.base_price > booking.total_price / 2 && paxCount > 1) ? Math.round(booking.base_price / paxCount) : booking.base_price;
+    // Ambil harga per orang dari harga tipe kamar di keberangkatan/paket (konsisten dengan transaction form)
+    const rt = (booking.room_type || 'quad') as string;
+    const fromDep = departure?.[`price_${rt}`] as number | null | undefined;
+    const fromPkg = pkg?.[`price_${rt}`] as number | null | undefined;
+    const pricePerPax = (fromDep && fromDep > 0 ? fromDep : null)
+      ?? (fromPkg && fromPkg > 0 ? fromPkg : null)
+      ?? (booking.base_price > 0 ? booking.base_price : Math.round((booking.total_price - (booking.discount_amount || 0) - (booking.addons_price || 0)) / paxCount));
     const totalBeforeDiscount = pricePerPax * paxCount;
 
     const activeCpForInvoice: CancellationPolicy | undefined = cancellationPolicy
