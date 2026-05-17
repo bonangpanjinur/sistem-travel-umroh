@@ -40,6 +40,7 @@ const AdminSavings = lazy(() => import("@/pages/admin/AdminSavings"));
 const AdminDocumentVerification = lazy(() => import("@/pages/admin/AdminDocumentVerification"));
 const AdminDocumentTypes = lazy(() => import("@/pages/admin/AdminDocumentTypes"));
 const AdminAppearance = lazy(() => import("@/pages/admin/AdminAppearance"));
+const AdminPDFLayout = lazy(() => import("@/pages/admin/AdminPDFLayout"));
 const AdminPWASettings = lazy(() => import("@/pages/admin/AdminPWASettings"));
 const AdminPWAInstallStats = lazy(() => import("@/pages/admin/AdminPWAInstallStats"));
 const AdminAccessSimulator = lazy(() => import("@/pages/admin/AdminAccessSimulator"));
@@ -313,6 +314,7 @@ export default function AdminRoutes() {
       <Route path="security-audit" element={<P k={PERMISSIONS.SECURITY_AUDIT}><AdminSecurityAudit /></P>} />
       <Route path="2fa" element={<P k={PERMISSIONS.TWO_FA}><Admin2FASettings /></P>} />
       <Route path="appearance" element={<P k={PERMISSIONS.APPEARANCE}><AdminAppearance /></P>} />
+      <Route path="pdf-layout" element={<P k={PERMISSIONS.APPEARANCE}><LazyPage><AdminPDFLayout /></LazyPage></P>} />
       <Route path="pwa-settings" element={<P k={PERMISSIONS.PWA_SETTINGS}><AdminPWASettings /></P>} />
       <Route path="pwa-install-stats" element={<P k={PERMISSIONS.PWA_SETTINGS}><LazyPage><AdminPWAInstallStats /></LazyPage></P>} />
       <Route path="access-simulator" element={<P k={PERMISSIONS.RBAC_STATUS}><LazyPage><AdminAccessSimulator /></LazyPage></P>} />

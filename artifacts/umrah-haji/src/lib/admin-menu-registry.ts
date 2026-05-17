@@ -141,6 +141,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   // ── Pengaturan (1000s) ────────────────────────────────────────────────────
   { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1001, required_permission: PERMISSIONS.SETTINGS },
   { key: 'appearance',          label: 'Tampilan & Branding',   path: '/admin/appearance',           icon: 'Palette',         group_name: 'Pengaturan',         sort_order: 1002, required_permission: PERMISSIONS.APPEARANCE },
+  { key: 'pdf-layout',          label: 'Layout Dokumen PDF',    path: '/admin/pdf-layout',           icon: 'FileText',        group_name: 'Pengaturan',         sort_order: 1003, required_permission: PERMISSIONS.APPEARANCE },
   { key: 'users',               label: 'Hak Akses (RBAC)',      path: '/admin/users',                icon: 'ShieldCheck',     group_name: 'Pengaturan',         sort_order: 1003, required_permission: PERMISSIONS.USERS },
   { key: 'api-connect',         label: 'Integrasi & API',       path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Pengaturan',         sort_order: 1004, required_permission: PERMISSIONS.API_CONNECT },
   { key: '2fa',                 label: 'Keamanan',              path: '/admin/2fa',                  icon: 'Shield',          group_name: 'Pengaturan',         sort_order: 1005, required_permission: PERMISSIONS.TWO_FA },
