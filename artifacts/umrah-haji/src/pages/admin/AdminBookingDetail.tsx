@@ -1984,14 +1984,17 @@ export default function AdminBookingDetail() {
                                   <p className="text-xs text-muted-foreground italic bg-white dark:bg-slate-900 p-2 rounded border flex-1">
                                     {pay.notes || "Tidak ada catatan tambahan."}
                                   </p>
-                                  {isFailed && (isSuperAdmin() || hasRole('owner')) && (
+                                  {(isFailed || isSuccess) && (isSuperAdmin() || hasRole('owner')) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10 shrink-0"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm("Apakah Anda yakin ingin menghapus data pembayaran gagal ini?")) {
+                                        const msg = isSuccess
+                                          ? "Pembayaran ini sudah berstatus LUNAS. Menghapus data ini akan mempengaruhi saldo tagihan booking. Lanjutkan?"
+                                          : "Apakah Anda yakin ingin menghapus data pembayaran gagal ini?";
+                                        if (confirm(msg)) {
                                           deletePaymentMutation.mutate(pay.id);
                                         }
                                       }}
