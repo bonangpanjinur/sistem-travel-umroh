@@ -233,8 +233,9 @@ export default function AdminBookingDetail() {
         .single();
       if (bookingFetchError) throw bookingFetchError;
 
+      // Exclude the deleted payment ID as a guard against read-after-write race
       const newPaidAmount = (remainingPayments || [])
-        .filter((p: any) => p.status === 'paid' || p.status === 'verified')
+        .filter((p: any) => (p.status === 'paid' || p.status === 'verified') && p.id !== paymentId)
         .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
 
       const totalPrice = Number(bookingData?.total_price || 0);
@@ -362,6 +363,15 @@ export default function AdminBookingDetail() {
     },
     enabled: !!id,
   });
+
+  // Compute totals live from payments array so they're always accurate,
+  // even when booking.paid_amount in DB is stale after a deletion.
+  const computedPaidAmount = (payments || [])
+    .filter((p: any) => p.status === 'paid' || p.status === 'verified')
+    .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const computedRemainingAmount = booking
+    ? Math.max(0, Number(booking.total_price || 0) - computedPaidAmount)
+    : 0;
 
   // Payment deletion audit trail (super admin / owner only)
   const { data: paymentDeletionLogs } = useQuery({
@@ -2132,22 +2142,22 @@ export default function AdminBookingDetail() {
                 </div>
               )}
 
-              {/* Summary: paid / remaining */}
+              {/* Summary: paid / remaining — computed live from payments list, not from stale booking.paid_amount */}
               <div className="px-5 pb-5 space-y-3">
                 <div className="flex justify-between text-sm border-t pt-3">
                   <span className="text-muted-foreground font-medium">Total Dibayar</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{formatCurrency(booking.paid_amount || 0)}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{formatCurrency(computedPaidAmount)}</span>
                 </div>
                 <div className={`p-3 rounded-lg flex justify-between items-center ${
-                  (booking.remaining_amount || 0) <= 0
+                  computedRemainingAmount <= 0
                     ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800'
                     : 'bg-destructive/5 border border-destructive/10'
                 }`}>
-                  <span className={`text-xs font-bold uppercase tracking-tighter ${(booking.remaining_amount || 0) <= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
-                    {(booking.remaining_amount || 0) <= 0 ? 'Lunas' : 'Sisa Tagihan'}
+                  <span className={`text-xs font-bold uppercase tracking-tighter ${computedRemainingAmount <= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
+                    {computedRemainingAmount <= 0 ? 'Lunas' : 'Sisa Tagihan'}
                   </span>
-                  <span className={`text-lg font-black ${(booking.remaining_amount || 0) <= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
-                    {formatCurrency(booking.remaining_amount || 0)}
+                  <span className={`text-lg font-black ${computedRemainingAmount <= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
+                    {formatCurrency(computedRemainingAmount)}
                   </span>
                 </div>
 
@@ -2155,13 +2165,13 @@ export default function AdminBookingDetail() {
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">
                     <span>Progress Pelunasan</span>
-                    <span>{Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%</span>
+                    <span>{Math.min(100, Math.round((computedPaidAmount / booking.total_price) * 100))}%</span>
                   </div>
                   <div className="relative">
                     <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
-                        style={{ width: `${Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))}%` }}
+                        style={{ width: `${Math.min(100, Math.round((computedPaidAmount / booking.total_price) * 100))}%` }}
                       />
                     </div>
                     {/* Milestone markers */}
@@ -2169,7 +2179,7 @@ export default function AdminBookingDetail() {
                       { pct: 30, label: 'DP' },
                       { pct: 50, label: '50%' },
                     ].map(({ pct, label }) => {
-                      const paid = Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100));
+                      const paid = Math.min(100, Math.round((computedPaidAmount / booking.total_price) * 100));
                       const reached = paid >= pct;
                       return (
                         <div
@@ -2644,7 +2654,7 @@ export default function AdminBookingDetail() {
                 <Wallet className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Dana yang sudah masuk</span>
               </div>
-              <span className="font-bold text-base">{formatCurrency((booking as any)?.paid_amount || 0)}</span>
+              <span className="font-bold text-base">{formatCurrency(computedPaidAmount)}</span>
             </div>
 
             {/* Alasan pembatalan */}
@@ -2686,17 +2696,17 @@ export default function AdminBookingDetail() {
                     <Input
                       type="number"
                       min={0}
-                      max={(booking as any)?.paid_amount || 0}
+                      max={computedPaidAmount}
                       value={refundAmount}
                       onChange={(e) => setRefundAmount(Number(e.target.value))}
                       placeholder="0"
                     />
-                    {refundAmount > ((booking as any)?.paid_amount || 0) && (
+                    {refundAmount > computedPaidAmount && (
                       <p className="text-xs text-destructive">Jumlah refund melebihi jumlah yang sudah dibayar</p>
                     )}
                     <div className="flex gap-2 pt-1">
                       {[100, 75, 50, 25].map((pct) => {
-                        const amt = Math.round(((booking as any)?.paid_amount || 0) * pct / 100);
+                        const amt = Math.round(computedPaidAmount * pct / 100);
                         return (
                           <button
                             key={pct}
@@ -2854,7 +2864,7 @@ export default function AdminBookingDetail() {
           currentDepartureId={booking?.departure_id || ""}
           currentTotalPrice={booking.total_price || 0}
           totalPax={booking.total_pax || 1}
-          paidAmount={booking.paid_amount || 0}
+          paidAmount={computedPaidAmount}
         />
       )}
 
