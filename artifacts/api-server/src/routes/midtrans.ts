@@ -41,53 +41,42 @@ function verifySignature(body: any, serverKey: string): boolean {
   return body.signature_key === expected;
 }
 
-/** Update payment status in Supabase via REST API (no SDK needed in backend). */
+/** Update payment status in Neon Postgres via pool. */
 async function supabaseUpdatePayment(
   orderId: string,
   status: string,
   transactionId: string,
   paymentType: string
 ): Promise<void> {
-  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) {
-    console.warn("[Midtrans Webhook] Supabase URL/key not set — cannot update payment");
-    return;
-  }
+  try {
+    const { pool } = await import("../lib/db.js");
 
-  // Determine new payment status
-  const newStatus =
-    status === "capture" || status === "settlement" ? "verified" :
-    status === "pending" ? "pending" :
-    status === "deny" || status === "cancel" || status === "expire" ? "failed" :
-    "pending";
+    const newStatus =
+      status === "capture" || status === "settlement" ? "verified" :
+      status === "pending" ? "pending" :
+      status === "deny" || status === "cancel" || status === "expire" ? "failed" :
+      "pending";
 
-  // Find payment by payment_code (order_id)
-  const findRes = await fetch(
-    `${url}/rest/v1/payments?payment_code=eq.${encodeURIComponent(orderId)}&select=id`,
-    { headers: { apikey: key, Authorization: `Bearer ${key}` } }
-  );
-  const existing = await findRes.json() as any[];
-
-  if (existing?.length) {
-    // Update existing payment row
-    await fetch(`${url}/rest/v1/payments?id=eq.${existing[0].id}`, {
-      method: "PATCH",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        status: newStatus,
-        payment_method: "midtrans",
-        bank_name: paymentType,
-        notes: `Midtrans notification: ${status} (tx: ${transactionId})`,
-      }),
-    });
-  } else {
-    console.warn(`[Midtrans Webhook] No payment found for order_id: ${orderId}`);
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        `SELECT id FROM payments WHERE payment_code = $1 LIMIT 1`,
+        [orderId]
+      );
+      if (rows.length > 0) {
+        await client.query(
+          `UPDATE payments SET status = $1, payment_method = 'midtrans', bank_name = $2,
+           notes = $3, updated_at = NOW() WHERE id = $4`,
+          [newStatus, paymentType, `Midtrans notification: ${status} (tx: ${transactionId})`, rows[0].id]
+        );
+      } else {
+        console.warn(`[Midtrans Webhook] No payment found for order_id: ${orderId}`);
+      }
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.warn("[Midtrans Webhook] DB update failed:", err.message);
   }
 }
 

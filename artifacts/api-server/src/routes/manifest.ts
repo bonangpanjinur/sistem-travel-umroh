@@ -122,41 +122,42 @@ router.get("/manifest/export/:departureId", async (req, res) => {
   const { departureId } = req.params;
   const format = (req.query.format as string) || "csv";
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    res.status(503).json({ error: "Supabase belum dikonfigurasi" });
-    return;
-  }
-
   if (!departureId) {
     res.status(400).json({ error: "departureId wajib diisi" });
     return;
   }
 
   try {
-    // Fetch booking_passengers + bookings + customers for this departure
-    const apiRes = await fetch(
-      `${supabaseUrl}/rest/v1/booking_passengers?select=id,full_name,gender,birth_date,nationality,passport_number,passport_expiry,phone,email,passenger_type,seat_number,room_preference,special_requests,is_main_passenger,booking_id,bookings!inner(id,booking_code,status,room_number,departure_id,customers(id,full_name,phone,email))&bookings.departure_id=eq.${departureId}&bookings.status=neq.cancelled&order=full_name`,
-      {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          Accept: "application/json",
+    const { pool } = await import("../lib/db.js");
+    const client = await pool.connect();
+    let passengers: any[];
+    try {
+      const { rows } = await client.query(
+        `SELECT bp.id, bp.full_name, bp.gender, bp.birth_date, bp.nationality,
+                bp.passport_number, bp.passport_expiry, bp.phone, bp.email,
+                bp.passenger_type, bp.seat_number, bp.room_preference,
+                bp.special_requests, bp.is_main_passenger, bp.booking_id,
+                b.booking_code, b.status, b.room_number,
+                c.full_name AS customer_name, c.phone AS customer_phone, c.email AS customer_email
+         FROM booking_passengers bp
+         INNER JOIN bookings b ON b.id = bp.booking_id
+         LEFT JOIN customers c ON c.id = b.customer_id
+         WHERE b.departure_id = $1 AND b.status != 'cancelled'
+         ORDER BY bp.full_name`,
+        [departureId]
+      );
+      passengers = rows.map(row => ({
+        ...row,
+        bookings: {
+          booking_code: row.booking_code,
+          status: row.status,
+          room_number: row.room_number,
+          customers: { full_name: row.customer_name, phone: row.customer_phone, email: row.customer_email },
         },
-        signal: AbortSignal.timeout(30000),
-      }
-    );
-
-    if (!apiRes.ok) {
-      const errText = await apiRes.text();
-      console.error("[Manifest Export] Supabase error:", errText);
-      res.status(500).json({ error: "Gagal mengambil data manifest dari database" });
-      return;
+      }));
+    } finally {
+      client.release();
     }
-
-    const passengers = await apiRes.json() as any[];
 
     if (format === "csv") {
       const headers = [

@@ -12,11 +12,15 @@ import remindersRouter from "./reminders.js";
 import totpRouter from "./totp.js";
 import permissionsRouter from "./permissions.js";
 import bookingsRouter from "./bookings.js";
+import authRouter from "./auth.js";
+import functionsRouter from "./functions.js";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(manifestRouter);
+router.use("/auth", authRouter);
+router.use("/functions", functionsRouter);
 router.use("/v1", v1Router);
 router.use("/email", emailRouter);
 router.use("/midtrans", midtransRouter);

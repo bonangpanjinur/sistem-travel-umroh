@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getStoredToken, setStoredToken } from '@/integrations/supabase/client';
 import { AppRole, Profile } from '@/types/database';
 import { sortRoles } from '@/lib/constants';
 
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       // Hard signOut to clear corrupted token in storage (fire & forget)
       supabase.auth.signOut().catch(() => {});
+      setStoredToken(null);
       // Redirect to login if user is on a protected area
       const path = window.location.pathname;
       const isProtected =
@@ -164,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Sync logout across tabs
     const handleStorage = (e: StorageEvent) => {
-      if (e.key && e.key.includes('supabase.auth.token') && !e.newValue) {
+      if (e.key && (e.key.includes('supabase.auth.token') || e.key === 'vinstour_access_token') && !e.newValue) {
         dlog('[Auth] Storage event - auth token cleared (logout from another tab)', {
           key: e.key,
           timestamp: new Date().toISOString()
@@ -267,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dlog('[Auth] signOut - clearing all auth state', {
       timestamp: new Date().toISOString()
     });
+    setStoredToken(null);
     await supabase.auth.signOut();
     lastFetchedUserIdRef.current = null;
     setUser(null);
