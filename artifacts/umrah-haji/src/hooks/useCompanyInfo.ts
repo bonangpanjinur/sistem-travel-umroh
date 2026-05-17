@@ -127,7 +127,14 @@ export function useCompanyInfo() {
 
   // Try to get logo from company_settings first, then fallback to website_settings
   const companyLogoUrl = unwrap(m?.get("company_logo_url"));
-  const logoUrl = companyLogoUrl || websiteSettings?.logo_url || undefined;
+  const websiteLogoUrl = companyLogoUrl || websiteSettings?.logo_url || undefined;
+
+  // Dynamic logo source: 'website' (default) or 'custom' (uploaded specifically for documents)
+  const docLogoSource = unwrap(m?.get("doc_logo_source")) || "website";
+  const docCustomLogoUrl = unwrap(m?.get("doc_custom_logo_url")) || undefined;
+  
+  // The effective logo to use in documents
+  const logoUrl = (docLogoSource === "custom" && docCustomLogoUrl) ? docCustomLogoUrl : websiteLogoUrl;
 
   // Priority: pdf_global_* (new consolidated keys) > legacy keys > defaults
   const documentSettings: DocumentSettings = {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Palette, FileText, Settings2, Eye, AlignLeft, AlignCenter, AlignRight,
   LayoutTemplate, Loader2, Save, RotateCcw, Type, Ruler, Stamp, Image,
-  FileCheck, Award, ShieldPlus, Mail, CreditCard, Ticket, Info, CheckCircle2
+  FileCheck, Award, ShieldPlus, Mail, CreditCard, Ticket, Info, CheckCircle2,
+  Upload, X, RefreshCw, Globe, ImagePlus, ArrowLeftRight, ClipboardList
 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -34,6 +36,9 @@ interface GlobalPDFSettings {
   letterhead_show_logo: boolean;
   pdf_logo_position: LogoPosition;
   pdf_logo_size: "small" | "medium" | "large";
+  // Dynamic logo: 'website' = pakai logo website (default), 'custom' = pakai logo khusus dokumen
+  doc_logo_source: "website" | "custom";
+  doc_custom_logo_url: string;
   // Colors
   pdf_global_accent_color: string;
   pdf_text_color: string;
@@ -87,15 +92,16 @@ interface DocumentTypeSettings {
   footer_text?: string;
 }
 
-type DocType = "invoice" | "eticket" | "certificate" | "passport_letter" | "leave_letter" | "general_letter";
+type DocType = "invoice" | "form" | "eticket" | "certificate" | "passport_letter" | "leave_letter" | "general_letter";
 
 const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; description: string }[] = [
-  { key: "invoice",        label: "Invoice",        icon: <CreditCard className="h-5 w-5" />,  description: "Faktur pembayaran jamaah" },
-  { key: "eticket",        label: "E-Tiket",        icon: <Ticket className="h-5 w-5" />,      description: "Tiket elektronik keberangkatan" },
-  { key: "certificate",    label: "Sertifikat",     icon: <Award className="h-5 w-5" />,       description: "Sertifikat perjalanan ibadah" },
-  { key: "passport_letter",label: "Surat Paspor",   icon: <ShieldPlus className="h-5 w-5" />, description: "Surat pengantar paspor" },
-  { key: "leave_letter",   label: "Surat Cuti",     icon: <FileCheck className="h-5 w-5" />,  description: "Surat izin cuti umroh/haji" },
-  { key: "general_letter", label: "Surat Umum",     icon: <Mail className="h-5 w-5" />,        description: "Surat resmi umum" },
+  { key: "invoice",        label: "Invoice",        icon: <CreditCard className="h-5 w-5" />,     description: "Faktur pembayaran jamaah" },
+  { key: "form",           label: "Form Booking",   icon: <ClipboardList className="h-5 w-5" />,  description: "Form transaksi & booking" },
+  { key: "eticket",        label: "E-Tiket",        icon: <Ticket className="h-5 w-5" />,         description: "Tiket elektronik keberangkatan" },
+  { key: "certificate",    label: "Sertifikat",     icon: <Award className="h-5 w-5" />,          description: "Sertifikat perjalanan ibadah" },
+  { key: "passport_letter",label: "Surat Paspor",   icon: <ShieldPlus className="h-5 w-5" />,     description: "Surat pengantar paspor" },
+  { key: "leave_letter",   label: "Surat Cuti",     icon: <FileCheck className="h-5 w-5" />,      description: "Surat izin cuti umroh/haji" },
+  { key: "general_letter", label: "Surat Umum",     icon: <Mail className="h-5 w-5" />,           description: "Surat resmi umum" },
 ];
 
 const DEFAULTS: GlobalPDFSettings = {
@@ -105,6 +111,8 @@ const DEFAULTS: GlobalPDFSettings = {
   letterhead_show_logo: true,
   pdf_logo_position: "left",
   pdf_logo_size: "medium",
+  doc_logo_source: "website",
+  doc_custom_logo_url: "",
   pdf_global_accent_color: "#16a34a",
   pdf_text_color: "#111827",
   pdf_header_bg_color: "#16a34a",
@@ -132,11 +140,13 @@ export default function AdminPDFLayout() {
 
   const [global, setGlobal] = useState<GlobalPDFSettings>(DEFAULTS);
   const [docSettings, setDocSettings] = useState<Record<DocType, DocumentTypeSettings>>({
-    invoice: {}, eticket: {}, certificate: {}, passport_letter: {}, leave_letter: {}, general_letter: {}
+    invoice: {}, form: {}, eticket: {}, certificate: {}, passport_letter: {}, leave_letter: {}, general_letter: {}
   });
   const [activeDoc, setActiveDoc] = useState<DocType>("invoice");
   const [isSaving, setIsSaving] = useState(false);
   const [savedKeys, setSavedKeys] = useState<string[]>([]);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Load from settings
   useEffect(() => {
@@ -158,7 +168,7 @@ export default function AdminPDFLayout() {
 
     // Load per-doc settings
     const loaded: Record<DocType, DocumentTypeSettings> = {
-      invoice: {}, eticket: {}, certificate: {}, passport_letter: {}, leave_letter: {}, general_letter: {}
+      invoice: {}, form: {}, eticket: {}, certificate: {}, passport_letter: {}, leave_letter: {}, general_letter: {}
     };
     DOC_TYPES.forEach(({ key }) => {
       const raw = getSetting(`pdf_doc_settings_${key}`);
@@ -203,11 +213,41 @@ export default function AdminPDFLayout() {
       pairs.push({ key: "invoice_accent_color", value: global.pdf_global_accent_color } as any);
       pairs.push({ key: "eticket_header_color", value: global.pdf_global_accent_color } as any);
       pairs.push({ key: "pdf_default_font", value: global.pdf_default_font } as any);
+      // Save dynamic logo settings
+      pairs.push({ key: "doc_logo_source", value: global.doc_logo_source } as any);
+      pairs.push({ key: "doc_custom_logo_url", value: global.doc_custom_logo_url } as any);
       await updateMultipleSettings(pairs);
       setSavedKeys((p) => [...new Set([...p, "global"])]);
       toast.success("Pengaturan global PDF berhasil disimpan");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // ── Upload custom document logo ──
+  const handleUploadDocumentLogo = async (file: File) => {
+    if (!file) return;
+    setIsUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const fileName = `doc-logo-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("website-assets")
+        .upload(fileName, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from("website-assets").getPublicUrl(fileName);
+      setGlobal((p) => ({ ...p, doc_custom_logo_url: publicUrl, doc_logo_source: "custom" }));
+      // Immediately persist the logo URL
+      await updateMultipleSettings([
+        { key: "doc_custom_logo_url", value: publicUrl },
+        { key: "doc_logo_source", value: "custom" },
+      ]);
+      toast.success("Logo dokumen berhasil diupload dan diaktifkan");
+    } catch (err: any) {
+      toast.error(`Gagal upload logo: ${err.message}`);
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
     }
   };
 
@@ -398,9 +438,166 @@ export default function AdminPDFLayout() {
                     </div>
                   )}
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-                    <Info className="h-3 w-3 inline mr-1" />
-                    Logo diambil dari <strong>Pengaturan → Informasi Perusahaan</strong>. Upload logo baru di sana.
+                  <Separator />
+
+                  {/* ── Dynamic Logo Source ── */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <ImagePlus className="h-4 w-4" />
+                        Sumber Logo Dokumen
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground -mt-2">
+                      Pilih logo yang dipakai untuk semua dokumen PDF. Default: logo dari website.
+                    </p>
+
+                    {/* Source selector */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setGlobal((p) => ({ ...p, doc_logo_source: "website" }))}
+                        className={`flex flex-col items-center gap-2 p-4 border-2 rounded-xl transition-all ${
+                          global.doc_logo_source === "website"
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            : "border-muted hover:border-primary/40"
+                        }`}
+                      >
+                        <Globe className={`h-6 w-6 ${global.doc_logo_source === "website" ? "text-primary" : "text-muted-foreground"}`} />
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">Logo Website</p>
+                          <p className="text-xs text-muted-foreground">Default, dari halaman publik</p>
+                        </div>
+                        {global.doc_logo_source === "website" && (
+                          <Badge className="text-[9px] bg-primary/20 text-primary border-0">Aktif</Badge>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (global.doc_custom_logo_url) {
+                            setGlobal((p) => ({ ...p, doc_logo_source: "custom" }));
+                          } else {
+                            logoInputRef.current?.click();
+                          }
+                        }}
+                        className={`flex flex-col items-center gap-2 p-4 border-2 rounded-xl transition-all ${
+                          global.doc_logo_source === "custom"
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            : "border-muted hover:border-primary/40"
+                        }`}
+                      >
+                        <ImagePlus className={`h-6 w-6 ${global.doc_logo_source === "custom" ? "text-primary" : "text-muted-foreground"}`} />
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">Logo Kustom</p>
+                          <p className="text-xs text-muted-foreground">Upload logo khusus dokumen</p>
+                        </div>
+                        {global.doc_logo_source === "custom" && (
+                          <Badge className="text-[9px] bg-primary/20 text-primary border-0">Aktif</Badge>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Current logo source display */}
+                    <div className="bg-muted/40 rounded-xl p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <ArrowLeftRight className="h-4 w-4" />
+                        Komparasi Logo
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Website logo */}
+                        <div className={`rounded-lg border-2 p-3 text-center space-y-2 transition-all ${
+                          global.doc_logo_source === "website" ? "border-primary bg-white" : "border-muted bg-white/60 opacity-70"
+                        }`}>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center justify-center gap-1">
+                            <Globe className="h-3 w-3" /> Logo Website
+                            {global.doc_logo_source === "website" && <Badge className="ml-1 text-[8px] bg-green-100 text-green-700 border-0">Dipakai</Badge>}
+                          </p>
+                          <div className="h-16 flex items-center justify-center bg-muted/30 rounded">
+                            {company?.logo ? (
+                              <img src={company.logo} alt="Website logo" className="h-12 max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            ) : (
+                              <div className="text-xs text-muted-foreground text-center">
+                                <FileText className="h-6 w-6 mx-auto mb-1 opacity-30" />
+                                Belum ada logo website
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {/* Custom logo */}
+                        <div className={`rounded-lg border-2 p-3 text-center space-y-2 transition-all ${
+                          global.doc_logo_source === "custom" ? "border-primary bg-white" : "border-muted bg-white/60 opacity-70"
+                        }`}>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center justify-center gap-1">
+                            <ImagePlus className="h-3 w-3" /> Logo Kustom
+                            {global.doc_logo_source === "custom" && <Badge className="ml-1 text-[8px] bg-green-100 text-green-700 border-0">Dipakai</Badge>}
+                          </p>
+                          <div className="h-16 flex items-center justify-center bg-muted/30 rounded">
+                            {global.doc_custom_logo_url ? (
+                              <img src={global.doc_custom_logo_url} alt="Custom doc logo" className="h-12 max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            ) : (
+                              <div className="text-xs text-muted-foreground text-center">
+                                <ImagePlus className="h-6 w-6 mx-auto mb-1 opacity-30" />
+                                Belum diupload
+                              </div>
+                            )}
+                          </div>
+                          {global.doc_custom_logo_url && (
+                            <button
+                              type="button"
+                              onClick={() => setGlobal((p) => ({ ...p, doc_custom_logo_url: "", doc_logo_source: "website" }))}
+                              className="text-[10px] text-destructive hover:underline flex items-center gap-1 mx-auto"
+                            >
+                              <X className="h-3 w-3" /> Hapus
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Upload button */}
+                    <div className="flex gap-2">
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadDocumentLogo(file);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={isUploadingLogo}
+                        className="gap-2 flex-1"
+                      >
+                        {isUploadingLogo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        {global.doc_custom_logo_url ? "Ganti Logo Kustom" : "Upload Logo Kustom"}
+                      </Button>
+                      {global.doc_logo_source === "custom" && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setGlobal((p) => ({ ...p, doc_logo_source: "website" }))}
+                          className="gap-2 text-muted-foreground"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Pakai Website
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PNG/JPG. Logo yang diupload hanya dipakai di dokumen PDF, tidak mengubah logo website.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -1293,7 +1490,7 @@ function DocPreview({ docType, docSettings, globalSettings, company }: {
   const watermarkText = docSettings.watermark_text;
 
   const docLabel: Record<DocType, string> = {
-    invoice: "INVOICE", eticket: "E-TIKET", certificate: "SERTIFIKAT",
+    invoice: "INVOICE", form: "FORM", eticket: "E-TIKET", certificate: "SERTIFIKAT",
     passport_letter: "SURAT PASPOR", leave_letter: "SURAT CUTI", general_letter: "SURAT UMUM",
   };
 

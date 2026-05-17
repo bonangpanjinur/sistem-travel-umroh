@@ -5,15 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck, Settings2, AlertTriangle, Save } from "lucide-react";
+import { Loader2, FileText, Eye, LayoutTemplate, Printer, CreditCard, ShieldPlus, Award, Mail, FileCheck, Settings2, AlertTriangle, Save, Ticket, ClipboardList } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { DocumentLayout } from "@/lib/document-generator";
 
-type DocumentType = 'invoice' | 'passport_letter' | 'leave_letter' | 'certificate' | 'general_letter';
+type DocumentType = 'invoice' | 'form' | 'eticket' | 'passport_letter' | 'leave_letter' | 'certificate' | 'general_letter';
 
 const documentTypeLabels: Record<DocumentType, string> = {
   invoice: 'Invoice',
+  form: 'Form Booking',
+  eticket: 'E-Tiket',
   passport_letter: 'Surat Paspor',
   leave_letter: 'Surat Cuti',
   certificate: 'Sertifikat',
@@ -22,6 +24,8 @@ const documentTypeLabels: Record<DocumentType, string> = {
 
 const documentTypeDescriptions: Record<DocumentType, string> = {
   invoice: 'Faktur pembayaran untuk pelanggan',
+  form: 'Form transaksi dan booking jamaah',
+  eticket: 'Tiket elektronik keberangkatan',
   passport_letter: 'Surat pengantar untuk pengurusan paspor',
   leave_letter: 'Surat cuti umroh/haji',
   certificate: 'Sertifikat penyelesaian program',
@@ -58,6 +62,8 @@ export function DocumentLayoutEditor() {
   const { company, documentSettings } = useCompanyInfo();
   const [layouts, setLayouts] = useState<Record<DocumentType, DocumentLayout>>({
     invoice: {},
+    form: {},
+    eticket: {},
     passport_letter: {},
     leave_letter: {},
     certificate: {},
@@ -73,7 +79,7 @@ export function DocumentLayoutEditor() {
   useEffect(() => {
     if (!isLoading) {
       // Load saved layouts from settings
-      const types: DocumentType[] = ['invoice', 'passport_letter', 'leave_letter', 'certificate', 'general_letter'];
+      const types: DocumentType[] = ['invoice', 'form', 'eticket', 'passport_letter', 'leave_letter', 'certificate', 'general_letter'];
       const loadedLayouts: any = {};
       
       types.forEach(type => {
@@ -234,7 +240,7 @@ export function DocumentLayoutEditor() {
       </div>
 
       {/* Document Type Selection */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
         {(Object.keys(documentTypeLabels) as DocumentType[]).map((type) => {
           const overrideCount = Object.keys(layouts[type]).length;
           return (
@@ -247,13 +253,15 @@ export function DocumentLayoutEditor() {
               }`}
               onClick={() => setActiveDocumentType(type)}
             >
-              <CardContent className="p-4 text-center">
+              <CardContent className="p-3 text-center">
                 <div className="mb-2">
-                  {type === 'invoice' && <CreditCard className="h-6 w-6 mx-auto text-primary" />}
-                  {type === 'passport_letter' && <ShieldPlus className="h-6 w-6 mx-auto text-primary" />}
-                  {type === 'leave_letter' && <FileCheck className="h-6 w-6 mx-auto text-primary" />}
-                  {type === 'certificate' && <Award className="h-6 w-6 mx-auto text-primary" />}
-                  {type === 'general_letter' && <Mail className="h-6 w-6 mx-auto text-primary" />}
+                  {type === 'invoice' && <CreditCard className="h-5 w-5 mx-auto text-primary" />}
+                  {type === 'form' && <ClipboardList className="h-5 w-5 mx-auto text-primary" />}
+                  {type === 'eticket' && <Ticket className="h-5 w-5 mx-auto text-primary" />}
+                  {type === 'passport_letter' && <ShieldPlus className="h-5 w-5 mx-auto text-primary" />}
+                  {type === 'leave_letter' && <FileCheck className="h-5 w-5 mx-auto text-primary" />}
+                  {type === 'certificate' && <Award className="h-5 w-5 mx-auto text-primary" />}
+                  {type === 'general_letter' && <Mail className="h-5 w-5 mx-auto text-primary" />}
                 </div>
                 <p className="font-medium text-sm">{documentTypeLabels[type]}</p>
                 {overrideCount > 0 ? (
