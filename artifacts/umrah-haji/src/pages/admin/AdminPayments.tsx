@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Payment } from "@/types/database";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,7 +50,7 @@ import {
   CreditCard, User, Calendar,
   Search, Filter, Download, AlertCircle, X, ImageIcon,
   Bell, Loader2, PiggyBank, FileWarning, Plus, QrCode,
-  Building2, Smartphone, Upload, Wallet
+  Building2, Smartphone, Upload, Wallet, RefreshCw, ShieldCheck
 } from "lucide-react";
 import { AddManualPaymentDialog } from "@/components/admin/AddManualPaymentDialog";
 import { Link } from "react-router-dom";
@@ -88,7 +88,7 @@ function PaymentMethodBadge({ method }: { method: string | null }) {
 }
 
 export default function AdminPayments() {
-  const { user } = useAuth();
+  const { user, isSuperAdmin, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [showProofDialog, setShowProofDialog] = useState(false);
@@ -102,8 +102,32 @@ export default function AdminPayments() {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isSendingReminders, setIsSendingReminders] = useState(false);
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ updatedCount: number; totalProcessed: number; durationMs: number } | null>(null);
   const { sendPaymentConfirmation, isReady: waReady } = useWhatsAppNotifier();
   const emailNotifier = useEmailNotifier();
+
+  const canSync = isSuperAdmin() || hasRole('owner');
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/bookings/sync-payment-totals', { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Sync gagal');
+      return data as { updatedCount: number; totalProcessed: number; durationMs: number };
+    },
+    onSuccess: (data) => {
+      setSyncResult(data);
+      setShowSyncConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings-no-payment'] });
+    },
+    onError: (err: any) => {
+      setShowSyncConfirm(false);
+      toast.error(err.message || 'Sync gagal');
+    },
+  });
 
   // Check if a WA Otomatis trigger is enabled (reads from localStorage, synced by AdminWAOtomatis)
   function isWATriggerEnabled(triggerId: string): boolean {
@@ -406,8 +430,24 @@ export default function AdminPayments() {
           <h1 className="text-2xl font-bold">Verifikasi Pembayaran</h1>
           <p className="text-muted-foreground">Kelola dan verifikasi bukti pembayaran</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <AddManualPaymentDialog />
+          {canSync && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSyncConfirm(true)}
+              disabled={syncMutation.isPending}
+              className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
+            >
+              {syncMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Sync Ulang Total
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={async () => {
@@ -1079,6 +1119,115 @@ export default function AdminPayments() {
               disabled={verifyMutation.isPending || !rejectReason.trim()}
             >
               Tolak Pembayaran
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Sync Confirmation Dialog ──────────────────────────────────────── */}
+      <Dialog open={showSyncConfirm} onOpenChange={setShowSyncConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-amber-600" />
+              Sync Ulang Total Pembayaran
+            </DialogTitle>
+            <DialogDescription>
+              Fitur ini akan menghitung ulang{" "}
+              <span className="font-semibold text-foreground">
+                paid_amount, remaining_amount,
+              </span>{" "}
+              dan{" "}
+              <span className="font-semibold text-foreground">
+                payment_status
+              </span>{" "}
+              untuk <span className="font-semibold text-foreground">seluruh booking</span> berdasarkan
+              data pembayaran aktual (hanya status{" "}
+              <span className="font-mono text-xs bg-muted px-1 rounded">paid</span> /{" "}
+              <span className="font-mono text-xs bg-muted px-1 rounded">verified</span>).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 space-y-2 text-sm">
+            <p className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Aman dijalankan berkali-kali (idempotent)
+            </p>
+            <ul className="list-disc list-inside text-amber-700 dark:text-amber-400 space-y-1 text-xs">
+              <li>Hanya baris yang salah/tidak sinkron yang akan diupdate</li>
+              <li>Pembayaran yang sudah dihapus tidak akan dihitung ulang</li>
+              <li>Proses berjalan langsung di database — cepat</li>
+            </ul>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowSyncConfirm(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {syncMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sedang Sync...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Jalankan Sync
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Sync Result Dialog ────────────────────────────────────────────── */}
+      <Dialog open={!!syncResult} onOpenChange={(open) => { if (!open) setSyncResult(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              Sync Selesai
+            </DialogTitle>
+          </DialogHeader>
+          {syncResult && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="border-emerald-200 bg-emerald-50/60 dark:bg-emerald-950/20">
+                  <CardHeader className="pb-1 pt-3 px-4">
+                    <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">Diupdate</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-3 px-4">
+                    <p className="text-3xl font-black text-emerald-600">{syncResult.updatedCount}</p>
+                    <p className="text-xs text-muted-foreground">booking diperbaiki</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-1 pt-3 px-4">
+                    <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">Diproses</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-3 px-4">
+                    <p className="text-3xl font-black">{syncResult.totalProcessed}</p>
+                    <p className="text-xs text-muted-foreground">total booking</p>
+                  </CardContent>
+                </Card>
+              </div>
+              <p className="text-xs text-center text-muted-foreground">
+                Selesai dalam{" "}
+                <span className="font-semibold">{syncResult.durationMs} ms</span>
+                {syncResult.updatedCount === 0 && (
+                  <span className="block mt-1 text-emerald-600 font-medium">
+                    Semua data sudah sinkron — tidak ada yang perlu diperbaiki.
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setSyncResult(null)} className="w-full">
+              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>

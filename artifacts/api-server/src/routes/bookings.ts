@@ -66,4 +66,71 @@ router.post('/release-slot', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/bookings/sync-payment-totals
+ * Super-admin / owner utility: recalculates paid_amount, remaining_amount, and
+ * payment_status for every booking by summing only confirmed payments
+ * (status IN ('paid','verified')). Idempotent — only rows that need correction
+ * are touched.
+ *
+ * Returns: { success, updatedCount, totalProcessed, durationMs }
+ */
+router.post('/sync-payment-totals', async (req, res) => {
+  const start = Date.now();
+  try {
+    const result = await db.execute(sql`
+      WITH recalc AS (
+        SELECT
+          b.id                                                                              AS booking_id,
+          b.total_price,
+          COALESCE(SUM(p.amount) FILTER (WHERE p.status IN ('paid','verified')), 0)        AS correct_paid,
+          GREATEST(
+            0,
+            b.total_price
+              - COALESCE(SUM(p.amount) FILTER (WHERE p.status IN ('paid','verified')), 0)
+          )                                                                                 AS correct_remaining,
+          CASE
+            WHEN COALESCE(SUM(p.amount) FILTER (WHERE p.status IN ('paid','verified')), 0)
+                   >= b.total_price AND b.total_price > 0                                  THEN 'paid'
+            WHEN COALESCE(SUM(p.amount) FILTER (WHERE p.status IN ('paid','verified')), 0)
+                   > 0                                                                      THEN 'partial'
+            ELSE                                                                                 'pending'
+          END                                                                               AS correct_status
+        FROM bookings b
+        LEFT JOIN payments p ON p.booking_id = b.id
+        GROUP BY b.id, b.total_price
+      ),
+      total_count AS (SELECT COUNT(*) AS cnt FROM recalc),
+      updated AS (
+        UPDATE bookings b
+        SET
+          paid_amount      = r.correct_paid,
+          remaining_amount = r.correct_remaining,
+          payment_status   = r.correct_status
+        FROM recalc r
+        WHERE b.id = r.booking_id
+          AND (
+            b.paid_amount      IS DISTINCT FROM r.correct_paid      OR
+            b.remaining_amount IS DISTINCT FROM r.correct_remaining OR
+            b.payment_status   IS DISTINCT FROM r.correct_status
+          )
+        RETURNING b.id
+      )
+      SELECT
+        (SELECT COUNT(*) FROM updated)    AS updated_count,
+        (SELECT cnt FROM total_count)     AS total_processed
+    `);
+
+    const row = result.rows[0] as any;
+    res.json({
+      success: true,
+      updatedCount:    Number(row?.updated_count    ?? 0),
+      totalProcessed:  Number(row?.total_processed  ?? 0),
+      durationMs:      Date.now() - start,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
