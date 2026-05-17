@@ -190,7 +190,32 @@ export default function AdminBookingDetail() {
   });
 
   const deletePaymentMutation = useMutation({
-    mutationFn: async (paymentId: string) => {
+    mutationFn: async ({ paymentId, paymentSnapshot }: { paymentId: string; paymentSnapshot: any }) => {
+      // 1. Write audit log BEFORE deleting so data is preserved
+      await (supabase as any).from("audit_logs").insert({
+        action: "PAYMENT_DELETED",
+        action_type: "delete",
+        table_name: "payments",
+        record_id: paymentId,
+        resource_type: "payment",
+        resource_id: paymentId,
+        severity: "warning",
+        user_id: user?.id ?? null,
+        old_data: paymentSnapshot,
+        old_values: {
+          amount: paymentSnapshot?.amount,
+          status: paymentSnapshot?.status,
+          payment_method: paymentSnapshot?.payment_method,
+          payment_date: paymentSnapshot?.payment_date ?? paymentSnapshot?.created_at,
+        },
+        metadata: {
+          booking_id: id,
+          booking_code: booking?.booking_code ?? null,
+          deleted_by_email: user?.email ?? null,
+          deleted_by_name: (user as any)?.user_metadata?.full_name ?? user?.email ?? null,
+        },
+      });
+      // 2. Delete the payment record
       const { error } = await supabase.from("payments").delete().eq("id", paymentId);
       if (error) throw error;
       return true;
@@ -199,6 +224,7 @@ export default function AdminBookingDetail() {
       toast.success("Data pembayaran berhasil dihapus");
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
       queryClient.invalidateQueries({ queryKey: ['booking-payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['payment-deletion-audit', id] });
     },
     onError: (err: any) => {
       toast.error(err.message || "Gagal menghapus pembayaran");
@@ -296,6 +322,22 @@ export default function AdminBookingDetail() {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Payment deletion audit trail (super admin / owner only)
+  const { data: paymentDeletionLogs } = useQuery({
+    queryKey: ['payment-deletion-audit', id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('audit_logs')
+        .select('*')
+        .eq('action', 'PAYMENT_DELETED')
+        .filter('metadata->>booking_id', 'eq', id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!id && (isSuperAdmin() || hasRole('owner')),
   });
 
   // Separate query for sales profile (FK bookings_sales_id_fkey doesn't exist in schema)
@@ -1995,7 +2037,7 @@ export default function AdminBookingDetail() {
                                           ? "Pembayaran ini sudah berstatus LUNAS. Menghapus data ini akan mempengaruhi saldo tagihan booking. Lanjutkan?"
                                           : "Apakah Anda yakin ingin menghapus data pembayaran gagal ini?";
                                         if (confirm(msg)) {
-                                          deletePaymentMutation.mutate(pay.id);
+                                          deletePaymentMutation.mutate({ paymentId: pay.id, paymentSnapshot: pay });
                                         }
                                       }}
                                       disabled={deletePaymentMutation.isPending}
@@ -2086,6 +2128,65 @@ export default function AdminBookingDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Payment Deletion Audit Log (super admin / owner only) */}
+          {(isSuperAdmin() || hasRole('owner')) && paymentDeletionLogs && paymentDeletionLogs.length > 0 && (
+            <Card className="border-none shadow-md overflow-hidden">
+              <div className="bg-destructive/5 px-5 py-3 border-b flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-destructive flex items-center gap-2">
+                  <Trash className="h-4 w-4" />
+                  Riwayat Penghapusan Pembayaran
+                </h3>
+                <Link
+                  to="/admin/laporan/payment-audit-log"
+                  className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                >
+                  Lihat semua
+                  <ShieldAlert className="h-3 w-3" />
+                </Link>
+              </div>
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  {paymentDeletionLogs.map((log: any) => {
+                    const meta = log.metadata || {};
+                    const oldVals = log.old_values || {};
+                    const deletedAt = log.created_at ? new Date(log.created_at) : null;
+                    const amount = oldVals.amount ?? 0;
+                    const status = oldVals.status ?? "-";
+                    const method = oldVals.payment_method ?? "-";
+                    const statusLabel: Record<string, string> = {
+                      paid: "Lunas", verified: "Terverifikasi", partial: "Sebagian",
+                      pending: "Pending", failed: "Gagal", cancelled: "Dibatalkan"
+                    };
+                    return (
+                      <div key={log.id} className="px-5 py-3 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-0.5">
+                            <p className="text-xs font-semibold text-destructive">{formatCurrency(amount)}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Status saat hapus:{" "}
+                              <span className="font-semibold">{statusLabel[status] || status}</span>
+                              {method !== "-" && <> &middot; {method.toUpperCase()}</>}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-[9px] bg-destructive/10 text-destructive border-destructive/20 shrink-0">
+                            DIHAPUS
+                          </Badge>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="font-medium">{meta.deleted_by_name || meta.deleted_by_email || "—"}</span>
+                          {deletedAt && (
+                            <span> &middot; {deletedAt.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}{" "}
+                            {deletedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* A1 + A3 + D4 — Agent & Branch Info Panel */}
           {(bookingAgent || (booking as any).branch) && (

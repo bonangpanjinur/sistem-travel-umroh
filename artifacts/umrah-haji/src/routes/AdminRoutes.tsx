@@ -64,6 +64,7 @@ const Admin2FASettings = lazy(() => import("@/pages/admin/Admin2FASettings"));
 const AdminWhatsApp = lazy(() => import("@/pages/admin/AdminWhatsApp"));
 const KorespondensiHubPage = lazy(() => import("@/pages/admin/KorespondensiHubPage"));
 const AdminAdvancedReports = lazy(() => import("@/pages/admin/AdminAdvancedReports"));
+const AdminPaymentAuditLog = lazy(() => import("@/pages/admin/AdminPaymentAuditLog"));
 const AdminHR = lazy(() => import("@/pages/admin/AdminHR"));
 const AdminHajiManagement = lazy(() => import("@/pages/admin/AdminHajiManagement"));
 const AdminItineraryTemplates = lazy(() => import("@/pages/admin/AdminItineraryTemplates"));
@@ -294,6 +295,7 @@ export default function AdminRoutes() {
       <Route path="reports" element={<P k={PERMISSIONS.REPORTS}><AdminReports /></P>} />
       <Route path="advanced-reports" element={<P k={PERMISSIONS.ADVANCED_REPORTS}><AdminAdvancedReports /></P>} />
       <Route path="scheduled-reports" element={<P k={PERMISSIONS.SCHEDULED_REPORTS}><AdminScheduledReports /></P>} />
+      <Route path="laporan/payment-audit-log" element={<LazyPage><AdminPaymentAuditLog /></LazyPage>} />
 
       {/* Fase 6 — Dashboard Admin & Laporan Keuangan */}
       <Route path="laporan/keuangan" element={<P k={PERMISSIONS.LAPORAN_KEUANGAN}><LazyPage><AdminLaporanKeuangan /></LazyPage></P>} />
