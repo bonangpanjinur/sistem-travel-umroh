@@ -639,6 +639,38 @@ export default function AdminBookingDetail() {
         .eq('id', paymentId);
 
       if (error) throw error;
+
+      // Recalculate booking totals from all remaining payments
+      const [{ data: allPayments, error: fetchError }, { data: bookingData, error: bookingFetchError }] = await Promise.all([
+        supabase.from('payments').select('amount, status').eq('booking_id', id),
+        supabase.from('bookings').select('total_price').eq('id', id).single(),
+      ]);
+      if (fetchError) throw fetchError;
+      if (bookingFetchError) throw bookingFetchError;
+
+      const newPaidAmount = (allPayments || [])
+        .filter((p: any) => p.status === 'paid' || p.status === 'verified')
+        .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+      const totalPrice = Number(bookingData?.total_price || 0);
+      const newRemainingAmount = Math.max(0, totalPrice - newPaidAmount);
+      const newPaymentStatus =
+        newPaidAmount >= totalPrice && totalPrice > 0
+          ? 'paid'
+          : newPaidAmount > 0
+          ? 'partial'
+          : 'pending';
+
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          paid_amount: newPaidAmount,
+          remaining_amount: newRemainingAmount,
+          payment_status: newPaymentStatus,
+        })
+        .eq('id', id);
+      if (updateError) throw updateError;
+
       return { paymentId, status };
     },
     onSuccess: async (result) => {
