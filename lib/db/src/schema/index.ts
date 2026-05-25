@@ -175,6 +175,33 @@ export const chatbotLogs = pgTable("chatbot_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+// ── wa_templates ──────────────────────────────────────────────────────────────
+export const waTemplates = pgTable("wa_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  messageTemplate: text("message_template").notNull(),
+  variables: jsonb("variables").default([]),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── wa_send_logs ──────────────────────────────────────────────────────────────
+export const waSendLogs = pgTable("wa_send_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  recipientPhone: text("recipient_phone").notNull(),
+  recipientName: text("recipient_name"),
+  messageContent: text("message_content").notNull(),
+  status: text("status").notNull().default("pending"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  templateCode: text("template_code"),
+  departureId: uuid("departure_id"),
+  messageId: text("message_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 export type Package = typeof packages.$inferSelect;
 export type Departure = typeof departures.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
