@@ -1,7 +1,5 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase as supabaseRaw } from "@/integrations/supabase/client";
-const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,25 +16,18 @@ import {
 import { toast } from "sonner";
 import {
   HelpCircle, RefreshCcw, Plus, Loader2, CheckCircle2,
-  ArrowRight, Clock, TrendingUp, AlertTriangle, Lightbulb,
-  ExternalLink,
+  Clock, TrendingUp, AlertTriangle, Lightbulb, ExternalLink,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Link } from "react-router-dom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface RawLog {
-  id: string;
-  message: string;
-  created_at: string;
-}
-
 interface UnansweredEntry {
-  normalized: string;       // grouping key
-  display: string;          // best display text (longest variant)
+  normalized: string;
+  display: string;
   count: number;
-  lastSeen: string;         // ISO date of most recent occurrence
+  lastSeen: string;
   logIds: string[];
 }
 
@@ -70,7 +61,6 @@ function CreateFAQDialog({ open, initialQuestion, onClose, onCreated }: CreateFA
   const [category, setCategory] = useState("Umum");
   const [isPublished, setIsPublished] = useState(true);
 
-  // Reset whenever dialog opens with a new question
   const reset = useCallback((q: string) => {
     setQuestion(q);
     setAnswer("");
@@ -78,7 +68,6 @@ function CreateFAQDialog({ open, initialQuestion, onClose, onCreated }: CreateFA
     setIsPublished(true);
   }, []);
 
-  // When open changes to true, reset
   const prevOpenRef = { current: false };
   if (open && !prevOpenRef.current) reset(initialQuestion);
   prevOpenRef.current = open;
@@ -86,24 +75,24 @@ function CreateFAQDialog({ open, initialQuestion, onClose, onCreated }: CreateFA
   const { mutate: save, isPending } = useMutation({
     mutationFn: async () => {
       if (!question.trim() || !answer.trim()) throw new Error("Pertanyaan dan jawaban wajib diisi.");
-      // Get current max sort_order
-      const { data: existing } = await supabase
-        .from("faqs")
-        .select("sort_order")
-        .order("sort_order", { ascending: false })
-        .limit(1);
-      const maxOrder = existing?.[0]?.sort_order ?? 0;
-      const { error } = await supabase.from("faqs").insert({
-        question: question.trim(),
-        answer: answer.trim(),
-        category,
-        is_published: isPublished,
-        sort_order: maxOrder + 1,
+      const res = await fetch("/api/v1/chatbot/faqs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: question.trim(),
+          answer: answer.trim(),
+          category,
+          is_published: isPublished,
+        }),
       });
-      if (error) throw error;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Gagal menyimpan FAQ");
+      }
+      return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-faqs"] });
+      qc.invalidateQueries({ queryKey: ["unanswered-questions"] });
       toast.success("FAQ berhasil ditambahkan dan langsung aktif sebagai knowledge base chatbot.", {
         description: "Chatbot akan menggunakan FAQ baru ini pada percakapan berikutnya.",
       });
@@ -127,7 +116,6 @@ function CreateFAQDialog({ open, initialQuestion, onClose, onCreated }: CreateFA
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* Question */}
           <div className="space-y-1.5">
             <Label htmlFor="faq-question">Pertanyaan <span className="text-destructive">*</span></Label>
             <Input
@@ -138,7 +126,6 @@ function CreateFAQDialog({ open, initialQuestion, onClose, onCreated }: CreateFA
             />
           </div>
 
-          {/* Answer */}
           <div className="space-y-1.5">
             <Label htmlFor="faq-answer">
               Jawaban <span className="text-destructive">*</span>
@@ -156,7 +143,6 @@ function CreateFAQDialog({ open, initialQuestion, onClose, onCreated }: CreateFA
             </p>
           </div>
 
-          {/* Category + published */}
           <div className="flex gap-3 items-end">
             <div className="flex-1 space-y-1.5">
               <Label>Kategori</Label>
@@ -177,7 +163,6 @@ function CreateFAQDialog({ open, initialQuestion, onClose, onCreated }: CreateFA
             </div>
           </div>
 
-          {/* Preview hint */}
           <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs text-blue-700 flex items-start gap-2">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500" />
             Cache FAQ akan otomatis diperbarui. Chatbot akan menggunakan FAQ baru ini pada percakapan berikutnya (maks. 60 detik).
@@ -213,57 +198,19 @@ export function UnansweredQuestionsWidget() {
   const [range, setRange] = useState<DayRange>(30);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState("");
-  const [createdFAQs, setCreatedFAQs] = useState<Set<string>>(new Set()); // normalized keys
+  const [createdFAQs, setCreatedFAQs] = useState<Set<string>>(new Set());
 
-  const { data: entries = [], isLoading, refetch, isFetching } = useQuery<UnansweredEntry[]>({
+  const { data, isLoading, refetch, isFetching } = useQuery<{ entries: UnansweredEntry[]; range: number }>({
     queryKey: ["unanswered-questions", range],
     queryFn: async () => {
-      const since = new Date();
-      since.setDate(since.getDate() - range);
-
-      const { data, error } = await supabase
-        .from("chatbot_logs")
-        .select("id, message, created_at")
-        .eq("is_unanswered", true)
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(500);
-
-      if (error) throw error;
-      const logs = (data || []) as RawLog[];
-
-      // Group by normalized question text
-      const map = new Map<string, UnansweredEntry>();
-      for (const log of logs) {
-        if (!log.message?.trim()) continue;
-        const key = normalizeQ(log.message);
-        const existing = map.get(key);
-        if (existing) {
-          existing.count++;
-          existing.logIds.push(log.id);
-          // Keep the longest display text as representative
-          if (log.message.length > existing.display.length) existing.display = log.message;
-          // Keep the most recent timestamp
-          if (log.created_at > existing.lastSeen) existing.lastSeen = log.created_at;
-        } else {
-          map.set(key, {
-            normalized: key,
-            display: log.message.trim(),
-            count: 1,
-            lastSeen: log.created_at,
-            logIds: [log.id],
-          });
-        }
-      }
-
-      // Sort by count desc, then by lastSeen desc as tiebreaker
-      return Array.from(map.values())
-        .sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen))
-        .slice(0, 15);
+      const res = await fetch(`/api/v1/chatbot/unanswered?range=${range}`);
+      if (!res.ok) throw new Error("Failed to fetch unanswered questions");
+      return res.json();
     },
     staleTime: 60_000,
   });
 
+  const entries = data?.entries || [];
   const maxCount = Math.max(...entries.map((e) => e.count), 1);
   const totalUnanswered = entries.reduce((s, e) => s + e.count, 0);
 
@@ -296,7 +243,6 @@ export function UnansweredQuestionsWidget() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {/* Day range selector */}
               <div className="flex rounded-lg border bg-background overflow-hidden">
                 {([7, 14, 30, 90] as DayRange[]).map((r) => (
                   <button
@@ -353,22 +299,17 @@ export function UnansweredQuestionsWidget() {
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Rank badge */}
                       <div
                         className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5 ${
-                          i === 0
-                            ? "bg-amber-400 text-white"
-                            : i === 1
-                            ? "bg-amber-300 text-white"
-                            : i === 2
-                            ? "bg-amber-200 text-amber-800"
-                            : "bg-gray-100 text-gray-500"
+                          i === 0 ? "bg-amber-400 text-white"
+                          : i === 1 ? "bg-amber-300 text-white"
+                          : i === 2 ? "bg-amber-200 text-amber-800"
+                          : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         {i + 1}
                       </div>
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium leading-snug line-clamp-2 mb-1">
                           {entry.display}
@@ -398,7 +339,6 @@ export function UnansweredQuestionsWidget() {
                         </div>
                       </div>
 
-                      {/* Action */}
                       <div className="shrink-0 flex items-center">
                         {alreadyFAQ ? (
                           <span className="flex items-center gap-1 text-xs text-green-600 font-medium px-2 py-1 bg-green-50 rounded-full border border-green-200">
@@ -421,7 +361,6 @@ export function UnansweredQuestionsWidget() {
                 );
               })}
 
-              {/* Footer */}
               <div className="flex items-center justify-between pt-3 mt-2 border-t">
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3 text-amber-400" />

@@ -468,42 +468,139 @@ router.get('/channel-prompts', async (_req: any, res: any) => {
 });
 
 // ─── GET /api/v1/chatbot/stats ────────────────────────────────────────────────
-router.get('/stats', async (_req: any, res: any) => {
+router.get('/stats', async (req: any, res: any) => {
   try {
-    const total = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(chatbotLogs);
+    const range = Math.min(Math.max(Number(req.query.range) || 14, 1), 90);
+    const since = new Date();
+    since.setDate(since.getDate() - range);
+    const sinceIso = since.toISOString();
 
-    const bySource = await db
-      .select({ source: chatbotLogs.source, count: sql<number>`count(*)` })
-      .from(chatbotLogs)
-      .groupBy(chatbotLogs.source);
-
-    const ratings = await db
-      .select({
+    const [total, totalInRange, bySource, bySourceInRange, ratings, unansweredInRange, byDay] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(chatbotLogs),
+      db.select({ count: sql<number>`count(*)` }).from(chatbotLogs)
+        .where(sql`created_at >= ${sinceIso}`),
+      db.select({ source: chatbotLogs.source, count: sql<number>`count(*)` })
+        .from(chatbotLogs).groupBy(chatbotLogs.source),
+      db.select({ source: chatbotLogs.source, count: sql<number>`count(*)` })
+        .from(chatbotLogs).where(sql`created_at >= ${sinceIso}`).groupBy(chatbotLogs.source),
+      db.select({
         positive: sql<number>`count(*) filter (where rating = 1)`,
         negative: sql<number>`count(*) filter (where rating = -1)`,
         total: sql<number>`count(*) filter (where rating is not null)`,
-      })
-      .from(chatbotLogs);
+      }).from(chatbotLogs),
+      db.select({ count: sql<number>`count(*)` }).from(chatbotLogs)
+        .where(and(sql`created_at >= ${sinceIso}`, eq(chatbotLogs.isUnanswered, true))),
+      db.execute(sql`
+        SELECT date_trunc('day', created_at) AS day, source, count(*) AS count
+        FROM chatbot_logs
+        WHERE created_at >= ${sinceIso}
+        GROUP BY 1, 2
+        ORDER BY 1
+      `),
+    ]);
 
-    const unanswered = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(chatbotLogs)
-      .where(eq(chatbotLogs.isUnanswered, true));
+    // Build daily breakdown for the full range
+    const dayMap: Record<string, Record<string, number>> = {};
+    for (let i = 0; i < range; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (range - 1 - i));
+      dayMap[d.toISOString().slice(0, 10)] = { gemini: 0, openai: 0, faq: 0 };
+    }
+    for (const row of byDay.rows as any[]) {
+      const d = new Date(row.day).toISOString().slice(0, 10);
+      if (dayMap[d]) dayMap[d][row.source] = Number(row.count);
+    }
+    const byDayArr = Object.entries(dayMap).map(([date, sources]) => ({
+      date,
+      gemini: sources.gemini || 0,
+      openai: sources.openai || 0,
+      faq: sources.faq || 0,
+      total: (sources.gemini || 0) + (sources.openai || 0) + (sources.faq || 0),
+    }));
 
     return res.json({
       total: Number(total[0]?.count || 0),
+      totalInRange: Number(totalInRange[0]?.count || 0),
       bySource: bySource.map(r => ({ source: r.source, count: Number(r.count) })),
+      bySourceInRange: bySourceInRange.map(r => ({ source: r.source, count: Number(r.count) })),
       ratings: {
         positive: Number(ratings[0]?.positive || 0),
         negative: Number(ratings[0]?.negative || 0),
         total: Number(ratings[0]?.total || 0),
       },
-      unanswered: Number(unanswered[0]?.count || 0),
+      unanswered: Number(unansweredInRange[0]?.count || 0),
+      byDay: byDayArr,
+      range,
     });
+  } catch (e) {
+    console.error('stats error:', e);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/v1/chatbot/unanswered ───────────────────────────────────────────
+router.get('/unanswered', async (req: any, res: any) => {
+  try {
+    const range = Math.min(Math.max(Number(req.query.range) || 30, 1), 90);
+    const since = new Date();
+    since.setDate(since.getDate() - range);
+
+    const logs = await db
+      .select({ id: chatbotLogs.id, message: chatbotLogs.message, createdAt: chatbotLogs.createdAt })
+      .from(chatbotLogs)
+      .where(and(eq(chatbotLogs.isUnanswered, true), sql`created_at >= ${since.toISOString()}`))
+      .orderBy(sql`created_at desc`)
+      .limit(500);
+
+    const map = new Map<string, { normalized: string; display: string; count: number; lastSeen: string; logIds: string[] }>();
+    for (const log of logs) {
+      if (!log.message?.trim()) continue;
+      const key = log.message.toLowerCase().trim().replace(/\s+/g, ' ').slice(0, 100);
+      const existing = map.get(key);
+      const ts = log.createdAt ? new Date(log.createdAt).toISOString() : new Date().toISOString();
+      if (existing) {
+        existing.count++;
+        existing.logIds.push(log.id);
+        if (log.message.length > existing.display.length) existing.display = log.message;
+        if (ts > existing.lastSeen) existing.lastSeen = ts;
+      } else {
+        map.set(key, { normalized: key, display: log.message.trim(), count: 1, lastSeen: ts, logIds: [log.id] });
+      }
+    }
+
+    const entries = Array.from(map.values())
+      .sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen))
+      .slice(0, 15);
+
+    return res.json({ entries, range });
   } catch {
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/v1/chatbot/faqs ────────────────────────────────────────────────
+router.post('/faqs', async (req: any, res: any) => {
+  try {
+    const { question, answer, category = 'Umum', is_published = true } = req.body;
+    if (!question?.trim() || !answer?.trim()) {
+      return res.status(400).json({ error: 'question and answer are required' });
+    }
+
+    const existing = await db.select({ sortOrder: faqs.sortOrder }).from(faqs)
+      .orderBy(sql`sort_order desc`).limit(1);
+    const maxOrder = existing[0]?.sortOrder ?? 0;
+
+    const rows = await db.insert(faqs).values({
+      question: question.trim(),
+      answer: answer.trim(),
+      category,
+      isPublished: is_published,
+      sortOrder: maxOrder + 1,
+    }).returning({ id: faqs.id });
+
+    return res.json({ ok: true, id: rows[0]?.id });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message || 'Internal server error' });
   }
 });
 
