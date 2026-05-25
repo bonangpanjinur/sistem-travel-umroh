@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../../lib/db.js';
 import { appSettings, faqs, chatbotLogs } from '@workspace/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, or } from 'drizzle-orm';
 
 const router = Router();
 
@@ -574,6 +574,122 @@ router.get('/unanswered', async (req: any, res: any) => {
 
     return res.json({ entries, range });
   } catch {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/v1/chatbot/logs ─────────────────────────────────────────────────
+router.get('/logs', async (req: any, res: any) => {
+  try {
+    const page = Math.max(0, Number(req.query.page) || 0);
+    const pageSize = Math.min(Math.max(Number(req.query.pageSize) || 30, 1), 200);
+    const search = (req.query.search as string || '').trim();
+    const source = req.query.source as string || '';
+    const channel = req.query.channel as string || '';
+    const rating = req.query.rating as string || '';
+    const unansweredOnly = req.query.unanswered === '1';
+
+    const conditions: any[] = [];
+    if (source) conditions.push(eq(chatbotLogs.source, source));
+    if (channel) conditions.push(eq(chatbotLogs.channel, channel));
+    if (rating === 'positive') conditions.push(eq(chatbotLogs.rating, 1));
+    else if (rating === 'negative') conditions.push(eq(chatbotLogs.rating, -1));
+    else if (rating === 'unrated') conditions.push(sql`rating is null`);
+    if (unansweredOnly) conditions.push(eq(chatbotLogs.isUnanswered, true));
+    if (search) {
+      const s = search.replace(/'/g, "''");
+      conditions.push(
+        or(
+          sql`message ilike ${'%' + s + '%'}`,
+          sql`answer ilike ${'%' + s + '%'}`,
+          sql`session_id ilike ${'%' + s + '%'}`,
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0
+      ? conditions.length === 1
+        ? conditions[0]
+        : and(...conditions)
+      : undefined;
+
+    const [countResult, rows] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(chatbotLogs).where(whereClause),
+      db.select({
+        id: chatbotLogs.id,
+        sessionId: chatbotLogs.sessionId,
+        message: chatbotLogs.message,
+        answer: chatbotLogs.answer,
+        source: chatbotLogs.source,
+        rating: chatbotLogs.rating,
+        isUnanswered: chatbotLogs.isUnanswered,
+        channel: chatbotLogs.channel,
+        createdAt: chatbotLogs.createdAt,
+      })
+        .from(chatbotLogs)
+        .where(whereClause)
+        .orderBy(sql`created_at desc`)
+        .limit(pageSize)
+        .offset(page * pageSize),
+    ]);
+
+    const total = Number(countResult[0]?.count || 0);
+    const logs = rows.map(r => ({
+      id: r.id,
+      session_id: r.sessionId,
+      message: r.message,
+      answer: r.answer,
+      source: r.source,
+      rating: r.rating,
+      is_unanswered: r.isUnanswered,
+      channel: r.channel,
+      created_at: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+    }));
+
+    return res.json({ logs, total, page, pageSize });
+  } catch (e) {
+    console.error('logs error:', e);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/v1/chatbot/sessions/:sessionId ──────────────────────────────────
+router.get('/sessions/:sessionId', async (req: any, res: any) => {
+  try {
+    const { sessionId } = req.params;
+    if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+
+    const rows = await db.select({
+      id: chatbotLogs.id,
+      sessionId: chatbotLogs.sessionId,
+      message: chatbotLogs.message,
+      answer: chatbotLogs.answer,
+      source: chatbotLogs.source,
+      rating: chatbotLogs.rating,
+      isUnanswered: chatbotLogs.isUnanswered,
+      channel: chatbotLogs.channel,
+      createdAt: chatbotLogs.createdAt,
+    })
+      .from(chatbotLogs)
+      .where(eq(chatbotLogs.sessionId, sessionId))
+      .orderBy(sql`created_at asc`)
+      .limit(200);
+
+    const logs = rows.map(r => ({
+      id: r.id,
+      session_id: r.sessionId,
+      message: r.message,
+      answer: r.answer,
+      source: r.source,
+      rating: r.rating,
+      is_unanswered: r.isUnanswered,
+      channel: r.channel,
+      created_at: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+    }));
+
+    return res.json({ logs, sessionId });
+  } catch (e) {
+    console.error('session replay error:', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
