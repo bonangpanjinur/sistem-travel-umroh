@@ -80,6 +80,11 @@ interface Jamaah {
   remaining?: number;
 }
 
+interface WASettings {
+  senderNumber: string;
+  isActive: boolean;
+}
+
 const AUTO_TRIGGERS = [
   { key: "on_booking_created",  label: "Booking Baru Dibuat",      template: "BOOKING_CONFIRM",    desc: "Konfirmasi booking saat booking baru dibuat" },
   { key: "on_payment_verified", label: "Pembayaran Diverifikasi",  template: "PAYMENT_CONFIRM",    desc: "Konfirmasi setiap kali pembayaran diverifikasi" },
@@ -147,11 +152,21 @@ export default function AdminWhatsApp() {
     refetchInterval: 30_000,
   });
 
+  const failedBulkCount = bulkResults.filter(r => r.status === "failed").length;
+  const noPhoneCount = (jamaahList as Jamaah[]).filter(j => !j.phone).length;
+
   const { data: waSettings } = useQuery({
     queryKey: ["wa-settings"],
-    queryFn: () => apiFetch<{ senderNumber: string; isActive: boolean }>("/settings"),
-    onSuccess: (d) => { setSenderNumber(d.senderNumber); setIsActive(d.isActive); },
-  } as any);
+    queryFn: () => apiFetch<WASettings>("/settings"),
+  });
+
+  // Update local state when settings are loaded
+  useMemo(() => {
+    if (waSettings) {
+      setSenderNumber(waSettings.senderNumber);
+      setIsActive(waSettings.isActive);
+    }
+  }, [waSettings]);
 
   const { data: templates = [] } = useQuery({
     queryKey: ["wa-templates"],
@@ -728,11 +743,11 @@ export default function AdminWhatsApp() {
                   <Select value={reminderDeparture} onValueChange={setReminderDeparture}>
                     <SelectTrigger><SelectValue placeholder="Pilih keberangkatan..." /></SelectTrigger>
                     <SelectContent>
-                      {(departures as any[]).map((dep: any) => {
-                        const daysLeft = differenceInDays(new Date(dep.departure_date), new Date());
+                      {(departures as any[]).map((d: any) => {
+                        const daysLeft = differenceInDays(new Date(d.departure_date), new Date());
                         return (
-                          <SelectItem key={dep.id} value={dep.id}>
-                            {dep.package?.name} — {format(new Date(dep.departure_date), "dd MMM yyyy", { locale: id })}
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.package?.name} — {format(new Date(d.departure_date), "dd MMM yyyy", { locale: id })}
                             {daysLeft >= 0 && daysLeft <= 14 && ` (H-${daysLeft})`}
                           </SelectItem>
                         );
