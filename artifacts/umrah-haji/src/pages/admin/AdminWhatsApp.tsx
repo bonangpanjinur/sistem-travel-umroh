@@ -152,9 +152,6 @@ export default function AdminWhatsApp() {
     refetchInterval: 30_000,
   });
 
-  const failedBulkCount = bulkResults.filter(r => r.status === "failed").length;
-  const noPhoneCount = (jamaahList as Jamaah[]).filter(j => !j.phone).length;
-
   const { data: waSettings } = useQuery({
     queryKey: ["wa-settings"],
     queryFn: () => apiFetch<WASettings>("/settings"),
@@ -484,7 +481,7 @@ export default function AdminWhatsApp() {
   const sentCount         = logs.filter(l => l.status === "sent").length;
   const failedCount       = logs.filter(l => l.status === "failed").length;
   const failedBulkCount   = bulkResults.filter(r => r.status === "failed").length;
-  const noPhoneCount      = (jamaahList as Jamaah[]).filter(j => !j.phone).length;
+  const noPhoneCount      = (jamaahList as Jamaah[]).length > 0 ? (jamaahList as Jamaah[]).filter(j => !j.phone).length : 0;
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
