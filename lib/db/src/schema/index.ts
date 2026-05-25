@@ -116,26 +116,81 @@ export const apiKeys = pgTable("api_keys", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+// ── customers ─────────────────────────────────────────────────────────────────
+export const customers = pgTable("customers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id"),
+  branchId: uuid("branch_id"),
+  agentId: uuid("agent_id"),
+  fullName: text("full_name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  city: text("city"),
+  province: text("province"),
+  country: text("country").default("Indonesia"),
+  postalCode: text("postal_code"),
+  dateOfBirth: date("date_of_birth"),
+  placeOfBirth: text("place_of_birth"),
+  gender: text("gender"),
+  nationalId: text("national_id"),
+  passportNumber: text("passport_number"),
+  passportExpiry: date("passport_expiry"),
+  photoUrl: text("photo_url"),
+  isTourLeader: boolean("is_tour_leader").default(false),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 // ── bookings ──────────────────────────────────────────────────────────────────
 export const bookings = pgTable("bookings", {
   id: uuid("id").primaryKey().defaultRandom(),
   departureId: uuid("departure_id"),
   customerId: uuid("customer_id"),
+  agentId: uuid("agent_id"),
+  branchId: uuid("branch_id"),
+  salesId: uuid("sales_id"),
   bookingCode: text("booking_code"),
+  bookingStatus: text("booking_status").default("pending"),
+  roomType: text("room_type").default("double"),
+  totalPax: integer("total_pax").default(1),
+  adultCount: integer("adult_count").default(1),
+  childCount: integer("child_count").default(0),
+  infantCount: integer("infant_count").default(0),
+  basePrice: numeric("base_price", { precision: 15, scale: 2 }).default("0"),
+  totalPrice: numeric("total_price", { precision: 15, scale: 2 }).default("0"),
+  discountAmount: numeric("discount_amount", { precision: 15, scale: 2 }).default("0"),
+  addonsPrice: numeric("addons_price", { precision: 15, scale: 2 }).default("0"),
+  paidAmount: numeric("paid_amount", { precision: 15, scale: 2 }).default("0"),
+  remainingAmount: numeric("remaining_amount", { precision: 15, scale: 2 }).default("0"),
+  paymentStatus: text("payment_status").default("pending"),
+  paymentDeadline: timestamp("payment_deadline", { withTimezone: true }),
+  currency: text("currency").default("IDR"),
+  notes: text("notes"),
   status: text("status").default("pending"),
   roomNumber: text("room_number"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-// ── customers ─────────────────────────────────────────────────────────────────
-export const customers = pgTable("customers", {
+// ── payments ──────────────────────────────────────────────────────────────────
+export const payments = pgTable("payments", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id"),
-  branchId: uuid("branch_id"),
-  fullName: text("full_name").notNull(),
-  isTourLeader: boolean("is_tour_leader").default(false),
-  isActive: boolean("is_active").default(true),
+  bookingId: uuid("booking_id").notNull(),
+  paymentCode: text("payment_code").notNull(),
+  amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
+  status: text("status").default("pending"),
+  paymentMethod: text("payment_method"),
+  bankName: text("bank_name"),
+  accountName: text("account_name"),
+  accountNumber: text("account_number"),
+  proofUrl: text("proof_url"),
+  notes: text("notes"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  verifiedBy: uuid("verified_by"),
+  paymentDate: date("payment_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -183,9 +238,38 @@ export const waTemplates = pgTable("wa_templates", {
   messageTemplate: text("message_template").notNull(),
   variables: jsonb("variables").default([]),
   isActive: boolean("is_active").default(true),
+
+// ── booking_passengers ────────────────────────────────────────────────────────
+export const bookingPassengers = pgTable("booking_passengers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bookingId: uuid("booking_id").notNull(),
+  customerId: uuid("customer_id").notNull(),
+  isMainPassenger: boolean("is_main_passenger").default(false),
+  passengerType: text("passenger_type").default("adult"),
+  roomNumber: text("room_number"),
+  roomPreference: text("room_preference"),
+  roommateId: uuid("roommate_id"),
+  specialRequests: text("special_requests"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── refunds ───────────────────────────────────────────────────────────────────
+export const refunds = pgTable("refunds", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bookingId: uuid("booking_id").notNull(),
+  customerId: uuid("customer_id"),
+  amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
+  refundMethod: text("refund_method").default("transfer_bank"),
+  accountInfo: text("account_info"),
+  reason: text("reason"),
+  status: text("status").default("pending"),
+  createdBy: uuid("created_by"),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
+
 
 // ── wa_send_logs ──────────────────────────────────────────────────────────────
 export const waSendLogs = pgTable("wa_send_logs", {
@@ -202,6 +286,9 @@ export const waSendLogs = pgTable("wa_send_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+
+// ── types ─────────────────────────────────────────────────────────────────────
+
 export type Package = typeof packages.$inferSelect;
 export type Departure = typeof departures.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
@@ -210,6 +297,11 @@ export type Lead = typeof leads.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
+
 export type AppSetting = typeof appSettings.$inferSelect;
 export type FAQ = typeof faqs.$inferSelect;
 export type ChatbotLog = typeof chatbotLogs.$inferSelect;
+
+export type Payment = typeof payments.$inferSelect;
+export type BookingPassenger = typeof bookingPassengers.$inferSelect;
+export type Refund = typeof refunds.$inferSelect;
