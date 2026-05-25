@@ -238,6 +238,9 @@ export const waTemplates = pgTable("wa_templates", {
   messageTemplate: text("message_template").notNull(),
   variables: jsonb("variables").default([]),
   isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
 
 // ── booking_passengers ────────────────────────────────────────────────────────
 export const bookingPassengers = pgTable("booking_passengers", {
@@ -265,7 +268,6 @@ export const refunds = pgTable("refunds", {
   status: text("status").default("pending"),
   createdBy: uuid("created_by"),
   processedAt: timestamp("processed_at", { withTimezone: true }),
-
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -305,3 +307,5 @@ export type ChatbotLog = typeof chatbotLogs.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type BookingPassenger = typeof bookingPassengers.$inferSelect;
 export type Refund = typeof refunds.$inferSelect;
+export type WaTemplate = typeof waTemplates.$inferSelect;
+export type WaSendLog = typeof waSendLogs.$inferSelect;
