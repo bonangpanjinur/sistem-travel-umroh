@@ -1,6 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { supabase as supabaseRaw } from "@/integrations/supabase/client";
-const supabase: any = supabaseRaw;
+import { useState, useEffect } from "react";
 import { UnansweredQuestionsWidget } from "@/components/admin/chatbot/UnansweredQuestionsWidget";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,27 +86,16 @@ export default function AdminChatbotStats() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<7 | 14 | 30>(14);
   const [realtimeCount, setRealtimeCount] = useState(0);
-  const channelRef = useRef<any>(null);
 
   useEffect(() => { load(); }, [range]);
 
-  // P8: Supabase realtime subscription on chatbot_logs
   useEffect(() => {
-    channelRef.current = supabase
-      .channel('chatbot-stats-realtime')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chatbot_logs',
-      }, () => {
-        setRealtimeCount(c => c + 1);
-        load();
-      })
-      .subscribe();
-    return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
-    };
-  }, []);
+    const timer = setInterval(() => {
+      setRealtimeCount(c => c + 1);
+      load();
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, [range]);
 
   async function load() {
     setLoading(true);
@@ -118,37 +105,23 @@ export default function AdminChatbotStats() {
       const startOfWeek = new Date(startOfToday);
       startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const rangeStart = new Date(startOfToday);
-      rangeStart.setDate(startOfToday.getDate() - (range - 1));
 
-      const [leadsRes, settingsRes, logsRes] = await Promise.all([
-        supabase.from("chat_leads").select("id,status,message,created_at").order("created_at", { ascending: false }).limit(500),
-        supabase.from("app_settings").select("key,value").in("key", ["gemini_chatbot_config"]),
-        supabase.from("chatbot_logs").select("id,source,rating,created_at").order("created_at", { ascending: false }).limit(1000),
+      const [statsRes, configRes, leadsRes] = await Promise.all([
+        fetch("/api/v1/chatbot/stats").then(r => r.ok ? r.json() : null),
+        fetch("/api/v1/chatbot/config").then(r => r.ok ? r.json() : null),
+        fetch(`/api/v1/leads?limit=500`).then(r => r.ok ? r.json() : { leads: [] }).catch(() => ({ leads: [] })),
       ]);
 
-      const leads: any[] = leadsRes.data || [];
-      const logs: any[] = logsRes.data || [];
+      const leads: any[] = leadsRes?.leads || leadsRes?.data || [];
+      const chatStats = statsRes || { total: 0, bySource: [], ratings: { positive: 0, negative: 0, total: 0 }, unanswered: 0 };
 
-      let geminiActive = false;
-      let currentModel = "gemini-2.0-flash";
-      if (settingsRes.data?.length) {
-        for (const row of settingsRes.data) {
-          if (row.key === "gemini_chatbot_config") {
-            try {
-              const cfg = JSON.parse(row.value);
-              if (cfg.model) currentModel = cfg.model;
-            } catch {}
-          }
-        }
-      }
-      // geminiActive if any log is from gemini/openai source
-      geminiActive = logs.some(l => l.source === "gemini" || l.source === "openai");
+      const currentModel = configRes?.model || "gemini-2.0-flash";
+      const geminiActive = configRes?.geminiKeySet === true;
 
       const totalLeads = leads.length;
-      const leadsToday = leads.filter(l => new Date(l.created_at) >= startOfToday).length;
-      const leadsThisWeek = leads.filter(l => new Date(l.created_at) >= startOfWeek).length;
-      const leadsThisMonth = leads.filter(l => new Date(l.created_at) >= startOfMonth).length;
+      const leadsToday = leads.filter((l: any) => new Date(l.created_at) >= startOfToday).length;
+      const leadsThisWeek = leads.filter((l: any) => new Date(l.created_at) >= startOfWeek).length;
+      const leadsThisMonth = leads.filter((l: any) => new Date(l.created_at) >= startOfMonth).length;
 
       const dayMap: Record<string, number> = {};
       for (let i = 0; i < range; i++) {
@@ -156,46 +129,25 @@ export default function AdminChatbotStats() {
         d.setDate(d.getDate() - (range - 1 - i));
         dayMap[d.toISOString().slice(0, 10)] = 0;
       }
-      leads.forEach(l => {
+      leads.forEach((l: any) => {
         const d = l.created_at?.slice(0, 10);
         if (d && d in dayMap) dayMap[d]++;
       });
       const byDay: DayStat[] = Object.entries(dayMap).map(([date, count]) => ({ date, count }));
       const avgPerDay = byDay.length > 0 ? +(byDay.reduce((s, d) => s + d.count, 0) / byDay.length).toFixed(1) : 0;
 
-      const [logsFullRes] = await Promise.all([
-        supabase.from("chatbot_logs").select("id,message").order("created_at", { ascending: false }).limit(500),
-      ]);
-      const logsForQ: any[] = logsFullRes.data || [];
-      const qMap: Record<string, number> = {};
-      logsForQ.forEach(l => {
-        if (l.message) {
-          const key = l.message.slice(0, 60).trim();
-          qMap[key] = (qMap[key] || 0) + 1;
-        }
-      });
-      const topQuestions: TopQuestion[] = Object.entries(qMap)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 7)
-        .map(([text, count]) => ({ text, count }));
-
       const statusMap: Record<string, number> = {};
-      leads.forEach(l => { if (l.status) statusMap[l.status] = (statusMap[l.status] || 0) + 1; });
+      leads.forEach((l: any) => { if (l.status) statusMap[l.status] = (statusMap[l.status] || 0) + 1; });
       const statusBreakdown = Object.entries(statusMap).map(([status, count]) => ({ status, count }));
 
-      // chatbot_logs stats
-      const totalMessages = logs.length;
-      const messagesToday = logs.filter(l => new Date(l.created_at) >= startOfToday).length;
-      const messagesThisWeek = logs.filter(l => new Date(l.created_at) >= startOfWeek).length;
-
-      const srcMap: Record<string, number> = {};
-      logs.forEach(l => { if (l.source) srcMap[l.source] = (srcMap[l.source] || 0) + 1; });
-      const sourceBreakdown = Object.entries(srcMap).map(([source, count]) => ({ source, count }));
-
-      const ratedLogs = logs.filter(l => l.rating !== null && l.rating !== undefined);
-      const ratingPositive = ratedLogs.filter(l => l.rating === 1).length;
-      const ratingNegative = ratedLogs.filter(l => l.rating === -1).length;
-      const ratingTotal = ratedLogs.length;
+      const sourceBreakdown = chatStats.bySource.map((s: any) => ({ source: s.source, count: Number(s.count) }));
+      const totalMessages = chatStats.total;
+      const messagesToday = 0;
+      const messagesThisWeek = 0;
+      const ratingPositive = chatStats.ratings.positive;
+      const ratingNegative = chatStats.ratings.negative;
+      const ratingTotal = chatStats.ratings.total;
+      const topQuestions: TopQuestion[] = [];
 
       setStats({
         totalLeads, leadsToday, leadsThisWeek, leadsThisMonth,
@@ -219,7 +171,7 @@ export default function AdminChatbotStats() {
     return (
       <div className="p-6 text-center text-muted-foreground">
         <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-        Gagal memuat statistik. Pastikan Supabase sudah terhubung.
+        Gagal memuat statistik. Pastikan server API berjalan.
       </div>
     );
   }

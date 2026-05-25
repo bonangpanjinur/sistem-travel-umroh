@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import { supabaseFetch, isSupabaseConfigured } from '../../lib/supabase.js';
+import { db } from '../../lib/db.js';
+import { appSettings, faqs, chatbotLogs } from '@workspace/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -18,7 +20,7 @@ STRUKTUR URL WEBSITE — gunakan format Markdown untuk link yang bisa diklik:
 - Hubungi kami: [Kontak Kami](/hubungi-kami)
 Format link: [teks](/path)`;
 
-// ─── Default system prompt per channel (P7) ───────────────────────────────────
+// ─── Default system prompt per channel ───────────────────────────────────────
 const DEFAULT_CHANNEL_PROMPTS: Record<string, string> = {
   widget: `Kamu adalah Asisten Virtual Vinstour Travel di website publik. Jawab pertanyaan calon jamaah secara singkat dan menarik. Dorong mereka untuk mendaftar atau menghubungi agen. Gunakan bahasa yang ramah dan persuasif.`,
   jamaah: `Kamu adalah Asisten Virtual Vinstour Travel untuk jamaah yang sudah terdaftar. Bantu mereka dengan pertanyaan spesifik tentang perjalanan mereka: dokumen, jadwal, pembayaran, visa, hotel, dll. Gunakan bahasa yang personal dan supportif.`,
@@ -38,7 +40,6 @@ const FAQ_KNOWLEDGE: Record<string, string> = {
   refund: `💳 Kebijakan Refund:\n- H-90 s.d H-60: refund 75%\n- H-60 s.d H-30: refund 50%\n- H-30 s.d H-7: refund 25%\n- < H-7: tidak ada refund\n\nHubungi admin via CS → /customer/support`,
 };
 
-// ─── P6: FAQ answer with unanswered detection ─────────────────────────────────
 function findFAQAnswerResult(question: string): { answer: string; isUnanswered: boolean } {
   const q = question.toLowerCase();
   for (const [key, answer] of Object.entries(FAQ_KNOWLEDGE)) {
@@ -58,7 +59,6 @@ function findFAQAnswerResult(question: string): { answer: string; isUnanswered: 
     return { answer: 'Program referral tersedia di menu Referral → /jamaah/referral. Ajak keluarga & teman dan dapatkan poin bonus! 🎁', isUnanswered: false };
   if (q.includes('sos') || q.includes('darurat') || q.includes('emergency'))
     return { answer: '🆘 Dalam keadaan darurat, gunakan tombol SOS di portal jamaah Anda. Muthawif dan tim Vinstour akan merespons secepatnya.', isUnanswered: false };
-  // Generic fallback — flagged as unanswered (P6)
   return {
     answer: `Terima kasih atas pertanyaan Anda 🤲\n\nSaya belum memiliki informasi spesifik tentang hal ini. Silakan:\n1. Chat langsung dengan pembimbing → /jamaah/chat\n2. Buat tiket dukungan → /customer/support\n\nTim kami siap membantu Anda!`,
     isUnanswered: true,
@@ -102,7 +102,10 @@ async function callGemini(
       }),
     },
   );
-  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+  if (!res.ok) {
+    const errData: any = await res.json().catch(() => ({}));
+    throw new Error(errData?.error?.message || `Gemini HTTP ${res.status}`);
+  }
   const data: any = await res.json();
   const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!answer) throw new Error('Empty Gemini response');
@@ -127,12 +130,12 @@ async function callOpenAI(apiKey: string, systemPrompt: string, message: string,
   return answer;
 }
 
-// ─── Fetch admin-configured system prompt from Supabase (cached 60s) ──────────
+// ─── Fetch admin-configured system prompt from Neon DB (cached 60s) ───────────
 let cachedAdminConfig: {
   systemPrompt: string;
   model: string;
   enableFAQContext: boolean;
-  channelPrompts: Record<string, string>; // P7
+  channelPrompts: Record<string, string>;
   ts: number;
 } | null = null;
 
@@ -140,7 +143,7 @@ async function getAdminConfig(): Promise<{
   systemPrompt: string;
   model: string;
   enableFAQContext: boolean;
-  channelPrompts: Record<string, string>; // P7
+  channelPrompts: Record<string, string>;
 }> {
   const now = Date.now();
   if (cachedAdminConfig && now - cachedAdminConfig.ts < 60_000) {
@@ -151,36 +154,38 @@ async function getAdminConfig(): Promise<{
       channelPrompts: cachedAdminConfig.channelPrompts,
     };
   }
-  if (!isSupabaseConfigured()) {
-    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true, channelPrompts: {} };
-  }
+
+  const defaults = { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true, channelPrompts: {} };
 
   try {
-    const rows: any[] = await supabaseFetch(
-      `/app_settings?key=in.("gemini_chatbot_config")&select=key,value&limit=1`,
-    );
+    const rows = await db
+      .select({ key: appSettings.key, value: appSettings.value })
+      .from(appSettings)
+      .where(eq(appSettings.key, 'gemini_chatbot_config'));
+
     let systemPrompt = DEFAULT_SYSTEM_PROMPT;
     let model = 'gemini-2.0-flash';
     let enableFAQContext = true;
-    let channelPrompts: Record<string, string> = {}; // P7
-    for (const row of rows || []) {
+    let channelPrompts: Record<string, string> = {};
+
+    for (const row of rows) {
       if (row.key === 'gemini_chatbot_config') {
         try {
           const cfg = JSON.parse(row.value);
           if (cfg.systemPrompt) systemPrompt = cfg.systemPrompt;
           if (cfg.model && ALLOWED_GEMINI_MODELS.has(cfg.model)) model = cfg.model;
           if (typeof cfg.enableFAQContext === 'boolean') enableFAQContext = cfg.enableFAQContext;
-          // P7: per-channel prompts
           if (cfg.channelPrompts && typeof cfg.channelPrompts === 'object') {
             channelPrompts = cfg.channelPrompts;
           }
         } catch {}
       }
     }
+
     cachedAdminConfig = { systemPrompt, model, enableFAQContext, channelPrompts, ts: now };
     return { systemPrompt, model, enableFAQContext, channelPrompts };
   } catch {
-    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, model: 'gemini-2.0-flash', enableFAQContext: true, channelPrompts: {} };
+    return defaults;
   }
 }
 
@@ -192,22 +197,23 @@ async function getFAQContext(): Promise<{ text: string; count: number }> {
   if (cachedFAQContext && now - cachedFAQContext.ts < 60_000) {
     return { text: cachedFAQContext.text, count: cachedFAQContext.count };
   }
-  if (!isSupabaseConfigured()) return { text: '', count: 0 };
 
   try {
-    const faqs: any[] = await supabaseFetch(
-      `/faqs?is_published=eq.true&select=question,answer,category&order=sort_order.asc&limit=60`,
-    );
+    const faqRows = await db
+      .select({ question: faqs.question, answer: faqs.answer, category: faqs.category })
+      .from(faqs)
+      .where(eq(faqs.isPublished, true))
+      .orderBy(faqs.sortOrder)
+      .limit(60);
 
-    if (!faqs?.length) {
+    if (!faqRows.length) {
       cachedFAQContext = { text: '', count: 0, ts: now };
       return { text: '', count: 0 };
     }
 
-    // Group by category
     const byCategory: Record<string, Array<{ question: string; answer: string }>> = {};
-    for (const faq of faqs) {
-      const cat = (faq.category as string) || 'Umum';
+    for (const faq of faqRows) {
+      const cat = faq.category || 'Umum';
       if (!byCategory[cat]) byCategory[cat] = [];
       byCategory[cat].push({ question: faq.question, answer: faq.answer });
     }
@@ -232,16 +238,19 @@ async function getFAQContext(): Promise<{ text: string; count: number }> {
     );
 
     const text = lines.join('\n');
-    cachedFAQContext = { text, count: faqs.length, ts: now };
-    return { text, count: faqs.length };
+    cachedFAQContext = { text, count: faqRows.length, ts: now };
+    return { text, count: faqRows.length };
   } catch {
     return { text: '', count: 0 };
   }
 }
 
-// ─── Invalidate FAQ cache (called after admin saves FAQ) ─────────────────────
 function invalidateFAQCache() {
   cachedFAQContext = null;
+}
+
+function invalidateAdminConfigCache() {
+  cachedAdminConfig = null;
 }
 
 // ─── Log message pair to chatbot_logs (fire-and-forget) ──────────────────────
@@ -253,35 +262,29 @@ async function logToDB(params: {
   userId?: string;
   customerId?: string;
   channel?: string;
-  isUnanswered?: boolean; // P6
+  isUnanswered?: boolean;
 }): Promise<string | null> {
-  if (!isSupabaseConfigured()) return null;
   try {
-    const body: Record<string, any> = {
-      session_id:  params.sessionId  || null,
-      message:     params.message,
-      answer:      params.answer,
-      source:      params.source,
-      user_id:     params.userId     || null,
-      customer_id: params.customerId || null,
-      channel:     params.channel    || 'jamaah',
-    };
-    // P6: only include is_unanswered if true (graceful — column may not exist yet)
-    if (params.isUnanswered) body['is_unanswered'] = true;
-
-    const rows: any[] = await supabaseFetch('/chatbot_logs', {
-      method: 'POST',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify(body),
-    });
-    return rows?.[0]?.id ?? null;
+    const rows = await db
+      .insert(chatbotLogs)
+      .values({
+        sessionId: params.sessionId || null,
+        message: params.message,
+        answer: params.answer,
+        source: params.source,
+        userId: params.userId || null,
+        customerId: params.customerId || null,
+        channel: params.channel || 'jamaah',
+        isUnanswered: params.isUnanswered || false,
+      })
+      .returning({ id: chatbotLogs.id });
+    return rows[0]?.id ?? null;
   } catch {
     return null;
   }
 }
 
 // ─── POST /api/v1/chatbot ─────────────────────────────────────────────────────
-// Body: { message, conversationHistory?, systemPrompt?, model?, sessionId?, userId?, customerId?, channel? }
 router.post('/', async (req: any, res: any) => {
   try {
     const {
@@ -299,18 +302,15 @@ router.post('/', async (req: any, res: any) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Fetch admin config and FAQ context concurrently
     const [adminConfig, faqCtx] = await Promise.all([
       getAdminConfig(),
       getFAQContext(),
     ]);
 
-    // P7: Apply channel-specific prompt (client override > channel-specific > global)
     const channelSpecificPrompt = adminConfig.channelPrompts[channel] || DEFAULT_CHANNEL_PROMPTS[channel] || '';
     const baseSystemPrompt = clientSystemPrompt || channelSpecificPrompt || adminConfig.systemPrompt;
     const model = (clientModel && ALLOWED_GEMINI_MODELS.has(clientModel)) ? clientModel : adminConfig.model;
 
-    // ── Build enriched system prompt: base + FAQ knowledge base ──────────────
     const promptParts: string[] = [baseSystemPrompt];
     if (adminConfig.enableFAQContext && faqCtx.text) {
       promptParts.push(faqCtx.text);
@@ -319,9 +319,9 @@ router.post('/', async (req: any, res: any) => {
 
     let answer = '';
     let source = 'faq';
-    let isUnanswered = false; // P6
+    let isUnanswered = false;
 
-    // Try Gemini (env key) ────────────────────────────────────────────────────
+    // Try Gemini — env var takes priority, DB key as fallback
     const geminiKey = process.env['GEMINI_API_KEY'];
     if (geminiKey) {
       try {
@@ -330,7 +330,7 @@ router.post('/', async (req: any, res: any) => {
       } catch { /* fall through */ }
     }
 
-    // Try OpenAI ──────────────────────────────────────────────────────────────
+    // Try OpenAI
     if (!answer) {
       const openaiKey = process.env['OPENAI_API_KEY'];
       if (openaiKey) {
@@ -341,7 +341,7 @@ router.post('/', async (req: any, res: any) => {
       }
     }
 
-    // P6: Local FAQ fallback with unanswered detection ────────────────────────
+    // Local FAQ fallback
     if (!answer) {
       const result = findFAQAnswerResult(message);
       answer = result.answer;
@@ -349,7 +349,6 @@ router.post('/', async (req: any, res: any) => {
       isUnanswered = result.isUnanswered;
     }
 
-    // Log to DB (fire-and-forget — don't block the response) ─────────────────
     const logId = await logToDB({ sessionId, message, answer, source, userId, customerId, channel, isUnanswered });
 
     return res.json({ answer, source, logId, faqCount: faqCtx.count, isUnanswered });
@@ -358,23 +357,85 @@ router.post('/', async (req: any, res: any) => {
   }
 });
 
+// ─── POST /api/v1/chatbot/test ────────────────────────────────────────────────
+// Server-side test — validates the GEMINI_API_KEY env var
+router.post('/test', async (req: any, res: any) => {
+  try {
+    const { message = 'Apa saja paket umroh yang tersedia?', model: reqModel } = req.body;
+    const geminiKey = process.env['GEMINI_API_KEY'];
+    if (!geminiKey) {
+      return res.status(400).json({ ok: false, error: 'GEMINI_API_KEY belum dikonfigurasi di environment secrets.' });
+    }
+    const model = (reqModel && ALLOWED_GEMINI_MODELS.has(reqModel)) ? reqModel : 'gemini-2.0-flash';
+    try {
+      const answer = await callGemini(geminiKey, DEFAULT_SYSTEM_PROMPT, message, [], model);
+      return res.json({ ok: true, answer, model, source: 'gemini' });
+    } catch (e: any) {
+      return res.status(400).json({ ok: false, error: e.message });
+    }
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/v1/chatbot/config ───────────────────────────────────────────────
+router.get('/config', async (_req: any, res: any) => {
+  try {
+    const config = await getAdminConfig();
+    const geminiKeySet = !!process.env['GEMINI_API_KEY'];
+    return res.json({ ...config, geminiKeySet });
+  } catch {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/v1/chatbot/config ──────────────────────────────────────────────
+// Save chatbot config (system prompt, model, etc.) to app_settings
+router.post('/config', async (req: any, res: any) => {
+  try {
+    const { model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext, channelPrompts } = req.body;
+
+    if (model && !ALLOWED_GEMINI_MODELS.has(model)) {
+      return res.status(400).json({ error: 'Model tidak valid.' });
+    }
+
+    const cfg: Record<string, any> = {};
+    if (systemPrompt !== undefined) cfg.systemPrompt = systemPrompt;
+    if (model !== undefined) cfg.model = model;
+    if (botName !== undefined) cfg.botName = botName;
+    if (greeting !== undefined) cfg.greeting = greeting;
+    if (enableLeadCapture !== undefined) cfg.enableLeadCapture = enableLeadCapture;
+    if (enableFAQContext !== undefined) cfg.enableFAQContext = enableFAQContext;
+    if (channelPrompts !== undefined) cfg.channelPrompts = channelPrompts;
+
+    await db
+      .insert(appSettings)
+      .values({ key: 'gemini_chatbot_config', value: JSON.stringify(cfg) })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { value: JSON.stringify(cfg), updatedAt: new Date() },
+      });
+
+    invalidateAdminConfigCache();
+    return res.json({ success: true });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message || 'Internal server error' });
+  }
+});
+
 // ─── PATCH /api/v1/chatbot/rate ───────────────────────────────────────────────
-// Body: { logId, rating }  — 1 = 👍  -1 = 👎
 router.patch('/rate', async (req: any, res: any) => {
   const { logId, rating } = req.body;
 
   if (!logId || (rating !== 1 && rating !== -1)) {
     return res.status(400).json({ error: 'logId dan rating (1 atau -1) wajib diisi.' });
   }
-  if (!isSupabaseConfigured()) {
-    return res.status(503).json({ error: 'Supabase belum dikonfigurasi.' });
-  }
 
   try {
-    await supabaseFetch(`/chatbot_logs?id=eq.${logId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ rating }),
-    });
+    await db
+      .update(chatbotLogs)
+      .set({ rating })
+      .where(eq(chatbotLogs.id, logId));
     return res.json({ success: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -398,13 +459,52 @@ router.get('/faq-status', async (_req: any, res: any) => {
 });
 
 // ─── GET /api/v1/chatbot/channel-prompts ─────────────────────────────────────
-// Returns the currently configured channel prompts (for admin UI)
 router.get('/channel-prompts', async (_req: any, res: any) => {
   const config = await getAdminConfig();
   return res.json({
     channelPrompts: config.channelPrompts,
     defaults: DEFAULT_CHANNEL_PROMPTS,
   });
+});
+
+// ─── GET /api/v1/chatbot/stats ────────────────────────────────────────────────
+router.get('/stats', async (_req: any, res: any) => {
+  try {
+    const total = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(chatbotLogs);
+
+    const bySource = await db
+      .select({ source: chatbotLogs.source, count: sql<number>`count(*)` })
+      .from(chatbotLogs)
+      .groupBy(chatbotLogs.source);
+
+    const ratings = await db
+      .select({
+        positive: sql<number>`count(*) filter (where rating = 1)`,
+        negative: sql<number>`count(*) filter (where rating = -1)`,
+        total: sql<number>`count(*) filter (where rating is not null)`,
+      })
+      .from(chatbotLogs);
+
+    const unanswered = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(chatbotLogs)
+      .where(eq(chatbotLogs.isUnanswered, true));
+
+    return res.json({
+      total: Number(total[0]?.count || 0),
+      bySource: bySource.map(r => ({ source: r.source, count: Number(r.count) })),
+      ratings: {
+        positive: Number(ratings[0]?.positive || 0),
+        negative: Number(ratings[0]?.negative || 0),
+        total: Number(ratings[0]?.total || 0),
+      },
+      unanswered: Number(unanswered[0]?.count || 0),
+    });
+  } catch {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;

@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase as supabaseRaw } from "@/integrations/supabase/client";
-const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
-  Bot, Key, CheckCircle2, AlertCircle, Eye, EyeOff,
+  Bot, Key, CheckCircle2, AlertCircle,
   Loader2, ExternalLink, Send, RefreshCcw, Sparkles,
   MessageSquare, Settings, Info, Zap, Package, Database,
   HelpCircle, BookOpen, ToggleLeft, ToggleRight,
@@ -43,8 +41,6 @@ Jika menyebut paket atau halaman, selalu sertakan link Markdown agar pengguna bi
 Format link: [teks yang ditampilkan](/path)`;
 
 export default function AdminGeminiAI() {
-  const [apiKey, setApiKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
   const [model, setModel] = useState("gemini-2.0-flash");
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [botName, setBotName] = useState("Asisten Vinstour");
@@ -137,26 +133,13 @@ export default function AdminGeminiAI() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase
-          .from("app_settings")
-          .select("key,value")
-          .in("key", ["gemini_api_key", "gemini_chatbot_config"]);
-        if (data?.length) {
-          for (const row of data) {
-            if (row.key === "gemini_api_key") {
-              const val = JSON.parse(row.value);
-              if (val) { setApiKey(val); setConfigured(true); }
-            }
-            if (row.key === "gemini_chatbot_config") {
-              const cfg = JSON.parse(row.value);
-              if (cfg.model) setModel(cfg.model);
-              if (cfg.systemPrompt) setSystemPrompt(cfg.systemPrompt);
-              if (cfg.botName) setBotName(cfg.botName);
-              if (cfg.greeting) setGreeting(cfg.greeting);
-              if (typeof cfg.enableLeadCapture === "boolean") setEnableLeadCapture(cfg.enableLeadCapture);
-              if (typeof cfg.enableFAQContext === "boolean") setEnableFAQContext(cfg.enableFAQContext);
-            }
-          }
+        const res = await fetch("/api/v1/chatbot/config");
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.model) setModel(cfg.model);
+          if (cfg.systemPrompt) setSystemPrompt(cfg.systemPrompt);
+          if (typeof cfg.enableFAQContext === "boolean") setEnableFAQContext(cfg.enableFAQContext);
+          if (cfg.geminiKeySet) setConfigured(true);
         }
       } catch {}
       setLoading(false);
@@ -164,54 +147,40 @@ export default function AdminGeminiAI() {
   }, []);
 
   async function save() {
-    if (!apiKey.trim()) { toast.error("Masukkan Gemini API Key terlebih dahulu"); return; }
     setSaving(true);
     try {
-      await supabase.from("app_settings").upsert([
-        { key: "gemini_api_key", value: JSON.stringify(apiKey.trim()), updated_at: new Date().toISOString() },
-        {
-          key: "gemini_chatbot_config",
-          value: JSON.stringify({ model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext }),
-          updated_at: new Date().toISOString(),
-        },
-      ], { onConflict: "key" });
-      setConfigured(true);
+      const res = await fetch("/api/v1/chatbot/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any)?.error || "Gagal menyimpan");
+      }
       toast.success("Konfigurasi Gemini AI berhasil disimpan!");
-    } catch {
-      toast.error("Gagal menyimpan konfigurasi");
+    } catch (e: any) {
+      toast.error(`Gagal menyimpan konfigurasi: ${e.message}`);
     }
     setSaving(false);
   }
 
   async function testGemini() {
-    if (!apiKey.trim()) { toast.error("Masukkan API Key terlebih dahulu"); return; }
     setTesting(true);
     setTestResult(null);
     try {
-      const enrichedPrompt = packageContext
-        ? `${systemPrompt}\n\n${packageContext}`
-        : systemPrompt;
-      const body = {
-        system_instruction: { parts: [{ text: enrichedPrompt }] },
-        contents: [{ role: "user", parts: [{ text: testInput }] }],
-        generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
-      };
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any)?.error?.message || `HTTP ${res.status}`);
-      }
+      const res = await fetch("/api/v1/chatbot/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: testInput, model }),
+      });
       const data: any = await res.json();
-      const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (answer) {
-        setTestResult({ answer, source: "gemini" });
-        toast.success("Koneksi Gemini AI berhasil!");
-      } else {
-        throw new Error("Tidak ada jawaban dari Gemini");
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
+      setTestResult({ answer: data.answer, source: "gemini" });
+      setConfigured(true);
+      toast.success("Koneksi Gemini AI berhasil!");
     } catch (e: any) {
       toast.error(`Test gagal: ${e.message}`);
       setTestResult({ answer: `Error: ${e.message}`, source: "error" });
@@ -272,38 +241,31 @@ export default function AdminGeminiAI() {
         </AlertDescription>
       </Alert>
 
-      {/* API Key */}
-      <Card>
+      {/* API Key — Environment Secret */}
+      <Card className={configured ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Key className="h-4 w-4 text-purple-500" /> Gemini API Key
+            {configured
+              ? <span className="ml-auto text-xs font-normal text-green-700 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Terkonfigurasi</span>
+              : <span className="ml-auto text-xs font-normal text-amber-700 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Belum dikonfigurasi</span>
+            }
           </CardTitle>
-          <CardDescription>Kunci API dari Google AI Studio untuk mengaktifkan chatbot cerdas</CardDescription>
+          <CardDescription>API key disimpan sebagai environment secret di server — aman, tidak terekspos ke browser</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>API Key</Label>
-            <div className="relative">
-              <Input
-                type={showKey ? "text" : "password"}
-                placeholder="AIzaSy..."
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                className="pr-10 font-mono text-sm"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Key disimpan secara aman di database. Format: AIzaSy... (39 karakter)
-            </p>
-          </div>
-
+        <CardContent className="space-y-3">
+          <Alert className="bg-purple-50 border-purple-200">
+            <Key className="h-4 w-4 text-purple-600" />
+            <AlertDescription className="text-purple-800 text-sm space-y-1">
+              <p className="font-semibold">Cara mengatur API key:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Buka <strong>Tools → Secrets</strong> di panel Replit (ikon kunci 🔑)</li>
+                <li>Tambahkan secret baru dengan nama: <code className="bg-purple-100 px-1 rounded font-mono">GEMINI_API_KEY</code></li>
+                <li>Nilai: API key Anda dari Google AI Studio (format: <code className="bg-purple-100 px-1 rounded font-mono">AIzaSy...</code>)</li>
+                <li>Restart server — chatbot langsung aktif tanpa perlu simpan ulang</li>
+              </ol>
+            </AlertDescription>
+          </Alert>
           <div className="flex gap-2 items-center">
             <a
               href="https://aistudio.google.com/apikey"
@@ -366,7 +328,7 @@ export default function AdminGeminiAI() {
           <CardTitle className="text-base flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-blue-500" /> Test Koneksi
           </CardTitle>
-          <CardDescription>Kirim pesan uji coba untuk memverifikasi API key Anda</CardDescription>
+          <CardDescription>Kirim pesan uji coba melalui server — memverifikasi GEMINI_API_KEY yang dikonfigurasi</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
@@ -377,7 +339,7 @@ export default function AdminGeminiAI() {
               className="text-sm"
               onKeyDown={e => e.key === "Enter" && testGemini()}
             />
-            <Button onClick={testGemini} disabled={testing || !apiKey.trim()} size="sm" className="gap-1.5 whitespace-nowrap">
+            <Button onClick={testGemini} disabled={testing} size="sm" className="gap-1.5 whitespace-nowrap">
               {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               Test
             </Button>

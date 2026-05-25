@@ -140,6 +140,41 @@ export const customers = pgTable("customers", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+// ── app_settings ──────────────────────────────────────────────────────────────
+export const appSettings = pgTable("app_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── faqs ──────────────────────────────────────────────────────────────────────
+export const faqs = pgTable("faqs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  category: text("category").default("Umum"),
+  sortOrder: integer("sort_order").default(0),
+  isPublished: boolean("is_published").default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── chatbot_logs ──────────────────────────────────────────────────────────────
+export const chatbotLogs = pgTable("chatbot_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sessionId: text("session_id"),
+  message: text("message").notNull(),
+  answer: text("answer").notNull(),
+  source: text("source").default("faq"),
+  userId: uuid("user_id"),
+  customerId: uuid("customer_id"),
+  channel: text("channel").default("jamaah"),
+  rating: integer("rating"),
+  isUnanswered: boolean("is_unanswered").default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 export type Package = typeof packages.$inferSelect;
 export type Departure = typeof departures.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
@@ -148,3 +183,6 @@ export type Lead = typeof leads.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
+export type AppSetting = typeof appSettings.$inferSelect;
+export type FAQ = typeof faqs.$inferSelect;
+export type ChatbotLog = typeof chatbotLogs.$inferSelect;
