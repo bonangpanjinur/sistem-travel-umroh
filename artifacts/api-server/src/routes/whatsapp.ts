@@ -40,8 +40,7 @@ async function sendFonnte(
   return { ok: true, messageId: data.id };
 }
 
-// ── Helper: look up booking + customer from DB ────────────────────────────────
-async function lookupBooking(bookingId: string): Promise<{
+type BookingLookupResult = {
   bookingCode: string;
   packageName: string;
   departureDate: string;
@@ -51,7 +50,10 @@ async function lookupBooking(bookingId: string): Promise<{
   paymentDeadline: string;
   customerName: string;
   customerPhone: string;
-} | null> {
+};
+
+// ── Helper: look up booking from Neon DB ─────────────────────────────────────
+async function lookupBookingNeon(bookingId: string): Promise<BookingLookupResult | null> {
   const client = await pool.connect();
   try {
     const { rows } = await client.query(
@@ -79,21 +81,13 @@ async function lookupBooking(bookingId: string): Promise<{
       bookingCode: r.booking_code || '-',
       packageName: r.package_name || '-',
       departureDate: r.departure_date
-        ? new Date(r.departure_date).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-          })
+        ? new Date(r.departure_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
         : '-',
       remainingAmount: Number(r.remaining_amount || 0),
       paidAmount: Number(r.paid_amount || 0),
       totalPrice: Number(r.total_price || 0),
       paymentDeadline: r.payment_deadline
-        ? new Date(r.payment_deadline).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-          })
+        ? new Date(r.payment_deadline).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
         : '-',
       customerName: r.customer_name || 'Jamaah',
       customerPhone: r.customer_phone || '',
@@ -101,6 +95,57 @@ async function lookupBooking(bookingId: string): Promise<{
   } finally {
     client.release();
   }
+}
+
+// ── Helper: look up booking from Supabase REST (fallback during migration) ────
+async function lookupBookingSupabase(bookingId: string): Promise<BookingLookupResult | null> {
+  const supabaseUrl = process.env['VITE_SUPABASE_URL'];
+  const supabaseKey = process.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['VITE_SUPABASE_ANON_KEY'];
+  if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return null;
+
+  try {
+    const url = `${supabaseUrl}/rest/v1/bookings?id=eq.${encodeURIComponent(bookingId)}&select=booking_code,remaining_amount,paid_amount,total_price,payment_deadline,customers(full_name,phone),departures(departure_date,packages(name))&limit=1`;
+    const resp = await fetch(url, {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        Accept: 'application/json',
+      },
+    });
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as any[];
+    const b = data?.[0];
+    if (!b) return null;
+    const dep = b.departures;
+    const pkg = dep?.packages;
+    const cust = Array.isArray(b.customers) ? b.customers[0] : b.customers;
+    const depDate = dep?.departure_date;
+    const deadline = b.payment_deadline;
+    return {
+      bookingCode: b.booking_code || '-',
+      packageName: pkg?.name || '-',
+      departureDate: depDate
+        ? new Date(depDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+        : '-',
+      remainingAmount: Number(b.remaining_amount || 0),
+      paidAmount: Number(b.paid_amount || 0),
+      totalPrice: Number(b.total_price || 0),
+      paymentDeadline: deadline
+        ? new Date(deadline).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+        : '-',
+      customerName: cust?.full_name || 'Jamaah',
+      customerPhone: cust?.phone || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Helper: look up booking — tries Neon first, falls back to Supabase ────────
+async function lookupBooking(bookingId: string): Promise<BookingLookupResult | null> {
+  const fromNeon = await lookupBookingNeon(bookingId);
+  if (fromNeon) return fromNeon;
+  return lookupBookingSupabase(bookingId);
 }
 
 // ── Message templates ─────────────────────────────────────────────────────────
