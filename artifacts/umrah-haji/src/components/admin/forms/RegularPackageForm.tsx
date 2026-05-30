@@ -227,7 +227,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
         packageId = inserted?.id;
       }
 
-      if (selectedPolicyId && packageId) {
+      if (selectedPolicyId && selectedPolicyId !== "none" && packageId) {
         await (supabase as any)
           .from("cancellation_policies")
           .update({ package_id: packageId })
@@ -485,7 +485,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                 <SelectValue placeholder="— Tidak ada / Pilih kebijakan —" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Tidak ada kebijakan —</SelectItem>
+                <SelectItem value="none">— Tidak ada kebijakan —</SelectItem>
                 {(cancellationPolicies || []).map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -493,7 +493,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                 ))}
               </SelectContent>
             </Select>
-            {selectedPolicyId && cancellationPolicies?.find((p: any) => p.id === selectedPolicyId)?.description && (
+            {selectedPolicyId && selectedPolicyId !== "none" && cancellationPolicies?.find((p: any) => p.id === selectedPolicyId)?.description && (
               <p className="text-xs text-muted-foreground mt-1">
                 {cancellationPolicies.find((p: any) => p.id === selectedPolicyId)?.description}
               </p>

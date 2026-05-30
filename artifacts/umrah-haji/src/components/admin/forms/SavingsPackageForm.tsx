@@ -229,7 +229,7 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
         packageId = inserted?.id;
       }
 
-      if (selectedPolicyId && packageId) {
+      if (selectedPolicyId && selectedPolicyId !== "none" && packageId) {
         await (supabase as any)
           .from("cancellation_policies")
           .update({ package_id: packageId })
@@ -509,7 +509,7 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
                 <SelectValue placeholder="— Tidak ada / Pilih kebijakan —" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Tidak ada kebijakan —</SelectItem>
+                <SelectItem value="none">— Tidak ada kebijakan —</SelectItem>
                 {(cancellationPolicies || []).map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
