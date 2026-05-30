@@ -108,7 +108,25 @@ export function PackageCard({
     return packagePrices.length > 0 ? Math.min(...packagePrices) : 0;
   };
   
-  const lowestPrice = getLowestPrice();
+  const rawLowestPrice = getLowestPrice();
+  
+  // Calculate discount
+  const discountAmount = (pkg as any).discount_amount || 0;
+  const discountPercentage = (pkg as any).discount_percentage || 0;
+  
+  let lowestPrice = rawLowestPrice;
+  let originalPrice = 0;
+  
+  if (discountAmount > 0 || discountPercentage > 0) {
+    originalPrice = rawLowestPrice;
+    if (discountPercentage > 0) {
+      lowestPrice = rawLowestPrice * (1 - discountPercentage / 100);
+    }
+    if (discountAmount > 0) {
+      lowestPrice = lowestPrice - discountAmount;
+    }
+    lowestPrice = Math.max(0, lowestPrice);
+  }
 
   // Calculate seat availability
   const getTotalQuota = () => {
@@ -200,6 +218,11 @@ export function PackageCard({
                 💰 Termurah
               </Badge>
             )}
+            {(discountAmount > 0 || discountPercentage > 0) && (
+              <Badge className="bg-amber-500 text-black border-none text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                🎉 DISKON {discountPercentage > 0 ? `${discountPercentage}%` : ''}
+              </Badge>
+            )}
             <CustomLabelBadges packageId={pkg.id} />
           </div>
 
@@ -224,12 +247,19 @@ export function PackageCard({
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
             <div className="text-white">
               <p className="text-[10px] uppercase tracking-widest opacity-80 font-medium">Mulai dari</p>
-              <p className={cn(
-                "text-2xl font-bold leading-none",
-                isRoyal ? "text-amber-400" : "text-white"
-              )}>
-                {formatCurrency(lowestPrice, pkg.currency)}
-              </p>
+              <div className="flex flex-col">
+                {originalPrice > 0 && (
+                  <p className="text-xs line-through opacity-60 decoration-rose-500 decoration-2">
+                    {formatCurrency(originalPrice, pkg.currency)}
+                  </p>
+                )}
+                <p className={cn(
+                  "text-2xl font-bold leading-none",
+                  isRoyal ? "text-amber-400" : "text-white"
+                )}>
+                  {formatCurrency(lowestPrice, pkg.currency)}
+                </p>
+              </div>
             </div>
             {showDuration && (
               <div className="flex items-center gap-1.5 text-white bg-white/10 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10">

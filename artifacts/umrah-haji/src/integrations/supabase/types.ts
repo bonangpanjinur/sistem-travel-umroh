@@ -3595,6 +3595,8 @@ export type Database = {
           price_quad: number
           price_single: number
           price_triple: number
+          discount_amount: number | null
+          discount_percentage: number | null
           savings_installment: number | null
           savings_target: number | null
           updated_at: string | null
@@ -3628,6 +3630,8 @@ export type Database = {
           price_quad?: number
           price_single?: number
           price_triple?: number
+          discount_amount?: number | null
+          discount_percentage?: number | null
           savings_installment?: number | null
           savings_target?: number | null
           updated_at?: string | null
@@ -3661,6 +3665,8 @@ export type Database = {
           price_quad?: number
           price_single?: number
           price_triple?: number
+          discount_amount?: number | null
+          discount_percentage?: number | null
           savings_installment?: number | null
           savings_target?: number | null
           updated_at?: string | null

@@ -63,6 +63,8 @@ const regularPackageSchema = z.object({
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
   fee_sub_agent: z.coerce.number().min(0, "Fee sub agen tidak boleh negatif").default(0),
   fee_referral: z.coerce.number().min(0, "Fee referral jemaah tidak boleh negatif").default(0),
+  discount_amount: z.coerce.number().min(0, "Diskon nominal tidak boleh negatif").default(0),
+  discount_percentage: z.coerce.number().min(0, "Diskon persentase tidak boleh negatif").max(100, "Maksimal 100%").default(0),
 });
 
 type RegularPackageFormValues = z.infer<typeof regularPackageSchema>;
@@ -127,6 +129,8 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       fee_agent: (packageData as any)?.fee_agent || 0,
       fee_sub_agent: (packageData as any)?.fee_sub_agent || 0,
       fee_referral: (packageData as any)?.fee_referral || 0,
+      discount_amount: (packageData as any)?.discount_amount || 0,
+      discount_percentage: (packageData as any)?.discount_percentage || 0,
       currency: ((packageData as any)?.currency as any) || "IDR",
       booking_mode: ((packageData as any)?.booking_mode as any) || "umroh",
     },
@@ -182,7 +186,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
 
   const mutation = useMutation({
     mutationFn: async (values: RegularPackageFormValues) => {
-      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, ...rest } = values;
+      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, discount_amount, discount_percentage, ...rest } = values;
       
       // Find the selected package type to get its code for the package code generation
       const selectedType = packageTypes?.find(t => t.id === rest.package_type_id);
@@ -205,6 +209,8 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
         fee_agent,
         fee_sub_agent,
         fee_referral,
+        discount_amount,
+        discount_percentage,
       };
 
       let packageId: string | undefined;
@@ -385,6 +391,40 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
               </FormItem>
             )}
           />
+
+          <div className="space-y-4 pt-4 border-t">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pengaturan Diskon</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="discount_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Potongan Harga (Nominal)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} placeholder="Contoh: 1000000" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Potongan tetap dalam mata uang yang dipilih.</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="discount_percentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Potongan Harga (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} max={100} placeholder="Contoh: 5" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Potongan dalam persentase (0-100%).</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Info: Harga & Hotel dikelola di Keberangkatan */}
