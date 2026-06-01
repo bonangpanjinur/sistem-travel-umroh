@@ -247,6 +247,8 @@ const AdminDocumentGenerator = () => {
       notes: invoiceForm.notes || 'Pembayaran dapat dilakukan secara bertahap. Pelunasan paling lambat 2 minggu sebelum keberangkatan.',
       bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined,
       cancellationPolicy,
+      // QR transparansi → halaman detail booking jamaah
+      verifyUrl: `${window.location.origin}/my-bookings/${booking.id}`,
     };
     return { generate: async () => await generateInvoice(data, company) };
   };
