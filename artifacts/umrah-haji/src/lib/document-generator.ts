@@ -389,7 +389,39 @@ export async function generateInvoice(
   const rgbAccent = hexToRgb(accentColor);
   
   let y = addLetterhead(doc, company);
-  
+
+  // ── QR Transparansi Transaksi (top-right, selalu terlihat) ───────────
+  // Ditempatkan di pojok kanan atas halaman agar jamaah dapat langsung
+  // memindai untuk membuka halaman verifikasi booking.
+  if (data.verifyUrl) {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(data.verifyUrl, {
+        margin: 0,
+        width: 256,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#0f172a', light: '#ffffff' },
+      });
+      const qrSize = 24; // mm
+      const qrX = pageWidth - qrSize - 12;
+      const qrY = 10;
+
+      // Frame putih agar kontras di atas letterhead berwarna
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.rect(qrX - 1.5, qrY - 1.5, qrSize + 3, qrSize + 6.5, 'FD');
+
+      doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+
+      doc.setFont(font, 'bold');
+      doc.setFontSize(5.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text('SCAN UNTUK VERIFIKASI', qrX + qrSize / 2, qrY + qrSize + 3.5, { align: 'center' });
+    } catch (e) {
+      console.warn('Failed to render invoice QR:', e);
+    }
+  }
+
   // ── Header Title ─────────────────────────────────────────────────────
   doc.setFillColor(rgbAccent.r, rgbAccent.g, rgbAccent.b);
   doc.rect(14, y - 5, pageWidth - 28, 20, 'F');
