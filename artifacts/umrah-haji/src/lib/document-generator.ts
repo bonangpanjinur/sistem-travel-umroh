@@ -3,6 +3,7 @@ import { drawPaymentWatermark } from './pdf/watermark';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import QRCode from 'qrcode';
 import type { CancellationPolicy } from './transaction-form-generator';
 
 // Helper function to convert image URL to Base64
