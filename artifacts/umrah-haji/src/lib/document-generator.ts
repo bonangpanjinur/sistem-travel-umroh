@@ -161,6 +161,12 @@ export interface InvoiceData {
     accountNumber: string;
     accountName: string;
   };
+  /**
+   * URL transparansi transaksi (mis. halaman booking detail).
+   * Bila terisi, akan dirender sebagai QR code di invoice
+   * untuk memudahkan jamaah memverifikasi transaksi.
+   */
+  verifyUrl?: string;
 }
 
 // Added for extended invoice data
