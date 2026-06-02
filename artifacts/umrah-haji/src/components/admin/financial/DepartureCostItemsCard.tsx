@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,10 +39,35 @@ interface Props {
   departureId: string;
   paxCount?: number;
   departureLabel?: string;
+  priceQuad?: number;
+  priceTriple?: number;
+  priceDouble?: number;
+  priceSingle?: number;
+  targetMarginPct?: number;
 }
 
-export function DepartureCostItemsCard({ departureId, paxCount = 0, departureLabel }: Props) {
+export function DepartureCostItemsCard({
+  departureId,
+  paxCount = 0,
+  departureLabel,
+  priceQuad = 0,
+  priceTriple = 0,
+  priceDouble = 0,
+  priceSingle = 0,
+  targetMarginPct = 20,
+}: Props) {
   const queryClient = useQueryClient();
+
+  useMarginAlert({
+    departureId,
+    paxCount,
+    priceQuad,
+    priceTriple,
+    priceDouble,
+    priceSingle,
+    targetPct: targetMarginPct,
+    enabled: !!departureId,
+  });
   const [formOpen, setFormOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);

@@ -85,6 +85,7 @@ import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/h
 import { DepartureCertificateGenerator } from "@/components/departure/DepartureCertificateGenerator";
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
 import { DepartureMarginCalculator } from "@/components/admin/financial/DepartureMarginCalculator";
+import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
 import jsPDF from "jspdf";
@@ -125,6 +126,19 @@ export default function AdminDepartureDetail() {
   const _budgetSummary = computeBudgetSummary(_budgets, _costs);
   const totalBudgeted = _budgetSummary.reduce((s: number, r: any) => s + r.budgeted, 0);
   const totalRealized = _budgetSummary.reduce((s: number, r: any) => s + r.realized, 0);
+
+  // Margin alert — watches HPP cache; fires toast when margin drops below target
+  // after any HPP mutation regardless of which tab is active.
+  useMarginAlert({
+    departureId: id || "",
+    paxCount: passengers?.length || 0,
+    priceQuad:   Number((departure as any)?.price_quad)   || 0,
+    priceTriple: Number((departure as any)?.price_triple) || 0,
+    priceDouble: Number((departure as any)?.price_double) || 0,
+    priceSingle: Number((departure as any)?.price_single) || 0,
+    targetPct: 20,
+    enabled: !!departure,
+  });
 
   // If no id, show error
   if (!id) {
