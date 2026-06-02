@@ -2,56 +2,37 @@
 -- fase28: Package Financial Management
 -- HPP (Harga Pokok Penjualan), Pengeluaran, Pendapatan per Departure
 -- Hotel bersifat DINAMIS: bisa Makkah, Madinah, Istanbul, Dubai, transit, dll.
+-- Fix: only valid app_role enum values: super_admin, owner, branch_manager,
+--      operational, sales, agent
 -- ──────────────────────────────────────────────────────────────────────────────
 
 -- ─── 1. departure_cost_items (HPP per item per keberangkatan) ────────────────
--- Komponen biaya modal / HPP. Hotel bisa diinput berkali-kali untuk beda kota.
---
--- Kategori HPP:
---   'airline'       → tiket pesawat (bisa multi-leg: CGK-DOH, DOH-JED, dll.)
---   'hotel'         → hotel DI KOTA MANAPUN; isi kolom location + nights
---   'land_transport'→ bus, taksi, kereta di negara tujuan
---   'visa'          → biaya visa & pengurusan dokumen
---   'handling'      → handling bandara, porter, baggage
---   'muthawif'      → biaya guide / muthawif
---   'equipment'     → koper, seragam, buku manasik, perlengkapan jamaah
---   'manasik'       → biaya pelatihan manasik
---   'insurance'     → asuransi perjalanan / jiwa
---   'document'      → paspor, legalisasi, surat kesehatan, dll.
---   'marketing'     → biaya promosi yang dialokasikan ke departure ini
---   'pic_fee'       → komisi agen / PIC yang menjadi beban paket
---   'overhead'      → biaya overhead kantor dialokasikan
---   'other'         → lainnya
---
--- Unit HPP:
---   'per_pax'   → dikali jumlah jamaah (pax)
---   'per_seat'  → sama dengan per_pax (alias lebih jelas untuk tiket)
---   'per_room'  → dikali jumlah kamar (untuk hotel dengan room rate)
---   'fixed'     → biaya tetap terlepas dari jumlah pax
---   'per_night' → per malam (otomatis × nights jika diisi)
---
 CREATE TABLE IF NOT EXISTS departure_cost_items (
   id              UUID        NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   departure_id    UUID        NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
 
   -- Klasifikasi
+  -- category values: 'airline','hotel','land_transport','visa','handling',
+  --   'muthawif','equipment','manasik','insurance','document',
+  --   'marketing','pic_fee','overhead','other'
   category        TEXT        NOT NULL DEFAULT 'other',
-  sub_category    TEXT,               -- detail tambahan, bebas isi (mis: "Bintang 5", "Business Class")
+  sub_category    TEXT,
 
   -- Hotel: dinamis, bebas tambah berapa kota pun
-  location        TEXT,               -- nama kota/tujuan, mis: "Makkah", "Madinah", "Istanbul", "Dubai", "Jeddah (Transit)"
-  hotel_id        UUID        REFERENCES hotels(id) ON DELETE SET NULL,  -- opsional, link ke master hotel
-  nights          INTEGER,            -- jumlah malam menginap (khusus kategori 'hotel')
-  room_type       TEXT,               -- 'quad','triple','double','single','suite' — opsional
-  check_in_date   DATE,               -- tanggal check-in di hotel ini
-  check_out_date  DATE,               -- tanggal check-out
+  location        TEXT,        -- nama kota: "Makkah","Madinah","Istanbul","Dubai","Jeddah (Transit)"
+  hotel_id        UUID         REFERENCES hotels(id) ON DELETE SET NULL,
+  nights          INTEGER,
+  room_type       TEXT,        -- 'quad','triple','double','single','suite'
+  check_in_date   DATE,
+  check_out_date  DATE,
 
-  -- Penerbangan: bisa multi-leg
-  airline_id      UUID        REFERENCES airlines(id) ON DELETE SET NULL,  -- opsional
-  flight_route    TEXT,               -- mis: "CGK → DOH → JED"
-  flight_class    TEXT,               -- 'economy','business','first'
+  -- Penerbangan
+  airline_id      UUID         REFERENCES airlines(id) ON DELETE SET NULL,
+  flight_route    TEXT,        -- "CGK → DOH → JED"
+  flight_class    TEXT,        -- 'economy','business','first'
 
-  -- Deskripsi & Harga
+  -- Harga
+  -- unit values: 'per_pax','per_seat','per_room','per_night','fixed'
   description     TEXT        NOT NULL DEFAULT '',
   unit            TEXT        NOT NULL DEFAULT 'per_pax',
   quantity        NUMERIC     NOT NULL DEFAULT 1,
@@ -60,10 +41,9 @@ CREATE TABLE IF NOT EXISTS departure_cost_items (
   exchange_rate   NUMERIC     NOT NULL DEFAULT 1,
   total_cost_idr  NUMERIC     GENERATED ALWAYS AS (quantity * unit_cost * exchange_rate) STORED,
 
-  -- Meta
   sort_order      INTEGER     NOT NULL DEFAULT 0,
   notes           TEXT,
-  reference_id    UUID,               -- booking referensi eksternal, kontrak hotel, dll.
+  reference_id    UUID,
   created_by      UUID        REFERENCES profiles(id) ON DELETE SET NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -82,45 +62,29 @@ CREATE POLICY "staff_manage_departure_cost_items" ON departure_cost_items
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   );
 
 -- ─── 2. departure_expenses (Pengeluaran Operasional / Realisasi) ──────────────
--- Pengeluaran aktual yang terjadi selama atau setelah keberangkatan.
--- Hotel di sini juga bisa multi-kota, pakai kolom location.
---
--- Kategori Pengeluaran:
---   'airline_ticket'   → tiket tambahan / change fee / upgrade lapangan
---   'hotel'            → biaya hotel realisasi (beda dari HPP jika ada selisih)
---   'transport'        → transportasi darat realisasi
---   'visa_fee'         → biaya visa / pengurusan darurat
---   'guide'            → honor guide / muthawif realisasi
---   'meals'            → konsumsi / makan di lapangan
---   'tips'             → tips guide, porter, driver
---   'souvenir'         → souvenir / oleh-oleh paket
---   'printing'         → cetak buku, ID card, banner
---   'refund'           → refund kepada jamaah
---   'penalty'          → denda pembatalan / selisih
---   'medical'          → biaya medis darurat di lapangan
---   'operational'      → operasional kantor terkait departure ini
---   'other'            → lainnya
---
 CREATE TABLE IF NOT EXISTS departure_expenses (
   id              UUID        NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   departure_id    UUID        NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
-  booking_id      UUID        REFERENCES bookings(id) ON DELETE SET NULL,  -- opsional, jika terkait 1 jamaah
+  booking_id      UUID        REFERENCES bookings(id) ON DELETE SET NULL,
 
   expense_date    DATE        NOT NULL DEFAULT CURRENT_DATE,
+  -- category values: 'airline_ticket','hotel','transport','visa_fee','guide',
+  --   'meals','tips','souvenir','printing','refund','penalty',
+  --   'medical','operational','other'
   category        TEXT        NOT NULL DEFAULT 'other',
-  location        TEXT,               -- kota tempat pengeluaran terjadi, mis: "Makkah", "Istanbul"
+  location        TEXT,
   description     TEXT        NOT NULL DEFAULT '',
 
   amount          NUMERIC     NOT NULL DEFAULT 0,
@@ -128,6 +92,7 @@ CREATE TABLE IF NOT EXISTS departure_expenses (
   exchange_rate   NUMERIC     NOT NULL DEFAULT 1,
   amount_idr      NUMERIC     GENERATED ALWAYS AS (amount * exchange_rate) STORED,
 
+  -- payment_method values: 'cash','transfer','card','other'
   payment_method  TEXT        DEFAULT 'transfer',
   receipt_url     TEXT,
   notes           TEXT,
@@ -150,39 +115,28 @@ CREATE POLICY "staff_manage_departure_expenses" ON departure_expenses
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   );
 
 -- ─── 3. departure_other_revenues (Pendapatan Tambahan per Keberangkatan) ──────
--- Pendapatan di luar harga paket: upgrade kamar, extra night, addon, dll.
---
--- Kategori Pendapatan Tambahan:
---   'room_upgrade'      → upgrade tipe kamar
---   'extra_night'       → malam tambahan di hotel manapun
---   'addon_service'     → layanan tambahan (city tour, ziarah extra, dll.)
---   'visa_extra'        → biaya visa tambahan / multiple entry
---   'transport_extra'   → transport tambahan
---   'insurance_extra'   → upgrade asuransi
---   'equipment_extra'   → perlengkapan tambahan
---   'penalty_fee'       → biaya pembatalan yang jadi pendapatan
---   'other'             → lainnya
---
 CREATE TABLE IF NOT EXISTS departure_other_revenues (
   id              UUID        NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   departure_id    UUID        NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
   booking_id      UUID        REFERENCES bookings(id) ON DELETE SET NULL,
 
   revenue_date    DATE        NOT NULL DEFAULT CURRENT_DATE,
+  -- category values: 'room_upgrade','extra_night','addon_service','visa_extra',
+  --   'transport_extra','insurance_extra','equipment_extra','penalty_fee','other'
   category        TEXT        NOT NULL DEFAULT 'other',
-  location        TEXT,               -- kota terkait jika relevan (mis: hotel upgrade di "Istanbul")
+  location        TEXT,
   description     TEXT        NOT NULL DEFAULT '',
 
   amount          NUMERIC     NOT NULL DEFAULT 0,
@@ -207,14 +161,14 @@ CREATE POLICY "staff_manage_departure_other_revenues" ON departure_other_revenue
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   );
 
@@ -261,7 +215,7 @@ CREATE POLICY "staff_read_departure_financial_summary" ON departure_financial_su
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   );
 
@@ -271,14 +225,14 @@ CREATE POLICY "staff_write_departure_financial_summary" ON departure_financial_s
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational')
     )
   );
 

@@ -2,6 +2,8 @@
 -- fase27: booking_line_items table + fix RLS for customer_documents,
 --         customer_mahrams, booking_status_history, profiles join
 -- Fix: use user_roles table (not profiles.role) for staff/admin checks
+-- Fix: only valid app_role enum values: super_admin, owner, branch_manager,
+--      operational, sales, agent
 -- ──────────────────────────────────────────────────────────────────────────────
 
 -- ─── 1. booking_line_items ────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ CREATE POLICY "staff_read_all_customer_documents" ON customer_documents
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -53,7 +55,7 @@ CREATE POLICY "staff_write_customer_documents" ON customer_documents
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -63,7 +65,7 @@ CREATE POLICY "staff_write_customer_documents" ON customer_documents
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -79,7 +81,7 @@ CREATE POLICY "staff_read_all_customer_mahrams" ON customer_mahrams
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -93,7 +95,7 @@ CREATE POLICY "staff_write_customer_mahrams" ON customer_mahrams
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -103,7 +105,7 @@ CREATE POLICY "staff_write_customer_mahrams" ON customer_mahrams
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -120,7 +122,7 @@ CREATE POLICY "admin_read_profiles_for_status" ON profiles
     OR EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
     )
   );
 
