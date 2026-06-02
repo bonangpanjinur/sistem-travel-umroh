@@ -1,6 +1,7 @@
 -- ──────────────────────────────────────────────────────────────────────────────
 -- fase27: booking_line_items table + fix RLS for customer_documents,
 --         customer_mahrams, booking_status_history, profiles join
+-- Fix: use user_roles table (not profiles.role) for staff/admin checks
 -- ──────────────────────────────────────────────────────────────────────────────
 
 -- ─── 1. booking_line_items ────────────────────────────────────────────────────
@@ -36,9 +37,9 @@ CREATE POLICY "staff_read_all_customer_documents" ON customer_documents
   FOR SELECT TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -50,9 +51,9 @@ CREATE POLICY "staff_write_customer_documents" ON customer_documents
   FOR ALL TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -60,9 +61,9 @@ CREATE POLICY "staff_write_customer_documents" ON customer_documents
   )
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -76,9 +77,9 @@ CREATE POLICY "staff_read_all_customer_mahrams" ON customer_mahrams
   FOR SELECT TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -90,9 +91,9 @@ CREATE POLICY "staff_write_customer_mahrams" ON customer_mahrams
   FOR ALL TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -100,9 +101,9 @@ CREATE POLICY "staff_write_customer_mahrams" ON customer_mahrams
   )
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
     )
     OR customer_id IN (
       SELECT id FROM customers WHERE user_id = auth.uid()
@@ -117,9 +118,9 @@ CREATE POLICY "admin_read_profiles_for_status" ON profiles
   USING (
     id = auth.uid()
     OR EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','admin','owner','branch_manager','finance','staff','operational')
     )
   );
 
