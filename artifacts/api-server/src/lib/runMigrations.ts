@@ -246,6 +246,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 03_bookings_columns — already applied, skipping");
     }
 
+    // ── Step 1d: add media_type column to media_gallery ──────────────────
+    const galleryMediaTypeApplied = await isApplied(client, "04_gallery_media_type");
+    if (!galleryMediaTypeApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("04_gallery_media_type.sql"),
+        "04_gallery_media_type (media_type column for package gallery)",
+      );
+      await markApplied(client, "04_gallery_media_type");
+    } else {
+      logger.info("runMigrations: 04_gallery_media_type — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
