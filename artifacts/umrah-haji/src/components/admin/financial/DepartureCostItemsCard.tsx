@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DepartureCostItemForm } from "./DepartureCostItemForm";
-import { Plus, Pencil, Trash2, Package, AlertCircle } from "lucide-react";
+import { CopyHPPDialog } from "./CopyHPPDialog";
+import { Plus, Pencil, Trash2, Package, AlertCircle, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -41,6 +42,7 @@ interface Props {
 export function DepartureCostItemsCard({ departureId, paxCount = 0, departureLabel }: Props) {
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
 
@@ -97,13 +99,16 @@ export function DepartureCostItemsCard({ departureId, paxCount = 0, departureLab
               <p className="text-xs text-muted-foreground mt-0.5">{paxCount} jamaah terdaftar</p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {totalHPP > 0 && (
-              <div className="text-right">
+              <div className="text-right mr-1">
                 <p className="text-xs text-muted-foreground">Total HPP</p>
                 <p className="font-bold text-destructive">{fmt(totalHPP)}</p>
               </div>
             )}
+            <Button size="sm" variant="outline" onClick={() => setCopyOpen(true)}>
+              <Copy className="h-4 w-4 mr-1" /> Salin HPP
+            </Button>
             <Button size="sm" onClick={() => { setEditItem(null); setFormOpen(true); }}>
               <Plus className="h-4 w-4 mr-1" /> Tambah
             </Button>
@@ -239,6 +244,14 @@ export function DepartureCostItemsCard({ departureId, paxCount = 0, departureLab
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk-import / Copy HPP dialog */}
+      <CopyHPPDialog
+        open={copyOpen}
+        onOpenChange={setCopyOpen}
+        targetDepartureId={departureId}
+        targetDepartureLabel={departureLabel}
+      />
     </>
   );
 }
