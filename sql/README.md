@@ -90,32 +90,37 @@ Jika ingin kontrol penuh, jalankan file satu per satu dari folder `migrations/` 
 | 037 | `037_patch_referral_policies_fix.sql` | Perbaikan policy referral_codes & usages |
 | 038 | `038_patch_storage_upload_policy.sql` | Policy upload dokumen customer |
 | 039 | `039_patch_website_settings_layout.sql` | Kolom layout_variant & theme_overrides |
+| 040 | `040_tab_fix3_savings_schedule.sql` | Fix savings_schedule — kolom amount, due_date |
+| 041 | `041_tab_fix4_departures_price_single.sql` | Kolom price_single di departures |
+| 042 | `042_v_financial_summary_view.sql` | VIEW `v_financial_summary` untuk AdminAdvancedReports |
+| 043 | `043_booking_installment_schedules.sql` | Tabel `booking_installment_schedules` (cicilan) |
+| 044 | `044_scheduled_reports.sql` | Tabel `scheduled_reports` & `scheduled_report_logs` |
+| 045 | `045_totp_columns.sql` | Kolom TOTP secret di profiles untuk 2FA |
+| 046 | `046_agent_commission_tiers.sql` | Tier komisi agen berdasarkan volume penjualan |
+| 047 | `047_rbac_audit_trail.sql` | Audit trail perubahan role & permission |
+| 048 | `048_booking_seat_lock.sql` | Seat lock booking — cegah double booking |
+| 049 | `049_face_descriptor_column.sql` | Kolom face descriptor untuk verifikasi wajah |
+| 050 | `050_fase24_payment_sync_trigger.sql` | Trigger sync paid_amount / remaining_amount / payment_status |
+| 051 | `051_fase25_backfill_booking_payment_totals.sql` | Backfill koreksi saldo booking yang tidak sinkron |
+| 052 | `052_fase26_public_booking_rpc_qr_settings.sql` | RPC get_public_booking_details + kolom QR invoice |
+| 053 | `053_fase27_booking_line_items_rls_fixes.sql` | Tabel booking_line_items + fix RLS customer_documents, mahrams |
+| 054 | `054_fase28_package_financials.sql` | HPP, pengeluaran, pendapatan per keberangkatan |
+| 055 | `055_invoice_templates.sql` | Template invoice kustom per perusahaan |
+| 056 | `056_booking_document_logs.sql` | Audit trail dokumen booking yang dicetak/dikirim |
+| 057 | `057_trip_timeline.sql` | Timeline itinerary hari per hari (trip_timeline) |
+| 058 | `058_faqs_table.sql` | Tabel FAQ publik terpadu |
+| 059 | `059_wisata_package_types_and_booking_mode.sql` | Kolom booking_mode di package_types (umroh/haji/wisata) |
+| 060 | `060_chatbot_logging.sql` | Logging percakapan chatbot AI |
+| 061 | `061_sos_departure_routing.sql` | Routing SOS alert ke petugas keberangkatan |
 
 ---
 
-## Migrasi yang Perlu Dibuat di Masa Depan
+## Tips Database (Neon Postgres)
 
-File-file berikut **belum dibuat** tapi dibutuhkan oleh fitur yang sudah ada di frontend:
-
-| Nomor Berikutnya | File (rencana) | Isi |
-|------------------|----------------|-----|
-| 040 | `040_fase24_view_financial_summary.sql` | Database VIEW `v_financial_summary` untuk AdminAdvancedReports |
-| 041 | `041_fase24_approval_requests.sql` | Tabel `approval_requests` jika belum ada |
-| 042 | `042_fase24_booking_installments.sql` | Tabel `booking_installment_schedules` |
-| 043 | `043_fase24_package_label.sql` | Kolom `label` di tabel packages (Sprint 8 - P6) |
-| 044 | `044_fase25_scheduled_reports.sql` | Tabel `scheduled_reports`, `scheduled_report_logs` |
-| 045 | `045_fase25_totp_2fa.sql` | Kolom TOTP secret di profiles untuk 2FA |
-| 046 | `046_fase25_cron_job_logs.sql` | Log eksekusi cron job (reminder, laporan) |
-
----
-
-## Tips Supabase SQL Editor
-
-- **Batasan ukuran**: Supabase SQL Editor bisa menangani file besar, tapi jika timeout, pecah menjadi beberapa bagian
 - **Error `42P01` (relation does not exist)**: Jalankan file nomor lebih kecil dulu (dependency belum dibuat)
 - **Error `42710` (already exists)**: Normal — `IF NOT EXISTS` melindungi dari ini, tapi beberapa kolom ALTER mungkin gagal. Abaikan saja
-- **RLS Policy error**: Pastikan Anda login sebagai `postgres` atau `service_role`, bukan `anon`
-- **Setelah migrasi**: Aktifkan **Realtime** untuk tabel: `bookings`, `customer_notifications`, `attendance_records`, `sos_alerts`, `chatbot_logs`
+- **Error `role "anon" does not exist`**: Normal di Neon — role `anon`, `authenticated`, `service_role` di-create otomatis oleh `02_missing_tables.sql`
+- **Setelah migrasi baru**: Restart server API agar `runMigrations()` mendeteksi dan menjalankan migration baru
 
 ---
 
@@ -142,4 +147,4 @@ File-file berikut **belum dibuat** tapi dibutuhkan oleh fitur yang sudah ada di 
 
 ---
 
-*Folder ini dibuat otomatis dari konsolidasi semua file SQL yang tersebar. Terakhir diperbarui: Mei 2026.*
+*Folder `sql/migrations/` adalah satu-satunya sumber kebenaran untuk semua SQL schema Vinstour. File di folder lain (supabase/migrations, migrations/, dll) sudah dipindahkan ke sini. Terakhir diperbarui: Juni 2026.*

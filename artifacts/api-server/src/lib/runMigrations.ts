@@ -151,12 +151,13 @@ async function runSqlFile(
 // ── Migrations tracker helpers ─────────────────────────────────────────────────
 async function isApplied(client: any, name: string): Promise<boolean> {
   try {
-    const { rows } = await client.query<{ exists: boolean }>(
+    const result = await client.query(
       `SELECT EXISTS (
          SELECT 1 FROM _schema_migrations WHERE name = $1
        ) AS exists`,
       [name],
     );
+    const rows = result.rows as { exists: boolean }[];
     return rows[0]?.exists ?? false;
   } catch {
     return false; // table doesn't exist yet

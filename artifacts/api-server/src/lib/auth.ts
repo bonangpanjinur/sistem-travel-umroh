@@ -87,16 +87,16 @@ export async function createUser(
   fullName: string,
   phone?: string,
   metadata?: Record<string, any>
-): Promise<{ id: string; email: string }> {
+): Promise<{ id: string; email: string; created_at: string }> {
   const hash = await hashPassword(password);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const { rows } = await client.query<{ id: string; email: string }>(
+    const { rows } = await client.query<{ id: string; email: string; created_at: string }>(
       `INSERT INTO auth.users (email, encrypted_password, raw_user_meta_data, email_confirmed_at)
        VALUES ($1, $2, $3, NOW())
-       RETURNING id, email`,
+       RETURNING id, email, created_at`,
       [
         email.toLowerCase().trim(),
         hash,
