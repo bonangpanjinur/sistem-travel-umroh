@@ -1782,6 +1782,8 @@ export default function AdminDepartureDetail() {
             priceTriple={departure?.price_triple || 0}
             priceDouble={departure?.price_double || 0}
             priceSingle={departure?.price_single || 0}
+            packageName={departure?.package?.name}
+            departureDate={departure?.departure_date}
           />
           <PriceHistoryCard
             departureId={id || ""}
