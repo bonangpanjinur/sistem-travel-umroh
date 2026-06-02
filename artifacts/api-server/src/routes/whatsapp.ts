@@ -3,6 +3,24 @@ import { pool } from '../lib/db.js';
 
 const router = Router();
 
+// ── Helper: get Fonnte token (env var first, then whatsapp_config DB) ─────────
+async function getFonnteToken(): Promise<string | null> {
+  if (process.env['FONNTE_TOKEN']) return process.env['FONNTE_TOKEN'];
+  try {
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        `SELECT api_key FROM whatsapp_config WHERE is_active = true AND api_key IS NOT NULL ORDER BY updated_at DESC LIMIT 1`,
+      );
+      return rows[0]?.api_key || null;
+    } finally {
+      client.release();
+    }
+  } catch {
+    return null;
+  }
+}
+
 // ── Helper: normalize Indonesian phone ───────────────────────────────────────
 function normalizePhone(raw: string): string {
   const digits = (raw || '').replace(/\D/g, '');
@@ -197,11 +215,11 @@ const TEMPLATES: Record<string, (d: Record<string, any>) => string> = {
 // POST /api/whatsapp/send
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/send', async (req, res) => {
-  const token = process.env['FONNTE_TOKEN'];
+  const token = await getFonnteToken();
   if (!token) {
     res.status(503).json({
       success: false,
-      error: 'FONNTE_TOKEN belum dikonfigurasi. Tambahkan di Replit Secrets.',
+      error: 'Konfigurasi WhatsApp belum diatur. Silakan atur token API di menu WhatsApp pada panel admin.',
     });
     return;
   }
@@ -235,9 +253,9 @@ router.post('/send', async (req, res) => {
 // Body (opsi B — pakai data langsung): { phone, name, type, data: { ... } }
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/notification', async (req, res) => {
-  const token = process.env['FONNTE_TOKEN'];
+  const token = await getFonnteToken();
   if (!token) {
-    res.status(503).json({ success: false, error: 'FONNTE_TOKEN belum dikonfigurasi di Replit Secrets.' });
+    res.status(503).json({ success: false, error: 'Konfigurasi WhatsApp belum diatur. Silakan atur token API di menu WhatsApp pada panel admin.' });
     return;
   }
 
@@ -320,9 +338,9 @@ router.post('/notification', async (req, res) => {
 // Body (opsi B — bulk):           { reminders: [{ phone, name, bookingCode, remainingAmount, paymentDeadline }] }
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/payment-reminder', async (req, res) => {
-  const token = process.env['FONNTE_TOKEN'];
+  const token = await getFonnteToken();
   if (!token) {
-    res.status(503).json({ success: false, error: 'FONNTE_TOKEN belum dikonfigurasi di Replit Secrets.' });
+    res.status(503).json({ success: false, error: 'Konfigurasi WhatsApp belum diatur. Silakan atur token API di menu WhatsApp pada panel admin.' });
     return;
   }
 

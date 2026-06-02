@@ -384,12 +384,7 @@ export default function AdminBookingDetail() {
   const { data: statusHistory } = useQuery({
     queryKey: ['booking-status-history', id],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from('booking_status_history')
-        .select('*, changed_by_profile:profiles(id, full_name)')
-        .eq('booking_id', id)
-        .order('created_at', { ascending: true });
-      return (data || []) as Array<{
+      type HistoryRow = {
         id: string;
         booking_id: string;
         from_status: string | null;
@@ -398,7 +393,21 @@ export default function AdminBookingDetail() {
         notes: string | null;
         created_at: string;
         changed_by_profile?: { id: string; full_name: string } | null;
-      }>;
+      };
+      // Try with profiles join first
+      const { data, error } = await (supabase as any)
+        .from('booking_status_history')
+        .select('*, changed_by_profile:profiles(id, full_name)')
+        .eq('booking_id', id)
+        .order('created_at', { ascending: true });
+      if (!error) return (data || []) as HistoryRow[];
+      // Fallback: fetch without profiles join (handles RLS block on profiles)
+      const { data: fallback } = await (supabase as any)
+        .from('booking_status_history')
+        .select('*')
+        .eq('booking_id', id)
+        .order('created_at', { ascending: true });
+      return (fallback || []) as HistoryRow[];
     },
     enabled: !!id,
   });
@@ -704,10 +713,10 @@ export default function AdminBookingDetail() {
       try {
         data = JSON.parse(text);
       } catch {
-        const isConfigError = text.includes('FONNTE_TOKEN') || !res.ok;
+        const isConfigError = text.includes('FONNTE_TOKEN') || text.includes('Konfigurasi WhatsApp') || !res.ok;
         throw new Error(
           isConfigError
-            ? 'FONNTE_TOKEN belum dikonfigurasi. Tambahkan API key WhatsApp di Replit Secrets (FONNTE_TOKEN).'
+            ? 'Konfigurasi WhatsApp belum diatur. Silakan buka Pengaturan WhatsApp di panel admin untuk menambahkan token API.'
             : `Server mengembalikan respons tidak valid (status ${res.status}). Pastikan API server berjalan.`
         );
       }
@@ -1430,7 +1439,17 @@ export default function AdminBookingDetail() {
                   <div className="p-3 rounded-lg bg-muted/30 border border-dashed">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Nama Paket</p>
                     <div className="flex items-center justify-between">
-                      <p className="text-base font-bold text-primary">{pkg?.name || '-'}</p>
+                      {pkg?.id ? (
+                        <Link
+                          to={`/admin/packages/${pkg.id}`}
+                          className="text-base font-bold text-primary hover:underline hover:text-primary/80 transition-colors"
+                          title="Lihat detail paket"
+                        >
+                          {pkg.name || '-'}
+                        </Link>
+                      ) : (
+                        <p className="text-base font-bold text-primary">{pkg?.name || '-'}</p>
+                      )}
                       <Button 
                         variant="ghost" 
                         size="sm" 
@@ -1516,7 +1535,17 @@ export default function AdminBookingDetail() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-3 font-medium">
                       <Calendar className="h-4 w-4 text-amber-600 shrink-0" />
-                      <span>Berangkat: <strong>{departure?.departure_date ? formatDate(departure.departure_date) : '-'}</strong></span>
+                      {booking.departure_id ? (
+                        <Link
+                          to={`/admin/departures/${booking.departure_id}`}
+                          className="hover:underline text-foreground hover:text-primary transition-colors"
+                          title="Lihat detail keberangkatan"
+                        >
+                          Berangkat: <strong>{departure?.departure_date ? formatDate(departure.departure_date) : '-'}</strong>
+                        </Link>
+                      ) : (
+                        <span>Berangkat: <strong>{departure?.departure_date ? formatDate(departure.departure_date) : '-'}</strong></span>
+                      )}
                     </div>
                     {departure?.return_date && (
                       <div className="flex items-center gap-3 font-medium">
@@ -2902,15 +2931,10 @@ export default function AdminBookingDetail() {
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive leading-relaxed">
               {notifErrorMsg}
             </div>
-            {notifErrorMsg?.includes('FONNTE_TOKEN') && (
+            {(notifErrorMsg?.includes('FONNTE_TOKEN') || notifErrorMsg?.includes('Konfigurasi WhatsApp')) && (
               <div className="rounded-lg border bg-muted/50 p-4 space-y-2 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground">Cara menambahkan API key:</p>
-                <ol className="list-decimal pl-4 space-y-1">
-                  <li>Buka <span className="font-mono text-xs bg-muted px-1 rounded">Replit Secrets</span> (ikon kunci di sidebar)</li>
-                  <li>Tambahkan secret baru dengan nama <span className="font-mono text-xs bg-muted px-1 rounded">FONNTE_TOKEN</span></li>
-                  <li>Isi dengan token API dari <span className="text-blue-600">fonnte.com</span></li>
-                  <li>Restart server dan coba lagi</li>
-                </ol>
+                <p className="font-semibold text-foreground">Token WhatsApp belum dikonfigurasi.</p>
+                <p>Buka halaman <Link to="/admin/whatsapp" className="text-primary underline hover:text-primary/80 font-medium" onClick={() => setNotifErrorMsg(null)}>Pengaturan WhatsApp</Link> untuk menambahkan API key dari <span className="text-blue-600 font-medium">fonnte.com</span>.</p>
               </div>
             )}
           </div>

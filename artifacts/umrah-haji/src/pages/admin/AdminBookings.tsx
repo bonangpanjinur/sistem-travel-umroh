@@ -903,8 +903,8 @@ export default function AdminBookings() {
                                 const text = await res.text();
                                 let data: any = {};
                                 try { data = JSON.parse(text); } catch {
-                                  const msg = !res.ok || text.includes('FONNTE_TOKEN')
-                                    ? 'FONNTE_TOKEN belum dikonfigurasi. Tambahkan API key WhatsApp di Replit Secrets.'
+                                  const msg = !res.ok || text.includes('FONNTE_TOKEN') || text.includes('Konfigurasi WhatsApp')
+                                    ? 'Konfigurasi WhatsApp belum diatur. Silakan buka Pengaturan WhatsApp di panel admin untuk menambahkan token API.'
                                     : `Server tidak merespons dengan benar (status ${res.status}). Pastikan API server berjalan.`;
                                   setWaErrorMsg(msg);
                                   return;
@@ -1001,15 +1001,10 @@ export default function AdminBookings() {
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive leading-relaxed">
               {waErrorMsg}
             </div>
-            {waErrorMsg?.includes('FONNTE_TOKEN') && (
+            {(waErrorMsg?.includes('FONNTE_TOKEN') || waErrorMsg?.includes('Konfigurasi WhatsApp')) && (
               <div className="rounded-lg border bg-muted/50 p-4 space-y-2 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground">Cara menambahkan API key:</p>
-                <ol className="list-decimal pl-4 space-y-1">
-                  <li>Buka <span className="font-mono text-xs bg-muted px-1 rounded">Replit Secrets</span> (ikon kunci di sidebar)</li>
-                  <li>Tambahkan secret baru: <span className="font-mono text-xs bg-muted px-1 rounded">FONNTE_TOKEN</span></li>
-                  <li>Isi dengan token API dari <span className="text-blue-600">fonnte.com</span></li>
-                  <li>Restart server dan coba lagi</li>
-                </ol>
+                <p className="font-semibold text-foreground">Token WhatsApp belum dikonfigurasi.</p>
+                <p>Buka halaman <Link to="/admin/whatsapp" className="text-primary underline hover:text-primary/80 font-medium" onClick={() => setWaErrorMsg(null)}>Pengaturan WhatsApp</Link> untuk menambahkan API key dari <span className="text-blue-600 font-medium">fonnte.com</span>.</p>
               </div>
             )}
             <div className="flex justify-end">

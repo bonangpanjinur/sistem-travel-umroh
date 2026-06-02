@@ -1,1 +1,3 @@
 - [Booking mutations → Supabase direct](booking-supabase-direct.md) — semua mutasi di AdminBookingDetail.tsx wajib pakai Supabase langsung, bukan fetch ke API server
+- [WhatsApp token architecture](whatsapp-token-arch.md) — FONNTE_TOKEN dibaca dari whatsapp_config DB (bukan env var); admin kelola di /admin/whatsapp; API server fallback ke DB jika env var tidak diset.
+- [Missing tables & RLS fixes](missing-tables-migration.md) — booking_line_items belum ada di production; fase27 migration menambah tabel ini + fix RLS customer_documents, customer_mahrams, profiles join untuk booking_status_history.

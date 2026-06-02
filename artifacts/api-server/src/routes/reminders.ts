@@ -4,8 +4,6 @@ import { pool } from "../lib/db.js";
 
 const router = Router();
 
-const FONNTE_TOKEN = process.env["FONNTE_TOKEN"] || "";
-
 async function dbQuery(sql: string, params: any[] = []): Promise<any[]> {
   const client = await pool.connect();
   try {
@@ -16,6 +14,15 @@ async function dbQuery(sql: string, params: any[] = []): Promise<any[]> {
   } finally {
     client.release();
   }
+}
+
+// ── Helper: get Fonnte token (env var first, then whatsapp_config DB) ─────────
+async function getFonnteToken(): Promise<string> {
+  if (process.env["FONNTE_TOKEN"]) return process.env["FONNTE_TOKEN"];
+  const rows = await dbQuery(
+    `SELECT api_key FROM whatsapp_config WHERE is_active = true AND api_key IS NOT NULL ORDER BY updated_at DESC LIMIT 1`,
+  );
+  return rows[0]?.api_key || "";
 }
 
 async function dbQueryOne(sql: string, params: any[] = []): Promise<any | null> {
@@ -33,7 +40,8 @@ async function dbExec(sql: string, params: any[] = []): Promise<void> {
 }
 
 async function sendWA(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
-  if (!FONNTE_TOKEN) return { success: false, error: "FONNTE_TOKEN tidak dikonfigurasi" };
+  const FONNTE_TOKEN = await getFonnteToken();
+  if (!FONNTE_TOKEN) return { success: false, error: "Konfigurasi WhatsApp belum diatur. Silakan atur di menu WhatsApp panel admin." };
   const digits = phone.replace(/\D/g, "");
   const target = digits.startsWith("0") ? "62" + digits.slice(1) : digits.startsWith("62") ? digits : "62" + digits;
   try {
@@ -257,7 +265,8 @@ _Tim Vinstour Travel_`;
 
 async function runDepartureReminders(days: 7 | 1 = 7): Promise<{ sent: number; failed: number; skipped: number; details: string[] }> {
   const result = { sent: 0, failed: 0, skipped: 0, details: [] as string[] };
-  if (!FONNTE_TOKEN) { result.details.push("FONNTE_TOKEN belum dikonfigurasi"); return result; }
+  const FONNTE_TOKEN = await getFonnteToken();
+  if (!FONNTE_TOKEN) { result.details.push("Konfigurasi WhatsApp belum diatur"); return result; }
 
   const triggerId = days === 7 ? "h7_departure" : "h1_departure";
   const triggers = await getWAOtomatisTriggers();
@@ -348,8 +357,8 @@ router.get("/status", async (_req, res) => {
       triggers,
       upcoming: { cicilan: plans.length, departure_h7: h7Departures.length, departure_h1: h1Departures.length },
       next_run: "08:00 WIB (harian)",
-      configured: !!FONNTE_TOKEN,
-      fonnte_token_set: !!FONNTE_TOKEN,
+      configured: !!(await getFonnteToken()),
+      fonnte_token_set: !!(await getFonnteToken()),
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
