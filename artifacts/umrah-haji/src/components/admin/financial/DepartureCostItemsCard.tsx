@@ -9,7 +9,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { DepartureCostItemForm } from "./DepartureCostItemForm";
 import { CopyHPPDialog } from "./CopyHPPDialog";
-import { Plus, Pencil, Trash2, Package, AlertCircle, Copy } from "lucide-react";
+import { HPPTemplateDialog } from "./HPPTemplateDialog";
+import { Plus, Pencil, Trash2, Package, AlertCircle, Copy, BookMarked } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -43,6 +44,7 @@ export function DepartureCostItemsCard({ departureId, paxCount = 0, departureLab
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
 
@@ -106,6 +108,9 @@ export function DepartureCostItemsCard({ departureId, paxCount = 0, departureLab
                 <p className="font-bold text-destructive">{fmt(totalHPP)}</p>
               </div>
             )}
+            <Button size="sm" variant="outline" onClick={() => setTemplateOpen(true)}>
+              <BookMarked className="h-4 w-4 mr-1" /> Template
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setCopyOpen(true)}>
               <Copy className="h-4 w-4 mr-1" /> Salin HPP
             </Button>
@@ -251,6 +256,14 @@ export function DepartureCostItemsCard({ departureId, paxCount = 0, departureLab
         onOpenChange={setCopyOpen}
         targetDepartureId={departureId}
         targetDepartureLabel={departureLabel}
+      />
+
+      {/* Template library dialog */}
+      <HPPTemplateDialog
+        open={templateOpen}
+        onOpenChange={setTemplateOpen}
+        targetDepartureId={departureId}
+        currentItems={items || []}
       />
     </>
   );
