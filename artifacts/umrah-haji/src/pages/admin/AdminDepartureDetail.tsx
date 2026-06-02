@@ -127,19 +127,6 @@ export default function AdminDepartureDetail() {
   const totalBudgeted = _budgetSummary.reduce((s: number, r: any) => s + r.budgeted, 0);
   const totalRealized = _budgetSummary.reduce((s: number, r: any) => s + r.realized, 0);
 
-  // Margin alert — watches HPP cache; fires toast when margin drops below target
-  // after any HPP mutation regardless of which tab is active.
-  useMarginAlert({
-    departureId: id || "",
-    paxCount: passengers?.length || 0,
-    priceQuad:   Number((departure as any)?.price_quad)   || 0,
-    priceTriple: Number((departure as any)?.price_triple) || 0,
-    priceDouble: Number((departure as any)?.price_double) || 0,
-    priceSingle: Number((departure as any)?.price_single) || 0,
-    targetPct: 20,
-    enabled: !!departure,
-  });
-
   // If no id, show error
   if (!id) {
     return (
@@ -309,6 +296,19 @@ export default function AdminDepartureDetail() {
       return combined;
     },
     enabled: !!id,
+  });
+
+  // Margin alert — watches HPP cache; fires toast when margin drops below target
+  // after any HPP mutation regardless of which tab is active.
+  useMarginAlert({
+    departureId: id || "",
+    paxCount: passengers?.length || 0,
+    priceQuad:   Number((departure as any)?.price_quad)   || 0,
+    priceTriple: Number((departure as any)?.price_triple) || 0,
+    priceDouble: Number((departure as any)?.price_double) || 0,
+    priceSingle: Number((departure as any)?.price_single) || 0,
+    targetPct: 20,
+    enabled: !!departure,
   });
 
   // Fetch attendance records for this departure (real-time)
