@@ -428,12 +428,28 @@ export default function AdminManifestJamaah() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  const a = document.createElement("a");
-                  a.href = `/api/manifest/export/${selectedDeparture}?format=csv`;
-                  a.download = `manifest-${departure?.package?.name || "jamaah"}-server.csv`;
-                  a.click();
-                  toast.success("Mengunduh manifest CSV dari server...");
+                onClick={async () => {
+                  try {
+                    const url = `/api/manifest/export/${selectedDeparture}?format=csv`;
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                      const ct = res.headers.get("content-type") || "";
+                      if (!ct.includes("text/csv") && !ct.includes("application/octet")) {
+                        toast.error("API server tidak tersedia. Gunakan tombol Excel untuk ekspor.");
+                        return;
+                      }
+                    }
+                    const blob = await res.blob();
+                    const objectUrl = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = objectUrl;
+                    a.download = `manifest-${departure?.package?.name || "jamaah"}-server.csv`;
+                    a.click();
+                    URL.revokeObjectURL(objectUrl);
+                    toast.success("Manifest CSV berhasil diunduh");
+                  } catch {
+                    toast.error("Gagal mengunduh CSV dari server. Gunakan tombol Excel.");
+                  }
                 }}
                 title="Unduh langsung dari server — aman untuk data besar"
               >

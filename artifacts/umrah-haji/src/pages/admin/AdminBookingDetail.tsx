@@ -116,6 +116,35 @@ const CANCELLATION_REASONS = [
   'Lainnya',
 ];
 
+async function recalcPaymentTotals(bookingId: string) {
+  const { data: pmts } = await supabase
+    .from('payments')
+    .select('amount, status')
+    .eq('booking_id', bookingId);
+
+  const paidAmount = (pmts || [])
+    .filter((p: any) => p.status === 'paid' || p.status === 'verified')
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+
+  const { data: bk } = await (supabase as any)
+    .from('bookings')
+    .select('total_price')
+    .eq('id', bookingId)
+    .single();
+
+  const totalPrice = Number(bk?.total_price || 0);
+  const remainingAmount = Math.max(0, totalPrice - paidAmount);
+  const paymentStatus =
+    paidAmount >= totalPrice && totalPrice > 0 ? 'paid'
+    : paidAmount > 0 ? 'partial'
+    : 'pending';
+
+  await (supabase as any)
+    .from('bookings')
+    .update({ paid_amount: paidAmount, remaining_amount: remainingAmount, payment_status: paymentStatus, updated_at: new Date().toISOString() })
+    .eq('id', bookingId);
+}
+
 export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>() as { id: string };
   const navigate = useNavigate();
@@ -174,9 +203,11 @@ export default function AdminBookingDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal menghapus booking');
+      const { error } = await (supabase as any)
+        .from('bookings')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
       return true;
     },
     onSuccess: () => {
@@ -195,9 +226,13 @@ export default function AdminBookingDetail() {
 
   const deletePaymentMutation = useMutation({
     mutationFn: async ({ paymentId, paymentSnapshot: _snap }: { paymentId: string; paymentSnapshot: any }) => {
-      const res = await fetch(`/api/bookings/${id}/payments/${paymentId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal menghapus pembayaran');
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId)
+        .eq('booking_id', id);
+      if (error) throw error;
+      await recalcPaymentTotals(id);
       return true;
     },
     onSuccess: () => {
@@ -487,13 +522,11 @@ export default function AdminBookingDetail() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: BookingStatus) => {
-      const res = await fetch(`/api/bookings/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal memperbarui status');
+      const { error } = await (supabase as any)
+        .from('bookings')
+        .update({ booking_status: status, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
       return status;
     },
     onSuccess: async (status) => {
@@ -581,14 +614,20 @@ export default function AdminBookingDetail() {
 
   const verifyPaymentMutation = useMutation({
     mutationFn: async ({ paymentId, status, notes }: { paymentId: string; status: 'paid' | 'failed'; notes?: string }) => {
-      const res = await fetch(`/api/bookings/${id}/payments/${paymentId}/verify`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, notes, verifiedBy: user?.id }),
-      });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal memverifikasi pembayaran');
-
+      const updateData: any = {
+        status,
+        verified_at: new Date().toISOString(),
+        verified_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      };
+      if (notes) updateData.notes = notes;
+      const { error } = await (supabase as any)
+        .from('payments')
+        .update(updateData)
+        .eq('id', paymentId)
+        .eq('booking_id', id);
+      if (error) throw error;
+      await recalcPaymentTotals(id);
       return { paymentId, status };
     },
     onSuccess: async (result) => {
@@ -686,13 +725,11 @@ export default function AdminBookingDetail() {
   // C1 — Save notes inline
   const updateNotesMutation = useMutation({
     mutationFn: async (notes: string) => {
-      const res = await fetch(`/api/bookings/${id}/notes`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes }),
-      });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal menyimpan catatan');
+      const { error } = await (supabase as any)
+        .from('bookings')
+        .update({ notes: notes || null, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Catatan berhasil disimpan');
@@ -705,13 +742,11 @@ export default function AdminBookingDetail() {
   // C2 — Update payment deadline
   const updateDeadlineMutation = useMutation({
     mutationFn: async (deadline: string) => {
-      const res = await fetch(`/api/bookings/${id}/deadline`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_deadline: deadline }),
-      });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal memperbarui batas bayar');
+      const { error } = await (supabase as any)
+        .from('bookings')
+        .update({ payment_deadline: deadline || null, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Batas bayar berhasil diperbarui');
@@ -724,13 +759,11 @@ export default function AdminBookingDetail() {
   // C5 — Assign room number per passenger
   const updateRoomNumberMutation = useMutation({
     mutationFn: async ({ passengerId, roomNumber }: { passengerId: string; roomNumber: string }) => {
-      const res = await fetch(`/api/bookings/${id}/passengers/${passengerId}/room`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room_number: roomNumber || null }),
-      });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal menyimpan nomor kamar');
+      const { error } = await (supabase as any)
+        .from('booking_passengers')
+        .update({ room_number: roomNumber || null })
+        .eq('id', passengerId);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Nomor kamar berhasil disimpan');
@@ -917,6 +950,8 @@ export default function AdminBookingDetail() {
           paymentInfoBlocks: (invoiceTemplate.payment_info_blocks as PaymentInfoBlock[]) ?? [],
           termsText: invoiceTemplate.terms_text ?? "",
           footerText: invoiceTemplate.footer_text ?? "",
+          showQrCode: (invoiceTemplate as any).show_qr_code ?? true,
+          qrPlacement: ((invoiceTemplate as any).qr_placement ?? "bottom-right") as "top-right" | "bottom-right" | "bottom-center",
           cancellationPolicy: activeCancellationPolicy,
           paperSize: trxPaperSize,
           orientation: trxOrientation,
@@ -1027,22 +1062,36 @@ export default function AdminBookingDetail() {
   const processRefundMutation = useMutation({
     mutationFn: async ({ withRefund }: { withRefund: boolean }) => {
       const prevStatus = (booking as any)?.booking_status ?? 'unknown';
-      const res = await fetch(`/api/bookings/${id}/cancel`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          withRefund,
-          refundAmount,
-          refundMethod,
-          accountInfo: refundAccountInfo || null,
-          reason: cancellationReason || null,
-          userId: user?.id,
-          customerId: (booking as any)?.customer_id || (booking as any)?.customer?.id,
-        }),
-      });
-      const data = await res.json();
-      if (!data?.success) throw new Error(data?.error || 'Gagal memproses pembatalan');
-      return { withRefund, targetStatus: data.targetStatus as BookingStatus, prevStatus, refundId: data.refundId as string | null };
+      const targetStatus: BookingStatus = withRefund ? 'refunded' : 'cancelled';
+
+      const { error: statusError } = await (supabase as any)
+        .from('bookings')
+        .update({ booking_status: targetStatus, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (statusError) throw statusError;
+
+      let refundId: string | null = null;
+      if (withRefund && refundAmount > 0) {
+        const customerId = (booking as any)?.customer_id || (booking as any)?.customer?.id;
+        const { data: refundData, error: refundError } = await (supabase as any)
+          .from('refunds')
+          .insert({
+            booking_id: id,
+            customer_id: customerId ?? null,
+            amount: refundAmount,
+            refund_method: refundMethod,
+            account_info: refundAccountInfo || null,
+            reason: cancellationReason || null,
+            status: 'pending',
+            created_by: user?.id ?? null,
+          })
+          .select('id')
+          .single();
+        if (refundError) throw refundError;
+        refundId = refundData?.id ?? null;
+      }
+
+      return { withRefund, targetStatus, prevStatus, refundId };
     },
     onSuccess: async ({ withRefund, targetStatus, prevStatus, refundId }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });

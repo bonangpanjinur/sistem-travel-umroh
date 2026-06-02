@@ -1,0 +1,1 @@
+- [Booking mutations → Supabase direct](booking-supabase-direct.md) — semua mutasi di AdminBookingDetail.tsx wajib pakai Supabase langsung, bukan fetch ke API server
