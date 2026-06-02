@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, cp } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -119,6 +119,22 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Copy SQL migration files into dist so they are available at runtime.
+  // 00_auth_bootstrap.sql — creates auth schema + stub functions (Neon compat)
+  // 01_schema.sql         — full application schema (migration_fresh.sql)
+  const sqlDist = path.resolve(distDir, "sql");
+  await cp(
+    path.resolve(artifactDir, "src/sql"),
+    sqlDist,
+    { recursive: true },
+  );
+
+  // Copy the root-level migration_fresh.sql → dist/sql/01_schema.sql
+  const rootSql = path.resolve(artifactDir, "../../migration_fresh.sql");
+  await cp(rootSql, path.resolve(sqlDist, "01_schema.sql"));
+
+  console.log("✓ SQL files copied to dist/sql/");
 }
 
 buildAll().catch((err) => {

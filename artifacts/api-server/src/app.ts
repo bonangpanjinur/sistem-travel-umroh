@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import { rateLimit } from "express-rate-limit";
 import router from "./routes";
+import { supabaseProxyRouter } from "./routes/supabaseProxy.js";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -54,5 +55,10 @@ app.use("/api/v1/leads", leadsLimiter);  // Strict limit for lead submission
 app.use("/api", generalLimiter);         // General limit for all API routes
 
 app.use("/api", router);
+
+// Supabase-compatible proxy — mounted at root so the Supabase JS client can
+// hit /auth/v1/* and /rest/v1/* via the Vite dev-server proxy.
+// These routes are intentionally AFTER the rate limiter (which only covers /api).
+app.use(supabaseProxyRouter);
 
 export default app;

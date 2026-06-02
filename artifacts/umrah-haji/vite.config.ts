@@ -64,6 +64,17 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      // Supabase-compatible proxy routes served by the Express API server.
+      // The Supabase JS client calls /auth/v1/* (auth) and /rest/v1/* (data).
+      // These are forwarded to Express which translates them to Neon Postgres queries.
+      "/auth/v1": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/rest/v1": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
   preview: {

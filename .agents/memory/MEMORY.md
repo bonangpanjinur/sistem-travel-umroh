@@ -4,3 +4,4 @@
 - [app_role enum valid values](app_role-enum.md) — only 6 valid values: super_admin, owner, branch_manager, operational, sales, agent. Values admin/staff/finance are NOT valid enum values.
 - [web-vitals Vite fix](web-vitals-stub.md) — dynamic import("web-vitals") crashes Vite when package absent; fixed with local stub src/lib/web-vitals-stub.ts + static import.
 - [vite.config.ts hot-reload crash](vite-config-hotreload.md) — editing vite.config.ts in dev causes "Cannot find package vite" HMR crash; requires full workflow restart + pnpm install --filter @workspace/umrah-haji.
+- [Supabase proxy migration](supabase-proxy-migration.md) — Supabase replaced with local Express PostgREST-compatible proxy; Vite proxies /auth/v1 and /rest/v1 to port 8080; client.ts falls back to window.location.origin when VITE_SUPABASE_URL unset.
