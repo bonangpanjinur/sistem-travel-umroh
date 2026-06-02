@@ -3,11 +3,16 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeparturePLSummaryCard } from "./DeparturePLSummaryCard";
 import { DepartureCostItemsCard } from "./DepartureCostItemsCard";
 import { DepartureExpensesCard } from "./DepartureExpensesCard";
 import { DepartureOtherRevenuesCard } from "./DepartureOtherRevenuesCard";
-import { Calendar, DollarSign } from "lucide-react";
+import {
+  DepartureMarginComparison,
+  type DepartureForComparison,
+} from "./DepartureMarginComparison";
+import { Calendar, DollarSign, BarChart2 } from "lucide-react";
 
 interface Departure {
   id: string;
@@ -15,6 +20,10 @@ interface Departure {
   return_date: string | null;
   status: string;
   quota: number;
+  price_quad?: number | null;
+  price_triple?: number | null;
+  price_double?: number | null;
+  price_single?: number | null;
   bookings?: { booking_status: string; total_pax: number }[];
 }
 
@@ -62,60 +71,94 @@ export function PackageFinancialSection({ departures }: Props) {
     );
   }
 
+  // Cast departures to include price fields for comparison
+  const depsForComparison: DepartureForComparison[] = departures.map((d) => ({
+    id: d.id,
+    departure_date: d.departure_date,
+    return_date: d.return_date,
+    status: d.status,
+    quota: d.quota,
+    price_quad: d.price_quad ?? null,
+    price_triple: d.price_triple ?? null,
+    price_double: d.price_double ?? null,
+    price_single: d.price_single ?? null,
+    bookings: d.bookings,
+  }));
+
   return (
-    <div className="space-y-6">
-      {/* Departure selector */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className="text-sm font-medium text-muted-foreground shrink-0">Keberangkatan:</span>
-        <Select value={selectedId} onValueChange={setSelectedId}>
-          <SelectTrigger className="w-full max-w-sm">
-            <SelectValue placeholder="Pilih keberangkatan..." />
-          </SelectTrigger>
-          <SelectContent>
-            {departures.map((d) => (
-              <SelectItem key={d.id} value={d.id}>
-                <div className="flex items-center gap-2">
-                  <span>{formatDepartureLabel(d)}</span>
-                  {STATUS_BADGE[d.status]}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <Tabs defaultValue="detail" className="space-y-4">
+      <TabsList className="h-8">
+        <TabsTrigger value="detail" className="text-xs gap-1.5">
+          <Calendar className="h-3.5 w-3.5" />
+          Detail per Keberangkatan
+        </TabsTrigger>
+        <TabsTrigger value="comparison" className="text-xs gap-1.5">
+          <BarChart2 className="h-3.5 w-3.5" />
+          Perbandingan Margin
+          <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
+            {departures.length}
+          </Badge>
+        </TabsTrigger>
+      </TabsList>
+
+      {/* ── Tab 1: Detail per keberangkatan (existing view) ── */}
+      <TabsContent value="detail" className="space-y-6 mt-0">
+        {/* Departure selector */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium text-muted-foreground shrink-0">Keberangkatan:</span>
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger className="w-full max-w-sm">
+              <SelectValue placeholder="Pilih keberangkatan..." />
+            </SelectTrigger>
+            <SelectContent>
+              {departures.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  <div className="flex items-center gap-2">
+                    <span>{formatDepartureLabel(d)}</span>
+                    {STATUS_BADGE[d.status]}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selected && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{paxCount} jamaah aktif</span>
+              <span>•</span>
+              <span>{selected.quota} kuota</span>
+            </div>
+          )}
+        </div>
+
         {selected && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{paxCount} jamaah aktif</span>
-            <span>•</span>
-            <span>{selected.quota} kuota</span>
-          </div>
-        )}
-      </div>
-
-      {selected && (
-        <div className="space-y-4">
-          {/* P&L Summary at the top */}
-          <DeparturePLSummaryCard
-            departureId={selected.id}
-            departureLabel={formatDepartureLabel(selected)}
-            paxCount={paxCount}
-            quota={selected.quota}
-          />
-
-          {/* Three cards side by side on large screens, stacked on small */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <DepartureCostItemsCard
+          <div className="space-y-4">
+            <DeparturePLSummaryCard
               departureId={selected.id}
-              paxCount={paxCount}
               departureLabel={formatDepartureLabel(selected)}
+              paxCount={paxCount}
+              quota={selected.quota}
             />
-            <div className="space-y-4">
-              <DepartureExpensesCard departureId={selected.id} />
-              <DepartureOtherRevenuesCard departureId={selected.id} />
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <DepartureCostItemsCard
+                departureId={selected.id}
+                paxCount={paxCount}
+                departureLabel={formatDepartureLabel(selected)}
+              />
+              <div className="space-y-4">
+                <DepartureExpensesCard departureId={selected.id} />
+                <DepartureOtherRevenuesCard departureId={selected.id} />
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </TabsContent>
+
+      {/* ── Tab 2: Perbandingan Margin ── */}
+      <TabsContent value="comparison" className="mt-0">
+        <DepartureMarginComparison departures={depsForComparison} />
+      </TabsContent>
+    </Tabs>
   );
 }
