@@ -1,68 +1,52 @@
-## Analisis Kebutuhan
+## Diagnosa
 
-**Masalah saat ini:**
-1. **PWA terasa "Access Denied"** — saat user install PWA dan membukanya, `StandaloneHomeGate` langsung redirect ke `/auth/login` jika belum login, dan banyak menu jamaah dibungkus `CustomerRoute` (ProtectedRoute dengan `CUSTOMER_PORTAL_ROLES`). User yang baru install langsung kena dinding login + role check.
-2. **Tampilan belum "app-like"** — Banyak halaman jamaah masih memakai layout web/marketing, card paket pakai grid web standar, bukan card vertikal khas mobile app.
-3. **Navigasi kurang aplikatif** — `MobileBottomNav` sudah ada tapi konten halaman belum dirancang khusus PWA (header tinggi, padding web, tombol kecil, dll).
+Gejala (login gagal fetch, loading lama, tiba-tiba ter-logout) **bukan bug di kode**. Penyebabnya tunggal dan jelas dari console log:
 
-**Tujuan user:**
-- Buka PWA = langsung masuk aplikasi (mode tamu / guest), tidak ada gate.
-- Semua menu inti (paket, sholat, panduan, kalkulator, dll) **bisa diakses tanpa login**.
-- Tampilan full app: header compact, card paket gaya mobile (vertikal, gambar besar di atas, badge harga, tombol full-width), bottom nav konsisten, transisi halus.
-- Login hanya diminta saat user mau aksi privat (booking, dokumen, riwayat pembayaran).
+```
+POST https://vtaqwkpnvtazcnvcfmyy.supabase.co/auth/v1/token  net::ERR_TIMED_OUT
+                                                              net::ERR_QUIC_PROTOCOL_ERROR
+WebSocket wss://vtaqwkpnvtazcnvcfmyy.supabase.co/realtime/...  failed
+```
 
----
+- Production `vinstourtravel.com` (di-deploy di Vercel) memakai backend **`vtaqwkpnvtazcnvcfmyy.supabase.co`** — backend ini **tidak responsif** (semua request timeout).
+- Project Lovable Cloud yang aktif & sehat sekarang adalah **`ribjppjnjigiowhjgngu.supabase.co`** (sesuai `.env` repo & status backend = healthy).
+- Karena `auth/token?grant_type=refresh_token` selalu gagal → token expired → user di-logout otomatis → loading lama menunggu timeout → login form fetch terus.
 
-## Rencana Pengembangan
+Artinya **environment variable di Vercel mengarah ke project Supabase yang lama/mati**, sementara repo (dan Lovable preview) sudah pindah ke project baru.
 
-### FASE 1 — Buka Akses PWA (Hilangkan Access Denied)
-1. **Ubah `StandaloneHomeGate`**: kalau standalone + belum login → arahkan ke `/jamaah` (mode tamu), bukan `/auth/login`.
-2. **Buat `/jamaah` (JamaahPortal) bisa diakses tanpa login**:
-   - Pindahkan route `/jamaah` keluar dari `CustomerRoute`, jadi public.
-   - Di dalam komponen, deteksi `user`: kalau ada → tampilkan personalisasi (nama, booking, dokumen). Kalau tidak ada → tampilkan versi tamu (paket populer, jadwal sholat, panduan, kalkulator + tombol "Login untuk fitur lengkap").
-3. **Public-kan menu informatif** (tidak perlu login):
-   - `/jamaah/waktu-sholat`, `/jamaah/kiblat`, `/jamaah/al-quran`, `/jamaah/panduan-ibadah`, `/jamaah/doa-panduan`, `/jamaah/zikir`, `/jamaah/manasik`, `/jamaah/kalkulator-kurs`, `/jamaah/kalkulator-zakat`, `/jamaah/chatbot`.
-   - (Sebagian sudah `LazyPage` tanpa `CustomerRoute` — pastikan konsisten.)
-4. **Login soft-prompt**: untuk fitur privat (`/jamaah/documents`, `/jamaah/payment-history`, `/jamaah/digital-id`, `/jamaah/visa`, `/jamaah/checkin`, dll) tetap `CustomerRoute`, tapi kalau belum login tampilkan **bottom-sheet "Masuk untuk lanjut"** alih-alih halaman Access Denied — minimal tombol Login + tombol Kembali ke beranda.
+## Yang harus dilakukan (oleh user di Vercel — tidak bisa otomatis oleh Lovable)
 
-### FASE 2 — UI Full Aplikasi
-5. **Shell PWA seragam** (`DynamicPublicLayout` mode standalone):
-   - Header compact sudah ada — perhalus: tambahkan tombol back (kecuali di home), notifikasi bell, avatar.
-   - Beri `pb-20` global di area konten supaya tidak ketutup bottom nav.
-   - Konsisten safe-area top/bottom (notch).
-6. **Redesign `JamaahPortal` jadi Home App**:
-   - Greeting card (nama / "Tamu") + lokasi + waktu sholat berikut (countdown).
-   - Quick-action grid 4 kolom (Sholat • Quran • Kiblat • Panduan).
-   - Carousel "Paket Pilihan" memakai `PackageCardPWA` (sudah ada — pakai ulang & rapikan).
-   - Section "Untuk Anda" (booking aktif / progress dokumen) muncul kalau login.
-   - Section "Tools" (kalkulator, zakat, manasik, chatbot AI).
-7. **Kartu paket "app style"** (`PackageCardPWA`):
-   - Gambar 16:9 dengan overlay gradient, badge tipe (Umroh/Haji), badge "Popular".
-   - Harga besar + "mulai dari" kecil, sisa kursi, tombol "Lihat Detail" full-width primary.
-   - Pakai `framer-motion` untuk press effect (`whileTap: { scale: 0.97 }`).
-8. **Halaman menu lain** (Sholat, Quran, Kiblat, Panduan, Kalkulator):
-   - Header sticky dengan judul + back.
-   - Konten card-based, padding mobile (px-4), font scale mobile.
-   - Loading skeleton skeleton-mobile.
+Karena hosting di Vercel manual, Lovable tidak punya akses mengganti env var di sana. Langkahnya:
 
-### FASE 3 — Polish & QA
-9. Tambahkan transisi halaman ringan (fade/slide) antar route saat standalone.
-10. Pastikan `MobileBottomNav` highlight item aktif sesuai route, dan tetap muncul untuk user tamu.
-11. Test alur: install PWA → buka → langsung di home jamaah (tamu) → klik paket → klik kalkulator → klik dokumen → muncul prompt login (bukan halaman denied).
+1. Buka **Vercel → Project `vinstourtravel` → Settings → Environment Variables**.
+2. Cari & update 3 variabel ini ke nilai project Lovable Cloud yang aktif:
 
----
+   ```
+   VITE_SUPABASE_URL              = https://ribjppjnjigiowhjgngu.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY  = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi...Pj6vluA
+   VITE_SUPABASE_PROJECT_ID       = ribjppjnjigiowhjgngu
+   ```
+   (Nilai persis sama dengan `.env` repo sekarang.)
 
-## Detail Teknis (untuk referensi developer)
+3. **Redeploy** dari Vercel (Deployments → ⋯ → Redeploy, **uncheck** "Use existing Build Cache").
 
-- **File diubah:**
-  - `artifacts/umrah-haji/src/components/pwa/StandaloneHomeGate.tsx` — hapus redirect ke `/auth/login`, ganti ke `/jamaah`.
-  - `artifacts/umrah-haji/src/routes/CustomerRoutes.tsx` — pindahkan route public-friendly keluar dari `CustomerRoute`, atau bungkus dengan komponen baru `OptionalAuthRoute`.
-  - `artifacts/umrah-haji/src/pages/jamaah/JamaahPortal.tsx` — refactor jadi home app (guest + authed view).
-  - `artifacts/umrah-haji/src/components/pwa/PackageCardPWA.tsx` — restyle app-card.
-  - `artifacts/umrah-haji/src/components/layout/DynamicPublicLayout.tsx` — perhalus PWA header, padding bawah, safe-area.
-  - Buat `artifacts/umrah-haji/src/components/pwa/LoginPromptSheet.tsx` — bottom sheet lembut menggantikan halaman Access Denied untuk fitur privat.
-  - Buat `artifacts/umrah-haji/src/components/auth/OptionalAuthRoute.tsx` — wrapper yang render anak tanpa redirect, menyuntikkan flag `isGuest`.
-- **Tidak ada perubahan database/RLS** — semua di sisi frontend & routing. RLS existing tetap melindungi data privat (query kosong saat tamu, aman).
-- **Tidak menyentuh** alur admin/owner (`/dashboard`) — mereka tetap diarahkan login seperti biasa.
+4. Setelah deploy selesai, **hard-refresh** browser (Ctrl/Cmd + Shift + R) supaya bundle `index-BZBbzvAH.js` yang lama (masih hardcoded ke project mati) terganti.
 
-Apakah saya lanjutkan implementasi sesuai rencana di atas?
+5. Karena ada **Service Worker** terdaftar (`SW registered: https://www.vinstourtravel.com/`), buka DevTools → Application → Service Workers → **Unregister**, lalu Application → Storage → **Clear site data**, lalu reload. Ini wajib — kalau tidak, SW akan tetap menyajikan asset JS lama.
+
+## Verifikasi sesudahnya
+
+- Network tab seharusnya menunjukkan request ke `ribjppjnjigiowhjgngu.supabase.co` (bukan `vtaqwkpnvtazcnvcfmyy`).
+- `auth/v1/token` return 200, bukan TIMED_OUT.
+- Login berhasil, tidak ada lagi auto-logout, dan logo (`logo-1774349613743.png` yang juga timed-out di storage project lama) muncul lagi.
+
+## Catatan
+
+- **Data di project lama (`vtaqwkpnvtazcnvcfmyy`) tidak ikut pindah.** Kalau user/booking/dokumen lama ada di sana, perlu migrasi data terpisah (export → import). Konfirmasi dulu apakah project lama itu sengaja dimatikan / sudah dipindah, atau perlu kita rencanakan migrasi.
+- Tidak ada perubahan kode aplikasi yang dibutuhkan untuk fix ini.
+- Setelah backend benar, kalau masih ada race-condition kecil saat init session, kita bisa tambahkan guard `useAuthReady` — tapi itu opsional dan baru relevan setelah env-nya benar.
+
+## Yang perlu saya tahu dari user
+
+1. Apakah project lama `vtaqwkpnvtazcnvcfmyy` **sengaja ditinggalkan** (boleh diabaikan), atau **masih berisi data produksi** yang harus diselamatkan dulu sebelum switch?
+2. Apakah Anda mau saya pandu live (step-by-step screenshot Vercel), atau Anda jalankan sendiri lalu lapor kalau ada kendala?
