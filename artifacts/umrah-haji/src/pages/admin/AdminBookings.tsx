@@ -33,8 +33,9 @@ import { useState, useMemo, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
-  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare, ChevronDown, AlertCircle
+  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare, ChevronDown, AlertCircle, QrCode
 } from "lucide-react";
+import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import {
   Dialog,
   DialogContent,
@@ -87,6 +88,7 @@ export default function AdminBookings() {
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [waErrorMsg, setWaErrorMsg] = useState<string | null>(null);
+  const [barcodeBooking, setBarcodeBooking] = useState<{ id: string; code: string; customer?: string; pkg?: string; date?: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [periodPreset, setPeriodPreset] = useState<string>("all");
@@ -868,6 +870,20 @@ export default function AdminBookings() {
                             Detail
                           </Link>
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Cetak Barcode"
+                          onClick={() => setBarcodeBooking({
+                            id: booking.id,
+                            code: booking.booking_code,
+                            customer: customer?.full_name,
+                            pkg: departure?.package?.name,
+                            date: departure?.departure_date ? formatDate(departure.departure_date) : undefined,
+                          })}
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </Button>
                         {(paymentStatus === 'pending' || paymentStatus === 'partial') && (
                           <Button
                             variant="outline"
@@ -1007,6 +1023,19 @@ export default function AdminBookings() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {barcodeBooking && (
+        <BookingBarcodeModal
+          open={!!barcodeBooking}
+          onOpenChange={open => { if (!open) setBarcodeBooking(null); }}
+          bookingId={barcodeBooking.id}
+          bookingCode={barcodeBooking.code}
+          customerName={barcodeBooking.customer}
+          packageName={barcodeBooking.pkg}
+          departureDate={barcodeBooking.date}
+          companyName={company?.name}
+        />
+      )}
     </div>
   );
 }

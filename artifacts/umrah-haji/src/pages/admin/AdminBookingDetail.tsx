@@ -75,6 +75,7 @@ import { RoomTypeAssignmentDialog } from "@/components/admin/RoomTypeAssignmentD
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
+import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
 import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
 import { useDocumentLogger } from "@/hooks/useDocumentLogger";
@@ -131,6 +132,7 @@ export default function AdminBookingDetail() {
   const canAddPayment = isAdmin() || isFinance || hasRole('agent');
 
   const [notifErrorMsg, setNotifErrorMsg] = useState<string | null>(null);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -2309,7 +2311,7 @@ export default function AdminBookingDetail() {
                 </Button>
               </div>
 
-              <div className="pt-2 border-t">
+              <div className="pt-2 border-t space-y-2">
                 <div className="grid grid-cols-2 gap-3">
                   <Button 
                     className="w-full h-10 text-[10px] font-bold shadow-sm" 
@@ -2330,6 +2332,14 @@ export default function AdminBookingDetail() {
                     REMINDER
                   </Button>
                 </div>
+                <Button
+                  className="w-full justify-start h-10 text-[10px] font-bold"
+                  variant="outline"
+                  onClick={() => setShowBarcodeModal(true)}
+                >
+                  <Printer className="h-3.5 w-3.5 mr-2 text-purple-600" />
+                  CETAK ULANG BARCODE
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -2860,6 +2870,19 @@ export default function AdminBookingDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {booking && (
+        <BookingBarcodeModal
+          open={showBarcodeModal}
+          onOpenChange={setShowBarcodeModal}
+          bookingId={booking.id}
+          bookingCode={booking.booking_code}
+          customerName={(booking as any).customer?.full_name}
+          packageName={(booking as any).departure?.package?.name}
+          departureDate={(booking as any).departure?.departure_date ? formatDate((booking as any).departure.departure_date) : undefined}
+          companyName={companyInfo?.name}
+        />
+      )}
     </div>
   );
 }
