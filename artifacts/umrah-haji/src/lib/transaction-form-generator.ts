@@ -711,53 +711,95 @@ export async function generateTransactionForm(
   }
 
   // ── QR Code: Verifikasi Booking Publik ────────────────────────────────────
-  // Render QR code on page 1 for public access to form transaksi
+  // Render QR code on page 1 — scan untuk akses form transaksi tanpa login
   if ((template.showQrCode !== false) && data.verifyUrl) {
     try {
       const qrDataUrl = await QRCode.toDataURL(data.verifyUrl, {
         margin: 1,
-        width: 256,
-        errorCorrectionLevel: "M",
+        width: 320,
+        errorCorrectionLevel: "H",
         color: { dark: "#0f172a", light: "#ffffff" },
       });
 
       doc.setPage(1);
       const ph1 = doc.internal.pageSize.height;
-      const qrSize = 28; // mm
       const placement = template.qrPlacement ?? "bottom-right";
 
-      let qrX: number;
-      let qrY: number;
+      // Container dimensions
+      const qrSize  = 26;   // mm — QR image itself
+      const pad     = 3;    // mm — inner padding
+      const hdrH    = 5;    // mm — colored header bar height
+      const lblH    = 9;    // mm — footer label area height
+      const boxW    = qrSize + pad * 2;
+      const boxH    = hdrH + pad + qrSize + pad + lblH;
+
+      let boxX: number;
+      let boxY: number;
 
       if (placement === "top-right") {
-        qrX = pw - qrSize - MARGIN;
-        qrY = MARGIN + 2;
+        boxX = pw - boxW - MARGIN;
+        boxY = MARGIN + 2;
       } else if (placement === "bottom-center") {
-        qrX = cx - qrSize / 2;
-        qrY = ph1 - qrSize - LAYOUT.FOOTER_RESERVE - 12;
+        boxX = cx - boxW / 2;
+        boxY = ph1 - boxH - LAYOUT.FOOTER_RESERVE - 4;
       } else {
         // bottom-right (default)
-        qrX = pw - qrSize - MARGIN;
-        qrY = ph1 - qrSize - LAYOUT.FOOTER_RESERVE - 12;
+        boxX = pw - boxW - MARGIN;
+        boxY = ph1 - boxH - LAYOUT.FOOTER_RESERVE - 4;
       }
 
-      // White background with accent border
+      // ── Outer card with shadow-like double border ────────────────────────
+      // Shadow layer (dark, offset)
+      doc.setFillColor(acc.r, acc.g, acc.b);
+      doc.setDrawColor(acc.r, acc.g, acc.b);
+      doc.setLineWidth(0);
+      doc.roundedRect(boxX + 0.8, boxY + 0.8, boxW, boxH, 2, 2, "F");
+
+      // White card
       doc.setFillColor(255, 255, 255);
       doc.setDrawColor(acc.r, acc.g, acc.b);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 10, 1.5, 1.5, "FD");
+      doc.setLineWidth(0.6);
+      doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, "FD");
 
-      doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+      // ── Colored header strip ─────────────────────────────────────────────
+      doc.setFillColor(acc.r, acc.g, acc.b);
+      // Clip to rounded top only by drawing a rect that covers the straight bottom
+      doc.roundedRect(boxX, boxY, boxW, hdrH + 2, 2, 2, "F");
+      doc.rect(boxX, boxY + 2, boxW, hdrH, "F");
 
       doc.setFont(font, "bold");
       doc.setFontSize(5.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text("SCAN VERIFIKASI", boxX + boxW / 2, boxY + hdrH - 0.5, { align: "center" });
+
+      // ── QR image ─────────────────────────────────────────────────────────
+      const qrX = boxX + pad;
+      const qrY = boxY + hdrH + pad;
+
+      // Light blue tint frame around QR
+      doc.setFillColor(240, 245, 255);
+      doc.setDrawColor(210, 220, 240);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(qrX - 0.5, qrY - 0.5, qrSize + 1, qrSize + 1, 1, 1, "FD");
+
+      doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+      // ── Footer: label + kode transaksi ───────────────────────────────────
+      const lblBaseY = qrY + qrSize + pad + 1;
+
+      doc.setFont(font, "bold");
+      doc.setFontSize(5);
       doc.setTextColor(acc.r, acc.g, acc.b);
-      doc.text("SCAN VERIFIKASI", qrX + qrSize / 2, qrY + qrSize + 4.5, { align: "center" });
+      doc.text("Cek Status Transaksi", boxX + boxW / 2, lblBaseY, { align: "center" });
 
       doc.setFont(font, "normal");
       doc.setFontSize(4.5);
-      doc.setTextColor(120, 120, 120);
-      doc.text(data.transactionCode, qrX + qrSize / 2, qrY + qrSize + 7.5, { align: "center" });
+      doc.setTextColor(100, 100, 100);
+      doc.text(data.transactionCode, boxX + boxW / 2, lblBaseY + 3.5, { align: "center" });
+
+      doc.setFontSize(4);
+      doc.setTextColor(160, 160, 160);
+      doc.text("Tanpa Login", boxX + boxW / 2, lblBaseY + 6.5, { align: "center" });
     } catch (e) {
       console.warn("QR generation failed:", e);
     }

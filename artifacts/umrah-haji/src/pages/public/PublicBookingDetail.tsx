@@ -65,9 +65,15 @@ export default function PublicBookingDetail() {
       );
       if (cancelled) return;
       if (err) {
-        setError("Gagal memuat data transaksi.");
+        const is404 = err.code === "PGRST202" || err.message?.includes("404") ||
+          err.message?.includes("not found") || err.details?.includes("not found");
+        setError(
+          is404
+            ? "Layanan verifikasi sedang dalam proses aktivasi. Silakan hubungi admin untuk informasi booking Anda."
+            : "Gagal memuat data transaksi. Coba lagi beberapa saat."
+        );
       } else if (!res) {
-        setError("Transaksi tidak ditemukan.");
+        setError("Transaksi tidak ditemukan. Pastikan QR Code yang Anda scan benar.");
       } else {
         setData(res as PublicBooking);
       }

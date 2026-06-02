@@ -42,6 +42,8 @@ interface DBTemplate {
   payment_info_blocks: PaymentInfoBlock[];
   terms_text: string;
   footer_text: string | null;
+  show_qr_code: boolean;
+  qr_placement: string;
 }
 
 function dbToTemplate(db: DBTemplate): TransactionFormTemplate {
@@ -57,6 +59,8 @@ function dbToTemplate(db: DBTemplate): TransactionFormTemplate {
     paymentInfoBlocks: (db.payment_info_blocks as PaymentInfoBlock[]) ?? [],
     termsText: db.terms_text ?? "",
     footerText: db.footer_text ?? "",
+    showQrCode: db.show_qr_code ?? true,
+    qrPlacement: (db.qr_placement as any) ?? "bottom-right",
   };
 }
 
@@ -226,6 +230,8 @@ export default function AdminInvoiceTemplate() {
         payment_info_blocks: template.paymentInfoBlocks,
         terms_text: template.termsText,
         footer_text: template.footerText || null,
+        show_qr_code: template.showQrCode !== false,
+        qr_placement: template.qrPlacement ?? "bottom-right",
         updated_at: new Date().toISOString(),
       };
 
@@ -665,8 +671,25 @@ export default function AdminInvoiceTemplate() {
                     <li>Hanya 1 template aktif (Default) yang digunakan — simpan perubahan untuk mengaktifkannya</li>
                     <li>Klik "Pratinjau PDF" untuk melihat hasil dengan data sampel sebelum menyimpan</li>
                     <li>Data perusahaan (nama, alamat, dll) diambil dari pengaturan Profil Perusahaan</li>
-                    <li>Jalankan SQL migration di Supabase Dashboard agar tabel <code className="bg-muted px-1 rounded">invoice_templates</code> tersedia</li>
                   </ul>
+                </div>
+
+                <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg text-sm space-y-2 border border-amber-200 dark:border-amber-800">
+                  <p className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                    ⚠️ Aktivasi Halaman Verifikasi Publik
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Agar halaman QR Scan (form transaksi tanpa login) berfungsi di production, jalankan SQL berikut
+                    sekali di <strong>Supabase Dashboard → SQL Editor</strong>:
+                  </p>
+                  <pre className="text-[10px] bg-amber-100 dark:bg-amber-900/30 rounded p-2 overflow-x-auto font-mono text-amber-900 dark:text-amber-200">
+{`-- File: supabase/migrations/fase26_public_booking_rpc_qr_settings.sql
+-- (sudah tersedia di repo, jalankan via Supabase SQL Editor)`}
+                  </pre>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Migration ini membuat fungsi <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">get_public_booking_details</code>{" "}
+                    yang memungkinkan jamaah membuka halaman transaksi dari QR Code tanpa perlu login.
+                  </p>
                 </div>
               </CardContent>
             </Card>
