@@ -854,7 +854,7 @@ export default function AdminBookingDetail() {
         accountName: bank.account_name,
       } : undefined,
       cancellationPolicy: activeCpForInvoice,
-      verifyUrl: `${window.location.origin}/my-bookings/${booking.id}`,
+      verifyUrl: `${window.location.origin}/transaksi/${booking.id}`,
     };
 
     const doc = await generateInvoice(invoiceData, companyInfo);
