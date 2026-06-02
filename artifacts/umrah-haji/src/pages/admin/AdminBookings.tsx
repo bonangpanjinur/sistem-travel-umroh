@@ -33,8 +33,14 @@ import { useState, useMemo, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
-  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare, ChevronDown
+  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare, ChevronDown, AlertCircle
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { startOfDay, startOfWeek, startOfMonth, subMonths, endOfDay } from "date-fns";
 import {
   DropdownMenu,
@@ -80,6 +86,7 @@ export default function AdminBookings() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
+  const [waErrorMsg, setWaErrorMsg] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [periodPreset, setPeriodPreset] = useState<string>("all");
@@ -877,14 +884,22 @@ export default function AdminBookings() {
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ booking_id: booking.id }),
                                 });
-                                const data = await res.json();
+                                const text = await res.text();
+                                let data: any = {};
+                                try { data = JSON.parse(text); } catch {
+                                  const msg = !res.ok || text.includes('FONNTE_TOKEN')
+                                    ? 'FONNTE_TOKEN belum dikonfigurasi. Tambahkan API key WhatsApp di Replit Secrets.'
+                                    : `Server tidak merespons dengan benar (status ${res.status}). Pastikan API server berjalan.`;
+                                  setWaErrorMsg(msg);
+                                  return;
+                                }
                                 if (data?.success) {
                                   toast({ title: "Reminder terkirim", description: `WhatsApp tagihan dikirim ke ${customer?.full_name}` });
                                 } else {
-                                  toast({ title: "Gagal mengirim", description: data?.error || data?.message || 'Periksa konfigurasi WhatsApp', variant: "destructive" });
+                                  setWaErrorMsg(data?.error || data?.message || 'Gagal mengirim tagihan WhatsApp. Periksa konfigurasi API key.');
                                 }
                               } catch (err: any) {
-                                toast({ title: "Gagal", description: err.message || 'Tidak dapat mengirim reminder', variant: "destructive" });
+                                setWaErrorMsg(err.message || 'Tidak dapat mengirim reminder. Pastikan API server berjalan.');
                               } finally {
                                 setSendingReminderId(null);
                               }
@@ -956,6 +971,42 @@ export default function AdminBookings() {
           Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)} dari {totalCount} booking
         </p>
       )}
+
+      {/* WhatsApp Error Modal */}
+      <Dialog open={!!waErrorMsg} onOpenChange={(o) => { if (!o) setWaErrorMsg(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Gagal Mengirim Tagihan WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive leading-relaxed">
+              {waErrorMsg}
+            </div>
+            {waErrorMsg?.includes('FONNTE_TOKEN') && (
+              <div className="rounded-lg border bg-muted/50 p-4 space-y-2 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground">Cara menambahkan API key:</p>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>Buka <span className="font-mono text-xs bg-muted px-1 rounded">Replit Secrets</span> (ikon kunci di sidebar)</li>
+                  <li>Tambahkan secret baru: <span className="font-mono text-xs bg-muted px-1 rounded">FONNTE_TOKEN</span></li>
+                  <li>Isi dengan token API dari <span className="text-blue-600">fonnte.com</span></li>
+                  <li>Restart server dan coba lagi</li>
+                </ol>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <button
+                className="px-4 py-2 text-sm border rounded-md hover:bg-muted transition-colors"
+                onClick={() => setWaErrorMsg(null)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

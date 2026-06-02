@@ -10,6 +10,7 @@ import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { drawPaymentWatermark } from "./pdf/watermark";
+import QRCode from "qrcode";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -46,6 +47,10 @@ export interface TransactionFormTemplate {
   paperSize?: "a4" | "letter";
   /** Page orientation. Default: "portrait". */
   orientation?: "portrait" | "landscape";
+  /** Show QR code for public verification link. Default: true. */
+  showQrCode?: boolean;
+  /** QR code placement on the first page. Default: "bottom-right". */
+  qrPlacement?: "top-right" | "bottom-right" | "bottom-center";
 }
 
 export interface RoomCombination {
@@ -103,6 +108,8 @@ export interface TransactionFormData {
   /** Optional — when provided, stamps a status-aware watermark on every page. */
   paymentStatus?: string | null;
   showWatermark?: boolean;
+  /** Optional — public URL for QR code verification. e.g. https://app.com/transaksi/:bookingId */
+  verifyUrl?: string;
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -118,6 +125,8 @@ export const DEFAULT_TEMPLATE: TransactionFormTemplate = {
   rightSignatureLabel: "PEMESAN",
   paymentInfoBlocks: [],
   termsText: "",
+  showQrCode: true,
+  qrPlacement: "bottom-right",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -698,6 +707,59 @@ export async function generateTransactionForm(
       doc.setFont(font, "italic");
       doc.setTextColor(120, 120, 120);
       doc.text(template.footerText, cx, finalY, { align: "center" });
+    }
+  }
+
+  // ── QR Code: Verifikasi Booking Publik ────────────────────────────────────
+  // Render QR code on page 1 for public access to form transaksi
+  if ((template.showQrCode !== false) && data.verifyUrl) {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(data.verifyUrl, {
+        margin: 1,
+        width: 256,
+        errorCorrectionLevel: "M",
+        color: { dark: "#0f172a", light: "#ffffff" },
+      });
+
+      doc.setPage(1);
+      const ph1 = doc.internal.pageSize.height;
+      const qrSize = 28; // mm
+      const placement = template.qrPlacement ?? "bottom-right";
+
+      let qrX: number;
+      let qrY: number;
+
+      if (placement === "top-right") {
+        qrX = pw - qrSize - MARGIN;
+        qrY = MARGIN + 2;
+      } else if (placement === "bottom-center") {
+        qrX = cx - qrSize / 2;
+        qrY = ph1 - qrSize - LAYOUT.FOOTER_RESERVE - 12;
+      } else {
+        // bottom-right (default)
+        qrX = pw - qrSize - MARGIN;
+        qrY = ph1 - qrSize - LAYOUT.FOOTER_RESERVE - 12;
+      }
+
+      // White background with accent border
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(acc.r, acc.g, acc.b);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 10, 1.5, 1.5, "FD");
+
+      doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+      doc.setFont(font, "bold");
+      doc.setFontSize(5.5);
+      doc.setTextColor(acc.r, acc.g, acc.b);
+      doc.text("SCAN VERIFIKASI", qrX + qrSize / 2, qrY + qrSize + 4.5, { align: "center" });
+
+      doc.setFont(font, "normal");
+      doc.setFontSize(4.5);
+      doc.setTextColor(120, 120, 120);
+      doc.text(data.transactionCode, qrX + qrSize / 2, qrY + qrSize + 7.5, { align: "center" });
+    } catch (e) {
+      console.warn("QR generation failed:", e);
     }
   }
 

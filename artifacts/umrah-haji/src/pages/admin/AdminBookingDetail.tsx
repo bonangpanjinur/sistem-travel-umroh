@@ -129,7 +129,8 @@ export default function AdminBookingDetail() {
   const isFinance = hasRole('finance');
   const canVerifyPayment = isAdmin() || isFinance;
   const canAddPayment = isAdmin() || isFinance || hasRole('agent');
-  
+
+  const [notifErrorMsg, setNotifErrorMsg] = useState<string | null>(null);
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -657,7 +658,18 @@ export default function AdminBookingDetail() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, booking_id: id }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        const isConfigError = text.includes('FONNTE_TOKEN') || !res.ok;
+        throw new Error(
+          isConfigError
+            ? 'FONNTE_TOKEN belum dikonfigurasi. Tambahkan API key WhatsApp di Replit Secrets (FONNTE_TOKEN).'
+            : `Server mengembalikan respons tidak valid (status ${res.status}). Pastikan API server berjalan.`
+        );
+      }
       if (!data?.success) throw new Error(data?.error || 'Gagal mengirim notifikasi');
       return data;
     },
@@ -665,7 +677,7 @@ export default function AdminBookingDetail() {
       toast.success(`Notifikasi berhasil dikirim: ${data.sent || 0} terkirim`);
     },
     onError: (error: Error) => {
-      toast.error("Gagal mengirim notifikasi: " + error.message);
+      setNotifErrorMsg(error.message);
     },
   });
 
@@ -976,6 +988,7 @@ export default function AdminBookingDetail() {
       notes: booking.notes ?? undefined,
       passengers: passengerList,
       paymentStatus: booking.payment_status ?? undefined,
+      verifyUrl: `${window.location.origin}/transaksi/${booking.id}`,
     };
 
     const company = {
@@ -2816,6 +2829,37 @@ export default function AdminBookingDetail() {
         pageCount={transactionFormPreview?.pageCount}
         warnings={transactionFormPreview?.warnings}
       />
+
+      {/* Notifikasi WA Error Modal */}
+      <Dialog open={!!notifErrorMsg} onOpenChange={(o) => { if (!o) setNotifErrorMsg(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Gagal Mengirim Notifikasi WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive leading-relaxed">
+              {notifErrorMsg}
+            </div>
+            {notifErrorMsg?.includes('FONNTE_TOKEN') && (
+              <div className="rounded-lg border bg-muted/50 p-4 space-y-2 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground">Cara menambahkan API key:</p>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>Buka <span className="font-mono text-xs bg-muted px-1 rounded">Replit Secrets</span> (ikon kunci di sidebar)</li>
+                  <li>Tambahkan secret baru dengan nama <span className="font-mono text-xs bg-muted px-1 rounded">FONNTE_TOKEN</span></li>
+                  <li>Isi dengan token API dari <span className="text-blue-600">fonnte.com</span></li>
+                  <li>Restart server dan coba lagi</li>
+                </ol>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setNotifErrorMsg(null)}>Tutup</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

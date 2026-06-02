@@ -614,6 +614,7 @@ export default function AdminInvoiceTemplate() {
                     { key: "showLogo" as const, label: "Logo Perusahaan", desc: "Tampilkan logo di bagian atas header" },
                     { key: "showPassengerList" as const, label: "Lampiran Daftar Jamaah", desc: "Halaman kedua berisi tabel nama-nama jamaah" },
                     { key: "showSignature" as const, label: "Kotak Tanda Tangan", desc: "Kolom Disetujui & Yang Menyatakan" },
+                    { key: "showQrCode" as const, label: "QR Code Verifikasi Publik", desc: "QR code yang bisa di-scan jamaah untuk verifikasi booking tanpa login" },
                   ].map(({ key, label, desc }) => (
                     <div key={key} className="flex items-start justify-between gap-4 pb-4 border-b last:border-0 last:pb-0">
                       <div>
@@ -621,11 +622,38 @@ export default function AdminInvoiceTemplate() {
                         <p className="text-xs text-muted-foreground">{desc}</p>
                       </div>
                       <Switch
-                        checked={template[key] as boolean}
+                        checked={(template[key] as boolean) !== false}
                         onCheckedChange={v => upd(key, v)}
                       />
                     </div>
                   ))}
+
+                  {(template.showQrCode !== false) && (
+                    <div className="mt-4 p-4 rounded-lg border bg-muted/30 space-y-3">
+                      <p className="text-sm font-semibold">Posisi QR Code</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { val: "top-right", label: "Kanan Atas", icon: "↗" },
+                          { val: "bottom-right", label: "Kanan Bawah", icon: "↘" },
+                          { val: "bottom-center", label: "Bawah Tengah", icon: "↓" },
+                        ].map(opt => (
+                          <button
+                            key={opt.val}
+                            type="button"
+                            className={`p-3 rounded-lg border text-center transition-all ${(template.qrPlacement ?? "bottom-right") === opt.val ? "border-primary bg-primary/5" : "hover:border-primary/40"}`}
+                            onClick={() => upd("qrPlacement", opt.val as any)}
+                          >
+                            <p className="text-lg mb-1">{opt.icon}</p>
+                            <p className="text-xs font-medium">{opt.label}</p>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg space-y-1">
+                        <p className="font-semibold text-blue-700 dark:text-blue-300">ℹ️ Cara kerja QR Code:</p>
+                        <p>Jamaah bisa men-scan QR code di invoice untuk membuka halaman verifikasi booking secara publik (tanpa login). Link yang dibuka: <span className="font-mono text-[10px]">/transaksi/&lt;booking-id&gt;</span></p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Separator className="my-6" />
