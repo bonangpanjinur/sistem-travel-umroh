@@ -35,7 +35,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { formatCurrency, formatPackageType, formatDate } from "@/lib/format";
-import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box, ExternalLink } from "lucide-react";
+import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box, ExternalLink, DollarSign } from "lucide-react";
 import { useState, useMemo } from "react";
 import { slugify } from "@/lib/slug";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
@@ -48,6 +48,7 @@ import { PackageGalleryCard } from "@/components/admin/PackageGalleryCard";
 import { PackagePriceTrendCard } from "@/components/admin/PackagePriceTrendCard";
 import { PackagePriceAuditCard } from "@/components/admin/PackagePriceAuditCard";
 import { DeparturePriceComparisonCard } from "@/components/admin/DeparturePriceComparisonCard";
+import { PackageFinancialSection } from "@/components/admin/financial/PackageFinancialSection";
 import { toast } from "sonner";
 
 const MONTHS = [
@@ -709,6 +710,22 @@ export default function AdminPackageDetail() {
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Keuangan per Keberangkatan ─────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-primary" />
+            Keuangan per Keberangkatan
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            HPP (modal), pengeluaran operasional, pendapatan tambahan, dan laporan laba/rugi per keberangkatan.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <PackageFinancialSection departures={departures || []} />
         </CardContent>
       </Card>
 

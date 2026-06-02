@@ -4,8 +4,10 @@
  * dan log ke console agar bisa dipantau real-time di DevTools.
  * Skip di iframe / Lovable preview untuk menghindari noise.
  */
-import type { Metric } from "web-vitals";
 import { supabase } from "@/integrations/supabase/client";
+import { onLCP, onCLS, onINP, onFCP, onTTFB } from "./web-vitals-stub";
+
+type Metric = { name: string; value: number; id: string; delta: number; navigationType?: string; rating?: string };
 
 let sent = false;
 
@@ -50,9 +52,7 @@ function buildPayload(metric: Metric) {
 
 async function send(metric: Metric) {
   const payload = buildPayload(metric);
-  // eslint-disable-next-line no-console
   console.info(`[web-vitals] ${metric.name}`, payload);
-
   try {
     await (supabase as any).from("web_vitals_metrics").insert(payload);
   } catch {
@@ -64,7 +64,6 @@ export async function initWebVitals() {
   if (sent) return;
   sent = true;
 
-  // Skip iframe / Lovable preview / localhost untuk menghindari pencemaran data
   try {
     if (window.self !== window.top) return;
   } catch {
@@ -80,14 +79,9 @@ export async function initWebVitals() {
     return;
   }
 
-  try {
-    const { onLCP, onCLS, onINP, onFCP, onTTFB } = await import("web-vitals");
-    onLCP(send);
-    onCLS(send);
-    onINP(send);
-    onFCP(send);
-    onTTFB(send);
-  } catch {
-    /* web-vitals unavailable */
-  }
+  onLCP(send);
+  onCLS(send);
+  onINP(send);
+  onFCP(send);
+  onTTFB(send);
 }
