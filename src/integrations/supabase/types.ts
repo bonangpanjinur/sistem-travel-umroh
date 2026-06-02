@@ -7552,6 +7552,10 @@ export type Database = {
         Args: { p_document_type: string; p_prefix: string }
         Returns: string
       }
+      get_public_booking_details: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       get_user_branch_id: { Args: { _user_id: string }; Returns: string }
       get_user_effective_permissions: {
         Args: { _user_id: string }
