@@ -202,7 +202,7 @@ export function BulkDocumentTab({
                                   departureDate: (dep as any)?.departure_date ? new Date((dep as any).departure_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : undefined,
                                   notes: "Terima kasih atas kepercayaan Anda.",
                                   bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined,
-                                  verifyUrl: `${window.location.origin}/my-bookings/${b.id}`,
+                                  verifyUrl: `${window.location.origin}/transaksi/${b.id}`,
                                 };
                                 try {
                                   const doc = await generateInvoice(data, company);
