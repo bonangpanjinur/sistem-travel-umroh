@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DepartureExpenseForm } from "./DepartureExpenseForm";
-import { Plus, Pencil, Trash2, Receipt, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
@@ -45,6 +45,7 @@ export function DepartureExpensesCard({ departureId }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["departure-expenses", departureId],
@@ -60,20 +61,39 @@ export function DepartureExpensesCard({ departureId }: Props) {
     },
   });
 
+  const triggerRecalculate = useCallback(async () => {
+    setIsRecalculating(true);
+    try {
+      const db = supabase as any;
+      await db.rpc("recalculate_departure_financial_summary", { p_departure_id: departureId });
+      queryClient.invalidateQueries({ queryKey: ["departure-financial-summary", departureId] });
+    } catch (_e) {
+      // silent
+    } finally {
+      setIsRecalculating(false);
+    }
+  }, [departureId, queryClient]);
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const db = supabase as any;
       const { error } = await db.from("departure_expenses").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Pengeluaran dihapus");
       queryClient.invalidateQueries({ queryKey: ["departure-expenses", departureId] });
-      queryClient.invalidateQueries({ queryKey: ["departure-financial-summary", departureId] });
       setDeleteItem(null);
+      await triggerRecalculate();
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleFormSuccess = async () => {
+    setFormOpen(false);
+    setEditItem(null);
+    await triggerRecalculate();
+  };
 
   const total = (items || []).reduce((s: number, i: any) => s + (i.amount_idr || 0), 0);
 
@@ -85,6 +105,7 @@ export function DepartureExpensesCard({ departureId }: Props) {
             <CardTitle className="flex items-center gap-2 text-base">
               <Receipt className="h-4 w-4 text-orange-500" />
               Pengeluaran Operasional
+              {isRecalculating && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">Realisasi biaya di lapangan</p>
           </div>
@@ -129,7 +150,7 @@ export function DepartureExpensesCard({ departureId }: Props) {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {item.expense_date} 
+                          {item.expense_date}
                           {item.currency !== "IDR" && ` • ${item.currency} ${Number(item.amount).toLocaleString("id-ID")}`}
                         </p>
                         {item.notes && <p className="text-[10px] text-muted-foreground italic mt-0.5">{item.notes}</p>}
@@ -168,7 +189,7 @@ export function DepartureExpensesCard({ departureId }: Props) {
           <DepartureExpenseForm
             departureId={departureId}
             item={editItem}
-            onSuccess={() => { setFormOpen(false); setEditItem(null); }}
+            onSuccess={handleFormSuccess}
             onCancel={() => { setFormOpen(false); setEditItem(null); }}
           />
         </DialogContent>

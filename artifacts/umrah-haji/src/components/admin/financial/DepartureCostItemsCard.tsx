@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DepartureCostItemForm } from "./DepartureCostItemForm";
 import { CopyHPPDialog } from "./CopyHPPDialog";
 import { HPPTemplateDialog } from "./HPPTemplateDialog";
-import { Plus, Pencil, Trash2, Package, AlertCircle, Copy, BookMarked } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, AlertCircle, Copy, BookMarked, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -73,6 +73,7 @@ export function DepartureCostItemsCard({
   const [templateOpen, setTemplateOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["departure-cost-items", departureId],
@@ -89,17 +90,31 @@ export function DepartureCostItemsCard({
     },
   });
 
+  // Auto-recalculate financial summary after any change
+  const triggerRecalculate = useCallback(async () => {
+    setIsRecalculating(true);
+    try {
+      const db = supabase as any;
+      await db.rpc("recalculate_departure_financial_summary", { p_departure_id: departureId });
+      queryClient.invalidateQueries({ queryKey: ["departure-financial-summary", departureId] });
+    } catch (_e) {
+      // silent - P&L card will still show stale data with refresh button
+    } finally {
+      setIsRecalculating(false);
+    }
+  }, [departureId, queryClient]);
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const db = supabase as any;
       const { error } = await db.from("departure_cost_items").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Item HPP dihapus");
       queryClient.invalidateQueries({ queryKey: ["departure-cost-items", departureId] });
-      queryClient.invalidateQueries({ queryKey: ["departure-financial-summary", departureId] });
       setDeleteItem(null);
+      await triggerRecalculate();
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -114,6 +129,22 @@ export function DepartureCostItemsCard({
     grouped[cat].push(item);
   });
 
+  const handleFormSuccess = async () => {
+    setFormOpen(false);
+    setEditItem(null);
+    await triggerRecalculate();
+  };
+
+  const handleCopySuccess = async () => {
+    setCopyOpen(false);
+    await triggerRecalculate();
+  };
+
+  const handleTemplateSuccess = async () => {
+    setTemplateOpen(false);
+    await triggerRecalculate();
+  };
+
   return (
     <>
       <Card>
@@ -122,6 +153,7 @@ export function DepartureCostItemsCard({
             <CardTitle className="flex items-center gap-2 text-base">
               <Package className="h-4 w-4 text-primary" />
               HPP / Modal per Seat
+              {isRecalculating && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             </CardTitle>
             {paxCount > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">{paxCount} jamaah terdaftar</p>
@@ -132,6 +164,9 @@ export function DepartureCostItemsCard({
               <div className="text-right mr-1">
                 <p className="text-xs text-muted-foreground">Total HPP</p>
                 <p className="font-bold text-destructive">{fmt(totalHPP)}</p>
+                {paxCount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">{fmt(totalHPP / paxCount)} / pax</p>
+                )}
               </div>
             )}
             <Button size="sm" variant="outline" onClick={() => setTemplateOpen(true)}>
@@ -156,6 +191,7 @@ export function DepartureCostItemsCard({
             <div className="py-10 text-center text-muted-foreground">
               <Package className="h-8 w-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Belum ada item HPP. Klik <strong>Tambah</strong> untuk mulai input biaya modal.</p>
+              <p className="text-xs mt-1 opacity-60">Atau gunakan <strong>Template</strong> untuk mengisi HPP secara cepat.</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -231,7 +267,7 @@ export function DepartureCostItemsCard({
                   <p className="font-semibold text-sm">Total HPP</p>
                   {paxCount > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Rp {Math.round(totalHPP / paxCount).toLocaleString("id-ID")} / pax
+                      {fmt(totalHPP / paxCount)} / pax
                     </p>
                   )}
                 </div>
@@ -252,7 +288,7 @@ export function DepartureCostItemsCard({
             departureId={departureId}
             paxCount={paxCount}
             item={editItem}
-            onSuccess={() => { setFormOpen(false); setEditItem(null); }}
+            onSuccess={handleFormSuccess}
             onCancel={() => { setFormOpen(false); setEditItem(null); }}
           />
         </DialogContent>
@@ -279,7 +315,10 @@ export function DepartureCostItemsCard({
       {/* Bulk-import / Copy HPP dialog */}
       <CopyHPPDialog
         open={copyOpen}
-        onOpenChange={setCopyOpen}
+        onOpenChange={(open) => {
+          setCopyOpen(open);
+          if (!open) handleCopySuccess();
+        }}
         targetDepartureId={departureId}
         targetDepartureLabel={departureLabel}
       />
@@ -287,7 +326,10 @@ export function DepartureCostItemsCard({
       {/* Template library dialog */}
       <HPPTemplateDialog
         open={templateOpen}
-        onOpenChange={setTemplateOpen}
+        onOpenChange={(open) => {
+          setTemplateOpen(open);
+          if (!open) handleTemplateSuccess();
+        }}
         targetDepartureId={departureId}
         currentItems={items || []}
       />

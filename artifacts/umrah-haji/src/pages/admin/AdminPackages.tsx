@@ -124,6 +124,20 @@ export default function AdminPackages() {
     },
   });
 
+  // Fetch which departure IDs already have HPP cost items
+  const { data: departuresWithHPP = [] } = useQuery({
+    queryKey: ['departures-with-hpp'],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data, error } = await db
+        .from('departure_cost_items')
+        .select('departure_id')
+        .limit(5000);
+      if (error) return [];
+      return [...new Set((data || []).map((r: any) => r.departure_id))] as string[];
+    },
+  });
+
   const { data: packageTypes, isLoading: isLoadingTypes } = useQuery({
     queryKey: ["admin-package-types"],
     queryFn: async () => {
@@ -779,6 +793,10 @@ export default function AdminPackages() {
                   const remainingQuota = mainDep ? mainDep.quota - mainDep.booked_count : 0;
                   const isLowQuota = remainingQuota > 0 && remainingQuota < 5;
                   const hasNoDepartures = !pkg.departures || pkg.departures.length === 0;
+                  
+                  // HPP badge: any upcoming departure that doesn't have cost items yet
+                  const upcomingMissingHPP = upcoming.filter((d: any) => !departuresWithHPP.includes(d.id));
+                  const hasMissingHPP = upcomingMissingHPP.length > 0;
 
                   // Determine progress bar color based on occupancy
                   let progressColor = "bg-emerald-500"; // Green - Safe
@@ -840,6 +858,16 @@ export default function AdminPackages() {
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>Paket aktif tetapi belum memiliki jadwal keberangkatan</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {hasMissingHPP && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-violet-500/90 hover:bg-violet-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" /> HPP BELUM DIISI
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>{upcomingMissingHPP.length} keberangkatan belum ada data HPP/modal</TooltipContent>
                           </Tooltip>
                         )}
                       </div>

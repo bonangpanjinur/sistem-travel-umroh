@@ -17,7 +17,8 @@ import {
   Clock, MapPin, Plane, Building2, Users, 
   Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon,
   ArrowRight, Info, ShieldCheck, Globe, FileText, ChevronRight,
-  Image as ImageIcon
+  Image as ImageIcon, Share2, Link2, MessageCircle, StarIcon,
+  ThumbsUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -97,6 +98,36 @@ export default function PackageDetail() {
     },
     enabled: !!id,
   });
+
+  // Fetch package reviews
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['package-reviews-public', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await (supabase as any)
+        .from('package_reviews')
+        .select('id, rating, comment, reviewer_name, created_at')
+        .eq('package_id', id)
+        .order('created_at', { ascending: false });
+      if (error && error.code !== '42P01') return [];
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Share helpers
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const [copyDone, setCopyDone] = useState(false);
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopyDone(true);
+      setTimeout(() => setCopyDone(false), 2000);
+    });
+  };
+  const handleWhatsAppShare = () => {
+    const text = encodeURIComponent(`Cek paket umroh/haji "${pkg?.name}" di sini: ${shareUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
 
   // Fetch itinerary linked to the currently selected departure (if any)
   const { data: departureItinerary } = useQuery({
@@ -236,14 +267,33 @@ export default function PackageDetail() {
           <div className="container mx-auto">
             <Badge className="mb-2">{formatPackageType(pkg.package_type)}</Badge>
             <h1 className="text-2xl md:text-4xl font-bold mb-2">{pkg.name}</h1>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{pkg.duration_days} Hari</span>
-              {(dynamicData?.highestTierDeparture?.airline || pkg.airline) && (
-                <span className="flex items-center gap-1">
-                  <Plane className="h-4 w-4" />
-                  {(dynamicData?.highestTierDeparture?.airline as any)?.name || (pkg.airline as any).name}
-                </span>
-              )}
+            <div className="flex flex-wrap gap-4 text-sm items-center justify-between">
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{pkg.duration_days} Hari</span>
+                {(dynamicData?.highestTierDeparture?.airline || pkg.airline) && (
+                  <span className="flex items-center gap-1">
+                    <Plane className="h-4 w-4" />
+                    {(dynamicData?.highestTierDeparture?.airline as any)?.name || (pkg.airline as any).name}
+                  </span>
+                )}
+              </div>
+              {/* Share Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleWhatsAppShare}
+                  className="flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded-full px-3 py-1.5 transition-colors"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  WhatsApp
+                </button>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1.5 text-xs bg-white/20 hover:bg-white/30 text-white rounded-full px-3 py-1.5 backdrop-blur-sm transition-colors"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  {copyDone ? 'Tersalin!' : 'Salin Link'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -261,6 +311,9 @@ export default function PackageDetail() {
                 <TabsTrigger value="departures">Jadwal</TabsTrigger>
                 <TabsTrigger value="foto">
                   Foto {galleryPhotos.length > 0 && <span className="ml-1 text-xs bg-primary/15 text-primary rounded-full px-1.5">{galleryPhotos.length}</span>}
+                </TabsTrigger>
+                <TabsTrigger value="ulasan">
+                  Ulasan {reviews.length > 0 && <span className="ml-1 text-xs bg-primary/15 text-primary rounded-full px-1.5">{reviews.length}</span>}
                 </TabsTrigger>
                 <TabsTrigger value="syarat">Syarat & Ketentuan</TabsTrigger>
               </TabsList>
@@ -668,6 +721,98 @@ export default function PackageDetail() {
                     )}
                   </div>
                 )}
+              </TabsContent>
+
+              {/* ── Ulasan Tab ─────────────────────────────────────────── */}
+              <TabsContent value="ulasan" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <StarIcon className="h-5 w-5 text-amber-400" />
+                      Ulasan Jamaah
+                      {reviews.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">{reviews.length} ulasan</Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {reviews.length === 0 ? (
+                      <div className="text-center py-12 space-y-3">
+                        <StarIcon className="h-12 w-12 mx-auto text-muted-foreground/30" />
+                        <p className="font-medium text-muted-foreground">Belum ada ulasan untuk paket ini</p>
+                        <p className="text-sm text-muted-foreground">Jadilah yang pertama memberikan ulasan setelah perjalanan Anda!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Rating summary */}
+                        {(() => {
+                          const avg = reviews.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviews.length;
+                          const dist = [5, 4, 3, 2, 1].map(n => ({
+                            stars: n,
+                            count: reviews.filter((r: any) => r.rating === n).length,
+                          }));
+                          return (
+                            <div className="flex items-center gap-8 p-4 bg-muted/30 rounded-xl">
+                              <div className="text-center">
+                                <p className="text-4xl font-black text-amber-500">{avg.toFixed(1)}</p>
+                                <div className="flex items-center gap-0.5 justify-center mt-1">
+                                  {[1, 2, 3, 4, 5].map(n => (
+                                    <Star key={n} className={cn("h-4 w-4", n <= Math.round(avg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")} />
+                                  ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">{reviews.length} ulasan</p>
+                              </div>
+                              <div className="flex-1 space-y-1.5">
+                                {dist.map(({ stars, count }) => (
+                                  <div key={stars} className="flex items-center gap-2">
+                                    <span className="text-xs w-4 text-right text-muted-foreground">{stars}</span>
+                                    <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-amber-400 rounded-full transition-all"
+                                        style={{ width: reviews.length > 0 ? `${(count / reviews.length) * 100}%` : '0%' }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-muted-foreground w-5">{count}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Review list */}
+                        <div className="space-y-4">
+                          {reviews.map((review: any) => (
+                            <div key={review.id} className="border rounded-xl p-4 space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                                    {(review.reviewer_name || 'A').charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-sm">{review.reviewer_name || 'Anonim'}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {new Date(review.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map(n => (
+                                    <Star key={n} className={cn("h-4 w-4", n <= (review.rating || 0) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/20")} />
+                                  ))}
+                                </div>
+                              </div>
+                              {review.comment && (
+                                <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Syarat & Ketentuan Tab */}

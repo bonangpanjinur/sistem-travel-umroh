@@ -12,7 +12,8 @@ import {
   DepartureMarginComparison,
   type DepartureForComparison,
 } from "./DepartureMarginComparison";
-import { Calendar, DollarSign, BarChart2 } from "lucide-react";
+import { DepartureMarginCalculator } from "./DepartureMarginCalculator";
+import { Calendar, DollarSign, BarChart2, Calculator } from "lucide-react";
 
 interface Departure {
   id: string;
@@ -25,10 +26,12 @@ interface Departure {
   price_double?: number | null;
   price_single?: number | null;
   bookings?: { booking_status: string; total_pax: number }[];
+  packageName?: string;
 }
 
 interface Props {
   departures: Departure[];
+  packageName?: string;
 }
 
 function formatDepartureLabel(d: Departure): string {
@@ -53,7 +56,7 @@ const STATUS_BADGE: Record<string, React.ReactElement> = {
   departed: <Badge variant="outline" className="text-[10px] px-1.5 py-0">Berangkat</Badge>,
 };
 
-export function PackageFinancialSection({ departures }: Props) {
+export function PackageFinancialSection({ departures, packageName }: Props) {
   const [selectedId, setSelectedId] = useState<string>(departures[0]?.id ?? "");
 
   const selected = departures.find((d) => d.id === selectedId);
@@ -71,7 +74,6 @@ export function PackageFinancialSection({ departures }: Props) {
     );
   }
 
-  // Cast departures to include price fields for comparison
   const depsForComparison: DepartureForComparison[] = departures.map((d) => ({
     id: d.id,
     departure_date: d.departure_date,
@@ -92,6 +94,10 @@ export function PackageFinancialSection({ departures }: Props) {
           <Calendar className="h-3.5 w-3.5" />
           Detail per Keberangkatan
         </TabsTrigger>
+        <TabsTrigger value="calculator" className="text-xs gap-1.5">
+          <Calculator className="h-3.5 w-3.5" />
+          Kalkulator Margin
+        </TabsTrigger>
         <TabsTrigger value="comparison" className="text-xs gap-1.5">
           <BarChart2 className="h-3.5 w-3.5" />
           Perbandingan Margin
@@ -101,9 +107,8 @@ export function PackageFinancialSection({ departures }: Props) {
         </TabsTrigger>
       </TabsList>
 
-      {/* ── Tab 1: Detail per keberangkatan (existing view) ── */}
+      {/* ── Tab 1: Detail per keberangkatan ── */}
       <TabsContent value="detail" className="space-y-6 mt-0">
-        {/* Departure selector */}
         <div className="flex items-center gap-3 flex-wrap">
           <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-sm font-medium text-muted-foreground shrink-0">Keberangkatan:</span>
@@ -145,6 +150,10 @@ export function PackageFinancialSection({ departures }: Props) {
                 departureId={selected.id}
                 paxCount={paxCount}
                 departureLabel={formatDepartureLabel(selected)}
+                priceQuad={selected.price_quad ?? 0}
+                priceTriple={selected.price_triple ?? 0}
+                priceDouble={selected.price_double ?? 0}
+                priceSingle={selected.price_single ?? 0}
               />
               <div className="space-y-4">
                 <DepartureExpensesCard departureId={selected.id} />
@@ -155,7 +164,47 @@ export function PackageFinancialSection({ departures }: Props) {
         )}
       </TabsContent>
 
-      {/* ── Tab 2: Perbandingan Margin ── */}
+      {/* ── Tab 2: Kalkulator Margin ── */}
+      <TabsContent value="calculator" className="mt-0">
+        <div className="flex items-center gap-3 flex-wrap mb-4">
+          <Calculator className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium text-muted-foreground shrink-0">Keberangkatan:</span>
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger className="w-full max-w-sm">
+              <SelectValue placeholder="Pilih keberangkatan..." />
+            </SelectTrigger>
+            <SelectContent>
+              {departures.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  <div className="flex items-center gap-2">
+                    <span>{formatDepartureLabel(d)}</span>
+                    {STATUS_BADGE[d.status]}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {selected ? (
+          <DepartureMarginCalculator
+            departureId={selected.id}
+            paxCount={paxCount}
+            priceQuad={selected.price_quad ?? 0}
+            priceTriple={selected.price_triple ?? 0}
+            priceDouble={selected.price_double ?? 0}
+            priceSingle={selected.price_single ?? 0}
+            packageName={packageName}
+            departureDate={selected.departure_date}
+          />
+        ) : (
+          <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
+            <Calculator className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p className="font-medium">Pilih keberangkatan di atas untuk melihat kalkulator margin</p>
+          </div>
+        )}
+      </TabsContent>
+
+      {/* ── Tab 3: Perbandingan Margin ── */}
       <TabsContent value="comparison" className="mt-0">
         <DepartureMarginComparison departures={depsForComparison} />
       </TabsContent>
