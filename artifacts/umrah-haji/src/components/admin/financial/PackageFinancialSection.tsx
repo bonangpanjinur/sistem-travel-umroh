@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -37,7 +37,7 @@ function formatDepartureLabel(d: Departure): string {
   return "Tanggal belum ditentukan";
 }
 
-const STATUS_BADGE: Record<string, JSX.Element> = {
+const STATUS_BADGE: Record<string, React.ReactElement> = {
   open:     <Badge className="bg-green-500 text-[10px] px-1.5 py-0">Open</Badge>,
   closed:   <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Closed</Badge>,
   full:     <Badge className="bg-orange-500 text-[10px] px-1.5 py-0">Full</Badge>,

@@ -171,7 +171,7 @@ export function CopyHPPDialog({ open, onOpenChange, targetDepartureId, targetDep
   };
 
   // When items load, check all by default
-  const allIds = useMemo(() => new Set(sourceItems.map((i: any) => i.id)), [sourceItems]);
+  const allIds = useMemo(() => new Set<string>(sourceItems.map((i: any) => i.id as string)), [sourceItems]);
 
   // Init checkedIds when source items arrive
   useState(() => {
@@ -190,7 +190,7 @@ export function CopyHPPDialog({ open, onOpenChange, targetDepartureId, targetDep
 
   const toggleItem = (id: string) => {
     setCheckedIds(prev => {
-      const next = new Set(prev.size === 0 ? allIds : prev);
+      const next = new Set<string>(prev.size === 0 ? allIds : prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
@@ -199,9 +199,9 @@ export function CopyHPPDialog({ open, onOpenChange, targetDepartureId, targetDep
   const toggleAll = () => {
     const effective = normalizedCheckedIds;
     if (effective.size === allIds.size) {
-      setCheckedIds(new Set()); // uncheck all → deselect all visually
+      setCheckedIds(new Set<string>()); // uncheck all → deselect all visually
     } else {
-      setCheckedIds(new Set(allIds));
+      setCheckedIds(new Set<string>(allIds));
     }
   };
 
@@ -273,7 +273,7 @@ export function CopyHPPDialog({ open, onOpenChange, targetDepartureId, targetDep
   const filteredDeps = useMemo(() => {
     if (!search.trim()) return departures;
     const q = search.toLowerCase();
-    return departures.filter(d =>
+    return departures.filter((d: DepartureOption) =>
       d.label.toLowerCase().includes(q) ||
       d.package_name.toLowerCase().includes(q) ||
       (d.departure_date && fmtDate(d.departure_date)?.toLowerCase().includes(q))
@@ -334,7 +334,7 @@ export function CopyHPPDialog({ open, onOpenChange, targetDepartureId, targetDep
                 </div>
               ) : (
                 <div className="space-y-1.5 pb-2">
-                  {filteredDeps.map(dep => (
+                  {filteredDeps.map((dep: DepartureOption) => (
                     <button
                       key={dep.id}
                       onClick={() => handleSelectDeparture(dep)}
@@ -449,10 +449,10 @@ export function CopyHPPDialog({ open, onOpenChange, targetDepartureId, targetDep
                           className="px-4 py-1.5 bg-muted/30 flex items-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => {
                             // Toggle all in category
-                            const catIds = catItems.map(i => i.id);
+                            const catIds: string[] = catItems.map((i: any) => i.id as string);
                             const allCatChecked = catIds.every(id => normalizedCheckedIds.has(id));
                             setCheckedIds(prev => {
-                              const next = new Set(prev.size === 0 ? allIds : prev);
+                              const next = new Set<string>(prev.size === 0 ? allIds : prev);
                               if (allCatChecked) catIds.forEach(id => next.delete(id));
                               else catIds.forEach(id => next.add(id));
                               return next;

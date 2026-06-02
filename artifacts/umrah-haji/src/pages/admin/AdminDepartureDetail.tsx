@@ -84,6 +84,7 @@ import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
 import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/hooks/useDepartureBudget";
 import { DepartureCertificateGenerator } from "@/components/departure/DepartureCertificateGenerator";
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
+import { DepartureMarginCalculator } from "@/components/admin/financial/DepartureMarginCalculator";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
 import jsPDF from "jspdf";
@@ -1774,6 +1775,14 @@ export default function AdminDepartureDetail() {
 
         {/* Tab: Riwayat Harga */}
         <TabsContent value="harga" className="space-y-4">
+          <DepartureMarginCalculator
+            departureId={id || ""}
+            paxCount={passengers?.length || 0}
+            priceQuad={departure?.price_quad || 0}
+            priceTriple={departure?.price_triple || 0}
+            priceDouble={departure?.price_double || 0}
+            priceSingle={departure?.price_single || 0}
+          />
           <PriceHistoryCard
             departureId={id || ""}
             packageId={departure?.package?.id}

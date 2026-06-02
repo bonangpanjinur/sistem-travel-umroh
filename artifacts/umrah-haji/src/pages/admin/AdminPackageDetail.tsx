@@ -725,7 +725,7 @@ export default function AdminPackageDetail() {
           </p>
         </CardHeader>
         <CardContent>
-          <PackageFinancialSection departures={departures || []} />
+          <PackageFinancialSection departures={(departures || []).map((d: any) => ({ ...d, status: d.status ?? "open" }))} />
         </CardContent>
       </Card>
 
