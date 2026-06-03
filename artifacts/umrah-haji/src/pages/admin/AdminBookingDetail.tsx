@@ -910,7 +910,7 @@ export default function AdminBookingDetail() {
         accountName: bank.account_name,
       } : undefined,
       cancellationPolicy: activeCpForInvoice,
-      verifyUrl: `${window.location.origin}/transaksi/${booking.id}`,
+      verifyUrl: `${window.location.origin}/transaksi/${(booking as any).public_token || booking.id}`,
     };
 
     const doc = await generateInvoice(invoiceData, companyInfo);
@@ -1034,7 +1034,7 @@ export default function AdminBookingDetail() {
       notes: booking.notes ?? undefined,
       passengers: passengerList,
       paymentStatus: booking.payment_status ?? undefined,
-      verifyUrl: `${window.location.origin}/transaksi/${booking.id}`,
+      verifyUrl: `${window.location.origin}/transaksi/${(booking as any).public_token || booking.id}`,
     };
 
     const company = {
@@ -2949,6 +2949,7 @@ export default function AdminBookingDetail() {
           open={showBarcodeModal}
           onOpenChange={setShowBarcodeModal}
           bookingId={booking.id}
+          publicToken={(booking as any).public_token}
           bookingCode={booking.booking_code}
           customerName={(booking as any).customer?.full_name}
           packageName={(booking as any).departure?.package?.name}
