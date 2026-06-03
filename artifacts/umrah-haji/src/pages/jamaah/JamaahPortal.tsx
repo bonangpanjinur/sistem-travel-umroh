@@ -1,8 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { usePWAMode } from "@/hooks/usePWAMode";
+import { usePWAConfig } from "@/hooks/usePWAConfig";
+import { useWebsiteSettings, WebsiteSettings } from "@/hooks/useWebsiteSettingsOptimized";
+import { BannerCarousel } from "@/components/home/BannerCarousel";
+import { QuickMenuGrid } from "@/components/home/QuickMenuGrid";
+import { JamaahTrackerWidget } from "@/components/home/JamaahTrackerWidget";
+import { FeaturedPackages } from "@/components/home/FeaturedPackages";
+import { WhyChooseUs } from "@/components/home/WhyChooseUs";
+import { Testimonials } from "@/components/home/Testimonials";
+import { ThemedCTASection } from "@/components/home/ThemedCTASection";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +62,13 @@ import {
 
 const WELCOME_SEEN_KEY = "jamaah-welcome-seen";
 
+const PWA_SECTION_COMPONENTS: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = {
+  featured_packages: FeaturedPackages as any,
+  why_choose_us: WhyChooseUs as any,
+  testimonials: Testimonials as any,
+  cta: ThemedCTASection as any,
+};
+
 function PushNotifBanner({ customerId }: { customerId?: string }) {
   const { canSubscribe, isSubscribed, isLoading, subscribe, permission } =
     usePushSubscription(customerId);
@@ -87,6 +104,10 @@ export default function JamaahPortal() {
   const { getSetting } = useCompanySettings();
   const { items: recentlyViewed, clearAll: clearRecentlyViewed } = useRecentlyViewedPackages();
   const { ids: wishlistIds, packages: wishlistPackages, count: wishlistCount } = useWishlist();
+  const { isStandalone } = usePWAMode();
+  const { pwaLayout, pwaTheme } = usePWAConfig();
+  const { data: settings } = useWebsiteSettings();
+  const template = settings?.template || 'classic';
 
   // Notifikasi Geolokasi: alert ketika mendekati lokasi suci
   useGeoNotification(true);
@@ -96,6 +117,14 @@ export default function JamaahPortal() {
   useEffect(() => {
     restorePendingFollowup().catch(() => {});
   }, []);
+
+  // Apply PWA-specific theme colors when in standalone mode
+  useEffect(() => {
+    if (isStandalone && pwaTheme) {
+      document.documentElement.style.setProperty('--primary', pwaTheme.primaryColor);
+      document.documentElement.style.setProperty('--background', pwaTheme.backgroundColor);
+    }
+  }, [isStandalone, pwaTheme]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -237,6 +266,21 @@ export default function JamaahPortal() {
     setDeferredPrompt(null);
   };
 
+  // Render PWA section based on section ID
+  const renderPWASection = (sectionId: string) => {
+    switch (sectionId) {
+      case 'hero':
+        return <BannerCarousel template={template as any} key="hero-banner" />;
+      case 'quick_menu':
+        return <QuickMenuGrid settings={settings ?? undefined} key="quick-menu" />;
+      case 'tracker':
+        return <JamaahTrackerWidget key="tracker" />;
+      default:
+        const Component = PWA_SECTION_COMPONENTS[sectionId];
+        return Component ? <Component key={sectionId} settings={settings ?? undefined} /> : null;
+    }
+  };
+
   const handlePhotoUpload = async (file: File) => {
     if (!customer?.id) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -280,6 +324,131 @@ export default function JamaahPortal() {
   const paymentProgress = booking
     ? ((booking.paid_amount || 0) / booking.total_price) * 100
     : 0;
+
+  // If in standalone PWA mode, render the PWA layout instead of the default jamaah portal layout
+  if (isStandalone && pwaLayout && pwaLayout.length > 0) {
+    return (
+      <div className="min-h-screen bg-background pb-20 md:pb-4">
+        {/* PWA Header */}
+        <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button
+                  onClick={() => user && photoInputRef.current?.click()}
+                  className="relative group"
+                  title={user ? "Ganti foto profil" : "Tamu"}
+                >
+                  <Avatar className="h-10 w-10 border-2 border-primary-foreground/20">
+                    <AvatarImage src={customer?.photo_url || ""} />
+                    <AvatarFallback className="bg-primary-foreground/10">
+                      {uploadingPhoto ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        customer?.full_name?.[0] || (user ? "J" : "T")
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  {user && (
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                </button>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePhotoUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+              <div>
+                <p className="font-semibold">{customer?.full_name || (user ? "Jamaah" : "Tamu")}</p>
+                <p className="text-xs opacity-80">
+                  {isOnline ? (
+                    <span className="flex items-center gap-1">
+                      <Wifi className="h-3 w-3" /> Online
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <WifiOff className="h-3 w-3" /> Offline
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {user ? (
+                <>
+                <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-primary-foreground relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-primary" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {notifications && notifications.length > 0 ? (
+                    notifications.slice(0, 5).map((n) => (
+                      <DropdownMenuItem
+                        key={n.id}
+                        className={`flex flex-col items-start gap-1 p-3 ${!n.is_read ? "bg-primary/5" : ""}`}
+                        onClick={() => markAsRead.mutate(n.id)}
+                      >
+                        <p className="font-semibold text-xs">{n.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {format(new Date(n.created_at!), "d MMM, HH:mm", { locale: id })}
+                        </p>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-xs text-muted-foreground">
+                      Tidak ada notifikasi baru
+                    </div>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/jamaah/notifications">Lihat semua notifikasi</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate("/auth/login")}
+                  className="text-primary-foreground"
+                >
+                  <LogIn className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* PWA Layout Sections */}
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+          {pwaLayout
+            .filter(section => section.enabled)
+            .sort((a, b) => a.order - b.order)
+            .map(section => renderPWASection(section.id))}
+        </div>
+
+        <JamaahBottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-4">
