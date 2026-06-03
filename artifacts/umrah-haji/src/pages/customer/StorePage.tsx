@@ -9,6 +9,7 @@ import { Search, ShoppingCart, Star, Package, Plus, Minus, ShoppingBag } from "l
 import { formatCurrency } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
 
 // Simple cart state lifted into this page (persisted in sessionStorage)
 function loadCart(): CartItem[] {
@@ -73,7 +74,8 @@ export default function StorePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <DynamicPublicLayout>
+      <div className="min-h-screen bg-gray-50">
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-primary to-primary/80 text-white py-12 px-4">
         <div className="max-w-5xl mx-auto text-center">
@@ -260,6 +262,7 @@ export default function StorePage() {
           </Button>
         </div>
       )}
-    </div>
+      </div>
+    </DynamicPublicLayout>
   );
 }

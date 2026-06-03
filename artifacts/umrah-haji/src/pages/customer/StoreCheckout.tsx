@@ -14,6 +14,7 @@ import { ArrowLeft, ShoppingBag, Truck, Package, MapPin } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
 
 function loadCart(): CartItem[] {
   try { return JSON.parse(sessionStorage.getItem("store_cart") || "[]"); }
@@ -104,7 +105,8 @@ export default function StoreCheckout() {
 
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <DynamicPublicLayout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
           <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-30" />
           <h2 className="text-xl font-semibold mb-2">Keranjang Kosong</h2>
@@ -112,11 +114,13 @@ export default function StoreCheckout() {
           <Button asChild><Link to="/store">Belanja Sekarang</Link></Button>
         </div>
       </div>
+    </DynamicPublicLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <DynamicPublicLayout>
+      <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -268,5 +272,6 @@ export default function StoreCheckout() {
         </div>
       </div>
     </div>
+    </DynamicPublicLayout>
   );
 }

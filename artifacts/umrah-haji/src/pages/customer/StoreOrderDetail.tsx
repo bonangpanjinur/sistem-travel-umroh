@@ -25,6 +25,7 @@ import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
 
 const ORDER_STATUS: Record<string, { label: string; color: string; icon: any; desc: string }> = {
   pending:    { label: "Menunggu Konfirmasi",  color: "bg-yellow-100 text-yellow-800",  icon: Clock,         desc: "Pesanan kamu sedang menunggu dikonfirmasi oleh tim kami." },
@@ -262,24 +263,28 @@ export default function StoreOrderDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <DynamicPublicLayout>
+        <div className="min-h-screen bg-gray-50">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-40 rounded-xl" />
           <Skeleton className="h-60 rounded-xl" />
         </div>
       </div>
+    </DynamicPublicLayout>
     );
   }
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <DynamicPublicLayout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Pesanan tidak ditemukan</p>
           <Button asChild><Link to="/store/orders">Kembali ke Pesanan</Link></Button>
         </div>
       </div>
+    </DynamicPublicLayout>
     );
   }
 
@@ -297,7 +302,8 @@ export default function StoreOrderDetail() {
     order.items.every((item) => !!reviewByProductId[item.product_id]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <DynamicPublicLayout>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
@@ -667,5 +673,6 @@ export default function StoreOrderDetail() {
         </div>
       </div>
     </div>
+    </DynamicPublicLayout>
   );
 }

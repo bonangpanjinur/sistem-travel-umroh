@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
 
 const ORDER_STATUS: Record<string, { label: string; color: string; icon: any }> = {
   pending:    { label: "Menunggu Konfirmasi", color: "bg-yellow-100 text-yellow-800",  icon: Clock },
@@ -38,7 +39,8 @@ export default function MyStoreOrders() {
   const { data: orders = [], isLoading } = useMyStoreOrders(user?.id);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <DynamicPublicLayout>
+      <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
@@ -168,5 +170,6 @@ export default function MyStoreOrders() {
         )}
       </div>
     </div>
+    </DynamicPublicLayout>
   );
 }
