@@ -796,15 +796,15 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
             </div>
           )}
 
-          {/* Additional Hotels (Transit, Umroh Plus, Haji, dll) */}
+          {/* Additional Hotels (Multi-hotel per kota: Makkah/Madinah/Transit/dll) */}
           <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-sm">{isTourPackage ? "Daftar Hotel" : "Hotel Tambahan"}</h4>
+                <h4 className="font-medium text-sm">{isTourPackage ? "Daftar Hotel" : "Hotel Tambahan / Multi-Hotel per Kota"}</h4>
                 <p className="text-xs text-muted-foreground">
-                  {isTourPackage 
-                    ? "Daftar hotel yang akan digunakan selama tour" 
-                    : "Untuk hotel transit, Umroh Plus, Haji, atau city tour"}
+                  {isTourPackage
+                    ? "Daftar hotel yang akan digunakan selama tour"
+                    : "Tambah hotel ke-2 di Makkah/Madinah, transit, Umroh Plus, Haji, dll"}
                 </p>
               </div>
               <Button
@@ -814,7 +814,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                 onClick={() =>
                   setAdditionalHotels((prev) => [
                     ...prev,
-                    { hotel_id: "", hotel_role: "transit", check_in_date: "", check_out_date: "", nights: null, notes: "" },
+                    { hotel_id: "", hotel_role: "makkah", check_in_date: "", check_out_date: "", nights: null, notes: "" },
                   ])
                 }
               >
@@ -825,7 +825,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
 
             {additionalHotels.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">
-                {isTourPackage ? "Belum ada hotel yang ditambahkan." : "Belum ada hotel tambahan."}
+                {isTourPackage ? "Belum ada hotel yang ditambahkan." : "Belum ada hotel tambahan. Gunakan tombol di atas untuk menambah hotel ke-2 di Makkah, Madinah, atau lokasi lain."}
               </p>
             ) : (
               <div className="space-y-3">
@@ -851,7 +851,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                     </div>
                     {!isTourPackage && (
                       <div className="sm:col-span-3">
-                        <label className="text-xs text-muted-foreground">Peran</label>
+                        <label className="text-xs text-muted-foreground">Kota / Peran</label>
                         <Select
                           value={row.hotel_role}
                           onValueChange={(v) =>
@@ -860,11 +860,13 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="transit">Transit</SelectItem>
-                            <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
-                            <SelectItem value="haji">Haji</SelectItem>
-                            <SelectItem value="city_tour">City Tour</SelectItem>
-                            <SelectItem value="additional">Tambahan</SelectItem>
+                            <SelectItem value="makkah">🕋 Makkah (Hotel ke-2+)</SelectItem>
+                            <SelectItem value="madinah">🕌 Madinah (Hotel ke-2+)</SelectItem>
+                            <SelectItem value="transit">✈️ Transit</SelectItem>
+                            <SelectItem value="umroh_plus">⭐ Umroh Plus</SelectItem>
+                            <SelectItem value="haji">🟢 Haji</SelectItem>
+                            <SelectItem value="city_tour">🗺️ City Tour</SelectItem>
+                            <SelectItem value="additional">➕ Tambahan</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

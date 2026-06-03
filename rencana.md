@@ -201,7 +201,7 @@ RBAC (15 role):
 | ~~K4~~ | ~~Permintaan khusus kamar~~ | ~~🟡~~ | ✅ `special_requests` field sudah ada di DB + ditampilkan di AdminBookingDetail |
 | ~~K5~~ | ~~Notif otomatis ke jamaah saat kamar ditugaskan~~ | ~~🟡~~ | ✅ Tombol "Notif WA Kamar" di RoomingList — kirim info kamar via WhatsApp |
 | ~~K6~~ | ~~**Validasi kompatibilitas mahram**~~ | ~~🟡~~ | ✅ `MahramCompatibilityAlert.tsx` + `useMahramConflicts.ts` + DB function `check_mahram_room_conflicts()` — warning otomatis di RoomingList saat mahram belum dapat kamar atau beda hotel |
-| K7 | **Multi-hotel per kota** (Makkah Hotel A + Hotel B) | 🟡 | Setiap departure hanya 1 hotel per kota |
+| ~~K7~~ | ~~**Multi-hotel per kota**~~ (Makkah Hotel A + Hotel B) | ~~🟡~~ | ✅ `departure_hotels` dengan role 'makkah'/'madinah'; selector grouped by kota di RoomingListPageImproved; DepartureForm tambah hotel ke-2 per kota |
 
 ---
 

@@ -107,6 +107,26 @@ export default function RoomingListPageImproved() {
     },
   });
 
+  // K7 — Fetch all hotels linked via departure_hotels (multi-hotel per kota)
+  const { data: extraDepartureHotels } = useQuery<{ id: string; hotel_id: string; hotel_role: string; hotel: { id: string; name: string; city: string } | null }[]>({
+    queryKey: ["departure-hotels-rooming", selectedDepartureId],
+    queryFn: async () => {
+      if (!selectedDepartureId) return [];
+      try {
+        const { data, error } = await (supabase as any)
+          .from("departure_hotels")
+          .select("id, hotel_id, hotel_role, hotel:hotels(id, name, city)")
+          .eq("departure_id", selectedDepartureId)
+          .order("sort_order", { ascending: true });
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!selectedDepartureId,
+  });
+
   const { data: rooms, isLoading: loadingRooms } = useQuery<ExtendedRoomAssignment[]>({
     queryKey: ["room-assignments-improved", selectedDepartureId, selectedHotelId],
     queryFn: async () => {
@@ -334,7 +354,7 @@ export default function RoomingListPageImproved() {
     if (!rooms?.length) return;
     setIsSendingRoomNotif(true);
     const dep = departures?.find(d => d.id === selectedDepartureId);
-    const hotel = [dep?.hotel_makkah, dep?.hotel_madinah].find(h => h?.id === selectedHotelId);
+    const hotel = allDepartureHotels.find(h => h.id === selectedHotelId);
     let success = 0, fail = 0;
     for (const room of rooms) {
       for (const occ of room.occupants || []) {
@@ -390,10 +410,37 @@ export default function RoomingListPageImproved() {
   );
 
   const selectedDeparture = departures?.find(d => d.id === selectedDepartureId);
-  const hotels = selectedDeparture ? [
-    selectedDeparture.hotel_makkah,
-    selectedDeparture.hotel_madinah,
-  ].filter(Boolean) : [];
+
+  // K7 — Gabungkan hotel utama (makkah/madinah) + hotel tambahan dari departure_hotels
+  const allDepartureHotels = (() => {
+    const seen = new Set<string>();
+    const list: { id: string; name: string; city: string; role: string; isPrimary: boolean }[] = [];
+
+    const addHotel = (h: { id: string; name: string; city: string } | null | undefined, role: string, isPrimary: boolean) => {
+      if (!h || seen.has(h.id)) return;
+      seen.add(h.id);
+      list.push({ id: h.id, name: h.name, city: h.city, role, isPrimary });
+    };
+
+    if (selectedDeparture) {
+      addHotel(selectedDeparture.hotel_makkah as any, "makkah", true);
+      addHotel(selectedDeparture.hotel_madinah as any, "madinah", true);
+    }
+
+    for (const dh of extraDepartureHotels || []) {
+      if (dh.hotel) addHotel(dh.hotel as any, dh.hotel_role, false);
+    }
+
+    return list;
+  })();
+
+  // Group hotels by city for display in dropdown
+  const hotelsByCity = allDepartureHotels.reduce<Record<string, typeof allDepartureHotels>>((acc, h) => {
+    const city = h.city || h.role || "Lainnya";
+    if (!acc[city]) acc[city] = [];
+    acc[city].push(h);
+    return acc;
+  }, {});
 
   const totalRooms = rooms?.length || 0;
   const totalOccupied = rooms?.reduce((sum, r) => sum + (r.occupants?.length || 0), 0) || 0;
@@ -427,18 +474,30 @@ export default function RoomingListPageImproved() {
           </div>
           <div>
             <Label>Hotel</Label>
-            <Select value={selectedHotelId} onValueChange={setSelectedHotelId} disabled={!selectedDepartureId || hotels.length === 0}>
+            <Select value={selectedHotelId} onValueChange={setSelectedHotelId} disabled={!selectedDepartureId || allDepartureHotels.length === 0}>
               <SelectTrigger className="mt-1.5">
                 <SelectValue placeholder="Pilih Hotel" />
               </SelectTrigger>
               <SelectContent>
-                {hotels.map((hotel) => (
-                  <SelectItem key={hotel?.id} value={hotel?.id || ""}>
-                    <div className="flex items-center gap-2">
-                      <Hotel className="h-3.5 w-3.5" />
-                      {hotel?.name} ({hotel?.city})
-                    </div>
-                  </SelectItem>
+                {Object.entries(hotelsByCity).map(([city, cityHotels]) => (
+                  <div key={city}>
+                    {Object.keys(hotelsByCity).length > 1 && (
+                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-muted/40 border-b">
+                        📍 {city}
+                      </div>
+                    )}
+                    {cityHotels.map((hotel) => (
+                      <SelectItem key={hotel.id} value={hotel.id}>
+                        <div className="flex items-center gap-2">
+                          <Hotel className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span>{hotel.name}</span>
+                          {!hotel.isPrimary && (
+                            <span className="text-xs text-muted-foreground ml-1">(tambahan)</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </div>
                 ))}
               </SelectContent>
             </Select>
@@ -478,7 +537,7 @@ export default function RoomingListPageImproved() {
           <HotelCapacityAlert
             hotelId={selectedHotelId}
             departureId={selectedDepartureId}
-            hotelName={hotels.find(h => h?.id === selectedHotelId)?.name}
+            hotelName={allDepartureHotels.find(h => h.id === selectedHotelId)?.name}
           />
 
           {/* K6 — Validasi kompatibilitas mahram */}
