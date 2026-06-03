@@ -5,7 +5,7 @@ import {
   Home, Package, Calculator, DollarSign, User, Calendar,
   PiggyBank, BookOpen, LayoutGrid, Phone, Info, Upload,
   ImageIcon, Moon, Compass, Cloud, Target, ShoppingBag, Star, X, CheckCircle2,
-  Database,
+  Database, Palette, Layout, Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,13 @@ import {
   ALL_NAV_OPTIONS,
   DEFAULT_HEADER_NAV,
   DEFAULT_ICON_CONFIG,
+  DEFAULT_PWA_LAYOUT,
+  DEFAULT_PWA_THEME,
   BottomNavItem,
   HeaderNavLink,
   PWAIconConfig,
+  PWALayoutSection,
+  PWAThemeConfig,
 } from "@/hooks/usePWAConfig";
 import { cn } from "@/lib/utils";
 
@@ -115,12 +119,47 @@ function HeaderNavRow({ item, index, onChange }: {
   );
 }
 
+function LayoutSectionRow({ item, index, onChange }: {
+  item: PWALayoutSection;
+  index: number;
+  onChange: (updated: PWALayoutSection) => void;
+}) {
+  return (
+    <Draggable draggableId={item.id} index={index}>
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          className={cn(
+            "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-shadow",
+            snapshot.isDragging && "shadow-lg ring-1 ring-primary",
+          )}
+        >
+          <div {...provided.dragHandleProps} className="cursor-grab text-muted-foreground">
+            <GripVertical className="h-4 w-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={cn("text-sm font-medium", !item.enabled && "text-muted-foreground")}>{item.title}</p>
+            <p className="text-xs text-muted-foreground truncate">Section ID: {item.id}</p>
+          </div>
+          <Switch
+            checked={item.enabled}
+            onCheckedChange={(checked) => onChange({ ...item, enabled: checked })}
+          />
+        </div>
+      )}
+    </Draggable>
+  );
+}
+
 export default function AdminPWASettings() {
   const {
     items,
     headerNavLinks: serverHeaderNavLinks,
     iconConfig: serverIconConfig,
-    save, saveIconConfig, saveHeaderNavLinks,
+    pwaLayout: serverPwaLayout,
+    pwaTheme: serverPwaTheme,
+    save, saveIconConfig, saveHeaderNavLinks, savePwaLayout, savePwaTheme,
     reset, resetHeaderNav,
     isSaving, isLoading,
   } = usePWAConfig();
@@ -129,6 +168,8 @@ export default function AdminPWASettings() {
     ALL_NAV_OPTIONS.slice().sort((a, b) => a.order - b.order),
   );
   const [localHeaderNav, setLocalHeaderNav] = useState<HeaderNavLink[]>(DEFAULT_HEADER_NAV);
+  const [localPwaLayout, setLocalPwaLayout] = useState<PWALayoutSection[]>(DEFAULT_PWA_LAYOUT);
+  const [pwaTheme, setPwaTheme] = useState<PWAThemeConfig>(DEFAULT_PWA_THEME);
   const [iconConfig, setIconConfig] = useState<PWAIconConfig>(DEFAULT_ICON_CONFIG);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -150,11 +191,13 @@ export default function AdminPWASettings() {
         return saved ?? opt;
       }).sort((a, b) => a.order - b.order);
       setLocalHeaderNav(mergedHeader);
+      setLocalPwaLayout(serverPwaLayout);
+      setPwaTheme(serverPwaTheme);
       setIconConfig(serverIconConfig);
       setIconPreview(serverIconConfig.iconUrl);
       setInitialized(true);
     }
-  }, [isLoading, initialized, items, serverHeaderNavLinks, serverIconConfig]);
+  }, [isLoading, initialized, items, serverHeaderNavLinks, serverIconConfig, serverPwaLayout, serverPwaTheme]);
 
   const activeCount = localItems.filter((i) => i.enabled).length;
   const previewItems = localItems.filter((i) => i.enabled).slice(0, 5);
@@ -205,6 +248,28 @@ export default function AdminPWASettings() {
 
   const handleHeaderNavChange = (updated: HeaderNavLink) => {
     setLocalHeaderNav((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+  };
+
+  const handlePwaLayoutDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const reordered = Array.from(localPwaLayout);
+    const [moved] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, moved);
+    setLocalPwaLayout(reordered.map((item, idx) => ({ ...item, order: idx })));
+  };
+
+  const handlePwaLayoutChange = (updated: PWALayoutSection) => {
+    setLocalPwaLayout((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+  };
+
+  const handleSavePwaLayout = () => {
+    savePwaLayout(localPwaLayout);
+    toast.success("Tata letak beranda PWA disimpan!");
+  };
+
+  const handleSavePwaTheme = () => {
+    savePwaTheme(pwaTheme);
+    toast.success("Tema warna PWA disimpan!");
   };
 
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,12 +350,141 @@ export default function AdminPWASettings() {
       <Tabs defaultValue="menu">
         <TabsList className="mb-4 flex-wrap h-auto gap-1">
           <TabsTrigger value="menu">Menu Bawah</TabsTrigger>
+          <TabsTrigger value="layout">Layout Beranda</TabsTrigger>
+          <TabsTrigger value="theme">Tema & Warna</TabsTrigger>
           <TabsTrigger value="header">Navigasi Header</TabsTrigger>
           <TabsTrigger value="icon">Ikon &amp; Tampilan</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="live-preview">Live App</TabsTrigger>
           <TabsTrigger value="panduan">Cara Pasang</TabsTrigger>
         </TabsList>
+
+        {/* ── TAB: LAYOUT BERANDA ── */}
+        <TabsContent value="layout">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layout className="h-4 w-4" />
+                  Tata Letak Beranda PWA
+                </CardTitle>
+                <CardDescription>
+                  Atur urutan dan visibilitas komponen khusus untuk tampilan PWA.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <DragDropContext onDragEnd={handlePwaLayoutDragEnd}>
+                  <Droppable droppableId="pwa-layout">
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                        {localPwaLayout.map((item, index) => (
+                          <LayoutSectionRow key={item.id} item={item} index={index} onChange={handlePwaLayoutChange} />
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+                <Button onClick={handleSavePwaLayout} disabled={isSaving} className="w-full">
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Simpan Tata Letak
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Preview Struktur
+                </CardTitle>
+                <CardDescription>Urutan komponen yang akan tampil di PWA</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
+                  {localPwaLayout.filter(s => s.enabled).map((s, i) => (
+                    <div key={s.id} className="flex items-center gap-3 p-2 bg-background border rounded shadow-sm">
+                      <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center">{i + 1}</Badge>
+                      <span className="font-medium text-sm">{s.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ── TAB: TEMA & WARNA ── */}
+        <TabsContent value="theme">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                Tema Warna Khusus PWA
+              </CardTitle>
+              <CardDescription>
+                Sesuaikan warna aplikasi agar berbeda dari website utama.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Warna Primer PWA</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="color" 
+                      value={pwaTheme.primaryColor} 
+                      onChange={(e) => setPwaTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input 
+                      value={pwaTheme.primaryColor} 
+                      onChange={(e) => setPwaTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      placeholder="#000000"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Warna Background</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="color" 
+                      value={pwaTheme.backgroundColor} 
+                      onChange={(e) => setPwaTheme(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input 
+                      value={pwaTheme.backgroundColor} 
+                      onChange={(e) => setPwaTheme(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                      placeholder="#ffffff"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Gaya Navigasi Bawah</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['solid', 'glass', 'floating'] as const).map((style) => (
+                    <Button
+                      key={style}
+                      variant={pwaTheme.bottomNavStyle === style ? "default" : "outline"}
+                      onClick={() => setPwaTheme(prev => ({ ...prev, bottomNavStyle: style }))}
+                      className="capitalize"
+                    >
+                      {style}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={handleSavePwaTheme} disabled={isSaving} className="w-full">
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Simpan Tema
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* ── TAB: MENU NAVIGASI ── */}
         <TabsContent value="menu">

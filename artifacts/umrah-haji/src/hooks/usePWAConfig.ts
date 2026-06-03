@@ -26,6 +26,19 @@ export interface PWAIconConfig {
   bgColor: string;
 }
 
+export interface PWALayoutSection {
+  id: string;
+  title: string;
+  enabled: boolean;
+  order: number;
+}
+
+export interface PWAThemeConfig {
+  primaryColor: string;
+  backgroundColor: string;
+  bottomNavStyle: 'solid' | 'glass' | 'floating';
+}
+
 export interface PushVapidConfig {
   publicKey: string;
   subject: string; // mailto:admin@example.com
@@ -44,6 +57,22 @@ export const DEFAULT_ICON_CONFIG: PWAIconConfig = {
   shortName: "Vinstour",
   themeColor: "#15803d",
   bgColor: "#15803d",
+};
+
+export const DEFAULT_PWA_LAYOUT: PWALayoutSection[] = [
+  { id: 'hero', title: 'Banner Hero', enabled: true, order: 0 },
+  { id: 'quick_menu', title: 'Menu Cepat', enabled: true, order: 1 },
+  { id: 'tracker', title: 'Tracker Jamaah', enabled: true, order: 2 },
+  { id: 'featured_packages', title: 'Paket Unggulan', enabled: true, order: 3 },
+  { id: 'why_choose_us', title: 'Kenapa Memilih Kami', enabled: true, order: 4 },
+  { id: 'testimonials', title: 'Testimonial', enabled: true, order: 5 },
+  { id: 'cta', title: 'Panggilan Aksi (CTA)', enabled: true, order: 6 },
+];
+
+export const DEFAULT_PWA_THEME: PWAThemeConfig = {
+  primaryColor: "#15803d",
+  backgroundColor: "#ffffff",
+  bottomNavStyle: 'glass',
 };
 
 export const DEFAULT_BOTTOM_NAV: BottomNavItem[] = [
@@ -209,17 +238,54 @@ export function usePWAConfig() {
     [headerNavLinks],
   );
 
+  const pwaLayout: PWALayoutSection[] = useMemo(() => {
+    const saved = customData?.pwa_homepage_layout as PWALayoutSection[] | undefined;
+    if (saved?.length) return saved;
+    return DEFAULT_PWA_LAYOUT;
+  }, [customData]);
+
+  const pwaTheme: PWAThemeConfig = useMemo(() => {
+    const saved = customData?.pwa_theme_config as Partial<PWAThemeConfig> | undefined;
+    if (saved) return { ...DEFAULT_PWA_THEME, ...saved };
+    return {
+      ...DEFAULT_PWA_THEME,
+      primaryColor: settings?.primary_color || DEFAULT_PWA_THEME.primaryColor,
+    };
+  }, [customData, settings]);
+
+  const savePwaLayout = useCallback((newLayout: PWALayoutSection[]) => {
+    updateSettings.mutate({
+      custom_sections: {
+        ...customData,
+        pwa_homepage_layout: newLayout,
+      } as any,
+    });
+  }, [customData, updateSettings]);
+
+  const savePwaTheme = useCallback((newTheme: PWAThemeConfig) => {
+    updateSettings.mutate({
+      custom_sections: {
+        ...customData,
+        pwa_theme_config: newTheme,
+      } as any,
+    });
+  }, [customData, updateSettings]);
+
   return {
     items,
     headerNavLinks,
     iconConfig,
     vapidConfig,
+    pwaLayout,
+    pwaTheme,
     activeItems,
     activeHeaderLinks,
     save,
     saveIconConfig,
     saveHeaderNavLinks,
     saveVapidConfig,
+    savePwaLayout,
+    savePwaTheme,
     reset,
     resetHeaderNav,
     isSaving: updateSettings.isPending,
