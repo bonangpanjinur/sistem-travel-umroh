@@ -197,7 +197,7 @@ RBAC (15 role):
 |---|-------|-----------|--------|
 | ~~K1~~ | ~~Nomor kamar hotel spesifik~~ | ~~🔴~~ | ✅ `room_number` + `floor` sudah ada di `room_assignments` + form input |
 | ~~K2~~ | ~~Denah lantai / floor plan visual~~ | ~~🟠~~ | ✅ `FloorPlanView.tsx` — grid per lantai + drag-and-drop + room-swap |
-| K3 | **Kapasitas per tipe kamar per hotel** | 🟠 | Tidak ada batas kapasitas berdasarkan hotel aktual |
+| ~~K3~~ | ~~**Kapasitas per tipe kamar per hotel**~~ | ~~🟠~~ | ✅ `hotel_room_capacities` table + `get_hotel_capacity_summary()` DB func + `HotelRoomCapacityCard.tsx` (di AdminHotels) + `HotelCapacityAlert.tsx` + `useHotelRoomCapacities.ts` — alert otomatis di RoomingList + validasi saat tambah kamar |
 | ~~K4~~ | ~~Permintaan khusus kamar~~ | ~~🟡~~ | ✅ `special_requests` field sudah ada di DB + ditampilkan di AdminBookingDetail |
 | ~~K5~~ | ~~Notif otomatis ke jamaah saat kamar ditugaskan~~ | ~~🟡~~ | ✅ Tombol "Notif WA Kamar" di RoomingList — kirim info kamar via WhatsApp |
 | ~~K6~~ | ~~**Validasi kompatibilitas mahram**~~ | ~~🟡~~ | ✅ `MahramCompatibilityAlert.tsx` + `useMahramConflicts.ts` + DB function `check_mahram_room_conflicts()` — warning otomatis di RoomingList saat mahram belum dapat kamar atau beda hotel |
@@ -482,6 +482,7 @@ RBAC (15 role):
 | 17 | **K2 – Denah lantai visual (Floor Plan)** — `FloorPlanView.tsx`: grid kamar per lantai, sidebar jamaah belum ditempatkan, drag-and-drop assign | ✅ |
 | 18 | **Room-swap via drag-and-drop** — seret dot penghuni dari kamar ke kamar lain langsung; highlight amber saat drag antar kamar | ✅ |
 | 19 | **K6 – Validasi kompatibilitas mahram** — `MahramCompatibilityAlert.tsx` + hook `useMahramConflicts` + DB RPC `check_mahram_room_conflicts(departure_id, hotel_id)`; alert merah/kuning otomatis di halaman RoomingList saat pasangan mahram belum ditempatkan atau beda hotel | ✅ |
+| 20 | **K3 – Batas kapasitas kamar per hotel** — `hotel_room_capacities` table + `get_hotel_capacity_summary()` DB func + `HotelRoomCapacityCard.tsx` (panel kapasitas di AdminHotels per hotel, expandable) + `HotelCapacityAlert.tsx` + `useHotelRoomCapacities.ts`; alert otomatis di RoomingList + inline hint di dialog Tambah Kamar saat batas kapasitas hotel terlampaui | ✅ |
 
 ---
 

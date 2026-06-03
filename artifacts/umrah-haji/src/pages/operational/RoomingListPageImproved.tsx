@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import FloorPlanView from "@/components/rooming/FloorPlanView";
 import MahramCompatibilityAlert from "@/components/rooming/MahramCompatibilityAlert";
+import HotelCapacityAlert from "@/components/rooming/HotelCapacityAlert";
+import { useHotelCapacitySummary } from "@/hooks/useHotelRoomCapacities";
 import { Database } from "@/integrations/supabase/types";
 import * as XLSX from 'xlsx';
 
@@ -381,6 +383,12 @@ export default function RoomingListPageImproved() {
     toast.success('Rooming List Excel berhasil di-download');
   };
 
+  // K3 — Kapasitas kamar hotel untuk departure ini
+  const { data: capacitySummary } = useHotelCapacitySummary(
+    selectedHotelId || null,
+    selectedDepartureId || null
+  );
+
   const selectedDeparture = departures?.find(d => d.id === selectedDepartureId);
   const hotels = selectedDeparture ? [
     selectedDeparture.hotel_makkah,
@@ -465,6 +473,13 @@ export default function RoomingListPageImproved() {
               <Progress value={fillPct} className="h-2" />
             </CardContent>
           </Card>
+
+          {/* K3 — Kapasitas kamar per tipe hotel */}
+          <HotelCapacityAlert
+            hotelId={selectedHotelId}
+            departureId={selectedDepartureId}
+            hotelName={hotels.find(h => h?.id === selectedHotelId)?.name}
+          />
 
           {/* K6 — Validasi kompatibilitas mahram */}
           <MahramCompatibilityAlert
@@ -704,6 +719,24 @@ export default function RoomingListPageImproved() {
                   <SelectItem value="quad">Quad (4 orang)</SelectItem>
                 </SelectContent>
               </Select>
+              {/* K3 — Inline capacity hint untuk tipe yang dipilih */}
+              {(() => {
+                const cap = capacitySummary?.find(c => c.room_type === roomFormData.room_type);
+                if (!cap || cap.status === "unconfigured") return null;
+                const isExceeded = cap.assigned_count >= cap.capacity_limit;
+                return (
+                  <p className={`text-xs mt-1.5 flex items-center gap-1 ${isExceeded ? "text-red-600" : cap.status === "near_full" ? "text-amber-600" : "text-muted-foreground"}`}>
+                    {isExceeded ? "⚠️" : cap.status === "near_full" ? "⚡" : "ℹ️"}
+                    Kamar {getRoomTypeLabel(roomFormData.room_type)} di hotel ini:{" "}
+                    <strong>{cap.assigned_count}/{cap.capacity_limit}</strong>
+                    {isExceeded
+                      ? " — batas tercapai, penambahan ini melebihi kapasitas fisik hotel"
+                      : cap.status === "near_full"
+                      ? ` — hampir penuh (${cap.usage_pct}%)`
+                      : ` — sisa ${cap.remaining} kamar`}
+                  </p>
+                );
+              })()}
             </div>
             <div>
               <Label>Lantai (opsional)</Label>
