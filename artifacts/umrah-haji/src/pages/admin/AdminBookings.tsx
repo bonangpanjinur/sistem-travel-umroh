@@ -88,7 +88,7 @@ export default function AdminBookings() {
   const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [waErrorMsg, setWaErrorMsg] = useState<string | null>(null);
-  const [barcodeBooking, setBarcodeBooking] = useState<{ id: string; code: string; customer?: string; pkg?: string; date?: string } | null>(null);
+  const [barcodeBooking, setBarcodeBooking] = useState<{ id: string; token?: string | null; code: string; customer?: string; pkg?: string; date?: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [periodPreset, setPeriodPreset] = useState<string>("all");
@@ -876,6 +876,7 @@ export default function AdminBookings() {
                           title="Cetak Barcode"
                           onClick={() => setBarcodeBooking({
                             id: booking.id,
+                            token: (booking as any).public_token,
                             code: booking.booking_code,
                             customer: customer?.full_name,
                             pkg: departure?.package?.name,
@@ -1024,6 +1025,7 @@ export default function AdminBookings() {
           open={!!barcodeBooking}
           onOpenChange={open => { if (!open) setBarcodeBooking(null); }}
           bookingId={barcodeBooking.id}
+          publicToken={barcodeBooking.token}
           bookingCode={barcodeBooking.code}
           customerName={barcodeBooking.customer}
           packageName={barcodeBooking.pkg}

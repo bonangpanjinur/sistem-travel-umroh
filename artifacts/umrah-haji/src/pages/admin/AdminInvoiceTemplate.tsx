@@ -656,7 +656,7 @@ export default function AdminInvoiceTemplate() {
                       </div>
                       <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg space-y-1">
                         <p className="font-semibold text-blue-700 dark:text-blue-300">ℹ️ Cara kerja QR Code:</p>
-                        <p>Jamaah bisa men-scan QR code di invoice untuk membuka halaman verifikasi booking secara publik (tanpa login). Link yang dibuka: <span className="font-mono text-[10px]">/transaksi/&lt;booking-id&gt;</span></p>
+                        <p>Jamaah bisa men-scan QR code di invoice untuk membuka halaman verifikasi booking secara publik (tanpa login). Link menggunakan token acak yang tidak bisa ditebak: <span className="font-mono text-[10px]">/transaksi/&lt;token&gt;</span></p>
                       </div>
                     </div>
                   )}

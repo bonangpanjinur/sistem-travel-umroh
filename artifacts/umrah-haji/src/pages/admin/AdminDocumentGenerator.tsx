@@ -248,7 +248,7 @@ const AdminDocumentGenerator = () => {
       bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined,
       cancellationPolicy,
       // QR transparansi → halaman detail booking jamaah
-      verifyUrl: `${window.location.origin}/transaksi/${booking.id}`,
+      verifyUrl: `${window.location.origin}/transaksi/${(booking as any).public_token || booking.id}`,
     };
     return { generate: async () => await generateInvoice(data, company) };
   };

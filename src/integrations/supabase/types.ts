@@ -878,6 +878,7 @@ export type Database = {
           payment_deadline: string | null
           payment_mode: string
           payment_status: Database["public"]["Enums"]["payment_status"] | null
+          public_token: string
           remaining_amount: number | null
           room_type: Database["public"]["Enums"]["room_type"]
           sales_id: string | null
@@ -911,6 +912,7 @@ export type Database = {
           payment_deadline?: string | null
           payment_mode?: string
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          public_token?: string
           remaining_amount?: number | null
           room_type?: Database["public"]["Enums"]["room_type"]
           sales_id?: string | null
@@ -944,6 +946,7 @@ export type Database = {
           payment_deadline?: string | null
           payment_mode?: string
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          public_token?: string
           remaining_amount?: number | null
           room_type?: Database["public"]["Enums"]["room_type"]
           sales_id?: string | null
@@ -7552,6 +7555,7 @@ export type Database = {
         Args: { p_document_type: string; p_prefix: string }
         Returns: string
       }
+      get_public_booking_by_token: { Args: { p_token: string }; Returns: Json }
       get_public_booking_details: {
         Args: { p_booking_id: string }
         Returns: Json

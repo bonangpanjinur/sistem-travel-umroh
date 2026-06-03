@@ -48,20 +48,20 @@ const PAY_LABEL: Record<string, string> = {
 };
 
 export default function PublicBookingDetail() {
-  const { bookingId } = useParams<{ bookingId: string }>();
+  const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<PublicBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!bookingId) return;
+    if (!token) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       const { data: res, error: err } = await (supabase as any).rpc(
-        "get_public_booking_details",
-        { p_booking_id: bookingId }
+        "get_public_booking_by_token",
+        { p_token: token }
       );
       if (cancelled) return;
       if (err) {
@@ -82,7 +82,7 @@ export default function PublicBookingDetail() {
     return () => {
       cancelled = true;
     };
-  }, [bookingId]);
+  }, [token]);
 
   const paymentPct =
     data && data.total_price > 0

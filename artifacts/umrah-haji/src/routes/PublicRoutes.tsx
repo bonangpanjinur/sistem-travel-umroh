@@ -83,7 +83,7 @@ export default function PublicRoutes() {
       <Route path="/lp/:slug" element={<LazyPage><LandingPage /></LazyPage>} />
       <Route path="/team" element={<LazyPage><TeamPage /></LazyPage>} />
       <Route path="/cek-booking" element={<LazyPage><BookingStatusPage /></LazyPage>} />
-      <Route path="/transaksi/:bookingId" element={<LazyPage><PublicBookingDetail /></LazyPage>} />
+      <Route path="/transaksi/:token" element={<LazyPage><PublicBookingDetail /></LazyPage>} />
       <Route path="/kalkulator" element={<LazyPage><KalkulatorBiaya /></LazyPage>} />
       <Route path="/kalkulator-cicilan" element={<LazyPage><KalkulatorCicilan /></LazyPage>} />
       <Route path="/packages/compare" element={<LazyPage><PackageCompare /></LazyPage>} />

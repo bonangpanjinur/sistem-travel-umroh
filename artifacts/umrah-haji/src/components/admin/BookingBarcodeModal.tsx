@@ -9,6 +9,7 @@ interface BookingBarcodeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookingId: string;
+  publicToken?: string | null;
   bookingCode: string;
   customerName?: string;
   packageName?: string;
@@ -28,6 +29,7 @@ export function BookingBarcodeModal({
   open,
   onOpenChange,
   bookingId,
+  publicToken,
   bookingCode,
   customerName,
   packageName,
@@ -38,7 +40,7 @@ export function BookingBarcodeModal({
   const [size, setSize] = useState<LabelSize>("card");
   const printRef = useRef<HTMLDivElement>(null);
 
-  const verifyUrl = `${window.location.origin}/transaksi/${bookingId}`;
+  const verifyUrl = `${window.location.origin}/transaksi/${publicToken || bookingId}`;
 
   useEffect(() => {
     if (!open) return;
