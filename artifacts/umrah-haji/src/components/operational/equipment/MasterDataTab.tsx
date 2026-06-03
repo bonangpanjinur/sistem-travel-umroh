@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit2, Trash2, Package, AlertCircle, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Edit2, Trash2, Package, AlertCircle, Loader2, AlertTriangle, Ruler, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { EquipmentItem } from "@/pages/operational/EquipmentPage";
 
@@ -39,7 +40,10 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
     description: "",
     category: "general",
     low_stock_threshold: 10,
+    has_sizes: false,
+    available_sizes: [] as string[],
   });
+  const [sizeInput, setSizeInput] = useState("");
 
   const handleAddNew = () => {
     setSelectedItem(null);
@@ -48,7 +52,10 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
       description: "",
       category: "general",
       low_stock_threshold: 10,
+      has_sizes: false,
+      available_sizes: [],
     });
+    setSizeInput("");
     setEditDialogOpen(true);
   };
 
@@ -59,9 +66,27 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
       description: item.description || "",
       category: item.category || "general",
       low_stock_threshold: item.low_stock_threshold || 10,
+      has_sizes: item.has_sizes || false,
+      available_sizes: item.available_sizes || [],
     });
+    setSizeInput("");
     setDeleteMode(false);
     setEditDialogOpen(true);
+  };
+
+  const handleAddSize = () => {
+    const s = sizeInput.trim().toUpperCase();
+    if (!s) return;
+    if (formData.available_sizes.includes(s)) {
+      toast.error("Ukuran sudah ada");
+      return;
+    }
+    setFormData(prev => ({ ...prev, available_sizes: [...prev.available_sizes, s] }));
+    setSizeInput("");
+  };
+
+  const handleRemoveSize = (size: string) => {
+    setFormData(prev => ({ ...prev, available_sizes: prev.available_sizes.filter(s => s !== size) }));
   };
 
   const handleDelete = (item: EquipmentItem) => {
@@ -77,6 +102,8 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
         description: formData.description || null,
         category: formData.category,
         low_stock_threshold: formData.low_stock_threshold,
+        has_sizes: formData.has_sizes,
+        available_sizes: formData.has_sizes ? formData.available_sizes : [],
       };
 
       if (selectedItem) {
@@ -186,9 +213,16 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
                         <CardTitle className="text-sm leading-tight truncate">
                           {item.name}
                         </CardTitle>
-                        <Badge variant="outline" className="mt-1 text-[10px] h-4">
-                          {item.category || 'general'}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <Badge variant="outline" className="text-[10px] h-4">
+                            {item.category || 'general'}
+                          </Badge>
+                          {item.has_sizes && (
+                            <Badge variant="outline" className="text-[10px] h-4 gap-0.5 border-blue-200 text-blue-700 bg-blue-50">
+                              <Ruler className="h-2.5 w-2.5" /> Ukuran
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -198,6 +232,15 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
                     <p className="text-xs text-muted-foreground line-clamp-2">
                       {item.description}
                     </p>
+                  )}
+
+                  {/* Available sizes */}
+                  {item.has_sizes && item.available_sizes && item.available_sizes.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {item.available_sizes.map(s => (
+                        <Badge key={s} variant="secondary" className="text-[10px] h-4 px-1.5">{s}</Badge>
+                      ))}
+                    </div>
                   )}
 
                   {/* Stock Status */}
@@ -364,6 +407,85 @@ export function MasterDataTab({ items }: MasterDataTabProps) {
                       setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 0 })
                     }
                   />
+                </div>
+
+                {/* E2: Has Sizes toggle */}
+                <div className="space-y-3 pt-1 border-t">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <Ruler className="h-4 w-4 text-muted-foreground" />
+                        Item Butuh Ukuran
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Aktifkan untuk baju, koper, dll yang perlu pilihan ukuran
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.has_sizes}
+                      onCheckedChange={(v) => setFormData({ ...formData, has_sizes: v })}
+                    />
+                  </div>
+
+                  {formData.has_sizes && (
+                    <div className="space-y-2 pl-6">
+                      <Label className="text-xs">Ukuran Tersedia</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Contoh: S, M, L, XL..."
+                          value={sizeInput}
+                          onChange={(e) => setSizeInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSize())}
+                          className="h-8 text-sm"
+                        />
+                        <Button type="button" size="sm" onClick={handleAddSize} className="h-8 px-3">
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      {formData.available_sizes.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {formData.available_sizes.map((s) => (
+                            <Badge
+                              key={s}
+                              variant="secondary"
+                              className="text-xs gap-1 cursor-pointer hover:bg-destructive/10"
+                            >
+                              {s}
+                              <button type="button" onClick={() => handleRemoveSize(s)}>
+                                <X className="h-2.5 w-2.5" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {formData.available_sizes.length === 0 && (
+                        <p className="text-xs text-amber-600">
+                          ⚠ Tambah minimal 1 ukuran (contoh: S M L XL XXL)
+                        </p>
+                      )}
+                      <div className="flex gap-1 flex-wrap mt-1">
+                        {["S","M","L","XL","XXL"].map(s => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => {
+                              if (!formData.available_sizes.includes(s)) {
+                                setFormData(prev => ({ ...prev, available_sizes: [...prev.available_sizes, s] }));
+                              }
+                            }}
+                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                              formData.available_sizes.includes(s)
+                                ? "bg-primary/10 border-primary/30 text-primary"
+                                : "border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/40"
+                            }`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                        <span className="text-[10px] text-muted-foreground self-center ml-1">preset cepat</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>

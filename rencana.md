@@ -163,8 +163,8 @@ RBAC (15 role):
 
 | # | Fitur | Prioritas | Detail |
 |---|-------|-----------|--------|
-| E1 | **Retur/pengembalian perlengkapan** | 🔴 | Tidak ada flow untuk item kembali (koper rusak, dll) |
-| E2 | **Ukuran/size per jamaah** (seragam, koper) | 🔴 | Tidak ada kolom ukuran di distribusi |
+| E1 | ✅ **Retur/pengembalian perlengkapan** | ~~🔴~~ | `EquipmentReturnDialog.tsx` — pilih item, kondisi (baik/rusak/hilang), alasan, catatan; RPC `return_equipment_item` |
+| E2 | ✅ **Ukuran/size per jamaah** (seragam, koper) | ~~🔴~~ | Kolom `size` di `equipment_distributions`; `has_sizes`+`available_sizes` di `equipment_items`; size selector di DistributionDrawer |
 | E3 | **Konfirmasi penerimaan oleh jamaah** | 🟠 | Distribusi dicatat admin, jamaah tidak bisa konfirmasi terima |
 | E4 | **Laporan stok per departure** | 🟠 | Laporan stok global ada, tapi tidak per departure |
 | E5 | **Alert stok rendah otomatis** | 🟡 | `low_stock_threshold` ada di DB tapi tidak ada notif otomatis |
@@ -481,8 +481,8 @@ RBAC (15 role):
 | B1 | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SERVICE_ROLE_KEY` di Replit Secrets | Semua |
 | B2 | Migrasi WA token dari browser ke `/api/whatsapp/send` (2 file) | Komunikasi |
 | B3 | Nomor kamar hotel spesifik di room assignment (K1) | Kamar |
-| B4 | Retur/pengembalian perlengkapan (E1) | Equipment |
-| B5 | Ukuran/size per jamaah untuk perlengkapan (E2) | Equipment |
+| ~~B4~~ | ~~Retur/pengembalian perlengkapan (E1)~~ ✅ | Equipment |
+| ~~B5~~ | ~~Ukuran/size per jamaah untuk perlengkapan (E2)~~ ✅ | Equipment |
 
 ### 🟠 PENTING (Segera setelah kritis)
 

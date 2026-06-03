@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
   Search, Plus, Check, Users, Box, BarChart3, Package as PackageIcon,
-  Loader2, AlertTriangle, User, ChevronRight, Settings, Database
+  Loader2, AlertTriangle, User, ChevronRight, Settings, Database, RotateCcw,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -26,6 +26,7 @@ import { AddStockDialog } from "@/components/operational/equipment/AddStockDialo
 import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab";
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 import { PrintManifest } from "@/components/operational/equipment/PrintManifest";
+import { EquipmentReturnDialog } from "@/components/operational/equipment/EquipmentReturnDialog";
 
 export interface EquipmentItem {
   id: string;
@@ -34,6 +35,8 @@ export interface EquipmentItem {
   stock_quantity: number;
   category?: string;
   low_stock_threshold?: number;
+  has_sizes?: boolean;
+  available_sizes?: string[];
 }
 
 export interface Distribution {
@@ -69,6 +72,8 @@ export default function EquipmentPage() {
   const [showMasterData, setShowMasterData] = useState(false);
   const [showRealization, setShowRealization] = useState(false);
   const [showManifest, setShowManifest] = useState(false);
+  const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const [returnJamaah, setReturnJamaah] = useState<Passenger | null>(null);
 
   // Fetch packages
   const { data: packages } = useQuery({
@@ -237,6 +242,11 @@ export default function EquipmentPage() {
   const handleOpenDist = (p: Passenger) => {
     setSelectedJamaah(p);
     setIsDistDialogOpen(true);
+  };
+
+  const handleOpenReturn = (p: Passenger) => {
+    setReturnJamaah(p);
+    setIsReturnDialogOpen(true);
   };
 
   const handleStockClick = (itemId: string) => {
@@ -483,15 +493,34 @@ export default function EquipmentPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button 
-                                  size="sm" 
-                                  variant={isComplete ? "outline" : "default"}
-                                  className={`h-8 px-3 ${isComplete ? 'border-green-200 text-green-700 hover:bg-green-50' : ''}`}
-                                  onClick={() => handleOpenDist(p)}
-                                >
-                                  {isComplete ? <Check className="h-3.5 w-3.5 mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-                                  {isComplete ? 'Lengkap' : 'Kelola'}
-                                </Button>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {status.completed > 0 && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 px-2 border-amber-200 text-amber-700 hover:bg-amber-50"
+                                            onClick={() => handleOpenReturn(p)}
+                                          >
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Retur Perlengkapan</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant={isComplete ? "outline" : "default"}
+                                    className={`h-8 px-3 ${isComplete ? 'border-green-200 text-green-700 hover:bg-green-50' : ''}`}
+                                    onClick={() => handleOpenDist(p)}
+                                  >
+                                    {isComplete ? <Check className="h-3.5 w-3.5 mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                                    {isComplete ? 'Lengkap' : 'Kelola'}
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -532,6 +561,16 @@ export default function EquipmentPage() {
         items={items || []}
         preselectedItemId={addStockPreselect}
       />
+
+      {returnJamaah && (
+        <EquipmentReturnDialog
+          open={isReturnDialogOpen}
+          onOpenChange={setIsReturnDialogOpen}
+          jamaahId={returnJamaah.customer_id}
+          jamaahName={returnJamaah.customer.full_name}
+          departureId={selectedDeparture}
+        />
+      )}
 
       <Dialog open={showMasterData} onOpenChange={setShowMasterData}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">

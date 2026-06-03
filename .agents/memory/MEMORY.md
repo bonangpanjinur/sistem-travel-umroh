@@ -1,5 +1,7 @@
 - [SQL canonical folder](sql-canonical-folder.md) — satu sumber kebenaran: sql/migrations/ (001–061); supabase/migrations/ untuk Supabase CLI; build.mjs api-server tidak boleh hardcode src/sql copy
 - [MilestoneTrackerCard document validation](milestone-tracker-doc-validation.md) — terima prop departureId; query customer_documents via booking_passengers; tampilkan upload+verified count real-time dari DB
+- [Equipment E1 return flow](equipment-return-flow.md) — EquipmentReturnDialog.tsx; RPC return_equipment_item; migration 062; tombol retur di EquipmentPage per jamaah hanya muncul jika ada distributed item
+- [Equipment E2 size field](equipment-size-field.md) — kolom size di equipment_distributions; has_sizes+available_sizes di equipment_items; size selector di DistributionDrawer; validasi wajib pilih ukuran sebelum save; konfigurasi di MasterDataTab dengan preset cepat S/M/L/XL/XXL
 - [rencana.md single plan](rencana-single-plan.md) — SATU file rencana.md di root; jangan buat RENCANA.md, rencana/, artifacts/*/PLAN.md, .lovable/plan.md lagi
 - [Booking mutations → Supabase direct](booking-supabase-direct.md) — semua mutasi di AdminBookingDetail.tsx wajib pakai Supabase langsung, bukan fetch ke API server
 - [WhatsApp token architecture](whatsapp-token-arch.md) — FONNTE_TOKEN dibaca dari whatsapp_config DB (bukan env var); admin kelola di /admin/whatsapp; API server fallback ke DB jika env var tidak diset.
