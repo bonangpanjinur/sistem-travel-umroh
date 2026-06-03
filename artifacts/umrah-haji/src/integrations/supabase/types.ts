@@ -1985,6 +1985,7 @@ export type Database = {
           return_notes: string | null
           return_photo_url: string | null
           returned_at: string | null
+          size: string | null
           status: string | null
           tracking_number: string | null
           variant_id: string | null
@@ -2009,6 +2010,7 @@ export type Database = {
           return_notes?: string | null
           return_photo_url?: string | null
           returned_at?: string | null
+          size?: string | null
           status?: string | null
           tracking_number?: string | null
           variant_id?: string | null
@@ -2033,6 +2035,7 @@ export type Database = {
           return_notes?: string | null
           return_photo_url?: string | null
           returned_at?: string | null
+          size?: string | null
           status?: string | null
           tracking_number?: string | null
           variant_id?: string | null
@@ -2077,10 +2080,12 @@ export type Database = {
       }
       equipment_items: {
         Row: {
+          available_sizes: string[] | null
           category: string
           created_at: string | null
           description: string | null
           gender_target: string
+          has_sizes: boolean
           has_variants: boolean
           id: string
           low_stock_threshold: number
@@ -2093,10 +2098,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          available_sizes?: string[] | null
           category?: string
           created_at?: string | null
           description?: string | null
           gender_target?: string
+          has_sizes?: boolean
           has_variants?: boolean
           id?: string
           low_stock_threshold?: number
@@ -2109,10 +2116,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          available_sizes?: string[] | null
           category?: string
           created_at?: string | null
           description?: string | null
           gender_target?: string
+          has_sizes?: boolean
           has_variants?: boolean
           id?: string
           low_stock_threshold?: number
@@ -6326,6 +6335,16 @@ export type Database = {
           p_distribution_id: string
           p_notes?: string
           p_return_photo_url?: string
+        }
+        Returns: undefined
+      }
+      return_equipment_item: {
+        Args: {
+          p_distribution_id: string
+          p_return_condition: string
+          p_return_notes?: string | null
+          p_return_reason?: string | null
+          p_return_photo_url?: string | null
         }
         Returns: undefined
       }

@@ -469,6 +469,9 @@ RBAC (15 role):
 | 4 | **build.mjs (API server)** — perbaiki agar tidak crash saat `src/sql` tidak ada | ✅ |
 | 5 | **Rencana.md** — satu file tunggal, hapus `rencana/`, `artifacts/umrah-haji/PLAN.md`, `.lovable/plan.md` | ✅ |
 | 6 | **pnpm install** — dependencies terinstall | ✅ |
+| 7 | **TypeScript build error fix** — tambah `size` ke `equipment_distributions` types; tambah `has_sizes` + `available_sizes` ke `equipment_items` types; tambah `return_equipment_item` ke Functions RPC types di `types.ts` | ✅ |
+| 8 | **SQL bootstrap files** — buat `src/sql/00_auth_bootstrap.sql` (auth schema + auth.users + stub functions + _schema_migrations), `02_missing_tables.sql`, `03_bookings_columns.sql`, `04_gallery_media_type.sql` agar API server bisa booting dan run migrations tanpa error | ✅ |
+| 9 | **Both workflows running** — frontend (port 5000) dan API server (port 8080) berjalan normal | ✅ |
 
 ---
 
