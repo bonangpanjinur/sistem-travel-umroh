@@ -19,7 +19,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   BedDouble, Users, Plus, Trash2, UserPlus,
   Hotel, Wand2, Loader2, Download, FileSpreadsheet, Bell,
+  LayoutGrid, List,
 } from "lucide-react";
+import FloorPlanView from "@/components/rooming/FloorPlanView";
 import { Database } from "@/integrations/supabase/types";
 import * as XLSX from 'xlsx';
 
@@ -78,6 +80,7 @@ export default function RoomingListPageImproved() {
   const [autoAssignMode, setAutoAssignMode] = useState<'gender' | 'booking'>('gender');
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [isSendingRoomNotif, setIsSendingRoomNotif] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "floorplan">("list");
   const [roomFormData, setRoomFormData] = useState({
     room_number: "", room_type: "quad", floor: "",
   });
@@ -462,7 +465,7 @@ export default function RoomingListPageImproved() {
             </CardContent>
           </Card>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <Button onClick={() => setAddRoomDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" /> Tambah Kamar
             </Button>
@@ -490,6 +493,30 @@ export default function RoomingListPageImproved() {
                 Notif WA Kamar
               </Button>
             )}
+            {/* View mode toggle */}
+            <div className="ml-auto flex rounded-lg border overflow-hidden">
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none border-0 h-8 px-3"
+                onClick={() => setViewMode("list")}
+                title="Tampilan daftar kartu"
+              >
+                <List className="h-3.5 w-3.5 mr-1.5" />
+                Daftar
+              </Button>
+              <div className="w-px bg-border" />
+              <Button
+                variant={viewMode === "floorplan" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none border-0 h-8 px-3"
+                onClick={() => setViewMode("floorplan")}
+                title="Tampilan denah lantai (drag & drop)"
+              >
+                <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
+                Denah Lantai
+              </Button>
+            </div>
           </div>
 
           {unassignedCount > 0 && (
@@ -510,113 +537,126 @@ export default function RoomingListPageImproved() {
             </Card>
           )}
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {loadingRooms ? (
-              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-52 w-full" />)
-            ) : !rooms?.length ? (
-              <Card className="col-span-full border-dashed">
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  <BedDouble className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p>Belum ada kamar. Klik "Tambah Kamar" untuk mulai.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              rooms?.map((room) => {
-                const occupancyPct = room.capacity ? Math.round(((room.occupants?.length || 0) / room.capacity) * 100) : 0;
-                const isFull = (room.occupants?.length || 0) >= (room.capacity || 4);
-                return (
-                  <Card key={room.id} className={`flex flex-col ${isFull ? 'border-green-200 bg-green-50/30 dark:border-green-800 dark:bg-green-950/10' : ''}`}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-base font-bold flex items-center gap-2">
-                        <BedDouble className="h-4 w-4" />
-                        Kamar {room.room_number}
-                      </CardTitle>
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="secondary" className="text-xs capitalize">
-                          {getRoomTypeLabel(room.room_type)}
-                        </Badge>
-                        {isFull && <Badge className="bg-green-100 text-green-800 text-xs">Penuh</Badge>}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex flex-col gap-3">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Lantai {room.floor || '-'}</span>
-                          <span>{room.occupants?.length || 0}/{room.capacity} orang</span>
+          {loadingRooms ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-52 w-full" />)}
+            </div>
+          ) : viewMode === "floorplan" ? (
+            <FloorPlanView
+              rooms={rooms || []}
+              unassignedPassengers={unassignedPassengers || []}
+              onAssignPassenger={(roomId, customerId) =>
+                assignPassengerMutation.mutate({ roomId, customerIds: [customerId] })
+              }
+              onRemoveOccupant={(occupantId) => removeOccupantMutation.mutate(occupantId)}
+            />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {!rooms?.length ? (
+                <Card className="col-span-full border-dashed">
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    <BedDouble className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>Belum ada kamar. Klik "Tambah Kamar" untuk mulai.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                rooms?.map((room) => {
+                  const occupancyPct = room.capacity ? Math.round(((room.occupants?.length || 0) / room.capacity) * 100) : 0;
+                  const isFull = (room.occupants?.length || 0) >= (room.capacity || 4);
+                  return (
+                    <Card key={room.id} className={`flex flex-col ${isFull ? 'border-green-200 bg-green-50/30 dark:border-green-800 dark:bg-green-950/10' : ''}`}>
+                      <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-base font-bold flex items-center gap-2">
+                          <BedDouble className="h-4 w-4" />
+                          Kamar {room.room_number}
+                        </CardTitle>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="secondary" className="text-xs capitalize">
+                            {getRoomTypeLabel(room.room_type)}
+                          </Badge>
+                          {isFull && <Badge className="bg-green-100 text-green-800 text-xs">Penuh</Badge>}
                         </div>
-                        <Progress value={occupancyPct} className="h-1.5" />
-                      </div>
+                      </CardHeader>
+                      <CardContent className="flex-1 flex flex-col gap-3">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Lantai {room.floor || '-'}</span>
+                            <span>{room.occupants?.length || 0}/{room.capacity} orang</span>
+                          </div>
+                          <Progress value={occupancyPct} className="h-1.5" />
+                        </div>
 
-                      <div className="flex-1">
-                        <h4 className="text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">Penghuni</h4>
-                        <ScrollArea className="h-24">
-                          {!room.occupants?.length ? (
-                            <p className="text-xs text-muted-foreground italic">Belum ada penghuni</p>
-                          ) : (
-                            <ul className="space-y-1">
-                              {room.occupants?.map((occupant) => (
-                                <li key={occupant.id} className="flex items-center justify-between text-sm">
-                                  <span className="flex items-center gap-1.5">
-                                    <Badge variant={occupant.customer?.gender === 'male' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1">
-                                      {occupant.customer?.gender === 'male' ? 'L' : 'P'}
-                                    </Badge>
-                                    <span className="text-sm">{occupant.customer?.full_name}</span>
-                                  </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-red-400 hover:text-red-600"
-                                    onClick={() => removeOccupantMutation.mutate(occupant.id)}
-                                    disabled={removeOccupantMutation.isPending}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </ScrollArea>
-                      </div>
+                        <div className="flex-1">
+                          <h4 className="text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">Penghuni</h4>
+                          <ScrollArea className="h-24">
+                            {!room.occupants?.length ? (
+                              <p className="text-xs text-muted-foreground italic">Belum ada penghuni</p>
+                            ) : (
+                              <ul className="space-y-1">
+                                {room.occupants?.map((occupant) => (
+                                  <li key={occupant.id} className="flex items-center justify-between text-sm">
+                                    <span className="flex items-center gap-1.5">
+                                      <Badge variant={occupant.customer?.gender === 'male' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1">
+                                        {occupant.customer?.gender === 'male' ? 'L' : 'P'}
+                                      </Badge>
+                                      <span className="text-sm">{occupant.customer?.full_name}</span>
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-red-400 hover:text-red-600"
+                                      onClick={() => removeOccupantMutation.mutate(occupant.id)}
+                                      disabled={removeOccupantMutation.isPending}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </ScrollArea>
+                        </div>
 
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 h-8 text-xs"
-                          onClick={() => { setSelectedRoom(room); setAssignPassengerDialogOpen(true); }}
-                          disabled={isFull}
-                        >
-                          <UserPlus className="h-3 w-3 mr-1" /> Tambah
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                              disabled={(room.occupants?.length || 0) > 0}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus Kamar {room.room_number}?</AlertDialogTitle>
-                              <AlertDialogDescription>Kamar akan dihapus permanen.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteRoomMutation.mutate(room.id)}>Hapus</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-8 text-xs"
+                            onClick={() => { setSelectedRoom(room); setAssignPassengerDialogOpen(true); }}
+                            disabled={isFull}
+                          >
+                            <UserPlus className="h-3 w-3 mr-1" /> Tambah
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                disabled={(room.occupants?.length || 0) > 0}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Hapus Kamar {room.room_number}?</AlertDialogTitle>
+                                <AlertDialogDescription>Kamar akan dihapus permanen.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteRoomMutation.mutate(room.id)}>Hapus</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          )}
         </>
       )}
 
