@@ -972,7 +972,7 @@ export default function AdminPWASettings() {
                   style={{ backgroundColor: iconConfig.themeColor }}
                 />
                 <iframe
-                  src="/jemaah/?preview=standalone"
+                  src="/jamaah/?preview=standalone"
                   title="Preview PWA standalone"
                   className="w-full h-full border-0"
                   loading="lazy"
