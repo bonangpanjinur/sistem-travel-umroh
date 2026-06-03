@@ -1976,6 +1976,7 @@ export type Database = {
           departure_id: string | null
           distributed_at: string | null
           distributed_by: string | null
+          distribution_photo_url: string | null
           equipment_id: string
           expedition_name: string | null
           id: string
@@ -2001,6 +2002,7 @@ export type Database = {
           departure_id?: string | null
           distributed_at?: string | null
           distributed_by?: string | null
+          distribution_photo_url?: string | null
           equipment_id: string
           expedition_name?: string | null
           id?: string
@@ -2026,6 +2028,7 @@ export type Database = {
           departure_id?: string | null
           distributed_at?: string | null
           distributed_by?: string | null
+          distribution_photo_url?: string | null
           equipment_id?: string
           expedition_name?: string | null
           id?: string
