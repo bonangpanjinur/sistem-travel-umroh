@@ -375,8 +375,10 @@ export default function AdminPackages() {
 
     try {
       if (type === 'excel') {
+        const { exportToExcel } = await import("@/lib/export-utils");
         exportToExcel(filteredPackages, columns, filename, 'Packages');
       } else {
+        const { exportToPDF } = await import("@/lib/export-utils");
         exportToPDF(filteredPackages, columns, filename, title, subtitle);
       }
       toast.success(`Daftar paket berhasil di-export ke ${type.toUpperCase()}`);
