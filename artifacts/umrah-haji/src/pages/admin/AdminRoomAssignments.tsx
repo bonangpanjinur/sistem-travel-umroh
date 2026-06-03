@@ -10,10 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
-import { Users, UserPlus, BedDouble, Search, X, UserCog, UsersRound, Wand2, FileSpreadsheet, FileText } from "lucide-react";
+import {
+  Users, UserPlus, BedDouble, Search, X, UserCog, UsersRound,
+  Wand2, FileSpreadsheet, FileText, Hotel, Hash, Pencil, Check
+} from "lucide-react";
 import { ROOM_TYPE_LABELS, GENDER_LABELS } from "@/lib/constants";
 import { v4 as uuidv4 } from "uuid";
 import { Database } from "@/integrations/supabase/types";
@@ -32,6 +37,9 @@ interface Passenger {
   room_preference: RoomType | null;
   passenger_type: string | null;
   room_number: string | null;
+  room_number_makkah: string | null;
+  room_number_madinah: string | null;
+  room_hotel_notes: string | null;
   room_group_id: string | null;
   roommate_id: string | null;
   customer: {
@@ -48,6 +56,12 @@ interface Passenger {
     booking_code: string;
     room_type?: string | null;
   };
+}
+
+interface HotelRoomFormData {
+  room_number_makkah: string;
+  room_number_madinah: string;
+  room_hotel_notes: string;
 }
 
 const MAX_ROOM_SIZE = 4;
@@ -70,15 +84,26 @@ export default function AdminRoomAssignmentsImproved() {
   const [genderFilter, setGenderFilter] = useState("all");
   const [roomStatusFilter, setRoomStatusFilter] = useState("all");
 
-  // "New group" dialog state
   const [newGroupDialogOpen, setNewGroupDialogOpen] = useState(false);
   const [anchorPassenger, setAnchorPassenger] = useState<Passenger | null>(null);
   const [selectedMateIds, setSelectedMateIds] = useState<Set<string>>(new Set());
 
-  // "Edit group" dialog state
   const [editGroupDialogOpen, setEditGroupDialogOpen] = useState(false);
   const [editGroupId, setEditGroupId] = useState<string | null>(null);
   const [addMateIds, setAddMateIds] = useState<Set<string>>(new Set());
+
+  // ── Hotel Room Number dialog state ─────────────────────────────────────────
+  const [roomNumberDialogOpen, setRoomNumberDialogOpen] = useState(false);
+  const [roomNumberGroupId, setRoomNumberGroupId] = useState<string | null>(null);
+  const [hotelNames, setHotelNames] = useState<{ makkah: string; madinah: string }>({
+    makkah: "Hotel Makkah",
+    madinah: "Hotel Madinah",
+  });
+  const [hotelRoomForm, setHotelRoomForm] = useState<HotelRoomFormData>({
+    room_number_makkah: "",
+    room_number_madinah: "",
+    room_hotel_notes: "",
+  });
 
   const { data: packages } = useQuery({
     queryKey: ["packages-for-rooms"],
@@ -114,7 +139,9 @@ export default function AdminRoomAssignmentsImproved() {
       const { data, error } = await supabase
         .from("booking_passengers")
         .select(
-          `id, room_preference, passenger_type, room_number, room_group_id, roommate_id, booking_id,
+          `id, room_preference, passenger_type, room_number,
+           room_number_makkah, room_number_madinah, room_hotel_notes,
+           room_group_id, roommate_id, booking_id,
            customer:customers(id, full_name, gender, phone, birth_date, passport_number, passport_expiry),
            booking:bookings!inner(id, booking_code, room_type, departure_id, booking_status)`
         )
@@ -125,7 +152,6 @@ export default function AdminRoomAssignmentsImproved() {
     },
   });
 
-  // Departure metadata for export (package, hotels, airline, flight info)
   const { data: departureMeta } = useQuery({
     queryKey: ["departure-meta-rooming", selectedDeparture],
     enabled: !!selectedDeparture,
@@ -146,6 +172,16 @@ export default function AdminRoomAssignmentsImproved() {
     },
   });
 
+  // Update hotel names when departure meta loads
+  useEffect(() => {
+    if (departureMeta) {
+      setHotelNames({
+        makkah: departureMeta.hotel_makkah?.name || "Hotel Makkah",
+        madinah: departureMeta.hotel_madinah?.name || "Hotel Madinah",
+      });
+    }
+  }, [departureMeta]);
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   const getGroupMembers = (groupId: string | null): Passenger[] => {
@@ -153,8 +189,6 @@ export default function AdminRoomAssignmentsImproved() {
     return passengers.filter((p) => p.room_group_id === groupId);
   };
 
-  /** All ungrouped passengers EXCEPT self, regardless of room_preference.
-   *  Gender is kept as soft info but NOT filtered — admin can decide. */
   const getUngroupedCandidates = (excludeId: string): Passenger[] =>
     (passengers || []).filter(
       (p) => p.id !== excludeId && !p.room_group_id
@@ -180,9 +214,9 @@ export default function AdminRoomAssignmentsImproved() {
     total: passengers?.length || 0,
     grouped: passengers?.filter((p) => p.room_group_id).length || 0,
     ungrouped: passengers?.filter((p) => !p.room_group_id).length || 0,
+    withRoomNumber: passengers?.filter((p) => p.room_group_id && (p.room_number_makkah || p.room_number_madinah)).length || 0,
   };
 
-  // Build unique groups list for the groups view
   const groupsMap = new Map<string, Passenger[]>();
   for (const p of passengers || []) {
     if (p.room_group_id) {
@@ -191,7 +225,6 @@ export default function AdminRoomAssignmentsImproved() {
     }
   }
 
-  // Tally booking room_type counts (apa yang dipesan jamaah)
   const bookingTypeCounts: Record<string, number> = {};
   for (const p of passengers || []) {
     const t = (p.booking?.room_type || "quad") as string;
@@ -234,7 +267,6 @@ export default function AdminRoomAssignmentsImproved() {
     onError: (e: Error) => toast.error("❌ " + e.message),
   });
 
-  /** Add more ungrouped passengers to an existing group */
   const addToGroupMutation = useMutation({
     mutationFn: async ({
       groupId,
@@ -251,15 +283,20 @@ export default function AdminRoomAssignmentsImproved() {
         );
 
       const newRoomType = getRoomTypeBySize(newSize);
+      const firstMember = currentMembers[0];
 
-      // Update new members
       const newUpdates = idsToAdd.map((id) =>
         supabase
           .from("booking_passengers")
-          .update({ room_group_id: groupId, room_preference: newRoomType } as any)
+          .update({
+            room_group_id: groupId,
+            room_preference: newRoomType,
+            room_number_makkah: firstMember?.room_number_makkah || null,
+            room_number_madinah: firstMember?.room_number_madinah || null,
+            room_hotel_notes: firstMember?.room_hotel_notes || null,
+          } as any)
           .eq("id", id)
       );
-      // Update existing members room_preference
       const existingUpdates = currentMembers.map((m) =>
         supabase
           .from("booking_passengers")
@@ -290,14 +327,12 @@ export default function AdminRoomAssignmentsImproved() {
       );
       const newRoomType = remaining.length > 0 ? getRoomTypeBySize(remaining.length) : "quad";
 
-      // Remove from group
       const { error } = await supabase
         .from("booking_passengers")
-        .update({ room_group_id: null, room_preference: "quad" } as any)
+        .update({ room_group_id: null, room_preference: "quad", room_number_makkah: null, room_number_madinah: null, room_hotel_notes: null } as any)
         .eq("id", passengerId);
       if (error) throw error;
 
-      // Recalculate remaining members room type
       if (remaining.length > 0) {
         const updates = remaining.map((m) =>
           supabase
@@ -316,16 +351,47 @@ export default function AdminRoomAssignmentsImproved() {
     onError: (e: Error) => toast.error("❌ " + e.message),
   });
 
-  // ── Auto-arrange by booking room_type ────────────────────────────────────
-  // Kelompokkan jamaah ungrouped berdasarkan (booking_id + room_type pesanan)
-  // dipotong sesuai kapasitas tipe kamar.
+  // ── Hotel Room Number mutation ─────────────────────────────────────────────
+  const setRoomNumberMutation = useMutation({
+    mutationFn: async ({
+      groupId,
+      form,
+    }: {
+      groupId: string;
+      form: HotelRoomFormData;
+    }) => {
+      const members = getGroupMembers(groupId);
+      if (members.length === 0) throw new Error("Grup tidak ditemukan");
+
+      const updates = members.map((m) =>
+        supabase
+          .from("booking_passengers")
+          .update({
+            room_number_makkah: form.room_number_makkah.trim() || null,
+            room_number_madinah: form.room_number_madinah.trim() || null,
+            room_hotel_notes: form.room_hotel_notes.trim() || null,
+          } as any)
+          .eq("id", m.id)
+      );
+      const results = await Promise.all(updates);
+      results.forEach((r) => { if (r.error) throw r.error; });
+    },
+    onSuccess: () => {
+      toast.success("✅ Nomor kamar hotel berhasil disimpan");
+      queryClient.invalidateQueries({ queryKey: ["room-passengers-improved"] });
+      setRoomNumberDialogOpen(false);
+      setRoomNumberGroupId(null);
+    },
+    onError: (e: Error) => toast.error("❌ " + e.message),
+  });
+
+  // ── Auto-arrange ─────────────────────────────────────────────────────────
   const autoArrangeMutation = useMutation({
     mutationFn: async () => {
       if (!passengers || passengers.length === 0) return { created: 0 };
       const ungrouped = passengers.filter((p) => !p.room_group_id);
       if (ungrouped.length === 0) return { created: 0 };
 
-      // Bucket by booking_id + room_type
       const buckets = new Map<string, Passenger[]>();
       for (const p of ungrouped) {
         const rt = (p.booking?.room_type || "quad") as RoomType;
@@ -371,8 +437,6 @@ export default function AdminRoomAssignmentsImproved() {
     onError: (e: Error) => toast.error("❌ " + e.message),
   });
 
-  // Auto-trigger sekali ketika pertama kali memuat keberangkatan dan
-  // semua jamaah masih ungrouped.
   const autoArrangedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedDeparture || !passengers || passengers.length === 0) return;
@@ -396,8 +460,8 @@ export default function AdminRoomAssignmentsImproved() {
     const expPassengers: RoomingPassenger[] = passengers.map((p) => ({
       id: p.id,
       passenger_type: p.passenger_type,
-      room_number: p.room_number,
-      roommate_id: p.room_group_id || p.roommate_id, // pakai group_id agar exporter mengelompokkan benar
+      room_number: p.room_number_makkah || p.room_number || null,
+      roommate_id: p.room_group_id || p.roommate_id,
       booking_id: p.booking?.id || "",
       booking_room_type: ((p.booking?.room_type || "quad") as RoomTypeDB),
       customer: {
@@ -452,17 +516,31 @@ export default function AdminRoomAssignmentsImproved() {
     setEditGroupDialogOpen(true);
   };
 
-  const totalSlots = anchorPassenger
-    ? MAX_ROOM_SIZE - 1
-    : 0;
+  const openRoomNumberDialog = (groupId: string) => {
+    const members = getGroupMembers(groupId);
+    const first = members[0];
+    setRoomNumberGroupId(groupId);
+    setHotelRoomForm({
+      room_number_makkah: first?.room_number_makkah || "",
+      room_number_madinah: first?.room_number_madinah || "",
+      room_hotel_notes: first?.room_hotel_notes || "",
+    });
+    setRoomNumberDialogOpen(true);
+  };
+
+  const totalSlots = anchorPassenger ? MAX_ROOM_SIZE - 1 : 0;
   const newGroupSize = 1 + selectedMateIds.size;
   const newGroupType = getRoomTypeLabel(newGroupSize);
 
   const editGroupMembers = editGroupId ? getGroupMembers(editGroupId) : [];
   const editGroupRemainingSlots = MAX_ROOM_SIZE - editGroupMembers.length;
-  const editGroupCandidates = (passengers || []).filter(
-    (p) => !p.room_group_id
-  );
+  const editGroupCandidates = (passengers || []).filter((p) => !p.room_group_id);
+
+  const roomNumberGroupMembers = roomNumberGroupId ? getGroupMembers(roomNumberGroupId) : [];
+
+  const groupsWithRoomCount = Array.from(groupsMap.values()).filter(
+    (members) => members[0]?.room_number_makkah || members[0]?.room_number_madinah
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -470,7 +548,7 @@ export default function AdminRoomAssignmentsImproved() {
       <div>
         <h1 className="text-2xl font-bold">Pengaturan Kamar</h1>
         <p className="text-muted-foreground text-sm">
-          Kelompokkan jamaah ke grup kamar secara bebas — tipe kamar ditentukan otomatis dari jumlah anggota
+          Kelompokkan jamaah ke grup kamar, lalu tetapkan nomor kamar hotel spesifik per grup
         </p>
       </div>
 
@@ -539,6 +617,31 @@ export default function AdminRoomAssignmentsImproved() {
             </div>
           </div>
 
+          {/* Hotel info banner */}
+          {departureMeta && (departureMeta.hotel_makkah || departureMeta.hotel_madinah) && (
+            <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900">
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2 flex items-center gap-1">
+                  <Hotel className="h-3.5 w-3.5" /> Hotel Keberangkatan
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  {departureMeta.hotel_makkah && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Makkah: </span>
+                      <span className="font-medium">{departureMeta.hotel_makkah.name}</span>
+                    </div>
+                  )}
+                  {departureMeta.hotel_madinah && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground text-xs">Madinah: </span>
+                      <span className="font-medium">{departureMeta.hotel_madinah.name}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Booking room-type tally */}
           {Object.keys(bookingTypeCounts).length > 0 && (
             <Card>
@@ -559,7 +662,7 @@ export default function AdminRoomAssignmentsImproved() {
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-5 pb-4">
                 <div className="text-2xl font-bold">{stats.total}</div>
@@ -578,6 +681,12 @@ export default function AdminRoomAssignmentsImproved() {
                 <p className="text-xs text-muted-foreground mt-0.5">Belum Dikelompokkan</p>
               </CardContent>
             </Card>
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <div className="text-2xl font-bold text-blue-600">{groupsWithRoomCount}</div>
+                <p className="text-xs text-muted-foreground mt-0.5">Grup Sudah Ada Nomor Kamar</p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Groups overview */}
@@ -591,42 +700,94 @@ export default function AdminRoomAssignmentsImproved() {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {Array.from(groupsMap.entries()).map(([gid, members]) => (
-                    <div
-                      key={gid}
-                      className="border rounded-lg px-4 py-3 flex flex-col gap-2 bg-muted/30"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          <BedDouble className="h-3 w-3 mr-1" />
-                          {ROOM_TYPE_LABELS[getRoomTypeBySize(members.length)]} ({members.length}/{MAX_ROOM_SIZE})
-                        </Badge>
-                        {members.length < MAX_ROOM_SIZE && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs px-2 gap-1"
-                            onClick={() => openEditGroup(gid)}
-                          >
-                            <UserPlus className="h-3 w-3" /> Tambah
-                          </Button>
-                        )}
-                      </div>
-                      <ul className="space-y-1">
-                        {members.map((m) => (
-                          <li key={m.id} className="flex items-center justify-between text-sm">
-                            <span className="truncate flex-1">{m.customer?.full_name}</span>
-                            <Badge
-                              variant={m.customer?.gender === "male" ? "default" : "secondary"}
-                              className="text-[10px] h-4 px-1.5 ml-1 shrink-0"
+                  {Array.from(groupsMap.entries()).map(([gid, members]) => {
+                    const first = members[0];
+                    const hasMakkah = !!first?.room_number_makkah;
+                    const hasMadinah = !!first?.room_number_madinah;
+                    const hasRoomNumber = hasMakkah || hasMadinah;
+
+                    return (
+                      <div
+                        key={gid}
+                        className={`border rounded-lg px-4 py-3 flex flex-col gap-2 ${
+                          hasRoomNumber
+                            ? "bg-green-50/60 border-green-200 dark:bg-green-950/20 dark:border-green-900"
+                            : "bg-muted/30"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            <BedDouble className="h-3 w-3 mr-1" />
+                            {ROOM_TYPE_LABELS[getRoomTypeBySize(members.length)]} ({members.length}/{MAX_ROOM_SIZE})
+                          </Badge>
+                          <div className="flex gap-1">
+                            {members.length < MAX_ROOM_SIZE && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs px-2 gap-1"
+                                onClick={() => openEditGroup(gid)}
+                              >
+                                <UserPlus className="h-3 w-3" /> Tambah
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant={hasRoomNumber ? "secondary" : "default"}
+                              className="h-7 text-xs px-2 gap-1"
+                              onClick={() => openRoomNumberDialog(gid)}
                             >
-                              {m.customer?.gender === "male" ? "L" : "P"}
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                              <Hash className="h-3 w-3" />
+                              {hasRoomNumber ? "Edit No. Kamar" : "Set No. Kamar"}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Hotel room numbers display */}
+                        {hasRoomNumber && (
+                          <div className="rounded-md bg-white dark:bg-background border px-3 py-2 space-y-1">
+                            {hasMakkah && (
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <Hotel className="h-3 w-3 text-green-600 shrink-0" />
+                                <span className="text-muted-foreground">{hotelNames.makkah}:</span>
+                                <span className="font-semibold text-green-700 dark:text-green-400">
+                                  Kamar {first.room_number_makkah}
+                                </span>
+                              </div>
+                            )}
+                            {hasMadinah && (
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <Hotel className="h-3 w-3 text-blue-600 shrink-0" />
+                                <span className="text-muted-foreground">{hotelNames.madinah}:</span>
+                                <span className="font-semibold text-blue-700 dark:text-blue-400">
+                                  Kamar {first.room_number_madinah}
+                                </span>
+                              </div>
+                            )}
+                            {first?.room_hotel_notes && (
+                              <div className="text-xs text-muted-foreground italic mt-1">
+                                {first.room_hotel_notes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <ul className="space-y-1">
+                          {members.map((m) => (
+                            <li key={m.id} className="flex items-center justify-between text-sm">
+                              <span className="truncate flex-1">{m.customer?.full_name}</span>
+                              <Badge
+                                variant={m.customer?.gender === "male" ? "default" : "secondary"}
+                                className="text-[10px] h-4 px-1.5 ml-1 shrink-0"
+                              >
+                                {m.customer?.gender === "male" ? "L" : "P"}
+                              </Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -685,103 +846,273 @@ export default function AdminRoomAssignmentsImproved() {
               ) : filteredPassengers.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">Tidak ada jamaah ditemukan.</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nama</TableHead>
-                      <TableHead>Gender</TableHead>
-                      <TableHead>Booking</TableHead>
-                    <TableHead>Tipe Pesanan</TableHead>
-                      <TableHead>Status Grup</TableHead>
-                      <TableHead>Teman Sekamar</TableHead>
-                      <TableHead>Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredPassengers.map((p) => {
-                      const group = getGroupMembers(p.room_group_id);
-                      const mates = group.filter((m) => m.id !== p.id);
-                      return (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
-                          <TableCell>
-                            <Badge variant={p.customer?.gender === "male" ? "default" : "secondary"}>
-                              {GENDER_LABELS[p.customer?.gender || ""] || "-"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {p.booking?.booking_code}
-                          </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs gap-1">
-                            <BedDouble className="h-3 w-3" />
-                            {ROOM_TYPE_LABELS[p.booking?.room_type || "quad"] || p.booking?.room_type || "-"}
-                          </Badge>
-                        </TableCell>
-                          <TableCell>
-                            {p.room_group_id ? (
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                                <BedDouble className="h-3 w-3 mr-1" />
-                                {ROOM_TYPE_LABELS[getRoomTypeBySize(group.length)]} ({group.length} org)
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Gender</TableHead>
+                        <TableHead>Booking</TableHead>
+                        <TableHead>Tipe Pesanan</TableHead>
+                        <TableHead>Status Grup</TableHead>
+                        <TableHead>No. Kamar Hotel</TableHead>
+                        <TableHead>Teman Sekamar</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPassengers.map((p) => {
+                        const group = getGroupMembers(p.room_group_id);
+                        const mates = group.filter((m) => m.id !== p.id);
+                        const hasMakkah = !!p.room_number_makkah;
+                        const hasMadinah = !!p.room_number_madinah;
+
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-medium">{p.customer?.full_name}</TableCell>
+                            <TableCell>
+                              <Badge variant={p.customer?.gender === "male" ? "default" : "secondary"}>
+                                {GENDER_LABELS[p.customer?.gender || ""] || "-"}
                               </Badge>
-                            ) : (
-                              <Badge variant="secondary">Belum ada grup</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm max-w-[220px]">
-                            {mates.length > 0 ? (
-                              <span className="truncate block">
-                                {mates.map((m) => m.customer?.full_name).join(", ")}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {p.booking?.booking_code}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <BedDouble className="h-3 w-3" />
+                                {ROOM_TYPE_LABELS[p.booking?.room_type || "quad"] || p.booking?.room_type || "-"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
                               {p.room_group_id ? (
-                                <>
-                                  {group.length < MAX_ROOM_SIZE && (
+                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                                  <BedDouble className="h-3 w-3 mr-1" />
+                                  {ROOM_TYPE_LABELS[getRoomTypeBySize(group.length)]} ({group.length} org)
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary">Belum ada grup</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {(hasMakkah || hasMadinah) ? (
+                                <div className="space-y-0.5">
+                                  {hasMakkah && (
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <Hotel className="h-3 w-3 text-green-600 shrink-0" />
+                                      <span className="font-medium text-green-700 dark:text-green-400">
+                                        {p.room_number_makkah}
+                                      </span>
+                                      <span className="text-muted-foreground">(Makkah)</span>
+                                    </div>
+                                  )}
+                                  {hasMadinah && (
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <Hotel className="h-3 w-3 text-blue-600 shrink-0" />
+                                      <span className="font-medium text-blue-700 dark:text-blue-400">
+                                        {p.room_number_madinah}
+                                      </span>
+                                      <span className="text-muted-foreground">(Madinah)</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">
+                                  {p.room_group_id ? "— belum diisi —" : "-"}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[200px]">
+                              {mates.length > 0 ? (
+                                <span className="truncate block">
+                                  {mates.map((m) => m.customer?.full_name).join(", ")}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 flex-wrap">
+                                {p.room_group_id ? (
+                                  <>
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="gap-1 text-xs"
-                                      onClick={() => openEditGroup(p.room_group_id!)}
+                                      className="h-7 text-xs px-2 gap-1"
+                                      onClick={() => openRoomNumberDialog(p.room_group_id!)}
                                     >
-                                      <UserCog className="h-3.5 w-3.5" /> Edit Grup
+                                      <Hash className="h-3 w-3" />
+                                      {hasMakkah || hasMadinah ? "Edit" : "No. Kamar"}
                                     </Button>
-                                  )}
+                                    {group.length < MAX_ROOM_SIZE && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 gap-1 text-xs"
+                                        onClick={() => openEditGroup(p.room_group_id!)}
+                                      >
+                                        <UserCog className="h-3.5 w-3.5" /> Edit
+                                      </Button>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 gap-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => removeFromGroupMutation.mutate(p.id)}
+                                      disabled={removeFromGroupMutation.isPending}
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                ) : (
                                   <Button
                                     size="sm"
-                                    variant="ghost"
-                                    className="gap-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => removeFromGroupMutation.mutate(p.id)}
-                                    disabled={removeFromGroupMutation.isPending}
+                                    className="h-7 gap-1 text-xs"
+                                    onClick={() => openNewGroup(p)}
                                   >
-                                    <X className="h-3.5 w-3.5" /> Keluarkan
+                                    <UserPlus className="h-3.5 w-3.5" /> Pilih Teman
                                   </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  className="gap-1 text-xs"
-                                  onClick={() => openNewGroup(p)}
-                                >
-                                  <UserPlus className="h-3.5 w-3.5" /> Pilih Teman
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
         </>
       )}
+
+      {/* ── Hotel Room Number Dialog ───────────────────────────────────────── */}
+      <Dialog
+        open={roomNumberDialogOpen}
+        onOpenChange={(open) => {
+          setRoomNumberDialogOpen(open);
+          if (!open) setRoomNumberGroupId(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Hash className="h-5 w-5 text-primary" />
+              Nomor Kamar Hotel
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Group members preview */}
+            {roomNumberGroupMembers.length > 0 && (
+              <div className="rounded-lg bg-muted/40 px-4 py-3">
+                <p className="text-xs text-muted-foreground font-semibold mb-2">
+                  {ROOM_TYPE_LABELS[getRoomTypeBySize(roomNumberGroupMembers.length)]} —{" "}
+                  {roomNumberGroupMembers.length} jamaah
+                </p>
+                <div className="space-y-1">
+                  {roomNumberGroupMembers.map((m) => (
+                    <div key={m.id} className="flex items-center gap-2 text-sm">
+                      <Badge
+                        variant={m.customer?.gender === "male" ? "default" : "secondary"}
+                        className="text-[10px] h-4 px-1.5 shrink-0"
+                      >
+                        {m.customer?.gender === "male" ? "L" : "P"}
+                      </Badge>
+                      <span className="truncate">{m.customer?.full_name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* Makkah Room Number */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 font-semibold">
+                <Hotel className="h-4 w-4 text-green-600" />
+                Nomor Kamar — {hotelNames.makkah}
+              </Label>
+              <Input
+                placeholder="Contoh: 301, 14-A, Suite 202..."
+                value={hotelRoomForm.room_number_makkah}
+                onChange={(e) =>
+                  setHotelRoomForm((prev) => ({ ...prev, room_number_makkah: e.target.value }))
+                }
+              />
+              {hotelRoomForm.room_number_makkah && (
+                <p className="text-xs text-green-600 font-medium">
+                  → Kamar {hotelRoomForm.room_number_makkah} · {hotelNames.makkah}
+                </p>
+              )}
+            </div>
+
+            {/* Madinah Room Number */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 font-semibold">
+                <Hotel className="h-4 w-4 text-blue-600" />
+                Nomor Kamar — {hotelNames.madinah}
+              </Label>
+              <Input
+                placeholder="Contoh: 205, 8-B, Deluxe 110..."
+                value={hotelRoomForm.room_number_madinah}
+                onChange={(e) =>
+                  setHotelRoomForm((prev) => ({ ...prev, room_number_madinah: e.target.value }))
+                }
+              />
+              {hotelRoomForm.room_number_madinah && (
+                <p className="text-xs text-blue-600 font-medium">
+                  → Kamar {hotelRoomForm.room_number_madinah} · {hotelNames.madinah}
+                </p>
+              )}
+            </div>
+
+            {/* Optional notes */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">
+                Catatan tambahan (opsional)
+              </Label>
+              <Textarea
+                placeholder="Misal: Hotel transit Dubai kamar 501, kamar VIP, dll."
+                value={hotelRoomForm.room_hotel_notes}
+                onChange={(e) =>
+                  setHotelRoomForm((prev) => ({ ...prev, room_hotel_notes: e.target.value }))
+                }
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              Nomor kamar akan disimpan untuk semua {roomNumberGroupMembers.length} anggota grup ini sekaligus.
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setRoomNumberDialogOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              disabled={setRoomNumberMutation.isPending}
+              onClick={() =>
+                setRoomNumberMutation.mutate({
+                  groupId: roomNumberGroupId!,
+                  form: hotelRoomForm,
+                })
+              }
+              className="gap-2"
+            >
+              <Check className="h-4 w-4" />
+              {setRoomNumberMutation.isPending ? "Menyimpan..." : "Simpan Nomor Kamar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── New Group Dialog ──────────────────────────────────────────────── */}
       <Dialog
@@ -798,7 +1129,6 @@ export default function AdminRoomAssignmentsImproved() {
 
           {anchorPassenger && (
             <div className="space-y-4">
-              {/* Anchor info */}
               <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 px-4 py-3">
                 <p className="text-sm font-semibold">{anchorPassenger.customer?.full_name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -807,7 +1137,6 @@ export default function AdminRoomAssignmentsImproved() {
                 </p>
               </div>
 
-              {/* Live preview of room type */}
               <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 px-4 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground">Tipe kamar hasil pilihan</p>
@@ -819,7 +1148,6 @@ export default function AdminRoomAssignmentsImproved() {
                 <Badge variant="outline">{selectedMateIds.size}/{totalSlots} teman</Badge>
               </div>
 
-              {/* Candidate list — all ungrouped passengers shown with checkboxes */}
               <div>
                 <Label className="text-sm font-semibold mb-2 block">
                   Pilih teman sekamar (bisa lebih dari satu)
@@ -833,8 +1161,7 @@ export default function AdminRoomAssignmentsImproved() {
                     <div className="space-y-1.5">
                       {getUngroupedCandidates(anchorPassenger.id).map((c) => {
                         const isChecked = selectedMateIds.has(c.id);
-                        const wouldExceed =
-                          !isChecked && selectedMateIds.size >= totalSlots;
+                        const wouldExceed = !isChecked && selectedMateIds.size >= totalSlots;
                         return (
                           <label
                             key={c.id}
@@ -914,7 +1241,6 @@ export default function AdminRoomAssignmentsImproved() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Current members */}
             <div>
               <Label className="text-sm font-semibold mb-2 block">
                 Anggota saat ini ({editGroupMembers.length}/{MAX_ROOM_SIZE})
@@ -937,7 +1263,6 @@ export default function AdminRoomAssignmentsImproved() {
                       className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                       onClick={() => {
                         removeFromGroupMutation.mutate(m.id);
-                        // Optimistically close if last member removed
                         if (editGroupMembers.length <= 1) setEditGroupDialogOpen(false);
                       }}
                       disabled={removeFromGroupMutation.isPending}
@@ -949,7 +1274,6 @@ export default function AdminRoomAssignmentsImproved() {
               </div>
             </div>
 
-            {/* Add more members */}
             {editGroupRemainingSlots > 0 && editGroupCandidates.length > 0 && (
               <div>
                 <Label className="text-sm font-semibold mb-2 block">
@@ -959,8 +1283,7 @@ export default function AdminRoomAssignmentsImproved() {
                   <div className="space-y-1.5">
                     {editGroupCandidates.map((c) => {
                       const isChecked = addMateIds.has(c.id);
-                      const wouldExceed =
-                        !isChecked && addMateIds.size >= editGroupRemainingSlots;
+                      const wouldExceed = !isChecked && addMateIds.size >= editGroupRemainingSlots;
                       return (
                         <label
                           key={c.id}
@@ -1005,10 +1328,7 @@ export default function AdminRoomAssignmentsImproved() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setEditGroupDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setEditGroupDialogOpen(false)}>
               Tutup
             </Button>
             {addMateIds.size > 0 && (
