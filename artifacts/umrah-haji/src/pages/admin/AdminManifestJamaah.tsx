@@ -277,12 +277,25 @@ export default function AdminManifestJamaah() {
 
   function exportExcel() {
     if (!filtered.length) { toast.error("Tidak ada data untuk diekspor"); return; }
-    const rows = filtered.map((p, i) => ({
+    
+    // Header Info
+    const infoRows = [
+      ["MANIFEST JAMAAH"],
+      ["Paket", departure?.package?.name || "-"],
+      ["Tanggal Berangkat", departure?.departure_date ? format(parseISO(departure.departure_date), "dd MMMM yyyy", { locale: idLocale }) : "-"],
+      ["Tanggal Kembali", departure?.return_date ? format(parseISO(departure.return_date), "dd MMMM yyyy", { locale: idLocale }) : "-"],
+      ["No. Penerbangan", departure?.flight_number || "-"],
+      ["Dicetak Pada", format(new Date(), "dd/MM/yyyy HH:mm")],
+      [], // Empty row
+    ];
+
+    const dataRows = filtered.map((p, i) => ({
       "No": i + 1,
       "Nama Lengkap": p.full_name,
       "L/P": isGenderMale(p.gender) ? "L" : "P",
       "Tipe": PASSENGER_TYPE_LABELS[p.passenger_type || "adult"] || "Dewasa",
       "Tgl Lahir": p.birth_date ? format(parseISO(p.birth_date), "dd/MM/yyyy") : "-",
+      "Tempat Lahir": (p as any).birth_place || "-",
       "Kewarganegaraan": p.nationality || "Indonesia",
       "No Paspor": p.passport_number || "-",
       "Berlaku s.d.": p.passport_expiry ? format(parseISO(p.passport_expiry), "dd/MM/yyyy") : "-",
@@ -293,26 +306,33 @@ export default function AdminManifestJamaah() {
       "Tipe Kamar": p.room_preference || p.room_type || "-",
       "No Kamar": p.room_number || "-",
       "No Kursi": p.seat_number || "-",
-      "Status Dok.": DOC_STATUS_LABELS[p.doc_status],
-      "KTP": p.doc_ktp ? "✓" : "—",
-      "Paspor": p.doc_passport ? "✓" : "—",
-      "Foto": p.doc_photo ? "✓" : "—",
       "Mahram": p.mahram_name ? `${p.mahram_name} (${p.mahram_relation})` : "-",
+      "Status Dok.": DOC_STATUS_LABELS[p.doc_status],
+      "KTP": p.doc_ktp ? "Lengkap" : "Belum",
+      "Paspor": p.doc_passport ? "Lengkap" : "Belum",
+      "Foto": p.doc_photo ? "Lengkap" : "Belum",
       "Permintaan Khusus": p.special_requests || "-",
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [
-      { wch: 4 }, { wch: 28 }, { wch: 5 }, { wch: 8 }, { wch: 13 }, { wch: 16 },
-      { wch: 16 }, { wch: 13 }, { wch: 15 }, { wch: 24 }, { wch: 14 }, { wch: 12 },
-      { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 6 }, { wch: 6 },
-      { wch: 6 }, { wch: 22 }, { wch: 22 },
-    ];
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Manifest Jamaah");
+    
+    // Combine info and data
+    const ws = XLSX.utils.aoa_to_sheet(infoRows);
+    XLSX.utils.sheet_add_json(ws, dataRows, { origin: "A8" });
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 4 }, { wch: 30 }, { wch: 5 }, { wch: 10 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 15 },
+      { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 12 },
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Manifest");
 
     const depDate = departure?.departure_date
       ? format(parseISO(departure.departure_date), "yyyy-MM-dd") : "unknown";
-    XLSX.writeFile(wb, `manifest-${departure?.package?.name || "jamaah"}-${depDate}.xlsx`);
+    XLSX.writeFile(wb, `Manifest-${departure?.package?.name || "Jamaah"}-${depDate}.xlsx`);
     toast.success("Manifest Excel berhasil diunduh");
   }
 
@@ -320,63 +340,90 @@ export default function AdminManifestJamaah() {
     if (!filtered.length) { toast.error("Tidak ada data untuk diekspor"); return; }
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-    doc.setFontSize(14);
+    // Header Styling
+    doc.setFillColor(37, 99, 235); // Blue primary
+    doc.rect(0, 0, 297, 40, "F");
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text("MANIFEST JAMAAH", 14, 16);
+    doc.text("MANIFEST JAMAAH", 14, 18);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("VINS TOUR & TRAVEL - SISTEM MANAJEMEN UMROH", 14, 25);
 
     if (departure) {
       doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(80, 80, 80);
+      doc.setTextColor(230, 230, 230);
       const depDateStr = departure.departure_date
         ? format(parseISO(departure.departure_date), "dd MMMM yyyy", { locale: idLocale }) : "-";
       const retDateStr = departure.return_date
         ? format(parseISO(departure.return_date), "dd MMMM yyyy", { locale: idLocale }) : "-";
-      doc.text(`Paket: ${departure.package?.name || "-"}  |  Berangkat: ${depDateStr}  |  Kembali: ${retDateStr}  |  Penerbangan: ${departure.flight_number || "-"}`, 14, 23);
-      doc.text(`Total: ${summary.total}  |  Pria: ${summary.pria}  |  Wanita: ${summary.wanita}  |  Dok Lengkap: ${summary.docComplete}  |  Tanpa Paspor: ${summary.noPaspor}`, 14, 29);
+      
+      doc.text(`PAKET: ${departure.package?.name?.toUpperCase() || "-"}`, 14, 32);
+      doc.text(`KEBERANGKATAN: ${depDateStr} | KEMBALI: ${retDateStr} | FLIGHT: ${departure.flight_number || "-"}`, 14, 37);
+      
+      // Summary Box in Header
+      doc.setFillColor(255, 255, 255, 0.1);
+      doc.roundedRect(200, 10, 83, 25, 2, 2, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.text("RINGKASAN", 205, 16);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(`Total Jamaah: ${summary.total}`, 205, 21);
+      doc.text(`Laki-laki: ${summary.pria} | Perempuan: ${summary.wanita}`, 205, 25);
+      doc.text(`Dok. Lengkap: ${summary.docComplete} | Tanpa Paspor: ${summary.noPaspor}`, 205, 29);
     }
 
     doc.setTextColor(0, 0, 0);
     autoTable(doc, {
-      startY: 34,
-      head: [["No", "Nama Lengkap", "L/P", "Tipe", "Tgl Lahir", "No Paspor", "Berlaku s.d.", "No HP", "Kode Booking", "Tipe Kamar", "No Kamar", "Dok.", "Mahram"]],
+      startY: 45,
+      head: [["No", "Nama Lengkap", "L/P", "Tipe", "Tgl Lahir", "No Paspor", "Berlaku s.d.", "No HP", "Booking", "Kamar", "Dok.", "Mahram"]],
       body: filtered.map((p, i) => [
         i + 1,
         p.full_name + (p.is_main_passenger ? " *" : ""),
         isGenderMale(p.gender) ? "L" : "P",
-        PASSENGER_TYPE_LABELS[p.passenger_type || "adult"]?.charAt(0) || "D",
+        PASSENGER_TYPE_LABELS[p.passenger_type || "adult"] || "Dewasa",
         p.birth_date ? format(parseISO(p.birth_date), "dd/MM/yy") : "-",
-        p.passport_number || "BELUM ADA",
+        p.passport_number || "-",
         p.passport_expiry ? format(parseISO(p.passport_expiry), "dd/MM/yy") : "-",
         p.phone || "-",
         p.booking_code || "-",
-        p.room_preference || p.room_type || "-",
-        p.room_number || "-",
-        p.doc_status === "complete" ? "✓" : p.doc_status === "partial" ? "~" : "✗",
-        p.mahram_name ? `${p.mahram_name}` : "-",
+        p.room_number || (p.room_preference || p.room_type || "-"),
+        DOC_STATUS_LABELS[p.doc_status],
+        p.mahram_name || "-",
       ]),
-      styles: { fontSize: 7.5, cellPadding: 1.5 },
-      headStyles: { fillColor: [30, 58, 138], fontSize: 7.5, fontStyle: "bold", textColor: 255 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      didParseCell(data) {
-        if (data.section === "body" && data.column.index === 5) {
-          const val = data.cell.raw as string;
-          if (val === "BELUM ADA") {
-            data.cell.styles.textColor = [220, 38, 38];
-            data.cell.styles.fontStyle = "bold";
-          }
-        }
-        if (data.section === "body" && data.column.index === 11) {
-          const val = data.cell.raw as string;
-          data.cell.styles.textColor = val === "✓" ? [5, 150, 105] : val === "~" ? [217, 119, 6] : [220, 38, 38];
-          data.cell.styles.fontStyle = "bold";
-        }
+      styles: { fontSize: 7.5, cellPadding: 2.5, valign: "middle" },
+      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold", halign: "center" },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: {
+        0: { cellWidth: 8, halign: "center" },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 8, halign: "center" },
+        3: { halign: "center" },
+        4: { halign: "center" },
+        5: { halign: "center" },
+        6: { halign: "center" },
+        8: { cellWidth: 20, halign: "center" },
+        9: { halign: "center" },
+        10: { halign: "center" },
       },
+      margin: { top: 45 },
+      didDrawPage: (data) => {
+        // Footer
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        const str = "Halaman " + doc.internal.getNumberOfPages();
+        doc.text(str, 280, 200, { align: "right" });
+        doc.text(`Dicetak pada: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 200);
+      }
     });
 
     const depDate = departure?.departure_date
       ? format(parseISO(departure.departure_date), "yyyy-MM-dd") : "unknown";
-    doc.save(`manifest-jamaah-${departure?.package?.name || "umrah"}-${depDate}.pdf`);
+    doc.save(`Manifest-${departure?.package?.name || "Jamaah"}-${depDate}.pdf`);
     toast.success("Manifest PDF berhasil diunduh");
   }
 
