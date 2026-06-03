@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, UserX, BedDouble, Users } from "lucide-react";
+import { UserX, BedDouble, Users, ArrowLeftRight } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +27,7 @@ interface FloorPlanViewProps {
   unassignedPassengers: ExtendedPassenger[];
   onAssignPassenger: (roomId: string, customerId: string) => void;
   onRemoveOccupant: (occupantId: string) => void;
+  onMovePassenger: (occupantId: string, newRoomId: string, customerId: string) => void;
 }
 
 const ROOM_TYPE_COLORS: Record<string, string> = {
@@ -43,49 +42,83 @@ const getRoomCapacity = (roomType: string) => {
   return map[roomType] || 4;
 };
 
+type DragPayload =
+  | { from: "sidebar"; customerId: string }
+  | { from: "room"; customerId: string; occupantId: string; sourceRoomId: string };
+
+let activeDragFrom: "sidebar" | "room" = "sidebar";
+
 function OccupantDot({
   occupant,
+  sourceRoomId,
   onRemove,
 }: {
   occupant: (RoomOccupantRow & { customer?: Pick<CustomerRow, "id" | "full_name" | "gender"> | null }) | null;
+  sourceRoomId: string;
   onRemove?: (id: string) => void;
 }) {
   const [hover, setHover] = useState(false);
+
   if (!occupant) {
     return (
       <div className="w-8 h-8 rounded-full border-2 border-dashed border-border bg-muted/30 flex items-center justify-center opacity-50" />
     );
   }
+
   const isMale = occupant.customer?.gender === "male";
+
+  const handleDragStart = (e: React.DragEvent) => {
+    activeDragFrom = "room";
+    const payload: DragPayload = {
+      from: "room",
+      customerId: occupant.customer?.id ?? "",
+      occupantId: occupant.id,
+      sourceRoomId,
+    };
+    e.dataTransfer.setData("application/json", JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    activeDragFrom = "sidebar";
+  };
+
   return (
     <div
-      className="relative group"
+      className="relative"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
       <div
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
         className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border-2 cursor-default select-none transition-all",
+          "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border-2",
+          "cursor-grab active:cursor-grabbing select-none transition-all hover:scale-110 hover:shadow-md",
           isMale
             ? "bg-blue-100 border-blue-300 text-blue-800"
             : "bg-pink-100 border-pink-300 text-pink-800"
         )}
-        title={occupant.customer?.full_name}
+        title={`${occupant.customer?.full_name} — seret untuk pindah kamar`}
       >
         {isMale ? "L" : "P"}
       </div>
+
       {hover && onRemove && (
         <button
-          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center shadow hover:bg-red-600 transition-colors"
+          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center shadow hover:bg-red-600 transition-colors z-10"
           onClick={() => onRemove(occupant.id)}
           title={`Keluarkan ${occupant.customer?.full_name}`}
         >
           <UserX className="w-2.5 h-2.5" />
         </button>
       )}
+
       {hover && (
         <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 z-20 bg-popover border border-border rounded-md px-2 py-1 text-[11px] whitespace-nowrap shadow-md pointer-events-none">
-          {occupant.customer?.full_name || "?"}
+          <span className="font-medium">{occupant.customer?.full_name || "?"}</span>
+          <span className="text-muted-foreground ml-1 text-[9px]">— seret pindah / × hapus</span>
         </div>
       )}
     </div>
@@ -96,20 +129,23 @@ function RoomCell({
   room,
   onDrop,
   onRemoveOccupant,
+  onMove,
 }: {
   room: ExtendedRoomAssignment;
   onDrop: (roomId: string, customerId: string) => void;
   onRemoveOccupant: (occupantId: string) => void;
+  onMove: (occupantId: string, newRoomId: string, customerId: string) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const capacity = room.capacity || getRoomCapacity(room.room_type);
   const occupants = room.occupants || [];
   const isFull = occupants.length >= capacity;
-
   const dots = Array.from({ length: capacity }, (_, i) => occupants[i] ?? null);
+  const typeColorClass = ROOM_TYPE_COLORS[room.room_type] || ROOM_TYPE_COLORS.quad;
 
   const handleDragOver = (e: React.DragEvent) => {
-    if (isFull) return;
+    const isMove = activeDragFrom === "room";
+    if (isFull && !isMove) return;
     e.preventDefault();
     setDragOver(true);
   };
@@ -118,16 +154,23 @@ function RoomCell({
 
   const handleDrop = (e: React.DragEvent) => {
     setDragOver(false);
-    if (isFull) return;
-    const data = e.dataTransfer.getData("application/json");
-    if (!data) return;
+    const raw = e.dataTransfer.getData("application/json");
+    if (!raw) return;
+    activeDragFrom = "sidebar";
     try {
-      const { customerId } = JSON.parse(data);
-      onDrop(room.id, customerId);
+      const payload = JSON.parse(raw) as DragPayload;
+      if (payload.from === "room") {
+        if (payload.sourceRoomId === room.id) return;
+        onMove(payload.occupantId, room.id, payload.customerId);
+      } else {
+        if (isFull) return;
+        onDrop(room.id, payload.customerId);
+      }
     } catch {}
   };
 
-  const typeColorClass = ROOM_TYPE_COLORS[room.room_type] || ROOM_TYPE_COLORS.quad;
+  const isSwapTarget = dragOver && activeDragFrom === "room";
+  const isAssignTarget = dragOver && activeDragFrom === "sidebar" && !isFull;
 
   return (
     <div
@@ -136,14 +179,14 @@ function RoomCell({
       onDrop={handleDrop}
       className={cn(
         "relative rounded-xl border-2 p-3 flex flex-col gap-2.5 transition-all duration-150 select-none",
-        isFull
+        isFull && !dragOver
           ? "bg-green-50/60 border-green-200 dark:bg-green-950/10 dark:border-green-800"
           : "bg-card border-border hover:border-primary/30",
-        dragOver && !isFull && "border-primary ring-2 ring-primary/20 scale-[1.02] shadow-lg bg-primary/5"
+        isSwapTarget && "border-amber-400 ring-2 ring-amber-200 scale-[1.02] shadow-lg bg-amber-50/50",
+        isAssignTarget && "border-primary ring-2 ring-primary/20 scale-[1.02] shadow-lg bg-primary/5"
       )}
-      style={{ minWidth: 140 }}
+      style={{ minWidth: 148 }}
     >
-      {/* Room header */}
       <div className="flex items-start justify-between gap-1">
         <div>
           <p className="font-bold text-sm leading-tight">
@@ -154,30 +197,38 @@ function RoomCell({
             {occupants.length}/{capacity} orang
           </p>
         </div>
-        <span className={cn("text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize leading-tight", typeColorClass)}>
+        <span className={cn("text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize leading-tight shrink-0", typeColorClass)}>
           {room.room_type}
         </span>
       </div>
 
-      {/* Occupant dots */}
       <div className="flex flex-wrap gap-1.5">
         {dots.map((occ, i) => (
-          <OccupantDot key={occ?.id ?? `empty-${i}`} occupant={occ} onRemove={onRemoveOccupant} />
+          <OccupantDot
+            key={occ?.id ?? `empty-${i}`}
+            occupant={occ}
+            sourceRoomId={room.id}
+            onRemove={onRemoveOccupant}
+          />
         ))}
       </div>
 
-      {/* Full badge */}
-      {isFull && (
+      {isFull && !dragOver && (
         <div className="absolute top-1 right-1">
           <span className="text-[9px] bg-green-500 text-white rounded-full px-1.5 py-0.5 font-semibold leading-none">PENUH</span>
         </div>
       )}
 
-      {/* Drop hint */}
-      {dragOver && !isFull && (
+      {(isSwapTarget || isAssignTarget) && (
         <div className="absolute inset-0 rounded-xl flex items-center justify-center pointer-events-none">
-          <span className="text-xs font-semibold text-primary bg-background/80 rounded-lg px-2 py-1 shadow">
-            Lepas di sini
+          <span className={cn(
+            "text-xs font-semibold rounded-lg px-2 py-1 shadow flex items-center gap-1",
+            isSwapTarget
+              ? "text-amber-800 bg-amber-50/90 border border-amber-300"
+              : "text-primary bg-background/90"
+          )}>
+            {isSwapTarget && <ArrowLeftRight className="w-3 h-3" />}
+            {isSwapTarget ? "Pindahkan di sini" : "Lepas di sini"}
           </span>
         </div>
       )}
@@ -189,21 +240,24 @@ function PassengerChip({ passenger }: { passenger: ExtendedPassenger }) {
   const isMale = passenger.customer?.gender === "male";
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData(
-      "application/json",
-      JSON.stringify({
-        customerId: passenger.customer_id,
-        customerName: passenger.customer?.full_name,
-        gender: passenger.customer?.gender,
-      })
-    );
+    activeDragFrom = "sidebar";
+    const payload: DragPayload = {
+      from: "sidebar",
+      customerId: passenger.customer_id,
+    };
+    e.dataTransfer.setData("application/json", JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    activeDragFrom = "sidebar";
   };
 
   return (
     <div
       draggable
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       className={cn(
         "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-grab active:cursor-grabbing select-none transition-all",
         "hover:shadow-sm hover:scale-[1.01]",
@@ -212,12 +266,10 @@ function PassengerChip({ passenger }: { passenger: ExtendedPassenger }) {
           : "bg-pink-50 border-pink-200 dark:bg-pink-950/20 dark:border-pink-800"
       )}
     >
-      <span
-        className={cn(
-          "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0",
-          isMale ? "bg-blue-200 text-blue-900" : "bg-pink-200 text-pink-900"
-        )}
-      >
+      <span className={cn(
+        "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0",
+        isMale ? "bg-blue-200 text-blue-900" : "bg-pink-200 text-pink-900"
+      )}>
         {isMale ? "L" : "P"}
       </span>
       <span className="text-xs font-medium truncate max-w-[130px]">
@@ -228,27 +280,48 @@ function PassengerChip({ passenger }: { passenger: ExtendedPassenger }) {
   );
 }
 
+function FloorGrid({
+  floorRooms,
+  onDrop,
+  onRemoveOccupant,
+  onMove,
+}: {
+  floorRooms: ExtendedRoomAssignment[];
+  onDrop: (roomId: string, customerId: string) => void;
+  onRemoveOccupant: (occupantId: string) => void;
+  onMove: (occupantId: string, newRoomId: string, customerId: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {floorRooms.map(room => (
+        <RoomCell
+          key={room.id}
+          room={room}
+          onDrop={onDrop}
+          onRemoveOccupant={onRemoveOccupant}
+          onMove={onMove}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function FloorPlanView({
   rooms,
   unassignedPassengers,
   onAssignPassenger,
   onRemoveOccupant,
+  onMovePassenger,
 }: FloorPlanViewProps) {
-  const floors = [...new Set(rooms.map(r => r.floor ?? ""))]
-    .sort((a, b) => {
-      const na = parseInt(a) || 0;
-      const nb = parseInt(b) || 0;
-      return na - nb;
-    });
+  const floors = [...new Set(rooms.map(r => r.floor ?? ""))].sort((a, b) => {
+    const na = parseInt(a) || 0;
+    const nb = parseInt(b) || 0;
+    return na - nb;
+  });
 
   const noFloor = rooms.filter(r => !r.floor);
   const withFloor = floors.filter(f => f !== "");
-
-  const allFloorTabs = [
-    ...(noFloor.length ? [""] : []),
-    ...withFloor,
-  ];
-
+  const allFloorTabs = [...(noFloor.length ? [""] : []), ...withFloor];
   const defaultTab = allFloorTabs[0] ?? "";
 
   const genderCounts = {
@@ -258,7 +331,7 @@ export default function FloorPlanView({
 
   return (
     <div className="flex gap-4 min-h-[420px]">
-      {/* Left sidebar: unassigned passengers */}
+      {/* Sidebar: unassigned passengers */}
       <div className="w-52 flex-shrink-0">
         <div className="sticky top-0">
           <div className="mb-2.5">
@@ -290,10 +363,9 @@ export default function FloorPlanView({
         </div>
       </div>
 
-      {/* Divider */}
       <div className="w-px bg-border flex-shrink-0" />
 
-      {/* Right: floor plan grid */}
+      {/* Floor plan area */}
       <div className="flex-1 min-w-0">
         {rooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-16 text-center text-muted-foreground border-2 border-dashed rounded-xl">
@@ -302,24 +374,22 @@ export default function FloorPlanView({
             <p className="text-xs mt-1">Klik "Tambah Kamar" untuk mulai.</p>
           </div>
         ) : allFloorTabs.length <= 1 ? (
-          <div>
+          <div className="space-y-4">
             {allFloorTabs.map(floor => {
               const floorRooms = floor === "" ? noFloor : rooms.filter(r => r.floor === floor);
               return (
                 <div key={floor || "none"}>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                    {floor ? `Lantai ${floor}` : "Tanpa Lantai"}
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    {floorRooms.map(room => (
-                      <RoomCell
-                        key={room.id}
-                        room={room}
-                        onDrop={onAssignPassenger}
-                        onRemoveOccupant={onRemoveOccupant}
-                      />
-                    ))}
-                  </div>
+                  {allFloorTabs.length > 0 && (
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                      {floor ? `Lantai ${floor}` : "Semua Kamar"}
+                    </p>
+                  )}
+                  <FloorGrid
+                    floorRooms={floorRooms}
+                    onDrop={onAssignPassenger}
+                    onRemoveOccupant={onRemoveOccupant}
+                    onMove={onMovePassenger}
+                  />
                 </div>
               );
             })}
@@ -328,9 +398,9 @@ export default function FloorPlanView({
           <Tabs defaultValue={defaultTab}>
             <TabsList className="mb-4 flex-wrap h-auto gap-1 bg-muted/60">
               {allFloorTabs.map(floor => {
-                const count = floor === "" ? noFloor.length : rooms.filter(r => r.floor === floor).length;
-                const full = (floor === "" ? noFloor : rooms.filter(r => r.floor === floor))
-                  .filter(r => (r.occupants?.length || 0) >= (r.capacity || 4)).length;
+                const floorRooms = floor === "" ? noFloor : rooms.filter(r => r.floor === floor);
+                const count = floorRooms.length;
+                const full = floorRooms.filter(r => (r.occupants?.length || 0) >= (r.capacity || 4)).length;
                 return (
                   <TabsTrigger key={floor || "none"} value={floor} className="text-xs px-3">
                     {floor ? `Lantai ${floor}` : "Tanpa Lantai"}
@@ -349,16 +419,12 @@ export default function FloorPlanView({
               const floorRooms = floor === "" ? noFloor : rooms.filter(r => r.floor === floor);
               return (
                 <TabsContent key={floor || "none"} value={floor}>
-                  <div className="flex flex-wrap gap-3">
-                    {floorRooms.map(room => (
-                      <RoomCell
-                        key={room.id}
-                        room={room}
-                        onDrop={onAssignPassenger}
-                        onRemoveOccupant={onRemoveOccupant}
-                      />
-                    ))}
-                  </div>
+                  <FloorGrid
+                    floorRooms={floorRooms}
+                    onDrop={onAssignPassenger}
+                    onRemoveOccupant={onRemoveOccupant}
+                    onMove={onMovePassenger}
+                  />
                 </TabsContent>
               );
             })}
@@ -366,7 +432,7 @@ export default function FloorPlanView({
         )}
 
         {/* Legend */}
-        <div className="mt-6 pt-4 border-t flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+        <div className="mt-6 pt-4 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
           <span className="font-semibold">Keterangan:</span>
           <span className="flex items-center gap-1">
             <span className="w-4 h-4 rounded-full bg-blue-100 border-2 border-blue-300 inline-block" /> Laki-laki
@@ -378,9 +444,14 @@ export default function FloorPlanView({
             <span className="w-4 h-4 rounded-full border-2 border-dashed border-border inline-block" /> Slot kosong
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-4 h-4 rounded-full bg-green-400 inline-block" /> Kamar penuh
+            <span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Drop → tempatkan
           </span>
-          <span className="ml-auto opacity-70">💡 Hover pada nama untuk hapus; Seret jamaah untuk menempatkan</span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block" /> Drop → pindahkan
+          </span>
+          <span className="ml-auto opacity-70">
+            💡 Seret jamaah sidebar ke kamar · Seret dot penghuni antar kamar untuk pindah · Hover dot → × hapus
+          </span>
         </div>
       </div>
     </div>

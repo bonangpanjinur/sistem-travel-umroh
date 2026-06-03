@@ -549,6 +549,16 @@ export default function RoomingListPageImproved() {
                 assignPassengerMutation.mutate({ roomId, customerIds: [customerId] })
               }
               onRemoveOccupant={(occupantId) => removeOccupantMutation.mutate(occupantId)}
+              onMovePassenger={async (occupantId, newRoomId, customerId) => {
+                await supabase.from("room_occupants").delete().eq("id", occupantId);
+                await supabase.from("room_occupants").insert({
+                  room_assignment_id: newRoomId,
+                  customer_id: customerId,
+                });
+                queryClient.invalidateQueries({ queryKey: ["room-assignments-improved"] });
+                queryClient.invalidateQueries({ queryKey: ["unassigned-passengers-improved"] });
+                toast.success("Jamaah berhasil dipindahkan ke kamar lain");
+              }}
             />
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

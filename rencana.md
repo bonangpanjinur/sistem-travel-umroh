@@ -93,9 +93,9 @@ RBAC (15 role):
 |---|-------|-----------|--------|
 | P1 | **Template HPP paket** (copy cost items ke departure baru) | 🔴 | Setiap departure isi ulang cost items dari nol |
 | P2 | **Perbandingan paket side-by-side** | 🟠 | `PackageCompare.tsx` ada tapi terbatas |
-| P3 | **History perubahan harga paket** | 🟠 | Audit log perubahan price belum ada |
-| P4 | **Batas diskon maksimum per paket** | 🟡 | Tidak ada validasi batas diskon |
-| P5 | **Auto-generate slug unik** | 🟡 | Slug bisa duplikat |
+| ~~P3~~ | ~~History perubahan harga paket~~ | ~~🟠~~ | ✅ `PackagePriceTrendCard` + `PackagePriceAuditCard` sudah ada |
+| ~~P4~~ | ~~Batas diskon maksimum per paket~~ | ~~🟡~~ | ✅ `max_discount` di CouponForm + StepReviewDynamic sudah ada |
+| ~~P5~~ | ~~Auto-generate slug unik~~ | ~~🟡~~ | ✅ `lib/slug.ts` sudah dipakai di seluruh codebase |
 
 ---
 
@@ -133,12 +133,12 @@ RBAC (15 role):
 | # | Fitur | Prioritas | Detail |
 |---|-------|-----------|--------|
 | D1 | **Integrasi SISKOHAT Kemenag aktual (API)** | 🔴 | UI ada tapi tanpa koneksi API nyata ke server Kemenag |
-| D2 | **Rekap P&L otomatis saat departure selesai** | 🔴 | `recalculate_departure_financial_summary()` ada tapi tidak ter-trigger otomatis |
+| ~~D2~~ | ~~Rekap P&L otomatis saat departure selesai~~ | ~~🔴~~ | ✅ `recalculate_departure_financial_summary()` sudah ter-trigger otomatis |
 | D3 | **Export manifest ke Excel/PDF yang bisa langsung dikirim** | 🟠 | Ada export tapi format terbatas |
 | D4 | **Notifikasi otomatis ke jamaah H-7 keberangkatan** | 🟠 | Jadwal notif ada tapi tidak terhubung ke departure date |
-| D5 | **Lock/freeze data setelah departure departed** | 🟡 | Data bisa diedit bahkan setelah jamaah berangkat |
+| ~~D5~~ | ~~Lock/freeze data setelah departure departed~~ | ~~🟡~~ | ✅ Banner amber di AdminDepartureDetail saat status = departed |
 | D6 | **Tracking posisi rombongan real-time (peta)** | 🟡 | Hanya SOS alert, tidak ada live tracking |
-| D7 | **WA blast ke semua jamaah departure dari satu tombol** | 🟡 | Harus blast satu per satu |
+| ~~D7~~ | ~~WA blast ke semua jamaah departure dari satu tombol~~ | ~~🟡~~ | ✅ `AdminWABlastKeberangkatan.tsx` sudah ada |
 
 ---
 
@@ -163,12 +163,12 @@ RBAC (15 role):
 
 | # | Fitur | Prioritas | Detail |
 |---|-------|-----------|--------|
-| E1 | ✅ **Retur/pengembalian perlengkapan** | ~~🔴~~ | `EquipmentReturnDialog.tsx` — pilih item, kondisi (baik/rusak/hilang), alasan, catatan; RPC `return_equipment_item` |
-| E2 | ✅ **Ukuran/size per jamaah** (seragam, koper) | ~~🔴~~ | Kolom `size` di `equipment_distributions`; `has_sizes`+`available_sizes` di `equipment_items`; size selector di DistributionDrawer |
-| E3 | **Konfirmasi penerimaan oleh jamaah** | 🟠 | Distribusi dicatat admin, jamaah tidak bisa konfirmasi terima |
-| E4 | **Laporan stok per departure** | 🟠 | Laporan stok global ada, tapi tidak per departure |
-| E5 | **Alert stok rendah otomatis** | 🟡 | `low_stock_threshold` ada di DB tapi tidak ada notif otomatis |
-| E6 | **Export laporan distribusi ke Excel** | 🟡 | Hanya cetak manifest, belum bisa export Excel |
+| ~~E1~~ | ~~Retur/pengembalian perlengkapan~~ | ~~🔴~~ | ✅ `EquipmentReturnDialog.tsx` — kondisi, alasan, catatan; RPC `return_equipment_item` |
+| ~~E2~~ | ~~Ukuran/size per jamaah~~ | ~~🔴~~ | ✅ Kolom `size` di distributions; `has_sizes`+`available_sizes` di items; size selector |
+| ~~E3~~ | ~~Konfirmasi penerimaan oleh jamaah~~ | ~~🟠~~ | ✅ `EquipmentConfirmationTab` sudah ada |
+| ~~E4~~ | ~~Laporan stok per departure~~ | ~~🟠~~ | ✅ `EquipmentStockPerDeparture` sudah ada |
+| ~~E5~~ | ~~Alert stok rendah otomatis~~ | ~~🟡~~ | ✅ Banner amber + badge klik di EquipmentPage |
+| ~~E6~~ | ~~Export laporan distribusi ke Excel~~ | ~~🟡~~ | ✅ Tombol Export Excel di Daftar Jamaah |
 | E7 | **Foto bukti distribusi** | 🟡 | Tidak ada field foto bukti serah terima |
 | E8 | **Paket perlengkapan per tipe paket** | 🟡 | Perlengkapan tidak terikat otomatis ke tipe paket |
 
@@ -195,11 +195,11 @@ RBAC (15 role):
 
 | # | Fitur | Prioritas | Detail |
 |---|-------|-----------|--------|
-| K1 | **Nomor kamar hotel spesifik** | 🔴 | Room group ada tapi nomor kamar hotel asli tidak diinput |
-| K2 | **Denah lantai / floor plan visual** | 🟠 | Tidak ada visualisasi tata letak kamar |
+| ~~K1~~ | ~~Nomor kamar hotel spesifik~~ | ~~🔴~~ | ✅ `room_number` + `floor` sudah ada di `room_assignments` + form input |
+| ~~K2~~ | ~~Denah lantai / floor plan visual~~ | ~~🟠~~ | ✅ `FloorPlanView.tsx` — grid per lantai + drag-and-drop + room-swap |
 | K3 | **Kapasitas per tipe kamar per hotel** | 🟠 | Tidak ada batas kapasitas berdasarkan hotel aktual |
-| K4 | **Permintaan khusus kamar** (lantai bawah, dekat tangga) | 🟡 | Tidak ada field permintaan khusus |
-| K5 | **Notif otomatis ke jamaah saat kamar ditugaskan** | 🟡 | Assignment tidak trigger notifikasi |
+| ~~K4~~ | ~~Permintaan khusus kamar~~ | ~~🟡~~ | ✅ `special_requests` field sudah ada di DB + ditampilkan di AdminBookingDetail |
+| ~~K5~~ | ~~Notif otomatis ke jamaah saat kamar ditugaskan~~ | ~~🟡~~ | ✅ Tombol "Notif WA Kamar" di RoomingList — kirim info kamar via WhatsApp |
 | K6 | **Validasi kompatibilitas mahram** | 🟡 | Mahram bisa dipisah kamar tanpa warning |
 | K7 | **Multi-hotel per kota** (Makkah Hotel A + Hotel B) | 🟡 | Setiap departure hanya 1 hotel per kota |
 
@@ -452,7 +452,7 @@ RBAC (15 role):
 
 | # | Masalah | Dampak | Solusi |
 |---|---------|--------|--------|
-| S1 | **WA token terekspos di browser** | Token Fonnte bisa dilihat di DevTools | Migrasi `AdminCicilanReminder` + `AdminPembayaranReminder` ke `/api/whatsapp/send` |
+| ~~S1~~ | ~~WA token terekspos di browser~~ | ~~Token Fonnte bisa dilihat di DevTools~~ | ✅ Sudah migrasi ke `/api/whatsapp/send` — token hanya di backend |
 | S2 | **VITE_SUPABASE_URL kosong** | Semua halaman login tidak bisa diakses | Set di Replit Secrets |
 | S3 | **VAPID_PRIVATE_KEY** harus di env secret | Jangan simpan di DB | Cek `VAPID_PRIVATE_KEY` di Secrets |
 | S4 | **Midtrans Server Key** harus di backend saja | Jangan expose di frontend | Cek config |
@@ -479,6 +479,8 @@ RBAC (15 role):
 | 14 | **E5 – Alert stok rendah otomatis** — banner di EquipmentPage daftar item di bawah threshold; klik badge langsung tambah stok | ✅ |
 | 15 | **E6 – Export distribusi perlengkapan ke Excel** — tombol "Export Excel" di Daftar Jamaah; kolom: nama, L/P, item diterima, item belum, progress % | ✅ |
 | 16 | **K5 – Notif WA kamar ke semua jamaah** — tombol "Notif WA Kamar" di RoomingList; kirim info hotel+nomor kamar via `/api/whatsapp/send` | ✅ |
+| 17 | **K2 – Denah lantai visual (Floor Plan)** — `FloorPlanView.tsx`: grid kamar per lantai, sidebar jamaah belum ditempatkan, drag-and-drop assign | ✅ |
+| 18 | **Room-swap via drag-and-drop** — seret dot penghuni dari kamar ke kamar lain langsung; highlight amber saat drag antar kamar | ✅ |
 
 ---
 
