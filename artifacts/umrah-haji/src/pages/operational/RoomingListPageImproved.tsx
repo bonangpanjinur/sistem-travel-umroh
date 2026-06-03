@@ -18,7 +18,7 @@ import { id as localeId } from "date-fns/locale";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   BedDouble, Users, Plus, Trash2, UserPlus,
-  Hotel, Wand2, Loader2, Download, FileSpreadsheet
+  Hotel, Wand2, Loader2, Download, FileSpreadsheet, Bell,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 import * as XLSX from 'xlsx';
@@ -77,6 +77,7 @@ export default function RoomingListPageImproved() {
   const [selectedPassengerIds, setSelectedPassengerIds] = useState<Set<string>>(new Set());
   const [autoAssignMode, setAutoAssignMode] = useState<'gender' | 'booking'>('gender');
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
+  const [isSendingRoomNotif, setIsSendingRoomNotif] = useState(false);
   const [roomFormData, setRoomFormData] = useState({
     room_number: "", room_type: "quad", floor: "",
   });
@@ -322,6 +323,35 @@ export default function RoomingListPageImproved() {
     }
   };
 
+  // K5 — Kirim notif WA ke semua jamaah yang sudah dapat kamar
+  const sendRoomNotifToAll = async () => {
+    if (!rooms?.length) return;
+    setIsSendingRoomNotif(true);
+    const dep = departures?.find(d => d.id === selectedDepartureId);
+    const hotel = [dep?.hotel_makkah, dep?.hotel_madinah].find(h => h?.id === selectedHotelId);
+    let success = 0, fail = 0;
+    for (const room of rooms) {
+      for (const occ of room.occupants || []) {
+        const cid = occ.customer_id;
+        // Fetch phone
+        const { data: cust } = await supabase.from("customers").select("phone, full_name").eq("id", cid).single();
+        if (!cust?.phone) { fail++; continue; }
+        const msg = `Assalamu'alaikum ${cust.full_name},\n\nInfo kamar Anda:\n🏨 Hotel: ${hotel?.name || "-"} (${hotel?.city || "-"})\n🛏 Kamar: ${room.room_number} (${getRoomTypeLabel(room.room_type)})\n📅 Keberangkatan: ${dep?.departure_date ? format(new Date(dep.departure_date), "dd MMMM yyyy", { locale: localeId }) : "-"}\n\nJazakumullah khairan. ✨`;
+        try {
+          const res = await fetch("/api/whatsapp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ target: cust.phone, message: msg }),
+          });
+          if (res.ok) success++; else fail++;
+        } catch { fail++; }
+      }
+    }
+    setIsSendingRoomNotif(false);
+    if (success > 0) toast.success(`Notifikasi kamar terkirim ke ${success} jamaah`);
+    if (fail > 0) toast.error(`${fail} pesan gagal — pastikan FONNTE_TOKEN sudah dikonfigurasi`);
+  };
+
   const exportRoomingExcel = () => {
     if (!rooms?.length || !selectedDeparture) return;
     const rows: any[] = [];
@@ -444,6 +474,20 @@ export default function RoomingListPageImproved() {
             {totalOccupied > 0 && (
               <Button variant="ghost" onClick={exportRoomingExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
+              </Button>
+            )}
+            {totalOccupied > 0 && (
+              <Button
+                variant="outline"
+                onClick={sendRoomNotifToAll}
+                disabled={isSendingRoomNotif}
+                title="Kirim info kamar via WhatsApp ke semua jamaah yang sudah ditempatkan"
+              >
+                {isSendingRoomNotif
+                  ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  : <Bell className="h-4 w-4 mr-2 text-green-600" />
+                }
+                Notif WA Kamar
               </Button>
             )}
           </div>

@@ -58,6 +58,7 @@ import {
   ScanLine,
   Bug,
   CheckCircle2,
+  LockKeyhole,
   ChevronDown,
   BedDouble,
   ExternalLink,
@@ -987,6 +988,21 @@ export default function AdminDepartureDetail() {
           </Button>
         </div>
       </div>
+
+      {/* D5 — Lock banner saat status departed */}
+      {departure.status === 'departed' && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+          <LockKeyhole className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+              Data Terproteksi — Jamaah Sudah Berangkat
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Perubahan data tidak disarankan setelah jamaah berangkat. Gunakan tombol <strong>"Buka Kembali"</strong> di atas jika perlu mengedit.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

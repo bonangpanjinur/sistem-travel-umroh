@@ -459,54 +459,66 @@ RBAC (15 role):
 
 ---
 
-## PERBAIKAN YANG SUDAH DIKERJAKAN (SESI INI)
+## PERBAIKAN YANG SUDAH DIKERJAKAN
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | **SQL konsolidasi** — hapus folder duplikat (migrations/, supabase-migrations/, sql_complete/, sql/_archive/, migration_fresh.sql, artifacts/.../migrations) | ✅ |
-| 2 | **MilestoneTrackerCard** — ditambah validasi dokumen nyata dari `customer_documents` DB: query upload count + verified count per departure | ✅ |
+| 1 | **SQL konsolidasi** — hapus folder duplikat | ✅ |
+| 2 | **MilestoneTrackerCard** — validasi dokumen nyata dari `customer_documents` DB | ✅ |
 | 3 | **AdminPackageDetail** — pass `departureId` ke MilestoneTrackerCard | ✅ |
-| 4 | **build.mjs (API server)** — perbaiki agar tidak crash saat `src/sql` tidak ada | ✅ |
-| 5 | **Rencana.md** — satu file tunggal, hapus `rencana/`, `artifacts/umrah-haji/PLAN.md`, `.lovable/plan.md` | ✅ |
-| 6 | **pnpm install** — dependencies terinstall | ✅ |
-| 7 | **TypeScript build error fix** — tambah `size` ke `equipment_distributions` types; tambah `has_sizes` + `available_sizes` ke `equipment_items` types; tambah `return_equipment_item` ke Functions RPC types di `types.ts` | ✅ |
-| 8 | **SQL bootstrap files** — buat `src/sql/00_auth_bootstrap.sql` (auth schema + auth.users + stub functions + _schema_migrations), `02_missing_tables.sql`, `03_bookings_columns.sql`, `04_gallery_media_type.sql` agar API server bisa booting dan run migrations tanpa error | ✅ |
-| 9 | **Both workflows running** — frontend (port 5000) dan API server (port 8080) berjalan normal | ✅ |
+| 4 | **build.mjs (API server)** — tidak crash saat `src/sql` tidak ada | ✅ |
+| 5 | **Rencana.md** — satu file tunggal | ✅ |
+| 6 | **pnpm install** — dependencies terinstall, kedua workflow running | ✅ |
+| 7 | **TypeScript build error fix** — types untuk equipment_distributions, equipment_items, return_equipment_item | ✅ |
+| 8 | **SQL bootstrap files** — bootstrap auth, missing tables, bookings columns, gallery_media_type | ✅ |
+| 9 | **QR Code Invoice** — embed QR publik di Form Transaksi PDF; route `/transaksi/:bookingId` tanpa login | ✅ |
+| 10 | **Invoice Template dinamis** — toggle QR + 3 pilihan posisi (kanan atas/bawah/tengah) di Admin Panel | ✅ |
+| 11 | **Fix notif WA error modal** — safe JSON parse, modal dialog jelas + instruksi setup FONNTE_TOKEN | ✅ |
+| 12 | **Cetak Ulang Barcode** — modal cetak QR label per booking (3 ukuran: stiker/kartu/A4); trigger dari daftar dan detail booking | ✅ |
+| 13 | **D5 – Lock banner departure departed** — banner amber muncul di AdminDepartureDetail saat status = departed | ✅ |
+| 14 | **E5 – Alert stok rendah otomatis** — banner di EquipmentPage daftar item di bawah threshold; klik badge langsung tambah stok | ✅ |
+| 15 | **E6 – Export distribusi perlengkapan ke Excel** — tombol "Export Excel" di Daftar Jamaah; kolom: nama, L/P, item diterima, item belum, progress % | ✅ |
+| 16 | **K5 – Notif WA kamar ke semua jamaah** — tombol "Notif WA Kamar" di RoomingList; kirim info hotel+nomor kamar via `/api/whatsapp/send` | ✅ |
+
+---
+
+## STATUS ITEM DARI RENCANA (AUDIT JUNI 2026)
+
+> Verifikasi langsung dari codebase — item yang sebelumnya dikira ❌ ternyata sudah ada:
+
+| Item | Kode | Status Sebenarnya |
+|------|------|-------------------|
+| WA token security (S1/B2) | AdminCicilanReminder + AdminPembayaranReminder | ✅ pakai `/api/whatsapp/send` |
+| special_requests kamar (K4) | DB types + AdminBookingDetail | ✅ sudah ada |
+| Batas diskon max coupon (P4) | CouponForm + StepReviewDynamic | ✅ sudah ada |
+| Auto-slug paket (P5) | `lib/slug.ts` + dipakai di banyak halaman | ✅ sudah ada |
+| History harga paket (P3) | PackagePriceTrendCard + PackagePriceAuditCard di AdminPackageDetail | ✅ sudah ada |
+| Konfirmasi perlengkapan (E3) | EquipmentConfirmationTab | ✅ sudah ada |
+| Laporan stok per departure (E4) | EquipmentStockPerDeparture | ✅ sudah ada |
 
 ---
 
 ## PEKERJAAN BERIKUTNYA (BACKLOG PRIORITAS)
 
-### 🔴 KRITIS (Harus segera)
+### 🔴 KRITIS (Perlu tindakan user)
 
 | # | Task | Modul |
 |---|------|-------|
-| B1 | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SERVICE_ROLE_KEY` di Replit Secrets | Semua |
-| ~~B2~~ | ~~Migrasi WA token dari browser ke `/api/whatsapp/send` (2 file)~~ ✅ | Komunikasi |
-| ~~B3~~ | ~~Nomor kamar hotel spesifik di room assignment (K1)~~ ✅ | Kamar |
-| ~~B4~~ | ~~Retur/pengembalian perlengkapan (E1)~~ ✅ | Equipment |
-| ~~B5~~ | ~~Ukuran/size per jamaah untuk perlengkapan (E2)~~ ✅ | Equipment |
+| B1 | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SERVICE_ROLE_KEY` di Replit Secrets — **tanpa ini semua fitur Supabase tidak aktif** | Semua |
 
-### 🟠 PENTING (Segera setelah kritis)
+### 🟡 NICE TO HAVE (Belum dikerjakan)
 
 | # | Task | Modul |
 |---|------|-------|
-| ~~B6~~ | ~~Template HPP paket — copy cost items ke departure baru (P1)~~ ✅ | Paket |
-| ~~B7~~ | ~~Auto-trigger `recalculate_departure_financial_summary()` saat departure completed (D2)~~ ✅ | Keberangkatan |
-| ~~B8~~ | ~~Konfirmasi penerimaan perlengkapan oleh jamaah (E3)~~ ✅ | Equipment |
-| ~~B9~~ | ~~WA blast ke semua jamaah departure dari satu tombol (D7)~~ ✅ | Keberangkatan |
-| ~~B10~~ | ~~Laporan stok per departure (E4)~~ ✅ | Equipment |
-
-### 🟡 NICE TO HAVE
-
-| # | Task | Modul |
-|---|------|-------|
-| B11 | Integrasi SISKOHAT API Kemenag (D1) | Keberangkatan |
-| B12 | Denah lantai / floor plan kamar (K2) | Kamar |
+| B11 | Integrasi SISKOHAT API Kemenag (D1) — butuh akses API Kemenag | Keberangkatan |
+| B12 | Denah lantai / floor plan kamar visual (K2) | Kamar |
 | B13 | Multi-hotel per kota per departure (K7) | Kamar |
 | B14 | Export kalender ke ICS/Google Calendar | Platform |
 | B15 | Withdrawal otomatis wallet agen | Agen |
 | B16 | Live tracking posisi rombongan di peta (D6) | Keberangkatan |
+| B17 | Validasi kompatibilitas mahram di room assignment (K6) | Kamar |
+| B18 | Foto bukti distribusi perlengkapan (E7) | Equipment |
+| B19 | Paket perlengkapan default per tipe paket (E8) | Equipment |
 
 ---
 

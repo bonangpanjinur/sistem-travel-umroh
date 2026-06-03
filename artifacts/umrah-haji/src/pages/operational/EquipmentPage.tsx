@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,7 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
   Search, Plus, Check, Users, Box, BarChart3, Package as PackageIcon,
-  Loader2, AlertTriangle, User, ChevronRight, Settings, Database, RotateCcw,
+  Loader2, AlertTriangle, User, ChevronRight, Settings, Database, RotateCcw, Download,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -262,6 +263,47 @@ export default function EquipmentPage() {
   const selectedPkgName = packages?.find(p => p.id === selectedPackage)?.name;
   const selectedDepDate = departures?.find(d => d.id === selectedDeparture);
 
+  // E6 — Export distribusi perlengkapan ke Excel
+  const exportDistribusiExcel = () => {
+    if (!distributions || distributions.length === 0) {
+      toast.error("Belum ada data distribusi untuk diekspor");
+      return;
+    }
+    const depDate = selectedDepDate ? format(new Date(selectedDepDate.departure_date), "dd-MM-yyyy", { locale: localeId }) : "";
+    const rows = (passengers || []).map((p, idx) => {
+      const applicable = getApplicableItems(p.customer?.gender, p.passenger_type);
+      const status = getJamaahStatus(p.customer_id, p.customer?.gender, p.passenger_type);
+      const receivedItems = applicable
+        .filter(item => (distributions || []).some(d => d.equipment_id === item.id && d.customer_id === p.customer_id))
+        .map(i => i.name)
+        .join(", ");
+      const missingItems = applicable
+        .filter(item => !(distributions || []).some(d => d.equipment_id === item.id && d.customer_id === p.customer_id))
+        .map(i => i.name)
+        .join(", ");
+      return {
+        "No":              idx + 1,
+        "Nama Jamaah":     p.customer.full_name,
+        "L/P":             p.customer?.gender === "male" || p.customer?.gender === "Laki-laki" ? "L" : "P",
+        "Tipe Pax":        p.passenger_type || "adult",
+        "Item Diterima":   receivedItems || "-",
+        "Item Belum":      missingItems || "-",
+        "Selesai":         `${status.completed}/${status.total}`,
+        "Progress (%)":    Math.round(status.pct),
+        "Status":          status.completed === status.total && status.total > 0 ? "✓ Selesai" : "⏳ Belum Selesai",
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [4, 30, 5, 10, 40, 40, 10, 12, 15].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Distribusi Perlengkapan");
+    XLSX.writeFile(wb, `Distribusi-Perlengkapan-${selectedPkgName || "Paket"}-${depDate}.xlsx`);
+    toast.success("Export Excel distribusi perlengkapan berhasil!");
+  };
+
+  // E5 — Low stock items
+  const lowStockItems = (items || []).filter(item => item.stock_quantity <= (item.low_stock_threshold || 10));
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -338,6 +380,31 @@ export default function EquipmentPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* E5 — Low stock alert banner */}
+      {lowStockItems.length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-2 flex-1">
+            <p className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+              Stok Rendah — {lowStockItems.length} item perlu diisi ulang
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {lowStockItems.map(item => (
+                <Badge
+                  key={item.id}
+                  variant="destructive"
+                  className="text-xs cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleStockClick(item.id)}
+                >
+                  {item.name} (sisa: {item.stock_quantity})
+                </Badge>
+              ))}
+            </div>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">Klik badge untuk tambah stok langsung.</p>
+          </div>
+        </div>
+      )}
 
       {!hasDeparture ? (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-muted/10 rounded-xl border-2 border-dashed">
@@ -444,7 +511,19 @@ export default function EquipmentPage() {
                   <CardTitle className="text-lg">Daftar Jamaah</CardTitle>
                   <p className="text-xs text-muted-foreground">Kelola distribusi per individu</p>
                 </div>
-                <Badge variant="secondary">{filteredPassengers.length} Orang</Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={exportDistribusiExcel}
+                    disabled={!distributions?.length}
+                    title="Export laporan distribusi ke Excel"
+                  >
+                    <Download className="h-4 w-4 mr-1.5" />
+                    Export Excel
+                  </Button>
+                  <Badge variant="secondary">{filteredPassengers.length} Orang</Badge>
+                </div>
               </CardHeader>
               <CardContent className="flex-1 p-0">
                 <div className="overflow-x-auto">
