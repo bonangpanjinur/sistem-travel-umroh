@@ -282,13 +282,14 @@ async function runDepartureReminders(days: 7 | 1 = 7): Promise<{ sent: number; f
 
   const rows = await dbQuery(
     `SELECT d.id AS departure_id, pkg.name AS package_name,
-            b.id AS booking_id, b.booking_code, b.status AS booking_status,
+            b.id AS booking_id, b.booking_code, b.booking_status,
             c.full_name, c.phone
      FROM departures d
      LEFT JOIN packages pkg ON pkg.id = d.package_id
-     LEFT JOIN bookings b ON b.departure_id = d.id
-     LEFT JOIN customers c ON c.id = b.customer_id
-     WHERE d.departure_date = $1 AND b.id IS NOT NULL
+     INNER JOIN bookings b ON b.departure_id = d.id
+     INNER JOIN customers c ON c.id = b.customer_id
+     WHERE d.departure_date = $1 
+       AND b.booking_status NOT IN ('cancelled', 'refunded')
      LIMIT 200`,
     [dateStr]
   );

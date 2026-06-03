@@ -134,8 +134,8 @@ RBAC (15 role):
 |---|-------|-----------|--------|
 | D1 | **Integrasi SISKOHAT Kemenag aktual (API)** | 🔴 | UI ada tapi tanpa koneksi API nyata ke server Kemenag |
 | ~~D2~~ | ~~Rekap P&L otomatis saat departure selesai~~ | ~~🔴~~ | ✅ `recalculate_departure_financial_summary()` sudah ter-trigger otomatis |
-| D3 | **Export manifest ke Excel/PDF yang bisa langsung dikirim** | 🟠 | Ada export tapi format terbatas |
-| D4 | **Notifikasi otomatis ke jamaah H-7 keberangkatan** | 🟠 | Jadwal notif ada tapi tidak terhubung ke departure date |
+| ✅ | **Export manifest ke Excel/PDF yang bisa langsung dikirim** | 🔴 | Format profesional (Header, Summary Box, Landscape PDF) ✅ **diperbaiki** |
+| ✅ | **Notifikasi otomatis ke jamaah H-7 keberangkatan** | 🔴 | Sudah terhubung ke departure_date via Cron & API ✅ **diperbaiki** |
 | ~~D5~~ | ~~Lock/freeze data setelah departure departed~~ | ~~🟡~~ | ✅ Banner amber di AdminDepartureDetail saat status = departed |
 | D6 | **Tracking posisi rombongan real-time (peta)** | 🟡 | Hanya SOS alert, tidak ada live tracking |
 | ~~D7~~ | ~~WA blast ke semua jamaah departure dari satu tombol~~ | ~~🟡~~ | ✅ `AdminWABlastKeberangkatan.tsx` sudah ada |
