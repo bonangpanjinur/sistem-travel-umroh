@@ -415,7 +415,7 @@ export default function AdminManifestJamaah() {
         // Footer
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
-        const str = "Halaman " + doc.internal.getNumberOfPages();
+        const str = "Halaman " + (doc as any).internal.getNumberOfPages();
         doc.text(str, 280, 200, { align: "right" });
         doc.text(`Dicetak pada: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 200);
       }
