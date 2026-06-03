@@ -638,7 +638,6 @@ export default function AdminPackageDetail() {
                             <EquipmentReadinessCard
                               departureId={departure.id}
                               totalJamaah={departure.quota}
-                              completedJamaah={Math.floor((departure.quota * 45) / 100)}
                             />
                           </div>
 
