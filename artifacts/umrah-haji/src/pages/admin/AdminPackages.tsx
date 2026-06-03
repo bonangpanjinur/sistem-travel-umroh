@@ -64,15 +64,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { exportToExcel, exportToPDF } from "@/lib/export-utils";
-import {
-  exportPackagesToExcel,
-  exportCapacityStatsToExcel,
-  exportDepartureScheduleToExcel,
-  exportPackageSummaryPDF
-} from "@/lib/export-utils-enhanced";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+// NOTE: jsPDF, jspdf-autotable, xlsx (via export-utils*) adalah dependency besar.
+// Sengaja dipakai lewat dynamic import() di handler agar tidak ikut ke chunk awal halaman ini.
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -360,7 +353,7 @@ export default function AdminPackages() {
     return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
   };
 
-  const handleExportPackages = (type: 'excel' | 'pdf') => {
+  const handleExportPackages = async (type: 'excel' | 'pdf') => {
     if (!filteredPackages.length) return;
     setIsExporting(true);
 
@@ -382,8 +375,10 @@ export default function AdminPackages() {
 
     try {
       if (type === 'excel') {
+        const { exportToExcel } = await import("@/lib/export-utils");
         exportToExcel(filteredPackages, columns, filename, 'Packages');
       } else {
+        const { exportToPDF } = await import("@/lib/export-utils");
         exportToPDF(filteredPackages, columns, filename, title, subtitle);
       }
       toast.success(`Daftar paket berhasil di-export ke ${type.toUpperCase()}`);
@@ -425,6 +420,10 @@ export default function AdminPackages() {
       return;
     }
 
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF({ orientation: "landscape" });
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
@@ -508,16 +507,25 @@ export default function AdminPackages() {
                   <span>Daftar Paket (PDF)</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportCapacityStatsToExcel(filteredPackages)} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={async () => {
+                  const m = await import("@/lib/export-utils-enhanced");
+                  m.exportCapacityStatsToExcel(filteredPackages);
+                }} className="gap-2 cursor-pointer">
                   <BarChart3 className="h-4 w-4 text-blue-600" />
                   <span>Statistik Kapasitas</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportDepartureScheduleToExcel(filteredPackages)} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={async () => {
+                  const m = await import("@/lib/export-utils-enhanced");
+                  m.exportDepartureScheduleToExcel(filteredPackages);
+                }} className="gap-2 cursor-pointer">
                   <Calendar className="h-4 w-4 text-amber-600" />
                   <span>Jadwal Keberangkatan</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportPackageSummaryPDF(filteredPackages)} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={async () => {
+                  const m = await import("@/lib/export-utils-enhanced");
+                  m.exportPackageSummaryPDF(filteredPackages);
+                }} className="gap-2 cursor-pointer">
                   <FileText className="h-4 w-4 text-purple-600" />
                   <span>Laporan Ringkas (PDF)</span>
                 </DropdownMenuItem>
