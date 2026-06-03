@@ -119,20 +119,19 @@ export default function AdminPembayaranReminder() {
   }
 
   async function sendReminder(r: Reminder) {
-    if (!waConfig?.api_key) { toast.error("Konfigurasi WA belum diatur di menu Integrasi"); return; }
     setSendingIds(prev => new Set(prev).add(r.id));
     try {
-      const { sendWhatsAppMessage } = await import("@/lib/whatsapp-notifier");
-      const result = await sendWhatsAppMessage({
-        token: waConfig.api_key,
-        target: r.phone,
-        message: buildMessage(r),
+      const resp = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target: r.phone, message: buildMessage(r) }),
       });
+      const result = await resp.json();
       if (result.success) {
         await markSentMutation.mutateAsync(r.id);
         toast.success(`Reminder dikirim ke ${r.full_name || r.phone}`);
       } else {
-        toast.error("Gagal kirim: " + result.error);
+        toast.error("Gagal kirim: " + (result.error || result.message));
       }
     } catch (e: any) {
       toast.error("Error: " + e.message);
@@ -144,13 +143,16 @@ export default function AdminPembayaranReminder() {
   async function sendAllPending() {
     const pendingList = reminders.filter(r => r.status === "pending");
     if (pendingList.length === 0) { toast.info("Tidak ada pengingat pending"); return; }
-    if (!waConfig?.api_key) { toast.error("Konfigurasi WA belum diatur"); return; }
     setSendingAll(true);
     let ok = 0, fail = 0;
     for (const r of pendingList) {
       try {
-        const { sendWhatsAppMessage } = await import("@/lib/whatsapp-notifier");
-        const res = await sendWhatsAppMessage({ token: waConfig.api_key, target: r.phone, message: buildMessage(r) });
+        const resp = await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target: r.phone, message: buildMessage(r) }),
+        });
+        const res = await resp.json();
         if (res.success) { await markSentMutation.mutateAsync(r.id); ok++; } else { fail++; }
       } catch { fail++; }
       await new Promise(res => setTimeout(res, 1200));
@@ -203,7 +205,7 @@ export default function AdminPembayaranReminder() {
             <Button
               size="sm"
               onClick={sendAllPending}
-              disabled={sendingAll || !waConfig?.api_key}
+              disabled={sendingAll}
               className="gap-2 bg-green-600 hover:bg-green-700 text-white"
             >
               {sendingAll ? (
@@ -273,7 +275,7 @@ export default function AdminPembayaranReminder() {
         </Card>
       </div>
 
-      {!waConfig?.api_key && (
+      {!waConfig && (
         <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
           <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-amber-500" />
           <div>
@@ -419,7 +421,7 @@ export default function AdminPembayaranReminder() {
                                   size="sm"
                                   variant="default"
                                   className="h-8 gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-                                  disabled={isSending || !waConfig?.api_key}
+                                  disabled={isSending}
                                   onClick={() => sendReminder(r)}
                                 >
                                   {isSending ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}

@@ -155,7 +155,7 @@ export default function AdminWABlastKeberangkatan() {
     return first ? buildMessage(first.fullName) : buildMessage("[Nama Jamaah]");
   }, [message, departure, withPhone]);
 
-  // Send WA blast
+  // Send WA blast via backend API (token aman di server)
   async function sendBlast() {
     const toSend = withPhone.filter((p: any) => selectedPassengers.has(p.id));
     if (!toSend.length) {
@@ -166,26 +166,39 @@ export default function AdminWABlastKeberangkatan() {
     setSentCount(0);
     setTotalToSend(toSend.length);
 
+    let successCount = 0;
+    let failCount = 0;
+
     for (let i = 0; i < toSend.length; i++) {
       const p = toSend[i] as any;
-      const phone = p.phone.replace(/\D/g, "").replace(/^0/, "62");
-      const text = encodeURIComponent(buildMessage(p.fullName));
-      const url = `https://wa.me/${phone}?text=${text}`;
-
-      // Open first 3 as tabs, rest show as notification
-      if (i < 3) {
-        window.open(url, "_blank");
+      try {
+        const resp = await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target: p.phone,
+            message: buildMessage(p.fullName),
+          }),
+        });
+        const result = await resp.json();
+        if (result.success) successCount++;
+        else failCount++;
+      } catch {
+        failCount++;
       }
-
       setSentCount(i + 1);
-      await new Promise(r => setTimeout(r, 300));
+      // Rate limit: 1.2 detik antar pesan agar tidak diblokir Fonnte
+      if (i < toSend.length - 1) await new Promise(r => setTimeout(r, 1200));
     }
 
     setSending(false);
-    const msg = toSend.length > 3
-      ? `${toSend.length} pesan disiapkan (3 tab terbuka, sisanya perlu dibuka manual atau gunakan WA Business API)`
-      : `${toSend.length} pesan WA berhasil dibuka`;
-    toast.success(msg);
+    if (failCount === 0) {
+      toast.success(`${successCount} pesan WA berhasil dikirim`);
+    } else if (successCount > 0) {
+      toast.success(`${successCount} berhasil, ${failCount} gagal`);
+    } else {
+      toast.error(`Semua pesan gagal dikirim. Pastikan WA API dikonfigurasi di menu Integrasi.`);
+    }
   }
 
   function handleTemplateChange(templateId: string) {
@@ -362,7 +375,7 @@ export default function AdminWABlastKeberangkatan() {
                 )}
               </Button>
               <p className="text-[10px] text-muted-foreground text-center">
-                Pesan dibuka via WhatsApp Web. Untuk blast otomatis, gunakan WA Business API di menu WhatsApp.
+                Pesan dikirim via Fonnte API. Pastikan konfigurasi WA sudah diatur di menu Integrasi.
               </p>
             </CardContent>
           </Card>

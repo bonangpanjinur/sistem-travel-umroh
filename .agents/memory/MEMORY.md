@@ -1,4 +1,4 @@
-- [SQL canonical folder](sql-canonical-folder.md) — satu sumber kebenaran: sql/migrations/ (001–061); supabase/migrations/ untuk Supabase CLI; build.mjs api-server tidak boleh hardcode src/sql copy
+- [SQL canonical folder](sql-canonical-folder.md) — satu sumber kebenaran: sql/migrations/ (001–065); supabase/migrations/ untuk Supabase CLI; selalu copy ke kedua folder; build.mjs api-server tidak boleh hardcode src/sql copy
 - [MilestoneTrackerCard document validation](milestone-tracker-doc-validation.md) — terima prop departureId; query customer_documents via booking_passengers; tampilkan upload+verified count real-time dari DB
 - [Equipment E1 return flow](equipment-return-flow.md) — EquipmentReturnDialog.tsx; RPC return_equipment_item; migration 062; tombol retur di EquipmentPage per jamaah hanya muncul jika ada distributed item
 - [Equipment E2 size field](equipment-size-field.md) — kolom size di equipment_distributions; has_sizes+available_sizes di equipment_items; size selector di DistributionDrawer; validasi wajib pilih ukuran sebelum save; konfigurasi di MasterDataTab dengan preset cepat S/M/L/XL/XXL

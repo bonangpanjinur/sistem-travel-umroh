@@ -27,6 +27,8 @@ import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab"
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 import { PrintManifest } from "@/components/operational/equipment/PrintManifest";
 import { EquipmentReturnDialog } from "@/components/operational/equipment/EquipmentReturnDialog";
+import { EquipmentConfirmationTab } from "@/components/operational/equipment/EquipmentConfirmationTab";
+import { EquipmentStockPerDeparture } from "@/components/operational/equipment/EquipmentStockPerDeparture";
 
 export interface EquipmentItem {
   id: string;
@@ -74,6 +76,8 @@ export default function EquipmentPage() {
   const [showManifest, setShowManifest] = useState(false);
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const [returnJamaah, setReturnJamaah] = useState<Passenger | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showStockReport, setShowStockReport] = useState(false);
 
   // Fetch packages
   const { data: packages } = useQuery({
@@ -269,6 +273,12 @@ export default function EquipmentPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowRealization(true)}>
             <BarChart3 className="h-4 w-4 mr-1.5" /> Realisasi
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowConfirmation(true)} disabled={!selectedDeparture}>
+            <Check className="h-4 w-4 mr-1.5" /> Konfirmasi
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowStockReport(true)} disabled={!selectedDeparture}>
+            <BarChart3 className="h-4 w-4 mr-1.5" /> Laporan Stok
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowManifest(true)} disabled={!selectedDeparture}>
             <Search className="h-4 w-4 mr-1.5" /> Manifest
@@ -599,6 +609,37 @@ export default function EquipmentPage() {
             distributions={distributions}
             departureName={selectedPkgName}
             departureDate={selectedDepDate?.departure_date}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* B8: Konfirmasi Penerimaan Perlengkapan */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-600" />
+              Konfirmasi Penerimaan Perlengkapan
+            </DialogTitle>
+          </DialogHeader>
+          <EquipmentConfirmationTab departureId={selectedDeparture} />
+        </DialogContent>
+      </Dialog>
+
+      {/* B10: Laporan Stok Per Keberangkatan */}
+      <Dialog open={showStockReport} onOpenChange={setShowStockReport}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-blue-600" />
+              Laporan Stok Per Keberangkatan
+            </DialogTitle>
+          </DialogHeader>
+          <EquipmentStockPerDeparture
+            departureId={selectedDeparture}
+            departureName={selectedPkgName && selectedDepDate
+              ? `${selectedPkgName} — ${format(new Date(selectedDepDate.departure_date), "dd MMMM yyyy", { locale: localeId })}`
+              : selectedPkgName}
           />
         </DialogContent>
       </Dialog>

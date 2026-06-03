@@ -479,8 +479,8 @@ RBAC (15 role):
 | # | Task | Modul |
 |---|------|-------|
 | B1 | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SERVICE_ROLE_KEY` di Replit Secrets | Semua |
-| B2 | Migrasi WA token dari browser ke `/api/whatsapp/send` (2 file) | Komunikasi |
-| B3 | Nomor kamar hotel spesifik di room assignment (K1) | Kamar |
+| ~~B2~~ | ~~Migrasi WA token dari browser ke `/api/whatsapp/send` (2 file)~~ ✅ | Komunikasi |
+| ~~B3~~ | ~~Nomor kamar hotel spesifik di room assignment (K1)~~ ✅ | Kamar |
 | ~~B4~~ | ~~Retur/pengembalian perlengkapan (E1)~~ ✅ | Equipment |
 | ~~B5~~ | ~~Ukuran/size per jamaah untuk perlengkapan (E2)~~ ✅ | Equipment |
 
@@ -488,11 +488,11 @@ RBAC (15 role):
 
 | # | Task | Modul |
 |---|------|-------|
-| B6 | Template HPP paket — copy cost items ke departure baru (P1) | Paket |
-| B7 | Auto-trigger `recalculate_departure_financial_summary()` saat departure completed (D2) | Keberangkatan |
-| B8 | Konfirmasi penerimaan perlengkapan oleh jamaah (E3) | Equipment |
-| B9 | WA blast ke semua jamaah departure dari satu tombol (D7) | Keberangkatan |
-| B10 | Laporan stok per departure (E4) | Equipment |
+| ~~B6~~ | ~~Template HPP paket — copy cost items ke departure baru (P1)~~ ✅ | Paket |
+| ~~B7~~ | ~~Auto-trigger `recalculate_departure_financial_summary()` saat departure completed (D2)~~ ✅ | Keberangkatan |
+| ~~B8~~ | ~~Konfirmasi penerimaan perlengkapan oleh jamaah (E3)~~ ✅ | Equipment |
+| ~~B9~~ | ~~WA blast ke semua jamaah departure dari satu tombol (D7)~~ ✅ | Keberangkatan |
+| ~~B10~~ | ~~Laporan stok per departure (E4)~~ ✅ | Equipment |
 
 ### 🟡 NICE TO HAVE
 
