@@ -64,15 +64,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { exportToExcel, exportToPDF } from "@/lib/export-utils";
-import {
-  exportPackagesToExcel,
-  exportCapacityStatsToExcel,
-  exportDepartureScheduleToExcel,
-  exportPackageSummaryPDF
-} from "@/lib/export-utils-enhanced";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+// NOTE: jsPDF, jspdf-autotable, xlsx (via export-utils*) adalah dependency besar.
+// Sengaja dipakai lewat dynamic import() di handler agar tidak ikut ke chunk awal halaman ini.
 
 export default function AdminPackages() {
   const [searchTerm, setSearchTerm] = useState("");
