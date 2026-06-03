@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import ProfileForm from "@/components/settings/ProfileForm";
 import ChangePassword from "@/components/settings/ChangePassword";
+import RevokeSessions from "@/components/settings/RevokeSessions";
 import MahramForm from "@/components/settings/MahramForm";
 import NotificationPreferences from "@/components/settings/NotificationPreferences";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,8 +39,9 @@ export default function CustomerSettings() {
           <TabsContent value="mahram" className="mt-4">
             <MahramForm />
           </TabsContent>
-          <TabsContent value="keamanan" className="mt-4">
+          <TabsContent value="keamanan" className="mt-4 space-y-6">
             <ChangePassword />
+            <RevokeSessions />
           </TabsContent>
           <TabsContent value="preferensi" className="mt-4">
             <NotificationPreferences />

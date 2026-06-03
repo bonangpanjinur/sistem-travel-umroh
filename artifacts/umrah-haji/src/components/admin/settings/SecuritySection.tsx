@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, Eye, Smartphone } from "lucide-react";
 import { SectionHead } from "./SectionHead";
+import RevokeSessions from "@/components/settings/RevokeSessions";
 
 const ITEMS = [
   { label: "Autentikasi 2 Faktor (2FA)", desc: "Tambahkan lapisan keamanan ekstra", btnLabel: "Atur 2FA",   icon: Lock },
@@ -28,6 +29,8 @@ export function SecuritySection() {
           ))}
         </CardContent>
       </Card>
+
+      <RevokeSessions />
     </>
   );
 }

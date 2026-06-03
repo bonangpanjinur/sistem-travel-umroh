@@ -100,14 +100,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
-          if (lastFetchedUserIdRef.current === session.user.id) {
-            dlog('[Auth] Skipping refetch - same user ID:', session.user.id);
-            setIsLoading(false);
-            return;
-          }
-          dlog('[Auth] Fetching user data for new user:', session.user.id);
-          fetchUserData(session.user.id);
+          // Check session version
+          (async () => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('session_version')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            const currentVersion = profileData?.session_version || 1;
+            const sessionVersionKey = `session_version_${session.user.id}`;
+            const storedVersion = parseInt(localStorage.getItem(sessionVersionKey) || '0');
+
+            if (storedVersion !== 0 && currentVersion > storedVersion) {
+              console.warn('[Auth] Session revoked in background');
+              localStorage.removeItem(sessionVersionKey);
+              handleInvalidSession();
+              return;
+            }
+            
+            if (storedVersion === 0) {
+              localStorage.setItem(sessionVersionKey, currentVersion.toString());
+            }
+
+            // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
+            if (lastFetchedUserIdRef.current === session.user.id) {
+              dlog('[Auth] Skipping refetch - same user ID:', session.user.id);
+              setIsLoading(false);
+              return;
+            }
+            dlog('[Auth] Fetching user data for new user:', session.user.id);
+            fetchUserData(session.user.id);
+          })();
         } else {
           dlog('[Auth] No session user - clearing profile and roles');
           lastFetchedUserIdRef.current = null;

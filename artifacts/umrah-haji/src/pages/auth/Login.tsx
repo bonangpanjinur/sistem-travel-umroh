@@ -35,6 +35,7 @@ export default function Login() {
   const redirectTo = searchParams.get('redirect');
 
   const sessionVerifiedKey = (uid: string) => `2fa_verified_${uid}`;
+  const sessionVersionKey = (uid: string) => `session_version_${uid}`;
 
   // Redirect jika sudah login — tapi tunggu verifikasi 2FA bila wajib
   useEffect(() => {
@@ -43,17 +44,47 @@ export default function Login() {
     if (twoFAStep === 'pending') return;
 
     const verified = sessionStorage.getItem(sessionVerifiedKey(user.id)) === '1';
-    if (verified) {
-      if (redirectTo) {
-        navigate(redirectTo);
-      } else {
-        navigate(getRoleHomeRoute(roles));
-      }
-      return;
-    }
-
-    // Cek apakah user perlu 2FA
+    
+    // Cek apakah user perlu 2FA dan verifikasi session version
     (async () => {
+      // Fetch profile untuk cek session_version
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('session_version')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const currentVersion = profileData?.session_version || 1;
+      const storedVersion = parseInt(localStorage.getItem(sessionVersionKey(user.id)) || '0');
+
+      // Jika session_version di server lebih besar dari yang di local, force logout
+      if (storedVersion !== 0 && currentVersion > storedVersion) {
+        console.warn('[Auth] Session revoked - version mismatch');
+        toast({
+          title: 'Sesi Berakhir',
+          description: 'Sesi Anda telah dihentikan oleh sistem atau dari perangkat lain.',
+          variant: 'destructive',
+        });
+        localStorage.removeItem(sessionVersionKey(user.id));
+        await supabase.auth.signOut();
+        navigate('/auth/login');
+        return;
+      }
+
+      // Simpan version saat ini jika belum ada
+      if (storedVersion === 0) {
+        localStorage.setItem(sessionVersionKey(user.id), currentVersion.toString());
+      }
+
+      if (verified) {
+        if (redirectTo) {
+          navigate(redirectTo);
+        } else {
+          navigate(getRoleHomeRoute(roles));
+        }
+        return;
+      }
+
       const { data } = await supabase
         .from('user_2fa_settings')
         .select('is_enabled, method, phone_number')

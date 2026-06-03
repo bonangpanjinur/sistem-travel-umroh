@@ -6,6 +6,7 @@ import {
 import { Loader2 } from "lucide-react";
 import ChangePassword from "@/components/settings/ChangePassword";
 import ProfileForm from "@/components/settings/ProfileForm";
+import RevokeSessions from "@/components/settings/RevokeSessions";
 import { SidebarManager } from "@/components/admin/SidebarManager";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -61,6 +62,7 @@ export default function AdminSettings() {
               <SectionHead icon={User} title="Profil & Akun" desc="Kelola data pribadi dan keamanan akun Anda" />
               <ProfileForm />
               <ChangePassword />
+              <RevokeSessions />
             </>
           )}
           {activeSection === "company"       && <CompanySection />}
