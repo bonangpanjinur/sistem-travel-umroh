@@ -180,7 +180,7 @@ function PackageHeader({
 
         {/* Package Type Badge */}
         <Badge className="w-fit text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30">
-          {getPackageTypeLabel(pkg.package_type)}
+          {getPackageTypeLabel(pkg.package_type || "")}
         </Badge>
 
         {/* Best Price Indicator */}
@@ -269,7 +269,7 @@ export default function PackageCompare() {
     const headers = ['Kriteria', ...selectedPackages.map(p => p.name)];
     const rows = [
       headers,
-      ['Tipe Paket', ...selectedPackages.map(p => getPackageTypeLabel(p.package_type))],
+      ['Tipe Paket', ...selectedPackages.map(p => getPackageTypeLabel(p.package_type || ""))],
       ['Durasi', ...selectedPackages.map(p => `${p.duration_days} Hari`)],
       ['Harga Quad', ...selectedPackages.map(p => formatCurrency(Number(p.price_quad) || 0, p.currency))],
       ['Harga Triple', ...selectedPackages.map(p => formatCurrency(Number(p.price_triple) || 0, p.currency))],
@@ -528,7 +528,7 @@ export default function PackageCompare() {
                       />
                       <FeatureRow 
                         label="Tipe Paket" 
-                        values={selectedPackages.map(p => getPackageTypeLabel(p.package_type))}
+                        values={selectedPackages.map(p => getPackageTypeLabel(p.package_type || ""))}
                         icon={Briefcase}
                       />
                       <FeatureRow 
@@ -639,7 +639,7 @@ export default function PackageCompare() {
                             </div>
                             <div className="bg-muted/50 p-3 rounded-lg">
                               <p className="text-xs text-muted-foreground font-semibold">Tipe</p>
-                              <p className="font-bold text-xs">{getPackageTypeLabel(pkg.package_type)}</p>
+                              <p className="font-bold text-xs">{getPackageTypeLabel(pkg.package_type || "")}</p>
                             </div>
                           </div>
 
