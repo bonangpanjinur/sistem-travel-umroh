@@ -29,7 +29,8 @@ export function useMahramConflicts(
     queryKey: ["mahram-conflicts", departureId, hotelId ?? null],
     queryFn: async () => {
       if (!departureId) return [];
-      const { data, error } = await supabase.rpc(
+      // Cast to 'any' to bypass type checking for RPC not in generated types
+      const { data, error } = await (supabase as any).rpc(
         "check_mahram_room_conflicts",
         {
           p_departure_id: departureId,

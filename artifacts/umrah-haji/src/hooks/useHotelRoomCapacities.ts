@@ -24,7 +24,8 @@ export function useHotelRoomCapacities(hotelId: string | null | undefined) {
     queryKey: ["hotel-room-capacities", hotelId],
     queryFn: async () => {
       if (!hotelId) return [];
-      const { data, error } = await supabase
+      // Cast to 'any' to bypass type checking for table not in generated types
+      const { data, error } = await (supabase as any)
         .from("hotel_room_capacities")
         .select("*")
         .eq("hotel_id", hotelId)
@@ -46,10 +47,14 @@ export function useHotelCapacitySummary(
     queryKey: ["hotel-capacity-summary", hotelId, departureId],
     queryFn: async () => {
       if (!hotelId || !departureId) return [];
-      const { data, error } = await supabase.rpc("get_hotel_capacity_summary", {
-        p_hotel_id: hotelId,
-        p_departure_id: departureId,
-      });
+      // Cast to 'any' to bypass type checking for RPC not in generated types
+      const { data, error } = await (supabase as any).rpc(
+        "get_hotel_capacity_summary",
+        {
+          p_hotel_id: hotelId,
+          p_departure_id: departureId,
+        }
+      );
       if (error) throw error;
       return (data as HotelCapacitySummaryRow[]) || [];
     },
@@ -71,7 +76,8 @@ export function useUpsertHotelRoomCapacity(hotelId: string) {
       total_rooms: number;
       notes?: string;
     }) => {
-      const { error } = await supabase
+      // Cast to 'any' to bypass type checking for table not in generated types
+      const { error } = await (supabase as any)
         .from("hotel_room_capacities")
         .upsert(
           { hotel_id: hotelId, room_type, total_rooms, notes: notes ?? null },
