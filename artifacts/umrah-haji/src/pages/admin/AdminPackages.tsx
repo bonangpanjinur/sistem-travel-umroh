@@ -507,16 +507,25 @@ export default function AdminPackages() {
                   <span>Daftar Paket (PDF)</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportCapacityStatsToExcel(filteredPackages)} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={async () => {
+                  const m = await import("@/lib/export-utils-enhanced");
+                  m.exportCapacityStatsToExcel(filteredPackages);
+                }} className="gap-2 cursor-pointer">
                   <BarChart3 className="h-4 w-4 text-blue-600" />
                   <span>Statistik Kapasitas</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportDepartureScheduleToExcel(filteredPackages)} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={async () => {
+                  const m = await import("@/lib/export-utils-enhanced");
+                  m.exportDepartureScheduleToExcel(filteredPackages);
+                }} className="gap-2 cursor-pointer">
                   <Calendar className="h-4 w-4 text-amber-600" />
                   <span>Jadwal Keberangkatan</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportPackageSummaryPDF(filteredPackages)} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={async () => {
+                  const m = await import("@/lib/export-utils-enhanced");
+                  m.exportPackageSummaryPDF(filteredPackages);
+                }} className="gap-2 cursor-pointer">
                   <FileText className="h-4 w-4 text-purple-600" />
                   <span>Laporan Ringkas (PDF)</span>
                 </DropdownMenuItem>
