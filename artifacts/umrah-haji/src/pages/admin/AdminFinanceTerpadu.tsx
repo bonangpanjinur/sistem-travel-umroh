@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase, supabaseConfigSource } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -92,7 +92,7 @@ function StatSkeleton() {
 
 export default function AdminFinanceTerpadu() {
   const [year, setYear] = useState(new Date().getFullYear().toString());
-  const isDemo = supabaseConfigSource.urlSource === "missing";
+  const isDemo = false;
 
   const yearNum = parseInt(year);
   const now = new Date();

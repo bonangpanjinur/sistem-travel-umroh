@@ -503,7 +503,7 @@ export default function AdminPackageDetail() {
       <PackageCancellationPolicyCard packageId={id} packageName={packageData.name} />
 
       {/* Photo Gallery */}
-      <PackageGalleryCard packageId={id} mainImageUrl={packageData?.photo_url} />
+      <PackageGalleryCard packageId={id} mainImageUrl={packageData?.featured_image} />
 
       {/* Price Trend */}
       <PackagePriceTrendCard packageId={id} departures={departures || []} />
