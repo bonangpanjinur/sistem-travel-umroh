@@ -353,7 +353,7 @@ export default function AdminPackages() {
     return pkgPrices.length > 0 ? Math.min(...pkgPrices) : 0;
   };
 
-  const handleExportPackages = (type: 'excel' | 'pdf') => {
+  const handleExportPackages = async (type: 'excel' | 'pdf') => {
     if (!filteredPackages.length) return;
     setIsExporting(true);
 
