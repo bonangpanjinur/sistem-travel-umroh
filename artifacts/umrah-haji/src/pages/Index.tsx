@@ -11,9 +11,11 @@ import { FloatingChatBubble } from '@/components/home/FloatingChatBubble';
 import { QuickMenuGrid } from '@/components/home/QuickMenuGrid';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePWAMode } from '@/hooks/usePWAMode';
 
 const Index = () => {
   const { data: settings, isLoading } = useWebsiteSettings();
+  const { isStandalone } = usePWAMode();
   const template = settings?.template || 'classic';
   const heroMode = (settings as any)?.hero_display_mode || 'both';
 
@@ -64,7 +66,7 @@ const Index = () => {
         </>
       )}
       {/* Quick Menu Grid — shortcut icons below banner */}
-      <QuickMenuGrid settings={settings ?? undefined} />
+      {isStandalone && <QuickMenuGrid settings={settings ?? undefined} />}
 
       {/* Jamaah Tracker – only visible for logged-in users */}
       <JamaahTrackerWidget />
