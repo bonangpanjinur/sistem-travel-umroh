@@ -200,7 +200,7 @@ RBAC (15 role):
 | K3 | **Kapasitas per tipe kamar per hotel** | 🟠 | Tidak ada batas kapasitas berdasarkan hotel aktual |
 | ~~K4~~ | ~~Permintaan khusus kamar~~ | ~~🟡~~ | ✅ `special_requests` field sudah ada di DB + ditampilkan di AdminBookingDetail |
 | ~~K5~~ | ~~Notif otomatis ke jamaah saat kamar ditugaskan~~ | ~~🟡~~ | ✅ Tombol "Notif WA Kamar" di RoomingList — kirim info kamar via WhatsApp |
-| K6 | **Validasi kompatibilitas mahram** | 🟡 | Mahram bisa dipisah kamar tanpa warning |
+| ~~K6~~ | ~~**Validasi kompatibilitas mahram**~~ | ~~🟡~~ | ✅ `MahramCompatibilityAlert.tsx` + `useMahramConflicts.ts` + DB function `check_mahram_room_conflicts()` — warning otomatis di RoomingList saat mahram belum dapat kamar atau beda hotel |
 | K7 | **Multi-hotel per kota** (Makkah Hotel A + Hotel B) | 🟡 | Setiap departure hanya 1 hotel per kota |
 
 ---
@@ -481,6 +481,7 @@ RBAC (15 role):
 | 16 | **K5 – Notif WA kamar ke semua jamaah** — tombol "Notif WA Kamar" di RoomingList; kirim info hotel+nomor kamar via `/api/whatsapp/send` | ✅ |
 | 17 | **K2 – Denah lantai visual (Floor Plan)** — `FloorPlanView.tsx`: grid kamar per lantai, sidebar jamaah belum ditempatkan, drag-and-drop assign | ✅ |
 | 18 | **Room-swap via drag-and-drop** — seret dot penghuni dari kamar ke kamar lain langsung; highlight amber saat drag antar kamar | ✅ |
+| 19 | **K6 – Validasi kompatibilitas mahram** — `MahramCompatibilityAlert.tsx` + hook `useMahramConflicts` + DB RPC `check_mahram_room_conflicts(departure_id, hotel_id)`; alert merah/kuning otomatis di halaman RoomingList saat pasangan mahram belum ditempatkan atau beda hotel | ✅ |
 
 ---
 
@@ -518,7 +519,7 @@ RBAC (15 role):
 | B14 | Export kalender ke ICS/Google Calendar | Platform |
 | B15 | Withdrawal otomatis wallet agen | Agen |
 | B16 | Live tracking posisi rombongan di peta (D6) | Keberangkatan |
-| B17 | Validasi kompatibilitas mahram di room assignment (K6) | Kamar |
+| ~~B17~~ | ~~Validasi kompatibilitas mahram di room assignment (K6)~~ | ~~Kamar~~ |
 | B18 | Foto bukti distribusi perlengkapan (E7) | Equipment |
 | B19 | Paket perlengkapan default per tipe paket (E8) | Equipment |
 

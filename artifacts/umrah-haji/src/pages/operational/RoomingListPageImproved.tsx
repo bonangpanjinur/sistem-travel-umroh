@@ -22,6 +22,7 @@ import {
   LayoutGrid, List,
 } from "lucide-react";
 import FloorPlanView from "@/components/rooming/FloorPlanView";
+import MahramCompatibilityAlert from "@/components/rooming/MahramCompatibilityAlert";
 import { Database } from "@/integrations/supabase/types";
 import * as XLSX from 'xlsx';
 
@@ -464,6 +465,12 @@ export default function RoomingListPageImproved() {
               <Progress value={fillPct} className="h-2" />
             </CardContent>
           </Card>
+
+          {/* K6 — Validasi kompatibilitas mahram */}
+          <MahramCompatibilityAlert
+            departureId={selectedDepartureId}
+            hotelId={selectedHotelId}
+          />
 
           <div className="flex flex-wrap gap-2 items-center">
             <Button onClick={() => setAddRoomDialogOpen(true)}>
