@@ -3963,6 +3963,7 @@ export type Database = {
           id: string
           phone: string | null
           province: string | null
+          session_version: number | null
           updated_at: string | null
           user_id: string
         }
@@ -3975,6 +3976,7 @@ export type Database = {
           id?: string
           phone?: string | null
           province?: string | null
+          session_version?: number | null
           updated_at?: string | null
           user_id: string
         }
@@ -3987,6 +3989,7 @@ export type Database = {
           id?: string
           phone?: string | null
           province?: string | null
+          session_version?: number | null
           updated_at?: string | null
           user_id?: string
         }
