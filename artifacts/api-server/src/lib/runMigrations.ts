@@ -260,6 +260,32 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 04_gallery_media_type — already applied, skipping");
     }
 
+    // ── Step 1e: equipment functions + migrations 062–065 ────────────────
+    const equipmentMigrationsApplied = await isApplied(client, "05_equipment_and_recent_migrations");
+    if (!equipmentMigrationsApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("05_equipment_and_recent_migrations.sql"),
+        "05_equipment_and_recent_migrations (return_equipment_item + size + confirmation + hotel rooms + P&L trigger)",
+      );
+      await markApplied(client, "05_equipment_and_recent_migrations");
+    } else {
+      logger.info("runMigrations: 05_equipment_and_recent_migrations — already applied, skipping");
+    }
+
+    // ── Step 1f: equipment_items + variants + stock tables + modern distributions ─
+    const equipmentSchemaApplied = await isApplied(client, "06_equipment_schema");
+    if (!equipmentSchemaApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("06_equipment_schema.sql"),
+        "06_equipment_schema (equipment_items + variants + stock + modern distributions + functions)",
+      );
+      await markApplied(client, "06_equipment_schema");
+    } else {
+      logger.info("runMigrations: 06_equipment_schema — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
