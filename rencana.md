@@ -62,7 +62,7 @@ RBAC (15 role):
 | ✅ | 2FA (TOTP + OTP via edge function) | `supabase/functions/request-2fa-otp/`, `verify-2fa-otp/` |
 | ✅ | Admin2FASettings, AdminSecurityAudit | `pages/admin/` |
 | ✅ | Guest checkout | `services/guestCheckoutService.ts` |
-| ❌ | Revoke all sessions (force logout) | Belum ada server-side session revocation |
+| ✅ | Revoke all sessions (force logout) | `revoke-all-sessions` edge function + session versioning |
 
 ---
 
