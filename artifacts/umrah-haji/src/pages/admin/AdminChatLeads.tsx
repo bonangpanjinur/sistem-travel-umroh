@@ -18,7 +18,7 @@ import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import * as XLSX from "xlsx";
+// xlsx di-load lazily di handler exportExcel (chunk besar ±1MB).
 
 type LeadStatus = "new" | "contacted" | "qualified" | "converted" | "lost";
 
@@ -138,7 +138,7 @@ export default function AdminChatLeads() {
     updateMutation.mutate({ id: selectedLead.id, status: editStatus, notes: editNotes });
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     const rows = filtered.map((l: any) => ({
       "Nama": l.name,
       "Telepon": l.phone,
@@ -149,6 +149,7 @@ export default function AdminChatLeads() {
       "Catatan": l.notes || "-",
       "Tgl Masuk": l.created_at ? format(parseISO(l.created_at), "d MMM yyyy HH:mm", { locale: localeId }) : "-",
     }));
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
     ws["!cols"] = [{ wch: 20 }, { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 30 }, { wch: 18 }];
     const wb = XLSX.utils.book_new();
