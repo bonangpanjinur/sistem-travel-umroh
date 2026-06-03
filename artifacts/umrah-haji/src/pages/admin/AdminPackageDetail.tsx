@@ -621,6 +621,7 @@ export default function AdminPackageDetail() {
                           {/* Phase 3 & 5 Quick Stats */}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <MilestoneTrackerCard
+                              departureId={departure.id}
                               milestones={[
                                 { label: "Pengumpulan Dokumen", date: departure.document_deadline, type: "document" },
                                 { label: "Pelunasan Pembayaran", date: departure.payment_deadline, type: "payment" },

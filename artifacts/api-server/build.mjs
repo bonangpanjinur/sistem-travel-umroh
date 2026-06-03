@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, cp } from "node:fs/promises";
+import { rm, cp, stat, mkdir } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -121,20 +121,29 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   });
 
   // Copy SQL migration files into dist so they are available at runtime.
-  // 00_auth_bootstrap.sql — creates auth schema + stub functions (Neon compat)
-  // 01_schema.sql         — full application schema (migration_fresh.sql)
+  // These copies are optional — if the source directories/files are missing the
+  // build continues without error (Supabase is the canonical SQL store).
+
   const sqlDist = path.resolve(distDir, "sql");
-  await cp(
-    path.resolve(artifactDir, "src/sql"),
-    sqlDist,
-    { recursive: true },
-  );
+  const srcSql  = path.resolve(artifactDir, "src/sql");
 
-  // Copy the root-level migration_fresh.sql → dist/sql/01_schema.sql
-  const rootSql = path.resolve(artifactDir, "../../migration_fresh.sql");
-  await cp(rootSql, path.resolve(sqlDist, "01_schema.sql"));
+  try {
+    await stat(srcSql);
+    await cp(srcSql, sqlDist, { recursive: true });
+    console.log("✓ src/sql copied to dist/sql/");
+  } catch {
+    await mkdir(sqlDist, { recursive: true });
+    console.log("ℹ src/sql not found — skipping SQL copy (using Supabase migrations)");
+  }
 
-  console.log("✓ SQL files copied to dist/sql/");
+  const rootSql = path.resolve(artifactDir, "../../sql/MASTER_FRESH_INSTALL.sql");
+  try {
+    await stat(rootSql);
+    await cp(rootSql, path.resolve(sqlDist, "01_schema.sql"));
+    console.log("✓ MASTER_FRESH_INSTALL.sql copied to dist/sql/01_schema.sql");
+  } catch {
+    console.log("ℹ MASTER_FRESH_INSTALL.sql not found — skipping");
+  }
 }
 
 buildAll().catch((err) => {
