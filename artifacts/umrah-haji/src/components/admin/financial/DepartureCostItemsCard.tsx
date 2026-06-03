@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMarginAlert } from "@/hooks/useMarginAlert";
+import { usePackageHPPTemplate } from "@/hooks/usePackageHPPTemplate";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DepartureCostItemForm } from "./DepartureCostItemForm";
 import { CopyHPPDialog } from "./CopyHPPDialog";
 import { HPPTemplateDialog } from "./HPPTemplateDialog";
-import { Plus, Pencil, Trash2, Package, AlertCircle, Copy, BookMarked, RefreshCw } from "lucide-react";
+import { PackageHPPTemplateDialog } from "./PackageHPPTemplateDialog";
+import { Plus, Pencil, Trash2, Package, AlertCircle, Copy, BookMarked, RefreshCw, Package2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
   airline:        { label: "Tiket Pesawat",      icon: "✈️", color: "bg-sky-100 text-sky-800" },
@@ -37,6 +40,8 @@ function fmt(n: number) {
 
 interface Props {
   departureId: string;
+  packageId?: string;
+  packageName?: string;
   paxCount?: number;
   departureLabel?: string;
   priceQuad?: number;
@@ -48,6 +53,8 @@ interface Props {
 
 export function DepartureCostItemsCard({
   departureId,
+  packageId,
+  packageName,
   paxCount = 0,
   departureLabel,
   priceQuad = 0,
@@ -68,9 +75,11 @@ export function DepartureCostItemsCard({
     targetPct: targetMarginPct,
     enabled: !!departureId,
   });
+
   const [formOpen, setFormOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [pkgTemplateOpen, setPkgTemplateOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [isRecalculating, setIsRecalculating] = useState(false);
@@ -89,6 +98,10 @@ export function DepartureCostItemsCard({
       return data || [];
     },
   });
+
+  // Package template — for banner & button state
+  const { hasTemplate: pkgHasTemplate, templateItems: pkgTemplateItems } =
+    usePackageHPPTemplate(packageId);
 
   // Auto-recalculate financial summary after any change
   const triggerRecalculate = useCallback(async () => {
@@ -145,6 +158,12 @@ export function DepartureCostItemsCard({
     await triggerRecalculate();
   };
 
+  const handlePkgTemplateApplied = async () => {
+    await triggerRecalculate();
+  };
+
+  const isEmpty = !isLoading && (!items || items.length === 0);
+
   return (
     <>
       <Card>
@@ -169,6 +188,25 @@ export function DepartureCostItemsCard({
                 )}
               </div>
             )}
+            {packageId && (
+              <Button
+                size="sm"
+                variant={pkgHasTemplate ? "outline" : "outline"}
+                onClick={() => setPkgTemplateOpen(true)}
+                className={cn(
+                  "gap-1",
+                  pkgHasTemplate && "border-primary/50 text-primary hover:bg-primary/5"
+                )}
+              >
+                <Package2 className="h-4 w-4" />
+                Template Paket
+                {pkgHasTemplate && (
+                  <Badge className="text-[9px] px-1 py-0 bg-primary/10 text-primary border-0 ml-0.5">
+                    {pkgTemplateItems.length}
+                  </Badge>
+                )}
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => setTemplateOpen(true)}>
               <BookMarked className="h-4 w-4 mr-1" /> Template
             </Button>
@@ -187,11 +225,45 @@ export function DepartureCostItemsCard({
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : !items || items.length === 0 ? (
-            <div className="py-10 text-center text-muted-foreground">
+          ) : isEmpty ? (
+            <div className="py-8 text-center text-muted-foreground">
+              {/* Package template suggestion banner */}
+              {packageId && pkgHasTemplate ? (
+                <div className="mx-4 mb-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-primary">
+                        Paket ini memiliki template HPP
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Template berisi <strong>{pkgTemplateItems.length} item HPP</strong>.
+                        Terapkan untuk mengisi biaya modal secara otomatis tanpa isi ulang dari awal.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => setPkgTemplateOpen(true)}
+                      >
+                        <Package2 className="h-4 w-4 mr-2" />
+                        Terapkan Template Paket
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               <Package className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Belum ada item HPP. Klik <strong>Tambah</strong> untuk mulai input biaya modal.</p>
-              <p className="text-xs mt-1 opacity-60">Atau gunakan <strong>Template</strong> untuk mengisi HPP secara cepat.</p>
+              <p className="text-sm">
+                Belum ada item HPP.{" "}
+                {packageId && !pkgHasTemplate
+                  ? <>Klik <strong>Tambah</strong> untuk input biaya, atau <strong>Template Paket</strong> untuk simpan & terapkan template.</>
+                  : <>Klik <strong>Tambah</strong> untuk mulai input biaya modal.</>
+                }
+              </p>
+              <p className="text-xs mt-1 opacity-60">
+                Atau gunakan <strong>Template</strong> / <strong>Salin HPP</strong> untuk mengisi secara cepat.
+              </p>
             </div>
           ) : (
             <div className="divide-y">
@@ -323,7 +395,7 @@ export function DepartureCostItemsCard({
         targetDepartureLabel={departureLabel}
       />
 
-      {/* Template library dialog */}
+      {/* Template library dialog (localStorage) */}
       <HPPTemplateDialog
         open={templateOpen}
         onOpenChange={(open) => {
@@ -333,6 +405,19 @@ export function DepartureCostItemsCard({
         targetDepartureId={departureId}
         currentItems={items || []}
       />
+
+      {/* Package-level HPP template dialog (DB-backed) */}
+      {packageId && (
+        <PackageHPPTemplateDialog
+          open={pkgTemplateOpen}
+          onOpenChange={setPkgTemplateOpen}
+          packageId={packageId}
+          packageName={packageName}
+          targetDepartureId={departureId}
+          currentItems={items || []}
+          onApplied={handlePkgTemplateApplied}
+        />
+      )}
     </>
   );
 }

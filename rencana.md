@@ -91,7 +91,7 @@ RBAC (15 role):
 
 | # | Fitur | Prioritas | Detail |
 |---|-------|-----------|--------|
-| P1 | **Template HPP paket** (copy cost items ke departure baru) | 🔴 | Setiap departure isi ulang cost items dari nol |
+| ~~P1~~ | ~~**Template HPP paket** (copy cost items ke departure baru)~~ | ~~🔴~~ | ✅ `package_hpp_templates` DB table + `usePackageHPPTemplate` hook + `PackageHPPTemplateDialog` + "Template Paket" button + auto-banner ketika departure kosong |
 | P2 | **Perbandingan paket side-by-side** | 🟠 | `PackageCompare.tsx` ada tapi terbatas |
 | ~~P3~~ | ~~History perubahan harga paket~~ | ~~🟠~~ | ✅ `PackagePriceTrendCard` + `PackagePriceAuditCard` sudah ada |
 | ~~P4~~ | ~~Batas diskon maksimum per paket~~ | ~~🟡~~ | ✅ `max_discount` di CouponForm + StepReviewDynamic sudah ada |

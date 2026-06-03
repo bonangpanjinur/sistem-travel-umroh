@@ -32,6 +32,7 @@ interface Departure {
 interface Props {
   departures: Departure[];
   packageName?: string;
+  packageId?: string;
 }
 
 function formatDepartureLabel(d: Departure): string {
@@ -56,7 +57,7 @@ const STATUS_BADGE: Record<string, React.ReactElement> = {
   departed: <Badge variant="outline" className="text-[10px] px-1.5 py-0">Berangkat</Badge>,
 };
 
-export function PackageFinancialSection({ departures, packageName }: Props) {
+export function PackageFinancialSection({ departures, packageName, packageId }: Props) {
   const [selectedId, setSelectedId] = useState<string>(departures[0]?.id ?? "");
 
   const selected = departures.find((d) => d.id === selectedId);
@@ -148,6 +149,8 @@ export function PackageFinancialSection({ departures, packageName }: Props) {
             <div className="grid gap-4 lg:grid-cols-2">
               <DepartureCostItemsCard
                 departureId={selected.id}
+                packageId={packageId}
+                packageName={packageName}
                 paxCount={paxCount}
                 departureLabel={formatDepartureLabel(selected)}
                 priceQuad={selected.price_quad ?? 0}
