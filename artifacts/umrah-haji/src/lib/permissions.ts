@@ -213,6 +213,9 @@ export const PERMISSIONS = {
   // Sprint 4
   CICILAN_GENERATOR: 'cicilan-generator',
   PROPOSAL_GENERATOR: 'proposal-generator',
+
+  // P2 — Perbandingan Profitabilitas Paket
+  PROFITABILITAS_PAKET: 'profitabilitas-paket',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

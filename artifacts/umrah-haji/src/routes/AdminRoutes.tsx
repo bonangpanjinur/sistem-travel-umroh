@@ -180,6 +180,7 @@ const AdminSentimenFeedback = lazy(() => import("@/pages/admin/AdminSentimenFeed
 const AdminPrediksiSeat = lazy(() => import("@/pages/admin/AdminPrediksiSeat"));
 const AdminSmartNotif = lazy(() => import("@/pages/admin/AdminSmartNotif"));
 const AdminRekomendasiPaket = lazy(() => import("@/pages/admin/AdminRekomendasiPaket"));
+const AdminPackageProfitabilityComparison = lazy(() => import("@/pages/admin/AdminPackageProfitabilityComparison"));
 
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
@@ -423,6 +424,7 @@ export default function AdminRoutes() {
       <Route path="prediksi-seat" element={<P k={PERMISSIONS.PREDIKSI_SEAT}><AdminPrediksiSeat /></P>} />
       <Route path="smart-notif" element={<P k={PERMISSIONS.SMART_NOTIF}><AdminSmartNotif /></P>} />
       <Route path="rekomendasi-paket" element={<P k={PERMISSIONS.REKOMENDASI_PAKET}><AdminRekomendasiPaket /></P>} />
+      <Route path="profitabilitas-paket" element={<P k={PERMISSIONS.PROFITABILITAS_PAKET}><AdminPackageProfitabilityComparison /></P>} />
     </Route>
   );
 }
