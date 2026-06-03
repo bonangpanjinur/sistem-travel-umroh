@@ -350,17 +350,16 @@ export default function AdminPWASettings() {
       <Tabs defaultValue="menu">
         <TabsList className="mb-4 flex-wrap h-auto gap-1">
           <TabsTrigger value="menu">Menu Bawah</TabsTrigger>
-          <TabsTrigger value="layout">Layout Beranda</TabsTrigger>
+          <TabsTrigger value="layout-preview">Layout Beranda & Preview</TabsTrigger>
           <TabsTrigger value="theme">Tema & Warna</TabsTrigger>
           <TabsTrigger value="header">Navigasi Header</TabsTrigger>
           <TabsTrigger value="icon">Ikon &amp; Tampilan</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="live-preview">Live App</TabsTrigger>
           <TabsTrigger value="panduan">Cara Pasang</TabsTrigger>
         </TabsList>
 
-        {/* ── TAB: LAYOUT BERANDA ── */}
-        <TabsContent value="layout">
+        {/* ── TAB: LAYOUT BERANDA & PREVIEW ── */}
+        <TabsContent value="layout-preview">
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -392,25 +391,69 @@ export default function AdminPWASettings() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Preview Struktur
-                </CardTitle>
-                <CardDescription>Urutan komponen yang akan tampil di PWA</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
-                  {localPwaLayout.filter(s => s.enabled).map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-3 p-2 bg-background border rounded shadow-sm">
-                      <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center">{i + 1}</Badge>
-                      <span className="font-medium text-sm">{s.title}</span>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Preview Struktur
+                  </CardTitle>
+                  <CardDescription>Urutan komponen yang akan tampil di PWA</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
+                    {localPwaLayout.filter(s => s.enabled).map((s, i) => (
+                      <div key={s.id} className="flex items-center gap-3 p-2 bg-background border rounded shadow-sm">
+                        <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center">{i + 1}</Badge>
+                        <span className="font-medium text-sm">{s.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Preview Aplikasi</CardTitle>
+                  <CardDescription>Tampilan PWA saat diinstal di ponsel</CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                  <div className="relative w-56 h-[420px] rounded-[2rem] border-4 border-foreground bg-background shadow-2xl overflow-hidden">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-foreground rounded-b-xl z-10" />
+                    <div className="h-full flex flex-col" style={{ background: `linear-gradient(135deg, ${iconConfig.bgColor}, ${iconConfig.themeColor})` }}>
+                      <div className="flex justify-between px-4 pt-8 pb-2 text-white text-[10px]">
+                        <span>9:41</span><span>●●●</span>
+                      </div>
+                      <div className="flex-1 bg-background mx-0 rounded-t-2xl mt-1 relative overflow-hidden">
+                        <div className="p-3 space-y-2">
+                          <div className="h-2 w-2/3 bg-muted rounded-full" />
+                          <div className="h-20 rounded-xl" style={{ background: `linear-gradient(135deg, ${iconConfig.bgColor}cc, ${iconConfig.themeColor}cc)` }} />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="h-14 bg-muted rounded-lg" />
+                            <div className="h-14 bg-muted rounded-lg" />
+                          </div>
+                          <div className="h-12 bg-muted rounded-lg" />
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border">
+                      <div className="grid h-14" style={{ gridTemplateColumns: `repeat(${previewItems.length || 1}, 1fr)` }}>
+                        {previewItems.map((item, idx) => {
+                          const Icon = ICON_MAP[item.icon] ?? Home;
+                          return (
+                            <div key={item.id} className={cn("flex flex-col items-center justify-center gap-0.5", idx === 0 ? "text-primary" : "text-muted-foreground")}>
+                              <Icon className="h-4 w-4" />
+                              <span className="text-[8px] font-medium">{item.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-foreground/30 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 
@@ -895,66 +938,7 @@ export default function AdminPWASettings() {
           </div>
         </TabsContent>
 
-        {/* ── TAB: PREVIEW LENGKAP ── */}
-        <TabsContent value="preview">
-          <div className="flex justify-center">
-            <div className="relative w-64 h-[560px] rounded-[2.5rem] border-4 border-foreground bg-background shadow-2xl overflow-hidden">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-foreground rounded-b-xl z-10" />
 
-              {/* PWA compact header */}
-              <div
-                className="flex items-center justify-between px-4 py-2.5 text-white text-xs font-medium"
-                style={{ backgroundColor: iconConfig.themeColor }}
-              >
-                <div className="flex items-center gap-1.5">
-                  {iconPreview && (
-                    <img src={iconPreview} alt="" className="h-5 w-5 rounded object-cover" />
-                  )}
-                  <span className="font-bold">{iconConfig.appName}</span>
-                </div>
-                <span className="opacity-60">9:41</span>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 bg-background p-3 space-y-2 overflow-hidden" style={{ height: "calc(100% - 90px)" }}>
-                <div className="h-2.5 w-2/3 bg-muted rounded-full" />
-                <div className="h-24 rounded-xl" style={{ background: `linear-gradient(135deg, ${iconConfig.bgColor}99, ${iconConfig.themeColor}99)` }} />
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="h-16 bg-muted rounded-xl" />
-                  <div className="h-16 bg-muted rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-12 bg-muted rounded-xl" />
-                  <div className="h-12 bg-muted rounded-xl" />
-                  <div className="h-12 bg-muted rounded-xl" />
-                </div>
-              </div>
-
-              {/* Bottom nav */}
-              <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border">
-                <div className="grid h-14" style={{ gridTemplateColumns: `repeat(${previewItems.length || 1}, 1fr)` }}>
-                  {previewItems.map((item, idx) => {
-                    const Icon = ICON_MAP[item.icon] ?? Home;
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn("flex flex-col items-center justify-center gap-0.5", idx === 0 ? "text-primary" : "text-muted-foreground")}
-                      >
-                        <Icon className="h-5 w-5" />
-                        <span className="text-[9px] font-medium">{item.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-foreground/30 rounded-full" />
-            </div>
-          </div>
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            Preview tampilan saat website dipasang sebagai aplikasi (PWA) di ponsel
-          </p>
-        </TabsContent>
 
         {/* ── TAB: LIVE APP ── */}
         <TabsContent value="live-preview">
