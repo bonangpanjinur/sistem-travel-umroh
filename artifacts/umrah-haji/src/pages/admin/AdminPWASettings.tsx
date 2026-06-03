@@ -391,69 +391,33 @@ export default function AdminPWASettings() {
               </CardContent>
             </Card>
 
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Eye className="h-4 w-4" />
-                    Preview Struktur
-                  </CardTitle>
-                  <CardDescription>Urutan komponen yang akan tampil di PWA</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
-                    {localPwaLayout.filter(s => s.enabled).map((s, i) => (
-                      <div key={s.id} className="flex items-center gap-3 p-2 bg-background border rounded shadow-sm">
-                        <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center">{i + 1}</Badge>
-                        <span className="font-medium text-sm">{s.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Preview Aplikasi</CardTitle>
-                  <CardDescription>Tampilan PWA saat diinstal di ponsel</CardDescription>
-                </CardHeader>
-                <CardContent className="flex justify-center">
-                  <div className="relative w-56 h-[420px] rounded-[2rem] border-4 border-foreground bg-background shadow-2xl overflow-hidden">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-foreground rounded-b-xl z-10" />
-                    <div className="h-full flex flex-col" style={{ background: `linear-gradient(135deg, ${iconConfig.bgColor}, ${iconConfig.themeColor})` }}>
-                      <div className="flex justify-between px-4 pt-8 pb-2 text-white text-[10px]">
-                        <span>9:41</span><span>●●●</span>
-                      </div>
-                      <div className="flex-1 bg-background mx-0 rounded-t-2xl mt-1 relative overflow-hidden">
-                        <div className="p-3 space-y-2">
-                          <div className="h-2 w-2/3 bg-muted rounded-full" />
-                          <div className="h-20 rounded-xl" style={{ background: `linear-gradient(135deg, ${iconConfig.bgColor}cc, ${iconConfig.themeColor}cc)` }} />
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="h-14 bg-muted rounded-lg" />
-                            <div className="h-14 bg-muted rounded-lg" />
-                          </div>
-                          <div className="h-12 bg-muted rounded-lg" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border">
-                      <div className="grid h-14" style={{ gridTemplateColumns: `repeat(${previewItems.length || 1}, 1fr)` }}>
-                        {previewItems.map((item, idx) => {
-                          const Icon = ICON_MAP[item.icon] ?? Home;
-                          return (
-                            <div key={item.id} className={cn("flex flex-col items-center justify-center gap-0.5", idx === 0 ? "text-primary" : "text-muted-foreground")}>
-                              <Icon className="h-4 w-4" />
-                              <span className="text-[8px] font-medium">{item.label}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-foreground/30 rounded-full" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Live Preview
+                </CardTitle>
+                <CardDescription>Pratinjau langsung tampilan PWA di ponsel</CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <div
+                  className="relative rounded-[2.5rem] border-4 bg-background shadow-2xl overflow-hidden"
+                  style={{ width: 360, height: 720, borderColor: iconConfig.themeColor }}
+                >
+                  <div
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 rounded-b-xl z-10"
+                    style={{ backgroundColor: iconConfig.themeColor }}
+                  />
+                  <iframe
+                    src="/jamaah/?preview=standalone"
+                    title="Preview PWA standalone"
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                  />
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-foreground/30 rounded-full" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -940,35 +904,7 @@ export default function AdminPWASettings() {
 
 
 
-        {/* ── TAB: LIVE APP ── */}
-        <TabsContent value="live-preview">
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Pratinjau live website Anda dalam mode aplikasi (standalone). Iframe di bawah ini menampilkan website seperti yang akan terlihat ketika dipasang sebagai PWA di perangkat pengguna.
-            </p>
-            <div className="flex justify-center">
-              <div
-                className="relative rounded-[2.5rem] border-4 bg-background shadow-2xl overflow-hidden"
-                style={{ width: 360, height: 720, borderColor: iconConfig.themeColor }}
-              >
-                <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 rounded-b-xl z-10"
-                  style={{ backgroundColor: iconConfig.themeColor }}
-                />
-                <iframe
-                  src="/jamaah/?preview=standalone"
-                  title="Preview PWA standalone"
-                  className="w-full h-full border-0"
-                  loading="lazy"
-                />
-                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-foreground/30 rounded-full" />
-              </div>
-            </div>
-            <p className="text-center text-xs text-muted-foreground">
-              Tips: tambahkan parameter <code>?preview=standalone</code> pada URL untuk memunculkan tampilan aplikasi tanpa header browser.
-            </p>
-          </div>
-        </TabsContent>
+
 
         {/* ── TAB: CARA PASANG ── */}
         <TabsContent value="panduan">
