@@ -216,6 +216,12 @@ export default function AdminLaporanKeberangkatan() {
           <Button variant="outline" size="sm" onClick={exportPDF}>
             <FileText className="h-4 w-4 mr-1.5" /> PDF
           </Button>
+          <Button variant="outline" size="sm" onClick={() => window.open(`/api/reports/export?type=manifest&format=xlsx${selectedDeparture !== 'all' ? `&departure_id=${selectedDeparture}` : ''}`, '_blank')}>
+            <FileSpreadsheet className="h-4 w-4 mr-1.5" /> Server Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => window.open(`/api/reports/export?type=manifest&format=pdf${selectedDeparture !== 'all' ? `&departure_id=${selectedDeparture}` : ''}`, '_blank')}>
+            <FileText className="h-4 w-4 mr-1.5" /> Server PDF
+          </Button>
         </div>
       </div>
 

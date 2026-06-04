@@ -444,7 +444,7 @@ RBAC (15 role):
 | `POST /api/midtrans/webhook` | 🔴 | Status tidak auto-update (sudah ada di Supabase edge function, belum di Express) |
 | `GET /api/dashboard/stats` | ✅ | `routes/dashboard.ts` — stats booking/payment/departure/customer + trend harian |
 | `POST /api/scheduler/run` | ✅ | `routes/scheduler.ts` — trigger manual cicilan/payment/departure_h7/departure_h1 |
-| `GET /api/reports/export` | 🟡 | Export laporan harus server-side |
+| `GET /api/reports/export` | ✅ | `routes/reports.ts` — type=keuangan/manifest/bookings/agen/payments × format=xlsx/pdf (pdfkit + xlsx, server-side) |
 
 ---
 
@@ -523,6 +523,7 @@ RBAC (15 role):
 | ~~B17~~ | ~~Validasi kompatibilitas mahram di room assignment (K6)~~ | ~~Kamar~~ |
 | ~~B18~~ | ~~Foto bukti distribusi perlengkapan (E7)~~ | ~~Equipment~~ | ✅ Selesai — lihat E7 di atas |
 | ~~B19~~ | ~~Paket perlengkapan default per tipe paket (E8)~~ | ~~Equipment~~ | ✅ Selesai — lihat E8 di atas |
+| ~~B20~~ | ~~Export laporan server-side PDF & Excel~~ | ~~Platform~~ | ✅ `GET /api/reports/export?type=keuangan|manifest|bookings|agen|payments&format=xlsx|pdf` — pdfkit + xlsx, tombol "Server Excel/PDF" di 3 halaman laporan |
 
 ---
 

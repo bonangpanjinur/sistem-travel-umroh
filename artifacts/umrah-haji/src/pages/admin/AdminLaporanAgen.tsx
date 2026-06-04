@@ -263,6 +263,12 @@ export default function AdminLaporanAgen() {
           <Button variant="outline" size="sm" onClick={exportPDF}>
             <FileText className="h-4 w-4 mr-1.5" /> PDF
           </Button>
+          <Button variant="outline" size="sm" onClick={() => window.open(`/api/reports/export?type=agen&format=xlsx&period=${period}`, '_blank')}>
+            <FileSpreadsheet className="h-4 w-4 mr-1.5" /> Server Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => window.open(`/api/reports/export?type=agen&format=pdf&period=${period}`, '_blank')}>
+            <FileText className="h-4 w-4 mr-1.5" /> Server PDF
+          </Button>
         </div>
       </div>
 
