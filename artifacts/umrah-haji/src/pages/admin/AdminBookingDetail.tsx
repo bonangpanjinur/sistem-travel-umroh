@@ -54,6 +54,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
 import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
+import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { format as dfFormat } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -72,6 +75,7 @@ export default function AdminBookingDetail() {
   const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
   const { company: companyInfo } = useCompanyInfo();
   const queryClient = useQueryClient();
+  const waNotifier = useWhatsAppNotifier();
   
   // Permission check - use isAdmin() which includes super_admin, owner, branch_manager
   const isFinance = hasRole('finance');
@@ -213,14 +217,44 @@ export default function AdminBookingDetail() {
         .eq('id', paymentId);
 
       if (error) throw error;
+      return { paymentId, status };
     },
-    onSuccess: () => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
       queryClient.invalidateQueries({ queryKey: ['booking-payments', id] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       toast.success('Pembayaran berhasil diperbarui');
       setSelectedPayment(null);
       setShowProofDialog(false);
+
+      // Auto WA notification if trigger is enabled
+      if (result.status === 'paid' && waNotifier.isReady) {
+        const autoTriggers: Record<string, boolean> = (() => {
+          try { return JSON.parse(localStorage.getItem("wa_auto_triggers") || "{}"); }
+          catch { return {}; }
+        })();
+
+        if (autoTriggers.on_payment_verified && booking) {
+          const customer = booking.customer as any;
+          const phone = customer?.phone;
+          if (phone) {
+            const dep = booking.departure as any;
+            const pkg = dep?.package;
+            const depDate = dep?.departure_date
+              ? dfFormat(new Date(dep.departure_date), "dd MMM yyyy", { locale: localeId })
+              : "-";
+            await waNotifier.sendPaymentConfirmation(phone, {
+              nama: customer.full_name || "Jamaah",
+              kode_booking: booking.booking_code || id,
+              jumlah_bayar: formatCurrency(selectedPayment?.amount || 0),
+              tanggal_bayar: dfFormat(new Date(), "dd MMM yyyy", { locale: localeId }),
+              total_terbayar: formatCurrency(booking.paid_amount || 0),
+              sisa_bayar: formatCurrency(booking.remaining_amount || 0),
+              nomor_cs: companyInfo?.phone || "",
+            });
+          }
+        }
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || 'Gagal memperbarui pembayaran');

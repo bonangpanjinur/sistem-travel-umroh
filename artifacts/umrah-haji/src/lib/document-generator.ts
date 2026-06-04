@@ -110,37 +110,56 @@ const defaultCompanyInfo: CompanyInfo = {
   website: 'www.umrahhaji.com'
 };
 
-// Helper to add letterhead
+// Helper to add letterhead with logo support
 function addLetterhead(doc: jsPDF, company: CompanyInfo = defaultCompanyInfo) {
   const pageWidth = doc.internal.pageSize.width;
+  let y = 15;
   
-  // Company name
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text(company.name, pageWidth / 2, 20, { align: 'center' });
+  // Header background color
+  doc.setFillColor(59, 130, 246); // Blue color
+  doc.rect(0, 0, pageWidth, 50, 'F');
   
-  // Company details
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(company.address, pageWidth / 2, 27, { align: 'center' });
-  doc.text(`Telp: ${company.phone} | Email: ${company.email}`, pageWidth / 2, 33, { align: 'center' });
-  if (company.website) {
-    doc.text(company.website, pageWidth / 2, 39, { align: 'center' });
+  // Add logo if available
+  if (company.logo) {
+    try {
+      doc.addImage(company.logo, 'PNG', 14, 8, 35, 35);
+    } catch (e) {
+      // Logo failed to load, continue without it
+      console.warn('Failed to load logo:', e);
+    }
   }
   
-  // Line separator
-  doc.setLineWidth(0.5);
-  doc.line(14, 45, pageWidth - 14, 45);
-  doc.setLineWidth(0.2);
-  doc.line(14, 46, pageWidth - 14, 46);
+  // Company name (white text on blue background)
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  const logoOffset = company.logo ? 55 : 14;
+  doc.text(company.name, logoOffset, 22, { align: 'left' });
   
-  return 55; // Return starting Y position for content
+  // Company details (white text on blue background)
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(company.address, logoOffset, 30, { align: 'left' });
+  doc.text(`Telp: ${company.phone} | Email: ${company.email}`, logoOffset, 36, { align: 'left' });
+  if (company.website) {
+    doc.text(company.website, logoOffset, 42, { align: 'left' });
+  }
+  
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
+  
+  return 60; // Return starting Y position for content
 }
 
 // Helper to add footer
 function addFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   const pageHeight = doc.internal.pageSize.height;
   const pageWidth = doc.internal.pageSize.width;
+  
+  // Footer line
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.line(14, pageHeight - 20, pageWidth - 14, pageHeight - 20);
   
   doc.setFontSize(8);
   doc.setTextColor(128);
@@ -358,24 +377,22 @@ export function generatePassportLetter(
   y += 15;
   
   // Content
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  
   const content = `Dengan hormat,
 
-Yang bertanda tangan di bawah ini, Direktur ${company.name}, dengan ini mengajukan permohonan pembuatan paspor untuk keperluan perjalanan ibadah Umrah/Haji atas nama:
+Yang bertanda tangan di bawah ini, Direktur ${company.name}, dengan ini menerangkan bahwa:
 
 Nama Lengkap       : ${data.customerName}
 NIK                : ${data.nik}
 Tempat/Tgl Lahir   : ${data.birthPlace}, ${format(data.birthDate, 'd MMMM yyyy', { locale: id })}
 Alamat             : ${data.address}
-No. Telepon        : ${data.phone}
-Tujuan Perjalanan  : ${data.purpose}${data.departureDate ? `\nRencana Berangkat  : ${format(data.departureDate, 'd MMMM yyyy', { locale: id })}` : ''}
+Telp               : ${data.phone}
 
-Yang bersangkutan adalah calon jamaah yang telah terdaftar di ${company.name} dan memerlukan paspor untuk keperluan perjalanan ibadah ke Tanah Suci.
+Adalah calon jamaah ${data.purpose} yang terdaftar di ${company.name} dan akan menunaikan ibadah ${data.purpose} ke Tanah Suci.
 
-Bersama ini kami lampirkan dokumen pendukung:
-1. Fotokopi KTP
-2. Fotokopi Kartu Keluarga
-3. Fotokopi Akta Kelahiran
-4. Pas Foto 4x6 (latar belakang putih)
+Sehubungan dengan hal tersebut, kami mohon kesediaan Bapak/Ibu untuk dapat menerbitkan paspor bagi yang bersangkutan dengan segera.
 
 Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerjasamanya, kami ucapkan terima kasih.`;
 
@@ -410,6 +427,7 @@ export function generateInvoice(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
+
 
   // ── COLOR PALETTE ──
   const GREEN_DARK:  [number, number, number] = [22, 101, 52];   // emerald-800
@@ -504,6 +522,72 @@ export function generateInvoice(
   y += 44;
 
   // ── ITEMS TABLE ──
+
+  
+  // Invoice Title with styling
+  doc.setFillColor(59, 130, 246);
+  doc.rect(14, y - 8, pageWidth - 28, 12, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INVOICE', pageWidth / 2, y + 1, { align: 'center' });
+  
+  doc.setTextColor(0, 0, 0);
+  y += 20;
+  
+  // Two column layout: Invoice details (left) and Customer info (right)
+  const leftColX = 14;
+  const rightColX = pageWidth / 2 + 5;
+  const colWidth = pageWidth / 2 - 20;
+  
+  // Left column - Invoice details
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Detail Invoice:', leftColX, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  
+  y += 6;
+  doc.text(`No. Invoice: ${data.invoiceNumber}`, leftColX, y);
+  y += 5;
+  doc.text(`Tanggal: ${format(data.invoiceDate, 'd MMMM yyyy', { locale: id })}`, leftColX, y);
+  y += 5;
+  doc.text(`Jatuh Tempo: ${format(data.dueDate, 'd MMMM yyyy', { locale: id })}`, leftColX, y);
+  
+  // Right column - Customer info
+  let rightY = y - 16;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Kepada:', rightColX, rightY);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  rightY += 6;
+  doc.text(data.customer.name, rightColX, rightY);
+  
+  rightY += 5;
+  const addressLines = doc.splitTextToSize(data.customer.address, colWidth - 5);
+  doc.text(addressLines, rightColX, rightY);
+  
+  rightY += addressLines.length * 4 + 3;
+  doc.text(`Telp: ${data.customer.phone}`, rightColX, rightY);
+  
+  if (data.customer.email) {
+    rightY += 4;
+    doc.text(`Email: ${data.customer.email}`, rightColX, rightY);
+  }
+  
+  y = Math.max(y + 5, rightY + 8);
+  
+  // Separator line
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.line(14, y, pageWidth - 14, y);
+  y += 8;
+  
+  // Items table
+
   const tableData = data.items.map((item, index) => [
     (index + 1).toString(),
     item.description,
@@ -516,6 +600,7 @@ export function generateInvoice(
     startY: y,
     head: [['No', 'Deskripsi Layanan', 'Qty', 'Harga Satuan', 'Total']],
     body: tableData,
+
     styles: {
       fontSize: 9,
       cellPadding: 4,
@@ -531,10 +616,24 @@ export function generateInvoice(
     },
     alternateRowStyles: {
       fillColor: [249, 250, 251],
+
+    styles: { 
+      fontSize: 9,
+      cellPadding: 4,
+      lineColor: [220, 220, 220],
+      lineWidth: 0.5
+    },
+    headStyles: { 
+      fillColor: [59, 130, 246], 
+      textColor: 255,
+      fontStyle: 'bold',
+      halign: 'center'
+
     },
     columnStyles: {
       0: { cellWidth: 12, halign: 'center' },
       1: { cellWidth: 'auto' },
+
       2: { cellWidth: 18, halign: 'center' },
       3: { cellWidth: 38, halign: 'right' },
       4: { cellWidth: 38, halign: 'right', fontStyle: 'bold' },
@@ -567,6 +666,33 @@ export function generateInvoice(
   doc.text(formatCurrency(data.subtotal), totalsBoxX + totalsBoxW - 5, totalsY, { align: 'right' });
   totalsY += 8;
 
+
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 35, halign: 'right' },
+      4: { cellWidth: 35, halign: 'right' }
+    },
+    margin: { left: 14, right: 14 }
+  });
+  
+  // @ts-ignore - lastAutoTable is added by jspdf-autotable
+  y = doc.lastAutoTable.finalY + 12;
+  
+  // Totals section with better styling
+  const totalsX = pageWidth - 100;
+  const totalsBoxWidth = 95;
+  
+  // Totals background
+  doc.setFillColor(245, 245, 245);
+  doc.rect(totalsX - 5, y - 3, totalsBoxWidth + 5, 45, 'F');
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  
+  doc.text('Subtotal:', totalsX, y);
+  doc.text(formatCurrency(data.subtotal), pageWidth - 14, y, { align: 'right' });
+  y += 6;
+  
+
   if (data.discount) {
     doc.setTextColor(220, 38, 38);
     doc.text('Diskon:', totalsBoxX + 5, totalsY);
@@ -580,6 +706,7 @@ export function generateInvoice(
     doc.text(formatCurrency(data.tax), totalsBoxX + totalsBoxW - 5, totalsY, { align: 'right' });
     totalsY += 8;
   }
+
 
   // Total row with green background
   doc.setFillColor(...GREEN_DARK);
@@ -634,6 +761,60 @@ export function generateInvoice(
     const noteLines = doc.splitTextToSize(data.notes, pageWidth - 28);
     doc.text(noteLines, 14, y);
     y += noteLines.length * 5 + 5;
+
+  
+  // Total line separator
+  doc.setDrawColor(59, 130, 246);
+  doc.setLineWidth(1);
+  doc.line(totalsX - 5, y + 1, pageWidth - 14, y + 1);
+  y += 6;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(59, 130, 246);
+  doc.text('TOTAL:', totalsX, y);
+  doc.text(formatCurrency(data.total), pageWidth - 14, y, { align: 'right' });
+  
+  doc.setTextColor(0, 0, 0);
+  y += 15;
+  
+  // Bank info section
+  const bankInfo = data.bankInfo;
+  if (bankInfo) {
+    doc.setFillColor(240, 248, 255);
+    doc.rect(14, y - 3, pageWidth - 28, 25, 'F');
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Pembayaran dapat ditransfer ke:', 18, y);
+    y += 6;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`Bank: ${bankInfo.bankName}`, 18, y);
+    y += 4;
+    doc.text(`No. Rekening: ${bankInfo.accountNumber}`, 18, y);
+    y += 4;
+    doc.text(`Atas Nama: ${bankInfo.accountName}`, 18, y);
+    
+    y += 12;
+  }
+  
+  // Notes section
+  if (data.notes) {
+    doc.setFillColor(255, 250, 205);
+    doc.rect(14, y - 3, pageWidth - 28, 20, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Catatan:', 18, y);
+    y += 5;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const noteLines = doc.splitTextToSize(data.notes, pageWidth - 36);
+    doc.text(noteLines, 18, y);
+
   }
 
   // ── SIGNATURE AREA ──

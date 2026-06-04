@@ -30,6 +30,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
     hero_image_url: settings.hero_image_url || "",
     hero_cta_text: settings.hero_cta_text || "",
     hero_cta_link: settings.hero_cta_link || "",
+    hero_display_mode: (settings.hero_display_mode as any) || "both",
   });
   
   const [packageCount, setPackageCount] = useState<number>(
@@ -44,6 +45,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
       hero_image_url: settings.hero_image_url || "",
       hero_cta_text: settings.hero_cta_text || "",
       hero_cta_link: settings.hero_cta_link || "",
+      hero_display_mode: (settings.hero_display_mode as any) || "both",
     });
     setPackageCount(settings.featured_packages_count || 3);
   }, [settings]);
@@ -52,6 +54,7 @@ export function PageBuilder({ settings }: PageBuilderProps) {
     updateSettings.mutate({
       homepage_sections: sections,
       ...heroContent,
+      hero_display_mode: heroContent.hero_display_mode as any,
       featured_packages_count: packageCount,
     });
   };
@@ -249,6 +252,29 @@ export function PageBuilder({ settings }: PageBuilderProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Mode Tampilan Beranda</Label>
+              <Select
+                value={heroContent.hero_display_mode}
+                onValueChange={(val) =>
+                  setHeroContent((prev) => ({ ...prev, hero_display_mode: val as any }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="both">Banner Carousel + Hero (default)</SelectItem>
+                  <SelectItem value="banner_only">Hanya Banner Carousel</SelectItem>
+                  <SelectItem value="hero_only">Hanya Hero Section</SelectItem>
+                  <SelectItem value="banner_as_background">Carousel sebagai background Hero</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Atur bagaimana Banner Carousel dan Hero Section ditampilkan di beranda.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="hero_title">Judul Hero</Label>
               <Input

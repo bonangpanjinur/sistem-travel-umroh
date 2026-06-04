@@ -27,7 +27,7 @@ import {
 import { Link } from "react-router-dom";
 import {
   ArrowLeft, Target, TrendingUp, TrendingDown, Users, CheckCircle,
-  XCircle, Clock, ArrowRight, BarChart3, PieChartIcon, Activity
+  XCircle, Clock, ArrowRight, BarChart3, PieChartIcon, Activity, Download
 } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, isWithinInterval } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -243,18 +243,18 @@ export default function AdminLeadAnalytics() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="hover:bg-muted">
             <Link to="/admin/leads">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Analytics Leads</h1>
-            <p className="text-muted-foreground">Statistik konversi dan performa lead</p>
+            <h1 className="text-3xl font-bold tracking-tight">Analytics Leads</h1>
+            <p className="text-muted-foreground mt-1">Statistik konversi dan performa lead</p>
           </div>
         </div>
         <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[180px] h-10">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -266,7 +266,7 @@ export default function AdminLeadAnalytics() {
         </Select>
       </div>
 
-      {/* Summary Stats */}
+      {/* Summary Stats - Enhanced */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Leads"
@@ -282,6 +282,7 @@ export default function AdminLeadAnalytics() {
           change={parseFloat(comparison.conversionChange as string)}
           icon={Target}
           highlight
+          color="green"
         />
         <StatCard
           title="Won"
@@ -299,32 +300,37 @@ export default function AdminLeadAnalytics() {
         />
       </div>
 
-      {/* Charts */}
+      {/* Charts Tabs */}
       <Tabs defaultValue="trends" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-3 sm:w-auto">
           <TabsTrigger value="trends" className="gap-2">
             <Activity className="h-4 w-4" />
-            Tren
+            <span className="hidden sm:inline">Tren</span>
           </TabsTrigger>
           <TabsTrigger value="funnel" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            Funnel
+            <span className="hidden sm:inline">Funnel</span>
           </TabsTrigger>
           <TabsTrigger value="sources" className="gap-2">
             <PieChartIcon className="h-4 w-4" />
-            Sumber
+            <span className="hidden sm:inline">Sumber</span>
           </TabsTrigger>
         </TabsList>
 
+        {/* Trends Tab */}
         <TabsContent value="trends" className="space-y-4">
-          {/* Lead Trends */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
+          {/* Lead Trends - Two Column Layout */}
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            {/* Lead Incoming Trend */}
+            <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Tren Lead Masuk</CardTitle>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <div className="w-1 h-6 bg-primary rounded-full" />
+                  Tren Lead Masuk
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
                   <AreaChart data={monthlyData}>
                     <defs>
                       <linearGradient id="fillLeads" x1="0" y1="0" x2="0" y2="1">
@@ -335,7 +341,23 @@ export default function AdminLeadAnalytics() {
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="month" className="text-xs" />
                     <YAxis className="text-xs" />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartTooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length > 0) {
+                          const item = payload[0];
+                          const data = (item as any)?.payload || item || {};
+                          return (
+                            <div className="bg-background border rounded-lg shadow-lg p-3">
+                              <p className="font-medium text-sm">{data?.fullMonth || data?.month}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Leads: <span className="font-semibold text-foreground">{item?.value || 0}</span>
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
                     <Area
                       type="monotone"
                       dataKey="leads"
@@ -348,12 +370,16 @@ export default function AdminLeadAnalytics() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Conversion Rate Trend */}
+            <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Conversion Rate per Bulan</CardTitle>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <div className="w-1 h-6 bg-green-500 rounded-full" />
+                  Conversion Rate per Bulan
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
                   <LineChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="month" className="text-xs" />
@@ -366,9 +392,9 @@ export default function AdminLeadAnalytics() {
                           const fullMonth = data?.fullMonth || data?.month || '';
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{fullMonth}</p>
+                              <p className="font-medium text-sm">{fullMonth}</p>
                               <p className="text-sm text-muted-foreground">
-                                Konversi: <span className="font-medium text-foreground">{item?.value || 0}%</span>
+                                Konversi: <span className="font-semibold text-green-600">{item?.value || 0}%</span>
                               </p>
                             </div>
                           );
@@ -379,9 +405,10 @@ export default function AdminLeadAnalytics() {
                     <Line
                       type="monotone"
                       dataKey="conversion"
-                      stroke="hsl(var(--chart-1))"
-                      strokeWidth={2}
-                      dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 2 }}
+                      stroke="hsl(142, 76%, 36%)"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(142, 76%, 36%)", r: 4, strokeWidth: 2 }}
+                      activeDot={{ r: 6 }}
                     />
                   </LineChart>
                 </ChartContainer>
@@ -389,18 +416,36 @@ export default function AdminLeadAnalytics() {
             </Card>
           </div>
 
-          {/* Won vs Lost */}
-          <Card>
+          {/* Won vs Lost Comparison */}
+          <Card className="border-0 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base">Won vs Lost per Bulan</CardTitle>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <div className="w-1 h-6 bg-chart-1 rounded-full" />
+                Won vs Lost per Bulan
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[300px]">
+            <CardContent className="p-4">
+              <ChartContainer config={chartConfig} className="h-[320px] w-full">
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="month" className="text-xs" />
                   <YAxis className="text-xs" />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartTooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length > 0) {
+                        return (
+                          <div className="bg-background border rounded-lg shadow-lg p-3">
+                            {payload.map((entry: any, index) => (
+                              <p key={index} className="text-sm" style={{ color: entry.color }}>
+                                {entry.name}: <span className="font-semibold">{entry.value}</span>
+                              </p>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Legend />
                   <Bar dataKey="won" name="Won" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="lost" name="Lost" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
@@ -410,33 +455,54 @@ export default function AdminLeadAnalytics() {
           </Card>
         </TabsContent>
 
+        {/* Funnel Tab */}
         <TabsContent value="funnel" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
             {/* Funnel Visualization */}
-            <Card>
+            <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Sales Funnel</CardTitle>
+                <CardTitle className="text-lg font-semibold">Sales Funnel</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
+              <CardContent className="p-4">
+                <div className="space-y-4">
                   {funnelData.map((stage, index) => {
                     const maxValue = funnelData[0]?.value || 1;
                     const percentage = maxValue > 0 ? (stage.value / maxValue) * 100 : 0;
+                    const prevValue = index > 0 ? funnelData[index - 1].value : stage.value;
+                    const dropOff = prevValue > 0 ? ((prevValue - stage.value) / prevValue * 100).toFixed(1) : '0';
                     
                     return (
-                      <div key={stage.name} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium">{stage.name}</span>
-                          <span className="text-muted-foreground">{stage.value} ({percentage.toFixed(0)}%)</span>
+                      <div key={stage.name} className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: stage.fill }}
+                            />
+                            <span className="font-medium text-sm">{stage.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold">{stage.value}</span>
+                            <span className="text-xs text-muted-foreground">({percentage.toFixed(0)}%)</span>
+                            {index > 0 && parseFloat(dropOff) > 0 && (
+                              <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/30 text-xs">
+                                -{dropOff}%
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <div className="h-8 bg-muted rounded-lg overflow-hidden">
+                        <div className="h-10 bg-muted rounded-lg overflow-hidden">
                           <div
-                            className="h-full rounded-lg transition-all duration-500"
+                            className="h-full rounded-lg transition-all duration-500 flex items-center justify-end pr-3"
                             style={{
                               width: `${percentage}%`,
                               backgroundColor: stage.fill,
                             }}
-                          />
+                          >
+                            {percentage > 15 && (
+                              <span className="text-xs font-bold text-white">{percentage.toFixed(0)}%</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -446,12 +512,12 @@ export default function AdminLeadAnalytics() {
             </Card>
 
             {/* Status Distribution Pie */}
-            <Card>
+            <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Distribusi Status</CardTitle>
+                <CardTitle className="text-lg font-semibold">Distribusi Status</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[320px] w-full">
                   <PieChart>
                     <Pie
                       data={statusDistribution}
@@ -474,8 +540,8 @@ export default function AdminLeadAnalytics() {
                           const item = payload[0];
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{item?.name || 'N/A'}</p>
-                              <p className="text-sm">{item?.value || 0} leads</p>
+                              <p className="font-medium text-sm">{item?.name || 'N/A'}</p>
+                              <p className="text-sm font-semibold">{item?.value || 0} leads</p>
                             </div>
                           );
                         }
@@ -489,19 +555,19 @@ export default function AdminLeadAnalytics() {
           </div>
 
           {/* Conversion Stages Table */}
-          <Card>
+          <Card className="border-0 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base">Drop-off Analysis</CardTitle>
+              <CardTitle className="text-lg font-semibold">Drop-off Analysis</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left py-3 px-4 font-medium">Stage</th>
-                      <th className="text-right py-3 px-4 font-medium">Count</th>
-                      <th className="text-right py-3 px-4 font-medium">% dari Total</th>
-                      <th className="text-right py-3 px-4 font-medium">Drop-off</th>
+                      <th className="text-left py-3 px-4 font-semibold">Stage</th>
+                      <th className="text-right py-3 px-4 font-semibold">Count</th>
+                      <th className="text-right py-3 px-4 font-semibold">% dari Total</th>
+                      <th className="text-right py-3 px-4 font-semibold">Drop-off</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -513,7 +579,7 @@ export default function AdminLeadAnalytics() {
                         : '0';
 
                       return (
-                        <tr key={stage.name} className="border-b last:border-0">
+                        <tr key={stage.name} className="border-b last:border-0 hover:bg-muted/30">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <div 
@@ -523,11 +589,11 @@ export default function AdminLeadAnalytics() {
                               <span className="font-medium">{stage.name}</span>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-right font-medium">{stage.value}</td>
+                          <td className="py-3 px-4 text-right font-semibold">{stage.value}</td>
                           <td className="py-3 px-4 text-right text-muted-foreground">{totalPercent}%</td>
                           <td className="py-3 px-4 text-right">
                             {index > 0 && parseFloat(dropOff) > 0 ? (
-                              <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/30">
+                              <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/30 font-semibold">
                                 -{dropOff}%
                               </Badge>
                             ) : (
@@ -544,15 +610,16 @@ export default function AdminLeadAnalytics() {
           </Card>
         </TabsContent>
 
+        {/* Sources Tab */}
         <TabsContent value="sources" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
             {/* Source Distribution */}
-            <Card>
+            <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Lead per Sumber</CardTitle>
+                <CardTitle className="text-lg font-semibold">Lead per Sumber</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[320px] w-full">
                   <PieChart>
                     <Pie
                       data={sourceData}
@@ -574,8 +641,8 @@ export default function AdminLeadAnalytics() {
                           const item = payload[0];
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{item?.name || 'N/A'}</p>
-                              <p className="text-sm">{item?.value || 0} leads</p>
+                              <p className="font-medium text-sm">{item?.name || 'N/A'}</p>
+                              <p className="text-sm font-semibold">{item?.value || 0} leads</p>
                             </div>
                           );
                         }
@@ -588,12 +655,12 @@ export default function AdminLeadAnalytics() {
             </Card>
 
             {/* Source Conversion */}
-            <Card>
+            <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Conversion Rate per Sumber</CardTitle>
+                <CardTitle className="text-lg font-semibold">Conversion Rate per Sumber</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              <CardContent className="p-4">
+                <ChartContainer config={chartConfig} className="h-[320px] w-full">
                   <BarChart data={sourceConversionData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" className="text-xs" unit="%" />
@@ -605,10 +672,10 @@ export default function AdminLeadAnalytics() {
                           const data = (item as any)?.payload || item || {};
                           return (
                             <div className="bg-background border rounded-lg shadow-lg p-3">
-                              <p className="font-medium">{data?.name || 'N/A'}</p>
+                              <p className="font-medium text-sm">{data?.name || 'N/A'}</p>
                               <p className="text-sm">Total: {data?.total || 0} leads</p>
                               <p className="text-sm">Won: {data?.won || 0} leads</p>
-                              <p className="text-sm font-medium text-green-600">Konversi: {data?.conversion || 0}%</p>
+                              <p className="text-sm font-semibold text-green-600">Konversi: {data?.conversion || 0}%</p>
                             </div>
                           );
                         }
@@ -627,20 +694,20 @@ export default function AdminLeadAnalytics() {
           </div>
 
           {/* Source Performance Table */}
-          <Card>
+          <Card className="border-0 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base">Performa per Sumber</CardTitle>
+              <CardTitle className="text-lg font-semibold">Performa per Sumber</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left py-3 px-4 font-medium">Sumber</th>
-                      <th className="text-right py-3 px-4 font-medium">Total Leads</th>
-                      <th className="text-right py-3 px-4 font-medium">Won</th>
-                      <th className="text-right py-3 px-4 font-medium">Conversion Rate</th>
-                      <th className="text-right py-3 px-4 font-medium">Rating</th>
+                      <th className="text-left py-3 px-4 font-semibold">Sumber</th>
+                      <th className="text-right py-3 px-4 font-semibold">Total Leads</th>
+                      <th className="text-right py-3 px-4 font-semibold">Won</th>
+                      <th className="text-right py-3 px-4 font-semibold">Conversion Rate</th>
+                      <th className="text-right py-3 px-4 font-semibold">Rating</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -655,13 +722,13 @@ export default function AdminLeadAnalytics() {
                         : 'bg-red-100 text-red-700 dark:bg-red-900/30';
 
                       return (
-                        <tr key={source.name} className="border-b last:border-0">
+                        <tr key={source.name} className="border-b last:border-0 hover:bg-muted/30">
                           <td className="py-3 px-4 font-medium">{source.name}</td>
-                          <td className="py-3 px-4 text-right">{source.total}</td>
-                          <td className="py-3 px-4 text-right text-green-600 font-medium">{source.won}</td>
-                          <td className="py-3 px-4 text-right font-medium">{source.conversion}%</td>
+                          <td className="py-3 px-4 text-right font-semibold">{source.total}</td>
+                          <td className="py-3 px-4 text-right text-green-600 font-semibold">{source.won}</td>
+                          <td className="py-3 px-4 text-right font-bold text-lg">{source.conversion}%</td>
                           <td className="py-3 px-4 text-right">
-                            <Badge className={cn("font-normal", ratingColor)}>
+                            <Badge className={cn("font-semibold", ratingColor)}>
                               {rating}
                             </Badge>
                           </td>
@@ -693,15 +760,18 @@ function StatCard({ title, value, subtitle, change, icon: Icon, color, highlight
   const isPositive = change !== undefined && change >= 0;
 
   return (
-    <Card className={cn(highlight && "ring-2 ring-primary/20 bg-primary/5")}>
+    <Card className={cn(
+      "border-0 shadow-sm transition-all hover:shadow-md",
+      highlight && "ring-2 ring-primary/20 bg-gradient-to-br from-primary/5 to-transparent"
+    )}>
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{title}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2 flex-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
             <p className={cn(
-              "text-2xl font-bold",
-              color === 'green' && "text-green-600",
-              color === 'red' && "text-red-600"
+              "text-3xl font-bold tracking-tight",
+              color === 'green' && "text-green-600 dark:text-green-400",
+              color === 'red' && "text-red-600 dark:text-red-400"
             )}>
               {value}
             </p>
@@ -710,24 +780,24 @@ function StatCard({ title, value, subtitle, change, icon: Icon, color, highlight
             )}
             {change !== undefined && (
               <div className={cn(
-                "flex items-center gap-1 text-xs font-medium",
-                isPositive ? "text-green-600" : "text-red-600"
+                "flex items-center gap-1 text-xs font-semibold",
+                isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
               )}>
-                {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                 {isPositive ? '+' : ''}{change}%
               </div>
             )}
           </div>
           <div className={cn(
-            "p-2 rounded-lg",
+            "p-3 rounded-lg flex-shrink-0",
             color === 'green' ? "bg-green-100 dark:bg-green-900/30" :
             color === 'red' ? "bg-red-100 dark:bg-red-900/30" :
             highlight ? "bg-primary/20" : "bg-primary/10"
           )}>
             <Icon className={cn(
               "h-5 w-5",
-              color === 'green' ? "text-green-600" :
-              color === 'red' ? "text-red-600" :
+              color === 'green' ? "text-green-600 dark:text-green-400" :
+              color === 'red' ? "text-red-600 dark:text-red-400" :
               "text-primary"
             )} />
           </div>

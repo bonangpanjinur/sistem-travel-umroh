@@ -2,7 +2,7 @@ import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { useAboutPageContent } from '@/hooks/useAboutPageContent';
 import { useHeroStats } from '@/hooks/useHeroStats';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
-import { BannerCarousel } from '@/components/home/BannerCarousel';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -66,7 +66,7 @@ export default function AboutPage() {
 
   return (
     <DynamicPublicLayout>
-      <BannerCarousel compact />
+
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-20">
         <div className="container mx-auto px-4">

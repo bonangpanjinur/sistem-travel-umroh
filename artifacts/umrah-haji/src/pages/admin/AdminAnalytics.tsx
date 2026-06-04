@@ -5,19 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, getBookingStatusLabel } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  AreaChart, Area, ComposedChart
+  AreaChart, Area
 } from "recharts";
 import {
   TrendingUp, DollarSign, Users, Calendar,
-  Building2, CreditCard, Package, Filter, X,
-  ArrowUpRight, ArrowDownRight, Download, RefreshCcw,
-  PieChart as PieChartIcon, Activity, ShoppingBag, User
+  Filter, X, ArrowUpRight, ArrowDownRight, 
+  Download, RefreshCcw, Activity, ShoppingBag,
+  MapPin, Briefcase, Package
 } from "lucide-react";
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, isWithinInterval, subDays, startOfYear } from "date-fns";
+import { 
+  format, subMonths, startOfMonth, endOfMonth, 
+  eachMonthOfInterval, parseISO, subDays, startOfYear 
+} from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
@@ -25,6 +28,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const COLORS = [
   'hsl(var(--primary))', 
@@ -106,7 +113,6 @@ export default function AdminAnalytics() {
           else query = query.eq('agent_id', 'none'); // No sub-agents exist
         }
       } else {
-        // 'all' level - apply specific filters if set
         if (selectedBranch !== "all") query = query.eq('branch_id', selectedBranch);
         if (selectedAgent !== "all") query = query.eq('agent_id', selectedAgent);
         if (selectedSubAgent !== "all") query = query.eq('agent_id', selectedSubAgent);
@@ -252,135 +258,263 @@ export default function AdminAnalytics() {
     setSelectedSubAgent("all");
   };
 
-  const getHierarchyLabel = () => {
-    switch(hierarchyLevel) {
-      case 'pusat': return "Pusat";
-      case 'cabang': return "Cabang";
-      case 'agen': return "Agen";
-      case 'sub_agen': return "Sub-Agen";
-      default: return "Semua Level";
+  const exportToExcel = () => {
+    try {
+      if (!bookings || bookings.length === 0) {
+        toast.error("Tidak ada data untuk diekspor");
+        return;
+      }
+
+      const exportData = bookings.map(b => ({
+        'ID Booking': b.id,
+        'Tanggal': b.created_at ? format(parseISO(b.created_at), 'dd/MM/yyyy HH:mm') : '-',
+        'Paket': (b.departure as any)?.package?.name || '-',
+        'Cabang': b.branch?.name || 'Pusat',
+        'Total Harga': b.total_price || 0,
+        'Jumlah Bayar': b.paid_amount || 0,
+        'Status Booking': b.booking_status,
+        'Status Bayar': b.payment_status,
+        'Jumlah Pax': b.total_pax || 0
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Analytics Data");
+      
+      const fileName = `Analytics_Report_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast.success("Data berhasil diekspor ke Excel");
+    } catch (error) {
+      console.error("Export Excel Error:", error);
+      toast.error("Gagal mengekspor data ke Excel");
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      if (!bookings || bookings.length === 0) {
+        toast.error("Tidak ada data untuk diekspor");
+        return;
+      }
+
+      const doc = new jsPDF();
+      
+      // Add Title
+      doc.setFontSize(18);
+      doc.text("Laporan Analitik Vins Tour Travel", 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Dicetak pada: ${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: idLocale })}`, 14, 28);
+      doc.text(`Periode: ${dateRange?.from ? format(dateRange.from, 'dd/MM/yyyy') : '-'} s/d ${dateRange?.to ? format(dateRange.to, 'dd/MM/yyyy') : '-'}`, 14, 34);
+
+      // Add Summary Stats
+      doc.setFontSize(12);
+      doc.text("Ringkasan Performa:", 14, 45);
+      
+      autoTable(doc, {
+        startY: 50,
+        head: [['Metrik', 'Nilai']],
+        body: [
+          ['Total Revenue', formatCurrency(stats.totalRevenue)],
+          ['Total Booking', stats.totalBookings.toString()],
+          ['Total Jamaah', stats.totalPax.toString()],
+          ['Conversion Rate', `${stats.conversionRate}%`]
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [139, 92, 246] } // primary color
+      });
+
+      // Add Table Data
+      doc.text("Detail Booking:", 14, (doc as any).lastAutoTable.finalY + 15);
+      
+      const tableData = bookings.slice(0, 50).map(b => [
+        b.id.substring(0, 8),
+        b.created_at ? format(parseISO(b.created_at), 'dd/MM/yy') : '-',
+        ((b.departure as any)?.package?.name || '-').substring(0, 20),
+        formatCurrency(b.paid_amount || 0),
+        b.booking_status
+      ]);
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['ID', 'Tanggal', 'Paket', 'Bayar', 'Status']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [139, 92, 246] },
+        styles: { fontSize: 8 }
+      });
+
+      if (bookings.length > 50) {
+        doc.setFontSize(8);
+        doc.text(`* Menampilkan 50 dari ${bookings.length} data terbaru`, 14, (doc as any).lastAutoTable.finalY + 10);
+      }
+
+      doc.save(`Analytics_Report_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+      toast.success("Laporan berhasil diekspor ke PDF");
+    } catch (error) {
+      console.error("Export PDF Error:", error);
+      toast.error("Gagal mengekspor laporan ke PDF");
     }
   };
 
   return (
-    <div className="space-y-8 pb-10 animate-fade-in">
+    <div className="space-y-6 pb-10 animate-fade-in bg-slate-50/50 -m-4 p-4 md:-m-8 md:p-8 min-h-screen">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-xl">
               <Activity className="h-6 w-6 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Analytics Dashboard</h1>
+              <p className="text-slate-500 font-medium">Wawasan mendalam tentang performa bisnis Vins Tour Travel</p>
+            </div>
           </div>
-          <p className="text-muted-foreground text-lg">Wawasan mendalam tentang performa bisnis Vins Tour Travel</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 bg-card p-3 rounded-xl border shadow-sm">
-          <div className="flex items-center gap-1 mr-2 border-r pr-3">
-            <Button variant="ghost" size="sm" onClick={() => setQuickFilter(7)} className="text-xs h-8">7H</Button>
-            <Button variant="ghost" size="sm" onClick={() => setQuickFilter(30)} className="text-xs h-8">30H</Button>
-            <Button variant="ghost" size="sm" onClick={() => setQuickFilter('year')} className="text-xs h-8">Tahun Ini</Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-10 bg-white border-slate-200 hover:bg-slate-50">
+            <RefreshCcw className={cn("h-4 w-4 mr-2 text-slate-500", loadingBookings && "animate-spin")} />
+            Refresh
+          </Button>
           
-          <DateRangePicker date={dateRange} setDate={setDateRange} />
-          
-          <div className="flex items-center gap-2 border-l pl-3">
-            <Select value={hierarchyLevel} onValueChange={(v: any) => {
-              setHierarchyLevel(v);
-              if (v === 'pusat' || v === 'all') {
-                setSelectedBranch("all");
-                setSelectedAgent("all");
-                setSelectedSubAgent("all");
-              }
-            }}>
-              <SelectTrigger className="w-[140px] h-10">
-                <Filter className="h-4 w-4 mr-2 text-primary" />
-                <SelectValue placeholder="Level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Level</SelectItem>
-                <SelectItem value="pusat">Pusat</SelectItem>
-                <SelectItem value="cabang">Cabang</SelectItem>
-                <SelectItem value="agen">Agen</SelectItem>
-                <SelectItem value="sub_agen">Sub-Agen</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {isSuperAdmin && (hierarchyLevel === 'all' || hierarchyLevel === 'cabang') && (
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="w-[160px] h-10">
-                  <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Cabang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Cabang</SelectItem>
-                  {branches?.map(b => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {(hierarchyLevel === 'agen' || hierarchyLevel === 'sub_agen' || hierarchyLevel === 'all') && (
-              <Select value={selectedAgent} onValueChange={(v) => {
-                setSelectedAgent(v);
-                setSelectedSubAgent("all");
-              }}>
-                <SelectTrigger className="w-[160px] h-10">
-                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Agen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Agen</SelectItem>
-                  {topLevelAgents.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {(hierarchyLevel === 'sub_agen' || hierarchyLevel === 'all') && selectedAgent !== "all" && subAgentsList.length > 0 && (
-              <Select value={selectedSubAgent} onValueChange={setSelectedSubAgent}>
-                <SelectTrigger className="w-[160px] h-10">
-                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Sub-Agen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Sub-Agen</SelectItem>
-                  {subAgentsList.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+          <div className="flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden h-10">
+            <div className="px-3 border-r border-slate-100 flex items-center bg-slate-50/50">
+              <Download className="h-4 w-4 text-slate-500" />
+            </div>
+            <button 
+              onClick={exportToExcel}
+              className="px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors h-full"
+            >
+              Excel
+            </button>
+            <div className="w-[1px] h-4 bg-slate-100" />
+            <button 
+              onClick={exportToPDF}
+              className="px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-red-600 transition-colors h-full"
+            >
+              PDF
+            </button>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto pl-2 border-l">
-            <Button variant="outline" size="icon" onClick={() => refetch()} className="h-10 w-10">
-              <RefreshCcw className={cn("h-4 w-4", loadingBookings && "animate-spin")} />
-            </Button>
-            <Button variant="outline" size="icon" onClick={resetFilters} className="h-10 w-10 text-destructive">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DateRangePicker 
+            date={dateRange} 
+            setDate={setDateRange} 
+            className="bg-white rounded-md shadow-sm border-slate-200"
+          />
         </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
-          title="Total Revenue" 
+      {/* Filter Toolbar */}
+      <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              {[
+                { label: '7H', val: 7 },
+                { label: '30H', val: 30 },
+                { label: 'Tahun Ini', val: 'year' as const }
+              ].map((f) => (
+                <button
+                  key={f.label}
+                  onClick={() => setQuickFilter(f.val)}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-md transition-all hover:text-primary focus:outline-none"
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="h-8 w-[1px] bg-slate-200 hidden md:block" />
+
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-slate-400" />
+                <Select value={hierarchyLevel} onValueChange={(v: any) => setHierarchyLevel(v)}>
+                  <SelectTrigger className="w-[140px] h-9 bg-white border-slate-200">
+                    <SelectValue placeholder="Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Level</SelectItem>
+                    <SelectItem value="pusat">Pusat</SelectItem>
+                    <SelectItem value="cabang">Cabang</SelectItem>
+                    <SelectItem value="agen">Agen</SelectItem>
+                    <SelectItem value="sub_agen">Sub-Agen</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {isSuperAdmin && (hierarchyLevel === 'all' || hierarchyLevel === 'cabang') && (
+                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                  <SelectTrigger className="w-[180px] h-9 bg-white border-slate-200">
+                    <SelectValue placeholder="Pilih Cabang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Cabang</SelectItem>
+                    {branches?.map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {(hierarchyLevel === 'all' || hierarchyLevel === 'agen') && (
+                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                  <SelectTrigger className="w-[180px] h-9 bg-white border-slate-200">
+                    <SelectValue placeholder="Pilih Agen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Agen</SelectItem>
+                    {topLevelAgents.map(a => (
+                      <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {selectedAgent !== "all" && (hierarchyLevel === 'all' || hierarchyLevel === 'sub_agen') && (
+                <Select value={selectedSubAgent} onValueChange={setSelectedSubAgent}>
+                  <SelectTrigger className="w-[180px] h-9 bg-white border-slate-200">
+                    <SelectValue placeholder="Pilih Sub-Agen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Sub-Agen</SelectItem>
+                    {subAgentsList.map(a => (
+                      <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={resetFilters}
+                className="text-slate-500 hover:text-red-500 h-9 px-3"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Reset
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Revenue"
           value={formatCurrency(stats.totalRevenue)}
-          description={`Level: ${getHierarchyLabel()}`}
+          description="Total pendapatan diterima"
           icon={DollarSign}
           loading={loadingBookings}
           trend="+12.5%"
           trendUp={true}
-          color="primary"
+          color="emerald"
         />
-        <StatCard 
-          title="Total Booking" 
+        <StatCard
+          title="Total Booking"
           value={stats.totalBookings}
           description={`${stats.confirmedBookings} pesanan terkonfirmasi`}
           icon={ShoppingBag}
@@ -389,18 +523,18 @@ export default function AdminAnalytics() {
           trendUp={true}
           color="blue"
         />
-        <StatCard 
-          title="Total Jamaah" 
+        <StatCard
+          title="Total Jamaah"
           value={stats.totalPax}
           description="Perhitungan per jemaah"
           icon={Users}
           loading={loadingBookings}
           trend="+15.3%"
           trendUp={true}
-          color="emerald"
+          color="primary"
         />
-        <StatCard 
-          title="Conversion Rate" 
+        <StatCard
+          title="Conversion Rate"
           value={`${stats.conversionRate}%`}
           description="Rasio booking terkonfirmasi"
           icon={TrendingUp}
@@ -411,119 +545,283 @@ export default function AdminAnalytics() {
         />
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-card border p-1 h-12 w-full sm:w-auto justify-start overflow-x-auto">
-          <TabsTrigger value="overview" className="px-6">Ringkasan</TabsTrigger>
-          <TabsTrigger value="sales" className="px-6">Penjualan</TabsTrigger>
-          <TabsTrigger value="products" className="px-6">Produk</TabsTrigger>
-          <TabsTrigger value="branches" className="px-6">Cabang</TabsTrigger>
-        </TabsList>
+      {/* Charts Section */}
+      <Tabs defaultValue="ringkasan" className="space-y-6">
+        <div className="flex items-center justify-between">
+          <TabsList className="bg-white border border-slate-200 p-1 h-11">
+            <TabsTrigger value="ringkasan" className="px-6 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Ringkasan</TabsTrigger>
+            <TabsTrigger value="penjualan" className="px-6 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Penjualan</TabsTrigger>
+            <TabsTrigger value="produk" className="px-6 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Produk</TabsTrigger>
+            <TabsTrigger value="cabang" className="px-6 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Cabang</TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-            <Card className="lg:col-span-2 shadow-sm border-muted/60">
-              <CardHeader className="flex flex-row items-center justify-between">
+        <TabsContent value="ringkasan" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 border-none shadow-sm bg-white overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 pb-4">
                 <div>
-                  <CardTitle className="text-lg font-semibold">Tren Revenue & Piutang</CardTitle>
-                  <CardDescription>Perbandingan realisasi revenue vs piutang</CardDescription>
+                  <CardTitle className="text-lg font-bold text-slate-800">Tren Revenue & Piutang</CardTitle>
+                  <CardDescription>Visualisasi pendapatan vs potensi pendapatan</CardDescription>
                 </div>
-                <div className="flex items-center gap-4 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-primary"></div>
-                    <span>Revenue</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span>Piutang</span>
-                  </div>
-                </div>
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 px-3 py-1">
+                  Update Realtime
+                </Badge>
               </CardHeader>
-              <CardContent>
-                {loadingBookings ? (
-                  <Skeleton className="h-[300px] w-full" />
-                ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CardContent className="pt-6">
+                <div className="h-[350px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={monthlyData}>
                       <defs>
-                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
                           <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                         </linearGradient>
-                        <linearGradient id="colorRec" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                      <XAxis dataKey="month" axisLine={false} tickLine={false} dy={10} className="text-[11px] font-medium" />
-                      <YAxis axisLine={false} tickLine={false} className="text-[11px] font-medium" tickFormatter={(value) => `Rp ${value/1000000}jt`} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="month" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 12, fill: '#64748b'}} 
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 12, fill: '#64748b'}}
+                        tickFormatter={(value) => `Rp${value/1000000}jt`}
+                      />
                       <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                      <Area type="monotone" dataKey="receivables" name="Piutang" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRec)" />
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        name="Revenue" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorRevenue)" 
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="potentialRevenue" 
+                        name="Potensi" 
+                        stroke="#94a3b8" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        fill="transparent" 
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
-                )}
+                </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-muted/60">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Paket Terpopuler</CardTitle>
-                <CardDescription>Berdasarkan jumlah jamaah</CardDescription>
+            <Card className="border-none shadow-sm bg-white overflow-hidden">
+              <CardHeader className="border-b border-slate-50 pb-4">
+                <CardTitle className="text-lg font-bold text-slate-800">Paket Terpopuler</CardTitle>
+                <CardDescription>Berdasarkan jumlah jemaah</CardDescription>
               </CardHeader>
-              <CardContent>
-                {loadingBookings ? (
-                  <Skeleton className="h-[300px] w-full" />
-                ) : (
-                  <div className="space-y-6">
-                    {packageData.map((pkg, index) => (
-                      <div key={index} className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-bold">{index + 1}</span>
-                            <span className="font-medium truncate max-w-[150px]">{pkg.name}</span>
-                          </div>
-                          <span className="font-bold">{pkg.pax} Jamaah</span>
-                        </div>
-                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary rounded-full" style={{ width: `${(pkg.pax / (packageData[0]?.pax || 1)) * 100}%` }}></div>
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+                  {packageData.map((pkg, i) => (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className={cn(
+                        "flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm",
+                        i === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
+                      )}>
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{pkg.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="bg-slate-50 text-slate-600 border-slate-100 text-[10px] font-semibold">
+                            {pkg.count} Booking
+                          </Badge>
+                          <span className="text-[10px] text-slate-400 font-medium">•</span>
+                          <span className="text-[10px] text-slate-500 font-bold">{pkg.pax} Jamaah</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-900">{formatCurrency(pkg.revenue)}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {packageData.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                      <Package className="h-12 w-12 mb-3 opacity-20" />
+                      <p className="text-sm font-medium">Belum ada data paket</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
-        
-        {/* Other Tabs content truncated for brevity but they remain functional */}
-        <TabsContent value="branches" className="space-y-6">
-           <Card className="shadow-sm border-muted/60">
-            <CardHeader>
-              <CardTitle>Matriks Performa Cabang</CardTitle>
-              <CardDescription>Detail statistik operasional per cabang</CardDescription>
+
+        <TabsContent value="penjualan" className="space-y-6">
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <CardHeader className="border-b border-slate-50">
+              <CardTitle className="text-lg font-bold text-slate-800">Pertumbuhan Booking & Jamaah</CardTitle>
+              <CardDescription>Analisis volume transaksi bulanan</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="relative overflow-x-auto rounded-lg border">
-                <table className="w-full text-xs sm:text-sm text-left">
-                  <thead className="text-xs uppercase bg-muted/50 font-bold">
+            <CardContent className="pt-6">
+              <div className="h-[400px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="month" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fontSize: 12, fill: '#64748b'}} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fontSize: 12, fill: '#64748b'}} 
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend iconType="circle" wrapperStyle={{paddingTop: '20px'}} />
+                    <Bar dataKey="bookings" name="Total Booking" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
+                    <Bar dataKey="pax" name="Total Jamaah" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="produk" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-none shadow-sm bg-white overflow-hidden">
+              <CardHeader className="border-b border-slate-50">
+                <CardTitle className="text-lg font-bold text-slate-800">Kontribusi Revenue per Paket</CardTitle>
+                <CardDescription>Distribusi pendapatan berdasarkan jenis paket</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 flex flex-col items-center">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={packageData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="revenue"
+                        nameKey="name"
+                      >
+                        {packageData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-4 w-full mt-4">
+                  {packageData.map((pkg, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-xs font-medium text-slate-600 truncate">{pkg.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-white overflow-hidden">
+              <CardHeader className="border-b border-slate-50">
+                <CardTitle className="text-lg font-bold text-slate-800">Efisiensi Penjualan Paket</CardTitle>
+                <CardDescription>Rasio jemaah per booking per paket</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={packageData} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                      <XAxis type="number" hide />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 11, fill: '#64748b'}} 
+                        width={100}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="pax" name="Jamaah" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="cabang" className="space-y-6">
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 pb-4">
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-800">Matriks Performa Cabang</CardTitle>
+                <CardDescription>Detail statistik operasional per cabang</CardDescription>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                <MapPin className="h-3.5 w-3.5" />
+                {branchData.length} Cabang Aktif
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs uppercase bg-slate-50/80 text-slate-500 font-bold border-b border-slate-100">
                     <tr>
-                      <th className="px-4 py-3">Nama Cabang</th>
-                      <th className="px-4 py-3 text-right">Total Booking</th>
-                      <th className="px-4 py-3 text-right">Total Jamaah</th>
-                      <th className="px-4 py-3 text-right">Revenue</th>
+                      <th className="px-6 py-4">Nama Cabang</th>
+                      <th className="px-6 py-4 text-center">Total Booking</th>
+                      <th className="px-6 py-4 text-center">Total Jamaah</th>
+                      <th className="px-6 py-4 text-right">Revenue</th>
+                      <th className="px-6 py-4 text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y divide-slate-50">
                     {branchData.map((branch, i) => (
-                      <tr key={i} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 font-medium">{branch.name}</td>
-                        <td className="px-4 py-3 text-right">{branch.bookings}</td>
-                        <td className="px-4 py-3 text-right font-bold text-emerald-600">{branch.pax}</td>
-                        <td className="px-4 py-3 text-right font-bold">{formatCurrency(branch.revenue)}</td>
+                      <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                              <Building2 className="h-4 w-4" />
+                            </div>
+                            <span className="font-bold text-slate-800">{branch.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <Badge variant="outline" className="font-semibold text-slate-600 border-slate-200">
+                            {branch.bookings}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="font-bold text-blue-600">{branch.pax}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-bold text-slate-900">
+                          {formatCurrency(branch.revenue)}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Button variant="ghost" size="sm" className="h-8 text-primary hover:text-primary hover:bg-primary/5 font-semibold">
+                            Detail
+                          </Button>
+                        </td>
                       </tr>
                     ))}
+                    {branchData.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                          <Briefcase className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                          <p className="text-sm font-medium">Tidak ada data performa cabang</p>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -536,35 +834,44 @@ export default function AdminAnalytics() {
 }
 
 function StatCard({ title, value, description, icon: Icon, loading, trend, trendUp, color }: any) {
-  const colorMap: Record<string, string> = {
-    primary: "text-primary bg-primary/10",
-    blue: "text-blue-600 bg-blue-50",
-    emerald: "text-emerald-600 bg-emerald-50",
-    amber: "text-amber-600 bg-amber-50",
+  const colorMap: Record<string, { text: string, bg: string, border: string, icon: string }> = {
+    primary: { text: "text-primary", bg: "bg-primary/5", border: "border-primary/20", icon: "text-primary" },
+    blue: { text: "text-blue-700", bg: "bg-blue-50", border: "border-blue-100", icon: "text-blue-600" },
+    emerald: { text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-100", icon: "text-emerald-600" },
+    amber: { text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-100", icon: "text-amber-600" },
   };
 
+  const currentTheme = colorMap[color] || colorMap.primary;
+
   return (
-    <Card className="relative overflow-hidden shadow-sm border-muted/60 hover:shadow-md transition-all group border-l-4 border-l-primary">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
-        <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-110", colorMap[color] || colorMap.primary)}>
-          <Icon className="h-4 w-4" />
+    <Card className="relative overflow-hidden border-none shadow-sm hover:shadow-md transition-all group bg-white">
+      <div className={cn("absolute top-0 left-0 w-1 h-full", color === 'primary' ? 'bg-primary' : `bg-${color}-500`)} />
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+        <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-widest">{title}</CardTitle>
+        <div className={cn("p-2 rounded-xl transition-all group-hover:scale-110 group-hover:rotate-3", currentTheme.bg, currentTheme.icon)}>
+          <Icon className="h-5 w-5" />
         </div>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <Skeleton className="h-8 w-28" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32 bg-slate-100" />
+            <Skeleton className="h-4 w-24 bg-slate-50" />
+          </div>
         ) : (
           <>
-            <div className="text-2xl font-bold tracking-tight">{value}</div>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="text-2xl font-extrabold tracking-tight text-slate-900">{value}</div>
+            <div className="flex items-center gap-2 mt-2">
               {trend && (
-                <div className={cn("flex items-center text-[10px] font-bold px-1 py-0.5 rounded", trendUp ? "text-emerald-700 bg-emerald-50" : "text-red-700 bg-red-50")}>
-                  {trendUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                <div className={cn(
+                  "flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-full", 
+                  trendUp ? "text-emerald-700 bg-emerald-50" : "text-red-700 bg-red-50"
+                )}>
+                  {trendUp ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
                   {trend}
                 </div>
               )}
-              {description && <p className="text-[10px] text-muted-foreground font-medium">{description}</p>}
+              {description && <p className="text-[11px] text-slate-500 font-semibold">{description}</p>}
             </div>
           </>
         )}
@@ -576,13 +883,20 @@ function StatCard({ title, value, description, icon: Icon, loading, trend, trend
 function CustomTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-background border border-border p-3 rounded-lg shadow-lg min-w-[150px]">
-        <p className="text-xs font-bold mb-2 border-b pb-1">{label}</p>
-        <div className="space-y-1">
+      <div className="bg-white/95 backdrop-blur-md border border-slate-100 p-4 rounded-xl shadow-xl min-w-[180px] ring-1 ring-black/5">
+        <p className="text-xs font-black text-slate-800 mb-3 border-b border-slate-50 pb-2 uppercase tracking-wider">{label}</p>
+        <div className="space-y-2.5">
           {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between gap-3">
-              <span className="text-[10px] text-muted-foreground">{entry.name}:</span>
-              <span className="text-[10px] font-bold">{typeof entry.value === 'number' && entry.name.toLowerCase().includes('revenue') ? formatCurrency(entry.value) : entry.value}</span>
+            <div key={index} className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                <span className="text-[11px] font-bold text-slate-500">{entry.name}:</span>
+              </div>
+              <span className="text-[11px] font-black text-slate-900">
+                {typeof entry.value === 'number' && (entry.name.toLowerCase().includes('revenue') || entry.name.toLowerCase().includes('potensi')) 
+                  ? formatCurrency(entry.value) 
+                  : entry.value}
+              </span>
             </div>
           ))}
         </div>
@@ -590,4 +904,30 @@ function CustomTooltip({ active, payload, label }: any) {
     );
   }
   return null;
+}
+
+// Missing icon component for table
+function Building2({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+      <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+      <path d="M10 6h4"/>
+      <path d="M10 10h4"/>
+      <path d="M10 14h4"/>
+      <path d="M10 18h4"/>
+    </svg>
+  );
 }

@@ -24,10 +24,15 @@ import {
 } from "@/components/ui/pagination";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { exportToExcel } from "@/lib/export-utils";
+import { exportBookingStatsToExcel } from "@/lib/booking-stats-exporter";
+import { exportDynamicBookingExcel, exportDynamicStatisticsExcel, DEFAULT_EXCEL_STYLE, ExcelStyleConfig } from "@/lib/dynamic-excel-exporter";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useState, useMemo, useEffect } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Search, Eye, Calendar, Users, Filter, X, Download, ShoppingCart,
-  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare
+  CheckCircle, Trash2, MoreHorizontal, AlertTriangle, Clock, Loader2, TrendingUp, MessageSquare, ChevronDown
 } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth, subMonths, endOfDay } from "date-fns";
 import {
@@ -78,8 +83,11 @@ export default function AdminBookings() {
   const [periodPreset, setPeriodPreset] = useState<string>("all");
   const [customPeriodFrom, setCustomPeriodFrom] = useState("");
   const [customPeriodTo, setCustomPeriodTo] = useState("");
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { company } = useCompanyInfo();
+  const { getSetting } = useCompanySettings();
 
   const { data: bookingsData, isLoading } = useQuery({
     queryKey: ['admin-bookings', currentPage, searchTerm, statusFilter, paymentFilter, packageFilter, departureFilter, branchFilter, dateFrom, dateTo],
@@ -330,22 +338,60 @@ export default function AdminBookings() {
           )}
           <Button variant="outline" onClick={() => {
             if (!paginatedBookings || paginatedBookings.length === 0) return;
-            exportToExcel(
-              paginatedBookings as any[],
-              [
-                { header: 'Kode Booking', accessor: 'booking_code', width: 18 },
-                { header: 'Nama', accessor: (r: any) => (r.customer as any)?.full_name || '-', width: 25 },
-                { header: 'Telepon', accessor: (r: any) => (r.customer as any)?.phone || '-', width: 18 },
-                { header: 'Paket', accessor: (r: any) => (r.departure as any)?.package?.name || '-', width: 25 },
-                { header: 'Tgl Berangkat', accessor: (r: any) => (r.departure as any)?.departure_date || '-', width: 15 },
-                { header: 'Status', accessor: (r: any) => STATUS_LABELS[r.booking_status] || r.booking_status, width: 14 },
-                { header: 'Pembayaran', accessor: (r: any) => PAYMENT_LABELS[r.payment_status] || r.payment_status, width: 14 },
-                { header: 'Total', accessor: (r: any) => r.total_price, width: 18 },
-                { header: 'Dibayar', accessor: (r: any) => r.paid_amount || 0, width: 18 },
-                { header: 'Sisa', accessor: (r: any) => r.remaining_amount || 0, width: 18 },
-              ],
-              `booking-${new Date().toISOString().slice(0, 10)}`,
-              'Bookings'
+            
+            // Get style from settings or use default
+            const styleConfig: ExcelStyleConfig = {
+              title_bg_color: getSetting('excel_title_bg_color') || DEFAULT_EXCEL_STYLE.title_bg_color,
+              title_text_color: getSetting('excel_title_text_color') || DEFAULT_EXCEL_STYLE.title_text_color,
+              title_font_size: parseInt(getSetting('excel_title_font_size')) || DEFAULT_EXCEL_STYLE.title_font_size,
+              title_bold: getSetting('excel_title_bold') !== 'false',
+
+              header_bg_color: getSetting('excel_header_bg_color') || DEFAULT_EXCEL_STYLE.header_bg_color,
+              header_text_color: getSetting('excel_header_text_color') || DEFAULT_EXCEL_STYLE.header_text_color,
+              header_font_size: parseInt(getSetting('excel_header_font_size')) || DEFAULT_EXCEL_STYLE.header_font_size,
+              header_bold: getSetting('excel_header_bold') !== 'false',
+
+              section_bg_color: getSetting('excel_section_bg_color') || DEFAULT_EXCEL_STYLE.section_bg_color,
+              section_text_color: getSetting('excel_section_text_color') || DEFAULT_EXCEL_STYLE.section_text_color,
+              section_font_size: parseInt(getSetting('excel_section_font_size')) || DEFAULT_EXCEL_STYLE.section_font_size,
+              section_bold: getSetting('excel_section_bold') !== 'false',
+
+              summary_bg_color: getSetting('excel_summary_bg_color') || DEFAULT_EXCEL_STYLE.summary_bg_color,
+              summary_text_color: getSetting('excel_summary_text_color') || DEFAULT_EXCEL_STYLE.summary_text_color,
+
+              row_bg_color: getSetting('excel_row_bg_color') || DEFAULT_EXCEL_STYLE.row_bg_color,
+              row_text_color: getSetting('excel_row_text_color') || DEFAULT_EXCEL_STYLE.row_text_color,
+              alt_row_bg_color: getSetting('excel_alt_row_bg_color') || DEFAULT_EXCEL_STYLE.alt_row_bg_color,
+
+              border_color: getSetting('excel_border_color') || DEFAULT_EXCEL_STYLE.border_color,
+              border_style: (getSetting('excel_border_style') as 'thin' | 'medium' | 'thick') || DEFAULT_EXCEL_STYLE.border_style,
+
+              body_font_size: parseInt(getSetting('excel_body_font_size')) || DEFAULT_EXCEL_STYLE.body_font_size,
+              footer_font_size: parseInt(getSetting('excel_footer_font_size')) || DEFAULT_EXCEL_STYLE.footer_font_size,
+            };
+
+            const mappedData = paginatedBookings.map(b => ({
+              booking_code: b.booking_code,
+              customer_name: (b.customer as any)?.full_name || '-',
+              customer_phone: (b.customer as any)?.phone || '-',
+              package_name: (b.departure as any)?.package?.name || '-',
+              departure_date: (b.departure as any)?.departure_date || '',
+              total_pax: b.total_pax || 0,
+              room_type: (b as any).room_type || '-',
+              total_price: b.total_price || 0,
+              paid_amount: b.paid_amount || 0,
+              remaining_amount: b.remaining_amount || 0,
+              booking_status: b.booking_status || 'pending',
+              payment_status: b.payment_status || 'pending',
+              created_at: b.created_at || '',
+            }));
+
+            exportDynamicBookingExcel(
+              mappedData,
+              company,
+              styleConfig,
+              dateFrom ? new Date(dateFrom) : undefined,
+              dateTo ? new Date(dateTo) : undefined
             );
             toast({ title: "Export berhasil", description: "File Excel telah diunduh" });
           }}>
@@ -386,13 +432,25 @@ export default function AdminBookings() {
       </div>
 
       {/* Period Stats - Jumlah Jamaah */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Statistik Jamaah per Periode</h2>
+      <Card className="border-2 border-primary/20">
+        <Collapsible open={isStatsExpanded} onOpenChange={setIsStatsExpanded}>
+          <CollapsibleTrigger asChild>
+            <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  <h2 className="font-bold text-lg">Statistik Jamaah per Periode</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">{isStatsExpanded ? 'Tutup' : 'Buka'}</span>
+                  <ChevronDown className={`h-5 w-5 text-primary transition-transform duration-200 ${isStatsExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                </div>
+              </div>
             </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="border-t">
+            <div className="p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Select value={periodPreset} onValueChange={setPeriodPreset}>
                 <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
@@ -416,40 +474,55 @@ export default function AdminBookings() {
                 </>
               )}
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={() => {
-                  if (!periodStats) return;
-                  const rows: string[][] = [
-                    ['Periode', periodRange?.label || '-'],
-                    ['Dari', periodRange?.from ? periodRange.from.toISOString().slice(0, 10) : '-'],
-                    ['Sampai', periodRange?.to ? periodRange.to.toISOString().slice(0, 10) : '-'],
-                    [],
-                    ['Metrik', 'Nilai'],
-                    ['Total Jamaah', String(periodStats.totalPax)],
-                    ['Total Booking', String(periodStats.totalBookings)],
-                    ['Total Revenue', String(periodStats.totalRevenue)],
-                    [],
-                    ['Status Booking', 'Jumlah Jamaah', 'Jumlah Booking', 'Persentase Jamaah'],
-                    ...['confirmed', 'pending', 'processing', 'completed'].map(s => {
-                      const st = periodStats.byStatus?.[s] || { pax: 0, bookings: 0 };
-                      const pct = periodStats.totalPax > 0 ? ((st.pax / periodStats.totalPax) * 100).toFixed(1) + '%' : '0%';
-                      return [s, String(st.pax), String(st.bookings), pct];
-                    }),
-                  ];
-                  const csv = rows.map(r => r.map(c => `"${(c ?? '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
-                  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `statistik-jamaah-${periodRange?.label?.toLowerCase().replace(/\s+/g, '-') || 'periode'}-${new Date().toISOString().slice(0, 10)}.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                  toast({ title: 'Unduh dimulai', description: 'File CSV telah diunduh.' });
+                  if (!periodStats || !periodRange) return;
+                  
+                  // Get style from settings or use default
+                  const styleConfig: ExcelStyleConfig = {
+                    title_bg_color: getSetting('excel_title_bg_color') || DEFAULT_EXCEL_STYLE.title_bg_color,
+                    title_text_color: getSetting('excel_title_text_color') || DEFAULT_EXCEL_STYLE.title_text_color,
+                    title_font_size: parseInt(getSetting('excel_title_font_size')) || DEFAULT_EXCEL_STYLE.title_font_size,
+                    title_bold: getSetting('excel_title_bold') !== 'false',
+
+                    header_bg_color: getSetting('excel_header_bg_color') || DEFAULT_EXCEL_STYLE.header_bg_color,
+                    header_text_color: getSetting('excel_header_text_color') || DEFAULT_EXCEL_STYLE.header_text_color,
+                    header_font_size: parseInt(getSetting('excel_header_font_size')) || DEFAULT_EXCEL_STYLE.header_font_size,
+                    header_bold: getSetting('excel_header_bold') !== 'false',
+
+                    section_bg_color: getSetting('excel_section_bg_color') || DEFAULT_EXCEL_STYLE.section_bg_color,
+                    section_text_color: getSetting('excel_section_text_color') || DEFAULT_EXCEL_STYLE.section_text_color,
+                    section_font_size: parseInt(getSetting('excel_section_font_size')) || DEFAULT_EXCEL_STYLE.section_font_size,
+                    section_bold: getSetting('excel_section_bold') !== 'false',
+
+                    summary_bg_color: getSetting('excel_summary_bg_color') || DEFAULT_EXCEL_STYLE.summary_bg_color,
+                    summary_text_color: getSetting('excel_summary_text_color') || DEFAULT_EXCEL_STYLE.summary_text_color,
+
+                    row_bg_color: getSetting('excel_row_bg_color') || DEFAULT_EXCEL_STYLE.row_bg_color,
+                    row_text_color: getSetting('excel_row_text_color') || DEFAULT_EXCEL_STYLE.row_text_color,
+                    alt_row_bg_color: getSetting('excel_alt_row_bg_color') || DEFAULT_EXCEL_STYLE.alt_row_bg_color,
+
+                    border_color: getSetting('excel_border_color') || DEFAULT_EXCEL_STYLE.border_color,
+                    border_style: (getSetting('excel_border_style') as 'thin' | 'medium' | 'thick') || DEFAULT_EXCEL_STYLE.border_style,
+
+                    body_font_size: parseInt(getSetting('excel_body_font_size')) || DEFAULT_EXCEL_STYLE.body_font_size,
+                    footer_font_size: parseInt(getSetting('excel_footer_font_size')) || DEFAULT_EXCEL_STYLE.footer_font_size,
+                  };
+
+                  exportDynamicStatisticsExcel(
+                    periodStats as any,
+                    company,
+                    periodRange.label,
+                    periodRange.from.toISOString().slice(0, 10),
+                    periodRange.to.toISOString().slice(0, 10),
+                    styleConfig
+                  );
+                  toast({ title: 'Unduh dimulai', description: 'File Excel telah diunduh.' });
                 }}
               >
                 <Download className="h-4 w-4 mr-1" />
-                Unduh CSV
+                Unduh Excel
               </Button>
             </div>
           </div>
@@ -496,7 +569,9 @@ export default function AdminBookings() {
               })}
             </div>
           </div>
-        </CardContent>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       <div className="space-y-4">

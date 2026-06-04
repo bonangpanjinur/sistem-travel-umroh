@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit, UserPlus, User } from "lucide-react";
+import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit, UserPlus, User, DollarSign, CalendarOff, Star, TrendingUp, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Award, BarChart3 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
@@ -531,14 +531,19 @@ export default function AdminHR() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid grid-cols-2 lg:grid-cols-6 w-full">
-          <TabsTrigger value="employees"><Users className="h-4 w-4 mr-2" /> Karyawan</TabsTrigger>
-          <TabsTrigger value="attendance"><Clock className="h-4 w-4 mr-2" /> Absensi</TabsTrigger>
-          <TabsTrigger value="departments"><Building2 className="h-4 w-4 mr-2" /> Departemen</TabsTrigger>
-          <TabsTrigger value="schedules"><Calendar className="h-4 w-4 mr-2" /> Jadwal</TabsTrigger>
-          <TabsTrigger value="devices"><Smartphone className="h-4 w-4 mr-2" /> Perangkat</TabsTrigger>
-          <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" /> Pengaturan</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex min-w-max w-full">
+            <TabsTrigger value="employees" className="flex-1"><Users className="h-4 w-4 mr-1.5" /> Karyawan</TabsTrigger>
+            <TabsTrigger value="attendance" className="flex-1"><Clock className="h-4 w-4 mr-1.5" /> Absensi</TabsTrigger>
+            <TabsTrigger value="payroll" className="flex-1"><DollarSign className="h-4 w-4 mr-1.5" /> Penggajian</TabsTrigger>
+            <TabsTrigger value="leaves" className="flex-1"><CalendarOff className="h-4 w-4 mr-1.5" /> Cuti & Izin</TabsTrigger>
+            <TabsTrigger value="performance" className="flex-1"><BarChart3 className="h-4 w-4 mr-1.5" /> Kinerja</TabsTrigger>
+            <TabsTrigger value="departments" className="flex-1"><Building2 className="h-4 w-4 mr-1.5" /> Departemen</TabsTrigger>
+            <TabsTrigger value="schedules" className="flex-1"><Calendar className="h-4 w-4 mr-1.5" /> Jadwal</TabsTrigger>
+            <TabsTrigger value="devices" className="flex-1"><Smartphone className="h-4 w-4 mr-1.5" /> Perangkat</TabsTrigger>
+            <TabsTrigger value="settings" className="flex-1"><Settings className="h-4 w-4 mr-1.5" /> Pengaturan</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="employees" className="space-y-4">
           <Card>
@@ -902,6 +907,381 @@ export default function AdminHR() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ═══ TAB PENGGAJIAN ═══ */}
+        <TabsContent value="payroll" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5" />Penggajian Karyawan</CardTitle>
+                <CardDescription>Kelola slip gaji, tunjangan, potongan, dan rekap penggajian bulanan.</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Select defaultValue={String(new Date().getMonth() + 1)}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"].map((m, i) => (
+                      <SelectItem key={i} value={String(i+1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select defaultValue={String(new Date().getFullYear())}>
+                  <SelectTrigger className="w-[90px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[2024, 2025, 2026].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" />Proses Gaji
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Ringkasan */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Total Penggajian", value: formatCurrency(0), color: "text-foreground" },
+                  { label: "Sudah Dibayar",    value: formatCurrency(0), color: "text-green-600" },
+                  { label: "Belum Dibayar",    value: formatCurrency(0), color: "text-amber-600" },
+                  { label: "Karyawan Aktif",   value: "0 orang",         color: "text-foreground" },
+                ].map(item => (
+                  <div key={item.label} className="p-3 border rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-0.5">{item.label}</p>
+                    <p className={`font-bold text-sm ${item.color}`}>{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead>Departemen</TableHead>
+                    <TableHead className="text-right">Gaji Pokok</TableHead>
+                    <TableHead className="text-right">Tunjangan</TableHead>
+                    <TableHead className="text-right">Potongan</TableHead>
+                    <TableHead className="text-right">Total Nett</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employees.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                        <DollarSign className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        <p>Belum ada data penggajian bulan ini.</p>
+                        <p className="text-xs mt-1">Klik "Proses Gaji" untuk membuat slip gaji karyawan.</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    employees.map(emp => (
+                      <TableRow key={emp.id}>
+                        <TableCell>
+                          <div className="font-medium">{emp.full_name}</div>
+                          <div className="text-xs text-muted-foreground">{emp.employee_code}</div>
+                        </TableCell>
+                        <TableCell>{emp.department || "-"}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency((emp as any).basic_salary || 0)}</TableCell>
+                        <TableCell className="text-right font-mono text-green-600">+{formatCurrency(0)}</TableCell>
+                        <TableCell className="text-right font-mono text-red-600">-{formatCurrency(0)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">{formatCurrency((emp as any).basic_salary || 0)}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs">Draft</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="outline" size="sm" className="h-7 text-xs">
+                              <Edit className="h-3 w-3 mr-1" />Edit
+                            </Button>
+                            <Button size="sm" className="h-7 text-xs">
+                              <Save className="h-3 w-3 mr-1" />Bayar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Riwayat Penggajian */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4" />Riwayat Penggajian</CardTitle>
+              <CardDescription>Rekap penggajian 12 bulan terakhir</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {[
+                  { period: "April 2026", total: 0, status: "paid", count: 0 },
+                  { period: "Maret 2026", total: 0, status: "paid", count: 0 },
+                ].map(row => (
+                  <div key={row.period} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                    <div>
+                      <p className="font-medium text-sm">{row.period}</p>
+                      <p className="text-xs text-muted-foreground">{row.count} karyawan</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm font-semibold">{formatCurrency(row.total)}</span>
+                      <Badge variant={row.status === "paid" ? "default" : "secondary"} className="text-xs">
+                        {row.status === "paid" ? "Lunas" : "Draft"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                {[0, 1].length === 0 && (
+                  <p className="text-center text-muted-foreground py-8 text-sm">Belum ada riwayat penggajian</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ═══ TAB CUTI & IZIN ═══ */}
+        <TabsContent value="leaves" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {[
+              { label: "Pengajuan Pending", value: 0, color: "text-amber-600", icon: AlertCircle },
+              { label: "Disetujui Bulan Ini", value: 0, color: "text-green-600", icon: CheckCircle2 },
+              { label: "Ditolak",            value: 0, color: "text-red-600",   icon: XCircle },
+              { label: "Total Hari Cuti",    value: 0, color: "text-foreground",icon: CalendarOff },
+            ].map(item => (
+              <Card key={item.label}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <item.icon className={`h-4 w-4 ${item.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                    <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2"><CalendarOff className="h-5 w-5" />Pengajuan Cuti & Izin</CardTitle>
+                <CardDescription>Kelola permohonan cuti karyawan</CardDescription>
+              </div>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-1" />Ajukan Cuti
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead>Jenis</TableHead>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead className="text-center">Durasi</TableHead>
+                    <TableHead>Alasan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                      <CalendarOff className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      <p>Belum ada pengajuan cuti.</p>
+                      <p className="text-xs mt-1">Karyawan dapat mengajukan cuti melalui halaman ini.</p>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Kuota Cuti per Karyawan */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Award className="h-4 w-4" />Kuota Cuti {new Date().getFullYear()}</CardTitle>
+              <CardDescription>Sisa jatah cuti tahunan setiap karyawan</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead className="text-center">Jatah</TableHead>
+                    <TableHead className="text-center">Terpakai</TableHead>
+                    <TableHead className="text-center">Sisa</TableHead>
+                    <TableHead>Persentase</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employees.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground text-sm">Tidak ada karyawan.</TableCell>
+                    </TableRow>
+                  ) : (
+                    employees.map(emp => {
+                      const quota = 12, used = 0, remaining = quota - used;
+                      const pct = Math.round((used / quota) * 100);
+                      return (
+                        <TableRow key={emp.id}>
+                          <TableCell>
+                            <div className="font-medium">{emp.full_name}</div>
+                            <div className="text-xs text-muted-foreground">{emp.department || "-"}</div>
+                          </TableCell>
+                          <TableCell className="text-center font-mono">{quota}</TableCell>
+                          <TableCell className="text-center font-mono text-amber-600">{used}</TableCell>
+                          <TableCell className="text-center font-mono font-semibold text-green-600">{remaining}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-muted rounded-full h-1.5">
+                                <div className="bg-primary rounded-full h-1.5" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-xs text-muted-foreground w-8">{pct}%</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ═══ TAB KINERJA ═══ */}
+        <TabsContent value="performance" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold">Penilaian Kinerja Karyawan</h3>
+              <p className="text-sm text-muted-foreground">Evaluasi kinerja, produktivitas, dan pencapaian target</p>
+            </div>
+            <div className="flex gap-2">
+              <Select defaultValue="2026-Q2">
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2026-Q2">Q2 2026 (Apr–Jun)</SelectItem>
+                  <SelectItem value="2026-Q1">Q1 2026 (Jan–Mar)</SelectItem>
+                  <SelectItem value="2025-H2">H2 2025 (Jul–Des)</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-1" />Buat Review
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              { label: "Rata-rata Nilai",  value: "—",  desc: "Semua karyawan", icon: Star, color: "text-amber-500" },
+              { label: "Review Selesai",   value: "0",  desc: "dari 0 karyawan", icon: CheckCircle2, color: "text-green-600" },
+              { label: "Perlu Perhatian",  value: "0",  desc: "Di bawah standar", icon: AlertCircle, color: "text-red-500" },
+            ].map(item => (
+              <Card key={item.label}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <item.icon className={`h-8 w-8 ${item.color} shrink-0`} />
+                  <div>
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                    <p className="text-2xl font-bold">{item.value}</p>
+                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" />Rekap Penilaian per Karyawan</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead className="text-center">Kualitas</TableHead>
+                    <TableHead className="text-center">Produktivitas</TableHead>
+                    <TableHead className="text-center">Inisiatif</TableHead>
+                    <TableHead className="text-center">Teamwork</TableHead>
+                    <TableHead className="text-center">Kehadiran</TableHead>
+                    <TableHead className="text-center">Nilai Akhir</TableHead>
+                    <TableHead className="text-center">Grade</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employees.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                        <Star className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        <p>Belum ada penilaian kinerja periode ini.</p>
+                        <p className="text-xs mt-1">Klik "Buat Review" untuk mulai evaluasi.</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    employees.map(emp => (
+                      <TableRow key={emp.id}>
+                        <TableCell>
+                          <div className="font-medium">{emp.full_name}</div>
+                          <div className="text-xs text-muted-foreground">{emp.position || emp.department || "-"}</div>
+                        </TableCell>
+                        {[0, 0, 0, 0, 0].map((_, i) => (
+                          <TableCell key={i} className="text-center">
+                            <span className="text-muted-foreground text-sm">—</span>
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center">
+                          <span className="font-bold text-muted-foreground">—</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary" className="text-xs">Belum</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" className="h-7 text-xs">
+                            <Edit className="h-3 w-3 mr-1" />Nilai
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Kriteria Penilaian */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Skala Penilaian & Kriteria Grade</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {[
+                  { grade: "A", label: "Sangat Baik",  range: "4.5 – 5.0", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+                  { grade: "B", label: "Baik",          range: "3.5 – 4.4", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+                  { grade: "C", label: "Cukup",         range: "2.5 – 3.4", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+                  { grade: "D", label: "Kurang",        range: "1.5 – 2.4", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
+                  { grade: "E", label: "Sangat Kurang", range: "1.0 – 1.4", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
+                ].map(g => (
+                  <div key={g.grade} className={`p-3 rounded-lg text-center ${g.color}`}>
+                    <div className="text-2xl font-bold mb-0.5">{g.grade}</div>
+                    <div className="text-xs font-medium">{g.label}</div>
+                    <div className="text-[10px] opacity-70">{g.range}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       <Dialog open={isDeviceDialogOpen} onOpenChange={setIsDeviceDialogOpen}>

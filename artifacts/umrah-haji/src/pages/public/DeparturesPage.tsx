@@ -1,5 +1,5 @@
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
-import { BannerCarousel } from "@/components/home/BannerCarousel";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -38,7 +38,7 @@ export default function DeparturesPage() {
 
   return (
     <DynamicPublicLayout>
-      <BannerCarousel compact />
+
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <span className="text-primary font-semibold text-sm uppercase tracking-wider">
