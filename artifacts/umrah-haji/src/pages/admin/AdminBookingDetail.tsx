@@ -79,6 +79,7 @@ import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
 import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
 import { QuickInvoiceSheet } from "@/components/admin/QuickInvoiceSheet";
+import { PaymentReminderScheduler } from "@/components/admin/PaymentReminderScheduler";
 import { useDocumentLogger } from "@/hooks/useDocumentLogger";
 import { format as dfFormat } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -1940,6 +1941,11 @@ export default function AdminBookingDetail() {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* ── Payment Reminder Scheduler ──────────────────────────── */}
+          {booking && (booking.payment_status !== 'paid' && booking.payment_status !== 'verified') && (
+            <PaymentReminderScheduler booking={booking} />
           )}
         </div>
 
