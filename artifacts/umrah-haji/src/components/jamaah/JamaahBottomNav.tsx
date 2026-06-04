@@ -13,9 +13,9 @@ import { useState, useEffect, useMemo } from "react";
 import { usePWAConfig } from "@/hooks/usePWAConfig";
 
 const DEFAULT_MOBILE_ITEMS = [
-  { to: "/jamaah", icon: Home, label: "Beranda" },
-  { to: "/jamaah/digital-id", icon: QrCode, label: "ID" },
-  { to: "/jamaah/visa", icon: Shield, label: "Visa" },
+  { to: "/jamaah",              icon: Home,  label: "Beranda" },
+  { to: "/jamaah/digital-id",  icon: QrCode, label: "ID" },
+  { to: "/jamaah/visa",        icon: Shield, label: "Visa" },
   { to: "/jamaah/notifications", icon: Bell, label: "Notif", showBadge: true },
 ];
 
@@ -23,75 +23,94 @@ const ICON_MAP: Record<string, any> = {
   Home, QrCode, Shield, Bell, LayoutGrid, FileText, Luggage, LogIn,
   FileSignature, Camera, BookOpen, Wallet, CreditCard, MessageCircle,
   GraduationCap, CalendarDays, Users, Clock, BookMarked, User, Plane,
-  Heart, Star, BellRing, Moon, Sun, UsersRound, Trophy,
+  Heart, Star, BellRing, Moon, Sun, UsersRound, Trophy, Search,
 };
 
 const moreMenuItems = [
-  { to: "/jamaah/payment", icon: CreditCard, label: "Bayar Online", color: "text-primary", bg: "bg-primary/10" },
-  { to: "/jamaah/checklist", icon: FileText, label: "Checklist", color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
-  { to: "/jamaah/checkin", icon: LogIn, label: "Check-in", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
-  { to: "/jamaah/bagasi", icon: Luggage, label: "Bagasi", color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/30" },
-  { to: "/jamaah/kontrak", icon: FileSignature, label: "Kontrak", color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30" },
-  { to: "/jamaah/documents", icon: FileText, label: "Dokumen", color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
-  { to: "/jamaah/galeri", icon: Camera, label: "Galeri", color: "text-pink-600", bg: "bg-pink-50 dark:bg-pink-950/30" },
-  { to: "/jamaah/doa-panduan", icon: BookOpen, label: "Doa & Panduan", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30" },
-  { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30" },
-  { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-950/30" },
-  { to: "/jamaah/progress-wall", icon: Trophy, label: "Progress Wall", color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-950/30" },
-  { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30" },
-  { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
-  { to: "/jamaah/wishlist", icon: Heart, label: "Wishlist", color: "text-rose-600", bg: "bg-rose-50 dark:bg-rose-950/30" },
-  { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-950/30" },
-  { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600", bg: "bg-gray-100 dark:bg-gray-800" },
+  { to: "/jamaah/payment",         icon: CreditCard,   label: "Bayar Online",    color: "text-primary",        bg: "bg-primary/10" },
+  { to: "/jamaah/checklist",       icon: FileText,     label: "Checklist",       color: "text-green-600",      bg: "bg-green-50 dark:bg-green-950/30" },
+  { to: "/jamaah/checkin",         icon: LogIn,        label: "Check-in",        color: "text-blue-600",       bg: "bg-blue-50 dark:bg-blue-950/30" },
+  { to: "/jamaah/bagasi",          icon: Luggage,      label: "Bagasi",          color: "text-orange-600",     bg: "bg-orange-50 dark:bg-orange-950/30" },
+  { to: "/jamaah/kontrak",         icon: FileSignature,label: "Kontrak",         color: "text-purple-600",     bg: "bg-purple-50 dark:bg-purple-950/30" },
+  { to: "/jamaah/documents",       icon: FileText,     label: "Dokumen",         color: "text-green-600",      bg: "bg-green-50 dark:bg-green-950/30" },
+  { to: "/jamaah/galeri",          icon: Camera,       label: "Galeri",          color: "text-pink-600",       bg: "bg-pink-50 dark:bg-pink-950/30" },
+  { to: "/jamaah/doa-panduan",     icon: BookOpen,     label: "Doa & Panduan",   color: "text-emerald-600",    bg: "bg-emerald-50 dark:bg-emerald-950/30" },
+  { to: "/jamaah/payment-history", icon: Wallet,       label: "Riwayat Bayar",   color: "text-amber-600",      bg: "bg-amber-50 dark:bg-amber-950/30" },
+  { to: "/jamaah/manasik",         icon: GraduationCap,label: "Manasik",         color: "text-indigo-600",     bg: "bg-indigo-50 dark:bg-indigo-950/30" },
+  { to: "/jamaah/progress-wall",   icon: Trophy,       label: "Progress Wall",   color: "text-yellow-600",     bg: "bg-yellow-50 dark:bg-yellow-950/30" },
+  { to: "/jamaah/pengingat-ibadah",icon: BellRing,     label: "Pengingat",       color: "text-emerald-600",    bg: "bg-emerald-50 dark:bg-emerald-950/30" },
+  { to: "/jamaah/pantau-keluarga", icon: UsersRound,   label: "Pantau Keluarga", color: "text-blue-600",       bg: "bg-blue-50 dark:bg-blue-950/30" },
+  { to: "/jamaah/wishlist",        icon: Heart,        label: "Wishlist",        color: "text-rose-600",       bg: "bg-rose-50 dark:bg-rose-950/30" },
+  { to: "/jamaah/feedback",        icon: MessageCircle,label: "Feedback",        color: "text-teal-600",       bg: "bg-teal-50 dark:bg-teal-950/30" },
+  { to: "/customer/settings",      icon: User,         label: "Profil",          color: "text-gray-600",       bg: "bg-gray-100 dark:bg-gray-800" },
+];
+
+const moreMenuGroups = [
+  {
+    label: "Administrasi",
+    items: ["Bayar Online", "Checklist", "Check-in", "Bagasi", "Kontrak", "Dokumen", "Riwayat Bayar"],
+  },
+  {
+    label: "Ibadah & Spiritual",
+    items: ["Doa & Panduan", "Manasik", "Pengingat"],
+  },
+  {
+    label: "Komunitas",
+    items: ["Galeri", "Progress Wall", "Pantau Keluarga", "Feedback"],
+  },
+  {
+    label: "Lainnya",
+    items: ["Wishlist", "Profil"],
+  },
 ];
 
 const sidebarGroups = [
   {
     label: "Perjalanan",
     items: [
-      { to: "/jamaah", icon: Home, label: "Beranda", exact: true },
-      { to: "/my-bookings", icon: Plane, label: "Booking Saya" },
-      { to: "/jamaah/itinerary", icon: CalendarDays, label: "Itinerary" },
-      { to: "/jamaah/digital-id", icon: QrCode, label: "ID Digital" },
-      { to: "/jamaah/visa", icon: Shield, label: "Tracker Visa" },
-      { to: "/jamaah/rombongan", icon: Users, label: "Rombongan" },
+      { to: "/jamaah",             icon: Home,          label: "Beranda",           exact: true },
+      { to: "/my-bookings",        icon: Plane,         label: "Booking Saya" },
+      { to: "/jamaah/itinerary",   icon: CalendarDays,  label: "Itinerary" },
+      { to: "/jamaah/digital-id",  icon: QrCode,        label: "ID Digital" },
+      { to: "/jamaah/visa",        icon: Shield,        label: "Tracker Visa" },
+      { to: "/jamaah/rombongan",   icon: Users,         label: "Rombongan" },
     ],
   },
   {
     label: "Keuangan",
     items: [
-      { to: "/jamaah/payment", icon: CreditCard, label: "Bayar Online" },
-      { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar" },
-      { to: "/jamaah/checklist", icon: FileText, label: "Checklist" },
-      { to: "/jamaah/documents", icon: FileSignature, label: "Dokumen" },
+      { to: "/jamaah/payment",         icon: CreditCard,    label: "Bayar Online" },
+      { to: "/jamaah/payment-history", icon: Wallet,        label: "Riwayat Bayar" },
+      { to: "/jamaah/checklist",       icon: FileText,      label: "Checklist" },
+      { to: "/jamaah/documents",       icon: FileSignature, label: "Dokumen" },
     ],
   },
   {
     label: "Ibadah",
     items: [
-      { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik Digital" },
-      { to: "/jamaah/panduan-ibadah", icon: BookOpen, label: "Panduan Ibadah" },
-      { to: "/jamaah/waktu-sholat", icon: Clock, label: "Waktu Sholat" },
-      { to: "/jamaah/doa-panduan", icon: BookMarked, label: "Doa & Dzikir" },
-      { to: "/jamaah/tracker-ibadah", icon: Star, label: "Tracker Ibadah" },
-      { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat Ibadah" },
-      { to: "/jamaah/kesehatan", icon: Heart, label: "Profil Kesehatan" },
+      { to: "/jamaah/manasik",          icon: GraduationCap, label: "Manasik Digital" },
+      { to: "/jamaah/panduan-ibadah",   icon: BookOpen,      label: "Panduan Ibadah" },
+      { to: "/jamaah/waktu-sholat",     icon: Clock,         label: "Waktu Sholat" },
+      { to: "/jamaah/doa-panduan",      icon: BookMarked,    label: "Doa & Dzikir" },
+      { to: "/jamaah/tracker-ibadah",   icon: Star,          label: "Tracker Ibadah" },
+      { to: "/jamaah/pengingat-ibadah", icon: BellRing,      label: "Pengingat Ibadah" },
+      { to: "/jamaah/kesehatan",        icon: Heart,         label: "Profil Kesehatan" },
     ],
   },
   {
     label: "Komunitas",
     items: [
-      { to: "/jamaah/chat", icon: MessageCircle, label: "Chat Rombongan" },
-      { to: "/jamaah/galeri", icon: Camera, label: "Galeri Foto" },
-      { to: "/jamaah/progress-wall", icon: Trophy, label: "Progress Wall" },
+      { to: "/jamaah/chat",          icon: MessageCircle, label: "Chat Rombongan" },
+      { to: "/jamaah/galeri",        icon: Camera,        label: "Galeri Foto" },
+      { to: "/jamaah/progress-wall", icon: Trophy,        label: "Progress Wall" },
     ],
   },
   {
     label: "Akun",
     items: [
-      { to: "/jamaah/notifications", icon: Bell, label: "Notifikasi", showBadge: true },
-      { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga" },
-      { to: "/customer/settings", icon: User, label: "Profil & Pengaturan" },
+      { to: "/jamaah/notifications",   icon: Bell,      label: "Notifikasi",        showBadge: true },
+      { to: "/jamaah/pantau-keluarga", icon: UsersRound,label: "Pantau Keluarga" },
+      { to: "/customer/settings",      icon: User,      label: "Profil & Pengaturan" },
     ],
   },
 ];
@@ -119,6 +138,16 @@ export function JamaahBottomNav() {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
   });
 
+  // Prevent body scroll when bottom sheet is open
+  useEffect(() => {
+    if (moreOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [moreOpen]);
+
   useEffect(() => {
     const cls = sidebarCollapsed ? "jamaah-sidebar-collapsed" : "jamaah-sidebar-open";
     const opposite = sidebarCollapsed ? "jamaah-sidebar-open" : "jamaah-sidebar-collapsed";
@@ -142,6 +171,9 @@ export function JamaahBottomNav() {
     return location.pathname === to || location.pathname.startsWith(to + "/");
   };
 
+  // Build grouped items for bottom sheet
+  const itemsByLabel = Object.fromEntries(moreMenuItems.map(it => [it.label, it]));
+
   return (
     <>
       {/* ── DESKTOP SIDEBAR ── */}
@@ -151,7 +183,6 @@ export function JamaahBottomNav() {
           sidebarCollapsed ? "w-16" : "w-60"
         )}
       >
-        {/* Sidebar Header */}
         <div className={cn(
           "flex items-center border-b h-14 shrink-0",
           sidebarCollapsed ? "justify-center px-2" : "justify-between px-4"
@@ -181,7 +212,6 @@ export function JamaahBottomNav() {
           </button>
         </div>
 
-        {/* Navigation Groups */}
         <nav className="flex-1 overflow-y-auto py-3 space-y-4 px-2">
           {sidebarGroups.map((group) => (
             <div key={group.label}>
@@ -226,7 +256,6 @@ export function JamaahBottomNav() {
           ))}
         </nav>
 
-        {/* Sidebar Footer */}
         <div className="border-t px-2 py-2 shrink-0 space-y-1">
           <button
             onClick={toggleDark}
@@ -239,31 +268,35 @@ export function JamaahBottomNav() {
             {isDark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
             {!sidebarCollapsed && <span className="text-sm">{isDark ? "Mode Terang" : "Mode Gelap"}</span>}
           </button>
-
           {!sidebarCollapsed && (
-            <Link
-              to="/"
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block px-2"
-            >
+            <Link to="/" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block px-2">
               ← Kembali ke Website
             </Link>
           )}
         </div>
       </aside>
 
-      {/* ── MOBILE "LEBIH" OVERLAY ── */}
+      {/* ── MOBILE BOTTOM SHEET OVERLAY ── */}
       {moreOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
+          {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
             onClick={() => setMoreOpen(false)}
           />
-          <div className="absolute bottom-[72px] left-3 right-3 bg-background border border-border rounded-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+
+          {/* Bottom sheet */}
+          <div className="absolute bottom-0 left-0 right-0 bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
+            </div>
+
             {/* Sheet header */}
-            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between px-5 pt-2 pb-3 border-b border-border/60">
               <div>
-                <h3 className="font-bold text-base text-foreground">Menu Lainnya</h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Semua fitur portal jamaah</p>
+                <h3 className="font-bold text-base text-foreground">Semua Fitur</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Portal Jamaah lengkap</p>
               </div>
               <button
                 onClick={() => setMoreOpen(false)}
@@ -273,39 +306,51 @@ export function JamaahBottomNav() {
               </button>
             </div>
 
-            {/* Grid menu */}
-            <div className="p-4 grid grid-cols-4 gap-2 max-h-[55vh] overflow-y-auto">
-              {moreMenuItems.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMoreOpen(false)}
-                  className="flex flex-col items-center gap-1.5 p-2 rounded-2xl hover:bg-muted active:scale-95 transition-all group"
-                >
-                  <div className={cn(
-                    "w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm",
-                    item.bg
-                  )}>
-                    <item.icon className={cn("h-5 w-5", item.color)} />
+            {/* Grouped grid menu */}
+            <div className="overflow-y-auto max-h-[65vh] pb-safe">
+              {moreMenuGroups.map((group) => {
+                const groupItems = group.items
+                  .map(label => itemsByLabel[label])
+                  .filter(Boolean);
+                if (groupItems.length === 0) return null;
+                return (
+                  <div key={group.label} className="px-4 pt-4">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2.5 px-1">
+                      {group.label}
+                    </p>
+                    <div className="grid grid-cols-4 gap-2 mb-1">
+                      {groupItems.map((item) => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMoreOpen(false)}
+                          className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl hover:bg-muted active:scale-95 transition-all"
+                        >
+                          <div className={cn(
+                            "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
+                            item.bg
+                          )}>
+                            <item.icon className={cn("h-5 w-5", item.color)} />
+                          </div>
+                          <span className="text-[10px] font-medium text-center leading-tight text-foreground/80">
+                            {item.label}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                  <span className="text-[10px] font-medium text-center leading-tight text-foreground/80">
-                    {item.label}
-                  </span>
-                </Link>
-              ))}
+                );
+              })}
+              <div className="h-6" />
             </div>
-
-            {/* Bottom safe area padding */}
-            <div className="h-2" />
           </div>
         </div>
       )}
 
-      {/* ── MOBILE BOTTOM BAR — Modern Floating Style ── */}
+      {/* ── MOBILE BOTTOM BAR ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-        {/* Frosted glass bar */}
-        <div className="bg-background/85 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center justify-around h-[60px] px-1 pb-safe">
+        <div className="bg-background/90 backdrop-blur-2xl border-t border-border/40 shadow-[0_-8px_32px_rgba(0,0,0,0.10)]">
+          <div className="flex items-stretch justify-around h-[62px] px-1 pb-safe">
             {mobileNavItems.map((item) => {
               const active = isActive(item.to);
               return (
@@ -314,22 +359,25 @@ export function JamaahBottomNav() {
                   to={item.to}
                   className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative group"
                 >
-                  {/* Active pill background */}
                   {active && (
-                    <span className="absolute inset-x-2 top-1.5 bottom-1.5 rounded-2xl bg-primary/10" />
+                    <span className="absolute inset-x-1.5 top-1.5 bottom-1.5 rounded-2xl bg-primary/10" />
                   )}
                   <div className="relative z-10">
                     <div className={cn(
-                      "flex items-center justify-center w-8 h-6 rounded-xl transition-all duration-200",
-                      active ? "scale-110" : "group-active:scale-95"
+                      "flex items-center justify-center w-9 h-6 rounded-xl transition-all duration-200",
+                      active ? "scale-110" : "group-active:scale-90"
                     )}>
-                      <item.icon className={cn(
-                        "h-[22px] w-[22px] transition-all duration-200",
-                        active ? "text-primary" : "text-muted-foreground"
-                      )} strokeWidth={active ? 2.5 : 1.8} />
+                      <item.icon
+                        className={cn(
+                          "transition-all duration-200",
+                          active ? "text-primary" : "text-muted-foreground"
+                        )}
+                        style={{ width: 22, height: 22 }}
+                        strokeWidth={active ? 2.5 : 1.8}
+                      />
                     </div>
                     {item.showBadge && unreadCount > 0 && (
-                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-background">
+                      <span className="absolute -top-2 -right-2.5 min-w-[17px] h-[17px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-background">
                         {unreadCount > 9 ? "9+" : unreadCount}
                       </span>
                     )}
@@ -350,16 +398,20 @@ export function JamaahBottomNav() {
               className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative group"
             >
               {moreOpen && (
-                <span className="absolute inset-x-2 top-1.5 bottom-1.5 rounded-2xl bg-primary/10" />
+                <span className="absolute inset-x-1.5 top-1.5 bottom-1.5 rounded-2xl bg-primary/10" />
               )}
               <div className={cn(
-                "relative z-10 w-8 h-6 flex items-center justify-center transition-all duration-200",
-                moreOpen ? "scale-110" : "group-active:scale-95"
+                "relative z-10 w-9 h-6 flex items-center justify-center transition-all duration-200",
+                moreOpen ? "scale-110" : "group-active:scale-90"
               )}>
-                <LayoutGrid className={cn(
-                  "h-[22px] w-[22px] transition-all duration-200",
-                  moreOpen ? "text-primary" : "text-muted-foreground"
-                )} strokeWidth={moreOpen ? 2.5 : 1.8} />
+                <LayoutGrid
+                  className={cn(
+                    "transition-all duration-200",
+                    moreOpen ? "text-primary" : "text-muted-foreground"
+                  )}
+                  style={{ width: 22, height: 22 }}
+                  strokeWidth={moreOpen ? 2.5 : 1.8}
+                />
               </div>
               <span className={cn(
                 "text-[10px] font-medium z-10 transition-colors duration-200",

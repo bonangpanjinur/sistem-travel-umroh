@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CheckCircle2, Circle, UserPlus, FileText, CreditCard, Plane, ArrowRight } from "lucide-react";
+import { CheckCircle2, UserPlus, FileText, CreditCard, Plane, ArrowRight, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Step {
@@ -17,23 +17,19 @@ interface Props {
   booking?: any;
 }
 
-/**
- * Guest mode: tampilkan 4 langkah pendaftaran sebagai onboarding.
- * Logged-in: tampilkan progress nyata (data, dokumen, pembayaran, keberangkatan).
- */
 export function ProfileProgressCard({ isGuest, customer, booking }: Props) {
   const guestSteps: Step[] = [
-    { key: "register", label: "Daftar Akun", desc: "Buat akun gratis", icon: UserPlus, done: false, href: "/auth/register" },
-    { key: "profile",  label: "Lengkapi Profil", desc: "Data diri & paspor", icon: FileText, done: false, href: "/auth/register" },
-    { key: "pick",     label: "Pilih Paket", desc: "Umroh / Haji", icon: Plane, done: false, href: "/packages" },
-    { key: "pay",      label: "Bayar DP", desc: "Konfirmasi keberangkatan", icon: CreditCard, done: false, href: "/auth/login" },
+    { key: "register", label: "Daftar",    desc: "Buat akun gratis",       icon: UserPlus,   done: false, href: "/auth/register" },
+    { key: "profile",  label: "Profil",    desc: "Data diri & paspor",     icon: FileText,   done: false, href: "/auth/register" },
+    { key: "pick",     label: "Pilih",     desc: "Umroh / Haji",           icon: Plane,      done: false, href: "/packages" },
+    { key: "pay",      label: "Bayar DP",  desc: "Konfirmasi keberangkatan",icon: CreditCard, done: false, href: "/auth/login" },
   ];
 
   const userSteps: Step[] = [
     {
       key: "profile",
-      label: "Profil Lengkap",
-      desc: customer?.full_name ? "Data tersimpan" : "Lengkapi data diri",
+      label: "Profil",
+      desc: customer?.full_name ? "Lengkap" : "Belum diisi",
       icon: UserPlus,
       done: !!customer?.full_name && !!customer?.nik,
       href: "/customer/settings",
@@ -41,23 +37,23 @@ export function ProfileProgressCard({ isGuest, customer, booking }: Props) {
     {
       key: "documents",
       label: "Dokumen",
-      desc: customer?.passport_number ? "Paspor terisi" : "Upload paspor & KTP",
+      desc: customer?.passport_number ? "Paspor OK" : "Perlu upload",
       icon: FileText,
       done: !!customer?.passport_number,
       href: "/jamaah/documents",
     },
     {
       key: "booking",
-      label: "Booking Aktif",
-      desc: booking ? `Kode ${booking.booking_code}` : "Belum ada booking",
+      label: "Booking",
+      desc: booking ? booking.booking_code : "Belum ada",
       icon: Plane,
       done: !!booking,
       href: booking ? "/my-bookings" : "/packages",
     },
     {
       key: "payment",
-      label: "Pembayaran",
-      desc: booking?.payment_status === "paid" ? "Lunas" : booking ? "DP / cicilan" : "—",
+      label: "Bayar",
+      desc: booking?.payment_status === "paid" ? "Lunas ✓" : booking ? "DP dulu" : "—",
       icon: CreditCard,
       done: booking?.payment_status === "paid",
       href: "/jamaah/payment",
@@ -69,57 +65,103 @@ export function ProfileProgressCard({ isGuest, customer, booking }: Props) {
   const pct = Math.round((completed / steps.length) * 100);
 
   return (
-    <section className="mb-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <p className="font-display text-sm font-semibold text-foreground">
-            {isGuest ? "Mulai Perjalanan Anda" : "Progress Anda"}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            {isGuest ? "4 langkah mudah untuk berangkat" : `${completed} dari ${steps.length} langkah selesai`}
-          </p>
+    <section className="mb-4 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      {/* Header dengan progress bar */}
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <p className="font-display text-sm font-semibold text-foreground">
+              {isGuest ? "Mulai Perjalanan" : "Progress Anda"}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {isGuest ? "4 langkah untuk berangkat" : `${completed} dari ${steps.length} langkah selesai`}
+            </p>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold text-primary tabular-nums">{pct}</span>
+            <span className="text-sm font-semibold text-primary">%</span>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-xl font-bold text-primary tabular-nums">{pct}%</p>
+        {/* Progress bar */}
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${pct}%`,
+              background: "linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%)",
+            }}
+          />
         </div>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden mb-3">
-        <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-      </div>
-      <ol className="space-y-2">
-        {steps.map((s, i) => {
-          const Icon = s.icon;
-          return (
-            <li key={s.key}>
+
+      {/* Steps — horizontal scroll row */}
+      <div className="px-3 pb-3 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-2 min-w-max">
+          {steps.map((s, i) => {
+            const Icon = s.icon;
+            return (
               <Link
+                key={s.key}
                 to={s.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-2.5 py-2 transition active:scale-[0.98]",
-                  s.done ? "bg-primary/5" : "hover:bg-muted/50"
+                  "flex flex-col items-center gap-2 p-3 rounded-2xl w-[84px] shrink-0 transition active:scale-95 border",
+                  s.done
+                    ? "bg-primary/8 border-primary/20"
+                    : "bg-muted/50 border-border/60 hover:bg-muted"
                 )}
               >
-                <div
-                  className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border",
-                    s.done ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border"
+                <div className={cn(
+                  "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 relative",
+                  s.done ? "bg-primary text-primary-foreground shadow-sm" : "bg-background text-muted-foreground border border-border"
+                )}>
+                  {s.done ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <Icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
                   )}
-                >
-                  {s.done ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  {/* Step number badge */}
+                  {!s.done && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-muted-foreground/20 text-[9px] font-bold text-muted-foreground flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-xs font-semibold", s.done ? "text-foreground" : "text-foreground")}>
-                    <span className="text-muted-foreground/60 mr-1">{i + 1}.</span>
+                <div className="text-center">
+                  <p className={cn(
+                    "text-[11px] font-semibold leading-tight",
+                    s.done ? "text-primary" : "text-foreground"
+                  )}>
                     {s.label}
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">{s.desc}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 line-clamp-1">{s.desc}</p>
                 </div>
-                {!s.done && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
-                {s.done && <Circle className="h-2 w-2 fill-primary text-primary flex-shrink-0" />}
               </Link>
-            </li>
-          );
-        })}
-      </ol>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* CTA bottom row */}
+      {!isGuest && completed < steps.length && (
+        <Link
+          to={steps.find(s => !s.done)?.href || "#"}
+          className="flex items-center justify-between px-4 py-2.5 border-t border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors"
+        >
+          <span className="text-[12px] font-medium text-foreground">
+            Lanjutkan: <span className="text-primary">{steps.find(s => !s.done)?.label}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      )}
+      {isGuest && (
+        <Link
+          to="/auth/register"
+          className="flex items-center justify-between px-4 py-2.5 border-t border-border/60 bg-primary/5 hover:bg-primary/10 transition-colors"
+        >
+          <span className="text-[12px] font-semibold text-primary">Daftar sekarang, gratis!</span>
+          <ArrowRight className="h-4 w-4 text-primary" />
+        </Link>
+      )}
     </section>
   );
 }
