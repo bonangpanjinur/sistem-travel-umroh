@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import {
   Building2, CreditCard, Bell, FileText, User, ShieldAlert,
-  Palette, Menu, Lock, Key,
+  Palette, Menu, Lock, Key, Database,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import ChangePassword from "@/components/settings/ChangePassword";
@@ -23,7 +23,8 @@ const NotificationsSection = lazy(() => import("@/components/admin/settings/Noti
 const AppearanceSection    = lazy(() => import("@/components/admin/settings/AppearanceSection").then(m => ({ default: m.AppearanceSection })));
 const SecuritySection      = lazy(() => import("@/components/admin/settings/SecuritySection").then(m => ({ default: m.SecuritySection })));
 const ApiKeysSection       = lazy(() => import("@/components/admin/settings/ApiKeysSection").then(m => ({ default: m.ApiKeysSection })));
-const DangerSection        = lazy(() => import("@/components/admin/settings/DangerSection").then(m => ({ default: m.DangerSection })));
+const DangerSection              = lazy(() => import("@/components/admin/settings/DangerSection").then(m => ({ default: m.DangerSection })));
+const DatabaseMigrationSection   = lazy(() => import("@/components/admin/settings/DatabaseMigrationSection").then(m => ({ default: m.DatabaseMigrationSection })));
 
 const NAV_ITEMS: NavItem[] = [
   { id: "profile",       label: "Profil & Akun",        icon: User,        description: "Data pribadi & password" },
@@ -35,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "sidebar",       label: "Menu Sidebar",         icon: Menu,        description: "Susunan & urutan menu", adminOnly: true },
   { id: "security",      label: "Keamanan",             icon: Lock,        description: "Autentikasi & sesi aktif" },
   { id: "apikeys",       label: "Integrasi & API Keys", icon: Key,         description: "Supabase, VAPID, Midtrans, SMTP", adminOnly: true },
+  { id: "database",      label: "Migrasi Database",     icon: Database,    description: "Jalankan file SQL migrasi", adminOnly: true },
   { id: "danger",        label: "Zona Bahaya",          icon: ShieldAlert, description: "Reset & tindakan berbahaya", adminOnly: true },
 ];
 
@@ -77,8 +79,9 @@ export default function AdminSettings() {
             </>
           )}
           {activeSection === "security"               && <SecuritySection />}
-          {activeSection === "apikeys" && isSuperAdmin() && <ApiKeysSection />}
-          {activeSection === "danger"  && isSuperAdmin() && <DangerSection />}
+          {activeSection === "apikeys"   && isSuperAdmin() && <ApiKeysSection />}
+          {activeSection === "database"  && isSuperAdmin() && <DatabaseMigrationSection />}
+          {activeSection === "danger"    && isSuperAdmin() && <DangerSection />}
           </Suspense>
           </SectionErrorBoundary>
         </div>

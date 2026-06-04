@@ -17,6 +17,7 @@ import functionsRouter from "./functions.js";
 import dashboardRouter from "./dashboard.js";
 import schedulerRouter from "./scheduler.js";
 import reportsRouter from "./reports.js";
+import migrationsRouter from "./migrations.js";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use("/bookings", bookingsRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/scheduler", schedulerRouter);
 router.use("/reports", reportsRouter);
+router.use("/admin/migrations", migrationsRouter);
 
 export default router;

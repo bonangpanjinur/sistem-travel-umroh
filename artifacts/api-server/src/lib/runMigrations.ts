@@ -16,6 +16,7 @@ function sqlPath(filename: string): string {
 
 // ── SQL statement splitter ─────────────────────────────────────────────────────
 // Splits a SQL file into individual statements, correctly handling:
+// (exported so the migrations API route can reuse it)
 //   • Dollar-quoted strings  ($$…$$, $BODY$…$BODY$, $func$…$func$, etc.)
 //   • Single-quoted strings  ('…'  with '' escapes)
 //   • Line comments          (-- …)
