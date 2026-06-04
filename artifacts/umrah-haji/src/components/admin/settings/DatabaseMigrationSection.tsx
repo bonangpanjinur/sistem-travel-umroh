@@ -8,7 +8,7 @@ import {
   AlertTriangle, Loader2, ChevronDown, ChevronUp,
   ScrollText, User, MapPin, CalendarDays,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Migration {
