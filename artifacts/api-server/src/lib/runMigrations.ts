@@ -300,6 +300,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 07_profitabilitas_paket_menu — already applied, skipping");
     }
 
+    // ── Step 1h: passenger type pricing columns ───────────────────────────
+    const passengerPricingApplied = await isApplied(client, "09_passenger_pricing");
+    if (!passengerPricingApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("09_passenger_pricing.sql"),
+        "09_passenger_pricing (price_adult + child/infant percent columns for departures & packages)",
+      );
+      await markApplied(client, "09_passenger_pricing");
+    } else {
+      logger.info("runMigrations: 09_passenger_pricing — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

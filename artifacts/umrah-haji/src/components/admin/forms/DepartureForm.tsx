@@ -78,6 +78,8 @@ const departureSchema = z.object({
   price_adult: z.coerce.number().min(0).default(0),
   price_child: z.coerce.number().min(0).default(0),
   price_infant: z.coerce.number().min(0).default(0),
+  child_price_percent: z.coerce.number().min(0).max(100).default(75),
+  infant_price_percent: z.coerce.number().min(0).max(100).default(10),
   // Phase 3: Milestone & Deadline Alert Tracker
   document_deadline: z.string().optional().nullable(),
   payment_deadline: z.string().optional().nullable(),
@@ -232,6 +234,8 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
       price_adult: (departureData as any)?.price_adult || 0,
       price_child: (departureData as any)?.price_child || 0,
       price_infant: (departureData as any)?.price_infant || 0,
+      child_price_percent: (departureData as any)?.child_price_percent ?? 75,
+      infant_price_percent: (departureData as any)?.infant_price_percent ?? 10,
       document_deadline: (departureData as any)?.document_deadline || "",
       payment_deadline: (departureData as any)?.payment_deadline || "",
       visa_deadline: (departureData as any)?.visa_deadline || "",
@@ -1076,6 +1080,50 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                   <FormControl>
                     <Input type="number" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Persentase Harga Anak/Balita - fallback otomatis */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-amber-800">Kalkulasi Otomatis Harga Anak/Balita</p>
+            <p className="text-[10px] text-amber-700 mt-0.5">
+              Berlaku ketika harga Anak atau Balita di atas diisi 0 — sistem menghitung dari persentase harga kamar.
+            </p>
+          </div>
+          <div className="grid gap-3 grid-cols-2">
+            <FormField
+              control={form.control}
+              name="child_price_percent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">% Harga Anak dari Kamar</FormLabel>
+                  <div className="flex items-center gap-1">
+                    <FormControl>
+                      <Input type="number" min="0" max="100" className="bg-white" {...field} />
+                    </FormControl>
+                    <span className="text-xs font-bold text-amber-700">%</span>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="infant_price_percent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">% Harga Balita dari Kamar</FormLabel>
+                  <div className="flex items-center gap-1">
+                    <FormControl>
+                      <Input type="number" min="0" max="100" className="bg-white" {...field} />
+                    </FormControl>
+                    <span className="text-xs font-bold text-amber-700">%</span>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

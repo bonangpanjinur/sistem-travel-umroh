@@ -59,6 +59,11 @@ interface DepartureData {
   price_triple: number | null;
   price_double: number | null;
   price_single: number | null;
+  price_adult: number | null;
+  price_child: number | null;
+  price_infant: number | null;
+  child_price_percent: number | null;
+  infant_price_percent: number | null;
 }
 
 interface PassengerEntry {
@@ -212,7 +217,8 @@ export default function AdminBookingCreate() {
         .from('departures')
         .select(`
           id, package_id, departure_date, return_date, quota, booked_count, status,
-          price_quad, price_triple, price_double, price_single
+          price_quad, price_triple, price_double, price_single,
+          price_adult, price_child, price_infant, child_price_percent, infant_price_percent
         `)
         .eq('package_id', packageId)
         .in('status', ['open', 'confirmed'])
@@ -257,16 +263,37 @@ export default function AdminBookingCreate() {
     };
   }, [selectedDeparture]);
 
+  // Age-based pricing from departure
+  const agePriceChild = selectedDeparture?.price_child || 0;
+  const agePriceInfant = selectedDeparture?.price_infant || 0;
+  const childPricePct = selectedDeparture?.child_price_percent ?? 75;
+  const infantPricePct = selectedDeparture?.infant_price_percent ?? 10;
+
+  const getPassengerPrice = (passengerType: string, roomType: RoomType): number => {
+    const roomPrice = prices[roomType] || 0;
+    if (passengerType === 'child') {
+      return agePriceChild > 0 ? agePriceChild : Math.round(roomPrice * childPricePct / 100);
+    }
+    if (passengerType === 'infant') {
+      return agePriceInfant > 0 ? agePriceInfant : Math.round(roomPrice * infantPricePct / 100);
+    }
+    return roomPrice;
+  };
+
   // Total passengers from room allocation
   const totalFromRooms = roomAllocation.quad + roomAllocation.triple + roomAllocation.double + roomAllocation.single;
 
-  // Total price calculated from room allocation
+  // Total price: per-passenger based on type when passengers are set, else room-based fallback
   const totalPrice = useMemo(() => {
+    if (passengers.length > 0) {
+      return passengers.reduce((sum, p) => sum + getPassengerPrice(p.passenger_type, p.room_type), 0);
+    }
     return (roomAllocation.quad * prices.quad) +
       (roomAllocation.triple * prices.triple) +
       (roomAllocation.double * prices.double) +
       (roomAllocation.single * prices.single);
-  }, [roomAllocation, prices]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passengers, prices, agePriceChild, agePriceInfant, childPricePct, infantPricePct, roomAllocation]);
 
   // Validation
   const doubleValidationError = roomAllocation.double > 0 && roomAllocation.double % 2 !== 0;
@@ -1036,6 +1063,36 @@ export default function AdminBookingCreate() {
                         </div>
                       );
                     })}
+                    {/* Breakdown per tipe penumpang - tampil di Step 4 ketika tipe sudah diset */}
+                    {(() => {
+                      const adults = passengers.filter(p => p.passenger_type === 'adult');
+                      const children = passengers.filter(p => p.passenger_type === 'child');
+                      const infants = passengers.filter(p => p.passenger_type === 'infant');
+                      if (children.length === 0 && infants.length === 0) return null;
+                      return (
+                        <div className="mt-2 pt-2 border-t border-dashed border-primary/20 space-y-1.5">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-primary/70">Harga per Tipe</p>
+                          {adults.length > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Dewasa ×{adults.length}</span>
+                              <span className="font-bold">{formatCurrency(adults.reduce((s, p) => s + getPassengerPrice(p.passenger_type, p.room_type), 0))}</span>
+                            </div>
+                          )}
+                          {children.length > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Anak ×{children.length}</span>
+                              <span className="font-bold text-amber-600">{formatCurrency(children.reduce((s, p) => s + getPassengerPrice(p.passenger_type, p.room_type), 0))}</span>
+                            </div>
+                          )}
+                          {infants.length > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Balita ×{infants.length}</span>
+                              <span className="font-bold text-amber-600">{formatCurrency(infants.reduce((s, p) => s + getPassengerPrice(p.passenger_type, p.room_type), 0))}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 

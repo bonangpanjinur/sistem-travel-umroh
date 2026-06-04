@@ -188,7 +188,7 @@ export function useBookingWizardDynamic(
       // 2. Get departure info (incl. package currency for multi-currency snapshot)
       const { data: departureRaw, error: departureError } = await supabase
         .from('departures')
-        .select('id, departure_date, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, package:packages(code, currency, booking_mode)')
+        .select('id, departure_date, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, child_price_percent, infant_price_percent, package:packages(code, currency, booking_mode)')
         .eq('id', formData.departureId)
         .single();
 
@@ -229,8 +229,23 @@ export function useBookingWizardDynamic(
         mainRoomType = 'quad'; // default, tidak relevan untuk haji
       } else {
         // Model harga per tipe kamar (umroh/wisata)
+        // Anak/balita mendapat harga khusus: price_child/price_infant jika diisi,
+        // atau persentase dari harga kamar jika price_child/infant = 0.
+        const childPct = (departure.child_price_percent ?? 75) / 100;
+        const infantPct = (departure.infant_price_percent ?? 10) / 100;
         for (const passenger of formData.passengers) {
-          totalPrice += priceMap[passenger.roomType];
+          const roomPrice = priceMap[passenger.roomType] || 0;
+          if (passenger.passengerType === 'child') {
+            totalPrice += departure.price_child > 0
+              ? departure.price_child
+              : Math.round(roomPrice * childPct);
+          } else if (passenger.passengerType === 'infant') {
+            totalPrice += departure.price_infant > 0
+              ? departure.price_infant
+              : Math.round(roomPrice * infantPct);
+          } else {
+            totalPrice += roomPrice;
+          }
         }
         const roomCounts = formData.passengers.reduce((acc, p) => {
           acc[p.roomType] = (acc[p.roomType] || 0) + 1;

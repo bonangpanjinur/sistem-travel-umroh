@@ -1534,6 +1534,11 @@ export type Database = {
           price_quad: number | null
           price_single: number | null
           price_triple: number | null
+          price_adult: number | null
+          price_child: number | null
+          price_infant: number | null
+          child_price_percent: number | null
+          infant_price_percent: number | null
           quota: number
           return_date: string
           status: string | null
@@ -1564,6 +1569,11 @@ export type Database = {
           price_quad?: number | null
           price_single?: number | null
           price_triple?: number | null
+          price_adult?: number | null
+          price_child?: number | null
+          price_infant?: number | null
+          child_price_percent?: number | null
+          infant_price_percent?: number | null
           quota?: number
           return_date: string
           status?: string | null
@@ -1594,6 +1604,11 @@ export type Database = {
           price_quad?: number | null
           price_single?: number | null
           price_triple?: number | null
+          price_adult?: number | null
+          price_child?: number | null
+          price_infant?: number | null
+          child_price_percent?: number | null
+          infant_price_percent?: number | null
           quota?: number
           return_date?: string
           status?: string | null
@@ -3611,6 +3626,8 @@ export type Database = {
           discount_percentage: number | null
           savings_installment: number | null
           savings_target: number | null
+          child_price_percent: number | null
+          infant_price_percent: number | null
           updated_at: string | null
         }
         Insert: {
@@ -3646,6 +3663,8 @@ export type Database = {
           discount_percentage?: number | null
           savings_installment?: number | null
           savings_target?: number | null
+          child_price_percent?: number | null
+          infant_price_percent?: number | null
           updated_at?: string | null
         }
         Update: {

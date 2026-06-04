@@ -1,12 +1,2 @@
-- [SQL canonical folder](sql-canonical-folder.md) — satu sumber kebenaran: sql/migrations/ (001–065); supabase/migrations/ untuk Supabase CLI; selalu copy ke kedua folder; build.mjs api-server tidak boleh hardcode src/sql copy
-- [MilestoneTrackerCard document validation](milestone-tracker-doc-validation.md) — terima prop departureId; query customer_documents via booking_passengers; tampilkan upload+verified count real-time dari DB
-- [Equipment E1 return flow](equipment-return-flow.md) — EquipmentReturnDialog.tsx; RPC return_equipment_item; migration 062; tombol retur di EquipmentPage per jamaah hanya muncul jika ada distributed item
-- [Equipment E2 size field](equipment-size-field.md) — kolom size di equipment_distributions; has_sizes+available_sizes di equipment_items; size selector di DistributionDrawer; validasi wajib pilih ukuran sebelum save; konfigurasi di MasterDataTab dengan preset cepat S/M/L/XL/XXL
-- [rencana.md single plan](rencana-single-plan.md) — SATU file rencana.md di root; jangan buat RENCANA.md, rencana/, artifacts/*/PLAN.md, .lovable/plan.md lagi
-- [Booking mutations → Supabase direct](booking-supabase-direct.md) — semua mutasi di AdminBookingDetail.tsx wajib pakai Supabase langsung, bukan fetch ke API server
-- [WhatsApp token architecture](whatsapp-token-arch.md) — FONNTE_TOKEN dibaca dari whatsapp_config DB (bukan env var); admin kelola di /admin/whatsapp; API server fallback ke DB jika env var tidak diset.
-- [Missing tables & RLS fixes](missing-tables-migration.md) — booking_line_items belum ada di production; fase27 migration menambah tabel ini + fix RLS customer_documents, customer_mahrams, profiles join untuk booking_status_history.
-- [app_role enum valid values](app_role-enum.md) — only 6 valid values: super_admin, owner, branch_manager, operational, sales, agent. Values admin/staff/finance are NOT valid enum values.
-- [web-vitals Vite fix](web-vitals-stub.md) — dynamic import("web-vitals") crashes Vite when package absent; fixed with local stub src/lib/web-vitals-stub.ts + static import.
-- [vite.config.ts hot-reload crash](vite-config-hotreload.md) — editing vite.config.ts in dev causes "Cannot find package vite" HMR crash; requires full workflow restart + pnpm install --filter @workspace/umrah-haji.
-- [Supabase proxy migration](supabase-proxy-migration.md) — Supabase replaced with local Express PostgREST-compatible proxy; Vite proxies /auth/v1 and /rest/v1 to port 8080; client.ts falls back to window.location.origin when VITE_SUPABASE_URL unset.
+- [Passenger Type Pricing](passenger-type-pricing.md) — price_adult (baru), child/infant_price_percent di departures+packages; perhitungan room-based sudah fix untuk anak/balita.
+- [Migration Runner Pattern](migration-runner.md) — migrations di api-server/src/sql/ dengan step hardcoded di runMigrations.ts; file baru perlu step eksplisit.

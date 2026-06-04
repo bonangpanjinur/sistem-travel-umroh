@@ -65,6 +65,8 @@ const packageSchema = z.object({
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
   fee_sub_agent: z.coerce.number().min(0, "Fee sub agen tidak boleh negatif").default(0),
   fee_referral: z.coerce.number().min(0, "Fee referral jemaah tidak boleh negatif").default(0),
+  child_price_percent: z.coerce.number().min(0).max(100).default(75),
+  infant_price_percent: z.coerce.number().min(0).max(100).default(10),
 });
 
 type PackageFormValues = z.infer<typeof packageSchema>;
@@ -104,6 +106,8 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
       fee_agent: (packageData as any)?.fee_agent || 0,
       fee_sub_agent: (packageData as any)?.fee_sub_agent || 0,
       fee_referral: (packageData as any)?.fee_referral || 0,
+      child_price_percent: (packageData as any)?.child_price_percent ?? 75,
+      infant_price_percent: (packageData as any)?.infant_price_percent ?? 10,
     },
   });
 
@@ -400,6 +404,52 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
                   <FormControl>
                     <Input type="number" min={0} placeholder="Contoh: 2000000" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Persentase Harga Anak/Balita */}
+        <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div>
+            <h4 className="text-sm font-semibold text-amber-900 uppercase tracking-wide">Default Harga Anak &amp; Balita</h4>
+            <p className="text-xs text-amber-800 mt-0.5">
+              Persentase ini digunakan sebagai kalkulasi otomatis harga anak/balita saat harga spesifik tidak diisi di keberangkatan.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="child_price_percent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>% Harga Anak dari Kamar</FormLabel>
+                  <div className="flex items-center gap-1">
+                    <FormControl>
+                      <Input type="number" min={0} max={100} placeholder="75" {...field} />
+                    </FormControl>
+                    <span className="text-sm font-bold text-amber-700">%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Default: 75% dari harga kamar</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="infant_price_percent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>% Harga Balita dari Kamar</FormLabel>
+                  <div className="flex items-center gap-1">
+                    <FormControl>
+                      <Input type="number" min={0} max={100} placeholder="10" {...field} />
+                    </FormControl>
+                    <span className="text-sm font-bold text-amber-700">%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Default: 10% dari harga kamar</p>
                   <FormMessage />
                 </FormItem>
               )}
