@@ -275,9 +275,14 @@ export default function JamaahPortal() {
         return <QuickMenuGrid settings={settings ?? undefined} key="quick-menu" />;
       case 'tracker':
         return <JamaahTrackerWidget key="tracker" />;
-      default:
+      case 'profile_progress':
+        return <ProfileProgressCard key="profile-progress" isGuest={!user} customer={customer} booking={booking} />;
+      case 'islamic_home':
+        return <IslamicHomeSections key="islamic-home" customerName={customer?.full_name} customerId={customer?.id} />;
+      default: {
         const Component = PWA_SECTION_COMPONENTS[sectionId];
         return Component ? <Component key={sectionId} settings={settings ?? undefined} /> : null;
+      }
     }
   };
 
@@ -324,131 +329,6 @@ export default function JamaahPortal() {
   const paymentProgress = booking
     ? ((booking.paid_amount || 0) / booking.total_price) * 100
     : 0;
-
-  // If in standalone PWA mode, render the PWA layout instead of the default jamaah portal layout
-  if (isStandalone && pwaLayout && pwaLayout.length > 0) {
-    return (
-      <div className="min-h-screen bg-background pb-20 md:pb-4">
-        {/* PWA Header */}
-        <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <button
-                  onClick={() => user && photoInputRef.current?.click()}
-                  className="relative group"
-                  title={user ? "Ganti foto profil" : "Tamu"}
-                >
-                  <Avatar className="h-10 w-10 border-2 border-primary-foreground/20">
-                    <AvatarImage src={customer?.photo_url || ""} />
-                    <AvatarFallback className="bg-primary-foreground/10">
-                      {uploadingPhoto ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        customer?.full_name?.[0] || (user ? "J" : "T")
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  {user && (
-                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Camera className="h-3 w-3 text-white" />
-                    </div>
-                  )}
-                </button>
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handlePhotoUpload(file);
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-              <div>
-                <p className="font-semibold">{customer?.full_name || (user ? "Jamaah" : "Tamu")}</p>
-                <p className="text-xs opacity-80">
-                  {isOnline ? (
-                    <span className="flex items-center gap-1">
-                      <Wifi className="h-3 w-3" /> Online
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <WifiOff className="h-3 w-3" /> Offline
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {user ? (
-                <>
-                <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-primary-foreground relative">
-                    <Bell className="h-5 w-5" />
-                    {unreadCount > 0 && (
-                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-primary" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {notifications && notifications.length > 0 ? (
-                    notifications.slice(0, 5).map((n) => (
-                      <DropdownMenuItem
-                        key={n.id}
-                        className={`flex flex-col items-start gap-1 p-3 ${!n.is_read ? "bg-primary/5" : ""}`}
-                        onClick={() => markAsRead.mutate(n.id)}
-                      >
-                        <p className="font-semibold text-xs">{n.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          {format(new Date(n.created_at!), "d MMM, HH:mm", { locale: id })}
-                        </p>
-                      </DropdownMenuItem>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-xs text-muted-foreground">
-                      Tidak ada notifikasi baru
-                    </div>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/jamaah/notifications">Lihat semua notifikasi</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-                </>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => navigate("/auth/login")}
-                  className="text-primary-foreground"
-                >
-                  <LogIn className="h-5 w-5" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* PWA Layout Sections */}
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-          {pwaLayout
-            .filter(section => section.enabled)
-            .sort((a, b) => a.order - b.order)
-            .map(section => renderPWASection(section.id))}
-        </div>
-
-        <JamaahBottomNav />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-4">
@@ -582,14 +462,15 @@ export default function JamaahPortal() {
       <PushNotifBanner customerId={customer?.id} />
       <PushOnboardingSheet customerId={customer?.id} />
 
+      {/* Dynamic homepage layout — order & visibility controlled from Admin › PWA Settings */}
+      <div>
+        {pwaLayout
+          .filter(section => section.enabled)
+          .sort((a, b) => a.order - b.order)
+          .map(section => renderPWASection(section.id))}
+      </div>
 
       <div className="p-4 space-y-4">
-        {/* Profile / Progress card — guest atau logged-in */}
-        <ProfileProgressCard isGuest={!user} customer={customer} booking={booking} />
-
-        {/* Islamic Home Sections — hero mihrab, ibadah, paket, toko, tabungan & referral */}
-        <IslamicHomeSections customerName={customer?.full_name} customerId={customer?.id} />
-
         {/* P6: Enhanced Departure Countdown Widget */}
         {daysUntilDeparture !== null && daysUntilDeparture > 0 && (
           <Card className="bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground overflow-hidden">

@@ -191,7 +191,11 @@ export default function AdminPWASettings() {
         return saved ?? opt;
       }).sort((a, b) => a.order - b.order);
       setLocalHeaderNav(mergedHeader);
-      setLocalPwaLayout(serverPwaLayout);
+      // Merge saved layout with DEFAULT_PWA_LAYOUT so new sections appear even on old configs
+      const savedIds = new Set(serverPwaLayout.map((s: PWALayoutSection) => s.id));
+      const newSections = DEFAULT_PWA_LAYOUT.filter(s => !savedIds.has(s.id))
+        .map((s, i) => ({ ...s, order: serverPwaLayout.length + i }));
+      setLocalPwaLayout([...serverPwaLayout, ...newSections]);
       setPwaTheme(serverPwaTheme);
       setIconConfig(serverIconConfig);
       setIconPreview(serverIconConfig.iconUrl);
@@ -337,12 +341,10 @@ export default function AdminPWASettings() {
       <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-4 text-sm text-blue-800 dark:text-blue-300">
         <Info className="h-5 w-5 shrink-0 mt-0.5" />
         <div>
-          <p className="font-semibold mb-1">Tentang Fitur Aplikasi (PWA)</p>
+          <p className="font-semibold mb-1">Tentang Pengaturan Portal Jamaah</p>
           <p>
-            Saat dipasang di ponsel, website tampil seperti aplikasi native — tanpa address bar,
-            dengan menu bawah kustom, dan bisa dibuka dari ikon di layar utama.
-            <strong> Pengunjung browser biasa tetap melihat website lengkap</strong> dengan
-            navbar, footer, dan semua konten — tampilan aplikasi hanya muncul setelah diinstal.
+            <strong>Tata letak beranda jamaah berlaku untuk semua pengunjung</strong> — baik di browser biasa maupun setelah diinstal sebagai aplikasi.
+            Urutan dan visibilitas seksi dikontrol dari tab "Layout Beranda". Menu navigasi bawah khusus tampil saat aplikasi diinstal di ponsel.
           </p>
         </div>
       </div>

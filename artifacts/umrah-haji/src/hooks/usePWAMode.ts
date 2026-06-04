@@ -8,8 +8,9 @@ export function usePWAMode() {
     const mq = window.matchMedia(
       "(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)"
     );
-    setIsStandalone(mq.matches || (window.navigator as { standalone?: boolean }).standalone === true);
-    const handler = (e: MediaQueryListEvent) => setIsStandalone(e.matches);
+    const isPreview = new URLSearchParams(window.location.search).get("preview") === "standalone";
+    setIsStandalone(mq.matches || (window.navigator as { standalone?: boolean }).standalone === true || isPreview);
+    const handler = (e: MediaQueryListEvent) => setIsStandalone(e.matches || isPreview);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);

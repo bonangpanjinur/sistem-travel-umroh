@@ -60,13 +60,15 @@ export const DEFAULT_ICON_CONFIG: PWAIconConfig = {
 };
 
 export const DEFAULT_PWA_LAYOUT: PWALayoutSection[] = [
-  { id: 'hero', title: 'Banner Hero', enabled: true, order: 0 },
-  { id: 'quick_menu', title: 'Menu Cepat', enabled: true, order: 1 },
-  { id: 'tracker', title: 'Tracker Jamaah', enabled: true, order: 2 },
-  { id: 'featured_packages', title: 'Paket Unggulan', enabled: true, order: 3 },
-  { id: 'why_choose_us', title: 'Kenapa Memilih Kami', enabled: true, order: 4 },
-  { id: 'testimonials', title: 'Testimonial', enabled: true, order: 5 },
-  { id: 'cta', title: 'Panggilan Aksi (CTA)', enabled: true, order: 6 },
+  { id: 'hero',             title: 'Banner Hero',              enabled: true,  order: 0 },
+  { id: 'quick_menu',       title: 'Menu Cepat',               enabled: true,  order: 1 },
+  { id: 'profile_progress', title: 'Status & Progress Jamaah', enabled: true,  order: 2 },
+  { id: 'islamic_home',     title: 'Fitur Islami & Utama',     enabled: true,  order: 3 },
+  { id: 'tracker',          title: 'Tracker Jamaah',           enabled: true,  order: 4 },
+  { id: 'featured_packages', title: 'Paket Unggulan',          enabled: true,  order: 5 },
+  { id: 'why_choose_us',    title: 'Kenapa Memilih Kami',      enabled: false, order: 6 },
+  { id: 'testimonials',     title: 'Testimonial',              enabled: false, order: 7 },
+  { id: 'cta',              title: 'Panggilan Aksi (CTA)',      enabled: false, order: 8 },
 ];
 
 export const DEFAULT_PWA_THEME: PWAThemeConfig = {
