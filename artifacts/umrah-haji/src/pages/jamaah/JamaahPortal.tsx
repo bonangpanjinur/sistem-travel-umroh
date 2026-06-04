@@ -28,8 +28,8 @@ import {
   Star, Camera, Loader2, Package, ArrowRight,
   Clock, DollarSign, FileText, Megaphone,
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
-  MessageSquare, Image, Gift, Scale, Scroll, GraduationCap, BellRing
-  , ShoppingBag, Receipt
+  MessageSquare, Image, Gift, Scale, Scroll, GraduationCap, BellRing,
+  ShoppingBag, Receipt, CheckCircle, MapPin, Zap, Trophy
 } from "lucide-react";
 import { format, differenceInDays, differenceInSeconds } from "date-fns";
 import { id } from "date-fns/locale";
@@ -330,130 +330,181 @@ export default function JamaahPortal() {
     ? ((booking.paid_amount || 0) / booking.total_price) * 100
     : 0;
 
+  const greetingText = () => {
+    const hour = new Date().getHours();
+    if (hour < 11) return 'Selamat Pagi';
+    if (hour < 15) return 'Selamat Siang';
+    if (hour < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
+  };
+
+  const firstName = customer?.full_name?.split(' ')[0] || (user ? 'Jamaah' : 'Tamu');
+
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-4">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Q6: Avatar clickable untuk upload foto */}
-            <div className="relative">
-              <button
-                onClick={() => user && photoInputRef.current?.click()}
-                className="relative group"
-                title={user ? "Ganti foto profil" : "Tamu"}
-              >
-                <Avatar className="h-10 w-10 border-2 border-primary-foreground/20">
-                  <AvatarImage src={customer?.photo_url || ""} />
-                  <AvatarFallback className="bg-primary-foreground/10">
-                    {uploadingPhoto ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      customer?.full_name?.[0] || (user ? "J" : "T")
-                    )}
-                  </AvatarFallback>
-                </Avatar>
-                {user && (
-                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="h-3 w-3 text-white" />
-                  </div>
-                )}
-              </button>
-              <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handlePhotoUpload(file);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-            <div>
-              <p className="font-semibold">{customer?.full_name || (user ? "Jamaah" : "Tamu")}</p>
-              <p className="text-xs opacity-80">
-                {isOnline ? (
-                  <span className="flex items-center gap-1">
-                    <Wifi className="h-3 w-3" /> Online
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <WifiOff className="h-3 w-3" /> Offline
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {user ? (
-              <>
-              <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-primary-foreground relative">
-                  <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-primary" />
+    <div className="min-h-screen bg-gray-50 dark:bg-background pb-24 md:pb-6">
+      {/* ── MODERN HEADER ── */}
+      <div className="relative bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground overflow-hidden sticky top-0 z-50 shadow-lg">
+        {/* Decorative pattern */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+        <div className="relative px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between">
+            {/* Left: Avatar + Greeting */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button
+                  onClick={() => user && photoInputRef.current?.click()}
+                  className="relative group"
+                  title={user ? "Ganti foto profil" : "Tamu"}
+                >
+                  <Avatar className="h-11 w-11 border-2 border-white/30 shadow-md">
+                    <AvatarImage src={customer?.photo_url || ""} />
+                    <AvatarFallback className="bg-white/15 text-white font-bold text-base">
+                      {uploadingPhoto ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        firstName[0]?.toUpperCase() || '🕌'
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  {user && (
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera className="h-3 w-3 text-white" />
+                    </div>
                   )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {notifications && notifications.length > 0 ? (
-                  notifications.slice(0, 5).map((n) => (
-                    <DropdownMenuItem
-                      key={n.id}
-                      className={`flex flex-col items-start gap-1 p-3 ${!n.is_read ? "bg-primary/5" : ""}`}
-                      onClick={() => markAsRead.mutate(n.id)}
-                    >
-                      <p className="font-semibold text-xs">{n.title}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {format(new Date(n.created_at!), "d MMM, HH:mm", { locale: id })}
-                      </p>
-                    </DropdownMenuItem>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-xs text-muted-foreground">
-                    Tidak ada notifikasi baru
+                  {/* Online dot */}
+                  <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-primary ${isOnline ? 'bg-green-400' : 'bg-gray-400'}`} />
+                </button>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePhotoUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+              <div>
+                <p className="text-[11px] opacity-75 font-medium">{greetingText()},</p>
+                <p className="font-bold text-base leading-tight">{firstName}</p>
+                {booking && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
+                    <p className="text-[10px] opacity-80">{booking.booking_code}</p>
                   </div>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/jamaah/notifications" className="w-full text-center text-xs text-primary">
-                    Lihat Semua Notifikasi
+              </div>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1.5">
+              {user ? (
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
+                        <Bell className="h-5 w-5" />
+                        {unreadCount > 0 && (
+                          <span className="absolute top-1 right-1 h-4 w-4 flex items-center justify-center bg-red-500 rounded-full text-[9px] font-bold border border-primary">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80">
+                      <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {notifications && notifications.length > 0 ? (
+                        notifications.slice(0, 5).map((n) => (
+                          <DropdownMenuItem
+                            key={n.id}
+                            className={`flex flex-col items-start gap-1 p-3 ${!n.is_read ? "bg-primary/5" : ""}`}
+                            onClick={() => markAsRead.mutate(n.id)}
+                          >
+                            <p className="font-semibold text-xs">{n.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              {format(new Date(n.created_at!), "d MMM, HH:mm", { locale: id })}
+                            </p>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-xs text-muted-foreground">
+                          Tidak ada notifikasi baru
+                        </div>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/jamaah/notifications" className="w-full text-center text-xs text-primary">
+                          Lihat Semua Notifikasi
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <SOSButton
+                    customerName={customer?.full_name || "Jamaah"}
+                    customerId={customer?.id}
+                    departureId={(booking as any)?.departure_id}
+                    muthawifPhone={muthawifPhone}
+                    emergencyPhone={emergencyPhone}
+                    bookingCode={booking?.booking_code}
+                  />
+                </>
+              ) : (
+                <Button asChild size="sm" className="h-8 px-3 text-xs font-semibold bg-white text-primary hover:bg-white/90">
+                  <Link to="/auth/login">
+                    <LogIn className="h-3.5 w-3.5 mr-1" /> Masuk
                   </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-              </DropdownMenu>
-              <SOSButton
-              customerName={customer?.full_name || "Jamaah"}
-              customerId={customer?.id}
-              departureId={(booking as any)?.departure_id}
-              muthawifPhone={muthawifPhone}
-              emergencyPhone={emergencyPhone}
-              bookingCode={booking?.booking_code}
-              />
-              </>
-            ) : (
-              <Button asChild size="sm" variant="secondary" className="h-8 px-3 text-xs font-semibold">
-                <Link to="/auth/login">
-                  <LogIn className="h-3.5 w-3.5 mr-1" /> Masuk
-                </Link>
-              </Button>
-            )}
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* ── Quick Stats Strip ── */}
+          {booking && (
+            <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-0.5">
+              {daysUntilDeparture !== null && daysUntilDeparture >= 0 && (
+                <div className="flex-shrink-0 bg-white/15 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                  <Plane className="h-3.5 w-3.5 opacity-80" />
+                  <div>
+                    <p className="text-[9px] opacity-70 uppercase tracking-wide">Berangkat</p>
+                    <p className="text-xs font-bold">{daysUntilDeparture === 0 ? 'Hari Ini!' : `${daysUntilDeparture} hari lagi`}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex-shrink-0 bg-white/15 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                <CreditCard className="h-3.5 w-3.5 opacity-80" />
+                <div>
+                  <p className="text-[9px] opacity-70 uppercase tracking-wide">Pembayaran</p>
+                  <p className="text-xs font-bold">{paymentProgress >= 100 ? 'Lunas ✓' : `${paymentProgress.toFixed(0)}%`}</p>
+                </div>
+              </div>
+              {booking.booking_status && (
+                <div className="flex-shrink-0 bg-white/15 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                  <CheckCircle className="h-3.5 w-3.5 opacity-80" />
+                  <div>
+                    <p className="text-[9px] opacity-70 uppercase tracking-wide">Status</p>
+                    <p className="text-xs font-bold capitalize">{booking.booking_status}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Install Banner */}
       {deferredPrompt && (
-        <div className="bg-accent p-3 flex items-center justify-between">
-          <p className="text-sm">Install aplikasi untuk akses offline</p>
-          <Button size="sm" variant="outline" onClick={handleInstallPWA}>
-            <Download className="h-4 w-4 mr-1" />
+        <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-primary flex-shrink-0" />
+            <p className="text-xs font-medium text-primary">Install untuk akses offline & notifikasi</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleInstallPWA} className="h-7 px-3 text-xs border-primary/30 text-primary">
             Install
           </Button>
         </div>
@@ -470,7 +521,7 @@ export default function JamaahPortal() {
           .map(section => renderPWASection(section.id))}
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="px-3 pt-3 pb-4 space-y-4">
         {/* P6: Enhanced Departure Countdown Widget */}
         {daysUntilDeparture !== null && daysUntilDeparture > 0 && (
           <Card className="bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground overflow-hidden">
@@ -761,238 +812,172 @@ export default function JamaahPortal() {
           </Card>
         )}
 
-        {/* Quick Actions — Tersusun per Kategori */}
-        <div className="space-y-4">
+        {/* ── QUICK ACTIONS — Redesigned Modern Grid ── */}
+        <div className="rounded-2xl bg-white dark:bg-card border border-gray-100 dark:border-border shadow-sm p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Menu Utama</h2>
+            <span className="text-[10px] text-muted-foreground">Tap untuk akses cepat</span>
+          </div>
+        <div className="space-y-5">
 
           {/* 1. Perjalanan & Booking */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 px-0.5">
-              <div className="w-5 h-5 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Plane className="h-3 w-3 text-blue-600" />
+          <div>
+            <div className="flex items-center justify-between mb-2.5 px-0.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-500 flex items-center justify-center shadow-sm">
+                  <Plane className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Perjalanan</span>
               </div>
-              <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Perjalanan</span>
+              <Link to="/my-bookings" className="text-[11px] text-primary font-medium flex items-center gap-0.5">
+                Lihat semua <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Link to="/my-bookings">
-                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
-                  <CreditCard className="h-6 w-6 mx-auto mb-1 text-blue-600" />
-                  <p className="text-xs">Booking</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/itinerary">
-                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
-                  <CalendarDays className="h-6 w-6 mx-auto mb-1 text-blue-500" />
-                  <p className="text-xs">Itinerary</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/digital-id">
-                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
-                  <QrCode className="h-6 w-6 mx-auto mb-1 text-indigo-500" />
-                  <p className="text-xs">ID Digital</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/documents">
-                <Card className="p-3 text-center hover:bg-blue-50 transition-colors cursor-pointer border-blue-100">
-                  <FolderOpen className="h-6 w-6 mx-auto mb-1 text-orange-500" />
-                  <p className="text-xs">Dokumen</p>
-                </Card>
-              </Link>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { to: "/my-bookings", icon: CreditCard, label: "Booking", color: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100" },
+                { to: "/jamaah/itinerary", icon: CalendarDays, label: "Itinerary", color: "bg-sky-500", bg: "bg-sky-50 dark:bg-sky-950/30 hover:bg-sky-100" },
+                { to: "/jamaah/digital-id", icon: QrCode, label: "ID Digital", color: "bg-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100" },
+                { to: "/jamaah/documents", icon: FolderOpen, label: "Dokumen", color: "bg-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100" },
+              ].map(({ to, icon: Icon, label, color, bg }) => (
+                <Link to={to} key={to}>
+                  <div className={`rounded-2xl p-3 text-center transition-all duration-150 active:scale-95 ${bg} border border-white/60 dark:border-white/5 shadow-sm`}>
+                    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center mx-auto mb-2 shadow-sm`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 leading-tight">{label}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
 
-          {/* 2. Administrasi & Keuangan */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 px-0.5">
-              <div className="w-5 h-5 rounded bg-green-100 flex items-center justify-center flex-shrink-0">
-                <CreditCard className="h-3 w-3 text-green-600" />
+          {/* 2. Keuangan & Admin */}
+          <div>
+            <div className="flex items-center justify-between mb-2.5 px-0.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center shadow-sm">
+                  <CreditCard className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Keuangan & Admin</span>
               </div>
-              <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Keuangan & Admin</span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Link to="/jamaah/payment">
-                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
-                  <CreditCard className="h-6 w-6 mx-auto mb-1 text-green-600" />
-                  <p className="text-xs">Bayar Online</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/checklist">
-                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
-                  <Scale className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-                  <p className="text-xs">Checklist</p>
-                </Card>
-              </Link>
-              {booking ? (
-                <Link to={`/jamaah/invoice/${booking.id}`}>
-                  <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
-                    <FileText className="h-6 w-6 mx-auto mb-1 text-violet-600" />
-                    <p className="text-xs">Invoice</p>
-                  </Card>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { to: "/jamaah/payment", icon: CreditCard, label: "Bayar", color: "bg-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100" },
+                { to: "/jamaah/checklist", icon: Scale, label: "Checklist", color: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 hover:bg-green-100" },
+                { to: booking ? `/jamaah/invoice/${booking.id}` : "#", icon: FileText, label: "Invoice", color: booking ? "bg-violet-500" : "bg-gray-300", bg: booking ? "bg-violet-50 dark:bg-violet-950/30 hover:bg-violet-100" : "bg-gray-50 opacity-50" },
+                { to: "/jamaah/kontrak", icon: FileSignature, label: "Kontrak", color: "bg-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100" },
+              ].map(({ to, icon: Icon, label, color, bg }) => (
+                <Link to={to} key={label}>
+                  <div className={`rounded-2xl p-3 text-center transition-all duration-150 active:scale-95 ${bg} border border-white/60 dark:border-white/5 shadow-sm`}>
+                    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center mx-auto mb-2 shadow-sm`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 leading-tight">{label}</p>
+                  </div>
                 </Link>
-              ) : (
-                <Card className="p-3 text-center opacity-40 cursor-not-allowed border-green-100">
-                  <FileText className="h-6 w-6 mx-auto mb-1 text-violet-400" />
-                  <p className="text-xs">Invoice</p>
-                </Card>
-              )}
-              <Link to="/jamaah/kontrak">
-                <Card className="p-3 text-center hover:bg-green-50 transition-colors cursor-pointer border-green-100">
-                  <FileSignature className="h-6 w-6 mx-auto mb-1 text-orange-500" />
-                  <p className="text-xs">Kontrak</p>
-                </Card>
-              </Link>
+              ))}
             </div>
           </div>
 
           {/* 3. Ibadah & Spiritual */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 px-0.5">
-              <div className="w-5 h-5 rounded bg-teal-100 flex items-center justify-center flex-shrink-0">
-                <Heart className="h-3 w-3 text-teal-600" />
+          <div>
+            <div className="flex items-center justify-between mb-2.5 px-0.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-teal-500 flex items-center justify-center shadow-sm">
+                  <Heart className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Ibadah & Spiritual</span>
               </div>
-              <span className="text-xs font-bold text-teal-700 uppercase tracking-wide">Ibadah & Spiritual</span>
+              <Link to="/jamaah/manasik" className="text-[11px] text-primary font-medium flex items-center gap-0.5">
+                Lihat semua <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Link to="/jamaah/manasik">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <GraduationCap className="h-6 w-6 mx-auto mb-1 text-indigo-600" />
-                  <p className="text-xs">Manasik</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/manasik-interaktif">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <Scroll className="h-6 w-6 mx-auto mb-1 text-purple-600" />
-                  <p className="text-xs">Panduan Interaktif</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/panduan-ibadah">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <BookOpen className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-                  <p className="text-xs">Panduan</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/waktu-sholat">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <Clock className="h-6 w-6 mx-auto mb-1 text-teal-600" />
-                  <p className="text-xs">Waktu Sholat</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/doa-panduan">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <BookMarked className="h-6 w-6 mx-auto mb-1 text-teal-500" />
-                  <p className="text-xs">Doa</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/tracker-ibadah">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <Star className="h-6 w-6 mx-auto mb-1 text-yellow-500" />
-                  <p className="text-xs">Tracker</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/pengingat-ibadah">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <BellRing className="h-6 w-6 mx-auto mb-1 text-emerald-500" />
-                  <p className="text-xs">Pengingat</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/kiblat">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <Map className="h-6 w-6 mx-auto mb-1 text-teal-600" />
-                  <p className="text-xs">Kiblat</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/al-quran">
-                <Card className="p-3 text-center hover:bg-teal-50 transition-colors cursor-pointer border-teal-100">
-                  <BookOpen className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-                  <p className="text-xs">Al-Qur'an</p>
-                </Card>
-              </Link>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "bg-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100" },
+                { to: "/jamaah/al-quran", icon: BookOpen, label: "Al-Qur'an", color: "bg-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100" },
+                { to: "/jamaah/waktu-sholat", icon: Clock, label: "Sholat", color: "bg-teal-500", bg: "bg-teal-50 dark:bg-teal-950/30 hover:bg-teal-100" },
+                { to: "/jamaah/doa-panduan", icon: BookMarked, label: "Doa & Dzikir", color: "bg-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-950/30 hover:bg-cyan-100" },
+                { to: "/jamaah/kiblat", icon: MapPin, label: "Kiblat", color: "bg-green-600", bg: "bg-green-50 dark:bg-green-950/30 hover:bg-green-100" },
+                { to: "/jamaah/tracker-ibadah", icon: Star, label: "Tracker", color: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100" },
+                { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "bg-rose-500", bg: "bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100" },
+                { to: "/jamaah/manasik-interaktif", icon: Scroll, label: "Interaktif", color: "bg-purple-500", bg: "bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100" },
+              ].map(({ to, icon: Icon, label, color, bg }) => (
+                <Link to={to} key={to}>
+                  <div className={`rounded-2xl p-3 text-center transition-all duration-150 active:scale-95 ${bg} border border-white/60 dark:border-white/5 shadow-sm`}>
+                    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center mx-auto mb-2 shadow-sm`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 leading-tight">{label}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
 
           {/* 4. Komunitas */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 px-0.5">
-              <div className="w-5 h-5 rounded bg-purple-100 flex items-center justify-center flex-shrink-0">
-                <Users className="h-3 w-3 text-purple-600" />
+          <div>
+            <div className="flex items-center justify-between mb-2.5 px-0.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-purple-500 flex items-center justify-center shadow-sm">
+                  <Users className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Komunitas</span>
               </div>
-              <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Komunitas</span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Link to="/jamaah/chat">
-                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
-                  <MessageSquare className="h-6 w-6 mx-auto mb-1 text-blue-500" />
-                  <p className="text-xs">Chat</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/rombongan">
-                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
-                  <Users className="h-6 w-6 mx-auto mb-1 text-indigo-600" />
-                  <p className="text-xs">Rombongan</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/galeri">
-                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
-                  <Image className="h-6 w-6 mx-auto mb-1 text-pink-500" />
-                  <p className="text-xs">Galeri</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/referral">
-                <Card className="p-3 text-center hover:bg-purple-50 transition-colors cursor-pointer border-purple-100">
-                  <Gift className="h-6 w-6 mx-auto mb-1 text-green-600" />
-                  <p className="text-xs">Referral</p>
-                </Card>
-              </Link>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { to: "/jamaah/chat", icon: MessageSquare, label: "Chat", color: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100" },
+                { to: "/jamaah/rombongan", icon: Users, label: "Rombongan", color: "bg-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100" },
+                { to: "/jamaah/galeri", icon: Image, label: "Galeri", color: "bg-pink-500", bg: "bg-pink-50 dark:bg-pink-950/30 hover:bg-pink-100" },
+                { to: "/jamaah/referral", icon: Gift, label: "Referral", color: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 hover:bg-green-100" },
+              ].map(({ to, icon: Icon, label, color, bg }) => (
+                <Link to={to} key={to}>
+                  <div className={`rounded-2xl p-3 text-center transition-all duration-150 active:scale-95 ${bg} border border-white/60 dark:border-white/5 shadow-sm`}>
+                    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center mx-auto mb-2 shadow-sm`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 leading-tight">{label}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
 
           {/* 5. Alat Bantu */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 px-0.5">
-              <div className="w-5 h-5 rounded bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="h-3 w-3 text-amber-600" />
+          <div>
+            <div className="flex items-center justify-between mb-2.5 px-0.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-amber-500 flex items-center justify-center shadow-sm">
+                  <Sparkles className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Alat Bantu</span>
               </div>
-              <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Alat Bantu</span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Link to="/jamaah/peta-lokasi">
-                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                  <Map className="h-6 w-6 mx-auto mb-1 text-rose-500" />
-                  <p className="text-xs">Peta</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/kalkulator-kurs">
-                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                  <DollarSign className="h-6 w-6 mx-auto mb-1 text-emerald-700" />
-                  <p className="text-xs">Kurs Riyal</p>
-                </Card>
-              </Link>
-              <Link to="/jamaah/bagasi">
-                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                  <Luggage className="h-6 w-6 mx-auto mb-1 text-cyan-600" />
-                  <p className="text-xs">Bagasi</p>
-                </Card>
-              </Link>
-              <Link to="/faq">
-                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                  <HelpCircle className="h-6 w-6 mx-auto mb-1 text-blue-500" />
-                  <p className="text-xs">FAQ</p>
-                </Card>
-              </Link>
-              <Link to="/store">
-                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                  <ShoppingBag className="h-6 w-6 mx-auto mb-1 text-emerald-600" />
-                  <p className="text-xs">Toko</p>
-                </Card>
-              </Link>
-              <Link to="/store/orders">
-                <Card className="p-3 text-center hover:bg-amber-50 transition-colors cursor-pointer border-amber-100">
-                  <Receipt className="h-6 w-6 mx-auto mb-1 text-amber-600" />
-                  <p className="text-xs">Pesanan</p>
-                </Card>
-              </Link>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { to: "/jamaah/peta-lokasi", icon: Map, label: "Peta", color: "bg-rose-500", bg: "bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100" },
+                { to: "/jamaah/kalkulator-kurs", icon: DollarSign, label: "Kurs Riyal", color: "bg-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100" },
+                { to: "/jamaah/bagasi", icon: Luggage, label: "Bagasi", color: "bg-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-950/30 hover:bg-cyan-100" },
+                { to: "/faq", icon: HelpCircle, label: "FAQ", color: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100" },
+                { to: "/store", icon: ShoppingBag, label: "Toko", color: "bg-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100" },
+                { to: "/store/orders", icon: Receipt, label: "Pesanan", color: "bg-amber-500", bg: "bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100" },
+              ].map(({ to, icon: Icon, label, color, bg }) => (
+                <Link to={to} key={to}>
+                  <div className={`rounded-2xl p-3 text-center transition-all duration-150 active:scale-95 ${bg} border border-white/60 dark:border-white/5 shadow-sm`}>
+                    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center mx-auto mb-2 shadow-sm`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 leading-tight">{label}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
 
+        </div>
         </div>
 
         {/* O5: Widget Cuaca Makkah & Madinah */}

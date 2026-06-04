@@ -4,7 +4,7 @@ import {
   LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard,
   MessageCircle, X, GraduationCap, CalendarDays, Users, Clock,
   BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart, Star,
-  BellRing, Moon, Sun, UsersRound, Trophy
+  BellRing, Moon, Sun, UsersRound, Trophy, Search
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,6 @@ const DEFAULT_MOBILE_ITEMS = [
   { to: "/jamaah/notifications", icon: Bell, label: "Notif", showBadge: true },
 ];
 
-// Map icon names from PWA config (string) → lucide icon component
 const ICON_MAP: Record<string, any> = {
   Home, QrCode, Shield, Bell, LayoutGrid, FileText, Luggage, LogIn,
   FileSignature, Camera, BookOpen, Wallet, CreditCard, MessageCircle,
@@ -28,22 +27,22 @@ const ICON_MAP: Record<string, any> = {
 };
 
 const moreMenuItems = [
-  { to: "/jamaah/payment", icon: CreditCard, label: "Bayar Online", color: "text-primary bg-primary/10" },
-  { to: "/jamaah/checklist", icon: FileText, label: "Checklist", color: "text-green-600 bg-green-50" },
-  { to: "/jamaah/checkin", icon: LogIn, label: "Check-in", color: "text-blue-600 bg-blue-50" },
-  { to: "/jamaah/bagasi", icon: Luggage, label: "Bagasi", color: "text-orange-600 bg-orange-50" },
-  { to: "/jamaah/kontrak", icon: FileSignature, label: "Kontrak", color: "text-purple-600 bg-purple-50" },
-  { to: "/jamaah/documents", icon: FileText, label: "Dokumen", color: "text-green-600 bg-green-50" },
-  { to: "/jamaah/galeri", icon: Camera, label: "Galeri", color: "text-pink-600 bg-pink-50" },
-  { to: "/jamaah/doa-panduan", icon: BookOpen, label: "Doa & Panduan", color: "text-emerald-600 bg-emerald-50" },
-  { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600 bg-amber-50" },
-  { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600 bg-indigo-50" },
-  { to: "/jamaah/progress-wall", icon: Trophy, label: "Progress Wall", color: "text-yellow-600 bg-yellow-50" },
-  { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "text-emerald-600 bg-emerald-50" },
-  { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga", color: "text-blue-600 bg-blue-50" },
-  { to: "/jamaah/wishlist", icon: Heart, label: "Wishlist", color: "text-rose-600 bg-rose-50" },
-  { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600 bg-teal-50" },
-  { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600 bg-gray-50" },
+  { to: "/jamaah/payment", icon: CreditCard, label: "Bayar Online", color: "text-primary", bg: "bg-primary/10" },
+  { to: "/jamaah/checklist", icon: FileText, label: "Checklist", color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
+  { to: "/jamaah/checkin", icon: LogIn, label: "Check-in", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
+  { to: "/jamaah/bagasi", icon: Luggage, label: "Bagasi", color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/30" },
+  { to: "/jamaah/kontrak", icon: FileSignature, label: "Kontrak", color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30" },
+  { to: "/jamaah/documents", icon: FileText, label: "Dokumen", color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
+  { to: "/jamaah/galeri", icon: Camera, label: "Galeri", color: "text-pink-600", bg: "bg-pink-50 dark:bg-pink-950/30" },
+  { to: "/jamaah/doa-panduan", icon: BookOpen, label: "Doa & Panduan", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30" },
+  { to: "/jamaah/payment-history", icon: Wallet, label: "Riwayat Bayar", color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30" },
+  { to: "/jamaah/manasik", icon: GraduationCap, label: "Manasik", color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-950/30" },
+  { to: "/jamaah/progress-wall", icon: Trophy, label: "Progress Wall", color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-950/30" },
+  { to: "/jamaah/pengingat-ibadah", icon: BellRing, label: "Pengingat", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30" },
+  { to: "/jamaah/pantau-keluarga", icon: UsersRound, label: "Pantau Keluarga", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
+  { to: "/jamaah/wishlist", icon: Heart, label: "Wishlist", color: "text-rose-600", bg: "bg-rose-50 dark:bg-rose-950/30" },
+  { to: "/jamaah/feedback", icon: MessageCircle, label: "Feedback", color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-950/30" },
+  { to: "/customer/settings", icon: User, label: "Profil", color: "text-gray-600", bg: "bg-gray-100 dark:bg-gray-800" },
 ];
 
 const sidebarGroups = [
@@ -106,8 +105,6 @@ export function JamaahBottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const { activeItems: pwaActiveItems } = usePWAConfig();
 
-  // Resolve mobile bar from admin-configured PWA bottom nav.
-  // Fallback to defaults when no config exists.
   const mobileNavItems = useMemo(() => {
     if (!pwaActiveItems?.length) return DEFAULT_MOBILE_ITEMS;
     return pwaActiveItems.slice(0, 4).map((it) => ({
@@ -231,7 +228,6 @@ export function JamaahBottomNav() {
 
         {/* Sidebar Footer */}
         <div className="border-t px-2 py-2 shrink-0 space-y-1">
-          {/* Dark mode toggle */}
           <button
             onClick={toggleDark}
             title={isDark ? "Mode Terang" : "Mode Gelap"}
@@ -259,89 +255,120 @@ export function JamaahBottomNav() {
       {moreOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
           <div
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setMoreOpen(false)}
           />
-          <div className="absolute bottom-20 left-4 right-4 bg-background border rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <div className="flex items-center justify-between mb-4 px-1">
-              <h3 className="font-bold text-lg">Menu Lainnya</h3>
+          <div className="absolute bottom-[72px] left-3 right-3 bg-background border border-border rounded-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+            {/* Sheet header */}
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/60">
+              <div>
+                <h3 className="font-bold text-base text-foreground">Menu Lainnya</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Semua fitur portal jamaah</p>
+              </div>
               <button
                 onClick={() => setMoreOpen(false)}
-                className="p-2 hover:bg-muted rounded-full transition-colors"
+                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            {/* Grid menu */}
+            <div className="p-4 grid grid-cols-4 gap-2 max-h-[55vh] overflow-y-auto">
               {moreMenuItems.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   onClick={() => setMoreOpen(false)}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted transition-colors group"
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-2xl hover:bg-muted active:scale-95 transition-all group"
                 >
                   <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-active:scale-95",
-                    item.color
+                    "w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm",
+                    item.bg
                   )}>
-                    <item.icon className="h-6 w-6" />
+                    <item.icon className={cn("h-5 w-5", item.color)} />
                   </div>
-                  <span className="text-[11px] font-medium text-center leading-tight">
+                  <span className="text-[10px] font-medium text-center leading-tight text-foreground/80">
                     {item.label}
                   </span>
                 </Link>
               ))}
             </div>
+
+            {/* Bottom safe area padding */}
+            <div className="h-2" />
           </div>
         </div>
       )}
 
-      {/* ── MOBILE BOTTOM BAR ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t pb-safe">
-        <div className="flex items-center justify-around h-16 px-2">
-          {mobileNavItems.map((item) => {
-            const active = isActive(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 w-full h-full transition-colors relative",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <div className="relative">
-                  <item.icon className={cn("h-5 w-5 transition-transform", active && "scale-110")} />
-                  {item.showBadge && unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-background">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
+      {/* ── MOBILE BOTTOM BAR — Modern Floating Style ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+        {/* Frosted glass bar */}
+        <div className="bg-background/85 backdrop-blur-xl border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-around h-[60px] px-1 pb-safe">
+            {mobileNavItems.map((item) => {
+              const active = isActive(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative group"
+                >
+                  {/* Active pill background */}
+                  {active && (
+                    <span className="absolute inset-x-2 top-1.5 bottom-1.5 rounded-2xl bg-primary/10" />
                   )}
-                </div>
-                <span className={cn("text-[10px] font-medium", active ? "opacity-100" : "opacity-70")}>
-                  {item.label}
-                </span>
-                {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-b-full" />
-                )}
-              </Link>
-            );
-          })}
+                  <div className="relative z-10">
+                    <div className={cn(
+                      "flex items-center justify-center w-8 h-6 rounded-xl transition-all duration-200",
+                      active ? "scale-110" : "group-active:scale-95"
+                    )}>
+                      <item.icon className={cn(
+                        "h-[22px] w-[22px] transition-all duration-200",
+                        active ? "text-primary" : "text-muted-foreground"
+                      )} strokeWidth={active ? 2.5 : 1.8} />
+                    </div>
+                    {item.showBadge && unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-background">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-medium z-10 transition-colors duration-200",
+                    active ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
 
-          <button
-            onClick={() => setMoreOpen(!moreOpen)}
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 w-full h-full transition-colors relative",
-              moreOpen ? "text-primary" : "text-muted-foreground"
-            )}
-          >
-            <LayoutGrid className={cn("h-5 w-5 transition-transform", moreOpen && "scale-110")} />
-            <span className="text-[10px] font-medium opacity-70">Menu</span>
-            {moreOpen && (
-              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-b-full" />
-            )}
-          </button>
+            {/* Menu / More button */}
+            <button
+              onClick={() => setMoreOpen(!moreOpen)}
+              className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative group"
+            >
+              {moreOpen && (
+                <span className="absolute inset-x-2 top-1.5 bottom-1.5 rounded-2xl bg-primary/10" />
+              )}
+              <div className={cn(
+                "relative z-10 w-8 h-6 flex items-center justify-center transition-all duration-200",
+                moreOpen ? "scale-110" : "group-active:scale-95"
+              )}>
+                <LayoutGrid className={cn(
+                  "h-[22px] w-[22px] transition-all duration-200",
+                  moreOpen ? "text-primary" : "text-muted-foreground"
+                )} strokeWidth={moreOpen ? 2.5 : 1.8} />
+              </div>
+              <span className={cn(
+                "text-[10px] font-medium z-10 transition-colors duration-200",
+                moreOpen ? "text-primary font-semibold" : "text-muted-foreground"
+              )}>
+                Menu
+              </span>
+            </button>
+          </div>
         </div>
       </nav>
     </>
