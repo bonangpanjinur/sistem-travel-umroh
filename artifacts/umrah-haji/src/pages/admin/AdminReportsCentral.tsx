@@ -73,8 +73,8 @@ export default function AdminReportsCentral() {
 
   // --- Export Handlers ---
 
-  const handleExport = async (type: 'bookings' | 'payments' | 'commissions' | 'manifest', format: 'excel' | 'pdf') => {
-    setIsExporting(`${type}-${format}`);
+  const handleExport = async (type: 'bookings' | 'payments' | 'commissions' | 'manifest', exportFormat: 'excel' | 'pdf') => {
+    setIsExporting(`${type}-${exportFormat}`);
     try {
       const subtitle = `Periode: ${formatDateRange(dateRange?.from, dateRange?.to)}`;
       const timestamp = format(new Date(), "yyyyMMdd_HHmmss");
@@ -95,7 +95,7 @@ export default function AdminReportsCentral() {
           return;
         }
         
-        exportReport(format as any, data, getBookingColumns(), `Laporan_Booking_${timestamp}`, "Laporan Data Booking", subtitle);
+        exportReport(exportFormat as any, data, getBookingColumns(), `Laporan_Booking_${timestamp}`, "Laporan Data Booking", subtitle);
       } 
       
       else if (type === 'payments') {
@@ -112,7 +112,7 @@ export default function AdminReportsCentral() {
           return;
         }
         
-        exportReport(format as any, data, getPaymentColumns(), `Laporan_Pembayaran_${timestamp}`, "Laporan Pembayaran", subtitle);
+        exportReport(exportFormat as any, data, getPaymentColumns(), `Laporan_Pembayaran_${timestamp}`, "Laporan Pembayaran", subtitle);
       }
 
       else if (type === 'commissions') {
@@ -130,7 +130,7 @@ export default function AdminReportsCentral() {
           return;
         }
         
-        exportReport(format as any, data, getCommissionColumns(), `Laporan_Komisi_Agen_${timestamp}`, "Laporan Komisi Agen", subtitle);
+        exportReport(exportFormat as any, data, getCommissionColumns(), `Laporan_Komisi_Agen_${timestamp}`, "Laporan Komisi Agen", subtitle);
       }
 
       else if (type === 'manifest') {
@@ -159,7 +159,7 @@ export default function AdminReportsCentral() {
         const dep = departures.find(d => d.id === selectedDeparture);
         const depName = dep ? `${(dep.package as any)?.name} (${format(new Date(dep.departure_date), 'dd MMM yyyy')})` : '';
         
-        exportReport(format as any, processed, getManifestColumns(), `Manifest_${timestamp}`, "Manifest Jamaah", depName);
+        exportReport(exportFormat as any, processed, getManifestColumns(), `Manifest_${timestamp}`, "Manifest Jamaah", depName);
       }
 
       toast.success(`Laporan ${type} berhasil diunduh`);
