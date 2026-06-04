@@ -209,17 +209,26 @@ function AdminLayoutDynamicImproved() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchQuery]);
 
-  // Auto-expand active group
+  // Auto-expand active group; initialise all groups expanded on first load
   useEffect(() => {
     if (!groupedMenus.length) return;
-    const active = groupedMenus.find(g =>
-      g.items.some(i => location.pathname === i.path || (i.path !== '/admin' && location.pathname.startsWith(i.path)))
-    );
-    if (active) {
-      setExpandedGroups(prev => prev.has(active.name) ? prev : new Set([...prev, active.name]));
-    } else {
-      setExpandedGroups(prev => prev.size > 0 ? prev : new Set([groupedMenus[0].name]));
-    }
+    setExpandedGroups(prev => {
+      if (prev.size === 0) {
+        // First render: expand every group so no menu is hidden
+        return new Set(groupedMenus.map(g => g.name));
+      }
+      // On navigation: ensure the group containing the active route stays expanded
+      const active = groupedMenus.find(g =>
+        g.items.some(i =>
+          location.pathname === i.path ||
+          (i.path !== '/admin' && location.pathname.startsWith(i.path + '/'))
+        )
+      );
+      if (active && !prev.has(active.name)) {
+        return new Set([...prev, active.name]);
+      }
+      return prev;
+    });
   }, [groupedMenus, location.pathname]);
 
   const handleLogout   = useCallback(async () => { await signOut(); navigate('/'); }, [signOut, navigate]);
@@ -231,7 +240,7 @@ function AdminLayoutDynamicImproved() {
   const isGroupExpanded = useCallback((name: string) => expandedGroups.has(name), [expandedGroups]);
   const isPathActive    = useCallback((path: string) => {
     if (path === '/admin') return location.pathname === '/admin';
-    return location.pathname.startsWith(path);
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   }, [location.pathname]);
   const handleNavigate  = useCallback(() => { if (!isDesktop) setSidebarOpen(false); }, [isDesktop]);
 
