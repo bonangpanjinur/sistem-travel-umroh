@@ -270,7 +270,7 @@ export default function JamaahPortal() {
   const renderPWASection = (sectionId: string) => {
     switch (sectionId) {
       case 'hero':
-        return <BannerCarousel template={template as any} key="hero-banner" />;
+        return <BannerCarousel template={template as any} key="hero-banner" waNumber={settings?.footer_whatsapp ?? undefined} />;
       case 'quick_menu':
         return <QuickMenuGrid settings={settings ?? undefined} key="quick-menu" />;
       case 'tracker':

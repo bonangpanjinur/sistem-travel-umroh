@@ -74,7 +74,7 @@ const Index = () => {
             </div>
           );
         }
-        return showBanner ? <BannerCarousel template={template as any} key="hero-banner" /> : null;
+        return showBanner ? <BannerCarousel template={template as any} key="hero-banner" waNumber={settings?.footer_whatsapp ?? undefined} /> : null;
       case 'quick_menu':
         return <QuickMenuGrid settings={settings ?? undefined} key="quick-menu" />;
       case 'tracker':
@@ -110,7 +110,7 @@ const Index = () => {
             </div>
           ) : (
             <>
-              {showBanner && <BannerCarousel template={template as any} />}
+              {showBanner && <BannerCarousel template={template as any} waNumber={settings?.footer_whatsapp ?? undefined} />}
             </>
           )}
           

@@ -1751,6 +1751,8 @@ export default function AdminDepartureDetail() {
           <DepartureRoomingTab
             departureId={id}
             packageId={(departure as any)?.package?.id}
+          />
+        </TabsContent>
 
         {/* Tab: Kamar & Rooming */}
         <TabsContent value="kamar" className="space-y-4">
@@ -1758,7 +1760,6 @@ export default function AdminDepartureDetail() {
             departureId={id}
             hotelMakkah={departure.hotel_makkah as any}
             hotelMadinah={departure.hotel_madinah as any}
-
           />
         </TabsContent>
 
