@@ -1,8 +1,9 @@
 /**
- * GET  /api/admin/migrations        — list all SQL files + applied status
+ * GET  /api/admin/migrations           — list all SQL files + applied status
  * POST /api/admin/migrations/:name/run — run a specific migration (super_admin only)
+ * GET  /api/admin/migrations/audit     — fetch audit log (super_admin only)
  *
- * Protected: requires a valid Bearer token with role = super_admin.
+ * Protected: all endpoints require a valid Bearer token with role = super_admin.
  */
 
 import { Router } from "express";
@@ -10,7 +11,7 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pool } from "../lib/db.js";
-import { verifyRequestToken } from "../lib/auth.js";
+import { verifyRequestToken, type JWTPayload } from "../lib/auth.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -25,20 +26,34 @@ function sqlDir(): string {
 }
 
 // ── Auth guard: super_admin only ──────────────────────────────────────────────
-async function requireSuperAdmin(req: any, res: any): Promise<boolean> {
+// Returns the verified JWT payload on success, or sends a 401/403 and returns null.
+async function requireSuperAdmin(
+  req: any,
+  res: any,
+): Promise<JWTPayload | null> {
   const payload = await verifyRequestToken(req.headers["authorization"]);
   if (!payload) {
     res.status(401).json({ error: "Autentikasi diperlukan" });
-    return false;
+    return null;
   }
   if (payload.role !== "super_admin") {
-    res.status(403).json({ error: "Hanya super_admin yang dapat menjalankan migrasi" });
-    return false;
+    res.status(403).json({ error: "Hanya super_admin yang dapat mengakses fitur ini" });
+    return null;
   }
-  return true;
+  return payload;
 }
 
-// ── SQL statement splitter (mirrors runMigrations.ts logic) ──────────────────
+// ── Client IP helper ─────────────────────────────────────────────────────────
+function clientIp(req: any): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) {
+    const first = String(forwarded).split(",")[0].trim();
+    if (first) return first;
+  }
+  return req.socket?.remoteAddress ?? req.ip ?? "unknown";
+}
+
+// ── SQL statement splitter ────────────────────────────────────────────────────
 function splitStatements(sql: string): string[] {
   const stmts: string[] = [];
   let buf = "";
@@ -111,7 +126,7 @@ function splitStatements(sql: string): string[] {
   return stmts;
 }
 
-// ── Helpers: _schema_migrations tracker ──────────────────────────────────────
+// ── _schema_migrations helpers ────────────────────────────────────────────────
 async function getAppliedMigrations(): Promise<Map<string, string>> {
   const client = await pool.connect();
   try {
@@ -119,9 +134,7 @@ async function getAppliedMigrations(): Promise<Map<string, string>> {
       `SELECT name, applied_at FROM _schema_migrations ORDER BY applied_at`,
     );
     const map = new Map<string, string>();
-    for (const row of result.rows) {
-      map.set(row.name, row.applied_at);
-    }
+    for (const row of result.rows) map.set(row.name, row.applied_at);
     return map;
   } catch {
     return new Map();
@@ -137,31 +150,59 @@ async function markApplied(client: any, name: string): Promise<void> {
   );
 }
 
+// ── _migration_audit helpers ─────────────────────────────────────────────────
+async function ensureAuditTable(client: any): Promise<void> {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS _migration_audit (
+      id           BIGSERIAL    PRIMARY KEY,
+      migration    TEXT         NOT NULL,
+      run_by_id    TEXT,
+      run_by_email TEXT,
+      ip_address   TEXT,
+      ok_count     INT          NOT NULL DEFAULT 0,
+      error_count  INT          NOT NULL DEFAULT 0,
+      ran_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+async function writeAuditEntry(
+  client: any,
+  opts: {
+    migration: string;
+    userId: string;
+    email: string;
+    ip: string;
+    ok: number;
+    errors: number;
+  },
+): Promise<void> {
+  await client.query(
+    `INSERT INTO _migration_audit
+       (migration, run_by_id, run_by_email, ip_address, ok_count, error_count)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [opts.migration, opts.userId, opts.email, opts.ip, opts.ok, opts.errors],
+  );
+}
+
 // ── GET /api/admin/migrations ─────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   if (!(await requireSuperAdmin(req, res))) return;
 
   try {
     const dir = sqlDir();
-    if (!existsSync(dir)) {
-      res.json({ migrations: [] });
-      return;
-    }
+    if (!existsSync(dir)) { res.json({ migrations: [] }); return; }
 
-    const files = readdirSync(dir)
-      .filter(f => f.endsWith(".sql"))
-      .sort();
-
+    const files = readdirSync(dir).filter(f => f.endsWith(".sql")).sort();
     const applied = await getAppliedMigrations();
 
     const migrations = files.map(filename => {
       const name = filename.replace(/\.sql$/, "");
-      const appliedAt = applied.get(name) ?? null;
       return {
         filename,
         name,
         applied: applied.has(name),
-        appliedAt,
+        appliedAt: applied.get(name) ?? null,
       };
     });
 
@@ -172,13 +213,49 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ── GET /api/admin/migrations/audit ──────────────────────────────────────────
+// Must be declared BEFORE /:name/run so Express doesn't treat "audit" as :name.
+router.get("/audit", async (req, res) => {
+  if (!(await requireSuperAdmin(req, res))) return;
+
+  const limit = Math.min(Number(req.query["limit"] ?? 100), 500);
+
+  const client = await pool.connect();
+  try {
+    await ensureAuditTable(client);
+    const result = await client.query<{
+      id: string;
+      migration: string;
+      run_by_id: string;
+      run_by_email: string;
+      ip_address: string;
+      ok_count: number;
+      error_count: number;
+      ran_at: string;
+    }>(
+      `SELECT id, migration, run_by_id, run_by_email, ip_address,
+              ok_count, error_count, ran_at
+       FROM _migration_audit
+       ORDER BY ran_at DESC
+       LIMIT $1`,
+      [limit],
+    );
+    res.json({ entries: result.rows });
+  } catch (err: any) {
+    logger.error({ err }, "migrations: audit fetch error");
+    res.status(500).json({ error: "Gagal memuat audit log" });
+  } finally {
+    client.release();
+  }
+});
+
 // ── POST /api/admin/migrations/:name/run ─────────────────────────────────────
 router.post("/:name/run", async (req, res) => {
-  if (!(await requireSuperAdmin(req, res))) return;
+  const payload = await requireSuperAdmin(req, res);
+  if (!payload) return;
 
   const { name } = req.params;
 
-  // Validate name — only allow safe filenames (no path traversal)
   if (!/^[\w.-]+$/.test(name)) {
     res.status(400).json({ error: "Nama migrasi tidak valid" });
     return;
@@ -190,47 +267,71 @@ router.post("/:name/run", async (req, res) => {
     return;
   }
 
+  const ip = clientIp(req);
   const client = await pool.connect();
   const messages: string[] = [];
   let ok = 0;
   let errors = 0;
 
   try {
+    // Ensure audit table exists before we try to write to it
+    await ensureAuditTable(client);
+
     const sql = readFileSync(filepath, "utf8");
     const stmts = splitStatements(sql);
 
-    logger.info({ name, statements: stmts.length }, "migrations: running");
+    logger.info(
+      { name, statements: stmts.length, user: payload.email, ip },
+      "migrations: running",
+    );
 
     for (const stmt of stmts) {
       try {
         const result = await client.query(stmt);
         ok++;
-        // Capture SELECT results as summary messages
         if (result.rows?.length > 0 && result.command === "SELECT") {
           const preview = result.rows
             .slice(0, 20)
-            .map(r => Object.values(r).join(" | "))
+            .map((r: any) => Object.values(r).join(" | "))
             .join("\n");
           messages.push(`[SELECT ${result.rowCount} rows]\n${preview}`);
         }
       } catch (err: any) {
         errors++;
         const msg: string = err?.message ?? "";
-        const isDuplicate = msg.includes("already exists") || msg.includes("duplicate key");
-        const logMsg = isDuplicate
-          ? `[SKIP] ${stmt.slice(0, 80).trim()}… — ${msg}`
-          : `[ERROR] ${stmt.slice(0, 120).trim()}… — ${msg}`;
-        messages.push(logMsg);
+        const isDuplicate =
+          msg.includes("already exists") || msg.includes("duplicate key");
+        messages.push(
+          isDuplicate
+            ? `[SKIP] ${stmt.slice(0, 80).trim()}… — ${msg}`
+            : `[ERROR] ${stmt.slice(0, 120).trim()}… — ${msg}`,
+        );
         if (!isDuplicate) {
-          logger.warn({ err: msg, stmt: stmt.slice(0, 200) }, `migrations: ${name} — statement error`);
+          logger.warn(
+            { err: msg, stmt: stmt.slice(0, 200) },
+            `migrations: ${name} — statement error`,
+          );
         }
       }
     }
 
-    // Mark as applied (even with some errors — idempotent migrations are safe)
     await markApplied(client, name);
 
-    logger.info({ name, ok, errors }, "migrations: complete");
+    // Write audit entry — non-fatal if it fails
+    try {
+      await writeAuditEntry(client, {
+        migration: name,
+        userId: payload.sub,
+        email: payload.email,
+        ip,
+        ok,
+        errors,
+      });
+    } catch (auditErr: any) {
+      logger.warn({ err: auditErr?.message }, "migrations: audit write failed (non-fatal)");
+    }
+
+    logger.info({ name, ok, errors, user: payload.email, ip }, "migrations: complete");
     res.json({ ok, errors, messages, applied: true });
   } catch (err: any) {
     logger.error({ err }, `migrations: ${name} — unexpected error`);

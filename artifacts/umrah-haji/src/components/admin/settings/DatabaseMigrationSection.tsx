@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SectionHead } from "./SectionHead";
-import { Database, Play, RefreshCw, CheckCircle2, Clock, AlertTriangle, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Database, Play, RefreshCw, CheckCircle2, Clock,
+  AlertTriangle, Loader2, ChevronDown, ChevronUp,
+  ScrollText, User, MapPin, CalendarDays,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface Migration {
   filename: string;
   name: string;
@@ -19,6 +24,17 @@ interface RunResult {
   messages: string[];
 }
 
+interface AuditEntry {
+  id: string;
+  migration: string;
+  run_by_email: string;
+  ip_address: string;
+  ok_count: number;
+  error_count: number;
+  ran_at: string;
+}
+
+// ── Auth helper ───────────────────────────────────────────────────────────────
 async function getAuthHeader(): Promise<Record<string, string>> {
   const stored = localStorage.getItem("vinstour_access_token");
   if (stored) return { Authorization: `Bearer ${stored}` };
@@ -28,6 +44,7 @@ async function getAuthHeader(): Promise<Record<string, string>> {
   return {};
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export function DatabaseMigrationSection() {
   const [migrations, setMigrations] = useState<Migration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +53,13 @@ export function DatabaseMigrationSection() {
   const [results, setResults] = useState<Record<string, RunResult>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  async function fetchMigrations() {
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+
+  // ── Fetch migration list ───────────────────────────────────────────────────
+  const fetchMigrations = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
@@ -53,21 +76,44 @@ export function DatabaseMigrationSection() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
+  // ── Fetch audit log ────────────────────────────────────────────────────────
+  const fetchAudit = useCallback(async () => {
+    setAuditLoading(true);
+    setAuditError(null);
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch("/api/admin/migrations/audit?limit=50", { headers });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setAudit(data.entries ?? []);
+    } catch (err: any) {
+      setAuditError(err?.message ?? "Gagal memuat audit log");
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  // ── Run a migration ────────────────────────────────────────────────────────
   async function runMigration(name: string) {
     setRunning(name);
     try {
       const headers = await getAuthHeader();
-      const res = await fetch(`/api/admin/migrations/${encodeURIComponent(name)}/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
-      });
+      const res = await fetch(
+        `/api/admin/migrations/${encodeURIComponent(name)}/run`,
+        { method: "POST", headers: { "Content-Type": "application/json", ...headers } },
+      );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
       setResults(prev => ({ ...prev, [name]: body }));
       setExpanded(prev => ({ ...prev, [name]: true }));
-      await fetchMigrations();
+      // Refresh list + audit after a successful run
+      await Promise.all([fetchMigrations(), fetchAudit()]);
+      setAuditOpen(true);
     } catch (err: any) {
       setResults(prev => ({
         ...prev,
@@ -79,11 +125,15 @@ export function DatabaseMigrationSection() {
     }
   }
 
-  useEffect(() => { fetchMigrations(); }, []);
+  useEffect(() => {
+    fetchMigrations();
+    fetchAudit();
+  }, [fetchMigrations, fetchAudit]);
 
   const pending = migrations.filter(m => !m.applied);
   const applied = migrations.filter(m => m.applied);
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <SectionHead
@@ -107,7 +157,7 @@ export function DatabaseMigrationSection() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={fetchMigrations}
+          onClick={() => { fetchMigrations(); fetchAudit(); }}
           disabled={loading}
           className="gap-1.5"
         >
@@ -135,6 +185,7 @@ export function DatabaseMigrationSection() {
         </p>
       )}
 
+      {/* Migration list */}
       {!loading && migrations.length > 0 && (
         <div className="space-y-2">
           {migrations.map(m => {
@@ -146,16 +197,17 @@ export function DatabaseMigrationSection() {
               <div
                 key={m.name}
                 className={`rounded-lg border bg-card transition-colors ${
-                  m.applied ? "border-green-200 dark:border-green-900/40" : "border-amber-200 dark:border-amber-900/40"
+                  m.applied
+                    ? "border-green-200 dark:border-green-900/40"
+                    : "border-amber-200 dark:border-amber-900/40"
                 }`}
               >
-                {/* Main row */}
+                {/* Row */}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  {m.applied ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
-                  ) : (
-                    <Clock className="h-4 w-4 shrink-0 text-amber-500" />
-                  )}
+                  {m.applied
+                    ? <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                    : <Clock className="h-4 w-4 shrink-0 text-amber-500" />
+                  }
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-mono font-medium truncate">{m.filename}</p>
@@ -185,11 +237,10 @@ export function DatabaseMigrationSection() {
                       onClick={() => runMigration(m.name)}
                       disabled={isRunning || running !== null}
                     >
-                      {isRunning ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Play className="h-3.5 w-3.5" />
-                      )}
+                      {isRunning
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Play className="h-3.5 w-3.5" />
+                      }
                       {isRunning ? "Menjalankan…" : "Jalankan"}
                     </Button>
                   )}
@@ -197,14 +248,19 @@ export function DatabaseMigrationSection() {
                   {result && (
                     <button
                       className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                      onClick={() => setExpanded(prev => ({ ...prev, [m.name]: !prev[m.name] }))}
+                      onClick={() =>
+                        setExpanded(prev => ({ ...prev, [m.name]: !prev[m.name] }))
+                      }
                     >
-                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {isExpanded
+                        ? <ChevronUp className="h-4 w-4" />
+                        : <ChevronDown className="h-4 w-4" />
+                      }
                     </button>
                   )}
                 </div>
 
-                {/* Result panel */}
+                {/* Run result panel */}
                 {result && isExpanded && (
                   <div className="border-t px-4 py-3 bg-muted/30 rounded-b-lg space-y-2">
                     <div className="flex gap-4 text-xs">
@@ -230,9 +286,119 @@ export function DatabaseMigrationSection() {
         </div>
       )}
 
+      {/* ── Audit Log ──────────────────────────────────────────────────────── */}
+      <div className="border rounded-lg overflow-hidden">
+        {/* Collapsible header */}
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+          onClick={() => {
+            if (!auditOpen) fetchAudit();
+            setAuditOpen(v => !v);
+          }}
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <ScrollText className="h-4 w-4 text-muted-foreground" />
+            Audit Log
+            {audit.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {audit.length}
+              </Badge>
+            )}
+          </span>
+          {auditOpen
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          }
+        </button>
+
+        {auditOpen && (
+          <div className="divide-y">
+            {auditLoading && (
+              <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Memuat log…
+              </div>
+            )}
+
+            {!auditLoading && auditError && (
+              <div className="px-4 py-3">
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{auditError}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            {!auditLoading && !auditError && audit.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-6">
+                Belum ada aktivitas migrasi yang tercatat.
+              </p>
+            )}
+
+            {!auditLoading && audit.map(entry => (
+              <div
+                key={entry.id}
+                className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm"
+              >
+                {/* Migration name + outcome */}
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs font-medium truncate">
+                      {entry.migration}.sql
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        entry.error_count === 0
+                          ? "border-green-400 text-green-700 dark:text-green-400 text-xs"
+                          : "border-amber-400 text-amber-700 dark:text-amber-400 text-xs"
+                      }
+                    >
+                      {entry.ok_count} ok
+                      {entry.error_count > 0 && ` · ${entry.error_count} err`}
+                    </Badge>
+                  </div>
+
+                  {/* Meta: user + IP + time */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      {entry.run_by_email || "—"}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {entry.ip_address || "—"}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="h-3 w-3" />
+                      {new Date(entry.ran_at).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {!auditLoading && audit.length > 0 && (
+              <div className="px-4 py-2 bg-muted/20 flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={fetchAudit}
+                  disabled={auditLoading}
+                  className="gap-1.5 text-xs"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Refresh log
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <p className="text-xs text-muted-foreground border-t pt-4">
-        Setiap migrasi hanya dapat dijalankan sekali. Setelah berhasil, statusnya berubah menjadi "Diterapkan" dan tombol
-        Jalankan tidak akan muncul lagi. Semua migrasi bersifat idempotent — aman dijalankan ulang.
+        Setiap migrasi hanya dapat dijalankan sekali. Audit log mencatat siapa yang
+        menjalankan migrasi, kapan, dan dari IP mana — tersimpan di tabel{" "}
+        <code className="font-mono bg-muted px-1 py-0.5 rounded">_migration_audit</code>.
       </p>
     </div>
   );
