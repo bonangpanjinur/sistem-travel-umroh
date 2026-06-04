@@ -70,7 +70,8 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'finance-ap',          label: 'Hutang (AP)',           path: '/admin/finance/ap',           icon: 'ArrowUpFromLine', group_name: 'Keuangan',           sort_order: 504, required_permission: PERMISSIONS.FINANCE_AP },
   { key: 'finance',             label: 'Laporan P&L',           path: '/admin/finance',              icon: 'TrendingUp',      group_name: 'Keuangan',           sort_order: 505, required_permission: PERMISSIONS.FINANCE },
   { key: 'savings',             label: 'Program Tabungan',      path: '/admin/savings',              icon: 'PiggyBank',       group_name: 'Keuangan',           sort_order: 506, required_permission: PERMISSIONS.SAVINGS },
-  { key: 'reports',             label: 'Laporan',               path: '/admin/reports',              icon: 'FileBarChart',    group_name: 'Keuangan',           sort_order: 507, required_permission: PERMISSIONS.REPORTS },
+  { key: 'reports-central',     label: 'Laporan Terpusat',      path: '/admin/reports-central',      icon: 'FileBarChart',    group_name: 'Keuangan',           sort_order: 507, required_permission: PERMISSIONS.REPORTS },
+  { key: 'reports',             label: 'Laporan Detail',        path: '/admin/reports',              icon: 'BarChart',        group_name: 'Keuangan',           sort_order: 508, required_permission: PERMISSIONS.REPORTS },
   { key: 'advanced-reports',    label: 'Laporan Lanjutan',      path: '/admin/advanced-reports',     icon: 'ChartLine',       group_name: 'Keuangan',           sort_order: 508, required_permission: PERMISSIONS.ADVANCED_REPORTS },
   { key: 'scheduled-reports',   label: 'Laporan Terjadwal',     path: '/admin/scheduled-reports',    icon: 'CalendarClock',   group_name: 'Keuangan',           sort_order: 509, required_permission: PERMISSIONS.SCHEDULED_REPORTS },
   // Fase 6

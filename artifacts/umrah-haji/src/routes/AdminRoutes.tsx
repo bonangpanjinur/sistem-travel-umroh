@@ -24,6 +24,7 @@ const AdminRBACTools = lazy(() => import("@/pages/admin/AdminRBACTools"));
 const AdminRBACStatus = lazy(() => import("@/pages/admin/AdminRBACStatus"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
+const AdminReportsCentral = lazy(() => import("@/pages/admin/AdminReportsCentral"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
 const AdminPackageTypes = lazy(() => import("@/pages/admin/AdminPackageTypes"));
 const AdminMasterData = lazy(() => import("@/pages/admin/AdminMasterData"));
@@ -297,6 +298,7 @@ export default function AdminRoutes() {
 
       {/* Laporan */}
       <Route path="reports" element={<P k={PERMISSIONS.REPORTS}><AdminReports /></P>} />
+      <Route path="reports-central" element={<P k={PERMISSIONS.REPORTS}><AdminReportsCentral /></P>} />
       <Route path="advanced-reports" element={<P k={PERMISSIONS.ADVANCED_REPORTS}><AdminAdvancedReports /></P>} />
       <Route path="scheduled-reports" element={<P k={PERMISSIONS.SCHEDULED_REPORTS}><AdminScheduledReports /></P>} />
       <Route path="laporan/payment-audit-log" element={<LazyPage><AdminPaymentAuditLog /></LazyPage>} />
