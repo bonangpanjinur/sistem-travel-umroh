@@ -169,8 +169,8 @@ RBAC (15 role):
 | ~~E4~~ | ~~Laporan stok per departure~~ | ~~🟠~~ | ✅ `EquipmentStockPerDeparture` sudah ada |
 | ~~E5~~ | ~~Alert stok rendah otomatis~~ | ~~🟡~~ | ✅ Banner amber + badge klik di EquipmentPage |
 | ~~E6~~ | ~~Export laporan distribusi ke Excel~~ | ~~🟡~~ | ✅ Tombol Export Excel di Daftar Jamaah |
-| E7 | **Foto bukti distribusi** | 🟡 | Tidak ada field foto bukti serah terima |
-| E8 | **Paket perlengkapan per tipe paket** | 🟡 | Perlengkapan tidak terikat otomatis ke tipe paket |
+| ~~E7~~ | ~~**Foto bukti distribusi**~~ | ~~🟡~~ | ✅ `EquipmentDistributionDialogWithPhoto` + `EquipmentConfirmationTabWithPhoto` + kolom `distribution_photo_url` + SQL migration 066 |
+| ~~E8~~ | ~~**Paket perlengkapan per tipe paket**~~ | ~~🟡~~ | ✅ `PackageTypeEquipmentCard` + tabel `package_type_equipment` + SQL migration 067 + tombol 📦 di tabel AdminPackageTypes |
 
 ---
 
@@ -279,7 +279,7 @@ RBAC (15 role):
 | ✅ | Training module + quiz | `training_modules`, `training_quizzes` |
 | ✅ | Kit digital, broadcast WA, link unik | `pages/agent/` |
 | ✅ | Wallet, referral, website agen | `pages/agent/` |
-| ❌ | Withdrawal otomatis wallet agen | Belum ada flow withdrawal |
+| ✅ | Withdrawal otomatis wallet agen | `AdminWithdrawalManagement.tsx` — approve otomatis potong wallet + audit transaksi; route `/admin/withdrawal-management` |
 
 ---
 
@@ -442,8 +442,8 @@ RBAC (15 role):
 | Route | Prioritas | Dampak |
 |-------|-----------|--------|
 | `POST /api/midtrans/webhook` | 🔴 | Status tidak auto-update (sudah ada di Supabase edge function, belum di Express) |
-| `GET /api/dashboard/stats` | 🟠 | Dashboard ambil data langsung dari Supabase |
-| `POST /api/scheduler/run` | 🟠 | Cron job pengingat otomatis belum ada di Express |
+| `GET /api/dashboard/stats` | ✅ | `routes/dashboard.ts` — stats booking/payment/departure/customer + trend harian |
+| `POST /api/scheduler/run` | ✅ | `routes/scheduler.ts` — trigger manual cicilan/payment/departure_h7/departure_h1 |
 | `GET /api/reports/export` | 🟡 | Export laporan harus server-side |
 
 ---
@@ -517,12 +517,12 @@ RBAC (15 role):
 | B11 | Integrasi SISKOHAT API Kemenag (D1) — butuh akses API Kemenag | Keberangkatan |
 | B12 | Denah lantai / floor plan kamar visual (K2) | Kamar |
 | B13 | Multi-hotel per kota per departure (K7) | Kamar |
-| B14 | Export kalender ke ICS/Google Calendar | Platform |
-| B15 | Withdrawal otomatis wallet agen | Agen |
+| ~~B14~~ | ~~Export kalender ke ICS/Google Calendar~~ | ~~Platform~~ | ✅ `lib/ics.ts` + tombol "Export Kalender" di AdminDepartures |
+| ~~B15~~ | ~~Withdrawal otomatis wallet agen~~ | ~~Agen~~ | ✅ `AdminWithdrawalManagement.tsx` |
 | B16 | Live tracking posisi rombongan di peta (D6) | Keberangkatan |
 | ~~B17~~ | ~~Validasi kompatibilitas mahram di room assignment (K6)~~ | ~~Kamar~~ |
-| B18 | Foto bukti distribusi perlengkapan (E7) | Equipment |
-| B19 | Paket perlengkapan default per tipe paket (E8) | Equipment |
+| ~~B18~~ | ~~Foto bukti distribusi perlengkapan (E7)~~ | ~~Equipment~~ | ✅ Selesai — lihat E7 di atas |
+| ~~B19~~ | ~~Paket perlengkapan default per tipe paket (E8)~~ | ~~Equipment~~ | ✅ Selesai — lihat E8 di atas |
 
 ---
 

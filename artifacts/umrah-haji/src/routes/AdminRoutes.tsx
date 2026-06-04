@@ -139,6 +139,7 @@ const AdminDepartureTracking = lazy(() => import("@/pages/admin/AdminDepartureTr
 const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
 const AdminRefunds = lazy(() => import("@/pages/admin/AdminRefunds"));
 const AdminRefundDetail = lazy(() => import("@/pages/admin/AdminRefundDetail"));
+const AdminWithdrawalManagement = lazy(() => import("@/pages/admin/AdminWithdrawalManagement"));
 const AdminActivityLog = lazy(() => import("@/pages/admin/AdminActivityLog"));
 const AdminKPIDashboard = lazy(() => import("@/pages/admin/AdminKPIDashboard"));
 const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
@@ -256,6 +257,7 @@ export default function AdminRoutes() {
       <Route path="payments" element={<P k={PERMISSIONS.PAYMENTS}><AdminPayments /></P>} />
       <Route path="refunds" element={<P k={PERMISSIONS.REFUNDS}><AdminRefunds /></P>} />
       <Route path="refunds/:id" element={<P k={PERMISSIONS.REFUNDS}><AdminRefundDetail /></P>} />
+      <Route path="withdrawal-management" element={<LazyPage><AdminWithdrawalManagement /></LazyPage>} />
       <Route path="finance-cash" element={<P k={PERMISSIONS.FINANCE_CASH}><AdminFinanceCash /></P>} />
       <Route path="finance/ar" element={<P k={PERMISSIONS.FINANCE_AR}><AdminFinanceAR /></P>} />
       <Route path="finance/ap" element={<P k={PERMISSIONS.FINANCE_AP}><AdminFinanceAP /></P>} />

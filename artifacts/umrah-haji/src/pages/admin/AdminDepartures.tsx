@@ -27,9 +27,10 @@ import {
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
   ChevronLeft, ChevronRight, Eye, RefreshCw, TrendingUp,
-  Zap, AlertCircle
+  Zap, AlertCircle, Download
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
+import { downloadICS, type ICSEvent } from "@/lib/ics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MONTHS = [
@@ -435,6 +436,36 @@ export default function AdminDepartures() {
               </Button>
             </TooltipTrigger>
             <TooltipContent>Hitung ulang kursi terisi dari data pesanan aktif</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  const events: ICSEvent[] = departures
+                    .filter((d: any) => d.departure_date)
+                    .map((d: any) => ({
+                      uid: d.id,
+                      summary: `${d.package?.name || 'Keberangkatan'} (${d.package?.code || ''})`,
+                      description: `Kapasitas: ${d.capacity || '-'} | Tersedia: ${(d.capacity || 0) - (d.booked_count || 0)} kursi`,
+                      location: 'Mekkah, Arab Saudi',
+                      dtstart: new Date(d.departure_date),
+                      dtend: d.return_date ? new Date(d.return_date) : undefined,
+                    }));
+                  if (events.length === 0) {
+                    toast.error('Tidak ada jadwal dengan tanggal yang bisa diekspor');
+                    return;
+                  }
+                  downloadICS(events);
+                  toast.success(`${events.length} jadwal diekspor ke file .ics`);
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Export Kalender
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export semua jadwal ke Google Calendar / iCal (.ics)</TooltipContent>
           </Tooltip>
           <Button onClick={() => setIsFormOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
             <Plus className="h-4 w-4" />

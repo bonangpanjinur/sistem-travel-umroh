@@ -14,6 +14,8 @@ import permissionsRouter from "./permissions.js";
 import bookingsRouter from "./bookings.js";
 import authRouter from "./auth.js";
 import functionsRouter from "./functions.js";
+import dashboardRouter from "./dashboard.js";
+import schedulerRouter from "./scheduler.js";
 
 const router: IRouter = Router();
 
@@ -32,5 +34,7 @@ router.use("/reminders", remindersRouter);
 router.use("/totp", totpRouter);
 router.use("/permissions", permissionsRouter);
 router.use("/bookings", bookingsRouter);
+router.use("/dashboard", dashboardRouter);
+router.use("/scheduler", schedulerRouter);
 
 export default router;

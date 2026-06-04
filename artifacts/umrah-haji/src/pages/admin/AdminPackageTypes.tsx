@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
+import { PackageTypeEquipmentCard } from "@/components/admin/PackageTypeEquipmentCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Edit, Trash2, Settings2, Info } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Settings2, Info, Box } from "lucide-react";
 import { toast } from "sonner";
 import { getBookingModeLabel, getBookingModeBadgeColor } from "@/lib/format";
 
@@ -23,6 +24,7 @@ export default function AdminPackageTypes() {
   const [filterMode, setFilterMode] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingType, setEditingType] = useState<any>(null);
+  const [selectedEquipmentType, setSelectedEquipmentType] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: packageTypes, isLoading } = useQuery({
@@ -188,6 +190,15 @@ export default function AdminPackageTypes() {
                         <Button
                           size="sm"
                           variant="outline"
+                          title="Perlengkapan default"
+                          onClick={() => setSelectedEquipmentType(selectedEquipmentType?.id === type.id ? null : type)}
+                          className={selectedEquipmentType?.id === type.id ? 'bg-primary/10 border-primary/40' : ''}
+                        >
+                          <Box className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => { setEditingType(type); setIsFormOpen(true); }}
                         >
                           <Edit className="h-4 w-4" />
@@ -208,6 +219,13 @@ export default function AdminPackageTypes() {
           </Table>
         </CardContent>
       </Card>
+
+      {selectedEquipmentType && (
+        <PackageTypeEquipmentCard
+          packageTypeId={selectedEquipmentType.id}
+          packageTypeName={selectedEquipmentType.name}
+        />
+      )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-2xl">

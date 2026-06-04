@@ -22,13 +22,13 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-import { EquipmentDistributionDialog } from "@/components/operational/equipment/EquipmentDistributionDrawer";
+import { EquipmentDistributionDialogWithPhoto } from "@/components/operational/equipment/EquipmentDistributionDrawerWithPhoto";
 import { AddStockDialog } from "@/components/operational/equipment/AddStockDialog";
 import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab";
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 import { PrintManifest } from "@/components/operational/equipment/PrintManifest";
 import { EquipmentReturnDialog } from "@/components/operational/equipment/EquipmentReturnDialog";
-import { EquipmentConfirmationTab } from "@/components/operational/equipment/EquipmentConfirmationTab";
+import { EquipmentConfirmationTabWithPhoto } from "@/components/operational/equipment/EquipmentConfirmationTabWithPhoto";
 import { EquipmentStockPerDeparture } from "@/components/operational/equipment/EquipmentStockPerDeparture";
 
 export interface EquipmentItem {
@@ -633,7 +633,7 @@ export default function EquipmentPage() {
 
       {/* Dialogs */}
       {selectedJamaah && (
-        <EquipmentDistributionDialog
+        <EquipmentDistributionDialogWithPhoto
           open={isDistDialogOpen}
           onOpenChange={setIsDistDialogOpen}
           jamaahId={selectedJamaah.customer_id}
@@ -701,7 +701,7 @@ export default function EquipmentPage() {
               Konfirmasi Penerimaan Perlengkapan
             </DialogTitle>
           </DialogHeader>
-          <EquipmentConfirmationTab departureId={selectedDeparture} />
+          <EquipmentConfirmationTabWithPhoto departureId={selectedDeparture} />
         </DialogContent>
       </Dialog>
 
