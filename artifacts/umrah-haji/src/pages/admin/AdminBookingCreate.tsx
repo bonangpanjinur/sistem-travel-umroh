@@ -1148,14 +1148,17 @@ export default function AdminBookingCreate() {
 
       {/* Add New Customer Dialog */}
       <Dialog open={showAddCustomer} onOpenChange={setShowAddCustomer}>
-        <DialogContent className="sm:max-w-[500px] rounded-3xl border-2 shadow-2xl p-0 overflow-hidden">
-          <div className="bg-primary p-6 text-primary-foreground">
+        <DialogContent className="sm:max-w-[500px] rounded-3xl border-2 shadow-2xl p-0 overflow-hidden flex flex-col max-h-[92vh]">
+          <div className="bg-primary p-6 text-primary-foreground shrink-0">
             <DialogTitle className="text-2xl font-black">Tambah Jamaah Baru</DialogTitle>
             <p className="text-xs opacity-80 mt-1 font-medium">Masukkan data identitas dasar untuk pendaftaran</p>
           </div>
-          <div className="p-8 space-y-6">
+          <div className="flex-1 overflow-y-auto p-8 space-y-5">
             <div className="space-y-2">
-              <Label className="font-black text-sm">Nama Lengkap (Sesuai KTP/Paspor) *</Label>
+              <Label className="font-black text-sm">
+                Nama Lengkap (Sesuai KTP/Paspor)
+                <span className="ml-1 text-red-500">*</span>
+              </Label>
               <Input
                 value={newCustomer.full_name}
                 onChange={e => setNewCustomer(p => ({ ...p, full_name: e.target.value }))}
@@ -1164,14 +1167,14 @@ export default function AdminBookingCreate() {
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="font-black text-sm">Nomor Telepon / WA</Label>
                 <Input
                   value={newCustomer.phone}
                   onChange={e => setNewCustomer(p => ({ ...p, phone: e.target.value }))}
                   placeholder="0812..."
-                  className="h-12 border-2 rounded-xl focus:ring-primary"
+                  className="h-11 border-2 rounded-xl focus:ring-primary"
                 />
               </div>
               <div className="space-y-2">
@@ -1181,7 +1184,7 @@ export default function AdminBookingCreate() {
                   value={newCustomer.email}
                   onChange={e => setNewCustomer(p => ({ ...p, email: e.target.value }))}
                   placeholder="jamaah@email.com"
-                  className="h-12 border-2 rounded-xl focus:ring-primary"
+                  className="h-11 border-2 rounded-xl focus:ring-primary"
                 />
               </div>
             </div>
@@ -1191,16 +1194,19 @@ export default function AdminBookingCreate() {
                 value={newCustomer.nik}
                 onChange={e => setNewCustomer(p => ({ ...p, nik: e.target.value }))}
                 placeholder="Masukkan nomor NIK..."
-                className="h-12 border-2 rounded-xl focus:ring-primary"
+                className="h-11 border-2 rounded-xl focus:ring-primary"
+                maxLength={16}
               />
             </div>
           </div>
-          <DialogFooter className="p-8 pt-0 gap-3">
-            <Button variant="ghost" onClick={() => setShowAddCustomer(false)} className="rounded-xl font-bold">Batal</Button>
+          <DialogFooter className="p-6 gap-3 shrink-0 border-t bg-background">
+            <Button variant="outline" onClick={() => setShowAddCustomer(false)} className="rounded-xl font-bold flex-1">
+              Batal
+            </Button>
             <Button
               disabled={!newCustomer.full_name || createCustomerMutation.isPending}
               onClick={() => createCustomerMutation.mutate(newCustomer)}
-              className="rounded-xl px-10 font-black shadow-lg"
+              className="rounded-xl px-8 font-black shadow-lg flex-1"
             >
               {createCustomerMutation.isPending ? 'Menyimpan...' : 'Simpan Jamaah'}
             </Button>

@@ -136,163 +136,179 @@ export function AddCustomerDialog({ trigger }: AddCustomerDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <DialogTitle>Tambah Jamaah Baru</DialogTitle>
           <DialogDescription>
-            Isi data dasar jamaah. Data lengkap (paspor, dokumen, dll) dapat dilengkapi setelah pembayaran terverifikasi.
+            Isi data dasar jamaah. Data lengkap (paspor, dokumen) dapat dilengkapi setelah pembayaran terverifikasi.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <Label htmlFor="full_name">Nama Lengkap *</Label>
-            <Input
-              id="full_name"
-              value={formData.full_name}
-              onChange={e => handleChange("full_name", e.target.value)}
-              placeholder="Nama sesuai KTP"
-              required
-            />
-          </div>
-
-          <div className="grid gap-4 grid-cols-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {/* Data Wajib */}
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data Wajib</div>
             <div>
-              <Label htmlFor="gender">Jenis Kelamin</Label>
+              <Label htmlFor="full_name">
+                Nama Lengkap
+                <span className="ml-1 text-red-500 text-xs font-medium">*</span>
+              </Label>
+              <Input
+                id="full_name"
+                value={formData.full_name}
+                onChange={e => handleChange("full_name", e.target.value)}
+                placeholder="Nama sesuai KTP/Paspor"
+                className="mt-1"
+                required
+              />
+            </div>
+
+            <div className="grid gap-3 grid-cols-2">
+              <div>
+                <Label htmlFor="gender">Jenis Kelamin</Label>
+                <Select
+                  value={formData.gender}
+                  onValueChange={v => handleChange("gender", v)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Pilih" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Laki-laki</SelectItem>
+                    <SelectItem value="female">Perempuan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="phone">No. Telepon / WA</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={e => handleChange("phone", e.target.value)}
+                  placeholder="08XXXXXXXXXX"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Data Pelengkap */}
+            <div className="pt-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data Pelengkap</div>
+
+            <div className="grid gap-3 grid-cols-2">
+              <div>
+                <Label htmlFor="nik">NIK</Label>
+                <Input
+                  id="nik"
+                  value={formData.nik}
+                  onChange={e => handleChange("nik", e.target.value)}
+                  placeholder="16 digit"
+                  maxLength={16}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={e => handleChange("email", e.target.value)}
+                  placeholder="jamaah@email.com"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 grid-cols-2">
+              <div>
+                <Label htmlFor="birth_place">Tempat Lahir</Label>
+                <Input
+                  id="birth_place"
+                  value={formData.birth_place}
+                  onChange={e => handleChange("birth_place", e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="birth_date">Tanggal Lahir</Label>
+                <Input
+                  id="birth_date"
+                  type="date"
+                  value={formData.birth_date}
+                  onChange={e => handleChange("birth_date", e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="address">Alamat</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={e => handleChange("address", e.target.value)}
+                placeholder="Alamat singkat"
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="branch_id">Cabang</Label>
               <Select
-                value={formData.gender}
-                onValueChange={v => handleChange("gender", v)}
+                value={formData.branch_id}
+                onValueChange={v => handleChange("branch_id", v)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih" />
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Pilih cabang (opsional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="male">Laki-laki</SelectItem>
-                  <SelectItem value="female">Perempuan</SelectItem>
+                  {branches?.map(branch => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="nik">NIK</Label>
-              <Input
-                id="nik"
-                value={formData.nik}
-                onChange={e => handleChange("nik", e.target.value)}
-                placeholder="16 digit"
-                maxLength={16}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="marital_status">Status Pernikahan</Label>
+                <Select
+                  value={formData.marital_status}
+                  onValueChange={v => handleChange("marital_status", v)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Pilih status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Lajang</SelectItem>
+                    <SelectItem value="married">Menikah</SelectItem>
+                    <SelectItem value="widowed">Janda/Duda</SelectItem>
+                    <SelectItem value="divorced">Cerai</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="spouse_name">Nama Pasangan</Label>
+                <Input
+                  id="spouse_name"
+                  value={formData.spouse_name}
+                  onChange={e => handleChange("spouse_name", e.target.value)}
+                  placeholder="Nama suami/istri"
+                  className="mt-1"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-4 grid-cols-2">
-            <div>
-              <Label htmlFor="birth_place">Tempat Lahir</Label>
-              <Input
-                id="birth_place"
-                value={formData.birth_place}
-                onChange={e => handleChange("birth_place", e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="birth_date">Tanggal Lahir</Label>
-              <Input
-                id="birth_date"
-                type="date"
-                value={formData.birth_date}
-                onChange={e => handleChange("birth_date", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 grid-cols-2">
-            <div>
-              <Label htmlFor="phone">No. Telepon</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={e => handleChange("phone", e.target.value)}
-                placeholder="08XXXXXXXXXX"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={e => handleChange("email", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="address">Alamat</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={e => handleChange("address", e.target.value)}
-              placeholder="Alamat singkat"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="branch_id">Cabang</Label>
-            <Select
-              value={formData.branch_id}
-              onValueChange={v => handleChange("branch_id", v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih cabang (opsional)" />
-              </SelectTrigger>
-              <SelectContent>
-                {branches?.map(branch => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="marital_status">Status Pernikahan</Label>
-              <Select
-                value={formData.marital_status}
-                onValueChange={v => handleChange("marital_status", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Lajang</SelectItem>
-                  <SelectItem value="married">Menikah</SelectItem>
-                  <SelectItem value="widowed">Janda/Duda</SelectItem>
-                  <SelectItem value="divorced">Cerai</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="spouse_name">Nama Pasangan</Label>
-              <Input
-                id="spouse_name"
-                value={formData.spouse_name}
-                onChange={e => handleChange("spouse_name", e.target.value)}
-                placeholder="Nama suami/istri (jika menikah)"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0 bg-background">
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Batal
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Simpan
+              Simpan Jamaah
             </Button>
           </div>
         </form>

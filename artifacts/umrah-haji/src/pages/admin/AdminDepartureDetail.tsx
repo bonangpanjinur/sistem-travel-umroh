@@ -972,6 +972,25 @@ export default function AdminDepartureDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Akses cepat operasional */}
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/admin/room-assignments?departure=${id}`}>
+              <BedDouble className="h-3.5 w-3.5 mr-1.5" />
+              Kamar
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/admin/manifest?departure=${id}`}>
+              <FileDown className="h-3.5 w-3.5 mr-1.5" />
+              Manifest
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/admin/equipment?departure=${id}`}>
+              <Package className="h-3.5 w-3.5 mr-1.5" />
+              Perlengkapan
+            </Link>
+          </Button>
           {/* K4 — Quick status change */}
           {departure?.status && STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW] && (
             <Button

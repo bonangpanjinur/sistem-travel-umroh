@@ -35,28 +35,24 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'bookings',            label: 'Booking',               path: '/admin/bookings',             icon: 'BookOpen',        group_name: 'Penjualan',          sort_order: 203, required_permission: PERMISSIONS.BOOKINGS },
   { key: 'coupons',             label: 'Kupon & Promo',         path: '/admin/coupons',              icon: 'Ticket',          group_name: 'Penjualan',          sort_order: 204, required_permission: PERMISSIONS.COUPONS },
 
-  // ── Produk & Paket (250s) ─────────────────────────────────────────────────
-  { key: 'packages',            label: 'Paket Umroh & Haji',    path: '/admin/packages',             icon: 'Package',         group_name: 'Produk & Paket',     sort_order: 251, required_permission: PERMISSIONS.PACKAGES },
-  { key: 'package-types',       label: 'Tipe Paket',            path: '/admin/package-types',        icon: 'Tag',             group_name: 'Produk & Paket',     sort_order: 252, required_permission: PERMISSIONS.PACKAGE_TYPES },
-
-  // ── Keberangkatan (400s) ──────────────────────────────────────────────────
-  { key: 'departures',          label: 'Jadwal Keberangkatan',  path: '/admin/departures',           icon: 'CalendarDays',    group_name: 'Keberangkatan',      sort_order: 401, required_permission: PERMISSIONS.DEPARTURES },
-  { key: 'departure-tracking',  label: 'Tracking Real-time',    path: '/admin/departure-tracking',   icon: 'Navigation',      group_name: 'Keberangkatan',      sort_order: 402, required_permission: PERMISSIONS.DEPARTURE_TRACKING },
-  { key: 'sos-alerts',          label: 'Monitor SOS',           path: '/admin/sos-alerts',           icon: 'AlertCircle',     group_name: 'Keberangkatan',      sort_order: 403, required_permission: PERMISSIONS.SOS_ALERTS },
-  { key: 'room-assignments',    label: 'Kamar & Rooming',       path: '/admin/room-assignments',     icon: 'BedDouble',       group_name: 'Keberangkatan',      sort_order: 404, required_permission: PERMISSIONS.ROOM_ASSIGNMENTS },
-  { key: 'manifest-jamaah',     label: 'Manifest Jamaah',       path: '/admin/manifest',             icon: 'FileText',        group_name: 'Keberangkatan',      sort_order: 405, required_permission: PERMISSIONS.MANIFEST_JAMAAH },
-  { key: 'haji',                label: 'Manajemen Haji',        path: '/admin/haji',                 icon: 'MapPin',          group_name: 'Keberangkatan',      sort_order: 406, required_permission: PERMISSIONS.HAJI },
-  { key: 'manasik',             label: 'Manasik',               path: '/admin/manasik',              icon: 'BookMarked',      group_name: 'Keberangkatan',      sort_order: 407, required_permission: PERMISSIONS.MANASIK },
-  { key: 'itinerary-templates', label: 'Template Itinerary',    path: '/admin/itinerary-templates',  icon: 'ListOrdered',     group_name: 'Keberangkatan',      sort_order: 408, required_permission: PERMISSIONS.ITINERARY_TEMPLATES },
-  { key: 'absensi-digital',     label: 'Absensi Digital',       path: '/admin/absensi',              icon: 'UserCheck',       group_name: 'Keberangkatan',      sort_order: 409, required_permission: PERMISSIONS.ABSENSI_DIGITAL },
-  { key: 'wa-blast-keberangkatan', label: 'Broadcast WA Keberangkatan', path: '/admin/wa-blast',   icon: 'MessageSquare',   group_name: 'Keberangkatan',      sort_order: 410, required_permission: PERMISSIONS.WA_BLAST_KEBERANGKATAN },
-  { key: 'muthawif-dashboard',  label: 'Dashboard Muthawif',    path: '/muthawif/dashboard',         icon: 'UserCog',         group_name: 'Keberangkatan',      sort_order: 411, required_permission: PERMISSIONS.MUTHAWIF_DASHBOARD },
-
-  // ── Perlengkapan (450s) ───────────────────────────────────────────────────
-  { key: 'equipment',           label: 'Perlengkapan',          path: '/admin/equipment',            icon: 'Backpack',        group_name: 'Perlengkapan',       sort_order: 451, required_permission: PERMISSIONS.EQUIPMENT },
-  { key: 'equipment-master',    label: 'Master Perlengkapan',   path: '/admin/equipment-master',     icon: 'PackageOpen',     group_name: 'Perlengkapan',       sort_order: 452, required_permission: PERMISSIONS.EQUIPMENT_MASTER },
-  { key: 'equipment-settings',  label: 'Setting Perlengkapan',  path: '/admin/equipment-settings',   icon: 'Settings2',       group_name: 'Perlengkapan',       sort_order: 453, required_permission: PERMISSIONS.EQUIPMENT_SETTINGS },
-  { key: 'stock-opname',        label: 'Stock Opname',          path: '/admin/stock-opname',         icon: 'ClipboardCheck',  group_name: 'Perlengkapan',       sort_order: 454, required_permission: PERMISSIONS.STOCK_OPNAME },
+  // ── Operasional (250s) — Paket · Keberangkatan · Perlengkapan ────────────
+  { key: 'packages',            label: 'Paket Umroh & Haji',    path: '/admin/packages',             icon: 'Package',         group_name: 'Operasional',        sort_order: 251, required_permission: PERMISSIONS.PACKAGES },
+  { key: 'package-types',       label: 'Tipe Paket',            path: '/admin/package-types',        icon: 'Tag',             group_name: 'Operasional',        sort_order: 252, required_permission: PERMISSIONS.PACKAGE_TYPES },
+  { key: 'departures',          label: 'Jadwal Keberangkatan',  path: '/admin/departures',           icon: 'CalendarDays',    group_name: 'Operasional',        sort_order: 261, required_permission: PERMISSIONS.DEPARTURES },
+  { key: 'room-assignments',    label: 'Kamar & Rooming',       path: '/admin/room-assignments',     icon: 'BedDouble',       group_name: 'Operasional',        sort_order: 262, required_permission: PERMISSIONS.ROOM_ASSIGNMENTS },
+  { key: 'manifest-jamaah',     label: 'Manifest Jamaah',       path: '/admin/manifest',             icon: 'FileText',        group_name: 'Operasional',        sort_order: 263, required_permission: PERMISSIONS.MANIFEST_JAMAAH },
+  { key: 'equipment',           label: 'Perlengkapan',          path: '/admin/equipment',            icon: 'Backpack',        group_name: 'Operasional',        sort_order: 264, required_permission: PERMISSIONS.EQUIPMENT },
+  { key: 'stock-opname',        label: 'Stock Opname',          path: '/admin/stock-opname',         icon: 'ClipboardCheck',  group_name: 'Operasional',        sort_order: 265, required_permission: PERMISSIONS.STOCK_OPNAME },
+  { key: 'haji',                label: 'Manajemen Haji',        path: '/admin/haji',                 icon: 'MapPin',          group_name: 'Operasional',        sort_order: 266, required_permission: PERMISSIONS.HAJI },
+  { key: 'manasik',             label: 'Manasik',               path: '/admin/manasik',              icon: 'BookMarked',      group_name: 'Operasional',        sort_order: 267, required_permission: PERMISSIONS.MANASIK },
+  { key: 'absensi-digital',     label: 'Absensi Digital',       path: '/admin/absensi',              icon: 'UserCheck',       group_name: 'Operasional',        sort_order: 268, required_permission: PERMISSIONS.ABSENSI_DIGITAL },
+  { key: 'departure-tracking',  label: 'Tracking Real-time',    path: '/admin/departure-tracking',   icon: 'Navigation',      group_name: 'Operasional',        sort_order: 269, required_permission: PERMISSIONS.DEPARTURE_TRACKING },
+  { key: 'muthawif-dashboard',  label: 'Dashboard Muthawif',    path: '/muthawif/dashboard',         icon: 'UserCog',         group_name: 'Operasional',        sort_order: 270, required_permission: PERMISSIONS.MUTHAWIF_DASHBOARD },
+  { key: 'itinerary-templates', label: 'Template Itinerary',    path: '/admin/itinerary-templates',  icon: 'ListOrdered',     group_name: 'Operasional',        sort_order: 271, required_permission: PERMISSIONS.ITINERARY_TEMPLATES },
+  { key: 'sos-alerts',          label: 'Monitor SOS',           path: '/admin/sos-alerts',           icon: 'AlertCircle',     group_name: 'Operasional',        sort_order: 272, required_permission: PERMISSIONS.SOS_ALERTS },
+  { key: 'equipment-master',    label: 'Master Perlengkapan',   path: '/admin/equipment-master',     icon: 'PackageOpen',     group_name: 'Operasional',        sort_order: 273, required_permission: PERMISSIONS.EQUIPMENT_MASTER },
+  { key: 'equipment-settings',  label: 'Setting Perlengkapan',  path: '/admin/equipment-settings',   icon: 'Settings2',       group_name: 'Operasional',        sort_order: 274, required_permission: PERMISSIONS.EQUIPMENT_SETTINGS },
+  { key: 'wa-blast-keberangkatan', label: 'Broadcast WA Keberangkatan', path: '/admin/wa-blast',   icon: 'MessageSquare',   group_name: 'Operasional',        sort_order: 275, required_permission: PERMISSIONS.WA_BLAST_KEBERANGKATAN },
 
   // ── Jamaah & Agen (600s) ──────────────────────────────────────────────────
   { key: 'customers',           label: 'Data Jamaah',           path: '/admin/customers',            icon: 'Users',           group_name: 'Jamaah & Agen',      sort_order: 601, required_permission: PERMISSIONS.CUSTOMERS },
