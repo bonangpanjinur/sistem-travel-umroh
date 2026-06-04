@@ -165,6 +165,10 @@ const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"
 // Laporan Reminder
 const AdminLaporanReminder = lazy(() => import("@/pages/admin/AdminLaporanReminder"));
 
+// Fase 31 — WA Multi-Provider
+const AdminWAProvider = lazy(() => import("@/pages/admin/AdminWAProvider"));
+const AdminWARoadmap  = lazy(() => import("@/pages/admin/AdminWARoadmap"));
+
 // Fase 9 — Integrasi & Otomasi
 const AdminWAOtomatis = lazy(() => import("@/pages/admin/AdminWAOtomatis"));
 const AdminMidtrans = lazy(() => import("@/pages/admin/AdminMidtrans"));
@@ -411,6 +415,10 @@ export default function AdminRoutes() {
       <Route path="manifest" element={<P k={PERMISSIONS.MANIFEST_JAMAAH}><AdminManifestJamaah /></P>} />
       <Route path="absensi" element={<P k={PERMISSIONS.ABSENSI_DIGITAL}><AdminAbsensiDigital /></P>} />
       <Route path="wa-blast" element={<P k={PERMISSIONS.WA_BLAST_KEBERANGKATAN}><AdminWABlastKeberangkatan /></P>} />
+
+      {/* Fase 31 — WA Multi-Provider */}
+      <Route path="wa-provider" element={<P k={PERMISSIONS.WA_PROVIDER}><LazyPage><AdminWAProvider /></LazyPage></P>} />
+      <Route path="wa-roadmap"  element={<P k={PERMISSIONS.WA_ROADMAP}><LazyPage><AdminWARoadmap /></LazyPage></P>} />
 
       {/* Fase 9 — Integrasi & Otomasi */}
       <Route path="wa-otomatis" element={<P k={PERMISSIONS.WA_OTOMATIS}><AdminWAOtomatis /></P>} />

@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 import {
   Bell, MessageCircle, CheckCircle2, Clock, RefreshCcw,
   Send, Users, AlertTriangle, Search, Filter, XCircle,
-  CalendarClock, TrendingUp, ChevronDown
+  CalendarClock, TrendingUp, ChevronDown, Zap, Sparkles, Eye
 } from "lucide-react";
 import { format, differenceInDays, parseISO, isPast, isWithinInterval, addDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -62,6 +63,16 @@ function StatusBadge({ status, isOverdue }: { status: Reminder["status"]; isOver
   return <Badge variant="secondary" className="text-xs">Dibatalkan</Badge>;
 }
 
+const SCHEDULE_OPTIONS = [
+  { value: 1,  label: "H-1",  desc: "Besok" },
+  { value: 3,  label: "H-3",  desc: "3 hari" },
+  { value: 7,  label: "H-7",  desc: "1 minggu" },
+  { value: 14, label: "H-14", desc: "2 minggu" },
+  { value: 30, label: "H-30", desc: "1 bulan" },
+];
+
+type ScheduleResult = { created_count: number; skipped_count: number } | null;
+
 export default function AdminLaporanReminder() {
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
@@ -70,6 +81,72 @@ export default function AdminLaporanReminder() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [isBulkSending, setIsBulkSending] = useState(false);
+
+  // Auto-schedule state
+  const [scheduleWindows, setScheduleWindows] = useState<number[]>([7, 3]);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewData, setPreviewData] = useState<{ new_count: number; existing_count: number } | null>(null);
+  const [scheduleResult, setScheduleResult] = useState<ScheduleResult>(null);
+
+  function toggleWindow(val: number) {
+    setScheduleWindows(prev =>
+      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
+    );
+    setPreviewData(null);
+    setScheduleResult(null);
+  }
+
+  async function previewSchedule() {
+    if (scheduleWindows.length === 0) {
+      toast.info("Pilih minimal satu H- interval");
+      return;
+    }
+    setIsPreviewing(true);
+    setPreviewData(null);
+    try {
+      const { data, error } = await supabase.rpc(
+        "preview_auto_schedule_reminders",
+        { p_days_before: scheduleWindows }
+      );
+      if (error) throw error;
+      const rows = (data || []) as { already_exists: boolean }[];
+      const newCount = rows.filter(r => !r.already_exists).length;
+      const existingCount = rows.filter(r => r.already_exists).length;
+      setPreviewData({ new_count: newCount, existing_count: existingCount });
+    } catch (e: any) {
+      toast.error("Gagal preview: " + e.message);
+    } finally {
+      setIsPreviewing(false);
+    }
+  }
+
+  async function runAutoSchedule() {
+    if (scheduleWindows.length === 0) {
+      toast.info("Pilih minimal satu H- interval");
+      return;
+    }
+    setIsScheduling(true);
+    setScheduleResult(null);
+    try {
+      const { data, error } = await supabase.rpc(
+        "auto_schedule_payment_reminders",
+        { p_days_before: scheduleWindows }
+      );
+      if (error) throw error;
+      const result = Array.isArray(data) ? data[0] : data;
+      setScheduleResult(result as ScheduleResult);
+      toast.success(
+        `Auto-jadwal selesai: ${result?.created_count ?? 0} dibuat, ${result?.skipped_count ?? 0} dilewati`
+      );
+      setPreviewData(null);
+      queryClient.invalidateQueries({ queryKey: ["laporan-reminder-all"] });
+    } catch (e: any) {
+      toast.error("Gagal menjadwalkan: " + e.message);
+    } finally {
+      setIsScheduling(false);
+    }
+  }
 
   const { data: waConfig } = useQuery({
     queryKey: ["wa-config"],
@@ -336,6 +413,117 @@ export default function AdminLaporanReminder() {
           </div>
         </div>
       )}
+
+      {/* Auto-Schedule Card */}
+      <Card className="border-blue-200 bg-blue-50/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Zap className="h-4 w-4 text-blue-600" />
+            Auto-Jadwalkan Reminder
+          </CardTitle>
+          <CardDescription>
+            Buat baris reminder otomatis untuk semua booking yang mendekati jatuh tempo — staf tidak perlu menunggu jamaah mendaftar manual.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* H- Checkbox selectors */}
+          <div>
+            <Label className="text-xs font-semibold text-muted-foreground mb-2 block">
+              Pilih interval H- yang akan dijadwalkan:
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {SCHEDULE_OPTIONS.map(opt => {
+                const active = scheduleWindows.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => toggleWindow(opt.value)}
+                    className={cn(
+                      "flex flex-col items-center justify-center w-16 h-14 rounded-lg border-2 text-xs font-semibold transition-all",
+                      active
+                        ? "border-blue-500 bg-blue-100 text-blue-700"
+                        : "border-border bg-background text-muted-foreground hover:border-blue-300"
+                    )}
+                  >
+                    <span className="text-sm font-bold">{opt.label}</span>
+                    <span className="text-[10px] font-normal">{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Booking dengan status pending/partial yang jatuh temponya dalam rentang terpilih akan dibuatkan baris reminder. Reminder yang sudah ada (pending/terkirim) dilewati otomatis.
+            </p>
+          </div>
+
+          {/* Preview result */}
+          {previewData && (
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-white border border-blue-100 text-sm">
+              <Sparkles className="h-4 w-4 text-blue-500 shrink-0" />
+              <div className="flex gap-4">
+                <span>
+                  <strong className="text-blue-700">{previewData.new_count}</strong>
+                  <span className="text-muted-foreground ml-1">reminder baru akan dibuat</span>
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span>
+                  <strong className="text-gray-500">{previewData.existing_count}</strong>
+                  <span className="text-muted-foreground ml-1">sudah ada (akan dilewati)</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Schedule result */}
+          {scheduleResult && (
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+              <div className="flex gap-4">
+                <span>
+                  <strong className="text-green-700">{scheduleResult.created_count}</strong>
+                  <span className="text-muted-foreground ml-1">reminder dibuat</span>
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span>
+                  <strong className="text-gray-500">{scheduleResult.skipped_count}</strong>
+                  <span className="text-muted-foreground ml-1">dilewati (sudah ada)</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={previewSchedule}
+              disabled={isPreviewing || isScheduling || scheduleWindows.length === 0}
+              className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              {isPreviewing
+                ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" />
+                : <Eye className="h-3.5 w-3.5" />}
+              Preview
+            </Button>
+            <Button
+              size="sm"
+              onClick={runAutoSchedule}
+              disabled={isScheduling || isPreviewing || scheduleWindows.length === 0}
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isScheduling
+                ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" />
+                : <Zap className="h-3.5 w-3.5" />}
+              Jadwalkan Sekarang
+              {scheduleWindows.length > 0 && (
+                <span className="opacity-80">({scheduleWindows.sort((a,b)=>b-a).map(v=>`H-${v}`).join(", ")})</span>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Bulk Send — Approaching Deadline */}
       <Card className="border-amber-200 bg-amber-50/40">

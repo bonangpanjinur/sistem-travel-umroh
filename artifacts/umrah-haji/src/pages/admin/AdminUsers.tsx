@@ -48,6 +48,7 @@ import { sortRoles } from "@/lib/constants";
 const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
   owner: "Owner",
+  it: "IT / Teknis",
   branch_manager: "Branch Manager",
   finance: "Finance",
   operational: "Operational",
@@ -63,6 +64,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
 const ROLE_COLORS: Record<AppRole, string> = {
   super_admin: "bg-red-100 text-red-800 border-red-200",
   owner: "bg-purple-100 text-purple-800 border-purple-200",
+  it: "bg-sky-100 text-sky-800 border-sky-200",
   branch_manager: "bg-blue-100 text-blue-800 border-blue-200",
   finance: "bg-green-100 text-green-800 border-green-200",
   operational: "bg-amber-100 text-amber-800 border-amber-200",
@@ -78,6 +80,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
 const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   super_admin: "Akses penuh ke seluruh sistem dan pengaturan.",
   owner: "Akses pemilik dengan kontrol penuh atas data bisnis.",
+  it: "Konfigurasi teknis: provider WA, API key, integrasi, dan pengaturan sistem.",
   branch_manager: "Mengelola operasional dan tim di tingkat cabang.",
   finance: "Mengelola transaksi, pembayaran, dan laporan keuangan.",
   operational: "Mengelola paket, keberangkatan, dan logistik lapangan.",

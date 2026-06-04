@@ -3,6 +3,7 @@
 export type AppRole = 
   | 'super_admin'
   | 'owner'
+  | 'it'
   | 'branch_manager'
   | 'finance'
   | 'operational'

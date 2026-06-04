@@ -219,6 +219,10 @@ export const PERMISSIONS = {
 
   // Laporan Reminder
   LAPORAN_REMINDER: 'laporan-reminder',
+
+  // WhatsApp Multi-Provider & Roadmap (Fase 31)
+  WA_PROVIDER: 'wa-provider',
+  WA_ROADMAP:  'wa-roadmap',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -239,8 +243,9 @@ export const ALL_PERMISSION_KEYS = Object.values(PERMISSIONS);
  *   akses ke portal pribadi mereka sendiri, bukan ke modul admin.
  */
 export const ROLE_HIERARCHY: Record<string, string[]> = {
-  super_admin: ['owner'],
+  super_admin: ['owner', 'it'],
   owner: ['branch_manager', 'finance'],
+  it: [],
   branch_manager: ['operational', 'sales', 'marketing'],
   finance: [],
   operational: ['equipment'],

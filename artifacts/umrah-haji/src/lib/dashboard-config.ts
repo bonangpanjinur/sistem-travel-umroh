@@ -185,6 +185,13 @@ export const ROLE_DASHBOARD_CONFIG: Record<AppRole, RoleDashboardConfig> = {
       'operational_dashboard',
     ],
   },
+  it: {
+    role: 'it',
+    label: 'IT / Teknis',
+    description: 'Akses konfigurasi teknis, integrasi, dan pengaturan sistem',
+    defaultDashboard: 'admin_main',
+    availableModules: ['admin_main'],
+  },
   branch_manager: {
     role: 'branch_manager',
     label: 'Manajer Cabang',
