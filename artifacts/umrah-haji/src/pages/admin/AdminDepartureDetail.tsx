@@ -1009,14 +1009,6 @@ export default function AdminDepartureDetail() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="info">Informasi</TabsTrigger>
-          <TabsTrigger value="jamaah">Jemaah</TabsTrigger>
-          <TabsTrigger value="rooming">Rooming</TabsTrigger>
-          <TabsTrigger value="perlengkapan">Perlengkapan</TabsTrigger>
-          <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
-          <TabsTrigger value="operasional">Operasional</TabsTrigger>
-
         <TabsList className="flex w-full overflow-x-auto gap-0.5 h-auto flex-wrap">
           <TabsTrigger value="info" className="text-xs">Informasi</TabsTrigger>
           <TabsTrigger value="jamaah" className="text-xs">Jemaah</TabsTrigger>
@@ -1745,14 +1737,6 @@ export default function AdminDepartureDetail() {
           </Card>
         </TabsContent>
 
-
-        {/* Tab: Rooming */}
-        <TabsContent value="rooming" className="space-y-6">
-          <DepartureRoomingTab
-            departureId={id}
-            packageId={(departure as any)?.package?.id}
-          />
-        </TabsContent>
 
         {/* Tab: Kamar & Rooming */}
         <TabsContent value="kamar" className="space-y-4">

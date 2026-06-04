@@ -983,188 +983,20 @@ export default function AdminRoomAssignmentsImproved() {
             </div>
           </div>
 
-          {/* Global auto-assign button (visible in all/non-double tabs) */}
-          {selectedRoomType !== "double" && (
-            <div className="flex items-center gap-3">
-              <Button
-                size="sm"
-                onClick={() => autoAssignMutation.mutate()}
-                disabled={autoAssignMutation.isPending}
-              >
-                <Wand2 className="h-4 w-4 mr-1" />
-                Auto-Kelompokkan Semua Tipe Kamar
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                Kelompokkan jamaah berdasarkan tipe kamar & gender
-              </span>
-            </div>
-          )}
-
-          {/* Double: pairing section */}
-          {selectedRoomType === "double" && (
-            <div className="space-y-4">
-              {/* Auto-assign button */}
-              {unpairedDoubleList.length >= 2 && (
-                <div className="flex items-center gap-3">
-                  <Button
-                    size="sm"
-                    onClick={() => autoAssignMutation.mutate()}
-                    disabled={autoAssignMutation.isPending}
-                  >
-                    <Wand2 className="h-4 w-4 mr-1" />
-                    Auto-Pasangkan ({unpairedDoubleList.length} belum)
-                  </Button>
-                  <span className="text-xs text-muted-foreground">
-                    Dipasangkan berdasarkan gender yang sama
-                  </span>
-                </div>
-              )}
-
-              {/* Unpaired */}
-              {unpairedDoubleList.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base text-orange-600">
-                      Belum Dipasangkan ({unpairedDoubleList.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nama</TableHead>
-                          <TableHead>Gender</TableHead>
-                          <TableHead>No. HP</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {unpairedDoubleList.map((p) => (
-                          <TableRow key={p.id}>
-                            <TableCell className="font-medium">
-                              {p.customer?.full_name}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  p.customer?.gender === "male"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                              >
-                                {GENDER_LABELS[p.customer?.gender || ""] || "-"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{p.customer?.phone || "-"}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenPairing(p)}
-                              >
-                                <UserPlus className="h-4 w-4 mr-1" /> Pasangkan
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Paired */}
-              {pairedGroups.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base text-green-600">
-                      Sudah Dipasangkan ({pairedGroups.length} kamar)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {pairedGroups.map((group, idx) => (
-                        <div
-                          key={idx}
-                          className="p-3 border rounded-lg bg-green-50 dark:bg-green-950/20 flex items-center justify-between gap-4"
-                        >
-                          <div className="flex items-center gap-2">
-                            <BedDouble className="h-4 w-4 text-green-600 shrink-0" />
-                            <span className="text-sm font-medium">
-                              {group[0].room_number || `#${idx + 1}`}
-                            </span>
-                            <span className="text-sm">—</span>
-                            {group
-                              .map((p) => (
-                                <span key={p.id} className="text-sm">
-                                  {p.customer?.full_name}
-                                </span>
-                              ))
-                              .reduce(
-                                (prev, curr, i) =>
-                                  i === 0
-                                    ? [curr]
-                                    : [
-                                        ...prev,
-                                        <span
-                                          key={`sep-${i}`}
-                                          className="text-muted-foreground"
-                                        >
-                                          &
-                                        </span>,
-                                        curr,
-                                      ],
-                                [] as any,
-                              )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setUnpairTarget(group[0].id);
-                              setUnpairReason("");
-                              setUnpairReasonOpen(true);
-                            }}
-                            disabled={unpairMutation.isPending}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {doublePassengers?.length === 0 && (
-                <Card>
-                  <CardContent className="py-12 text-center text-muted-foreground">
-                    Belum ada jamaah Double.
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* Other tabs: grouped-by-room view for triple/quad/single */}
-          {selectedRoomType !== "double" && (
-            <GroupedRoomView
-              passengers={withAdditionalFilters}
-              allPassengers={passengers || []}
-              loading={loadingPassengers}
-              onSaveRoom={(passengerId, val) =>
-                updateRoomMutation.mutate({ passengerId, roomNumber: val })
-              }
-              onPair={(passengerId, roommateId, roomNumber) =>
-                pairMutation.mutate({ passengerId, roommateId, roomNumber })
-              }
-              onUnpair={(passengerId) => {
-                setUnpairTarget(passengerId);
-                setUnpairReason("");
-                setUnpairReasonOpen(true);
-              }}
-            />
-          )}
+          {/* Global auto-arrange button */}
+          <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              onClick={() => autoArrangeMutation.mutate()}
+              disabled={autoArrangeMutation.isPending}
+            >
+              <Wand2 className="h-4 w-4 mr-1" />
+              Auto-Kelompokkan Semua Tipe Kamar
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Kelompokkan jamaah berdasarkan tipe kamar & gender
+            </span>
+          </div>
 
           {/* Passengers Table */}
           <Card>
@@ -1960,13 +1792,13 @@ function GroupedRoomView({
       a.booking?.id && b.booking?.id && a.booking.id === b.booking.id;
     if (sameBooking) return true;
     if (
-      a.customer?.marital_status === "married" &&
-      b.customer?.marital_status === "married"
+      (a.customer as any)?.marital_status === "married" &&
+      (b.customer as any)?.marital_status === "married"
     ) {
       const aFirst = a.customer?.full_name?.split(" ")[0]?.toLowerCase() || "";
       const bFirst = b.customer?.full_name?.split(" ")[0]?.toLowerCase() || "";
-      const aSpouse = a.customer?.spouse_name?.toLowerCase() || "";
-      const bSpouse = b.customer?.spouse_name?.toLowerCase() || "";
+      const aSpouse = (a.customer as any)?.spouse_name?.toLowerCase() || "";
+      const bSpouse = (b.customer as any)?.spouse_name?.toLowerCase() || "";
       return aSpouse.includes(bFirst) || bSpouse.includes(aFirst);
     }
     return false;
@@ -2028,10 +1860,10 @@ function GroupedRoomView({
                       const isSpouse = group.some(
                         (other) =>
                           other.id !== p.id &&
-                          p.customer?.marital_status === "married" &&
-                          other.customer?.marital_status === "married" &&
+                          (p.customer as any)?.marital_status === "married" &&
+                          (other.customer as any)?.marital_status === "married" &&
                           (
-                            p.customer?.spouse_name?.toLowerCase() || ""
+                            (p.customer as any)?.spouse_name?.toLowerCase() || ""
                           ).includes(
                             other.customer?.full_name
                               ?.split(" ")[0]
@@ -2141,9 +1973,9 @@ function GroupedRoomView({
                     const marriagePartner = allPassengers.find(
                       (x) =>
                         x.id !== p.id &&
-                        p.customer?.marital_status === "married" &&
-                        x.customer?.marital_status === "married" &&
-                        (p.customer?.spouse_name?.toLowerCase() || "").includes(
+                        (p.customer as any)?.marital_status === "married" &&
+                        (x.customer as any)?.marital_status === "married" &&
+                        ((p.customer as any)?.spouse_name?.toLowerCase() || "").includes(
                           x.customer?.full_name?.split(" ")[0]?.toLowerCase() ||
                             "",
                         ),
