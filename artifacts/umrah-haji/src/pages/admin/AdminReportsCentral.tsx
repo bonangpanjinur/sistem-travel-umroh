@@ -90,9 +90,12 @@ export default function AdminReportsCentral() {
         if (dateRange?.to) query = query.lte("created_at", dateRange.to.toISOString());
         
         const { data } = await query;
-        if (!data?.length) return toast.error("Tidak ada data untuk periode ini");
+        if (!data?.length) {
+          toast.error("Tidak ada data untuk periode ini");
+          return;
+        }
         
-        exportReport(format, data, getBookingColumns(), `Laporan_Booking_${timestamp}`, "Laporan Data Booking", subtitle);
+        exportReport(format as any, data, getBookingColumns(), `Laporan_Booking_${timestamp}`, "Laporan Data Booking", subtitle);
       } 
       
       else if (type === 'payments') {
@@ -104,9 +107,12 @@ export default function AdminReportsCentral() {
         if (dateRange?.to) query = query.lte("created_at", dateRange.to.toISOString());
         
         const { data } = await query;
-        if (!data?.length) return toast.error("Tidak ada data untuk periode ini");
+        if (!data?.length) {
+          toast.error("Tidak ada data untuk periode ini");
+          return;
+        }
         
-        exportReport(format, data, getPaymentColumns(), `Laporan_Pembayaran_${timestamp}`, "Laporan Pembayaran", subtitle);
+        exportReport(format as any, data, getPaymentColumns(), `Laporan_Pembayaran_${timestamp}`, "Laporan Pembayaran", subtitle);
       }
 
       else if (type === 'commissions') {
@@ -119,32 +125,41 @@ export default function AdminReportsCentral() {
         if (dateRange?.to) query = query.lte("created_at", dateRange.to.toISOString());
         
         const { data } = await query;
-        if (!data?.length) return toast.error("Tidak ada data untuk periode ini");
+        if (!data?.length) {
+          toast.error("Tidak ada data untuk periode ini");
+          return;
+        }
         
-        exportReport(format, data, getCommissionColumns(), `Laporan_Komisi_Agen_${timestamp}`, "Laporan Komisi Agen", subtitle);
+        exportReport(format as any, data, getCommissionColumns(), `Laporan_Komisi_Agen_${timestamp}`, "Laporan Komisi Agen", subtitle);
       }
 
       else if (type === 'manifest') {
-        if (selectedDeparture === 'all') return toast.error("Pilih keberangkatan terlebih dahulu");
+        if (selectedDeparture === 'all') {
+          toast.error("Pilih keberangkatan terlebih dahulu");
+          return;
+        }
         
-        const { data } = await supabase.from("booking_passengers").select(`
+        const { data, error } = await supabase.from("booking_passengers").select(`
           id, full_name, gender, birth_date, nationality, passport_number, passport_expiry, phone,
           room_number, room_type, room_preference, passenger_type,
-          booking:bookings(booking_code)
+          booking:bookings!booking_passengers_booking_id_fkey(booking_code, departure_id)
         `).eq("booking.departure_id", selectedDeparture);
 
-        if (!data?.length) return toast.error("Tidak ada jamaah di keberangkatan ini");
+        if (error || !data?.length) {
+          toast.error("Tidak ada jamaah di keberangkatan ini");
+          return;
+        }
 
-        const processed = data.map(p => ({
+        const processed = data.map((p: any) => ({
           ...p,
-          booking_code: (p.booking as any)?.booking_code,
+          booking_code: p.booking?.booking_code,
           doc_status: 'none' // Simplified for central report
         }));
 
         const dep = departures.find(d => d.id === selectedDeparture);
         const depName = dep ? `${(dep.package as any)?.name} (${format(new Date(dep.departure_date), 'dd MMM yyyy')})` : '';
         
-        exportReport(format, processed, getManifestColumns(), `Manifest_${timestamp}`, "Manifest Jamaah", depName);
+        exportReport(format as any, processed, getManifestColumns(), `Manifest_${timestamp}`, "Manifest Jamaah", depName);
       }
 
       toast.success(`Laporan ${type} berhasil diunduh`);
