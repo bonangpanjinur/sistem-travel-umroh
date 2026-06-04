@@ -162,6 +162,9 @@ const AdminAbsensiDigital = lazy(() => import("@/pages/admin/AdminAbsensiDigital
 const AdminWABlastKeberangkatan = lazy(() => import("@/pages/admin/AdminWABlastKeberangkatan"));
 const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"));
 
+// Laporan Reminder
+const AdminLaporanReminder = lazy(() => import("@/pages/admin/AdminLaporanReminder"));
+
 // Fase 9 — Integrasi & Otomasi
 const AdminWAOtomatis = lazy(() => import("@/pages/admin/AdminWAOtomatis"));
 const AdminMidtrans = lazy(() => import("@/pages/admin/AdminMidtrans"));
@@ -308,6 +311,7 @@ export default function AdminRoutes() {
       <Route path="laporan/keberangkatan" element={<P k={PERMISSIONS.LAPORAN_KEBERANGKATAN}><LazyPage><AdminLaporanKeberangkatan /></LazyPage></P>} />
       <Route path="laporan/agen" element={<P k={PERMISSIONS.LAPORAN_AGEN}><LazyPage><AdminLaporanAgen /></LazyPage></P>} />
       <Route path="laporan/tabungan" element={<P k={PERMISSIONS.MONITORING_TABUNGAN}><LazyPage><AdminMonitoringTabungan /></LazyPage></P>} />
+      <Route path="laporan/reminder" element={<P k={PERMISSIONS.LAPORAN_REMINDER}><LazyPage><AdminLaporanReminder /></LazyPage></P>} />
 
       {/* Pengaturan */}
       <Route path="users" element={<P k={PERMISSIONS.USERS}><AdminUsers /></P>} />

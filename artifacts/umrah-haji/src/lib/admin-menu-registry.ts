@@ -86,6 +86,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'laporan-keberangkatan', label: 'Laporan Keberangkatan', path: '/admin/laporan/keberangkatan', icon: 'Plane',        group_name: 'Laporan',            sort_order: 527, required_permission: PERMISSIONS.LAPORAN_KEBERANGKATAN },
   { key: 'laporan-agen',        label: 'Performa Agen',         path: '/admin/laporan/agen',         icon: 'Trophy',          group_name: 'Laporan',            sort_order: 528, required_permission: PERMISSIONS.LAPORAN_AGEN },
   { key: 'monitoring-tabungan', label: 'Monitoring Tabungan',   path: '/admin/laporan/tabungan',     icon: 'PiggyBank',       group_name: 'Laporan',            sort_order: 529, required_permission: PERMISSIONS.MONITORING_TABUNGAN },
+  { key: 'laporan-reminder',    label: 'Laporan Reminder',      path: '/admin/laporan/reminder',     icon: 'BellRing',        group_name: 'Laporan',            sort_order: 530, required_permission: PERMISSIONS.LAPORAN_REMINDER },
 
   // ── Konten (300s) ─────────────────────────────────────────────────────────
   { key: 'blog',                label: 'Blog & Artikel',        path: '/admin/blog',                 icon: 'BookOpen',        group_name: 'Konten',             sort_order: 301, required_permission: PERMISSIONS.BLOG },
@@ -183,7 +184,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'departures', 'departure-tracking', 'sos-alerts',
     'customers', 'agents', 'branches', 'loyalty',
     'payments', 'reports', 'reports-central',
-    'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen',
+    'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'laporan-reminder',
     'haji', 'manasik', 'room-assignments', 'manifest-jamaah',
     'equipment', 'document-verification',
   ],
@@ -193,7 +194,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'bookings', 'payments', 'refunds', 'finance-cash', 'finance-ar', 'finance-ap',
     'finance', 'finance-terpadu', 'savings', 'reports', 'reports-central',
     'advanced-reports', 'scheduled-reports',
-    'laporan-keuangan', 'laporan-agen', 'monitoring-tabungan',
+    'laporan-keuangan', 'laporan-agen', 'monitoring-tabungan', 'laporan-reminder',
     'customers', 'document-verification',
     'virtual-account', 'cicilan-reminder', 'cicilan-generator', 'wa-blast-tagihan',
   ],

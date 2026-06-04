@@ -216,6 +216,9 @@ export const PERMISSIONS = {
 
   // P2 — Perbandingan Profitabilitas Paket
   PROFITABILITAS_PAKET: 'profitabilitas-paket',
+
+  // Laporan Reminder
+  LAPORAN_REMINDER: 'laporan-reminder',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
