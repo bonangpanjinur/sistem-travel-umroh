@@ -245,9 +245,9 @@ export default function AdminRoutes() {
       <Route path="bookings/:id" element={<P k={PERMISSIONS.BOOKINGS}><AdminBookingDetail /></P>} />
       <Route path="equipment" element={<P k={PERMISSIONS.EQUIPMENT}><EquipmentPage /></P>} />
       <Route path="office-assets" element={<P k={PERMISSIONS.OFFICE_ASSETS}><LazyPage><OfficeAssets /></LazyPage></P>} />
-      <Route path="equipment-master" element={<P k={PERMISSIONS.EQUIPMENT_MASTER}><AdminEquipmentMaster /></P>} />
+      <Route path="equipment-master" element={<Navigate to="/admin/equipment?tab=master" replace />} />
       <Route path="equipment-settings" element={<P k={PERMISSIONS.EQUIPMENT_SETTINGS}><AdminEquipmentSettings /></P>} />
-      <Route path="stock-opname" element={<P k={PERMISSIONS.STOCK_OPNAME}><AdminStockOpname /></P>} />
+      <Route path="stock-opname" element={<Navigate to="/admin/equipment?tab=opname" replace />} />
       <Route path="cancellation-policies" element={<P k={PERMISSIONS.CANCELLATION_POLICIES}><AdminCancellationPolicies /></P>} />
       <Route path="itinerary-templates" element={<P k={PERMISSIONS.ITINERARY_TEMPLATES}><AdminItineraryTemplates /></P>} />
       <Route path="savings" element={<P k={PERMISSIONS.SAVINGS}><AdminSavingsPlans /></P>} />
