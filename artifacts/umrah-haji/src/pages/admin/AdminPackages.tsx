@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, formatPackageType } from "@/lib/format";
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import {
   Search, Plus, Edit, Eye, Package, Trash2, Calendar, Filter, X, Copy,
@@ -39,11 +39,27 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RegularPackageForm } from "@/components/admin/forms/RegularPackageForm";
-import { SavingsPackageForm } from "@/components/admin/forms/SavingsPackageForm";
-import { PackageTypeForm } from "@/components/admin/forms/PackageTypeForm";
-import { PackageLabelManagerDialog } from "@/components/admin/packages/PackageLabelManagerDialog";
-import { PackageLabelAssignDialog } from "@/components/admin/packages/PackageLabelAssignDialog";
+const RegularPackageForm = lazy(() =>
+  import("@/components/admin/forms/RegularPackageForm").then(m => ({ default: m.RegularPackageForm }))
+);
+const SavingsPackageForm = lazy(() =>
+  import("@/components/admin/forms/SavingsPackageForm").then(m => ({ default: m.SavingsPackageForm }))
+);
+const PackageTypeForm = lazy(() =>
+  import("@/components/admin/forms/PackageTypeForm").then(m => ({ default: m.PackageTypeForm }))
+);
+const PackageLabelManagerDialog = lazy(() =>
+  import("@/components/admin/packages/PackageLabelManagerDialog").then(m => ({ default: m.PackageLabelManagerDialog }))
+);
+const PackageLabelAssignDialog = lazy(() =>
+  import("@/components/admin/packages/PackageLabelAssignDialog").then(m => ({ default: m.PackageLabelAssignDialog }))
+);
+
+const FormFallback = () => (
+  <div className="flex items-center justify-center py-12">
+    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+  </div>
+);
 import { PackageLabelBadges } from "@/components/packages/PackageLabelBadges";
 import { usePackageLabelsMap } from "@/hooks/usePackageLabels";
 import { toast } from "sonner";
@@ -1224,25 +1240,27 @@ export default function AdminPackages() {
               </DialogTitle>
             </DialogHeader>
             <div className="p-6">
-              {packageTypeFilter === "tabungan" ? (
-                <SavingsPackageForm 
-                  packageData={editingPackage} 
-                  onSuccess={() => {
-                    handleFormClose();
-                    queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
-                  }}
-                  onCancel={handleFormClose}
-                />
-              ) : (
-                <RegularPackageForm 
-                  packageData={editingPackage} 
-                  onSuccess={() => {
-                    handleFormClose();
-                    queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
-                  }}
-                  onCancel={handleFormClose}
-                />
-              )}
+              <Suspense fallback={<FormFallback />}>
+                {packageTypeFilter === "tabungan" ? (
+                  <SavingsPackageForm 
+                    packageData={editingPackage} 
+                    onSuccess={() => {
+                      handleFormClose();
+                      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+                    }}
+                    onCancel={handleFormClose}
+                  />
+                ) : (
+                  <RegularPackageForm 
+                    packageData={editingPackage} 
+                    onSuccess={() => {
+                      handleFormClose();
+                      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+                    }}
+                    onCancel={handleFormClose}
+                  />
+                )}
+              </Suspense>
             </div>
           </DialogContent>
         </Dialog>
@@ -1256,14 +1274,16 @@ export default function AdminPackages() {
               </DialogTitle>
             </DialogHeader>
             <div className="p-6">
-              <PackageTypeForm
-                packageTypeData={editingType}
-                onSuccess={() => {
-                  handleTypeFormClose();
-                  queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
-                }}
-                onCancel={handleTypeFormClose}
-              />
+              <Suspense fallback={<FormFallback />}>
+                <PackageTypeForm
+                  packageTypeData={editingType}
+                  onSuccess={() => {
+                    handleTypeFormClose();
+                    queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
+                  }}
+                  onCancel={handleTypeFormClose}
+                />
+              </Suspense>
             </div>
           </DialogContent>
         </Dialog>
@@ -1308,16 +1328,24 @@ export default function AdminPackages() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <PackageLabelManagerDialog
-          open={isLabelManagerOpen}
-          onOpenChange={setIsLabelManagerOpen}
-        />
-        <PackageLabelAssignDialog
-          open={!!labelAssignFor}
-          onOpenChange={(v) => !v && setLabelAssignFor(null)}
-          packageId={labelAssignFor?.id ?? null}
-          packageName={labelAssignFor?.name}
-        />
+        {isLabelManagerOpen && (
+          <Suspense fallback={null}>
+            <PackageLabelManagerDialog
+              open={isLabelManagerOpen}
+              onOpenChange={setIsLabelManagerOpen}
+            />
+          </Suspense>
+        )}
+        {!!labelAssignFor && (
+          <Suspense fallback={null}>
+            <PackageLabelAssignDialog
+              open={!!labelAssignFor}
+              onOpenChange={(v) => !v && setLabelAssignFor(null)}
+              packageId={labelAssignFor?.id ?? null}
+              packageName={labelAssignFor?.name}
+            />
+          </Suspense>
+        )}
       </div>
     </TooltipProvider>
   );

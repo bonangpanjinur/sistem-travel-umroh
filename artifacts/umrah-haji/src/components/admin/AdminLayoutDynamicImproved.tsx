@@ -511,7 +511,16 @@ function AdminLayoutDynamicImproved() {
             {SETTINGS_PATH_TO_CATEGORY[location.pathname] && (
               <SettingsCategoryNav category={SETTINGS_PATH_TO_CATEGORY[location.pathname]} />
             )}
-            <Outlet />
+            <Suspense
+              key={location.pathname}
+              fallback={
+                <div className="flex items-center justify-center min-h-[60vh]">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
           </div>
         </div>
       </main>
