@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { 
@@ -170,6 +171,7 @@ export default function AdminBookingCreate() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [activePassengerIndex, setActivePassengerIndex] = useState<number | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
   const { sendBookingConfirm } = useWhatsAppNotifier();
   const emailNotifier = useEmailNotifier();
@@ -733,10 +735,20 @@ export default function AdminBookingCreate() {
                                   <p className="text-xs text-muted-foreground">Durasi hingga {formatDate(d.return_date)}</p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <Badge variant={avail > 10 ? "secondary" : "destructive"} className="font-bold">
-                                  {avail} Slot Tersedia
+                              <div className="text-right space-y-1 min-w-[80px]">
+                                <Badge
+                                  variant={avail <= 0 ? "destructive" : avail <= 5 ? "destructive" : avail <= 10 ? "secondary" : "default"}
+                                  className="font-bold text-xs"
+                                >
+                                  {avail > 0 ? `${avail} sisa` : "Penuh"}
                                 </Badge>
+                                <Progress
+                                  value={Math.round(((d.booked_count || 0) / d.quota) * 100)}
+                                  className="h-1.5 w-20"
+                                />
+                                <p className="text-[9px] text-muted-foreground">
+                                  {d.booked_count || 0}/{d.quota} terisi
+                                </p>
                               </div>
                             </button>
                           );
@@ -869,16 +881,33 @@ export default function AdminBookingCreate() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
                                 <div className={cn(
-                                  "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm",
-                                  p.customer_id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                                  "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0",
+                                  p.customer_id
+                                    ? (p.passenger_type === 'child' ? "bg-amber-500 text-white" : p.passenger_type === 'infant' ? "bg-pink-400 text-white" : "bg-primary text-primary-foreground")
+                                    : "bg-muted text-muted-foreground"
                                 )}>
-                                  {idx + 1}
+                                  {p.customer_id ? p.full_name.charAt(0).toUpperCase() : idx + 1}
                                 </div>
                                 <div>
-                                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Slot {idx + 1}</p>
-                                  <Badge variant="outline" className="mt-1 text-[10px] font-bold h-5 bg-background">
-                                    {ROOM_INFO[p.room_type].label}
-                                  </Badge>
+                                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                                    {p.customer_id ? p.full_name : `Slot ${idx + 1}`}
+                                  </p>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Badge variant="outline" className="text-[10px] font-bold h-5 bg-background">
+                                      {ROOM_INFO[p.room_type].label}
+                                    </Badge>
+                                    {p.customer_id && (
+                                      <Badge
+                                        variant={p.passenger_type === 'adult' ? 'secondary' : 'outline'}
+                                        className={cn("text-[10px] font-bold h-5",
+                                          p.passenger_type === 'child' && "bg-amber-100 text-amber-700 border-amber-200",
+                                          p.passenger_type === 'infant' && "bg-pink-100 text-pink-700 border-pink-200"
+                                        )}
+                                      >
+                                        {p.passenger_type === 'adult' ? 'Dewasa' : p.passenger_type === 'child' ? 'Anak' : 'Balita'}
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               {p.customer_id && (
@@ -1005,10 +1034,10 @@ export default function AdminBookingCreate() {
                       <Button 
                         size="lg" 
                         disabled={!canSubmit || createBookingMutation.isPending} 
-                        onClick={() => createBookingMutation.mutate()}
+                        onClick={() => setShowConfirmDialog(true)}
                         className="px-10 font-black shadow-lg"
                       >
-                        {createBookingMutation.isPending ? 'Memproses...' : 'Konfirmasi & Buat Booking'}
+                        Konfirmasi & Buat Booking
                       </Button>
                     </div>
                   </CardContent>
@@ -1043,6 +1072,26 @@ export default function AdminBookingCreate() {
                       {passengers.filter(p => p.customer_id).length} / {totalFromRooms} Terisi
                     </Badge>
                   </div>
+                  {selectedDeparture && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground font-bold text-xs uppercase">Kuota</span>
+                        <span className={cn(
+                          "text-xs font-black",
+                          availableSlots <= 5 ? "text-destructive" : availableSlots <= 10 ? "text-amber-600" : "text-green-600"
+                        )}>
+                          {availableSlots} slot sisa
+                        </span>
+                      </div>
+                      <Progress
+                        value={Math.round(((selectedDeparture.booked_count || 0) / selectedDeparture.quota) * 100)}
+                        className="h-2"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        {selectedDeparture.booked_count || 0} terisi dari {selectedDeparture.quota} total
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <Separator className="bg-muted-foreground/10" />
@@ -1145,6 +1194,120 @@ export default function AdminBookingCreate() {
           </div>
         </div>
       </div>
+
+      {/* ── Confirmation Dialog ─────────────────────────────────────────── */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-[540px] rounded-3xl border-2 shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-primary p-6 text-primary-foreground shrink-0">
+            <DialogTitle className="text-xl font-black flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5" /> Konfirmasi Pembuatan Booking
+            </DialogTitle>
+            <p className="text-xs opacity-80 mt-1 font-medium">Pastikan semua data sudah benar sebelum melanjutkan</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {/* Info paket & jadwal */}
+            <div className="rounded-xl border-2 border-primary/20 bg-primary/5 divide-y divide-primary/10">
+              <div className="flex justify-between items-center px-4 py-3">
+                <span className="text-xs font-black uppercase text-muted-foreground tracking-wide">Paket</span>
+                <span className="font-black text-sm text-right">{selectedPackage?.name || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center px-4 py-3">
+                <span className="text-xs font-black uppercase text-muted-foreground tracking-wide">Keberangkatan</span>
+                <span className="font-black text-sm">{selectedDeparture ? formatDate(selectedDeparture.departure_date) : '-'}</span>
+              </div>
+              <div className="flex justify-between items-center px-4 py-3">
+                <span className="text-xs font-black uppercase text-muted-foreground tracking-wide">Asal</span>
+                <span className="font-black text-sm capitalize">{picType === 'pusat' ? 'Kantor Pusat' : picType === 'cabang' ? 'Cabang' : 'Agen Mitra'}</span>
+              </div>
+            </div>
+
+            {/* Daftar jamaah */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">
+                Daftar Jamaah ({passengers.length} orang)
+              </p>
+              <div className="space-y-2">
+                {passengers.map((p, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border">
+                    <div className={cn(
+                      "h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0",
+                      p.passenger_type === 'child' ? "bg-amber-500 text-white"
+                        : p.passenger_type === 'infant' ? "bg-pink-400 text-white"
+                        : "bg-primary text-primary-foreground"
+                    )}>
+                      {p.full_name ? p.full_name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate">{p.full_name || <span className="text-destructive">Belum diisi</span>}</p>
+                      <p className="text-[10px] text-muted-foreground">{p.phone || '-'}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Badge variant="outline" className="text-[10px] h-5 px-1 font-bold">{ROOM_INFO[p.room_type].label}</Badge>
+                      <Badge
+                        variant={p.passenger_type === 'adult' ? 'secondary' : 'outline'}
+                        className={cn("text-[10px] h-5 px-1 font-bold",
+                          p.passenger_type === 'child' && "bg-amber-100 text-amber-700",
+                          p.passenger_type === 'infant' && "bg-pink-100 text-pink-700"
+                        )}
+                      >
+                        {p.passenger_type === 'adult' ? 'Dewasa' : p.passenger_type === 'child' ? 'Anak' : 'Balita'}
+                      </Badge>
+                    </div>
+                    <span className="text-xs font-bold text-primary shrink-0">
+                      {formatCurrency(getPassengerPrice(p.passenger_type, p.room_type))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Total harga */}
+            <div className="bg-primary text-primary-foreground rounded-2xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Total Pembayaran</p>
+                <p className="text-2xl font-black leading-tight">{formatCurrency(totalPrice)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] opacity-70">{passengers.length} jamaah</p>
+                <p className="text-sm font-bold opacity-90">~ {formatCurrency(passengers.length > 0 ? Math.round(totalPrice / passengers.length) : 0)}/orang</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <p className="text-xs font-medium leading-relaxed">
+                Setelah booking dibuat, status akan langsung <strong>Confirmed</strong>. Pastikan semua identitas jamaah dan alokasi kamar sudah sesuai.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="p-5 gap-3 shrink-0 border-t bg-background">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+              className="rounded-xl font-bold flex-1"
+              disabled={createBookingMutation.isPending}
+            >
+              Periksa Lagi
+            </Button>
+            <Button
+              disabled={createBookingMutation.isPending}
+              onClick={() => {
+                setShowConfirmDialog(false);
+                createBookingMutation.mutate();
+              }}
+              className="rounded-xl px-8 font-black shadow-lg flex-1 bg-primary"
+            >
+              {createBookingMutation.isPending ? (
+                <span className="flex items-center gap-2"><span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> Memproses...</span>
+              ) : (
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Ya, Buat Booking</span>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add New Customer Dialog */}
       <Dialog open={showAddCustomer} onOpenChange={setShowAddCustomer}>
