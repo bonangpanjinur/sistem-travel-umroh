@@ -39,6 +39,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { usePrefetchAdminRoutes } from "@/hooks/usePrefetchAdminRoutes";
 const RegularPackageForm = lazy(() =>
   import("@/components/admin/forms/RegularPackageForm").then(m => ({ default: m.RegularPackageForm }))
 );
@@ -84,6 +85,7 @@ import { Progress } from "@/components/ui/progress";
 // Sengaja dipakai lewat dynamic import() di handler agar tidak ikut ke chunk awal halaman ini.
 
 export default function AdminPackages() {
+  usePrefetchAdminRoutes();
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
