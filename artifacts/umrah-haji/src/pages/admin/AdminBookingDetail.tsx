@@ -52,7 +52,7 @@ import {
   Copy, CheckCheck, MessageCircle, Building2, UserCheck,
   Shield, ShieldAlert, ShieldCheck, ExternalLink, Clock3,
   Stethoscope, Baby, BriefcaseMedical, RotateCcw, Wallet,
-  TriangleAlert
+  TriangleAlert, Receipt
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,6 +78,7 @@ import { BookingDocumentActions } from "@/components/admin/BookingDocumentAction
 import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
 import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
+import { QuickInvoiceSheet } from "@/components/admin/QuickInvoiceSheet";
 import { useDocumentLogger } from "@/hooks/useDocumentLogger";
 import { format as dfFormat } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -174,6 +175,7 @@ export default function AdminBookingDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
   const [showRoomTypeAssignmentDialog, setShowRoomTypeAssignmentDialog] = useState(false);
+  const [showQuickInvoice, setShowQuickInvoice] = useState(false);
 
   // C1 — Edit notes inline
   const [editingNotes, setEditingNotes] = useState(false);
@@ -2332,9 +2334,12 @@ export default function AdminBookingDetail() {
             </div>
             <CardContent className="p-4 space-y-4">
               <div className="grid grid-cols-1 gap-2">
-                <Button className="w-full justify-start h-11 font-bold text-xs border-2" variant="outline" onClick={handlePrintInvoice}>
-                  <Printer className="h-4 w-4 mr-3 text-primary" />
-                  CETAK INVOICE PDF
+                <Button
+                  className="w-full justify-start h-11 font-black text-xs border-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                  onClick={() => setShowQuickInvoice(true)}
+                >
+                  <Receipt className="h-4 w-4 mr-3" />
+                  QUICK INVOICE
                 </Button>
                 
                 <div className="space-y-2 p-3 rounded-lg border-2 border-dashed bg-muted/30">
@@ -2955,6 +2960,21 @@ export default function AdminBookingDetail() {
           packageName={(booking as any).departure?.package?.name}
           departureDate={(booking as any).departure?.departure_date ? formatDate((booking as any).departure.departure_date) : undefined}
           companyName={companyInfo?.name}
+        />
+      )}
+
+      {/* ── Quick Invoice Sheet ─────────────────────────────────────── */}
+      {booking && (
+        <QuickInvoiceSheet
+          open={showQuickInvoice}
+          onOpenChange={setShowQuickInvoice}
+          booking={booking}
+          passengers={passengers || []}
+          lineItems={lineItems || []}
+          companyInfo={companyInfo}
+          bankAccounts={bankAccounts || []}
+          cancellationPolicy={cancellationPolicy}
+          invoiceTemplate={invoiceTemplate}
         />
       )}
     </div>
