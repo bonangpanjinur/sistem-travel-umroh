@@ -1240,25 +1240,27 @@ export default function AdminPackages() {
               </DialogTitle>
             </DialogHeader>
             <div className="p-6">
-              {packageTypeFilter === "tabungan" ? (
-                <SavingsPackageForm 
-                  packageData={editingPackage} 
-                  onSuccess={() => {
-                    handleFormClose();
-                    queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
-                  }}
-                  onCancel={handleFormClose}
-                />
-              ) : (
-                <RegularPackageForm 
-                  packageData={editingPackage} 
-                  onSuccess={() => {
-                    handleFormClose();
-                    queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
-                  }}
-                  onCancel={handleFormClose}
-                />
-              )}
+              <Suspense fallback={<FormFallback />}>
+                {packageTypeFilter === "tabungan" ? (
+                  <SavingsPackageForm 
+                    packageData={editingPackage} 
+                    onSuccess={() => {
+                      handleFormClose();
+                      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+                    }}
+                    onCancel={handleFormClose}
+                  />
+                ) : (
+                  <RegularPackageForm 
+                    packageData={editingPackage} 
+                    onSuccess={() => {
+                      handleFormClose();
+                      queryClient.invalidateQueries({ queryKey: ['admin-packages'] });
+                    }}
+                    onCancel={handleFormClose}
+                  />
+                )}
+              </Suspense>
             </div>
           </DialogContent>
         </Dialog>
@@ -1272,14 +1274,16 @@ export default function AdminPackages() {
               </DialogTitle>
             </DialogHeader>
             <div className="p-6">
-              <PackageTypeForm
-                packageTypeData={editingType}
-                onSuccess={() => {
-                  handleTypeFormClose();
-                  queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
-                }}
-                onCancel={handleTypeFormClose}
-              />
+              <Suspense fallback={<FormFallback />}>
+                <PackageTypeForm
+                  packageTypeData={editingType}
+                  onSuccess={() => {
+                    handleTypeFormClose();
+                    queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
+                  }}
+                  onCancel={handleTypeFormClose}
+                />
+              </Suspense>
             </div>
           </DialogContent>
         </Dialog>
@@ -1324,16 +1328,24 @@ export default function AdminPackages() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <PackageLabelManagerDialog
-          open={isLabelManagerOpen}
-          onOpenChange={setIsLabelManagerOpen}
-        />
-        <PackageLabelAssignDialog
-          open={!!labelAssignFor}
-          onOpenChange={(v) => !v && setLabelAssignFor(null)}
-          packageId={labelAssignFor?.id ?? null}
-          packageName={labelAssignFor?.name}
-        />
+        {isLabelManagerOpen && (
+          <Suspense fallback={null}>
+            <PackageLabelManagerDialog
+              open={isLabelManagerOpen}
+              onOpenChange={setIsLabelManagerOpen}
+            />
+          </Suspense>
+        )}
+        {!!labelAssignFor && (
+          <Suspense fallback={null}>
+            <PackageLabelAssignDialog
+              open={!!labelAssignFor}
+              onOpenChange={(v) => !v && setLabelAssignFor(null)}
+              packageId={labelAssignFor?.id ?? null}
+              packageName={labelAssignFor?.name}
+            />
+          </Suspense>
+        )}
       </div>
     </TooltipProvider>
   );
