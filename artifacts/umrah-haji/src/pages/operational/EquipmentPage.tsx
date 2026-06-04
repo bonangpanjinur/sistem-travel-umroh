@@ -111,7 +111,7 @@ export default function EquipmentPage() {
   // Auto-select package + departure when URL param is present
   useEffect(() => {
     if (departureInfo) {
-      setSelectedPackage(departureInfo.package_id);
+      setSelectedPackage(departureInfo.package_id ?? "");
       setSelectedDeparture(departureInfo.id);
     }
   }, [departureInfo]);
@@ -685,14 +685,11 @@ export default function EquipmentPage() {
             <EquipmentDistributionDialogWithPhoto
               open={isDistDialogOpen}
               onOpenChange={setIsDistDialogOpen}
-              passenger={selectedJamaah}
+              jamaahId={selectedJamaah.customer_id}
+              jamaahName={selectedJamaah.customer.full_name}
+              jamaahGender={selectedJamaah.customer.gender ?? undefined}
+              jamaahType={selectedJamaah.passenger_type}
               departureId={selectedDeparture}
-              items={items || []}
-              distributions={distributions || []}
-              onSuccess={() => {
-                queryClient.invalidateQueries({ queryKey: ["equipment-distributions"] });
-                queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
-              }}
             />
           )}
           <AddStockDialog
@@ -700,7 +697,6 @@ export default function EquipmentPage() {
             onOpenChange={setIsAddStockOpen}
             items={items || []}
             preselectedItemId={addStockPreselect}
-            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["equipment-items"] })}
           />
           {showMasterData && (
             <Dialog open={showMasterData} onOpenChange={setShowMasterData}>
@@ -708,7 +704,7 @@ export default function EquipmentPage() {
                 <DialogHeader>
                   <DialogTitle>Kelola Master Item Perlengkapan</DialogTitle>
                 </DialogHeader>
-                <MasterDataTab />
+                <MasterDataTab items={items} />
               </DialogContent>
             </Dialog>
           )}
@@ -718,7 +714,7 @@ export default function EquipmentPage() {
                 <DialogHeader>
                   <DialogTitle>Realisasi Perlengkapan</DialogTitle>
                 </DialogHeader>
-                <EquipmentRealizationTab departureId={selectedDeparture} />
+                <EquipmentRealizationTab selectedPackage={selectedPackage} selectedDeparture={selectedDeparture} />
               </DialogContent>
             </Dialog>
           )}
@@ -728,7 +724,7 @@ export default function EquipmentPage() {
                 <DialogHeader>
                   <DialogTitle>Manifest Perlengkapan</DialogTitle>
                 </DialogHeader>
-                <PrintManifest departureId={selectedDeparture} />
+                <PrintManifest distributions={distributions} />
               </DialogContent>
             </Dialog>
           )}
@@ -756,13 +752,9 @@ export default function EquipmentPage() {
             <EquipmentReturnDialog
               open={isReturnDialogOpen}
               onOpenChange={setIsReturnDialogOpen}
-              passenger={returnJamaah}
+              jamaahId={returnJamaah.customer_id}
+              jamaahName={returnJamaah.customer.full_name}
               departureId={selectedDeparture}
-              distributions={distributions || []}
-              onSuccess={() => {
-                queryClient.invalidateQueries({ queryKey: ["equipment-distributions"] });
-                queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
-              }}
             />
           )}
         </TabsContent>

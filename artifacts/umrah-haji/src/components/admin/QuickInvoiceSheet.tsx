@@ -36,7 +36,7 @@ import { formatCurrency, formatDate, getRoomTypeLabel, getPaymentStatusLabel } f
 import { generateInvoice, type InvoiceDataExtended } from "@/lib/document-generator";
 import { toast } from "sonner";
 import { useDocumentLogger } from "@/hooks/useDocumentLogger";
-import type { CompanyInfo } from "@/hooks/useCompanyInfo";
+import type { CompanyInfo } from "@/lib/document-generator";
 
 interface QuickInvoiceSheetProps {
   open: boolean;
@@ -253,7 +253,7 @@ export function QuickInvoiceSheet({
         }`,
       };
 
-      const doc = await generateInvoice(invoiceData, companyInfo);
+      const doc = await generateInvoice(invoiceData, companyInfo ?? undefined);
       doc.save(`Invoice-${booking.booking_code}.pdf`);
       toast.success("Invoice berhasil diunduh");
       await logDocument({
@@ -290,7 +290,7 @@ export function QuickInvoiceSheet({
 
     return (
       `Assalamu'alaikum Wr. Wb., ${name}.\n\n` +
-      `Berikut informasi booking Anda di ${companyInfo?.company_name || "kami"}:\n\n` +
+      `Berikut informasi booking Anda di ${companyInfo?.name || "kami"}:\n\n` +
       `📋 *Kode Booking:* ${booking.booking_code}\n` +
       `🕌 *Paket:* ${pkgName}\n` +
       `✈️ *Keberangkatan:* ${depDate}\n` +

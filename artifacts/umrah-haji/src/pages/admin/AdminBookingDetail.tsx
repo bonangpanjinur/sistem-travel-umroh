@@ -1944,7 +1944,7 @@ export default function AdminBookingDetail() {
           )}
 
           {/* ── Payment Reminder Scheduler ──────────────────────────── */}
-          {booking && (booking.payment_status !== 'paid' && booking.payment_status !== 'verified') && (
+          {booking && booking.payment_status !== 'paid' && (
             <PaymentReminderScheduler booking={booking} />
           )}
         </div>
