@@ -42,6 +42,7 @@ import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { AdminBreadcrumb } from './AdminBreadcrumb';
 import { getMenuIcon } from '@/lib/admin-menu-icons';
+import { prefetchAdminPath } from '@/lib/adminRoutePrefetch';
 import { ROLE_LABELS } from '@/lib/constants';
 import {
   Settings,
@@ -134,6 +135,9 @@ const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavig
                   key={item.id ?? item.key}
                   to={item.path}
                   onClick={onNavigate}
+                  onMouseEnter={() => prefetchAdminPath(item.path)}
+                  onFocus={() => prefetchAdminPath(item.path)}
+                  onTouchStart={() => prefetchAdminPath(item.path)}
                   className={cn(
                     'flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-md text-sm font-medium transition-all duration-150 group relative',
                     active
